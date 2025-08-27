@@ -40,3 +40,12 @@ def load_settings():
     except Exception as exc:
         logging.error(f"Ошибка загрузки settings.json: {exc}")
         return {}
+
+# Загрузка настроек из конфигурации
+def load_settings():
+    try:
+        with open("settings.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Ошибка загрузки settings.json: {e}")
+        return {}
