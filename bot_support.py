@@ -1,10 +1,10 @@
-# bot_support.py
 import logging
 import sqlite3
 import datetime
 import json
 import os
 import uuid
+import re
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ApplicationBuilder,
@@ -15,8 +15,8 @@ from telegram.ext import (
     ConversationHandler,
 )
 from apscheduler.schedulers.background import BackgroundScheduler
-
 from config import TELEGRAM_BOT_TOKEN, DB_PATH, GROUP_CHAT_ID, load_settings
+
 TOKEN = TELEGRAM_BOT_TOKEN
 
 ATTACHMENTS_DIR = "attachments"
@@ -163,7 +163,7 @@ async def business_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     if text not in BUSINESS_OPTIONS:
-        await update.message.reply_text("Выберите бизнес:", reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, add_back=False))
+        await update.message.reply_text("Выберите бизнес:", reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, has_back=False))
         return BUSINESS
 
     context.user_data['business'] = text
@@ -177,12 +177,12 @@ async def business_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- выбор типа локации ---
 async def location_type_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    text = update.message.text.strip()
 
     if text == "◀️ Назад":
         await update.message.reply_text(
             "1️⃣ Выберите бизнес:",
-            reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, add_back=False)
+            reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, has_back=False)
         )
         return BUSINESS
 
@@ -191,8 +191,12 @@ async def location_type_choice(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         return ConversationHandler.END
 
-    if text not in LOCATION_TYPE_OPTIONS:
-        await update.message.reply_text("Выберите тип:", reply_markup=get_keyboard_with_back(LOCATION_TYPE_OPTIONS, add_back=False))
+    # Проверяем точное совпадение
+    if text not in context.user_data.get('location_type_options', []):
+        await update.message.reply_text(
+            "Выберите тип из списка:",
+            reply_markup=get_keyboard_with_back(context.user_data.get('location_type_options', []), has_back=False)
+        )
         return LOCATION_TYPE
 
     context.user_data['location_type'] = text
@@ -217,7 +221,7 @@ async def city_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "◀️ Назад":
         await update.message.reply_text(
             "2️⃣ Тип локации:",
-            reply_markup=get_keyboard_with_back(LOCATION_TYPE_OPTIONS)
+            reply_markup=get_keyboard_with_back(context.user_data.get('location_type_options', []))
         )
         return LOCATION_TYPE
 
@@ -231,7 +235,7 @@ async def city_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text not in LOCATIONS.get(business, {}).get(loc_type, {}):
         cities = list(LOCATIONS[business][loc_type].keys())
-        await update.message.reply_text("Выберите город:", reply_markup=get_keyboard_with_back(cities, add_back=False))
+        await update.message.reply_text("Выберите город:", reply_markup=get_keyboard_with_back(cities, has_back=False))
         return CITY
 
     context.user_data['city'] = text
@@ -267,11 +271,11 @@ async def location_name_choice(update: Update, context: ContextTypes.DEFAULT_TYP
     locations = LOCATIONS[business][loc_type][city]
 
     if text not in locations:
-        await update.message.reply_text("Выберите локацию из списка.", reply_markup=get_keyboard_with_back(locations, add_back=False))
+        await update.message.reply_text("Выберите локацию из списка.", reply_markup=get_keyboard_with_back(locations, has_back=False))
         return LOCATION_NAME
 
     context.user_data['location_name'] = text
-    await update.message.reply_text("5️⃣ Опишите проблему:", reply_markup=get_keyboard_with_back([], add_back=True, add_cancel=True))
+    await update.message.reply_text("5️⃣ Опишите проблему:", reply_markup=get_keyboard_with_back([], has_back=True, has_cancel=True))
     return PROBLEM
 
 # --- описание проблемы и создание тикета ---
@@ -306,7 +310,7 @@ async def problem_description(update: Update, context: ContextTypes.DEFAULT_TYPE
     ticket_id = str(uuid.uuid4())[:8]
     context.user_data['ticket_id'] = ticket_id
 
-    # 🕒 Получаем текущее время
+    # Получаем текущее время
     now = datetime.datetime.now()
     created_at = now.isoformat()
     created_date = now.strftime('%Y-%m-%d')
@@ -330,7 +334,7 @@ async def problem_description(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode='HTML'
         )
 
-        with sqlite3.connect("tickets.db") as conn:
+        with sqlite3.connect(DB_PATH) as conn:
             conn.execute(
                 "INSERT INTO tickets (user_id, group_msg_id, status, ticket_id) VALUES (?, ?, ?, ?)",
                 (user.id, sent.message_id, "pending", ticket_id)
@@ -367,7 +371,6 @@ async def reply_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if replied.from_user.id != context.bot.id:
         return
 
-    import re
     match = re.search(r"ID: <code>(\d+)</code>", replied.text)
     if not match:
         return
@@ -399,12 +402,12 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with sqlite3.connect(DB_PATH) as conn:
         total = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
         resolved = conn.execute("SELECT COUNT(*) FROM tickets WHERE status = 'resolved'").fetchone()[0]
-        pending = total - resolved
+        pending_count = total - resolved
     await update.message.reply_text(
         f"📊 <b>Статистика</b>\n\n"
         f"📬 Всего: <b>{total}</b>\n"
         f"✅ Решено: <b>{resolved}</b>\n"
-        f"⏳ В обработке: <b>{pending}</b>",
+        f"⏳ В обработке: <b>{pending_count}</b>",
         parse_mode="HTML",
     )
 
@@ -469,16 +472,12 @@ async def save_user_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     message = update.message
 
-    with sqlite3.connect(DB_PATH) as conn:
-        row = conn.execute(
-            "SELECT ticket_id FROM tickets WHERE user_id = ? AND status = 'pending' ORDER BY ROWID DESC LIMIT 1",
-            (user.id,)
-        ).fetchone()
-
-    if not row:
+    # Получаем ticket_id из user_data
+    ticket_id = context.user_data.get("ticket_id")
+    if not ticket_id:
+        await update.message.reply_text("❌ Ошибка: заявка не найдена. Перезапустите /start")
         return
 
-    ticket_id = row[0]
     timestamp = datetime.datetime.now().isoformat()
     attachment_path = None
     message_type = None
@@ -517,8 +516,12 @@ async def save_user_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 (user.id, "user", text, timestamp, ticket_id, message_type, attachment_path)
             )
             conn.commit()
+
+        await update.message.reply_text("✅ Медиа сохранено. Спасибо!")
         logging.info(f"Медиа от {user.id} сохранено")
+
     except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
         logging.error(f"Ошибка сохранения медиа: {e}")
 
 # --- оценка поддержки ---
@@ -572,7 +575,10 @@ if __name__ == "__main__":
             LOCATION_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, location_type_choice)],
             CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, city_choice)],
             LOCATION_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, location_name_choice)],
-            PROBLEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, problem_description)],
+            PROBLEM: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, problem_description),
+                MessageHandler(filters.PHOTO | filters.VOICE | filters.VIDEO | filters.Document.ALL, save_user_media)
+            ],
         },
         fallbacks=[CommandHandler("cancel", lambda u, c: u.message.reply_text("❌ Заявка отменена.", reply_markup=ReplyKeyboardRemove()) or ConversationHandler.END)],
     )
