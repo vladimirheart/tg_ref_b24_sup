@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from config import TELEGRAM_BOT_TOKEN, DB_PATH, GROUP_CHAT_ID
+from config import TELEGRAM_BOT_TOKEN, DB_PATH, GROUP_CHAT_ID, load_settings
 TOKEN = TELEGRAM_BOT_TOKEN
 
 ATTACHMENTS_DIR = "attachments"
@@ -33,6 +33,7 @@ def load_locations():
 
 LOCATIONS = load_locations()
 BUSINESS_OPTIONS = list(LOCATIONS.keys())
+SETTINGS = load_settings()
 
 # --- вспомогательная клавиатура ---
 def get_keyboard_with_back(options, has_back=True, has_cancel=True):
@@ -156,6 +157,39 @@ async def business_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_keyboard_with_back(location_type_options),
     )
     return LOCATION_TYPE
+    
+# --- создание тикета ---
+async def create_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    ticket_id = str(uuid.uuid4())  # Генерация уникального ticket_id
+
+    # Записываем в базу данных
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("INSERT INTO tickets (user_id, ticket_id, status) VALUES (?, ?, ?)", 
+                     (user.id, ticket_id, 'pending'))
+
+    # Отправляем клиенту уникальный ID
+    await update.message.reply_text(f"✅ Ваша заявка создана! Ваш ID заявки: {ticket_id}")
+
+# --- проверка старых заявок ---
+async def check_existing_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    with sqlite3.connect(DB_PATH) as conn:
+        closed_tickets = conn.execute(
+            "SELECT ticket_id, status, subject FROM tickets WHERE user_id = ? AND status = 'closed'", 
+            (user.id,)
+        ).fetchall()
+
+    if closed_tickets:
+        # Если есть закрытые заявки
+        ticket_list = "\n".join([f"ID: {ticket[0]} - Тема: {ticket[2]}" for ticket in closed_tickets])
+        await update.message.reply_text(f"У вас есть закрытые заявки:\n{ticket_list}\n\nХотите продолжить работу с ними или создать новую заявку?")
+        return
+
+    # Если закрытых заявок нет, продолжаем создание новой заявки
+    await update.message.reply_text("Начинаем создание новой заявки.")
+    return BUSINESS
 
 # --- выбор типа локации ---
 async def location_type_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -512,14 +546,9 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- автоматическое закрытие ---
 def auto_close_inactive():
+    
     with sqlite3.connect(DB_PATH) as conn:
-        try:
-            with open("settings.json", "r", encoding="utf-8") as f:
-                settings = json.load(f)
-            hours = settings.get("auto_close_hours", 24)
-        except Exception:
-            hours = 24
-
+        hours = SETTINGS.get("auto_close_hours", 24)
         cutoff = datetime.datetime.now() - datetime.timedelta(hours=hours)
         rows = conn.execute("""
             SELECT DISTINCT ch.user_id FROM chat_history ch
@@ -532,6 +561,24 @@ def auto_close_inactive():
             )
             logging.info(f"Авто-закрытие: {user_id}")
         conn.commit()
+
+# --- обработка вложений ---
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+
+async def handle_attachment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file = update.message.document or update.message.photo[-1]  # Получаем файл
+    file_id = file.file_id
+    file_size = file.file_size
+
+    # Если размер файла больше 20 МБ
+    if file_size > MAX_FILE_SIZE:
+        await update.message.reply_text("⚠️ Размер файла превышает допустимый лимит (20 MB). Попробуйте отправить файл меньшего размера.")
+        return
+
+    # Загружаем файл, если размер в пределах нормы
+    file_path = await file.get_file()
+    file_path.download(f"{ATTACHMENTS_DIR}/{file_id}.jpg")  # Сохраняем файл
+    await update.message.reply_text("✅ Файл успешно загружен!")
 
 # --- запуск приложения ---
 if __name__ == "__main__":
@@ -560,10 +607,16 @@ if __name__ == "__main__":
         save_user_media,
     ))
     app.add_handler(MessageHandler(filters.Regex("^[1-5]$") & filters.ChatType.PRIVATE, handle_feedback))
+    
+    app.add_handler(MessageHandler(
+    (filters.PHOTO | filters.VOICE | filters.VIDEO | filters.Document.ALL) & filters.ChatType.PRIVATE,
+    save_user_media,
+))
 
     logging.info("✅ Бот запущен с системой статусов и фильтрами")
 
     scheduler = BackgroundScheduler()
+    
     scheduler.add_job(auto_close_inactive, "interval", minutes=30)
 
     def reload_locations():
@@ -576,10 +629,24 @@ if __name__ == "__main__":
                     BUSINESS_OPTIONS = list(LOCATIONS.keys())
                     logging.info("✅ Структура локаций перезагружена")
             reload_locations.last_mtime = mtime
+        
         except Exception as e:
             logging.error(f"Ошибка перезагрузки locations.json: {e}")
 
+    def reload_settings():
+        global SETTINGS
+        try:
+            mtime = os.path.getmtime("settings.json")
+            if hasattr(reload_settings, "last_mtime"):
+                if mtime > reload_settings.last_mtime:
+                    SETTINGS = load_settings()
+                    logging.info("✅ Настройки перезагружены")
+            reload_settings.last_mtime = mtime
+        except Exception as e:
+            logging.error(f"Ошибка перезагрузки settings.json: {e}")
+
     scheduler.add_job(reload_locations, "interval", seconds=10)
+    scheduler.add_job(reload_settings, "interval", seconds=10)
     scheduler.start()
 
     app.run_polling()
