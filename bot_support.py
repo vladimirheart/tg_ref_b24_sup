@@ -111,6 +111,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 # --- состояния ---
 BUSINESS, LOCATION_TYPE, CITY, LOCATION_NAME, PROBLEM = range(5)
+PREV_STEP = -1
 
 # --- /start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,9 +134,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return BUSINESS
 
+# --- /tickets - просмотр старых заявок ---
+async def tickets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    with sqlite3.connect(DB_PATH) as conn:
+        closed_tickets = conn.execute(
+            "SELECT ticket_id, status, resolved_at FROM tickets WHERE user_id = ? ORDER BY resolved_at DESC LIMIT 5", 
+            (user.id,)
+        ).fetchall()
+
+    if closed_tickets:
+        ticket_list = "\n".join([f"ID: {ticket[0]} - Статус: {ticket[1]} - Закрыта: {ticket[2][:10] if ticket[2] else 'N/A'}" for ticket in closed_tickets])
+        await update.message.reply_text(f"📋 Ваши последние заявки:\n{ticket_list}")
+    else:
+        await update.message.reply_text("У вас пока нет закрытых заявок.")
+
 # --- выбор бизнеса ---
 async def business_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+
+    if text == "◀️ Назад":
+        return await start(update, context)
 
     if text == "🚫 Отмена":
         await update.message.reply_text("❌ Заявка отменена.", reply_markup=ReplyKeyboardRemove())
@@ -143,63 +163,26 @@ async def business_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     if text not in BUSINESS_OPTIONS:
-        await update.message.reply_text(
-            "Выберите бизнес:",
-            reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, has_back=False),
-        )
+        await update.message.reply_text("Выберите бизнес:", reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, add_back=False))
         return BUSINESS
 
-    context.user_data["business"] = text
+    context.user_data['business'] = text
     location_type_options = list(LOCATIONS[text].keys())
-    context.user_data["location_type_options"] = location_type_options
+    context.user_data['location_type_options'] = location_type_options
     await update.message.reply_text(
         "2️⃣ Тип локации:",
-        reply_markup=get_keyboard_with_back(location_type_options),
+        reply_markup=get_keyboard_with_back(location_type_options)
     )
     return LOCATION_TYPE
-    
-# --- создание тикета ---
-async def create_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    ticket_id = str(uuid.uuid4())  # Генерация уникального ticket_id
-
-    # Записываем в базу данных
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("INSERT INTO tickets (user_id, ticket_id, status) VALUES (?, ?, ?)", 
-                     (user.id, ticket_id, 'pending'))
-
-    # Отправляем клиенту уникальный ID
-    await update.message.reply_text(f"✅ Ваша заявка создана! Ваш ID заявки: {ticket_id}")
-
-# --- проверка старых заявок ---
-async def check_existing_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-
-    with sqlite3.connect(DB_PATH) as conn:
-        closed_tickets = conn.execute(
-            "SELECT ticket_id, status, subject FROM tickets WHERE user_id = ? AND status = 'closed'", 
-            (user.id,)
-        ).fetchall()
-
-    if closed_tickets:
-        # Если есть закрытые заявки
-        ticket_list = "\n".join([f"ID: {ticket[0]} - Тема: {ticket[2]}" for ticket in closed_tickets])
-        await update.message.reply_text(f"У вас есть закрытые заявки:\n{ticket_list}\n\nХотите продолжить работу с ними или создать новую заявку?")
-        return
-
-    # Если закрытых заявок нет, продолжаем создание новой заявки
-    await update.message.reply_text("Начинаем создание новой заявки.")
-    return BUSINESS
 
 # --- выбор типа локации ---
 async def location_type_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    location_type_options = context.user_data.get("location_type_options", [])
 
     if text == "◀️ Назад":
         await update.message.reply_text(
             "1️⃣ Выберите бизнес:",
-            reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, has_back=False),
+            reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, add_back=False)
         )
         return BUSINESS
 
@@ -208,35 +191,33 @@ async def location_type_choice(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         return ConversationHandler.END
 
-    if text not in location_type_options:
-        await update.message.reply_text(
-            "Выберите тип:",
-            reply_markup=get_keyboard_with_back(location_type_options, has_back=False),
-        )
+    if text not in LOCATION_TYPE_OPTIONS:
+        await update.message.reply_text("Выберите тип:", reply_markup=get_keyboard_with_back(LOCATION_TYPE_OPTIONS, add_back=False))
         return LOCATION_TYPE
 
-    context.user_data["location_type"] = text
-    business = context.user_data["business"]
-    cities = list(LOCATIONS[business][text].keys())
-    context.user_data["city_options"] = cities
-    await update.message.reply_text(
-        "3️⃣ Выберите город:",
-        reply_markup=get_keyboard_with_back(cities),
-    )
-    return CITY
+    context.user_data['location_type'] = text
+    business = context.user_data['business']
+    loc_type = context.user_data['location_type']
+
+    try:
+        cities = list(LOCATIONS[business][loc_type].keys())
+        await update.message.reply_text(
+            "3️⃣ Выберите город:",
+            reply_markup=get_keyboard_with_back(cities)
+        )
+        return CITY
+    except KeyError:
+        await update.message.reply_text("❌ Ошибка: нет данных. Перезапустите /start")
+        return ConversationHandler.END
 
 # --- выбор города ---
 async def city_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    city_options = context.user_data.get("city_options", [])
-    business = context.user_data["business"]
-    loc_type = context.user_data["location_type"]
 
     if text == "◀️ Назад":
-        location_type_options = context.user_data.get("location_type_options", [])
         await update.message.reply_text(
             "2️⃣ Тип локации:",
-            reply_markup=get_keyboard_with_back(location_type_options),
+            reply_markup=get_keyboard_with_back(LOCATION_TYPE_OPTIONS)
         )
         return LOCATION_TYPE
 
@@ -245,32 +226,33 @@ async def city_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.clear()
         return ConversationHandler.END
 
-    if text not in city_options:
-        await update.message.reply_text(
-            "Выберите город:",
-            reply_markup=get_keyboard_with_back(city_options, has_back=False),
-        )
+    business = context.user_data['business']
+    loc_type = context.user_data['location_type']
+
+    if text not in LOCATIONS.get(business, {}).get(loc_type, {}):
+        cities = list(LOCATIONS[business][loc_type].keys())
+        await update.message.reply_text("Выберите город:", reply_markup=get_keyboard_with_back(cities, add_back=False))
         return CITY
 
-    context.user_data["city"] = text
+    context.user_data['city'] = text
     locations = LOCATIONS[business][loc_type][text]
-    context.user_data["location_options"] = locations
     await update.message.reply_text(
         "4️⃣ Выберите локацию:",
-        reply_markup=get_keyboard_with_back(locations),
+        reply_markup=get_keyboard_with_back(locations)
     )
     return LOCATION_NAME
 
 # --- выбор локации ---
 async def location_name_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    locations = context.user_data.get("location_options", [])
 
     if text == "◀️ Назад":
-        cities = context.user_data.get("city_options", [])
+        business = context.user_data['business']
+        loc_type = context.user_data['location_type']
+        cities = list(LOCATIONS[business][loc_type].keys())
         await update.message.reply_text(
             "3️⃣ Выберите город:",
-            reply_markup=get_keyboard_with_back(cities),
+            reply_markup=get_keyboard_with_back(cities)
         )
         return CITY
 
@@ -279,18 +261,17 @@ async def location_name_choice(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         return ConversationHandler.END
 
+    business = context.user_data['business']
+    loc_type = context.user_data['location_type']
+    city = context.user_data['city']
+    locations = LOCATIONS[business][loc_type][city]
+
     if text not in locations:
-        await update.message.reply_text(
-            "Выберите локацию из списка.",
-            reply_markup=get_keyboard_with_back(locations, has_back=False),
-        )
+        await update.message.reply_text("Выберите локацию из списка.", reply_markup=get_keyboard_with_back(locations, add_back=False))
         return LOCATION_NAME
 
-    context.user_data["location_name"] = text
-    await update.message.reply_text(
-        "5️⃣ Опишите проблему:",
-        reply_markup=get_keyboard_with_back([], has_back=True, has_cancel=True),
-    )
+    context.user_data['location_name'] = text
+    await update.message.reply_text("5️⃣ Опишите проблему:", reply_markup=get_keyboard_with_back([], add_back=True, add_cancel=True))
     return PROBLEM
 
 # --- описание проблемы и создание тикета ---
@@ -298,10 +279,13 @@ async def problem_description(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = update.message.text
 
     if text == "◀️ Назад":
-        locations = context.user_data.get("location_options", [])
+        business = context.user_data['business']
+        loc_type = context.user_data['location_type']
+        city = context.user_data['city']
+        locations = LOCATIONS[business][loc_type][city]
         await update.message.reply_text(
             "4️⃣ Выберите локацию:",
-            reply_markup=get_keyboard_with_back(locations),
+            reply_markup=get_keyboard_with_back(locations)
         )
         return LOCATION_NAME
 
@@ -310,21 +294,23 @@ async def problem_description(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.user_data.clear()
         return ConversationHandler.END
 
-    if context.user_data.get("in_progress"):
+    if context.user_data.get('in_progress'):
         await update.message.reply_text("❌ Вы уже отправляете заявку.")
         return ConversationHandler.END
 
-    context.user_data["in_progress"] = True
-    context.user_data["problem"] = text
+    context.user_data['in_progress'] = True
+    context.user_data['problem'] = text
     user = update.effective_user
     username = user.username or ""
-    ticket_id = str(uuid.uuid4())[:8]
-    context.user_data["ticket_id"] = ticket_id
 
+    ticket_id = str(uuid.uuid4())[:8]
+    context.user_data['ticket_id'] = ticket_id
+
+    # 🕒 Получаем текущее время
     now = datetime.datetime.now()
     created_at = now.isoformat()
-    created_date = now.strftime("%Y-%m-%d")
-    created_time = now.strftime("%H:%M")
+    created_date = now.strftime('%Y-%m-%d')
+    created_time = now.strftime('%H:%M')
 
     full_message = (
         f"📩 <b>Новая заявка #{ticket_id}</b>\n"
@@ -339,41 +325,37 @@ async def problem_description(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         sent = await context.bot.send_message(
-            chat_id=GROUP_CHAT_ID, text=full_message, parse_mode="HTML"
+            chat_id=GROUP_CHAT_ID,
+            text=full_message,
+            parse_mode='HTML'
         )
-        with sqlite3.connect(DB_PATH) as conn:
+
+        with sqlite3.connect("tickets.db") as conn:
             conn.execute(
                 "INSERT INTO tickets (user_id, group_msg_id, status, ticket_id) VALUES (?, ?, ?, ?)",
-                (user.id, sent.message_id, "pending", ticket_id),
+                (user.id, sent.message_id, "pending", ticket_id)
             )
             conn.execute(
                 "INSERT INTO messages (group_msg_id, user_id, business, location_type, city, location_name, problem, created_at, username, ticket_id, created_date, created_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    sent.message_id,
-                    user.id,
-                    context.user_data["business"],
-                    context.user_data["location_type"],
-                    context.user_data["city"],
-                    context.user_data["location_name"],
-                    context.user_data["problem"],
-                    created_at,
-                    username,
-                    ticket_id,
-                    created_date,
-                    created_time,
-                ),
+                (sent.message_id, user.id, context.user_data['business'], context.user_data['location_type'],
+                 context.user_data['city'], context.user_data['location_name'], context.user_data['problem'],
+                 created_at, username, ticket_id, created_date, created_time)
             )
             conn.execute(
-                "INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, attachment) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (user.id, "user", context.user_data["problem"], created_at, ticket_id, "text", None),
+                "INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id) VALUES (?, ?, ?, ?, ?)",
+                (user.id, "user", context.user_data['problem'], created_at, ticket_id)
             )
             conn.commit()
+
         await update.message.reply_text("✅ Заявка отправлена. Спасибо!", reply_markup=ReplyKeyboardRemove())
+
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
         logging.error(f"Ошибка отправки: {e}")
+
     finally:
         context.user_data.clear()
+
     return ConversationHandler.END
 
 # --- ответ администратора ---
@@ -428,21 +410,29 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with sqlite3.connect(DB_PATH) as conn:
-        rows = conn.execute("SELECT user_id FROM tickets WHERE status = 'pending'").fetchall()
+        rows = conn.execute("""
+            SELECT t.user_id, t.ticket_id, m.problem 
+            FROM tickets t 
+            JOIN messages m ON t.ticket_id = m.ticket_id 
+            WHERE t.status = 'pending'
+        """).fetchall()
+    
     if not rows:
         await update.message.reply_text("✅ Нет заявок в обработке.")
         return
+    
     text = "📬 <b>Заявки в обработке:</b>\n\n"
-    for (user_id,) in rows:
-        text += f"• Пользователь <code>{user_id}</code>\n"
+    for user_id, ticket_id, problem in rows:
+        text += f"• ID: {ticket_id} - Пользователь: <code>{user_id}</code>\nПроблема: {problem[:50]}...\n\n"
+    
     await update.message.reply_text(text, parse_mode="HTML")
 
 async def my_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin = update.effective_user
     admin_name = f"@{admin.username}" if admin.username else admin.first_name
     with sqlite3.connect(DB_PATH) as conn:
-        rows = conn.execute("SELECT user_id FROM tickets WHERE resolved_by = ?", (admin_name,)).fetchall()
-    count = len(rows)
+        rows = conn.execute("SELECT COUNT(*) FROM tickets WHERE resolved_by = ?", (admin_name,)).fetchone()
+    count = rows[0] if rows else 0
     await update.message.reply_text(
         f"🛠 Вы закрыли <b>{count}</b> заявок.",
         parse_mode="HTML",
@@ -455,8 +445,8 @@ async def save_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     with sqlite3.connect(DB_PATH) as conn:
         row = conn.execute(
-            "SELECT ticket_id FROM tickets WHERE user_id = ? ORDER BY ROWID DESC LIMIT 1",
-            (user.id,),
+            "SELECT ticket_id FROM tickets WHERE user_id = ? AND status = 'pending' ORDER BY ROWID DESC LIMIT 1",
+            (user.id,)
         ).fetchone()
 
     if not row:
@@ -467,13 +457,13 @@ async def save_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute(
                 "INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, attachment) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (user.id, "user", message, datetime.datetime.now().isoformat(), ticket_id, "text", None),
+                (user.id, "user", message, datetime.datetime.now().isoformat(), ticket_id, "text", None)
             )
             conn.commit()
         logging.info(f"Сообщение от {user.id} сохранено в историю")
     except Exception as e:
         logging.error(f"Ошибка сохранения сообщения: {e}")
-
+        
 # --- сохранение медиа ---
 async def save_user_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -481,8 +471,8 @@ async def save_user_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     with sqlite3.connect(DB_PATH) as conn:
         row = conn.execute(
-            "SELECT ticket_id FROM tickets WHERE user_id = ? ORDER BY ROWID DESC LIMIT 1",
-            (user.id,),
+            "SELECT ticket_id FROM tickets WHERE user_id = ? AND status = 'pending' ORDER BY ROWID DESC LIMIT 1",
+            (user.id,)
         ).fetchone()
 
     if not row:
@@ -524,7 +514,7 @@ async def save_user_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute(
                 "INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, attachment) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (user.id, "user", text, timestamp, ticket_id, message_type, attachment_path),
+                (user.id, "user", text, timestamp, ticket_id, message_type, attachment_path)
             )
             conn.commit()
         logging.info(f"Медиа от {user.id} сохранено")
@@ -546,39 +536,30 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- автоматическое закрытие ---
 def auto_close_inactive():
-    
     with sqlite3.connect(DB_PATH) as conn:
         hours = SETTINGS.get("auto_close_hours", 24)
         cutoff = datetime.datetime.now() - datetime.timedelta(hours=hours)
-        rows = conn.execute("""
-            SELECT DISTINCT ch.user_id FROM chat_history ch
-            WHERE ch.timestamp < ? AND ch.user_id IN (SELECT user_id FROM tickets WHERE status = 'pending')
-        """, (cutoff.isoformat(),))
-        for (user_id,) in rows:
-            conn.execute(
-                "UPDATE tickets SET status = 'resolved', resolved_at = ?, resolved_by = 'Авто-система' WHERE user_id = ?",
-                (datetime.datetime.now().isoformat(), user_id),
+        
+        # Находим тикеты без активности в течение заданного времени
+        inactive_tickets = conn.execute("""
+            SELECT t.user_id, t.ticket_id 
+            FROM tickets t
+            WHERE t.status = 'pending' 
+            AND t.ticket_id NOT IN (
+                SELECT DISTINCT ticket_id 
+                FROM chat_history 
+                WHERE timestamp > ?
             )
-            logging.info(f"Авто-закрытие: {user_id}")
+        """, (cutoff.isoformat(),)).fetchall()
+        
+        for user_id, ticket_id in inactive_tickets:
+            conn.execute(
+                "UPDATE tickets SET status = 'resolved', resolved_at = ?, resolved_by = 'Авто-система' WHERE ticket_id = ?",
+                (datetime.datetime.now().isoformat(), ticket_id),
+            )
+            logging.info(f"Авто-закрытие тикета {ticket_id} пользователя {user_id}")
+        
         conn.commit()
-
-# --- обработка вложений ---
-MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
-
-async def handle_attachment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file = update.message.document or update.message.photo[-1]  # Получаем файл
-    file_id = file.file_id
-    file_size = file.file_size
-
-    # Если размер файла больше 20 МБ
-    if file_size > MAX_FILE_SIZE:
-        await update.message.reply_text("⚠️ Размер файла превышает допустимый лимит (20 MB). Попробуйте отправить файл меньшего размера.")
-        return
-
-    # Загружаем файл, если размер в пределах нормы
-    file_path = await file.get_file()
-    file_path.download(f"{ATTACHMENTS_DIR}/{file_id}.jpg")  # Сохраняем файл
-    await update.message.reply_text("✅ Файл успешно загружен!")
 
 # --- запуск приложения ---
 if __name__ == "__main__":
@@ -593,10 +574,11 @@ if __name__ == "__main__":
             LOCATION_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, location_name_choice)],
             PROBLEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, problem_description)],
         },
-        fallbacks=[CommandHandler("start", start)],
+        fallbacks=[CommandHandler("cancel", lambda u, c: u.message.reply_text("❌ Заявка отменена.", reply_markup=ReplyKeyboardRemove()) or ConversationHandler.END)],
     )
 
     app.add_handler(conv_handler)
+    app.add_handler(CommandHandler("tickets", tickets_command))
     app.add_handler(MessageHandler(filters.REPLY & filters.Chat(GROUP_CHAT_ID), reply_to_user))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("pending", pending))
@@ -607,16 +589,10 @@ if __name__ == "__main__":
         save_user_media,
     ))
     app.add_handler(MessageHandler(filters.Regex("^[1-5]$") & filters.ChatType.PRIVATE, handle_feedback))
-    
-    app.add_handler(MessageHandler(
-    (filters.PHOTO | filters.VOICE | filters.VIDEO | filters.Document.ALL) & filters.ChatType.PRIVATE,
-    save_user_media,
-))
 
     logging.info("✅ Бот запущен с системой статусов и фильтрами")
 
     scheduler = BackgroundScheduler()
-    
     scheduler.add_job(auto_close_inactive, "interval", minutes=30)
 
     def reload_locations():
