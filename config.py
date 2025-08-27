@@ -1,4 +1,6 @@
 import os
+import json
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -6,9 +8,10 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).parent.absolute()
 load_dotenv(BASE_DIR / '.env')
 
-# Настройки базы данных
+# Пути к базам данных и настройкам
 DB_PATH = BASE_DIR / "tickets.db"
 USERS_DB_PATH = BASE_DIR / "users.db"
+SETTINGS_PATH = BASE_DIR / "settings.json"
 
 # Telegram настройки из .env
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
@@ -27,3 +30,13 @@ try:
     GROUP_CHAT_ID = int(GROUP_CHAT_ID)
 except ValueError:
     raise ValueError("❌ GROUP_CHAT_ID должен быть числом")
+
+
+def load_settings():
+    """Загрузка настроек из settings.json."""
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as exc:
+        logging.error(f"Ошибка загрузки settings.json: {exc}")
+        return {}
