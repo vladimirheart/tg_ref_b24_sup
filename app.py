@@ -8,13 +8,13 @@ import os
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from threading import Timer
+from datetime import datetime as dt
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-in-production'
 
 # === НАСТРОЙКИ ===
-TELEGRAM_BOT_TOKEN = "8391583658:AAGrNdENe29YmD8U-DSZBoNJmCXAiEb98sI"
-GROUP_CHAT_ID = -4961108450
+TOKEN = TELEGRAM_BOT_TOKEN
 
 # Подключение к базе
 def get_db():
@@ -240,7 +240,10 @@ def client_profile(user_id):
             m.created_at,
             t.status,
             t.resolved_by,
-            t.resolved_at,
+            CASE 
+                WHEN t.resolved_at IS NOT NULL THEN datetime(t.resolved_at)
+                ELSE NULL 
+            END AS resolved_at,
             m.created_date,
             m.created_time,
             m.category
@@ -251,18 +254,21 @@ def client_profile(user_id):
     """, (user_id,))
     tickets = cur.fetchall()
 
-    # Добавляем время активности
+    # ✅ Преобразуем Row в dict и добавляем duration_minutes
+    ticket_list = []
     for t in tickets:
-        if t['status'] == 'resolved' and t['resolved_at'] and t['created_date'] and t['created_time']:
+        row = dict(t)
+        if row['status'] == 'resolved' and row['resolved_at'] and row['created_date'] and row['created_time']:
             try:
-                start = datetime.datetime.fromisoformat(f"{t['created_date']} {t['created_time']}")
-                end = datetime.datetime.fromisoformat(t['resolved_at'])
-                t['duration_minutes'] = int((end - start).total_seconds() // 60)
+                start = dt.fromisoformat(f"{row['created_date']} {row['created_time']}")
+                end = dt.fromisoformat(row['resolved_at'])
+                row['duration_minutes'] = int((end - start).total_seconds() // 60)
             except Exception as e:
                 print(f"Ошибка расчёта времени: {e}")
-                t['duration_minutes'] = None
+                row['duration_minutes'] = None
         else:
-            t['duration_minutes'] = None
+            row['duration_minutes'] = None
+        ticket_list.append(row)
 
     # Статистика
     cur.execute("""
@@ -288,12 +294,13 @@ def client_profile(user_id):
     conn.close()
 
     return render_template(
-        "client_profile.html",
-        client=dict(info),
-        tickets=[dict(t) for t in tickets],
-        stats=dict(stats),
-        feedbacks=[dict(f) for f in feedbacks]
-    )
+    "client_profile.html",
+    client=dict(info),
+    tickets=[dict(t) for t in tickets],
+    stats=dict(stats),
+    feedbacks=[dict(f) for f in feedbacks],
+    datetime=dt  # ← Добавлено
+)
 
 # === Аналитика по клиентам ===
 @app.route("/analytics/clients")
@@ -525,9 +532,11 @@ def close_ticket():
         conn.close()
 
         try:
+            # ✅ Уведомление о закрытии
             close_msg = f"Ваше обращение #{ticket_id} закрыто. Для запуска нового диалога нажмите /start"
             send_telegram_message(chat_id=user_id, text=close_msg, parse_mode='HTML')
 
+            # ✅ Запрос на оценку
             feedback_msg = (
                 "🌟 Пожалуйста, оцените качество поддержки:\n\n"
                 "1️⃣ — Очень плохо\n"
@@ -539,6 +548,7 @@ def close_ticket():
             )
             send_telegram_message(chat_id=user_id, text=feedback_msg, parse_mode='HTML')
 
+            # ✅ Таймер: 15 минут
             def send_sorry():
                 with sqlite3.connect("tickets.db") as conn:
                     row = conn.execute("SELECT * FROM feedbacks WHERE user_id = ?", (user_id,)).fetchone()
