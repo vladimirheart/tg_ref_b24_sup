@@ -240,10 +240,7 @@ def client_profile(user_id):
             m.created_at,
             t.status,
             t.resolved_by,
-            CASE 
-                WHEN t.resolved_at IS NOT NULL THEN datetime(t.resolved_at)
-                ELSE NULL 
-            END AS resolved_at,
+            t.resolved_at,
             m.created_date,
             m.created_time,
             m.category
@@ -254,21 +251,18 @@ def client_profile(user_id):
     """, (user_id,))
     tickets = cur.fetchall()
 
-    # ✅ Считаем duration_minutes в Python
-    ticket_list = []
+    # Добавляем время активности
     for t in tickets:
-        row = dict(t)
-        if row['status'] == 'resolved' and row['resolved_at'] and row['created_date'] and row['created_time']:
+        if t['status'] == 'resolved' and t['resolved_at'] and t['created_date'] and t['created_time']:
             try:
-                start = dt.fromisoformat(f"{row['created_date']} {row['created_time']}")
-                end = dt.fromisoformat(row['resolved_at'])
-                row['duration_minutes'] = int((end - start).total_seconds() // 60)
+                start = datetime.datetime.fromisoformat(f"{t['created_date']} {t['created_time']}")
+                end = datetime.datetime.fromisoformat(t['resolved_at'])
+                t['duration_minutes'] = int((end - start).total_seconds() // 60)
             except Exception as e:
                 print(f"Ошибка расчёта времени: {e}")
-                row['duration_minutes'] = None
+                t['duration_minutes'] = None
         else:
-            row['duration_minutes'] = None
-        ticket_list.append(row)
+            t['duration_minutes'] = None
 
     # Статистика
     cur.execute("""
@@ -296,59 +290,12 @@ def client_profile(user_id):
     return render_template(
         "client_profile.html",
         client=dict(info),
-        tickets=ticket_list,  # ← Уже список словарей с duration_minutes
-        stats=dict(stats),
-        feedbacks=[dict(f) for f in feedbacks]
-        # ❌ Убрали datetime=dt — не нужно
-    )
-
-    # ✅ Вычисляем duration_minutes на стороне Python
-    ticket_list = []
-    for t in tickets:
-        row = dict(t)
-        if row['status'] == 'resolved' and row['resolved_at'] and row['created_date'] and row['created_time']:
-            try:
-                start = datetime.datetime.fromisoformat(f"{row['created_date']} {row['created_time']}")
-                end = datetime.datetime.fromisoformat(row['resolved_at'])
-                row['duration_minutes'] = int((end - start).total_seconds() // 60)
-            except Exception as e:
-                print(f"Ошибка расчёта времени: {e}")
-                row['duration_minutes'] = None
-        else:
-            row['duration_minutes'] = None
-        ticket_list.append(row)
-
-    # Статистика
-    cur.execute("""
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN t.status = 'resolved' THEN 1 ELSE 0 END) as resolved,
-            SUM(CASE WHEN t.status != 'resolved' THEN 1 ELSE 0 END) as pending
-        FROM messages m
-        LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
-        WHERE m.user_id = ?
-    """, (user_id,))
-    stats = cur.fetchone()
-
-    # Оценки (если есть таблица feedbacks)
-    try:
-        cur.execute("""
-            SELECT rating, timestamp FROM feedbacks WHERE user_id = ? ORDER BY timestamp DESC
-        """, (user_id,))
-        feedbacks = cur.fetchall()
-    except:
-        feedbacks = []
-
-    conn.close()
-
-    return render_template(
-        "client_profile.html",
-        client=dict(info),
-        tickets=ticket_list,
+        tickets=[dict(t) for t in tickets],
         stats=dict(stats),
         feedbacks=[dict(f) for f in feedbacks]
     )
 
+# === Аналитика по клиентам ===
 @app.route("/analytics/clients")
 @login_required
 def analytics_clients():
@@ -412,6 +359,7 @@ def dashboard():
     conn = get_db()
     cur = conn.cursor()
 
+    # Простые данные для графиков
     cur.execute("SELECT status, COUNT(*) AS cnt FROM tickets GROUP BY status")
     status_rows = cur.fetchall()
     status_data = {row['status'] if row['status'] is not None else 'неизвестно': row['cnt'] for row in status_rows}
@@ -438,21 +386,14 @@ def dashboard():
 @app.route("/settings")
 @login_required
 def settings_page():
-    settings = {"auto_close_hours": 24, "categories": ["Консультация"]}  # ✅ Дефолтные значения
+    settings = {"auto_close_hours": 24, "categories": ["Консультация"]}
     locations = {}
     if os.path.exists("../settings.json"):
-        try:
-            with open("../settings.json", "r", encoding="utf-8") as f:
-                loaded = json.load(f)
-                settings.update({k: v for k, v in loaded.items() if k in ["auto_close_hours", "categories"]})
-        except Exception as e:
-            logging.error(f"Ошибка загрузки settings.json: {e}")
+        with open("../settings.json", "r", encoding="utf-8") as f:
+            settings = json.load(f)
     if os.path.exists("../locations.json"):
-        try:
-            with open("../locations.json", "r", encoding="utf-8") as f:
-                locations = json.load(f)
-        except Exception as e:
-            logging.error(f"Ошибка загрузки locations.json: {e}")
+        with open("../locations.json", "r", encoding="utf-8") as f:
+            locations = json.load(f)
     return render_template("settings.html", settings=settings, locations=locations)
 
 @app.route("/settings", methods=["POST"])
@@ -604,6 +545,7 @@ def close_ticket():
                 if not row:
                     send_telegram_message(chat_id=user_id, text="Очень жаль, что не получили вашей оценки.", parse_mode='HTML')
 
+            from threading import Timer
             Timer(900, send_sorry).start()
 
         except Exception as e:
