@@ -1,0 +1,118 @@
+<!-- panel/templates/clients.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Клиенты — Панель поддержки</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    .sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    .sortable::after {
+      content: " ↕";
+      font-size: 0.8em;
+      opacity: 0.5;
+    }
+    .sort-asc::after {
+      content: " ↑";
+      opacity: 1;
+    }
+    .sort-desc::after {
+      content: " ↓";
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/">📬 Поддержка</a>
+      <div class="navbar-nav ms-auto">
+		<a class="nav-link" href="/">Заявки</a>
+        <a class="nav-link" href="/analytics">Аналитика</a>
+        <a class="nav-link" href="/analytics/clients">Аналитика клиентов</a>
+		<a class="nav-link active" href="/clients">Клиенты</a>
+		<a class="nav-link" href="/dashboard">Дашборд</a>
+        <a class="nav-link" href="/settings">Настройки</a>
+        <a class="nav-link" href="/logout">Выход</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid mt-4">
+    <h2>👥 Список клиентов</h2>
+
+    <div class="mb-3">
+      <input type="text" id="searchClients" class="form-control" placeholder="Поиск по ID, юзернейму или имени в БД">
+    </div>
+
+    <table class="table table-striped" id="clientsTable">
+      <thead>
+        <tr>
+          <th>ID Telegram</th>
+          <th class="sortable" onclick="sortTable(1)">Юзернейм</th>
+          <th class="sortable" onclick="sortTable(2)">Имя в БД</th>
+          <th class="sortable" onclick="sortTable(3)">Заявок</th>
+          <th>Первый контакт</th>
+          <th>Последний контакт</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clients %}
+        <tr data-search="{{ c.user_id }} {{ c.username }} {{ c.client_name }}">
+          <td><code>{{ c.user_id }}</code></td>
+          <td>{{ c.username or '—' }}</td>
+          <td>{{ c.client_name or '—' }}</td>
+          <td>{{ c.ticket_count }}</td>
+          <td>{{ c.first_contact.split(' ')[0] }}</td>
+          <td>{{ c.last_contact.split(' ')[0] }}</td>
+          <td>
+            <a href="/client/{{ c.user_id }}" class="btn btn-sm btn-outline-info">Карточка клиента</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    function sortTable(colIndex) {
+      const table = document.getElementById('clientsTable');
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const th = table.querySelectorAll('th.sortable')[colIndex - 1];
+      const asc = !th.classList.contains('sort-asc');
+
+      rows.sort((a, b) => {
+        const aText = a.cells[colIndex].textContent.trim();
+        const bText = b.cells[colIndex].textContent.trim();
+        if (colIndex === 3) { // Числа
+          return asc ? aText - bText : bText - aText;
+        }
+        return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+      });
+
+      // Убираем классы
+      document.querySelectorAll('th.sortable').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+      });
+      th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+      rows.forEach(r => tbody.appendChild(r));
+    }
+
+    // Поиск
+    document.getElementById('searchClients').addEventListener('input', function () {
+      const search = this.value.toLowerCase();
+      document.querySelectorAll('#clientsTable tbody tr').forEach(row => {
+        const text = row.dataset.search.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>

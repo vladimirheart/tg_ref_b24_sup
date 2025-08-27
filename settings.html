@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Настройки</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    .settings-section { margin-bottom: 40px; }
+    .settings-section h4 { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/">📬 Поддержка</a>
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="/">Заявки</a>
+        <a class="nav-link" href="/analytics">Аналитика</a>
+		<a class="nav-link" href="/analytics/clients">Аналитика клиентов</a>
+		<a class="nav-link" href="/clients">Клиенты</a>
+        <a class="nav-link" href="/dashboard">Дашборд</a>
+        <a class="nav-link active" href="/settings">Настройки</a>
+        <a class="nav-link" href="/logout">Выход</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <h2>⚙️ Настройки системы</h2>
+
+    <!-- Пользователи панели -->
+    <div class="settings-section">
+      <h4>👥 Пользователи панели</h4>
+      <div id="usersList">
+        <!-- Список загрузится динамически -->
+      </div>
+      <button class="btn btn-sm btn-success" onclick="addUser()">+ Добавить пользователя</button>
+    </div>
+
+    <!-- Автоматическое закрытие -->
+    <div class="settings-section">
+      <h4>Автоматическое закрытие диалогов</h4>
+      <div class="mb-3">
+        <label for="autoCloseHours" class="form-label">Закрывать заявку при неактивности (часы)</label>
+        <input type="number" class="form-control" id="autoCloseHours" value="{{ settings.auto_close_hours }}" min="1" max="168">
+      </div>
+    </div>
+
+    <!-- Категории -->
+    <div class="settings-section">
+      <h4>Категории обращений</h4>
+      <div id="categoriesList">
+        {% for cat in settings.categories %}
+        <div class="input-group mb-2">
+          <input type="text" class="form-control" value="{{ cat }}" disabled>
+          <button class="btn btn-outline-danger" onclick="removeCategory(this)">Удалить</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button class="btn btn-sm btn-success" onclick="addCategory()">+ Добавить категорию</button>
+    </div>
+
+    <!-- Структура локаций -->
+    <div class="settings-section">
+      <h4>🗂 Структура вопросов и локаций</h4>
+      <p>Редактируйте бизнес → тип → город → локации</p>
+      <div id="locationsEditor">
+        <!-- Дерево будет построено динамически -->
+      </div>
+      <button class="btn btn-sm btn-success mt-2" onclick="addBusiness()">+ Добавить бизнес</button>
+    </div>
+
+<!-- Статусы клиентов -->
+<div class="settings-section">
+  <h4>🏷️ Статусы клиентов</h4>
+  <div id="statusesList">
+    {% for status in settings.client_statuses %}
+    <div class="input-group mb-2">
+      <input type="text" class="form-control" value="{{ status }}" disabled>
+      <button class="btn btn-outline-danger" onclick="removeStatus(this)">Удалить</button>
+    </div>
+    {% endfor %}
+  </div>
+  <button class="btn btn-sm btn-success" onclick="addStatus()">+ Добавить статус</button>
+</div>
+
+    <!-- Сохранить -->
+    <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  // === Управление статусами клиентов ===
+function addStatus() {
+  const container = document.getElementById('statusesList');
+  const div = document.createElement('div');
+  div.className = 'input-group mb-2';
+  div.innerHTML = `
+    <input type="text" class="form-control" placeholder="Новый статус">
+    <button class="btn btn-outline-danger" onclick="removeStatus(this)">Удалить</button>
+  `;
+  container.appendChild(div);
+}
+
+function removeStatus(btn) {
+  btn.parentElement.remove();
+}
+
+    // === JavaScript для управления пользователями ===
+    async function loadUsers() {
+      const response = await fetch('/users');
+      const users = await response.json();
+      const container = document.getElementById('usersList');
+      container.innerHTML = '';
+      users.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2';
+        div.innerHTML = `
+          <input type="text" class="form-control" value="${u.username}" disabled>
+          <select class="form-select" disabled>
+            <option ${u.role==='admin'?'selected':''}>admin</option>
+            <option ${u.role==='user'?'selected':''}>user</option>
+          </select>
+          <button class="btn btn-outline-danger" onclick="deleteUser(${u.id}, '${u.username}')">Удалить</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function addUser() {
+      const username = prompt("Логин:");
+      if (!username) return;
+      const password = prompt("Пароль:");
+      if (!password) return;
+      const response = await fetch('/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role: 'user' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Пользователь добавлен');
+        loadUsers();
+      } else {
+        alert('❌ Ошибка: ' + data.error);
+      }
+    }
+
+    async function deleteUser(id, name) {
+      if (!confirm(`Удалить пользователя ${name}?`)) return;
+      const response = await fetch(`/users/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (data.success) {
+        loadUsers();
+      } else {
+        alert('❌ Ошибка');
+      }
+    }
+
+    // === JavaScript для редактирования структуры локаций ===
+    let locationsData = {{ locations | tojson }};
+
+    function buildLocationsTree() {
+      const container = document.getElementById('locationsEditor');
+      container.innerHTML = '';
+
+      Object.keys(locationsData).forEach(business => {
+        const bDiv = document.createElement('div');
+        bDiv.className = 'mb-3 border p-3 bg-light';
+        bDiv.innerHTML = `
+          <div class="d-flex">
+            <input type="text" class="form-control me-2" value="${business}" onchange="updateBusiness('${business}', this.value)">
+            <button class="btn btn-outline-danger" onclick="removeBusiness('${business}')">Удалить</button>
+          </div>
+        `;
+        const typesDiv = document.createElement('div');
+        Object.keys(locationsData[business]).forEach(type => {
+          const tDiv = document.createElement('div');
+          tDiv.className = 'ms-3 mb-2';
+          tDiv.innerHTML = `
+            <div class="d-flex">
+              <input type="text" class="form-control me-2" value="${type}" onchange="updateType('${business}', '${type}', this.value)">
+              <button class="btn btn-outline-danger" onclick="removeType('${business}', '${type}')">Удалить</button>
+            </div>
+          `;
+          const citiesDiv = document.createElement('div');
+          Object.keys(locationsData[business][type]).forEach(city => {
+            const cDiv = document.createElement('div');
+            cDiv.className = 'ms-3 mb-2';
+            cDiv.innerHTML = `
+              <div class="d-flex">
+                <input type="text" class="form-control me-2" value="${city}" onchange="updateCity('${business}', '${type}', '${city}', this.value)">
+                <button class="btn btn-outline-danger" onclick="removeCity('${business}', '${type}', '${city}')">Удалить</button>
+              </div>
+            `;
+            const locsDiv = document.createElement('div');
+            locationsData[business][type][city].forEach(loc => {
+              const lDiv = document.createElement('div');
+              lDiv.className = 'ms-4 mb-1 input-group';
+              lDiv.innerHTML = `
+                <input type="text" class="form-control" value="${loc}" onchange="updateLocation('${business}', '${type}', '${city}', '${loc}', this.value)">
+                <button class="btn btn-outline-danger" onclick="removeLocation('${business}', '${type}', '${city}', '${loc}')">Удалить</button>
+              `;
+              locsDiv.appendChild(lDiv);
+            });
+            const addLoc = document.createElement('button');
+            addLoc.className = 'btn btn-sm btn-success ms-4';
+            addLoc.textContent = '+ Локация';
+            addLoc.onclick = () => addLocation(business, type, city);
+            cDiv.appendChild(locsDiv);
+            cDiv.appendChild(addLoc);
+            citiesDiv.appendChild(cDiv);
+          });
+          const addCity = document.createElement('button');
+          addCity.className = 'btn btn-sm btn-success ms-3';
+          addCity.textContent = '+ Город';
+          addCity.onclick = () => addCityToType(business, type);
+          tDiv.appendChild(citiesDiv);
+          tDiv.appendChild(addCity);
+          typesDiv.appendChild(tDiv);
+        });
+        const addType = document.createElement('button');
+        addType.className = 'btn btn-sm btn-success ms-3';
+        addType.textContent = '+ Тип';
+        addType.onclick = () => addTypeToBusiness(business);
+        bDiv.appendChild(typesDiv);
+        bDiv.appendChild(addType);
+        container.appendChild(bDiv);
+      });
+    }
+
+    function updateBusiness(oldName, newName) {
+      if (newName && newName !== oldName) {
+        locationsData[newName] = locationsData[oldName];
+        delete locationsData[oldName];
+        buildLocationsTree();
+      }
+    }
+    function addBusiness() {
+      const name = prompt("Название бизнеса:");
+      if (name && !locationsData[name]) {
+        locationsData[name] = { "Новый тип": { "Новый город": [] } };
+        buildLocationsTree();
+      }
+    }
+    function removeBusiness(name) {
+      if (confirm(`Удалить бизнес "${name}"?`)) {
+        delete locationsData[name];
+        buildLocationsTree();
+      }
+    }
+    function updateType(b, oldName, newName) {
+      if (newName && newName !== oldName) {
+        locationsData[b][newName] = locationsData[b][oldName];
+        delete locationsData[b][oldName];
+        buildLocationsTree();
+      }
+    }
+    function addTypeToBusiness(b) {
+      const name = prompt("Название типа:");
+      if (name) {
+        locationsData[b][name] = { "Новый город": [] };
+        buildLocationsTree();
+      }
+    }
+    function removeType(b, t) {
+      delete locationsData[b][t];
+      buildLocationsTree();
+    }
+    function updateCity(b, t, oldName, newName) {
+      if (newName && newName !== oldName) {
+        locationsData[b][t][newName] = locationsData[b][t][oldName];
+        delete locationsData[b][t][oldName];
+        buildLocationsTree();
+      }
+    }
+    function addCityToType(b, t) {
+      const name = prompt("Название города:");
+      if (name) {
+        locationsData[b][t][name] = [];
+        buildLocationsTree();
+      }
+    }
+    function removeCity(b, t, c) {
+      delete locationsData[b][t][c];
+      buildLocationsTree();
+    }
+    function updateLocation(b, t, c, oldName, newName) {
+      const idx = locationsData[b][t][c].indexOf(oldName);
+      if (idx !== -1) {
+        locationsData[b][t][c][idx] = newName;
+        buildLocationsTree();
+      }
+    }
+    function addLocation(b, t, c) {
+      const name = prompt("Название локации:");
+      if (name) {
+        locationsData[b][t][c].push(name);
+        buildLocationsTree();
+      }
+    }
+    function removeLocation(b, t, c, loc) {
+      const idx = locationsData[b][t][c].indexOf(loc);
+      if (idx !== -1) {
+        locationsData[b][t][c].splice(idx, 1);
+        buildLocationsTree();
+      }
+    }
+
+    // === Функции для категорий ===
+    function addCategory() {
+      const container = document.getElementById('categoriesList');
+      const div = document.createElement('div');
+      div.className = 'input-group mb-2';
+      div.innerHTML = `
+        <input type="text" class="form-control" placeholder="Новая категория">
+        <button class="btn btn-outline-danger" onclick="removeCategory(this)">Удалить</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function removeCategory(btn) {
+      btn.parentElement.remove();
+    }
+
+    // === Сохранение всех настроек ===
+    function saveSettings() {
+  const hours = document.getElementById('autoCloseHours').value;
+  const categories = Array.from(document.querySelectorAll('#categoriesList input')).map(inp => inp.value).filter(v => v);
+  const statuses = Array.from(document.querySelectorAll('#statusesList input')).map(inp => inp.value).filter(v => v);
+
+  fetch('/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      auto_close_hours: parseInt(hours),
+      categories: categories,
+      client_statuses: statuses,  // ← Добавлено!
+      locations: locationsData
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ Настройки сохранены');
+    } else {
+      alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+    }
+  })
+  .catch(err => {
+    alert('❌ Ошибка сети: ' + err.message);
+  });
+}
+
+    // === Запуск при загрузке страницы ===
+    document.addEventListener('DOMContentLoaded', () => {
+      buildLocationsTree();
+      loadUsers();
+    });
+  </script>
+</body>
+</html>
