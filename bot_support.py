@@ -476,7 +476,7 @@ async def save_user_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ticket_id = context.user_data.get("ticket_id")
     if not ticket_id:
         await update.message.reply_text("❌ Ошибка: заявка не найдена. Перезапустите /start")
-        return
+        returnn
 
     timestamp = datetime.datetime.now().isoformat()
     attachment_path = None
@@ -569,7 +569,7 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[CommandHandler('start', start)],
         states={
             BUSINESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, business_choice)],
             LOCATION_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, location_type_choice)],
@@ -577,10 +577,10 @@ if __name__ == "__main__":
             LOCATION_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, location_name_choice)],
             PROBLEM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, problem_description),
-                MessageHandler(filters.PHOTO | filters.VOICE | filters.VIDEO | filters.Document.ALL, save_user_media)
+                MessageHandler(filters.PHOTO | filters.VOICE | filters.VIDEO | filters.Document.ALL, save_user_media),
             ],
         },
-        fallbacks=[CommandHandler("cancel", lambda u, c: u.message.reply_text("❌ Заявка отменена.", reply_markup=ReplyKeyboardRemove()) or ConversationHandler.END)],
+        fallbacks=[CommandHandler('start', start)]
     )
 
     app.add_handler(conv_handler)
