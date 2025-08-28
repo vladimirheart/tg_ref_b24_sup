@@ -11,10 +11,16 @@ from threading import Timer
 from datetime import datetime as dt
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-in-production'
+app.secret_key = os.getenv("SECRET_KEY")
 
 # === НАСТРОЙКИ ===
-TOKEN = TELEGRAM_BOT_TOKEN
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+GROUP_CHAT_ID = int(os.getenv("GROUP_CHAT_ID"))
 
 # Подключение к базе
 def get_db():
@@ -59,7 +65,7 @@ def login_required(f):
 
 # === Отправка сообщения через Telegram API ===
 def send_telegram_message(chat_id, text, parse_mode='HTML'):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot  {TELEGRAM_BOT_TOKEN}/sendMessage"  # ✅ Без пробелов
     payload = {
         'chat_id': chat_id,
         'text': text,
@@ -237,15 +243,14 @@ def client_profile(user_id):
             m.city,
             m.location_name,
             m.problem,
-            m.created_at,
+            m.created_date,
+            m.created_time,
             t.status,
             t.resolved_by,
             CASE 
                 WHEN t.resolved_at IS NOT NULL THEN datetime(t.resolved_at)
                 ELSE NULL 
             END AS resolved_at,
-            m.created_date,
-            m.created_time,
             m.category
         FROM messages m
         LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
@@ -294,13 +299,13 @@ def client_profile(user_id):
     conn.close()
 
     return render_template(
-    "client_profile.html",
-    client=dict(info),
-    tickets=[dict(t) for t in tickets],
-    stats=dict(stats),
-    feedbacks=[dict(f) for f in feedbacks],
-    datetime=dt  # ← Добавлено
-)
+        "client_profile.html",
+        client=dict(info),
+        tickets=ticket_list,  # ✅ Список словарей
+        stats=dict(stats),
+        feedbacks=[dict(f) for f in feedbacks],
+        datetime=dt  # ✅ Передаём datetime
+    )
 
 # === Аналитика по клиентам ===
 @app.route("/analytics/clients")
@@ -366,7 +371,6 @@ def dashboard():
     conn = get_db()
     cur = conn.cursor()
 
-    # Простые данные для графиков
     cur.execute("SELECT status, COUNT(*) AS cnt FROM tickets GROUP BY status")
     status_rows = cur.fetchall()
     status_data = {row['status'] if row['status'] is not None else 'неизвестно': row['cnt'] for row in status_rows}
@@ -436,13 +440,25 @@ def add_user():
     username = data["username"]
     password = data["password"]
     role = data.get("role", "user")
+
+    # ✅ Проверка: не пустые
+    if not username or not password:
+        return jsonify({"success": False, "error": "Имя пользователя и пароль не могут быть пустыми"})
+
     try:
         with get_users_db() as conn:
-            conn.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, password, role))
+            # ✅ Проверка: не существует
+            existing = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+            if existing:
+                return jsonify({"success": False, "error": "Пользователь уже существует"})
+
+            # ✅ Хэшируем пароль
+            hashed = generate_password_hash(password)
+            conn.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, hashed, role))
             conn.commit()
         return jsonify({"success": True})
-    except sqlite3.IntegrityError:
-        return jsonify({"success": False, "error": "Пользователь уже существует"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/users/<int:user_id>", methods=["DELETE"])
 @login_required
@@ -532,11 +548,9 @@ def close_ticket():
         conn.close()
 
         try:
-            # ✅ Уведомление о закрытии
             close_msg = f"Ваше обращение #{ticket_id} закрыто. Для запуска нового диалога нажмите /start"
             send_telegram_message(chat_id=user_id, text=close_msg, parse_mode='HTML')
 
-            # ✅ Запрос на оценку
             feedback_msg = (
                 "🌟 Пожалуйста, оцените качество поддержки:\n\n"
                 "1️⃣ — Очень плохо\n"
@@ -548,7 +562,6 @@ def close_ticket():
             )
             send_telegram_message(chat_id=user_id, text=feedback_msg, parse_mode='HTML')
 
-            # ✅ Таймер: 15 минут
             def send_sorry():
                 with sqlite3.connect("tickets.db") as conn:
                     row = conn.execute("SELECT * FROM feedbacks WHERE user_id = ?", (user_id,)).fetchone()
