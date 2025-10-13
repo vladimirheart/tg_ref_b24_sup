@@ -1,0 +1,1037 @@
+<!-- panel/templates/client_profile.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Клиент {{ client.user_id }} — Поддержка</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <style>
+    .chat-bubble { 
+      padding: 8px 12px; 
+      border-radius: 8px; 
+      margin-bottom: 6px; 
+      max-width: 80%; 
+      word-wrap: break-word;
+    }
+	/* ↑ Увеличение текста и эмодзи в пузырях сообщений ~в 1.5 раза */
+	.chat-bubble { 
+	  font-size: 1.5em;      /* было 1em по умолчанию → стало ~1.5x */
+	  line-height: 1.35;
+	}
+	.chat-bubble img.emoji {  /* твемоји растягиваются вместе с текстом */
+	  height: 1em;
+	  width: 1em;
+	  vertical-align: -0.1em;
+	}
+
+    .from-user { background: #e3f2fd; align-self: flex-end; }
+    .from-support { background: #d1f7d1; align-self: flex-start; }
+
+    .chat-container { 
+      min-height: 300px; 
+      max-height: 500px; 
+      overflow-y: auto; 
+      padding: 10px; 
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    /* ✅ Чёрный шрифт */
+    .chat-bubble p, .chat-bubble small, .chat-bubble strong {
+      color: #000 !important;
+    }
+
+    /* ✅ Поле ввода и кнопка */
+    .input-group-send {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .input-group-send textarea {
+      flex: 1;
+      resize: both;
+      min-height: 60px;
+      max-height: 200px;
+    }
+    .input-group-send .btn {
+      white-space: nowrap;
+    }
+
+    /* ✅ Стили для бизнесов */
+    .business-sushi { background-color: #F25F79 !important; color: white !important; }
+    .business-blin { background-color: #FFD504 !important; color: black !important; }
+
+    /* ✅ Стили для resize столбцов */
+    .table th {
+      position: relative;
+      user-select: none;
+    }
+    .resize-handle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 5px;
+      height: 100%;
+      background-color: #ddd;
+      cursor: col-resize;
+      user-select: none;
+    }
+
+    /* ✅ Кликабельный клиент */
+    .clickable-client {
+      cursor: pointer;
+      color: #0d6efd;
+      text-decoration: underline;
+    }
+    .clickable-client:hover {
+      text-decoration: none;
+      background-color: #f0f8ff;
+    }
+	
+	/* Twemoji: делаем эмодзи размером с текст */
+	img.emoji {
+	  height: 1em;
+	  width: 1em;
+	  margin: 0 .05em 0 .1em;
+	  vertical-align: -0.1em;
+	}
+/* Twemoji в карточке клиента */
+#profileModal img.emoji,
+#profileModal .msg-text img.emoji,
+#profileModal .msg-author img.emoji {
+  width: 1.1em;
+  height: 1.1em;
+  max-width: none;
+  max-height: none;
+  vertical-align: -0.12em;
+  margin: 0 .06em;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+  <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+	  <h2>👤 Карточка клиента</h2>
+	  <div class="d-flex align-items-center gap-2">
+		<a href="/clients" class="btn btn-secondary">← Назад</a>
+		<button class="btn btn-sm btn-outline-danger"
+				onclick="blacklistAdd('{{ client.user_id }}')">Заблокировать</button>
+		<button class="btn btn-sm btn-success"
+				onclick="blacklistRemove('{{ client.user_id }}')">Разблокировать</button>
+	  </div>
+	</div>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5>Основная информация</h5>
+		<div class="d-flex align-items-center gap-3 mb-3">
+			  <img id="clientAvatarProfile"
+				 src="/avatar/{{ client.user_id }}"
+				 data-src="{{ client.photo_url or '' }}"
+				 data-fullsrc="/avatar/{{ client.user_id }}?full=1"
+				 width="72" height="72"
+				 class="rounded-circle"
+				 style="object-fit:cover;border:1px solid rgba(0,0,0,1);cursor:zoom-in"
+				 alt="avatar"
+				 onerror="this.onerror=null;this.src='/static/avatar_default.svg';">
+			  <div>
+				<div><strong>ID Telegram:</strong> <code>{{ client.user_id }}</code></div>
+				<div><strong>Юзернейм:</strong> {{ client.username or '—' }}</div>
+				<p class="mb-1"><strong>Blacklist:</strong>
+				  {% if client_blacklist and client_blacklist.is_blacklisted %}
+					<span class="badge text-bg-danger">Да</span>
+					{% if client_blacklist.unblock_requested %}
+					  <span class="badge text-bg-warning ms-1">Запрос на снятие</span>
+					{% endif %}
+				  {% else %}
+					<span class="badge text-bg-secondary">Нет</span>
+				  {% endif %}
+				</p>
+			  </div>
+		</div>
+		<div id="avatarHistory" class="mt-2"></div>
+        <p><strong>ID Telegram:</strong> <code>{{ client.user_id }}</code></p>
+        <p><strong>Юзернейм в Telegram:</strong> {{ client.username or '—' }}</p>
+        <p><strong>Имя в БД:</strong> <span id="clientNameDisplay">{{ client.client_name or '—' }}</span></p>
+        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editClientNameModal">
+          ✏️ Редактировать имя
+        </button>
+
+        <hr>
+
+        <p><strong>Статус клиента:</strong> <span id="clientStatusDisplay">{{ client_status or '—' }}</span></p>
+        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editClientStatusModal">
+          🏷️ Изменить статус
+        </button>
+      </div>
+    </div>
+
+	<div class="card mb-4">
+	  <div class="card-body">
+		<h5>📝 История юзернейма</h5>
+		{% if username_history and username_history|length > 0 %}
+		  <ul class="list-group">
+			{% for u in username_history %}
+			  <li class="list-group-item d-flex justify-content-between align-items-center">
+				<span>
+				  {% if loop.first %}
+					<span class="badge bg-success me-2">Текущий</span>
+				  {% endif %}
+				  @{{ u.username }}
+				</span>
+				<small class="text-muted">{{ u.seen_at }}</small>
+			  </li>
+			{% endfor %}
+		  </ul>
+		{% else %}
+		  <p class="text-muted mb-0">Нет данных по изменению юзернейма</p>
+		{% endif %}
+	  </div>
+	</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5>📞 Телефоны клиента</h5>
+
+    <h6 class="mt-2">Из Telegram (только для чтения)</h6>
+    {% if phones_telegram and phones_telegram|length > 0 %}
+      <ul class="list-group mb-3">
+        {% for p in phones_telegram %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span><strong>{{ p.phone }}</strong> <span class="text-muted">({{ p.label or 'из Telegram' }})</span></span>
+            <small class="text-muted">{{ p.created_at }}</small>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted">Клиент ещё не поделился номером через Telegram.</p>
+    {% endif %}
+
+    <h6 class="mt-3">Добавленные вручную</h6>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead><tr><th>Телефон</th><th>Метка</th><th>Добавлен</th><th></th></tr></thead>
+        <tbody id="manualPhonesTbody">
+          {% for p in phones_manual %}
+          <tr data-id="{{ p.id }}">
+            <td><strong>{{ p.phone }}</strong></td>
+            <td>
+              <input class="form-control form-control-sm phone-label-input" value="{{ p.label or '' }}" placeholder="личный/рабочий/…">
+            </td>
+            <td><small class="text-muted">{{ p.created_at }}</small></td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-primary" onclick="savePhoneLabel({{ client.user_id }}, {{ p.id }}, this)">💾</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="archivePhone({{ client.user_id }}, {{ p.id }}, this)">🗑</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="row g-2 mt-2">
+      <div class="col-md-4">
+        <input id="newPhoneInput" class="form-control" placeholder="+7…">
+      </div>
+      <div class="col-md-4">
+        <input id="newPhoneLabelInput" class="form-control" placeholder="личный / рабочий / другое">
+      </div>
+      <div class="col-md-4">
+        <button class="btn btn-primary w-100" onclick="addManualPhone({{ client.user_id }})">➕ Добавить телефон</button>
+      </div>
+    </div>
+  </div>
+</div>
+	
+    <h4>📊 Статистика</h4>
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5>{{ stats.total }}</h5>
+            <p class="text-muted">Всего заявок</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5>{{ stats.resolved }}</h5>
+            <p class="text-success">Решено</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5>{{ stats.pending }}</h5>
+            <p class="text-warning">В обработке</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Аналитика по темам и локациям -->
+    <h4>📈 Аналитика по обращениям</h4>
+    <div class="card mb-4">
+      <div class="card-body">
+        <h6>Темы обращений</h6>
+        <ul class="list-group mb-3">
+          {% set categories = {} %}
+          {% for t in tickets %}
+            {% if t.category %}
+              {% if t.category not in categories %}
+                {% set _ = categories.update({t.category: 1}) %}
+              {% else %}
+                {% set _ = categories.update({t.category: categories[t.category] + 1}) %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {% for cat, cnt in categories.items() %}
+          <li class="list-group-item d-flex justify-content-between">
+            <span>{{ cat }}</span>
+            <span class="badge bg-info">{{ cnt }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+
+        <h6>Локации</h6>
+        <ul class="list-group">
+          {% set locations = {} %}
+          {% for t in tickets %}
+            {% set loc = t.city + ' — ' + (t.location_name or 'Без названия') %}
+            {% if loc not in locations %}
+              {% set _ = locations.update({loc: 1}) %}
+            {% else %}
+              {% set _ = locations.update({loc: locations[loc] + 1}) %}
+            {% endif %}
+          {% endfor %}
+          {% for loc, cnt in locations.items() %}
+          <li class="list-group-item d-flex justify-content-between">
+            <span>{{ loc }}</span>
+            <span class="badge bg-secondary">{{ cnt }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Оценки -->
+    {% if feedbacks %}
+    <h4>⭐ Оценки диалогов</h4>
+    <div class="card mb-4">
+      <div class="card-body">
+        <ul class="list-group">
+          {% for f in feedbacks %}
+          <li class="list-group-item feedback-item">
+            <strong>{{ f.rating }} из 5</strong> — {{ f.timestamp.split('.')[0] }}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Заявки -->
+    <h4>📋 Заявки клиента</h4>
+    <div class="accordion" id="ticketsAccordion">
+      {% for t in tickets %}
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ t.ticket_id }}">
+            {{ t.ticket_id }} — {{ t.business }} ({{ t.city }})
+          </button>
+        </h2>
+        <div id="collapse-{{ t.ticket_id }}" class="accordion-collapse collapse" data-bs-parent="#ticketsAccordion">
+          <div class="accordion-body">
+            <p><strong>Проблема:</strong> {{ t.problem }}</p>
+            <p><strong>Категория:</strong> {{ t.category or '—' }}</p>
+            <p><strong>Дата создания:</strong> {{ t.created_date }} {{ t.created_time }}</p>
+            {% if t.status == 'resolved' and t.resolved_at %}
+              <p><strong>Завершена:</strong> {{ t.resolved_at }} <strong>кем:</strong> {{ t.resolved_by or 'автоматически' }}</p>
+              {% if t.duration_minutes is not none %}
+                <p><strong>Время активности:</strong> {{ t.duration_minutes }} мин</p>
+              {% endif %}
+            {% else %}
+              <p><strong>Статус:</strong> <span class="badge bg-warning text-dark">⏳ В обработке</span></p>
+            {% endif %}
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory({{ client.user_id }}, '{{ t.ticket_id }}')">
+              Показать историю
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Модальное окно: редактирование имени -->
+  <div class="modal fade" id="editClientNameModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Изменить имя клиента</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="newClientName" class="form-control" value="{{ client.client_name or '' }}" placeholder="Введите имя">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="saveClientName()">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно: редактирование статуса -->
+  <div class="modal fade" id="editClientStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Изменить статус клиента</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <select id="newClientStatus" class="form-select">
+            <option value="">Без статуса</option>
+            {% for status in settings.client_statuses %}
+            <option value="{{ status }}" {% if client_status == status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" onclick="saveClientStatus()">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно: история -->
+  <div class="modal fade resizable-modal" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered" style="width: 80%; height: 80%;">
+      <div class="modal-content" style="min-height: 400px;">
+        <div class="modal-header">
+          <h5 class="modal-title" id="historyModalTitle">💬 История переписки — ID заявки: <span id="ticketIdDisplay"></span></h5>
+          <div class="d-flex align-items-center gap-2">
+            <span id="clientDisplayName">—</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="editClientBtn" title="Редактировать имя">
+              ✏️
+            </button>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body chat-container" id="historyContent" style="min-height: 300px;"></div>
+        <div class="modal-footer">
+          <!-- Поле ввода и кнопка режима -->
+          <div class="input-group-send w-100">
+            <textarea
+              id="replyTextInHistory"
+              class="form-control"
+              placeholder="Введите ответ..."
+            ></textarea>
+            <button id="sendKeySettingBtn" class="btn btn-outline-secondary" type="button" style="width: 120px;" data-bs-toggle="dropdown">
+              Enter → Отправить
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" data-mode="enter">Enter — отправить</a></li>
+              <li><a class="dropdown-item" href="#" data-mode="ctrlEnter">Ctrl+Enter — отправить</a></li>
+              <li><a class="dropdown-item" href="#" data-mode="enterNewline">Enter — новая строка</a></li>
+            </ul>
+          </div>
+          <div class="mt-2 d-flex justify-content-between w-100">
+            <button type="button" id="closeTicketBtn" class="btn btn-danger">Закрыть заявку</button>
+            <button type="button" id="sendReplyInHistory" class="btn btn-primary">📤 Отправить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Подключение JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    window.settings = {{ settings | tojson }};
+  </script>
+  <script>
+    let currentUserId = null;
+    let currentTicketId = null;
+    let historyPolling = null;
+    let clientData = null;
+	// === Медиа-хелперы для истории в модалке ===
+function getMediaUrl(ticket_id, filename) {
+  const clean = (filename || '').split('/').pop();
+  return `/media/${ticket_id}/${clean}`;
+}
+
+function createMediaHtml(ticket_id, mediaInfo) {
+  const { message_type, attachment, text } = mediaInfo;
+  const filename = (attachment || '').split('/').pop();
+  const mediaUrl = getMediaUrl(ticket_id, filename);
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  let mediaHtml = '';
+
+  switch (message_type) {
+    case 'photo':
+      mediaHtml = `
+        <div class="mt-2">
+          <img src="${mediaUrl}"
+               loading="lazy" decoding="async"
+               style="max-width: 100%; max-height: 400px; border-radius: 8px;"
+               alt="Фото" class="img-thumbnail">
+          ${text ? `<div class="small mt-1">${text}</div>` : ''}
+        </div>`;
+      break;
+
+    case 'video':
+      mediaHtml = `
+        <div class="mt-2">
+          <video controls
+                 style="max-width: 100%; max-height: 300px; border-radius: 8px;"
+                 class="img-thumbnail">
+            <source src="${mediaUrl}">
+            Ваш браузер не поддерживает видео.
+          </video>
+          ${text ? `<div class="small mt-1">${text}</div>` : ''}
+        </div>`;
+      break;
+
+    case 'animation': // GIF (как mp4)
+      mediaHtml = `
+        <div class="mt-2">
+          <video autoplay loop muted playsinline controls
+                 style="max-width: 100%; max-height: 320px; border-radius: 8px;"
+                 class="img-thumbnail">
+            <source src="${mediaUrl}">
+            Ваш браузер не поддерживает видео.
+          </video>
+          ${text ? `<div class="small mt-1">${text}</div>` : ''}
+        </div>`;
+      break;
+
+    case 'sticker':
+      if (ext === 'webp') {
+        mediaHtml = `<div class="mt-2"><img src="${mediaUrl}" alt="Стикер" style="max-width:160px;height:auto;"></div>`;
+      } else if (ext === 'webm') {
+        mediaHtml = `<div class="mt-2"><video autoplay loop muted playsinline style="max-width:160px;border-radius:8px;"><source src="${mediaUrl}"></video></div>`;
+      } else if (ext === 'tgs') {
+        mediaHtml = `<div class="mt-2"><a href="${mediaUrl}" target="_blank">Стикер (.tgs) — скачать</a></div>`;
+      } else {
+        mediaHtml = `<div class="mt-2"><a href="${mediaUrl}" target="_blank">Стикер</a></div>`;
+      }
+      if (text) mediaHtml += `<div class="small mt-1">${text}</div>`;
+      break;
+
+    case 'document':
+      mediaHtml = `
+        <div class="mt-2">
+          <a href="${mediaUrl}" target="_blank"
+             class="btn btn-outline-primary btn-sm d-inline-flex align-items-center">
+            📄 ${filename}
+          </a>
+          ${text ? `<div class="small mt-1">${text}</div>` : ''}
+        </div>`;
+      break;
+
+    case 'voice':
+      mediaHtml = `
+        <div class="mt-2">
+          <audio controls style="width: 100%;" class="mb-2">
+            <source src="${mediaUrl}">
+            Ваш браузер не поддерживает аудио.
+          </audio>
+          ${text ? `<div class="small mt-1">${text}</div>` : ''}
+        </div>`;
+      break;
+
+    default:
+      if (attachment) {
+        mediaHtml = `<div class="mt-2"><a href="${mediaUrl}" target="_blank" class="text-muted">[медиа]</a>${text ? `<div class="small mt-1">${text}</div>` : ''}</div>`;
+      }
+  }
+
+  return mediaHtml;
+}
+
+
+    // === Загрузить историю ===
+    async function loadHistory(user_id, ticket_id) {
+      currentUserId = user_id;
+      currentTicketId = ticket_id;
+
+      const response = await fetch(`/history?user_id=${user_id}&ticket_id=${ticket_id}`);
+      const data = await response.json();
+      const container = document.getElementById('historyContent');
+      
+      if (!container) {
+        console.error("❌ Контейнер истории не найден");
+        return;
+      }
+      
+      container.innerHTML = '';
+
+      if (data.messages.length === 0) {
+        container.innerHTML = '<p class="text-muted">Нет сообщений</p>';
+      } else {
+        data.messages.forEach(msg => {
+          const cls = msg.sender === 'support' ? 'from-support' : 'from-user';
+          let name = msg.sender === 'support' ? '🛠 Поддержка' : '👤 Клиент';
+
+          if (msg.sender === 'user') {
+            const clientName = "{{ client.client_name or '' }}";
+            const username = "{{ client.username or '' }}";
+            if (clientName && clientName !== 'не задано') {
+              name = '👤 ' + clientName;
+            } else if (username) {
+              name = '👤 @' + username;
+            } else {
+              name = '👤 Клиент';
+            }
+          }
+
+          const time = new Date(msg.timestamp).toLocaleString('ru-RU');
+          const bubble = document.createElement('div');
+          bubble.className = `chat-bubble ${cls}`;
+          const textHtml  = (msg.message && (!msg.message_type || msg.message_type === 'text'))
+			  ? `<p class="mb-0">${msg.message.replace(/\n/g,'<br>')}</p>`
+			  : '';
+			const mediaHtml = (msg.message_type && msg.message_type !== 'text' && msg.attachment)
+			  ? createMediaHtml(ticket_id, { message_type: msg.message_type, attachment: msg.attachment, text: msg.message || '' })
+			  : '';
+
+			bubble.innerHTML = `
+			  <small>${time}</small><br>
+			  <strong>${name}</strong>
+			  ${textHtml}
+			  ${mediaHtml}
+			`;
+
+          container.appendChild(bubble);
+        });
+      }
+
+      container.scrollTop = container.scrollHeight;
+	  parseEmojis(container);
+
+      // Показываем модальное окно
+      const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+      modal.show();
+
+      if (historyPolling) clearInterval(historyPolling);
+      historyPolling = setInterval(() => loadHistoryMessagesOnly(user_id, ticket_id), 5000);
+    }
+
+    // === Только обновить сообщения ===
+    async function loadHistoryMessagesOnly(user_id, ticket_id) {
+      if (currentUserId !== user_id) return;
+      
+      const response = await fetch(`/history?user_id=${user_id}&ticket_id=${ticket_id}`);
+      const data = await response.json();
+      const container = document.getElementById('historyContent');
+      
+      if (!container) return;
+      
+      container.innerHTML = '';
+      
+      data.messages.forEach(msg => {
+        const cls = msg.sender === 'support' ? 'from-support' : 'from-user';
+        let name = msg.sender === 'support' ? '🛠 Поддержка' : '👤 Клиент';
+
+        if (msg.sender === 'user') {
+          const clientName = "{{ client.client_name or '' }}";
+          const username = "{{ client.username or '' }}";
+          if (clientName && clientName !== 'не задано') {
+            name = '👤 ' + clientName;
+          } else if (username) {
+            name = '👤 @' + username;
+          } else {
+            name = '👤 Клиент';
+          }
+        }
+
+        const time = new Date(msg.timestamp).toLocaleString('ru-RU');
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${cls}`;
+        const textHtml  = (msg.message && (!msg.message_type || msg.message_type === 'text'))
+		  ? `<p class="mb-0">${msg.message.replace(/\n/g,'<br>')}</p>`
+		  : '';
+		const mediaHtml = (msg.message_type && msg.message_type !== 'text' && msg.attachment)
+		  ? createMediaHtml(ticket_id, { message_type: msg.message_type, attachment: msg.attachment, text: msg.message || '' })
+		  : '';
+
+		bubble.innerHTML = `
+		  <small>${time}</small><br>
+		  <strong>${name}</strong>
+		  ${textHtml}
+		  ${mediaHtml}
+		`;
+
+        container.appendChild(bubble);
+      });
+      
+      container.scrollTop = container.scrollHeight;
+	  parseEmojis(container);
+    }
+
+    // === Отправить ответ из истории ===
+    document.addEventListener('DOMContentLoaded', function() {
+      const sendButton = document.getElementById('sendReplyInHistory');
+      if (sendButton) {
+        sendButton.onclick = async function () {
+          const textElement = document.getElementById('replyTextInHistory');
+          if (!textElement) return;
+          
+          const text = textElement.value.trim();
+          const admin = "{{ session.user or 'Поддержка' }}";
+          
+          if (!text) {
+            alert('Введите текст ответа');
+            return;
+          }
+
+          const response = await fetch('/reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              user_id: currentUserId, 
+              text, 
+              admin,
+              ticket_id: currentTicketId 
+            })
+          });
+
+          const data = await response.json();
+          if (data.success) {
+			  textElement.value = '';
+			  // перерисуем сообщения
+			  loadHistoryMessagesOnly(currentUserId, currentTicketId);
+
+			  // если тикет переоткрыт — обновим статус и кнопку закрытия
+			  try {
+				const resp = await fetch(`/tickets/${currentTicketId}`);
+				const t = await resp.json();
+				const closeButton = document.getElementById('closeTicketBtn');
+				const isResolved = t?.status === 'resolved';
+				if (closeButton) {
+				  closeButton.disabled = !!isResolved;
+				  closeButton.classList.toggle('disabled', !!isResolved);
+				  closeButton.title = isResolved ? 'Заявка уже закрыта' : '';
+				}
+			  } catch (e) {
+				console.warn('Не удалось обновить статус тикета после ответа', e);
+			  }
+
+			  // если сервер сообщил, что было переоткрытие — можно ненавязчиво подсветить
+			  if (data.reopened) {
+				// например, показать краткий toast/alert при желании
+				console.debug('Заявка переоткрыта');
+			  }
+			} else {
+            alert('❌ Ошибка: ' + data.error);
+          }
+        };
+      }
+
+      // === Закрыть заявку ===
+      const closeButton = document.getElementById('closeTicketBtn');
+      if (closeButton) {
+        closeButton.onclick = function () {
+          const modal = new bootstrap.Modal(document.getElementById('closeTicketModal'));
+          const select = document.getElementById('categorySelect');
+          
+          if (select) {
+            select.innerHTML = '<option value="">Выберите категорию...</option>';
+            window.settings.categories.forEach(cat => {
+              const option = document.createElement('option');
+              option.value = cat;
+              option.textContent = cat;
+              select.appendChild(option);
+            });
+          }
+          
+          modal.show();
+        };
+      }
+
+      // === Подтвердить закрытие ===
+      const confirmButton = document.getElementById('confirmCloseTicketBtn');
+      if (confirmButton) {
+        confirmButton.onclick = async function () {
+          const select = document.getElementById('categorySelect');
+          if (!select) return;
+          
+          const category = select.value;
+          const admin = prompt("Ваше имя или @username:", "{{ session.user or 'Поддержка' }}");
+          
+          if (!admin) return;
+          if (!category) {
+            alert('❌ Выберите категорию');
+            return;
+          }
+
+          const response = await fetch('/close_ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              user_id: currentUserId, 
+              admin, 
+              category, 
+              ticket_id: currentTicketId 
+            })
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            alert('✅ Заявка закрыта');
+            location.reload();
+          } else {
+            alert('❌ Ошибка: ' + data.error);
+          }
+
+          bootstrap.Modal.getInstance(document.getElementById('closeTicketModal')).hide();
+        };
+      }
+    });
+
+    // === Сохранить имя клиента ===
+    async function saveClientName() {
+      const newNameInput = document.getElementById('newClientName');
+      if (!newNameInput) return;
+      
+      const newName = newNameInput.value.trim();
+      const user_id = {{ client.user_id }};
+      
+      if (!newName || newName === 'не задано') return;
+
+      const response = await fetch('/update_client_name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id, client_name: newName })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        const nameDisplay = document.getElementById('clientNameDisplay');
+        if (nameDisplay) {
+          nameDisplay.textContent = newName;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('editClientNameModal')).hide();
+        alert('✅ Имя сохранено');
+      } else {
+        alert('❌ Ошибка: ' + data.error);
+      }
+    }
+
+    // === Сохранить статус клиента ===
+    async function saveClientStatus() {
+      const statusSelect = document.getElementById('newClientStatus');
+      if (!statusSelect) return;
+      
+      const newStatus = statusSelect.value;
+      const user_id = {{ client.user_id }};
+      
+      if (!newStatus || newStatus === 'не задано') return;
+
+      const response = await fetch('/client/' + user_id + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_status: newStatus })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        const statusDisplay = document.getElementById('clientStatusDisplay');
+        if (statusDisplay) {
+          statusDisplay.textContent = newStatus;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('editClientStatusModal')).hide();
+        alert('✅ Статус сохранён');
+      } else {
+        alert('❌ Ошибка: ' + data.error);
+      }
+    }
+</script>
+<script>
+	async function addManualPhone(userId){
+	  const phone = (document.getElementById('newPhoneInput')?.value || '').trim();
+	  const label = (document.getElementById('newPhoneLabelInput')?.value || '').trim();
+	  if(!phone){ alert('Введите телефон'); return; }
+	  const r = await fetch(`/client/${userId}/phones`, {
+		method:'POST', headers:{'Content-Type':'application/json'},
+		body: JSON.stringify({phone, label})
+	  });
+	  const j = await r.json();
+	  if(!j.success){ alert('Ошибка: '+(j.error||'неизвестно')); return; }
+	  location.reload();
+	}
+
+	async function savePhoneLabel(userId, phoneId, btn){
+	  const tr = btn.closest('tr');
+	  const inp = tr.querySelector('.phone-label-input');
+	  const label = inp ? inp.value.trim() : '';
+	  const r = await fetch(`/client/${userId}/phones/${phoneId}`, {
+		method:'PATCH', headers:{'Content-Type':'application/json'},
+		body: JSON.stringify({label})
+	  });
+	  const j = await r.json();
+	  if(!j.success){ alert('Ошибка: '+(j.error||'неизвестно')); return; }
+	  btn.classList.remove('btn-outline-primary');
+	  btn.classList.add('btn-success');
+	  setTimeout(()=>{ btn.classList.remove('btn-success'); btn.classList.add('btn-outline-primary'); }, 700);
+	}
+
+	async function archivePhone(userId, phoneId, btn){
+	  if(!confirm('Убрать телефон из активных?')) return;
+	  const r = await fetch(`/client/${userId}/phones/${phoneId}`, {
+		method:'PATCH', headers:{'Content-Type':'application/json'},
+		body: JSON.stringify({is_active:false})
+	  });
+	  const j = await r.json();
+	  if(!j.success){ alert('Ошибка: '+(j.error||'неизвестно')); return; }
+	  btn.closest('tr')?.remove();
+	}
+</script>
+<script>
+	async function addManualPhone() {
+	  const phone = document.getElementById('newPhone').value.trim();
+	  const label = document.getElementById('newPhoneLabel').value.trim();
+	  if (!phone) { alert('Введите телефон'); return; }
+	  const resp = await fetch('/client/{{ client.user_id }}/phones', {
+		method: 'POST',
+		headers: {'Content-Type':'application/json'},
+		body: JSON.stringify({ phone, label })
+	  });
+	  const data = await resp.json();
+	  if (data.success) location.reload(); else alert('Ошибка: ' + (data.error || 'неизвестно'));
+	}
+
+	async function deactivatePhone(id) {
+	  const resp = await fetch(`/client/{{ client.user_id }}/phones/${id}/deactivate`, { method: 'POST' });
+	  const data = await resp.json();
+	  if (data.success) location.reload(); else alert('Ошибка: ' + (data.error || 'неизвестно'));
+	}
+</script>
+<script>
+	(function () {
+	  function showAvatar(src) {
+		// Берём элементы модалки в момент клика, когда DOM уже готов
+		const modalEl  = document.getElementById('avatarModal');
+		const modalImg = document.getElementById('avatarModalImg');
+		if (!modalEl || !modalImg) return;
+		modalImg.src = src;
+		bootstrap.Modal.getOrCreateInstance(modalEl).show();
+	  }
+	  const profileAva = document.getElementById('clientAvatarProfile');
+	  if (profileAva) {
+		profileAva.style.cursor = 'zoom-in';
+		profileAva.addEventListener('click', () => {
+		  showAvatar(profileAva.dataset.fullsrc || profileAva.src);
+		});
+	  }
+	})();
+</script>
+
+<!-- Twemoji -->
+<script src="{{ url_for('static', filename='vendor/twemoji/twemoji.min.js') }}"></script>
+<script>
+	  function parseEmojis(root) {
+		try {
+		  if (!window.twemoji) return;
+		  twemoji.parse(root || document.body, {
+			folder: 'svg',
+			ext: '.svg',
+			base: "{{ url_for('static', filename='vendor/twemoji/') }}",
+			className: 'emoji'
+		  });
+		} catch (e) {}
+	  }
+	  document.addEventListener('DOMContentLoaded', function () { parseEmojis(document.body); });
+
+	(function(){
+	  const img = document.getElementById('clientAvatarProfile');
+	  if (!img) return;
+	  const srcHint = img.getAttribute('data-src');
+	  if (srcHint) {
+		// дергаем /avatar/<id>?src=<url>, чтобы зафиксировать историю
+		const url = new URL(img.src, location.origin);
+		url.searchParams.set('src', srcHint);
+		fetch(url.toString()).catch(()=>{});
+	  }
+
+	  // показать историю (пример)
+	  const historyBox = document.getElementById('avatarHistory');
+	  if (historyBox) {
+		fetch(`/api/client/{{ client.user_id }}/avatar_history`)
+		  .then(r => r.ok ? r.json() : [])
+		  .then(list => {
+			if (!Array.isArray(list) || !list.length) return;
+			historyBox.innerHTML = list.map(x => `
+			  <div class="small text-muted">${x.at}: ${x.url}</div>
+			`).join('');
+		  }).catch(()=>{});
+	  }
+	})();
+</script>
+
+<script>
+	  function parseEmojis(root) {
+		try {
+		  twemoji.parse(root || document.body, { folder: 'svg', ext: '.svg', className: 'emoji' });
+		} catch (e) {}
+	  }
+	  document.addEventListener('DOMContentLoaded', function () { parseEmojis(document.body); });
+</script>
+<script>
+	async function blacklistAdd(userId) {
+	  const reason = prompt('Причина блокировки (необязательно):') || '';
+	  const r = await fetch('/api/blacklist/add', {
+		method: 'POST',
+		headers: {'Content-Type':'application/json'},
+		body: JSON.stringify({user_id: userId, reason})
+	  });
+	  const j = await r.json();
+	  alert(j.ok ? 'Клиент заблокирован' : ('Ошибка: '+(j.error||'unknown')));
+	  if (j.ok) location.reload();
+	}
+
+	async function blacklistRemove(userId) {
+	  const r = await fetch('/api/blacklist/remove', {
+		method: 'POST',
+		headers: {'Content-Type':'application/json'},
+		body: JSON.stringify({user_id: userId})
+	  });
+	  const j = await r.json();
+	  alert(j.ok ? 'Клиент разблокирован' : ('Ошибка: '+(j.error||'unknown')));
+	  if (j.ok) location.reload();
+	}
+</script>
+
+<!-- Modal: увеличение аватара -->
+	<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
+	  <div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content bg-transparent border-0 shadow-none">
+		  <div class="modal-body p-0">
+			<img id="avatarModalImg" src="" class="img-fluid rounded" alt="Фото клиента">
+		  </div>
+		</div>
+	  </div>
+	</div>
+  </main>
+  <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
+</body>
+</html>
