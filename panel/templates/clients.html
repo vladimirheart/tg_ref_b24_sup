@@ -1,0 +1,172 @@
+<!-- panel/templates/clients.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Клиенты — Панель поддержки</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <style>
+  	  /* Статичный верхний бар */
+	.navbar{
+	  position: sticky;
+	  top: 0;
+	  z-index: 1030; /* выше контента */
+	}
+    .sortable{cursor:pointer;user-select:none;position:relative}
+    .sortable::after{content:" ↕";font-size:.8em;opacity:.5}
+    .sort-asc::after{content:" ↑";opacity:1}
+    .sort-desc::after{content:" ↓";opacity:1}
+
+    .table-dark th.sortable{
+      background-color:#003366!important;color:#fff!important;font-weight:bold;
+      transition:background-color .2s ease;
+    }
+    .table-dark th.sortable:hover{background-color:#cce6ff!important;color:#000!important}
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+  <div class="container-fluid mt-4">
+    <h2>👥 Список клиентов</h2>
+
+    <div class="mb-3">
+      <input type="text" id="searchClients" class="form-control" placeholder="Поиск по ID, юзернейму, имени или каналу">
+    </div>
+	<div class="mb-2">
+	  <label class="form-label me-2">Blacklist:</label>
+	  <select class="form-select form-select-sm" style="width:auto;display:inline-block"
+			  onchange="location.href='?blacklist='+this.value">
+		<option value="" {{ ''==blacklist_filter and 'selected' or '' }}>Все</option>
+		<option value="1" {{ '1'==blacklist_filter and 'selected' or '' }}>Только в блэклисте</option>
+		<option value="0" {{ '0'==blacklist_filter and 'selected' or '' }}>Только не в блэклисте</option>
+	  </select>
+	</div>
+
+    <table class="table table-striped table-hover" id="clientsTable">
+      <thead class="table-dark">
+        <tr>
+          <th class="sortable" onclick="sortTable(0)">ID Telegram</th>
+          <th class="sortable" onclick="sortTable(1)">Юзернейм</th>
+          <th class="sortable" onclick="sortTable(2)">Имя в БД</th>
+          <th class="sortable" onclick="sortTable(3)">Имя канала</th>
+          <th class="sortable" onclick="sortTable(4)">Заявок</th>
+          <th class="sortable" onclick="sortTable(5)">Затрачено времени</th>
+          <th class="sortable" onclick="sortTable(6)">Первый контакт</th>
+          <th class="sortable" onclick="sortTable(7)">Последний контакт</th>
+          <th>Blacklist</th>
+		  <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clients %}
+        <tr data-search="{{ c.user_id }} {{ c.username }} {{ c.client_name }} {{ c.channel_name }} {{ c.formatted_time }}">
+          <td>
+			  <div class="d-flex align-items-center gap-2">
+				<img src="/avatar/{{ c.user_id }}" width="24" height="24" class="rounded-circle" style="object-fit:cover;border:1px solid rgba(0,0,0,.08)" alt="">
+				<code>{{ c.user_id }}</code>
+			  </div>
+		  </td>
+		  <td>{{ c.username or '—' }}</td>
+          <td>{{ c.client_name if c.client_name and c.client_name != 'None' else '—' }}</td>
+          <td>{{ c.channel_name or '—' }}</td>
+          <td>{{ c.ticket_count }}</td>
+          <td>{{ c.formatted_time }}</td>
+          <td>
+            {% if c.first_contact %}
+              {{ c.first_contact.split('.')[0]|replace('T', ' ') }}
+            {% else %} — {% endif %}
+          </td>
+          <td>
+            {% if c.last_contact %}
+              {{ c.last_contact.split('.')[0]|replace('T', ' ') }}
+            {% else %} — {% endif %}
+          </td>
+			<td>
+			  {% if c.blacklist %}
+				<span class="badge text-bg-danger">Да</span>
+				{% if c.unblock_requested %}
+				  <span class="badge text-bg-warning ms-1">Запрос на снятие</span>
+				{% endif %}
+			  {% else %}
+				<span class="badge text-bg-secondary">Нет</span>
+			  {% endif %}
+			</td>
+          <td>
+            <a href="/client/{{ c.user_id }}" class="btn btn-sm btn-outline-info">Карточка клиента</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // Сортировка с учётом типов колонок
+    function sortTable(colIndex){
+      const table = document.getElementById('clientsTable');
+      const tbody = table.tBodies[0];
+      const rows = Array.from(tbody.rows);
+
+      // Определяем и переключаем направление по классу на текущем TH
+      const th = table.tHead.rows[0].cells[colIndex];
+      const asc = !th.classList.contains('sort-asc');
+
+      // Сброс индикации на всех заголовках
+      table.querySelectorAll('thead th.sortable').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+      th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+      // Парсер "Затрачено времени": "X ч Y мин" -> минуты
+      function parseTimeToMinutes(str){
+        if(!str || str === '—') return 0;
+        let m = 0;
+        const h = str.match(/(\d+)\s*ч/); if(h) m += parseInt(h[1])*60;
+        const mi = str.match(/(\d+)\s*мин/); if(mi) m += parseInt(mi[1]);
+        return m;
+      }
+
+      rows.sort((a,b)=>{
+        let A = a.cells[colIndex].textContent.trim();
+        let B = b.cells[colIndex].textContent.trim();
+
+        // Колонка 4 (индекс 4) — Заявок (число)
+        if(colIndex === 4){
+          const aN = parseInt(A)||0, bN = parseInt(B)||0;
+          return asc ? (aN-bN) : (bN-aN);
+        }
+        // Колонка 5 — Затрачено времени
+        if(colIndex === 5){
+          const aM = parseTimeToMinutes(A), bM = parseTimeToMinutes(B);
+          return asc ? (aM-bM) : (bM-aM);
+        }
+        // Колонки 6 и 7 — даты
+        if(colIndex === 6 || colIndex === 7){
+          const aD = (A && A !== '—') ? new Date(A) : new Date(0);
+          const bD = (B && B !== '—') ? new Date(B) : new Date(0);
+          return asc ? (aD - bD) : (bD - aD);
+        }
+        // Остальные — строки
+        return asc ? A.localeCompare(B) : B.localeCompare(A);
+      });
+
+      // Перестраиваем
+      tbody.innerHTML = '';
+      rows.forEach(r => tbody.appendChild(r));
+    }
+
+    // Поиск (ID, юзернейм, имя, канал, время)
+    document.getElementById('searchClients').addEventListener('input', function(){
+      const q = this.value.toLowerCase();
+      document.querySelectorAll('#clientsTable tbody tr').forEach(tr=>{
+        const text = (tr.dataset.search||'').toLowerCase();
+        tr.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  </script>
+  </main>
+  <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
+</body>
+</html>
