@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Настройки</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <style>
+    .settings-section { margin-bottom: 20px; }
+    .settings-section h4 { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .accordion-button:not(.collapsed) { background-color: #f8f9fa; }
+    .accordion-body { padding: 1rem; }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+
+  <div class="container mt-4">
+    <h2>⚙️ Настройки системы</h2>
+
+    <div class="accordion" id="settingsAccordion">
+      <!-- Пользователи панели -->
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#usersCollapse">
+            👥 Пользователи панели
+          </button>
+        </h2>
+        <div id="usersCollapse" class="accordion-collapse collapse show" data-bs-parent="#settingsAccordion">
+          <div class="accordion-body">
+            <div id="usersList">
+              <!-- Список загрузится динамически -->
+            </div>
+            <button class="btn btn-sm btn-success mt-2" onclick="addUser()">+ Добавить пользователя</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Автоматическое закрытие -->
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#autoCloseCollapse">
+            Автоматическое закрытие диалогов
+          </button>
+        </h2>
+        <div id="autoCloseCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+          <div class="accordion-body">
+            <div class="mb-3">
+              <label for="autoCloseHours" class="form-label">Закрывать заявку при неактивности (часы)</label>
+              <input type="number" class="form-control" id="autoCloseHours" value="{{ settings.auto_close_hours }}" min="1" max="168">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Категории -->
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#categoriesCollapse">
+            Категории обращений
+          </button>
+        </h2>
+        <div id="categoriesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+          <div class="accordion-body">
+            <div id="categoriesList">
+              {% for cat in settings.categories %}
+              <div class="input-group mb-2">
+                <input type="text" class="form-control category-input" value="{{ cat }}">
+                <button class="btn btn-outline-danger" onclick="removeCategory(this)">Удалить</button>
+              </div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-sm btn-success mt-2" onclick="addCategory()">+ Добавить категорию</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Структура локаций -->
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#locationsCollapse">
+            🗂 Структура вопросов и локаций
+          </button>
+        </h2>
+        <div id="locationsCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+          <div class="accordion-body">
+            <p>Редактируйте бизнес → тип → город → локации</p>
+            <div id="locationsEditor">
+              <!-- Дерево будет построено динамически -->
+            </div>
+            <button class="btn btn-sm btn-success mt-2" onclick="addBusiness()">+ Добавить бизнес</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Статусы клиентов -->
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#statusesCollapse">
+            🏷️ Статусы клиентов
+          </button>
+        </h2>
+        <div id="statusesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+          <div class="accordion-body">
+            <div id="statusesList">
+              {% for status in settings.client_statuses %}
+              <div class="input-group mb-2">
+                <input type="text" class="form-control status-input" value="{{ status }}">
+                <button class="btn btn-outline-danger" onclick="removeStatus(this)">Удалить</button>
+              </div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-sm btn-success mt-2" onclick="addStatus()">+ Добавить статус</button>
+          </div>
+        </div>
+      </div>
+	  <!-- 🤖 Каналы (боты) -->
+		<div class="accordion-item">
+		  <h2 class="accordion-header">
+			<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#channelsCollapse">
+			  🤖 Каналы (боты)
+			</button>
+		  </h2>
+		  <div id="channelsCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+			<div class="accordion-body">
+
+			  <div class="card mb-3">
+				<div class="card-header">Добавить канал</div>
+				<div class="card-body">
+				  <div class="row g-2">
+					<div class="col-md-5">
+					  <input id="ch_token" class="form-control" placeholder="Токен бота (BotFather)">
+					</div>
+					<div class="col-md-4">
+					  <input id="ch_name" class="form-control" placeholder="Имя канала (произвольное)">
+					</div>
+					<div class="col-md-2">
+					  <input id="ch_maxq" type="number" min="0" class="form-control" placeholder="Кол-во вопросов (0=из JSON)">
+					</div>
+					<div class="col-md-1 d-grid">
+					  <button class="btn btn-primary" onclick="addChannel()">Добавить</button>
+					</div>
+				  </div>
+				  <div class="form-text mt-2">Имя бота подтянется автоматически через Telegram <code>getMe</code>.</div>
+				</div>
+			  </div>
+
+			  <div class="table-responsive">
+				<table class="table table-striped align-middle">
+				  <thead>
+					<tr>
+					  <th>ID</th>
+					  <th>Имя канала</th>
+					  <th>Имя бота</th>
+					  <th>Токен</th>
+					  <th>Активен</th>
+					  <th>Лимит вопросов</th>
+					  <th>questions_cfg (JSON)</th>
+					  <th></th>
+					</tr>
+				  </thead>
+				  <tbody id="channelsBody"></tbody>
+				</table>
+			  </div>
+
+			</div>
+		  </div>
+		</div>
+    </div>
+
+    <!-- Сохранить -->
+    <button class="btn btn-primary mt-4" onclick="saveSettings()">Сохранить настройки</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  // === Управление статусами клиентов ===
+  function addStatus() {
+    const container = document.getElementById('statusesList');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+      <input type="text" class="form-control status-input" placeholder="Новый статус">
+      <button class="btn btn-outline-danger" onclick="removeStatus(this)">Удалить</button>
+    `;
+    container.appendChild(div);
+  }
+
+  function removeStatus(btn) {
+    btn.parentElement.remove();
+  }
+
+  // === JavaScript для управления пользователями ===
+  async function loadUsers() {
+    try {
+      const response = await fetch('/users');
+      if (!response.ok) throw new Error('Ошибка загрузки пользователей');
+      
+      const users = await response.json();
+      const container = document.getElementById('usersList');
+      container.innerHTML = '';
+      
+      users.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2';
+        div.innerHTML = `
+          <input type="text" class="form-control" value="${u.username}" disabled>
+          <select class="form-select" disabled>
+            <option ${u.role==='admin'?'selected':''}>admin</option>
+            <option ${u.role==='user'?'selected':''}>user</option>
+          </select>
+          <button class="btn btn-outline-danger" onclick="deleteUser(${u.id}, '${u.username}')">Удалить</button>
+        `;
+        container.appendChild(div);
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки пользователей:', error);
+      alert('❌ Ошибка загрузки пользователей: ' + error.message);
+    }
+  }
+
+  async function addUser() {
+    const username = prompt("Логин:");
+    if (!username) return;
+    
+    const password = prompt("Пароль:");
+    if (!password) return;
+    
+    const role = prompt("Роль (admin/user):", "user");
+    if (!role) return;
+
+    try {
+      const response = await fetch('/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Пользователь добавлен');
+        loadUsers();
+      } else {
+        alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+      }
+    } catch (error) {
+      alert('❌ Ошибка сети: ' + error.message);
+    }
+  }
+
+  async function deleteUser(id, name) {
+    if (!confirm(`Удалить пользователя ${name}?`)) return;
+    
+    try {
+      const response = await fetch(`/users/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('✅ Пользователь удален');
+        loadUsers();
+      } else {
+        alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+      }
+    } catch (error) {
+      alert('❌ Ошибка сети: ' + error.message);
+    }
+  }
+
+  // === JavaScript для редактирования структуры локаций ===
+  let locationsData = {{ locations | tojson }};
+
+  // Функция для сортировки объектов по алфавиту
+  function sortObjectAlphabetically(obj) {
+    return Object.keys(obj).sort().reduce((sorted, key) => {
+      sorted[key] = obj[key];
+      return sorted;
+    }, {});
+  }
+
+  // Функция для сортировки массивов по алфавиту
+  function sortArrayAlphabetically(arr) {
+    return arr.sort((a, b) => a.localeCompare(b));
+  }
+
+  function buildLocationsTree() {
+    const container = document.getElementById('locationsEditor');
+    container.innerHTML = '';
+
+    Object.keys(locationsData).forEach(business => {
+      const bDiv = document.createElement('div');
+      bDiv.className = 'mb-3 border p-3 bg-light';
+      bDiv.innerHTML = `
+        <div class="d-flex">
+          <input type="text" class="form-control me-2" value="${business}" onchange="updateBusiness('${business}', this.value)">
+          <button class="btn btn-outline-danger" onclick="removeBusiness('${business}')">Удалить</button>
+        </div>
+      `;
+      
+      const typesDiv = document.createElement('div');
+      Object.keys(locationsData[business]).forEach(type => {
+        const tDiv = document.createElement('div');
+        tDiv.className = 'ms-3 mb-2';
+        tDiv.innerHTML = `
+          <div class="d-flex">
+            <input type="text" class="form-control me-2" value="${type}" onchange="updateType('${business}', '${type}', this.value)">
+            <button class="btn btn-outline-danger" onclick="removeType('${business}', '${type}')">Удалить</button>
+          </div>
+        `;
+        
+        const citiesDiv = document.createElement('div');
+        Object.keys(locationsData[business][type]).forEach(city => {
+          const cDiv = document.createElement('div');
+          cDiv.className = 'ms-3 mb-2';
+          cDiv.innerHTML = `
+            <div class="d-flex">
+              <input type="text" class="form-control me-2" value="${city}" onchange="updateCity('${business}', '${type}', '${city}', this.value)">
+              <button class="btn btn-outline-danger" onclick="removeCity('${business}', '${type}', '${city}')">Удалить</button>
+            </div>
+          `;
+          
+          const locsDiv = document.createElement('div');
+          locationsData[business][type][city].forEach(loc => {
+            const lDiv = document.createElement('div');
+            lDiv.className = 'ms-4 mb-1 input-group';
+            lDiv.innerHTML = `
+              <input type="text" class="form-control" value="${loc}" onchange="updateLocation('${business}', '${type}', '${city}', '${loc}', this.value)">
+              <button class="btn btn-outline-danger" onclick="removeLocation('${business}', '${type}', '${city}', '${loc}')">Удалить</button>
+            `;
+            locsDiv.appendChild(lDiv);
+          });
+          
+          const addLoc = document.createElement('button');
+          addLoc.className = 'btn btn-sm btn-success ms-4';
+          addLoc.textContent = '+ Локация';
+          addLoc.onclick = () => addLocation(business, type, city);
+          
+          cDiv.appendChild(locsDiv);
+          cDiv.appendChild(addLoc);
+          citiesDiv.appendChild(cDiv);
+        });
+        
+        const addCity = document.createElement('button');
+        addCity.className = 'btn btn-sm btn-success ms-3';
+        addCity.textContent = '+ Город';
+        addCity.onclick = () => addCityToType(business, type);
+        
+        tDiv.appendChild(citiesDiv);
+        tDiv.appendChild(addCity);
+        typesDiv.appendChild(tDiv);
+      });
+      
+      const addType = document.createElement('button');
+      addType.className = 'btn btn-sm btn-success ms-3';
+      addType.textContent = '+ Тип';
+      addType.onclick = () => addTypeToBusiness(business);
+      
+      bDiv.appendChild(typesDiv);
+      bDiv.appendChild(addType);
+      container.appendChild(bDiv);
+    });
+  }
+
+  function updateBusiness(oldName, newName) {
+    if (newName && newName !== oldName) {
+      locationsData[newName] = locationsData[oldName];
+      delete locationsData[oldName];
+      locationsData = sortObjectAlphabetically(locationsData);
+      buildLocationsTree();
+    }
+  }
+
+  function addBusiness() {
+    const name = prompt("Название бизнеса:");
+    if (name && !locationsData[name]) {
+      locationsData[name] = { "Новый тип": { "Новый город": [] } };
+      locationsData = sortObjectAlphabetically(locationsData);
+      buildLocationsTree();
+    }
+  }
+
+  function removeBusiness(name) {
+    if (confirm(`Удалить бизнес "${name}"?`)) {
+      delete locationsData[name];
+      buildLocationsTree();
+    }
+  }
+
+  function updateType(b, oldName, newName) {
+    if (newName && newName !== oldName) {
+      locationsData[b][newName] = locationsData[b][oldName];
+      delete locationsData[b][oldName];
+      locationsData[b] = sortObjectAlphabetically(locationsData[b]);
+      buildLocationsTree();
+    }
+  }
+
+  function addTypeToBusiness(b) {
+    const name = prompt("Название типа:");
+    if (name) {
+      locationsData[b][name] = { "Новый город": [] };
+      locationsData[b] = sortObjectAlphabetically(locationsData[b]);
+      buildLocationsTree();
+    }
+  }
+
+  function removeType(b, t) {
+    if (confirm(`Удалить тип "${t}"?`)) {
+      delete locationsData[b][t];
+      buildLocationsTree();
+    }
+  }
+
+  function updateCity(b, t, oldName, newName) {
+    if (newName && newName !== oldName) {
+      locationsData[b][t][newName] = locationsData[b][t][oldName];
+      delete locationsData[b][t][oldName];
+      locationsData[b][t] = sortObjectAlphabetically(locationsData[b][t]);
+      buildLocationsTree();
+    }
+  }
+
+  function addCityToType(b, t) {
+    const name = prompt("Название города:");
+    if (name) {
+      locationsData[b][t][name] = [];
+      locationsData[b][t] = sortObjectAlphabetically(locationsData[b][t]);
+      buildLocationsTree();
+    }
+  }
+
+  function removeCity(b, t, c) {
+    if (confirm(`Удалить город "${c}"?`)) {
+      delete locationsData[b][t][c];
+      buildLocationsTree();
+    }
+  }
+
+  function updateLocation(b, t, c, oldName, newName) {
+    const idx = locationsData[b][t][c].indexOf(oldName);
+    if (idx !== -1) {
+      locationsData[b][t][c][idx] = newName;
+      locationsData[b][t][c] = sortArrayAlphabetically(locationsData[b][t][c]);
+      buildLocationsTree();
+    }
+  }
+
+  function addLocation(b, t, c) {
+    const name = prompt("Название локации:");
+    if (name) {
+      locationsData[b][t][c].push(name);
+      locationsData[b][t][c] = sortArrayAlphabetically(locationsData[b][t][c]);
+      buildLocationsTree();
+    }
+  }
+
+  function removeLocation(b, t, c, loc) {
+    if (confirm(`Удалить локацию "${loc}"?`)) {
+      const idx = locationsData[b][t][c].indexOf(loc);
+      if (idx !== -1) {
+        locationsData[b][t][c].splice(idx, 1);
+        buildLocationsTree();
+      }
+    }
+  }
+
+  // === Функции для категорий ===
+  function addCategory() {
+    const container = document.getElementById('categoriesList');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+      <input type="text" class="form-control category-input" placeholder="Новая категория">
+      <button class="btn btn-outline-danger" onclick="removeCategory(this)">Удалить</button>
+    `;
+    container.appendChild(div);
+  }
+
+  function removeCategory(btn) {
+    btn.parentElement.remove();
+  }
+
+  // === Сохранение всех настроек ===
+  async function saveSettings() {
+    try {
+      const hours = document.getElementById('autoCloseHours').value;
+      
+      // Собираем категории
+      const categories = Array.from(document.querySelectorAll('#categoriesList .category-input'))
+        .map(inp => inp.value.trim())
+        .filter(v => v);
+      
+      // Собираем статусы
+      const statuses = Array.from(document.querySelectorAll('#statusesList .status-input'))
+        .map(inp => inp.value.trim())
+        .filter(v => v);
+
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          auto_close_hours: parseInt(hours),
+          categories: categories,
+          client_statuses: statuses,
+          locations: locationsData
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Настройки сохранены');
+      } else {
+        alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+      }
+    } catch (error) {
+      alert('❌ Ошибка сети: ' + error.message);
+    }
+  }
+
+  // === Запуск при загрузке страницы ===
+  document.addEventListener('DOMContentLoaded', () => {
+	  buildLocationsTree();
+	  loadUsers();
+	  loadChannels(); // <— добавили
+	});
+
+  // === КАНАЛЫ (боты) ===
+function maskToken(tok) {
+  if (!tok) return '';
+  return tok.replace(/^(.{10}).+(.{4})$/, '$1…$2');
+}
+
+async function loadChannels() {
+  try {
+    const r = await fetch('/api/channels');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rows = await r.json(); // у тебя GET возвращает массив объектов
+    const tb = document.getElementById('channelsBody');
+    tb.innerHTML = (rows || []).map(row => {
+      // questions_cfg может быть строкой -> попробуем красиво напечатать
+      let cfgStr = '';
+      try {
+        const obj = typeof row.questions_cfg === 'string' && row.questions_cfg.trim()
+          ? JSON.parse(row.questions_cfg)
+          : (row.questions_cfg || {});
+        cfgStr = JSON.stringify(obj, null, 2);
+      } catch(e) {
+        cfgStr = row.questions_cfg || '{}';
+      }
+
+      return `
+        <tr data-id="${row.id}">
+          <td>${row.id}</td>
+          <td><input class="form-control form-control-sm" value="${row.channel_name || ''}" data-field="channel_name"></td>
+          <td><span class="badge text-bg-secondary">${row.bot_name || '—'}</span></td>
+          <td><code>${maskToken(row.token || '')}</code></td>
+          <td>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" ${row.is_active ? 'checked' : ''} data-field="is_active">
+            </div>
+          </td>
+          <td><input type="number" min="0" class="form-control form-control-sm" value="${row.max_questions ?? 0}" data-field="max_questions"></td>
+          <td>
+            <textarea class="form-control form-control-sm" rows="6" data-field="questions_cfg">${cfgStr}</textarea>
+            <div class="form-text">Пример:
+			{
+			  "per_dialog_limit": 3,
+			  "questions": [{"key":"phone","label":"Ваш телефон?"}],
+			  "feedback": {
+				"questions": ["Что вам понравилось?", "Что улучшить?"],
+				"post_message": {
+				  "lt3": "Жаль, что так вышло. Мы передадим лидеру смены и свяжемся с вами.",
+				  "gt3lt5": "Спасибо! Учтём замечания и улучшимся 💛",
+				  "eq5": "Ура! Очень рады, что всё понравилось 🎉"
+				},
+				"prompts": {
+				  "on_close": "🌟 Оцените нашу поддержку: отправьте цифру 1–5.",
+				  "on_auto_close": "Диалог закрыт по неактивности. Оцените, пожалуйста: 1–5."
+				},
+				"auto_close_extra_text": "Например: мы будем рады продолжить, если вы ответите на это сообщение.",
+				"disable_default_thanks": false
+			  }
+			}
+			</div>
+
+          </td>
+          <td class="text-nowrap">
+            <button class="btn btn-sm btn-success me-2" onclick="saveChannel(${row.id})">💾 Сохранить</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeChannel(${row.id})">🗑 Удалить</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (e) {
+    alert('Не удалось загрузить каналы: ' + e.message);
+  }
+}
+
+async function addChannel() {
+  const token = document.getElementById('ch_token').value.trim();
+  const channel_name = document.getElementById('ch_name').value.trim() || 'Канал';
+  const max_questions = parseInt(document.getElementById('ch_maxq').value || '0', 10);
+
+  if (!token) return alert('Укажите токен');
+  try {
+    const r = await fetch('/api/channels', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ token, channel_name, max_questions, is_active: true })
+    });
+    const j = await r.json();
+    if (!r.ok || j.success === false) throw new Error(j.error || ('HTTP ' + r.status));
+    // очистим форму и перезагрузим список
+    document.getElementById('ch_token').value = '';
+    document.getElementById('ch_name').value = '';
+    document.getElementById('ch_maxq').value = '';
+    await loadChannels();
+  } catch (e) {
+    alert('Ошибка добавления: ' + e.message);
+  }
+}
+
+async function saveChannel(id) {
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  const nameEl = row.querySelector('[data-field="channel_name"]');
+  const activeEl = row.querySelector('[data-field="is_active"]');
+  const maxqEl = row.querySelector('[data-field="max_questions"]');
+  const cfgEl = row.querySelector('[data-field="questions_cfg"]');
+
+  let cfg;
+  try { cfg = JSON.parse(cfgEl.value || '{}'); }
+  catch(e) { return alert('questions_cfg должен быть валидным JSON'); }
+
+  try {
+    const r = await fetch(`/api/channels/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        channel_name: nameEl.value.trim(),
+        is_active: !!activeEl.checked,
+        max_questions: parseInt(maxqEl.value || '0', 10),
+        questions_cfg: cfg
+      })
+    });
+    const j = await r.json();
+    if (!r.ok || j.success === false) throw new Error(j.error || ('HTTP ' + r.status));
+    alert('Сохранено');
+    await loadChannels();
+  } catch (e) {
+    alert('Ошибка сохранения: ' + e.message);
+  }
+}
+
+async function removeChannel(id) {
+  if (!confirm('Удалить канал?')) return;
+  try {
+    const r = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
+    const j = await r.json();
+    if (!r.ok || j.success === false) throw new Error(j.error || ('HTTP ' + r.status));
+    await loadChannels();
+  } catch (e) {
+    alert('Ошибка удаления: ' + e.message);
+  }
+}
+  </script>
+</main>
+  <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
+</body>
+</html>
