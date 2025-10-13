@@ -1,0 +1,45 @@
+<!-- panel/templates/_sidebar.html -->
+<div class="sidebar" id="app-sidebar">
+  <div class="sidebar-header">
+    <span class="brand">Поддержка</span>
+    <button id="bellBtn" class="icon-btn" title="Оповещения">🔔</button>
+    <button id="pinSidebarBtn" class="icon-btn" title="Прикрепить/открепить">📌</button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="/" class="nav-link">
+      <span class="icon">💬</span><span class="label">Диалоги</span>
+    </a>
+    <a href="/dashboard" class="nav-link">
+      <span class="icon">📊</span><span class="label">Дашборд</span>
+    </a>
+    <a href="/clients" class="nav-link">
+      <span class="icon">👥</span><span class="label">Клиенты</span>
+    </a>
+    <a href="/analytics" class="nav-link">
+      <span class="icon">📈</span><span class="label">Аналитика</span>
+    </a>
+    <a href="/analytics/clients" class="nav-link">
+      <span class="icon">🧮</span><span class="label">Аналитика (клиенты)</span>
+    </a>
+    <a href="/channels" class="nav-link">
+      <span class="icon">🛰️</span><span class="label">Каналы</span>
+    </a>
+    <a href="/users_list" class="nav-link">
+      <span class="icon">🧑‍💼</span><span class="label">Пользователи</span>
+    </a>
+    <a href="/settings" class="nav-link">
+      <span class="icon">⚙️</span><span class="label">Настройки</span>
+    </a>
+    <a href="/tasks" class="nav-link">
+      <span class="icon">✅</span><span class="label">Задачи</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Колокольчик -->
+<div id="notify-bell" class="notify-bell" title="Оповещения">
+  <span class="bell">🔔</span>
+  <span id="notify-count" class="count" hidden>0</span>
+  <div id="notify-dropdown" class="notify-dropdown" hidden></div>
+</div>
