@@ -955,6 +955,16 @@
   position: fixed;
 }
 
+/* Стили для плавного появления аватара в модалке */
+#avatarModalImg {
+  transition: opacity 0.3s ease;
+  opacity: 0;
+}
+
+#avatarModalImg.loaded {
+  opacity: 1;
+}
+
   /* === DEBUG: цветные контуры в модалке истории === */
 #historyModal.debug { --dbg-alpha: .12; }
 #historyModal.debug * { box-sizing: border-box; }
@@ -5102,11 +5112,15 @@ function findTicketEverywhere(ticketId) {
       prepared = normalized || fallbackSrc;
     }
 
+    // ИСПРАВЛЕНИЕ: используем правильную модалку для аватара
     const modalEl = document.getElementById('avatarModal');
     const modalImg = document.getElementById('avatarModalImg');
     const downloadLink = document.getElementById('avatarDownloadLink');
 
-    if (!modalEl || !modalImg) return;
+    if (!modalEl || !modalImg) {
+      console.error('Modal elements not found');
+      return;
+    }
 
     const updateDownloadLink = (nextSrc) => {
       if (!downloadLink) return;
@@ -5114,7 +5128,13 @@ function findTicketEverywhere(ticketId) {
       downloadLink.download = 'avatar.jpg';
     };
 
-    modalImg.style.opacity = '0';
+    const currentSrc = modalImg.getAttribute('src') || '';
+    const isSameSrc = currentSrc === prepared;
+
+    if (!isSameSrc) {
+      modalImg.style.opacity = '0';
+    }
+
     modalImg.alt = 'Фото клиента';
 
     modalImg.onload = () => {
@@ -5134,7 +5154,19 @@ function findTicketEverywhere(ticketId) {
       modalImg.onerror = null;
     };
 
-    modalImg.src = prepared;
+    if (isSameSrc) {
+      if (modalImg.complete && modalImg.naturalWidth > 0) {
+        modalImg.style.opacity = '1';
+        modalImg.onload = null;
+        modalImg.onerror = null;
+      } else {
+        modalImg.src = '';
+        modalImg.src = prepared;
+      }
+    } else {
+      modalImg.src = prepared;
+    }
+
     updateDownloadLink(prepared);
 
     if (modalImg.complete && modalImg.naturalWidth > 0) {
@@ -5142,6 +5174,8 @@ function findTicketEverywhere(ticketId) {
       modalImg.onload = null;
       modalImg.onerror = null;
     }
+
+    modalImg.dataset.currentSrc = prepared;
 
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
     modalInstance.show();
@@ -5556,16 +5590,21 @@ document.addEventListener('DOMContentLoaded', function() {
 window.currentUser = CURRENT_OPERATOR;
 </script>
 
-<!-- Modal: увеличение аватара -->
-<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true" style="z-index: 99999;">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content bg-transparent border-0 shadow-none">
-      <div class="modal-body p-0 text-center">
-        <img id="avatarModalImg" src="" class="img-fluid rounded" alt="Фото клиента" style="max-width: 90vw; max-height: 90vh;">
+<!-- Модальное окно для просмотра аватара -->
+<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content bg-dark">
+      <div class="modal-header border-0">
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
       </div>
-      <div class="modal-footer justify-content-center border-0">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
-        <a id="avatarDownloadLink" class="btn btn-primary btn-sm" href="#" download>Скачать</a>
+      <div class="modal-body p-0 text-center">
+        <img id="avatarModalImg" src="" alt="Аватар клиента" style="max-width: 100%; max-height: 80vh; object-fit: contain;">
+      </div>
+      <div class="modal-footer border-0 justify-content-center">
+        <a id="avatarDownloadLink" class="btn btn-primary" href="#" download="avatar.jpg">
+          <i class="bi bi-download"></i> Скачать
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
       </div>
     </div>
   </div>
