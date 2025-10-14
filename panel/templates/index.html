@@ -920,6 +920,20 @@
   z-index: 99999;
 }
 
+/* Плавное раскрытие модальных окон */
+.modal.fade .modal-dialog {
+  --modal-scale: 0.92;
+  transform: var(--modal-transform, scale(var(--modal-scale)));
+  opacity: 0;
+  transform-origin: center;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.modal.fade.show .modal-dialog {
+  --modal-scale: 1;
+  opacity: 1;
+}
+
 .modal.small-modal {
     align-items: center;
     justify-content: center;
@@ -934,7 +948,7 @@
     margin: 0;
     position: relative;
     top: 0;
-    transform: none;
+    --modal-transform: scale(var(--modal-scale));
   }
 
 /* Центрирование окна закрытия заявки */
@@ -942,8 +956,8 @@
   margin: 0;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
   position: fixed;
+  --modal-transform: translate(-50%, -50%) scale(var(--modal-scale));
 }
 
 /* Центрирование окна "Заявка закрыта" */
@@ -951,8 +965,8 @@
   margin: 0;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
   position: fixed;
+  --modal-transform: translate(-50%, -50%) scale(var(--modal-scale));
 }
 
 /* Стили для плавного появления аватара в модалке */
@@ -5116,11 +5130,51 @@ function findTicketEverywhere(ticketId) {
     const modalEl = document.getElementById('avatarModal');
     const modalImg = document.getElementById('avatarModalImg');
     const downloadLink = document.getElementById('avatarDownloadLink');
+    const modalDialog = modalEl ? modalEl.querySelector('.modal-dialog') : null;
 
     if (!modalEl || !modalImg) {
       console.error('Modal elements not found');
       return;
     }
+
+    if (modalEl._avatarResizeHandler) {
+      window.removeEventListener('resize', modalEl._avatarResizeHandler);
+    }
+    if (modalEl._avatarCleanupHandler) {
+      modalEl.removeEventListener('hidden.bs.modal', modalEl._avatarCleanupHandler);
+    }
+    if (modalEl._avatarShownHandler) {
+      modalEl.removeEventListener('shown.bs.modal', modalEl._avatarShownHandler);
+    }
+
+    if (!modalImg.dataset.defaultMaxHeight) {
+      modalImg.dataset.defaultMaxHeight = modalImg.style.maxHeight || '';
+    }
+
+    const adjustAvatarModalSize = () => {
+      if (!modalDialog) {
+        return;
+      }
+
+      const naturalWidth = modalImg.naturalWidth;
+      const naturalHeight = modalImg.naturalHeight;
+
+      if (!naturalWidth || !naturalHeight) {
+        modalDialog.style.removeProperty('max-width');
+        modalDialog.style.removeProperty('width');
+        modalImg.style.maxHeight = modalImg.dataset.defaultMaxHeight || '';
+        return;
+      }
+
+      const viewportWidth = window.innerWidth * 0.95;
+      const viewportHeight = window.innerHeight * 0.9;
+      const dialogWidth = Math.min(naturalWidth, viewportWidth);
+      const imageMaxHeight = Math.min(naturalHeight, viewportHeight);
+
+      modalDialog.style.maxWidth = dialogWidth + 'px';
+      modalDialog.style.width = 'auto';
+      modalImg.style.maxHeight = imageMaxHeight + 'px';
+    };
 
     const updateDownloadLink = (nextSrc) => {
       if (!downloadLink) return;
@@ -5139,6 +5193,7 @@ function findTicketEverywhere(ticketId) {
 
     modalImg.onload = () => {
       modalImg.style.opacity = '1';
+      adjustAvatarModalSize();
       modalImg.onload = null;
       modalImg.onerror = null;
     };
@@ -5173,12 +5228,38 @@ function findTicketEverywhere(ticketId) {
       modalImg.style.opacity = '1';
       modalImg.onload = null;
       modalImg.onerror = null;
+      adjustAvatarModalSize();
     }
 
     modalImg.dataset.currentSrc = prepared;
 
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
     modalInstance.show();
+
+    window.addEventListener('resize', adjustAvatarModalSize);
+    modalEl._avatarResizeHandler = adjustAvatarModalSize;
+
+    const cleanupModal = () => {
+      window.removeEventListener('resize', adjustAvatarModalSize);
+      if (modalDialog) {
+        modalDialog.style.removeProperty('max-width');
+        modalDialog.style.removeProperty('width');
+      }
+      modalImg.style.maxHeight = modalImg.dataset.defaultMaxHeight || '';
+      modalEl._avatarResizeHandler = null;
+      modalEl._avatarCleanupHandler = null;
+      modalEl._avatarShownHandler = null;
+    };
+
+    modalEl.addEventListener('hidden.bs.modal', cleanupModal, { once: true });
+    modalEl._avatarCleanupHandler = cleanupModal;
+
+    const handleModalShown = () => {
+      adjustAvatarModalSize();
+    };
+
+    modalEl.addEventListener('shown.bs.modal', handleModalShown, { once: true });
+    modalEl._avatarShownHandler = handleModalShown;
   }
 
   const avaInHistory = document.getElementById('clientAvatarInHistory');
