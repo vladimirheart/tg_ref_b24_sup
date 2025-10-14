@@ -470,22 +470,21 @@
   display: flex !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  height: 100%;
   gap: 0;
 }
 
 /* Сама лента сообщений */
-#historyContent {
-  height: 100%;
+#historyModal .chat-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 16px 8px;
   display: flex;
   flex-direction: column;
-  padding-bottom: 0;
-}
-
-/* Фон для области истории сообщений */
-#historyContent {
+   gap: 12px;
+  justify-content: flex-start;
+  margin-bottom: 0;
   background-color: #f8f9fa !important;
-  min-height: 100%;
 }
 
 /* Обеспечиваем правильное отображение пузырей на фоне */
@@ -499,14 +498,8 @@
   border: 1px solid #a5d6a7;
 }
 
-/* Внутренние отступы у ленты в истории */
-#historyModal .chat-container {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 15px 15px 0 15px;
-  justify-content: flex-end;
-  margin-bottom: 0;
+#historyModal .input-group-send {
+  margin-top: 0 !important;
 }
 
 #historyModal .input-group-send {
@@ -1281,85 +1274,86 @@ function markTicketReopenedLocally() {
                 <div class="chat-container flex-grow-1 min-height-0" id="historyContent"></div>
 
                 <!-- Поле ввода сообщения и кнопка отправки -->
-                
+				                <div class="input-group-send p-3 border-top bg-light w-100">
+                  <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
+                  <div class="flex-grow-1 position-relative">
+                    <div class="w-100">
+                      <div class="d-flex gap-2 mb-1 flex-wrap">
+                        <button type="button" class="btn btn-light btn-sm fmt" data-tag="b" title="Жирный">B</button>
+                        <button type="button" class="btn btn-light btn-sm fmt" data-tag="i" title="Курсив"><em>I</em></button>
+                        <button type="button" class="btn btn-light btn-sm fmt" data-tag="u" title="Подчёркнутый"><u>U</u></button>
+                        <button type="button" class="btn btn-light btn-sm fmt" data-tag="s" title="Зачёркнутый"><s>S</s></button>
+                        <button type="button" class="btn btn-light btn-sm fmt" data-tag="code" title="Моноширинный">code</button>
+                        <button type="button" class="btn btn-light btn-sm fmt" data-tag="blockquote" title="Цитата">❝ ❞</button>
+                        <button type="button" class="btn btn-light btn-sm" id="fmtLink" title="Ссылка">🔗</button>
+                      </div>
+                      <textarea id="replyTextInHistory" class="form-control" placeholder="Введите ответ." rows="2"></textarea>
+                    </div>
+
+                    <!-- ЕДИНАЯ кнопка выбора (эмодзи/стикеры/GIF) -->
+                    <div id="composerDock" class="position-absolute" style="right:10px; bottom:15px;">
+                      <button type="button"
+                              id="btnPicker"
+                              class="btn btn-sm btn-light px-3 dock-btn"
+                              title="Эмодзи/Стикеры/GIF"
+                              aria-expanded="false">😀</button>
+                    </div>
+
+                    <!-- Панель пикера (одно окно с вкладками) -->
+                    <div id="pickerPanel" class="card shadow-sm"
+                         style="position:absolute; right:10px; bottom:56px; width:360px; max-height:380px; display:none; z-index:5;">
+                      <div class="card-header py-1 px-2">
+                        <ul class="nav nav-tabs card-header-tabs" id="pickerTabs" role="tablist">
+                          <li class="nav-item"><button class="nav-link active" id="tab-emoji" data-bs-toggle="tab" data-bs-target="#pane-emoji" type="button" role="tab">Эмодзи</button></li>
+                          <li class="nav-item"><button class="nav-link" id="tab-sticker" data-bs-toggle="tab" data-bs-target="#pane-sticker" type="button" role="tab">Стикеры</button></li>
+                          <li class="nav-item"><button class="nav-link" id="tab-gif" data-bs-toggle="tab" data-bs-target="#pane-gif" type="button" role="tab">GIF</button></li>
+                        </ul>
+                      </div>
+                      <div class="card-body p-2 tab-content" style="overflow:auto;">
+                        <!-- Эмодзи -->
+                        <div class="tab-pane fade show active" id="pane-emoji" role="tabpanel">
+                          <input id="emojiSearch" class="form-control form-control-sm mb-2" placeholder="Поиск эмодзи">
+                          <div class="small text-muted" id="emojiRecentWrap" style="display:none;">Недавние:</div>
+                          <div id="emojiRecent" class="d-flex flex-wrap gap-1 mb-2"></div>
+                          <div id="emojiGrid" class="d-flex flex-wrap gap-1"></div>
+                        </div>
+                        <!-- Стикеры -->
+                        <div class="tab-pane fade" id="pane-sticker" role="tabpanel">
+                          <div class="small text-muted mb-2">Недавние</div>
+                          <div id="stickerRecent" class="d-flex flex-wrap gap-2 mb-2"></div>
+                          <label class="btn btn-sm btn-outline-secondary">
+                            Загрузить стикер
+                            <input id="fileSticker" type="file" class="d-none" accept=".webp,.webm,.tgs">
+                          </label>
+                        </div>
+                        <!-- GIF -->
+                        <div class="tab-pane fade" id="pane-gif" role="tabpanel">
+                          <div class="small text-muted mb-2">Загрузить GIF</div>
+                          <input id="fileGif" type="file" accept=".gif" class="form-control form-control-sm" />
+                          <div id="gifPreview" class="mt-2 d-flex flex-wrap gap-2"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ПРАВАЯ колонка: «Прикрепить» + «Отправить» -->
+                  <div class="send-actions d-flex flex-column ms-2" style="width:160px;">
+                    <input type="file" id="replyFiles" class="d-none" multiple>
+                    <label for="replyFiles" id="replyFilesBtn" class="btn btn-outline-secondary w-100 mb-2">
+                      📎
+                    </label>
+                    <button type="button" id="sendReplyInHistory" class="btn btn-primary w-100">📤 Отправить</button>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
         </div>
       </div>
-		<div class="input-group-send p-3 border-top bg-light w-100">
-
-  <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
-  <div class="flex-grow-1 position-relative">
-    <div class="w-100">
-	  <div class="d-flex gap-2 mb-1 flex-wrap">
-		<button type="button" class="btn btn-light btn-sm fmt" data-tag="b"    title="Жирный">B</button>
-		<button type="button" class="btn btn-light btn-sm fmt" data-tag="i"    title="Курсив"><em>I</em></button>
-		<button type="button" class="btn btn-light btn-sm fmt" data-tag="u"    title="Подчёркнутый"><u>U</u></button>
-		<button type="button" class="btn btn-light btn-sm fmt" data-tag="s"    title="Зачёркнутый"><s>S</s></button>
-		<button type="button" class="btn btn-light btn-sm fmt" data-tag="code" title="Моноширинный">code</button>
-		<button type="button" class="btn btn-light btn-sm fmt" data-tag="blockquote" title="Цитата">❝ ❞</button>
-		<button type="button" class="btn btn-light btn-sm" id="fmtLink" title="Ссылка">🔗</button>
-	  </div>
-	  <textarea id="replyTextInHistory" class="form-control" placeholder="Введите ответ." rows="2"></textarea>
-	</div>
-	
-    <!-- ЕДИНАЯ кнопка выбора (эмодзи/стикеры/GIF) -->
-		<div id="composerDock" class="position-absolute" style="right:10px; bottom:15px;">
-		  <button type="button"
-				  id="btnPicker"
-				  class="btn btn-sm btn-light px-3 dock-btn"
-				  title="Эмодзи/Стикеры/GIF"
-				  aria-expanded="false">😀</button>	
-		</div>
-
-    <!-- Панель пикера (одно окно с вкладками) -->
-    <div id="pickerPanel" class="card shadow-sm"
-         style="position:absolute; right:10px; bottom:56px; width:360px; max-height:380px; display:none; z-index:5;">
-      <div class="card-header py-1 px-2">
-        <ul class="nav nav-tabs card-header-tabs" id="pickerTabs" role="tablist">
-          <li class="nav-item"><button class="nav-link active" id="tab-emoji"   data-bs-toggle="tab" data-bs-target="#pane-emoji"   type="button" role="tab">Эмодзи</button></li>
-          <li class="nav-item"><button class="nav-link"         id="tab-sticker" data-bs-toggle="tab" data-bs-target="#pane-sticker" type="button" role="tab">Стикеры</button></li>
-          <li class="nav-item"><button class="nav-link"         id="tab-gif"     data-bs-toggle="tab" data-bs-target="#pane-gif"     type="button" role="tab">GIF</button></li>
-        </ul>
-      </div>
-      <div class="card-body p-2 tab-content" style="overflow:auto;">
-        <!-- Эмодзи -->
-        <div class="tab-pane fade show active" id="pane-emoji" role="tabpanel">
-          <input id="emojiSearch" class="form-control form-control-sm mb-2" placeholder="Поиск эмодзи">
-          <div class="small text-muted" id="emojiRecentWrap" style="display:none;">Недавние:</div>
-          <div id="emojiRecent" class="d-flex flex-wrap gap-1 mb-2"></div>
-          <div id="emojiGrid"   class="d-flex flex-wrap gap-1"></div>
-        </div>
-        <!-- Стикеры -->
-        <div class="tab-pane fade" id="pane-sticker" role="tabpanel">
-          <div class="small text-muted mb-2">Недавние</div>
-          <div id="stickerRecent" class="d-flex flex-wrap gap-2 mb-2"></div>
-          <label class="btn btn-sm btn-outline-secondary">
-            Загрузить стикер
-            <input id="fileSticker" type="file" class="d-none" accept=".webp,.webm,.tgs">
-          </label>
-        </div>
-        <!-- GIF -->
-        <div class="tab-pane fade" id="pane-gif" role="tabpanel">
-          <div class="small text-muted mb-2">Загрузить GIF</div>
-          <input id="fileGif" type="file" accept=".gif" class="form-control form-control-sm" />
-          <div id="gifPreview" class="mt-2 d-flex flex-wrap gap-2"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ПРАВАЯ колонка: «Прикрепить» + «Отправить» -->
-  <div class="send-actions d-flex flex-column ms-2" style="width:160px;">
-    <input type="file" id="replyFiles" class="d-none" multiple>
-    <label for="replyFiles" id="replyFilesBtn" class="btn btn-outline-secondary w-100 mb-2">
-      📎 
-    </label>
-    <button type="button" id="sendReplyInHistory" class="btn btn-primary w-100">📤 Отправить</button>
   </div>
 </div>
-	
+
      </div>
   </div>
 </div>
@@ -1523,19 +1517,34 @@ function markTicketReopenedLocally() {
 	  return (msg.tg_message_id ?? msg.message_id ?? null);
 	}
 
-	// Флаг «это сообщение оператора?»
-	function isSupportMsg(msg) {
-	  const raw = String(msg.sender || '').toLowerCase().trim();
-	  return (
-		['support','operator','admin','поддержка','оператор','staff','agent'].includes(raw) ||
-		msg.is_support === true ||
-		msg.from_support === true ||
-		msg.is_outgoing === true ||
-		msg.sender_type === 'support' ||
-		msg.direction === 'out' ||
-		msg.sender === 'support'
-	  );
-	}
+        // Флаг «это сообщение оператора?»
+        function isSupportMsg(msg) {
+          const raw = String(msg.sender || '').toLowerCase().trim();
+          return (
+                ['support','operator','admin','поддержка','оператор','staff','agent'].includes(raw) ||
+                msg.is_support === true ||
+                msg.from_support === true ||
+                msg.is_outgoing === true ||
+                msg.sender_type === 'support' ||
+                msg.direction === 'out' ||
+                msg.sender === 'support'
+          );
+        }
+
+        function isSupportSenderLabel(label) {
+          const raw = String(label || '').toLowerCase().trim();
+          if (!raw) return false;
+          return (
+            raw.includes('support') ||
+            ['support','operator','admin','поддержка','оператор','staff','agent','system','bot','manager'].includes(raw)
+          );
+        }
+
+        function isUserSenderLabel(label) {
+          const raw = String(label || '').toLowerCase().trim();
+          if (!raw) return false;
+          return ['user','client','customer','клиент','пользователь','telegram_user','customer'].includes(raw);
+        }
 
 	// Единый UTC-timestamp (ms) для сортировки
 	function sortTsMs(msg) {
@@ -1544,15 +1553,35 @@ function markTicketReopenedLocally() {
 	  return Date.parse(iso) || 0;
 	}
 
-	function wrapSelection(tag, before='', after=''){
-	  const ta = document.getElementById('replyTextInHistory');
-	  const [start, end] = [ta.selectionStart, ta.selectionEnd];
-	  const sel = ta.value.substring(start, end) || 'текст';
-	  const open = `<${tag}${before}>`;
-	  const close = `</${tag.split(' ')[0]}>${after}`;
-	  ta.setRangeText(open + sel + close, start, end, 'end');
-	  ta.focus();
-	}
+        function wrapSelection(tag, before='', after=''){
+          const ta = document.getElementById('replyTextInHistory');
+          const [start, end] = [ta.selectionStart, ta.selectionEnd];
+          const sel = ta.value.substring(start, end) || 'текст';
+          const open = `<${tag}${before}>`;
+          const close = `</${tag.split(' ')[0]}>${after}`;
+          ta.setRangeText(open + sel + close, start, end, 'end');
+          ta.focus();
+        }
+
+        function normalizeAvatarUrl(src) {
+          if (!src) return '';
+          let value = String(src).trim();
+          if (!value) return '';
+          if (value.toLowerCase() === 'null' || value.toLowerCase() === 'undefined') return '';
+          if (value.startsWith('data:')) return value;
+          if (value.startsWith('http://') || value.startsWith('https://')) return value;
+          if (value.startsWith('//')) return window.location.protocol + value;
+          if (!value.startsWith('/')) value = '/' + value.replace(/^\/+/, '');
+          return value;
+        }
+
+        function ensureFullAvatarUrl(src) {
+          const normalized = normalizeAvatarUrl(src);
+          if (!normalized) return '';
+          if (!normalized.startsWith('/')) return normalized;
+          if (normalized.includes('?full=1')) return normalized;
+          return normalized.includes('?') ? `${normalized}&full=1` : `${normalized}?full=1`;
+        }
 	document.querySelectorAll('.fmt').forEach(btn=>{
 	  btn.addEventListener('click', ()=>{
 		const tag = btn.dataset.tag;
@@ -1756,38 +1785,39 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
 	let lastRenderedAt = null;     // ISO-время последнего отрисованного сообщения
 	let unreadCountValue = 0;           // счётчик непрочитанных во время открытой модалки
 	let historyModalIsOpen = false;
-	let historyHasFocus = true;    // фокус внутри модалки
+	    let historyHasFocus = true;    // фокус внутри модалки
         let unreadCountByTicket = JSON.parse(localStorage.getItem('unreadCountByTicket') || '{}');     // { [ticketId]: number }
         const unreadFetchQueue = [];
         const unreadFetchInFlight = new Map();
         const unreadFetchTimestamps = new Map();
         const MAX_CONCURRENT_UNREAD_FETCHES = 2;
-		function setTicketUnread(ticketId, n) {
-	  // Обновляем в таблице заявок
-	  const badgeInTable = document.querySelector(`.unread-badge[data-ticket="${ticketId}"]`);
-	  if (badgeInTable) {
-		n = Math.max(0, n | 0);
-		badgeInTable.textContent = String(n);
-		badgeInTable.style.display = n > 0 ? 'inline-flex' : 'none';
-	  }
+                function setTicketUnread(ticketId, n) {
+          const key = String(ticketId);
+          // Обновляем в таблице заявок
+          const badgeInTable = document.querySelector(`.unread-badge[data-ticket="${key}"]`);
+          if (badgeInTable) {
+                n = Math.max(0, n | 0);
+                badgeInTable.textContent = String(n);
+                badgeInTable.style.display = n > 0 ? 'inline-flex' : 'none';
+          }
 
-	  // Обновляем в модальном окне истории (если открыто)
-	  const badgeInHistory = document.getElementById('unreadBadge');
-	  if (badgeInHistory && currentTicketId == ticketId) {
-		badgeInHistory.textContent = String(n);
-		badgeInHistory.classList.toggle('d-none', n === 0);
-	  }
+          // Обновляем в модальном окне истории (если открыто)
+          const badgeInHistory = document.getElementById('unreadBadge');
+          if (badgeInHistory && String(currentTicketId) === key) {
+                badgeInHistory.textContent = String(n);
+                badgeInHistory.classList.toggle('d-none', n === 0);
+          }
 
-	  unreadCountByTicket[ticketId] = n;
-	  // 💾 Сохраняем в localStorage
-		localStorage.setItem('unreadCountByTicket', JSON.stringify(unreadCountByTicket));
-	}
+          unreadCountByTicket[key] = Math.max(0, n | 0);
+          // 💾 Сохраняем в localStorage
+                localStorage.setItem('unreadCountByTicket', JSON.stringify(unreadCountByTicket));
+        }
 
-	function recalcTicketUnreadFromDOM(ticketId) {
-	  const lastRead = lastReadAtByTicket[ticketId] || 0;
-	  let count = 0;
+        function recalcTicketUnreadFromDOM(ticketId) {
+          const lastRead = lastReadAtByTicket[ticketId] || 0;
+          let count = 0;
 
-	  // Если история открыта — считаем по DOM
+          // Если история открыта — считаем по DOM
 	  if (currentTicketId == ticketId) {
 		const content = document.getElementById('historyContent');
 		if (content) {
@@ -1803,9 +1833,27 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
 
 	  setTicketUnread(ticketId, count);
 	  
-	  // Сохраняем в localStorage для отображения в таблице
-	  localStorage.setItem('unreadCountByTicket', JSON.stringify(unreadCountByTicket));
-	}
+          // Сохраняем в localStorage для отображения в таблице
+          localStorage.setItem('unreadCountByTicket', JSON.stringify(unreadCountByTicket));
+        }
+
+        function refreshUnreadIndicators(scheduleFetch = true) {
+          allTickets.forEach(ticket => {
+                if (!ticket || ticket.ticket_id == null) return;
+                const ticketId = String(ticket.ticket_id);
+
+                if (String(currentTicketId) === ticketId) {
+                  recalcTicketUnreadFromDOM(ticketId);
+                } else {
+                  const saved = unreadCountByTicket[ticketId];
+                  setTicketUnread(ticketId, saved == null ? 0 : saved);
+                }
+
+                if (scheduleFetch) {
+                  scheduleUnreadUpdate(ticket);
+                }
+          });
+        }
 
 	// Сохранение ширины столбцов
 function saveColumnWidths() {
@@ -2013,6 +2061,93 @@ function ensureHistoryScrollButtons() {
                 const kb = msgKey(b);
                 return ka.localeCompare(kb);
           });
+        }
+
+        function scheduleUnreadUpdate(ticket) {
+          if (!ticket || ticket.ticket_id == null) return;
+
+          const ticketId = String(ticket.ticket_id);
+          if (historyModalIsOpen && String(currentTicketId) === ticketId) return;
+
+          const lastSenderRaw = ticket.last_sender ?? ticket.last_sender_type ?? ticket.last_message_sender ?? ticket.last_message_from ?? ticket.last_author ?? '';
+          const lastSender = String(lastSenderRaw || '').toLowerCase().trim();
+          const direction = String(ticket.last_message_direction || ticket.direction || ticket.last_direction || ticket.last_message_side || '').toLowerCase().trim();
+
+          const fromSupport = isSupportSenderLabel(lastSenderRaw) || ['out','outgoing','support','operator'].includes(direction);
+          if (fromSupport) return;
+
+          const fromUser = isUserSenderLabel(lastSenderRaw) || ['in','incoming','user','client','customer'].includes(direction);
+          if (!fromUser && !lastSender && !direction) {
+            // не удалось определить отправителя — всё равно делаем один запрос
+          }
+
+          const now = Date.now();
+          if (unreadFetchInFlight.has(ticketId)) return;
+          if (unreadFetchQueue.some(item => String(item.ticket.ticket_id) === ticketId)) return;
+
+          const lastFetch = unreadFetchTimestamps.get(ticketId) || 0;
+          if (now - lastFetch < 5000) return;
+
+          unreadFetchQueue.push({ ticket });
+          processUnreadFetchQueue();
+        }
+
+        function processUnreadFetchQueue() {
+          if (unreadFetchInFlight.size >= MAX_CONCURRENT_UNREAD_FETCHES) return;
+
+          const next = unreadFetchQueue.shift();
+          if (!next) return;
+
+          const ticketId = String(next.ticket.ticket_id);
+          const promise = requestUnreadCountForTicket(next.ticket)
+            .catch(err => {
+              console.error('Не удалось обновить счётчик непрочитанных для заявки', ticketId, err);
+            })
+            .finally(() => {
+              unreadFetchInFlight.delete(ticketId);
+              unreadFetchTimestamps.set(ticketId, Date.now());
+              processUnreadFetchQueue();
+            });
+
+          unreadFetchInFlight.set(ticketId, promise);
+        }
+
+        async function requestUnreadCountForTicket(ticket) {
+          const ticketId = String(ticket.ticket_id);
+          const params = new URLSearchParams({
+            ticket_id: ticketId,
+            _: String(Date.now())
+          });
+
+          if (ticket.channel_id != null && ticket.channel_id !== '' && ticket.channel_id !== 'null') {
+            params.set('channel_id', String(ticket.channel_id));
+          }
+
+          const resp = await fetch(`/history?${params.toString()}`, { cache: 'no-store' });
+          if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+          }
+
+          const data = await resp.json();
+          if (data && data.success === false) {
+            throw new Error(data.error || 'history response error');
+          }
+          const messages = Array.isArray(data.messages) ? data.messages : [];
+          const lastRead = lastReadAtByTicket[ticketId] || 0;
+
+          let count = 0;
+
+          for (const msg of messages) {
+            const sender = String(msg.sender || '').toLowerCase();
+            if (sender !== 'user') continue;
+
+            const ts = Date.parse(normalizeToISO(msg.timestamp));
+            if (!Number.isFinite(ts)) continue;
+
+            if (ts > lastRead) count += 1;
+          }
+
+          setTicketUnread(ticketId, count);
         }
 
         function scheduleUnreadUpdate(ticket) {
@@ -2540,29 +2675,25 @@ function initColumnResize() {
 
 			console.log("📩 Полученные заявки:", tickets);
 
-			// Сохраняем все заявки для пагинации
-			allTickets = tickets;
-			
-                        // После обновления тикетов - обновить счётчики
-                        allTickets.forEach(t => { // ← используем allTickets вместо tickets
-                                recalcTicketUnreadFromDOM(t.ticket_id);
-                                scheduleUnreadUpdate(t);
-                        });
-			
-			// Если есть активные фильтры - применяем их ко всем данным
-			if (window.filteredTickets) {
-				applyFilters(); // Переприменяем фильтры к новым данным
-			} else {
-				// Иначе отображаем все заявки как обычно
-				totalPages = Math.ceil(allTickets.length / currentPageSize);
-				displayTicketsForCurrentPage();
-				updatePagination();
-			}
+                        // Сохраняем все заявки для пагинации
+                        allTickets = tickets;
 
-		} catch (e) {
-			console.error("❌ Ошибка в autoRefreshTickets:", e);
-		}
-	}
+                        // Если есть активные фильтры - применяем их ко всем данным
+                        if (window.filteredTickets) {
+                                applyFilters(); // Переприменяем фильтры к новым данным
+                        } else {
+                                // Иначе отображаем все заявки как обычно
+                                totalPages = Math.ceil(allTickets.length / currentPageSize);
+                                displayTicketsForCurrentPage();
+                                updatePagination();
+                        }
+
+                        refreshUnreadIndicators();
+
+                } catch (e) {
+                        console.error("❌ Ошибка в autoRefreshTickets:", e);
+                }
+        }
 
 // === Отображение заявок для текущей страницы ===
 function displayTicketsForCurrentPage() {
@@ -3405,20 +3536,58 @@ function displayTicketsForCurrentPage() {
 
 				currentUserId = user_id;
 				currentTicketId = ticket_id;
-				
-				const avaEl = document.getElementById('clientAvatarInHistory');
-				avaEl.src = `/avatar/${currentUserId}`;
-				avaEl.dataset.fullsrc = `/avatar/${currentUserId}?full=1`;
 
 				// Ищем данные клиента в полученных тикетах
 				const clientData = allTickets.find(t => t.user_id == user_id && t.ticket_id == ticket_id);
 				if (clientData && ticketFull) {
-					if (!clientData.client_name && ticketFull.client_name) clientData.client_name = ticketFull.client_name;
-					if (!clientData.username && ticketFull.username) clientData.username = ticketFull.username;
+						if (!clientData.client_name && ticketFull.client_name) clientData.client_name = ticketFull.client_name;
+						if (!clientData.username && ticketFull.username) clientData.username = ticketFull.username;
 				}
 				window.currentClientData = clientData || {};
 				window.currentChannelId = clientData?.channel_id ?? null;
-				
+
+				const avaEl = document.getElementById('clientAvatarInHistory');
+				if (avaEl) {
+						const fallbackAvatar = '/static/default-avatar.png';
+						const avatarCandidates = [
+								clientData?.avatar_full_url,
+								clientData?.avatar_url,
+								ticketFull?.avatar_full_url,
+								ticketFull?.avatar_url,
+								clientData?.avatar,
+								ticketFull?.avatar,
+								`/avatar/${currentUserId}`
+						];
+
+						let avatarSrc = '';
+						for (const candidate of avatarCandidates) {
+								const normalized = normalizeAvatarUrl(candidate);
+								if (normalized) { avatarSrc = normalized; break; }
+						}
+						if (!avatarSrc) avatarSrc = fallbackAvatar;
+
+						let fullSrc = '';
+						const fullCandidates = [
+								clientData?.avatar_full_url,
+								ticketFull?.avatar_full_url,
+								avatarSrc === fallbackAvatar ? '' : avatarSrc
+						];
+						for (const candidate of fullCandidates) {
+								const normalized = ensureFullAvatarUrl(candidate);
+								if (normalized) { fullSrc = normalized; break; }
+						}
+						if (!fullSrc) fullSrc = avatarSrc;
+
+						avaEl.src = avatarSrc;
+						avaEl.dataset.fullsrc = fullSrc;
+						avaEl.alt = 'Аватар клиента';
+						avaEl.onerror = () => {
+								avaEl.onerror = null;
+								avaEl.src = fallbackAvatar;
+								avaEl.dataset.fullsrc = fallbackAvatar;
+						};
+				}
+
 				const messages = historyData.messages || [];
 				
 				// ВАЖНОЕ ИСПРАВЛЕНИЕ: Полностью очищаем renderedMsgIds перед загрузкой новой истории
@@ -3616,11 +3785,11 @@ function displayTicketsForCurrentPage() {
 				  }
 				}, { passive: true });
 
-				document.getElementById('historyModal').addEventListener('hidden.bs.modal', () => {
-				  historyModalIsOpen = false;
-				  // НЕ сбрасываем счётчики — только останавливаем поллинг
-				  if (window.timeUpdateInterval) {
-						clearInterval(window.timeUpdateInterval);
+                                document.getElementById('historyModal').addEventListener('hidden.bs.modal', () => {
+                                  historyModalIsOpen = false;
+                                  // НЕ сбрасываем счётчики — только останавливаем поллинг
+                                  if (window.timeUpdateInterval) {
+                                        clearInterval(window.timeUpdateInterval);
 					window.timeUpdateInterval = null;
 				  }
 				  if (historyPolling) {
@@ -3704,11 +3873,11 @@ function displayTicketsForCurrentPage() {
 			bsModal.show();
 		  });
 			// Обработчик события скрытия модального окна
-				document.getElementById('historyModal').addEventListener('hidden.bs.modal', function () {
-					historyModalIsOpen = false;
-					if (window.timeUpdateInterval) {
-							clearInterval(window.timeUpdateInterval);
-							window.timeUpdateInterval = null;
+                                document.getElementById('historyModal').addEventListener('hidden.bs.modal', function () {
+                                        historyModalIsOpen = false;
+                                        if (window.timeUpdateInterval) {
+                                                clearInterval(window.timeUpdateInterval);
+                                                window.timeUpdateInterval = null;
 					}
 					if (historyPolling) {
 						clearInterval(historyPolling);
@@ -4735,12 +4904,10 @@ function findTicketEverywhere(ticketId) {
 <script>
 (function () {
   function showAvatar(src) {
-    // Убедимся, что src содержит полный путь
-    if (src && !src.startsWith('http') && !src.startsWith('/')) {
-      src = '/' + src;
-    }
-    if (src && !src.includes('?full=1')) {
-      src = src + '?full=1';
+    let prepared = ensureFullAvatarUrl(src);
+    if (!prepared) {
+      const normalized = normalizeAvatarUrl(src);
+      prepared = normalized || '/static/default-avatar.png';
     }
 
     const modalEl = document.getElementById('avatarModal');
@@ -5177,10 +5344,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Принудительное обновление счётчиков в таблице
   setTimeout(() => {
-    allTickets.forEach(ticket => {
-	  recalcTicketUnreadFromDOM(ticket.ticket_id);
-	  scheduleUnreadUpdate(ticket);
-    });
+    refreshUnreadIndicators();
   }, 1000);
 });
 window.currentUser = CURRENT_OPERATOR;
