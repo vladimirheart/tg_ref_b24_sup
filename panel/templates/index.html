@@ -486,6 +486,28 @@
   overflow-y: auto;
 }
 
+#historyModal .history-avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#historyModal .history-avatar {
+  width: 100%;
+  max-width: 192px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, .1);
+  cursor: zoom-in;
+  margin-inline: auto;
+  transition: transform .2s ease;
+}
+
+#historyModal .history-avatar:hover {
+  transform: scale(1.03);
+}
+
 /* Правая колонка (история) */
 #historyModal .history-pane {
   position: relative;
@@ -1284,12 +1306,10 @@ function markTicketReopenedLocally() {
                 </div>
 				
                 <!-- Фото клиента -->
-				<div class="p-3 text-center">
-				  <img id="clientAvatarInHistory" src="" alt="Аватар" class="rounded-circle"
-					 width="96" height="96"
-					 style="object-fit:cover;border:1px solid rgba(0,0,0,.1);cursor:zoom-in">
-				  <div class="small text-muted mt-2">Фото клиента</div>
-				</div>
+                <div class="p-3 text-center history-avatar-wrapper">
+                  <img id="clientAvatarInHistory" src="" alt="Аватар" class="rounded-circle history-avatar">
+                  <div class="small text-muted mt-2">Фото клиента</div>
+                </div>
 
                 <!-- Таймер/счётчик времени -->
                 <div class="time-counter p-3 sidebar-info mt-auto">
@@ -5075,10 +5095,11 @@ function findTicketEverywhere(ticketId) {
 <script>
 (function () {
   function showAvatar(src) {
+    const fallbackSrc = '/static/default-avatar.png';
     let prepared = ensureFullAvatarUrl(src);
     if (!prepared) {
       const normalized = normalizeAvatarUrl(src);
-      prepared = normalized || '/static/default-avatar.png';
+      prepared = normalized || fallbackSrc;
     }
 
     const modalEl = document.getElementById('avatarModal');
@@ -5087,29 +5108,40 @@ function findTicketEverywhere(ticketId) {
 
     if (!modalEl || !modalImg) return;
 
+    const updateDownloadLink = (nextSrc) => {
+      if (!downloadLink) return;
+      downloadLink.href = nextSrc;
+      downloadLink.download = 'avatar.jpg';
+    };
+
     modalImg.style.opacity = '0';
+    modalImg.alt = 'Фото клиента';
 
-    const finalize = (nextSrc) => {
-      modalImg.src = nextSrc;
-      modalImg.alt = 'Фото клиента';
+    modalImg.onload = () => {
       modalImg.style.opacity = '1';
-      if (downloadLink) {
-        downloadLink.href = nextSrc;
-        downloadLink.download = 'avatar.jpg';
+      modalImg.onload = null;
+      modalImg.onerror = null;
+    };
+
+    modalImg.onerror = () => {
+      if (!modalImg.src.includes(fallbackSrc)) {
+        modalImg.src = fallbackSrc;
+        updateDownloadLink(fallbackSrc);
+        return;
       }
+
+      modalImg.style.opacity = '1';
+      modalImg.onerror = null;
     };
 
-    const loader = new Image();
-    const targetSrc = prepared;
-    loader.onload = () => {
-      finalize(loader.src);
-    };
-    loader.onerror = () => {
-      console.error('Failed to load avatar:', targetSrc);
-      finalize('/static/default-avatar.png');
-    };
+    modalImg.src = prepared;
+    updateDownloadLink(prepared);
 
-    loader.src = targetSrc;
+    if (modalImg.complete && modalImg.naturalWidth > 0) {
+      modalImg.style.opacity = '1';
+      modalImg.onload = null;
+      modalImg.onerror = null;
+    }
 
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
     modalInstance.show();
