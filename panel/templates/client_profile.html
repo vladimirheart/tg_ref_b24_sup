@@ -59,6 +59,39 @@
     .input-group-send .btn {
       white-space: nowrap;
     }
+    .modal.small-modal {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.small-modal .modal-dialog {
+      margin: 0;
+      position: relative;
+      top: 0;
+      transform: none;
+    }
+
+    .small-modal {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .small-modal .modal-dialog {
+      margin: 0;
+      position: relative;
+      top: 0;
+      transform: none;
+    }
+
+    #ticketClosedModal .modal-dialog {
+      margin: 0;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      position: fixed;
+    }
 
     /* ✅ Стили для бизнесов */
     .business-sushi { background-color: #F25F79 !important; color: white !important; }
@@ -469,6 +502,12 @@
     window.settings = {{ settings | tojson }};
   </script>
   <script>
+      const CURRENT_OPERATOR = {{ (session.get('user_email') or session.get('username') or session.get('user') or '') | tojson }};
+
+    function getOperatorName() {
+      const name = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
+      return name || 'Поддержка';
+    }
     let currentUserId = null;
     let currentTicketId = null;
     let historyPolling = null;
@@ -776,34 +815,57 @@ function createMediaHtml(ticket_id, mediaInfo) {
           if (!select) return;
           
           const category = select.value;
-          const admin = prompt("Ваше имя или @username:", "{{ session.user or 'Поддержка' }}");
-          
-          if (!admin) return;
           if (!category) {
             alert('❌ Выберите категорию');
             return;
           }
 
-          const response = await fetch('/close_ticket', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              user_id: currentUserId, 
-              admin, 
-              category, 
-              ticket_id: currentTicketId 
-            })
-          });
+          const admin = getOperatorName();
+
+          let completed = false;
+          try {
+            confirmButton.disabled = true;
+
+            const response = await fetch('/close_ticket', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_id: currentUserId,
+                admin,
+                category,
+                ticket_id: currentTicketId
+              })
+            });
 
           const data = await response.json();
-          if (data.success) {
-            alert('✅ Заявка закрыта');
-            location.reload();
-          } else {
-            alert('❌ Ошибка: ' + data.error);
-          }
+            if (!data.success) {
+              alert('❌ Ошибка: ' + (data.error || 'Не удалось закрыть заявку'));
+              return;
+            }
 
-          bootstrap.Modal.getInstance(document.getElementById('closeTicketModal')).hide();
+          completed = true;
+
+            const closeModal = document.getElementById('closeTicketModal');
+            if (closeModal) {
+              const instance = bootstrap.Modal.getInstance(closeModal);
+              instance?.hide();
+            }
+
+            const successModal = document.getElementById('ticketClosedModal');
+            if (successModal) {
+              bootstrap.Modal.getOrCreateInstance(successModal).show();
+            } else {
+              alert('✅ Заявка закрыта');
+              location.reload();
+            }
+          } catch (error) {
+            console.error('Ошибка закрытия заявки:', error);
+            alert('❌ Ошибка: ' + (error?.message || error));
+          } finally {
+            if (!completed) {
+              confirmButton.disabled = false;
+            }
+          }
         };
       }
     });
@@ -1011,16 +1073,39 @@ function createMediaHtml(ticket_id, mediaInfo) {
 
 	async function blacklistRemove(userId) {
 	  const r = await fetch('/api/blacklist/remove', {
-		method: 'POST',
-		headers: {'Content-Type':'application/json'},
-		body: JSON.stringify({user_id: userId})
+			method: 'POST',
+			headers: {'Content-Type':'application/json'},
+			body: JSON.stringify({user_id: userId})
 	  });
 	  const j = await r.json();
 	  alert(j.ok ? 'Клиент разблокирован' : ('Ошибка: '+(j.error||'unknown')));
 	  if (j.ok) location.reload();
 	}
-</script>
 
+	const ticketClosedModalEl = document.getElementById('ticketClosedModal');
+	if (ticketClosedModalEl) {
+	  ticketClosedModalEl.addEventListener('hidden.bs.modal', () => {
+		location.reload();
+	  });
+	}
+
+	window.currentUser = CURRENT_OPERATOR;
+</script>
+	
+<!-- Модальное окно: подтверждение успешного закрытия -->
+        <div class="modal fade small-modal" id="ticketClosedModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-center p-4">
+                  <div class="modal-body">
+                        <h5 class="mb-2">Заявка закрыта</h5>
+                        <p class="text-muted mb-0">Обращение успешно переведено в завершённое состояние.</p>
+                  </div>
+                  <div class="modal-footer justify-content-center border-0">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ок</button>
+                  </div>
+                </div>
+          </div>
+        </div>
 <!-- Modal: увеличение аватара -->
 	<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
 	  <div class="modal-dialog modal-dialog-centered">
