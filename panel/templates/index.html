@@ -1636,7 +1636,7 @@ function markTicketReopenedLocally() {
 
 	  function getRecent(){
 		try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); }
-		catch { return []; }
+          catch (error) { return []; }
 	  }
 	  function pushRecent(ch){
 		const arr = getRecent().filter(x => x !== ch);
@@ -2050,7 +2050,7 @@ function ensureHistoryScrollButtons() {
 		}).formatToParts(at).reduce((o,p)=>{o[p.type]=p.value; return o;}, {});
 		const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
 		return Math.round((asUTC - at.getTime()) / 60000);
-	  } catch { return 0; }
+    } catch (error) { return 0; }
 	}
 
 		
@@ -5065,8 +5065,9 @@ document.addEventListener('click', async (e)=>{
     const data = await r.json();
     if (data && data.ok) { window.location.href = '/tasks'; }
     else { alert(data && data.error ? data.error : 'Не удалось создать задачу'); }
-  } catch {
-    alert('Сеть недоступна. Попробуйте ещё раз.');
+  } catch (error) {
+      console.error('Не удалось создать задачу из диалога:', error);
+      alert('Сеть недоступна. Попробуйте ещё раз.');
   }
 });
 
@@ -5104,8 +5105,9 @@ document.addEventListener('click', async (e)=>{
     } else {
       alert(data && data.error ? data.error : 'Не удалось создать задачу');
     }
-  } catch {
-    alert('Сеть недоступна. Попробуйте ещё раз.');
+  } catch (error) {
+      console.error('Не удалось открыть задачу по номеру:', error);
+      alert('Сеть недоступна. Попробуйте ещё раз.');
   }
 });
 
