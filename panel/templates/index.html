@@ -1274,7 +1274,7 @@ function markTicketReopenedLocally() {
                 <div class="chat-container flex-grow-1 min-height-0" id="historyContent"></div>
 
                 <!-- Поле ввода сообщения и кнопка отправки -->
-				                <div class="input-group-send p-3 border-top bg-light w-100">
+				<div class="input-group-send p-3 border-top bg-light w-100">
                   <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
                   <div class="flex-grow-1 position-relative">
                     <div class="w-100">
@@ -1470,7 +1470,8 @@ function markTicketReopenedLocally() {
   </script>
 
   <script>
-	let currentPage = 1;
+	const savedPage = parseInt(localStorage.getItem('ticketsCurrentPage') || '1', 10);
+	let currentPage = Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1;
 	let totalPages = 1;
 	let allTickets = [];
     let currentUserId = null;
@@ -1478,6 +1479,18 @@ function markTicketReopenedLocally() {
     let historyPolling = null;
 	window.lastReadAtByTicket = JSON.parse(localStorage.getItem('lastReadAtByTicket') || '{}');
     let currentPageSize = 20;
+	        function persistCurrentPageIfUnfiltered() {
+          if (!window.filteredTickets) {
+                localStorage.setItem('ticketsCurrentPage', String(currentPage));
+          }
+        }
+
+        function ensureCurrentPageBounds(totalItems) {
+          const maxPage = Math.max(1, Math.ceil(totalItems / currentPageSize) || 1);
+          if (currentPage > maxPage) currentPage = maxPage;
+          if (currentPage < 1) currentPage = 1;
+          return maxPage;
+        }
 	let unreadCount = 0;
 		function setUnread(n) {
 		  unreadCount = Math.max(0, n|0);
@@ -1787,6 +1800,25 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
 	let historyModalIsOpen = false;
 	    let historyHasFocus = true;    // фокус внутри модалки
         let unreadCountByTicket = JSON.parse(localStorage.getItem('unreadCountByTicket') || '{}');     // { [ticketId]: number }
+        function getTicketById(ticketId) {
+          const id = String(ticketId);
+          return window.allTickets?.find(t => String(t.ticket_id) === id)
+                || window.filteredTickets?.find(t => String(t.ticket_id) === id)
+                || null;
+        }
+		        function shouldDisplayUnreadBadge(ticket, overrideStatus) {
+          if (!ticket) return true;
+          const resolvedBy = String(ticket.resolved_by || '').toLowerCase();
+          const autoClosed = resolvedBy.includes('авто') || resolvedBy.includes('auto');
+          if (autoClosed) return true;
+
+          const rawStatus = String(ticket.raw_status || '').toLowerCase();
+          const humanStatus = String(overrideStatus || ticket.status || '').toLowerCase();
+          const resolvedStatuses = ['resolved', 'closed'];
+          const isResolvedRaw = resolvedStatuses.includes(rawStatus);
+          const isResolvedHuman = humanStatus.includes('решено') || humanStatus.includes('закрыт') || humanStatus.includes('resolved') || humanStatus.includes('closed');
+          return !(isResolvedRaw || isResolvedHuman);
+        }
         const unreadFetchQueue = [];
         const unreadFetchInFlight = new Map();
         const unreadFetchTimestamps = new Map();
@@ -1798,7 +1830,9 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
           if (badgeInTable) {
                 n = Math.max(0, n | 0);
                 badgeInTable.textContent = String(n);
-                badgeInTable.style.display = n > 0 ? 'inline-flex' : 'none';
+                const ticketData = getTicketById(ticketId);
+                const canShowUnread = shouldDisplayUnreadBadge(ticketData);
+                badgeInTable.style.display = (n > 0 && canShowUnread) ? 'inline-flex' : 'none';
           }
 
           // Обновляем в модальном окне истории (если открыто)
@@ -1812,7 +1846,6 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
           // 💾 Сохраняем в localStorage
                 localStorage.setItem('unreadCountByTicket', JSON.stringify(unreadCountByTicket));
         }
-
         function recalcTicketUnreadFromDOM(ticketId) {
           const lastRead = lastReadAtByTicket[ticketId] || 0;
           let count = 0;
@@ -2699,9 +2732,12 @@ function initColumnResize() {
 function displayTicketsForCurrentPage() {
   const container = document.getElementById('ticketsBody');
   if (!container) return;
-  
+
   container.innerHTML = '';
-  
+
+  totalPages = ensureCurrentPageBounds(allTickets.length);
+  persistCurrentPageIfUnfiltered();
+
   // Рассчитываем индексы для текущей страницы
   const startIndex = (currentPage - 1) * currentPageSize;
   const endIndex = Math.min(startIndex + currentPageSize, allTickets.length);
@@ -2868,25 +2904,33 @@ function displayTicketsForCurrentPage() {
 
 			// === Смена страницы ===
 			function changePage(page) {
-			  if (page < 1 || page > totalPages) return;
-			  
-			  currentPage = page;
-			  displayTicketsForCurrentPage();
-			  updatePagination();
+                          if (page < 1 || page > totalPages) return;
+
+                          currentPage = page;
+                          persistCurrentPageIfUnfiltered();
+                          displayTicketsForCurrentPage();
+                          updatePagination();
 			  
 			  // Прокручиваем к верху таблицы
 			  document.querySelector('.table-responsive').scrollIntoView({ behavior: 'smooth' });
 			}
 
 			// === Обработчик изменения количества отображаемых заявок ===
-				document.getElementById('pageSize')?.addEventListener('change', function() {
-				  currentPageSize = parseInt(this.value);
-				  localStorage.setItem('pageSize', currentPageSize);
-				  currentPage = 1; // Сбрасываем на первую страницу
-				  totalPages = Math.ceil(allTickets.length / currentPageSize);
-				  displayTicketsForCurrentPage();
-				  updatePagination();
-				});
+                                document.getElementById('pageSize')?.addEventListener('change', function() {
+                                  currentPageSize = parseInt(this.value);
+                                  localStorage.setItem('pageSize', currentPageSize);
+                                  currentPage = 1; // Сбрасываем на первую страницу
+                                  const sourceLength = window.filteredTickets ? window.filteredTickets.length : allTickets.length;
+                                  totalPages = ensureCurrentPageBounds(sourceLength);
+                                  persistCurrentPageIfUnfiltered();
+                                  if (window.filteredTickets) {
+                                        displayTicketsForCurrentPageFiltered();
+                                        updatePaginationFiltered();
+                                  } else {
+                                        displayTicketsForCurrentPage();
+                                        updatePagination();
+                                  }
+                                });
 					// Не закрывать дропдауны категорий при клике по лейблу/чекбоксу (история и закрытие)
 						document.addEventListener('click', function(e) {
 								  const menu = e.target.closest('.dropdown-menu');
@@ -3030,13 +3074,13 @@ function displayTicketsForCurrentPage() {
 						// === Отображение отфильтрованных заявок ===
 						function displayFilteredTickets(filteredTickets) {
 							// Сбрасываем на первую страницу
-							currentPage = 1;
-							
-							// Рассчитываем общее количество страниц для отфильтрованных данных
-							totalPages = Math.ceil(filteredTickets.length / currentPageSize) || 1;
-							
-							// Сохраняем отфильтрованные заявки для пагинации
-							window.filteredTickets = filteredTickets;
+                                                        currentPage = 1;
+
+                                                        // Рассчитываем общее количество страниц для отфильтрованных данных
+                                                        totalPages = ensureCurrentPageBounds(filteredTickets.length);
+
+                                                        // Сохраняем отфильтрованные заявки для пагинации
+                                                        window.filteredTickets = filteredTickets;
 							
 							// Отображаем заявки для текущей страницы
 							displayTicketsForCurrentPageFiltered();
@@ -3046,18 +3090,20 @@ function displayTicketsForCurrentPage() {
 						}
 
 						// === Отображение заявок текущей страницы (для отфильтрованных данных) ===
-						function displayTicketsForCurrentPageFiltered() {
-							const container = document.getElementById('ticketsBody');
-							if (!container) return;
-							
-							container.innerHTML = '';
-							
-							// Используем отфильтрованные данные
-							const ticketsToDisplay = window.filteredTickets || allTickets;
-							
-							// Рассчитываем индексы для текущей страницы
-							const startIndex = (currentPage - 1) * currentPageSize;
-							const endIndex = Math.min(startIndex + currentPageSize, ticketsToDisplay.length);
+                                                function displayTicketsForCurrentPageFiltered() {
+                                                        const container = document.getElementById('ticketsBody');
+                                                        if (!container) return;
+
+                                                        container.innerHTML = '';
+
+                                                        // Используем отфильтрованные данные
+                                                        const ticketsToDisplay = window.filteredTickets || allTickets;
+
+                                                        totalPages = ensureCurrentPageBounds(ticketsToDisplay.length);
+
+                                                        // Рассчитываем индексы для текущей страницы
+                                                        const startIndex = (currentPage - 1) * currentPageSize;
+                                                        const endIndex = Math.min(startIndex + currentPageSize, ticketsToDisplay.length);
 							
 							// Получаем заявки для текущей страницы
 							const pageTickets = ticketsToDisplay.slice(startIndex, endIndex);
@@ -3188,8 +3234,8 @@ function displayTicketsForCurrentPage() {
 							
 							paginationContainer.innerHTML = '';
 							
-							const ticketsToDisplay = window.filteredTickets || allTickets;
-							totalPages = Math.ceil(ticketsToDisplay.length / currentPageSize) || 1;
+                                                        const ticketsToDisplay = window.filteredTickets || allTickets;
+                                                        totalPages = ensureCurrentPageBounds(ticketsToDisplay.length);
 							
 							if (totalPages <= 1) return;
 							
@@ -3246,12 +3292,13 @@ function displayTicketsForCurrentPage() {
 							  });
 							  
 							  // Возвращаемся к отображению всех заявок
-							  currentPage = 1;
-							  window.filteredTickets = null;
-							  totalPages = Math.ceil(allTickets.length / currentPageSize);
-							  displayTicketsForCurrentPage();
-							  updatePagination();
-						}
+                                                          currentPage = 1;
+                                                          window.filteredTickets = null;
+                                                          totalPages = ensureCurrentPageBounds(allTickets.length);
+                                                          persistCurrentPageIfUnfiltered();
+                                                          displayTicketsForCurrentPage();
+                                                          updatePagination();
+                                                }
 
    // === Обновляем обработчики событий ===
 		document.addEventListener('DOMContentLoaded', function() {
@@ -3636,18 +3683,18 @@ function displayTicketsForCurrentPage() {
 				// === ВРЕМЕННЫЕ МЕТРИКИ (СООТВЕТСТВУЮТ ВАШЕЙ ЛОГИКЕ) ===
 				// "Создана" — когда заявка попала в список заявок.
 				// 1) Пытаемся взять ticket.created_at (от бэка); 2) иначе — первое сообщение клиента.
-				let createdAt = ticketFull.created_at ? safeParseISO(ticketFull.created_at) : null;
-				if (!createdAt || isNaN(createdAt)) {
-					const firstUserMsg = messages.find(m => m.sender === 'user' && m.timestamp);
-					createdAt = firstUserMsg ? safeParseISO(firstUserMsg.timestamp) : null;
-				}
+                                let createdAt = parseDateFromAny(ticketFull.created_at || ticketFull.createdAt);
+                                if (!createdAt) {
+                                        const firstUserMsg = messages.find(m => !isSupportMsg(m) && messageDate(m));
+                                        createdAt = firstUserMsg ? messageDate(firstUserMsg) : null;
+                                }
 
-				// "Первый ответ оператора" — первое сообщение support
-				const firstSupportMsg = messages.find(m => m.sender === 'support' && m.timestamp);
-				const firstReply = firstSupportMsg ? safeParseISO(firstSupportMsg.timestamp) : null;
+                                // "Первый ответ оператора" — первое сообщение support
+                                const firstSupportMsg = messages.find(m => isSupportMsg(m) && messageDate(m));
+                                const firstReply = firstSupportMsg ? messageDate(firstSupportMsg) : null;
 
-				// "Завершение" — resolved_at от бэка
-				const resolvedAt = ticketFull.resolved_at ? safeParseISO(ticketFull.resolved_at) : null;
+                                // "Завершение" — resolved_at от бэка
+                                const resolvedAt = parseDateFromAny(ticketFull.resolved_at || ticketFull.resolvedAt);
 
 				// "Время до ответа" — от создания (createdAt) до первого ответа (firstReply)
 				const timeToFirstReply = (createdAt && firstReply) ? diffHMin(createdAt, firstReply) : '—';
@@ -3767,9 +3814,9 @@ function displayTicketsForCurrentPage() {
 				setUnread(unread);
 
 				// Показать модальное окно
-					const modal = new bootstrap.Modal(document.getElementById('historyModal'));
-					historyModalIsOpen = true;
-					modal.show();
+                                const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+                                historyModalIsOpen = true;
+                                modal.show();
 
 				// после первичного рендера истории:
 					const chatEl = document.getElementById('historyContent');
@@ -3851,11 +3898,11 @@ function displayTicketsForCurrentPage() {
 		  modal.style.setProperty('--ftr-h', (ftr?.offsetHeight || 0) + 'px');
 		}
 
-			document.getElementById('historyModal').addEventListener('shown.bs.modal', () => {
-			  historyModalIsOpen = true;
-			  _sizeHistoryHeights();
-			  // пересчитываем при ресайзе и изменении высоты футера (textarea растёт)
-			  new ResizeObserver(_sizeHistoryHeights).observe(document.getElementById('historyModal'));
+                document.getElementById('historyModal').addEventListener('shown.bs.modal', () => {
+                  historyModalIsOpen = true;
+                  _sizeHistoryHeights();
+                  // пересчитываем при ресайзе и изменении высоты футера (textarea растёт)
+                  new ResizeObserver(_sizeHistoryHeights).observe(document.getElementById('historyModal'));
 		  window.addEventListener('resize', _sizeHistoryHeights, { passive: true });
 		});
 
@@ -4034,9 +4081,21 @@ function displayTicketsForCurrentPage() {
 		}
 
 
-	// === ХЕЛПЕРЫ ДЛЯ ФОРМАТИРОВАНИЯ ДАТ И РАЗНИЦ ===
-	function formatRuDate(d) {
-		if (!(d instanceof Date) || isNaN(d)) return '—';
+        // === ХЕЛПЕРЫ ДЛЯ ФОРМАТИРОВАНИЯ ДАТ И РАЗНИЦ ===
+        function parseDateFromAny(value) {
+                if (!value) return null;
+                const iso = normalizeToISO(value);
+                const d = new Date(iso);
+                return isNaN(d) ? null : d;
+        }
+
+        function messageDate(msg) {
+                if (!msg) return null;
+                return parseDateFromAny(msg.timestamp ?? msg.date ?? msg.created_at ?? msg.createdAt ?? null);
+        }
+
+        function formatRuDate(d) {
+                if (!(d instanceof Date) || isNaN(d)) return '—';
 		const dd = String(d.getDate()).padStart(2,'0');
 		const mm = String(d.getMonth()+1).padStart(2,'0');
 		const yyyy = d.getFullYear();
@@ -4289,25 +4348,26 @@ function displayTicketsForCurrentPage() {
 			if (window.clearChip) window.clearChip();
 		  } else {
 			// Обычная отправка
-			resp = await fetch('/reply', {
-			  method: 'POST',
-			  headers: { 'Content-Type': 'application/json' },
-			  body: JSON.stringify({
-				user_id: currentUserId,
-				text,
-				admin,
-				ticket_id: currentTicketId,
-				reply_to_tg_id: (window.currentReplyToTgId || null)
-			  })
-			});
-			data = await resp.json();
-				if (!data.success) throw new Error(data.error || 'Ошибка отправки');
+                        resp = await fetch('/reply', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                                user_id: currentUserId,
+                                text,
+                                admin,
+                                ticket_id: currentTicketId,
+                                reply_to_tg_id: (window.currentReplyToTgId || null)
+                          })
+                        });
+                        data = await resp.json();
+                                if (!data.success) throw new Error(data.error || 'Ошибка отправки');
 
-				try {
-				  await autoRefreshTickets();
-				} catch (e) {
-				  console.debug('Auto-refresh failed:', e);
-				}
+                                updateTicketStatus(currentTicketId, 'Ожидает клиента');
+
+                                try {
+                                  await autoRefreshTickets();
+                                } catch (e) {
+                                  console.debug('Auto-refresh failed:', e);
 
 			window.currentReplyToTgId = null;
 			if (window.clearChip) window.clearChip();
@@ -4354,9 +4414,18 @@ function displayTicketsForCurrentPage() {
 		if (Array.isArray(window.allTickets)) {
 		  const ticketIndex = window.allTickets.findIndex(t => String(t.ticket_id) === String(ticketId));
 		  if (ticketIndex >= 0) {
-			window.allTickets[ticketIndex].status = newStatus;
-			window.allTickets[ticketIndex].raw_status = (newStatus === 'Решено') ? 'resolved' : 'pending';
-			console.log('✅ Статус обновлен в allTickets');
+                        const ticket = window.allTickets[ticketIndex];
+                        ticket.status = newStatus;
+                        if (newStatus === 'Ожидает клиента') ticket.raw_status = 'pending';
+                        else if (newStatus === 'Открыта') ticket.raw_status = 'open';
+                        else if (newStatus === 'Закрыта') ticket.raw_status = 'closed';
+                        else if (newStatus === 'Ожидает оператора') ticket.raw_status = 'active';
+                        else if (newStatus === 'Решено') ticket.raw_status = 'resolved';
+                        else ticket.raw_status = 'pending';
+                        const statusLower = String(newStatus || '').toLowerCase();
+                        const isResolvedLike = statusLower.includes('решен') || statusLower.includes('закры');
+                        ticket.resolved_by = isResolvedLike ? ticket.resolved_by : null;
+                        console.log('✅ Статус обновлен в allTickets');
 		  }
 		}
 		
@@ -4364,23 +4433,36 @@ function displayTicketsForCurrentPage() {
 		if (Array.isArray(window.filteredTickets)) {
 		  const filteredIndex = window.filteredTickets.findIndex(t => String(t.ticket_id) === String(ticketId));
 		  if (filteredIndex >= 0) {
-			window.filteredTickets[filteredIndex].status = newStatus;
-			window.filteredTickets[filteredIndex].raw_status = (newStatus === 'Решено') ? 'resolved' : 'pending';
-			console.log('✅ Статус обновлен в filteredTickets');
+                        const filteredTicket = window.filteredTickets[filteredIndex];
+                        filteredTicket.status = newStatus;
+                        if (newStatus === 'Ожидает клиента') filteredTicket.raw_status = 'pending';
+                        else if (newStatus === 'Открыта') filteredTicket.raw_status = 'open';
+                        else if (newStatus === 'Закрыта') filteredTicket.raw_status = 'closed';
+                        else if (newStatus === 'Ожидает оператора') filteredTicket.raw_status = 'active';
+                        else if (newStatus === 'Решено') filteredTicket.raw_status = 'resolved';
+                        else filteredTicket.raw_status = 'pending';
+                        const statusLower = String(newStatus || '').toLowerCase();
+                        const isResolvedLike = statusLower.includes('решен') || statusLower.includes('закры');
+                        filteredTicket.resolved_by = isResolvedLike ? filteredTicket.resolved_by : null;
+                        console.log('✅ Статус обновлен в filteredTickets');
 		  }
 		}
 		// === СИНХРОНИЗАЦИЯ С ALLTICKETS ===
 		try {
 		  const fullTicket = allTickets?.find(t => String(t.ticket_id) === String(ticketId));
 		  if (fullTicket) {
-			fullTicket.status = newStatus;
-			// подстраховка: корректируем raw_status под конкретное значение
-			if (newStatus === 'Ожидает клиента') fullTicket.raw_status = 'pending';
-			else if (newStatus === 'Открыта') fullTicket.raw_status = 'open';
-			else if (newStatus === 'Закрыта') fullTicket.raw_status = 'closed';
-			else if (newStatus === 'Ожидает оператора') fullTicket.raw_status = 'active';
-			else fullTicket.raw_status = 'other';
-			console.log(`✅ Статус обновлен в allTickets: ${newStatus}`);
+                        fullTicket.status = newStatus;
+                        // подстраховка: корректируем raw_status под конкретное значение
+                        if (newStatus === 'Ожидает клиента') fullTicket.raw_status = 'pending';
+                        else if (newStatus === 'Открыта') fullTicket.raw_status = 'open';
+                        else if (newStatus === 'Закрыта') fullTicket.raw_status = 'closed';
+                        else if (newStatus === 'Ожидает оператора') fullTicket.raw_status = 'active';
+                        else if (newStatus === 'Решено') fullTicket.raw_status = 'resolved';
+                        else fullTicket.raw_status = 'pending';
+                        const statusLower = String(newStatus || '').toLowerCase();
+                        const isResolvedLike = statusLower.includes('решен') || statusLower.includes('закры');
+                        fullTicket.resolved_by = isResolvedLike ? fullTicket.resolved_by : null;
+                        console.log(`✅ Статус обновлен в allTickets: ${newStatus}`);
 		  }
 		} catch (e) {
 		  console.warn('⚠️ Не удалось обновить статус в allTickets:', e);
@@ -4476,31 +4558,43 @@ function findTicketEverywhere(ticketId) {
 		  const statusCell = row.querySelector('td:nth-child(9)'); // 9-я колонка - статус
 		  
 		  if (statusCell) {
-			// Сохраняем бейдж непрочитанных если есть
-			const unreadBadge = statusCell.querySelector('.unread-badge');
-			const unreadHtml = unreadBadge ? unreadBadge.outerHTML : '';
-			
-			// Создаем новый бейдж статуса
-			let statusBadge = '';
-			if (newStatus === 'Ожидает клиента') {
-			  statusBadge = '<span class="badge bg-info text-dark">⏳ Ожидает клиента</span>';
-			} else if (newStatus === 'Ожидает реакции') {
-			  statusBadge = '<span class="badge bg-danger">⏳ Ожидает реакции</span>';
-			} else if (newStatus === 'Новая') {
-			  statusBadge = '<span class="badge bg-secondary">🆕 Новая</span>';
-			} else if (newStatus === 'Решено') {
-			  statusBadge = '<span class="badge bg-success">✅ Решено</span>';
-			} else {
-			  statusBadge = `<span class="badge bg-warning">${newStatus}</span>`;
-			}
-			
-			// Полностью заменяем содержимое ячейки
-			statusCell.innerHTML = unreadHtml + statusBadge;
-			console.log('✅ Статус обновлен в DOM:', newStatus);
-		  }
-		}
-	  });
-	  
+                        // Создаем новый бейдж статуса
+                        let statusBadge = '';
+                        if (newStatus === 'Ожидает клиента') {
+                          statusBadge = '<span class="badge bg-info text-dark">⏳ Ожидает клиента</span>';
+                        } else if (newStatus === 'Ожидает реакции') {
+                          statusBadge = '<span class="badge bg-danger">⏳ Ожидает реакции</span>';
+                        } else if (newStatus === 'Новая') {
+                          statusBadge = '<span class="badge bg-secondary">🆕 Новая</span>';
+                        } else if (newStatus === 'Решено') {
+                          statusBadge = '<span class="badge bg-success">✅ Решено</span>';
+                        } else {
+                          statusBadge = `<span class="badge bg-warning">${newStatus}</span>`;
+                        }
+
+                        let unreadBadge = statusCell.querySelector('.unread-badge');
+                        if (!unreadBadge) {
+                          unreadBadge = document.createElement('span');
+                          unreadBadge.className = 'badge bg-danger me-1 unread-badge';
+                          unreadBadge.dataset.ticket = String(ticketId);
+                          unreadBadge.style.display = 'none';
+                          unreadBadge.textContent = '0';
+                        }
+
+                        const unreadValue = parseInt(unreadBadge.textContent, 10) || 0;
+                        const ticketData = getTicketById(ticketId);
+                        const canShowUnread = shouldDisplayUnreadBadge(ticketData, newStatus);
+
+                        statusCell.innerHTML = '';
+                        statusCell.insertAdjacentElement('afterbegin', unreadBadge);
+                        statusCell.insertAdjacentHTML('beforeend', statusBadge);
+
+                        unreadBadge.style.display = (unreadValue > 0 && canShowUnread) ? 'inline-flex' : 'none';
+                        console.log('✅ Статус обновлен в DOM:', newStatus);
+                  }
+                }
+          });
+
 	  if (!found) {
 		console.log('❌ Заявка не найдена в DOM таблицы');
 		
