@@ -359,6 +359,34 @@
     display: inline-block;
     width: calc(100% - 1.5rem);
   }
+
+  .selected-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+  }
+
+  .selected-categories .selected-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-right: 0.25rem;
+  }
+
+  .category-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    line-height: 1;
+    color: #fff;
+    background: var(--chip-color, #0d6efd);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+  }
 .min-height-0 {
   min-height: 0 !important;
 }
@@ -421,9 +449,9 @@
   flex: 1 1 auto;
   min-height: 0;
   padding: 0 !important;
-}/
+}
 
-/#historyModal .modal-body > .container-fluid > .row{
+#historyModal .modal-body > .container-fluid > .row{
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
@@ -431,7 +459,7 @@
   margin: 0 !important;
   --bs-gutter-x: 0;
   --bs-gutter-y: 0;
-}/
+}
 
 /* Убираем padding у колонок в модалке истории */
 #historyModal .modal-body .col-md-4,
@@ -458,6 +486,9 @@
 #historyModal .history-pane {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* Убираем возможность сжатия правой колонки */
@@ -471,6 +502,7 @@
   flex: 1 1 auto !important;
   min-height: 0 !important;
   gap: 0;
+  height: 100%;
 }
 
 /* Сама лента сообщений */
@@ -500,6 +532,7 @@
 
 #historyModal .input-group-send {
   margin-top: 0 !important;
+  flex: 0 0 auto;
 }
 
 #historyModal .input-group-send {
@@ -639,12 +672,11 @@
 
 /* История: компактнее зазор между текстом и кнопками действий */
 #historyModal .chat-bubble .msg-text { margin-bottom: 2px !important; }
-#historyModal .bubble-actions       { margin-top: 4px !important; }
 #historyModal .chat-bubble p { margin-bottom: 2px !important; }
 
 /* подсветка целевого сообщения при переходе из «чипа» */
 .reply-preview {
-  border-left: 3px solid #007bff; 
+  border-left: 3px solid #007bff;
   background: #f0f8ff;
   padding: 6px 8px;
   border-radius: 6px;
@@ -667,68 +699,61 @@
   transition: outline-color .8s ease;
 }
 
-#historyModal .chat-bubble .bubble-actions{
-  margin-top: 2px;
-  margin-bottom: 4px;
-  opacity: .65;
+/* Экшен-бар внутри пузыря */
+#historyModal .chat-bubble {
+  position: relative;
+  padding: 12px 14px 10px;
+  overflow: visible;
 }
-#historyModal .chat-bubble:hover .bubble-actions{
-  opacity: 1;
+
+#historyModal .bubble-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
 }
-#historyModal .chat-bubble .bubble-actions .btn{
+
+#historyModal .bubble-meta .msg-time {
+  margin-bottom: 0 !important;
+}
+
+#historyModal .chat-bubble .bubble-actions {
+  position: static;
+  display: flex;
+  align-items: center;
+  margin: 0 !important;
+  opacity: .95;
+  transition: opacity .15s ease;
+}
+
+#historyModal .chat-bubble .bubble-actions .btn {
   font-size: .85rem;
   line-height: 1;
   padding: 0 4px;
 }
-/* Экшен-бар: прижать к самому верху/правому краю и НЕ перекрывать контент */
-#historyModal .chat-bubble{
-  position: relative;
-  padding-top: 34px;               /* +зазор под кнопку/меню, чтобы не закрывало время/имя */
-  overflow: visible;               /* на всякий случай — если будем «выпускать» кнопку наружу */
-}
 
-/* Вариант A — Кнопка/панель ВНУТРИ баббла, строго 1px от краёв */
-#historyModal .chat-bubble .bubble-actions{
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  margin: 0 !important;
-  opacity: .75;
-  transition: opacity .15s ease, transform .15s ease;
-  z-index: 2;                      /* поверх текста внутри баббла */
-}
-#historyModal .chat-bubble:hover .bubble-actions{
+#historyModal .chat-bubble:hover .bubble-actions {
   opacity: 1;
-  transform: translateY(-1px);
 }
-
-/* Вариант B — «вынести за баббл» (если хотите, раскомментируйте 4 строки ниже и закомментируйте блок Variант A)
-#historyModal .chat-bubble .bubble-actions{
-  position: absolute;
-  top: 0;
-  right: 0;
-  transform: translate(50%,-50%);  // уголок СВЕРХУ-СПРАВА с выходом за границу баббла
-  margin: 0 !important;
-  opacity: .9;
-  z-index: 3;
-}
-#historyModal .chat-bubble:hover .bubble-actions{ transform: translate(50%,-52%); }
-*/
 
 /* Текст и отступы — чтобы ничего не перекрывалось */
 #historyModal .chat-bubble .msg-time   { margin-bottom: .15rem; }
 #historyModal .chat-bubble .msg-author { margin: 3px 0 6px 0; }
 #historyModal .chat-bubble .msg-text   { margin-bottom: 0 !important; }
 
-/* Мобильный фоллбек — вернуть панель в поток ниже текста */
+/* Мобильный фоллбек */
 @media (max-width: 768px){
-  #historyModal .chat-bubble { padding-top: 8px; }
+  #historyModal .bubble-meta {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+  }
+  #historyModal .chat-bubble {
+    padding: 12px;
+  }
   #historyModal .chat-bubble .bubble-actions{
-    position: static !important;
-    transform: none !important;
-    margin-top: 4px !important;
-    text-align: right;
-    opacity: 1;
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 
@@ -743,7 +768,7 @@
   right: 5px;
   padding: 4px;
 }
-/* === Редактирование / удаление === */
+* === Редактирование / удаление === *
 .chat-bubble.is-editing { outline: 2px dashed #6c757d; outline-offset: 2px; }
 .chat-bubble.deleted    { opacity: .55; }
 .badge-meta { font-weight: 500; border: 1px solid rgba(0,0,0,.08); }
@@ -2325,10 +2350,27 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
          data-ts="${tsMs}"
          data-tg-id="${safeId(msg) ?? ''}"
          data-mid="${telegramMid(msg) ?? ''}">
-        <small class="msg-time" data-iso="${iso}">${fmtTsISO(iso)}</small>
+        <div class="bubble-meta">
+          <small class="msg-time" data-iso="${iso}">${fmtTsISO(iso)}</small>
+          <div class="bubble-actions dropdown">
+            <button class="btn btn-sm btn-light p-1 px-2" data-bs-toggle="dropdown" aria-expanded="false"
+                    title="Действия" style="line-height:1">⋯</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item action-reply">↩ Ответить</button></li>
+              ${isSupport ? `
+                <li><button class="dropdown-item action-edit">✏️ Редактировать</button></li>
+                <li><button class="dropdown-item text-danger action-delete">🗑 Удалить</button></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
+              ` : `
+                <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
+              `}
+            </ul>
+          </div>
+        </div>
         <strong class="msg-author">${name}</strong>
-		${msg.edited_at ? `<span class="badge-meta">изменено</span>` : ``}
-		${msg.deleted_at ? `<span class="badge-meta">удалено у клиента</span>` : ``}
+                ${msg.edited_at ? `<span class="badge-meta">изменено</span>` : ``}
+                ${msg.deleted_at ? `<span class="badge-meta">удалено у клиента</span>` : ``}
 
         ${(msg.reply_preview || msg.reply_to_tg_id) ? `
 		  <div
@@ -2347,21 +2389,6 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
 
         ${mediaHtml}
 
-        <div class="bubble-actions dropdown">
-          <button class="btn btn-sm btn-light p-1 px-2" data-bs-toggle="dropdown" aria-expanded="false"
-                  title="Действия" style="line-height:1">⋯</button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><button class="dropdown-item action-reply">↩ Ответить</button></li>
-            ${isSupport ? `
-              <li><button class="dropdown-item action-edit">✏️ Редактировать</button></li>
-              <li><button class="dropdown-item text-danger action-delete">🗑 Удалить</button></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
-            ` : `
-              <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
-            `}
-          </ul>
-        </div>
       </div>
     `;
   }).join('');
@@ -4118,7 +4145,46 @@ function displayTicketsForCurrentPage() {
 		const d = new Date(s);
 		return isNaN(d) ? null : d;
 	}
-		// === Синхронизация категорий из истории в окно закрытия ===
+		
+        const CATEGORY_COLOR_PALETTE = [
+          '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
+          '#fd7e14', '#20c997', '#198754', '#0dcaf0', '#343a40'
+        ];
+
+        function categoryColor(name = '') {
+          if (!name) return CATEGORY_COLOR_PALETTE[0];
+          let hash = 0;
+          for (let i = 0; i < name.length; i++) {
+            hash = (hash << 5) - hash + name.charCodeAt(i);
+            hash |= 0;
+          }
+          const index = Math.abs(hash) % CATEGORY_COLOR_PALETTE.length;
+          return CATEGORY_COLOR_PALETTE[index];
+        }
+
+        function renderCategoryBadges(container, categories, label = 'Выбрано:') {
+          if (!container) return;
+          if (!Array.isArray(categories) || categories.length === 0) {
+            container.innerHTML = '';
+            container.removeAttribute('title');
+            container.classList.remove('has-categories');
+            return;
+          }
+
+          const chips = categories.map(cat => {
+            const rawCat = String(cat || '');
+            const safeCat = escapeHtml(rawCat);
+            const color = categoryColor(rawCat);
+            return `<span class="category-chip" style="--chip-color:${color}">${safeCat}</span>`;
+          }).join('');
+
+          const labelHtml = label ? `<span class="selected-label text-muted me-2">${label}</span>` : '';
+          container.innerHTML = `${labelHtml}${chips}`;
+          container.title = categories.join(', ');
+          container.classList.add('has-categories');
+        }
+
+// === Синхронизация категорий из истории в окно закрытия ===
 		function syncCloseCategoriesFromHistory() {
 			// Получаем выбранные категории из истории
 				const historyCheckboxes = document.querySelectorAll('.category-checkbox:checked');
@@ -4156,14 +4222,13 @@ function displayTicketsForCurrentPage() {
 				});
 	  
 			// Обновляем отображение выбранных категорий
-				if (selectedValues.length > 0) {
-					selectedContainer.textContent = 'Выбрано: ' + selectedValues.join(', ');
-					document.getElementById('closeCategoryDropdown').textContent = `Выбрано: ${selectedValues.length} категорий`;
-				}
-				else {
-					selectedContainer.textContent = '';
-					document.getElementById('closeCategoryDropdown').textContent = 'Выберите категории...';
-				}
+                                renderCategoryBadges(selectedContainer, selectedValues);
+                                const closeDropdown = document.getElementById('closeCategoryDropdown');
+                                if (closeDropdown) {
+                                        closeDropdown.textContent = selectedValues.length > 0
+                                          ? `Выбрано: ${selectedValues.length} категорий`
+                                          : 'Выберите категории...';
+                                }
 	  
 			return selectedValues;
 		}
@@ -4191,17 +4256,13 @@ function displayTicketsForCurrentPage() {
 				});
 	  
 			// Обновляем отображение выбранных категорий
-				if (selectedValues.length > 0) {
-					selectedContainer.textContent = 'Выбрано: ' + selectedValues.join(', ');
-					document.getElementById('categoryDropdown').textContent = `Выбрано: ${selectedValues.length} категорий`;
-				} 
-				else {
-					selectedContainer.textContent = '';
-					document.getElementById('categoryDropdown').textContent = 'Выберите категории...';
-				}
-				if (selectedContainer) {
-				  selectedContainer.title = selectedValues.join(', ');
-				}
+                                renderCategoryBadges(selectedContainer, selectedValues);
+                                const historyDropdown = document.getElementById('categoryDropdown');
+                                if (historyDropdown) {
+                                        historyDropdown.textContent = selectedValues.length > 0
+                                          ? `Выбрано: ${selectedValues.length} категорий`
+                                          : 'Выберите категории...';
+                                }
 	  
 			return selectedValues;
 		}
@@ -5025,15 +5086,16 @@ function findTicketEverywhere(ticketId) {
     };
 
     const loader = new Image();
+    const targetSrc = prepared;
     loader.onload = () => {
       finalize(loader.src);
     };
     loader.onerror = () => {
-      console.error('Failed to load avatar:', src);
+      console.error('Failed to load avatar:', targetSrc);
       finalize('/static/default-avatar.png');
     };
 
-    loader.src = src;
+    loader.src = targetSrc;
 
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
     modalInstance.show();
