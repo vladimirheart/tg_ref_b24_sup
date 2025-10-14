@@ -375,6 +375,13 @@
   height: 100%;
   display: flex !important;
   flex-direction: column;
+  gap: 0;
+}
+
+#historyModal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .resizable-modal .modal-dialog {
@@ -464,6 +471,7 @@
   flex: 1 1 auto !important;
   min-height: 0 !important;
   height: 100%;
+  gap: 0;
 }
 
 /* Сама лента сообщений */
@@ -498,6 +506,11 @@
   overflow-y: auto;
   padding: 15px 15px 0 15px;
   justify-content: flex-end;
+  margin-bottom: 0;
+}
+
+#historyModal .input-group-send {
+  margin-top: 0 !important;
 }
 
 /* === История: разные шрифты для времени, автора и текста === */
@@ -1744,7 +1757,11 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
 	let unreadCountValue = 0;           // счётчик непрочитанных во время открытой модалки
 	let historyModalIsOpen = false;
 	let historyHasFocus = true;    // фокус внутри модалки
-	let unreadCountByTicket = JSON.parse(localStorage.getItem('unreadCountByTicket') || '{}');     // { [ticketId]: number }
+        let unreadCountByTicket = JSON.parse(localStorage.getItem('unreadCountByTicket') || '{}');     // { [ticketId]: number }
+        const unreadFetchQueue = [];
+        const unreadFetchInFlight = new Map();
+        const unreadFetchTimestamps = new Map();
+        const MAX_CONCURRENT_UNREAD_FETCHES = 2;
 		function setTicketUnread(ticketId, n) {
 	  // Обновляем в таблице заявок
 	  const badgeInTable = document.querySelector(`.unread-badge[data-ticket="${ticketId}"]`);
@@ -1982,21 +1999,99 @@ function ensureHistoryScrollButtons() {
 	  return new Date().toISOString();
 	}
 
-	function sortMessagesStable(arr) {
-	  return arr.sort((a, b) => {
-		const ta = sortTsMs(a), tb = sortTsMs(b);
-		if (ta !== tb) return ta - tb;
+        function sortMessagesStable(arr) {
+          return arr.sort((a, b) => {
+                const ta = sortTsMs(a), tb = sortTsMs(b);
+                if (ta !== tb) return ta - tb;
 
-		// дальше — детерминированные догоняющие ключи
-		const ma = Number(telegramMid(a) ?? 0);
-		const mb = Number(telegramMid(b) ?? 0);
-		if (ma && mb && ma !== mb) return ma - mb;
+                // дальше — детерминированные догоняющие ключи
+                const ma = Number(telegramMid(a) ?? 0);
+                const mb = Number(telegramMid(b) ?? 0);
+                if (ma && mb && ma !== mb) return ma - mb;
 
-		const ka = msgKey(a);
-		const kb = msgKey(b);
-		return ka.localeCompare(kb);
-	  });
-	}
+                const ka = msgKey(a);
+                const kb = msgKey(b);
+                return ka.localeCompare(kb);
+          });
+        }
+
+        function scheduleUnreadUpdate(ticket) {
+          if (!ticket || ticket.ticket_id == null) return;
+
+          const ticketId = String(ticket.ticket_id);
+          if (historyModalIsOpen && String(currentTicketId) === ticketId) return;
+
+          const lastSender = String(ticket.last_sender || '').toLowerCase();
+          if (lastSender !== 'user') return;
+
+          const now = Date.now();
+          if (unreadFetchInFlight.has(ticketId)) return;
+          if (unreadFetchQueue.some(item => String(item.ticket.ticket_id) === ticketId)) return;
+
+          const lastFetch = unreadFetchTimestamps.get(ticketId) || 0;
+          if (now - lastFetch < 5000) return;
+
+          unreadFetchQueue.push({ ticket });
+          processUnreadFetchQueue();
+        }
+
+        function processUnreadFetchQueue() {
+          if (unreadFetchInFlight.size >= MAX_CONCURRENT_UNREAD_FETCHES) return;
+
+          const next = unreadFetchQueue.shift();
+          if (!next) return;
+
+          const ticketId = String(next.ticket.ticket_id);
+          const promise = requestUnreadCountForTicket(next.ticket)
+            .catch(err => {
+              console.error('Не удалось обновить счётчик непрочитанных для заявки', ticketId, err);
+            })
+            .finally(() => {
+              unreadFetchInFlight.delete(ticketId);
+              unreadFetchTimestamps.set(ticketId, Date.now());
+              processUnreadFetchQueue();
+            });
+
+          unreadFetchInFlight.set(ticketId, promise);
+        }
+
+        async function requestUnreadCountForTicket(ticket) {
+          const ticketId = String(ticket.ticket_id);
+          const params = new URLSearchParams({
+            ticket_id: ticketId,
+            _: String(Date.now())
+          });
+
+          if (ticket.channel_id != null && ticket.channel_id !== '' && ticket.channel_id !== 'null') {
+            params.set('channel_id', String(ticket.channel_id));
+          }
+
+          const resp = await fetch(`/history?${params.toString()}`, { cache: 'no-store' });
+          if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+          }
+
+          const data = await resp.json();
+          if (data && data.success === false) {
+            throw new Error(data.error || 'history response error');
+          }
+          const messages = Array.isArray(data.messages) ? data.messages : [];
+          const lastRead = lastReadAtByTicket[ticketId] || 0;
+
+          let count = 0;
+
+          for (const msg of messages) {
+            const sender = String(msg.sender || '').toLowerCase();
+            if (sender !== 'user') continue;
+
+            const ts = Date.parse(normalizeToISO(msg.timestamp));
+            if (!Number.isFinite(ts)) continue;
+
+            if (ts > lastRead) count += 1;
+          }
+
+          setTicketUnread(ticketId, count);
+        }
 
 function displayTicketDateTime(t) {
   // берём пару полей, как сейчас рисуешь таблицу; если есть альтернативы — тоже пробуем
@@ -2448,10 +2543,11 @@ function initColumnResize() {
 			// Сохраняем все заявки для пагинации
 			allTickets = tickets;
 			
-			// После обновления тикетов - обновить счётчики
-			allTickets.forEach(t => { // ← используем allTickets вместо tickets
-				recalcTicketUnreadFromDOM(t.ticket_id);
-			});
+                        // После обновления тикетов - обновить счётчики
+                        allTickets.forEach(t => { // ← используем allTickets вместо tickets
+                                recalcTicketUnreadFromDOM(t.ticket_id);
+                                scheduleUnreadUpdate(t);
+                        });
 			
 			// Если есть активные фильтры - применяем их ко всем данным
 			if (window.filteredTickets) {
@@ -2596,8 +2692,9 @@ function displayTicketsForCurrentPage() {
 		  unread = 0;
 		}
 
-		setTicketUnread(t.ticket_id, unread);
-		});
+                setTicketUnread(t.ticket_id, unread);
+                scheduleUnreadUpdate(t);
+                });
 	parseEmojis(document.getElementById('ticketsBody'));
 		applyColumnSettingsFromState();
 		applyFilters();
@@ -3501,11 +3598,12 @@ function displayTicketsForCurrentPage() {
 				setUnread(unread);
 
 				// Показать модальное окно
-				const modal = new bootstrap.Modal(document.getElementById('historyModal'));
-				modal.show();
-								
+					const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+					historyModalIsOpen = true;
+					modal.show();
+
 				// после первичного рендера истории:
-				const chatEl = document.getElementById('historyContent');
+					const chatEl = document.getElementById('historyContent');
 
 				// если оператор доскроллил до низа — обнуляем непрочитанные
 				chatEl.addEventListener('scroll', () => {
@@ -3519,9 +3617,10 @@ function displayTicketsForCurrentPage() {
 				}, { passive: true });
 
 				document.getElementById('historyModal').addEventListener('hidden.bs.modal', () => {
+				  historyModalIsOpen = false;
 				  // НЕ сбрасываем счётчики — только останавливаем поллинг
 				  if (window.timeUpdateInterval) {
-					clearInterval(window.timeUpdateInterval);
+						clearInterval(window.timeUpdateInterval);
 					window.timeUpdateInterval = null;
 				  }
 				  if (historyPolling) {
@@ -3583,10 +3682,11 @@ function displayTicketsForCurrentPage() {
 		  modal.style.setProperty('--ftr-h', (ftr?.offsetHeight || 0) + 'px');
 		}
 
-		document.getElementById('historyModal').addEventListener('shown.bs.modal', () => {
-		  _sizeHistoryHeights();
-		  // пересчитываем при ресайзе и изменении высоты футера (textarea растёт)
-		  new ResizeObserver(_sizeHistoryHeights).observe(document.getElementById('historyModal'));
+			document.getElementById('historyModal').addEventListener('shown.bs.modal', () => {
+			  historyModalIsOpen = true;
+			  _sizeHistoryHeights();
+			  // пересчитываем при ресайзе и изменении высоты футера (textarea растёт)
+			  new ResizeObserver(_sizeHistoryHeights).observe(document.getElementById('historyModal'));
 		  window.addEventListener('resize', _sizeHistoryHeights, { passive: true });
 		});
 
@@ -3605,9 +3705,10 @@ function displayTicketsForCurrentPage() {
 		  });
 			// Обработчик события скрытия модального окна
 				document.getElementById('historyModal').addEventListener('hidden.bs.modal', function () {
+					historyModalIsOpen = false;
 					if (window.timeUpdateInterval) {
-						clearInterval(window.timeUpdateInterval);
-						window.timeUpdateInterval = null;
+							clearInterval(window.timeUpdateInterval);
+							window.timeUpdateInterval = null;
 					}
 					if (historyPolling) {
 						clearInterval(historyPolling);
@@ -4641,28 +4742,36 @@ function findTicketEverywhere(ticketId) {
     if (src && !src.includes('?full=1')) {
       src = src + '?full=1';
     }
-    
+
     const modalEl = document.getElementById('avatarModal');
     const modalImg = document.getElementById('avatarModalImg');
     const downloadLink = document.getElementById('avatarDownloadLink');
-    
+
     if (!modalEl || !modalImg) return;
-    
-    // Устанавливаем src и принудительно загружаем изображение
-    modalImg.src = src;
-    modalImg.onload = function() {
-      console.log('Avatar loaded successfully:', src);
+
+    modalImg.style.opacity = '0';
+
+    const finalize = (nextSrc) => {
+      modalImg.src = nextSrc;
+      modalImg.alt = 'Фото клиента';
+      modalImg.style.opacity = '1';
+      if (downloadLink) {
+        downloadLink.href = nextSrc;
+        downloadLink.download = 'avatar.jpg';
+      }
     };
-    modalImg.onerror = function() {
+
+    const loader = new Image();
+    loader.onload = () => {
+      finalize(loader.src);
+    };
+    loader.onerror = () => {
       console.error('Failed to load avatar:', src);
-      modalImg.src = '/static/default-avatar.png';
+      finalize('/static/default-avatar.png');
     };
-    
-    if (downloadLink) {
-      downloadLink.href = src;
-      downloadLink.download = 'avatar.jpg';
-    }
-    
+
+    loader.src = src;
+
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
     modalInstance.show();
   }
@@ -5032,10 +5141,11 @@ function restoreSidebarWidth() {
 }
 
 // Инициализация при загрузке модального окна
-document.getElementById('historyModal').addEventListener('shown.bs.modal', function() {
-  restoreSidebarWidth();
-  initHistoryPaneResizer();
-});
+	document.getElementById('historyModal').addEventListener('shown.bs.modal', function() {
+		historyModalIsOpen = true;
+		  restoreSidebarWidth();
+		  initHistoryPaneResizer();
+	});
 
 const ticketClosedModalEl = document.getElementById('ticketClosedModal');
 if (ticketClosedModalEl) {
@@ -5064,11 +5174,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (savedUnread) {
     unreadCountByTicket = JSON.parse(savedUnread);
   }
-  
+
   // Принудительное обновление счётчиков в таблице
   setTimeout(() => {
     allTickets.forEach(ticket => {
-      recalcTicketUnreadFromDOM(ticket.ticket_id);
+	  recalcTicketUnreadFromDOM(ticket.ticket_id);
+	  scheduleUnreadUpdate(ticket);
     });
   }, 1000);
 });
