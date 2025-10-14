@@ -4369,8 +4369,10 @@ function displayTicketsForCurrentPage() {
                                 } catch (e) {
                                   console.debug('Auto-refresh failed:', e);
 
-			window.currentReplyToTgId = null;
-			if (window.clearChip) window.clearChip();
+                                }
+
+                        window.currentReplyToTgId = null;
+                        if (window.clearChip) window.clearChip();
 		  }
 		  
 		  // Очищаем поле ввода
