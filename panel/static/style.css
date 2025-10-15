@@ -1,0 +1,250 @@
+/* panel/static/style.css */
+body {
+  background-color: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.navbar-brand {
+  font-weight: bold;
+}
+
+.chat-bubble {
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: 12px;
+  max-width: 80%;
+}
+
+.from-user {
+  background: #e9ecef;
+  align-self: flex-start;
+}
+
+.from-support {
+  background: #007bff;
+  color: white;
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.badge {
+  font-size: 100%;
+}
+
+.btn-sm {
+  font-size: 0.8rem;
+}
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  background-color: #ddd;
+  cursor: col-resize;
+  user-select: none;
+}
+
+.resize-handle:hover {
+  background-color: #aaa;
+}
+
+.business-sushi {
+  background-color: #F25F79 !important;
+  color: white !important;
+}
+
+.business-blin {
+  background-color: #FFD504 !important;
+  color: black !important;
+}
+
+.clickable-client {
+  cursor: pointer;
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+.clickable-client:hover {
+  color: #0a58ca;
+}
+
+.column-toggle {
+  max-height: 300px;
+  overflow-y: auto;
+}
+/* Улучшенная адаптивность для таблицы */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Адаптивные стили для модальных окон */
+@media (max-width: 992px) {
+  .modal-dialog {
+    margin: 1rem;
+    max-width: calc(100% - 2rem);
+  }
+  
+  .modal-lg {
+    max-width: calc(100% - 2rem);
+  }
+}
+
+/* Адаптивность для настройки столбцов */
+.column-toggle {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 576px) {
+  .column-toggle {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Адаптивные кнопки действий */
+.btn-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.btn-group-actions .btn {
+  flex: 1;
+  min-width: 80px;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Масштабируемое поле списка столбцов */
+.resizable-modal .modal-dialog {
+  resize: both;
+  overflow: auto;
+  min-width: 300px;
+  min-height: 200px;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+/* Адаптивные фильтры */
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+@media (max-width: 768px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Улучшенная адаптивность для чата */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  word-break: break-word;
+}
+
+@media (max-width: 576px) {
+  .chat-bubble {
+    max-width: 95%;
+  }
+  
+  .input-group-send {
+    flex-direction: column;
+  }
+  
+  .input-group-send textarea {
+    min-height: 60px;
+  }
+}
+#historyContent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stats-card .card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.1rem 1rem;
+  text-align: right !important;
+}
+
+.stats-card .card-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.stats-card .card-text {
+  margin: 0;
+  text-align: right;
+}
+.no-data-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+}
+/* Исправление z-index для Select2 в модальных окнах */
+.select2-container--open {
+  z-index: 9999 !important;
+}
+
+.select2-dropdown {
+  z-index: 9999 !important;
+}
+
+/* Убедитесь, что модальное окно имеет правильный z-index */
+.modal {
+  z-index: 1050;
+}
+
+.modal-backdrop {
+  z-index: 1040;
+}
+.category-selector .dropdown-menu {
+  padding: 0.5rem;
+}
+
+.category-selector .form-check {
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+}
+
+.category-selector .form-check-input {
+  margin-right: 0.5rem;
+}
+
+.category-selector .form-check-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.category-selector .selected-categories {
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid #dee2e6;
+}
+/* Системная подрезка «пустоты» над заголовками */
+h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
