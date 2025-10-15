@@ -1,0 +1,10 @@
+{
+  "name": "tg_sup",
+  "private": true,
+  "devDependencies": {
+    "twemoji": "^14.0.2"
+  },
+  "scripts": {
+    "twemoji:update": "npm install twemoji@latest && python panel/scripts/vendor_twemoji.py"
+  }
+}
