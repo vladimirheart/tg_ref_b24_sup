@@ -12,6 +12,10 @@
     .settings-section h4 { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
     .accordion-button:not(.collapsed) { background-color: #f8f9fa; }
     .accordion-body { padding: 1rem; }
+    .parameter-card .param-items { min-height: 2.5rem; }
+    .parameter-card .param-item .btn { min-width: 2.5rem; }
+    .parameter-card .param-item input { min-width: 0; }
+    .parameter-card .param-items .empty-placeholder { font-size: 0.9rem; color: #6c757d; }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
@@ -117,10 +121,45 @@
           </div>
         </div>
       </div>
-	  <!-- 🤖 Каналы (боты) -->
-		<div class="accordion-item">
-		  <h2 class="accordion-header">
-			<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#channelsCollapse">
+
+      <!-- Справочники партнёрских параметров -->
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#directoriesCollapse">
+            🧩 Параметры партнёров
+          </button>
+        </h2>
+        <div id="directoriesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+          <div class="accordion-body">
+            <div class="row g-3">
+              {% for slug, title in parameter_types.items() %}
+              <div class="col-md-6 col-xl-4">
+                <div class="card shadow-sm parameter-card" data-param-type="{{ slug }}">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>{{ title }}</span>
+                    <span class="badge bg-secondary" data-param-count>0</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="param-items" data-param-list></div>
+                    <div class="input-group input-group-sm mt-3">
+                      <input type="text" class="form-control" placeholder="Добавить значение" data-param-input>
+                      <button class="btn btn-success" type="button" onclick="createParameter('{{ slug }}', this)">Добавить</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="form-text text-muted mt-3">
+              Эти значения будут использоваться в формах создания клиентов, задач и других разделов.
+            </div>
+          </div>
+        </div>
+      </div>
+          <!-- 🤖 Каналы (боты) -->
+                <div class="accordion-item">
+                  <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#channelsCollapse">
 			  🤖 Каналы (боты)
 			</button>
 		  </h2>
@@ -177,6 +216,178 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+  const PARAMETER_TITLES = {{ parameter_types | tojson }};
+  let parameterData = {};
+  Object.keys(PARAMETER_TITLES).forEach((type) => {
+    parameterData[type] = [];
+  });
+
+  function renderParameters() {
+    Object.keys(PARAMETER_TITLES).forEach((type) => {
+      const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
+      if (!card) return;
+      const list = card.querySelector('[data-param-list]');
+      const counter = card.querySelector('[data-param-count]');
+      const items = (parameterData[type] || []);
+      list.innerHTML = '';
+      if (counter) counter.textContent = items.length;
+
+      if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-placeholder';
+        empty.textContent = 'Пока нет значений';
+        list.appendChild(empty);
+        return;
+      }
+
+      items.forEach((item) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'param-item input-group input-group-sm mb-2';
+        wrapper.dataset.paramId = item.id;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control';
+        input.value = item.value;
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'btn btn-outline-success';
+        saveBtn.textContent = '💾';
+        saveBtn.title = 'Сохранить';
+        saveBtn.addEventListener('click', () => updateParameter(item.id, type, saveBtn));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn btn-outline-danger';
+        deleteBtn.textContent = '🗑';
+        deleteBtn.title = 'Удалить';
+        deleteBtn.addEventListener('click', () => deleteParameter(item.id, type, deleteBtn));
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(saveBtn);
+        wrapper.appendChild(deleteBtn);
+        list.appendChild(wrapper);
+      });
+    });
+  }
+
+  renderParameters();
+
+  async function loadParameters() {
+    try {
+      const response = await fetch('/api/settings/parameters');
+      if (!response.ok) throw new Error('Ошибка загрузки параметров');
+      const data = await response.json();
+      parameterData = data || {};
+      Object.keys(PARAMETER_TITLES).forEach((type) => {
+        if (!parameterData[type]) parameterData[type] = [];
+      });
+      renderParameters();
+    } catch (error) {
+      console.error('Ошибка загрузки параметров:', error);
+      alert('❌ Не удалось загрузить параметры: ' + error.message);
+    }
+  }
+
+  async function createParameter(type, btn) {
+    const card = btn.closest('.parameter-card');
+    const input = card ? card.querySelector('[data-param-input]') : null;
+    if (!input) return;
+    const value = input.value.trim();
+    if (!value) {
+      input.focus();
+      return;
+    }
+
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+      const response = await fetch('/api/settings/parameters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ param_type: type, value })
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка создания параметра');
+      }
+      parameterData = data.data || parameterData;
+      Object.keys(PARAMETER_TITLES).forEach((key) => {
+        if (!parameterData[key]) parameterData[key] = [];
+      });
+      input.value = '';
+      renderParameters();
+    } catch (error) {
+      alert('❌ ' + error.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+
+  async function updateParameter(id, type, btn) {
+    const row = btn.closest('.param-item');
+    const input = row ? row.querySelector('input') : null;
+    if (!input) return;
+    const value = input.value.trim();
+    if (!value) {
+      alert('Значение не может быть пустым');
+      input.focus();
+      return;
+    }
+
+    btn.disabled = true;
+
+    try {
+      const response = await fetch(`/api/settings/parameters/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value })
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка сохранения');
+      }
+      parameterData = data.data || parameterData;
+      Object.keys(PARAMETER_TITLES).forEach((key) => {
+        if (!parameterData[key]) parameterData[key] = [];
+      });
+      renderParameters();
+    } catch (error) {
+      alert('❌ ' + error.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteParameter(id, type, btn) {
+    if (!confirm('Удалить значение?')) return;
+
+    btn.disabled = true;
+
+    try {
+      const response = await fetch(`/api/settings/parameters/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка удаления');
+      }
+      parameterData = data.data || parameterData;
+      Object.keys(PARAMETER_TITLES).forEach((key) => {
+        if (!parameterData[key]) parameterData[key] = [];
+      });
+      renderParameters();
+    } catch (error) {
+      alert('❌ ' + error.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   // === Управление статусами клиентов ===
   function addStatus() {
     const container = document.getElementById('statusesList');
@@ -521,10 +732,11 @@
 
   // === Запуск при загрузке страницы ===
   document.addEventListener('DOMContentLoaded', () => {
-	  buildLocationsTree();
-	  loadUsers();
-	  loadChannels(); // <— добавили
-	});
+          buildLocationsTree();
+          loadUsers();
+          loadChannels(); // <— добавили
+          loadParameters();
+        });
 
   // === КАНАЛЫ (боты) ===
 function maskToken(tok) {
