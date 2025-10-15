@@ -120,6 +120,7 @@
               <th scope="col">Город</th>
               <th scope="col">Департамент</th>
               <th scope="col">Общее время работы</th>
+              <th scope="col">Сеть</th>
               <th scope="col">Расписание</th>
             </tr>
           </thead>
@@ -182,7 +183,7 @@
       const params = buildParams();
       const query = params.toString();
       const url = query ? `/api/object_passports?${query}` : '/api/object_passports';
-      tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
       emptyState.classList.add('d-none');
       try {
         const response = await fetch(url);
@@ -192,7 +193,7 @@
         renderTable(items);
       } catch (error) {
         console.error(error);
-        tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">Не удалось загрузить данные</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Не удалось загрузить данные</td></tr>';
         resultsCountEl.textContent = '0';
       }
     }
@@ -216,6 +217,7 @@
           <td>${escapeHtml(item.city)}</td>
           <td>${escapeHtml(item.department)}</td>
           <td>${escapeHtml(item.total_work_time)}</td>
+          <td>${escapeHtml(item.network)}</td>
           <td>${escapeHtml(item.schedule_display)}</td>
         `;
         tr.addEventListener('click', () => {
