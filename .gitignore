@@ -2,3 +2,6 @@
 .env
 *.db
 __pycache__/
+panel/node_modules/
+object_passport_uploads/
+attachments/
