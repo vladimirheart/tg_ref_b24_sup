@@ -66,7 +66,7 @@ PARAMETER_TYPES = {
     "country": "Страна",
     "legal_entity": "ЮЛ",
     "department": "Департамент",
-    "network": "Сеть",
+    "network": "Внутренняя сеть",
 }
 
 # Подключение к базе
@@ -121,6 +121,7 @@ def ensure_object_passport_schema():
                 network_legal_entity TEXT,
                 network_support_phone TEXT,
                 network_speed TEXT,
+                network_tunnel TEXT,
                 network_connection_params TEXT,
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now'))
@@ -169,7 +170,20 @@ def ensure_object_passport_schema():
             )
             """
         )
-
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS object_passport_network_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                passport_id INTEGER NOT NULL,
+                original_name TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                content_type TEXT,
+                file_size INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(passport_id) REFERENCES object_passports(id) ON DELETE CASCADE
+            )
+            """
+        )
 
 ensure_object_passport_schema()
 
@@ -181,6 +195,7 @@ def _ensure_object_passport_columns():
         "network_legal_entity": "TEXT",
         "network_support_phone": "TEXT",
         "network_speed": "TEXT",
+        "network_tunnel": "TEXT",
         "network_connection_params": "TEXT",
     }
     with get_passport_db() as conn:
@@ -332,6 +347,22 @@ def _format_display_datetime(value):
             return str(value)
     return parsed.strftime("%d.%m.%Y %H:%M")
 
+def _format_file_size(value):
+    try:
+        size = int(value)
+    except (TypeError, ValueError):
+        return ""
+
+    units = ["Б", "КБ", "МБ", "ГБ", "ТБ"]
+    size_float = float(size)
+    for unit in units:
+        if size_float < 1024 or unit == units[-1]:
+            if unit == "Б":
+                return f"{int(size_float)} {unit}"
+            return f"{size_float:.1f} {unit}".replace(".0", "")
+        size_float /= 1024
+    return f"{size_float:.1f} ТБ"
+
 
 def _fetch_cases_for_department(department, limit=200):
     if not department:
@@ -390,6 +421,34 @@ def _fetch_passport_photos(conn, passport_id):
             }
         )
     return items
+
+def _fetch_network_files(conn, passport_id):
+    rows = conn.execute(
+        """
+        SELECT id, passport_id, original_name, filename, content_type, file_size, created_at
+        FROM object_passport_network_files
+        WHERE passport_id = ?
+        ORDER BY created_at DESC
+        """,
+        (passport_id,),
+    ).fetchall()
+    files = []
+    for row in rows:
+        files.append(
+            {
+                "id": row["id"],
+                "passport_id": row["passport_id"],
+                "original_name": row["original_name"],
+                "filename": row["filename"],
+                "content_type": row["content_type"] or "",
+                "size": row["file_size"] or 0,
+                "size_display": _format_file_size(row["file_size"]),
+                "url": url_for("object_passport_media", filename=row["filename"]),
+                "created_at": row["created_at"],
+                "created_at_display": _format_display_datetime(row["created_at"]),
+            }
+        )
+    return files
 
 
 def _fetch_equipment_photos(conn, equipment_id):
@@ -458,6 +517,7 @@ def _serialize_passport_row(row):
         "network_provider": row["network_provider"] or "",
         "network_contract_number": row["network_contract_number"] or "",
         "network_legal_entity": row["network_legal_entity"] or "",
+        "network_tunnel": row["network_tunnel"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
         "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
@@ -494,6 +554,7 @@ def _serialize_passport_detail(conn, row):
         "network_legal_entity": row["network_legal_entity"] or "",
         "network_support_phone": row["network_support_phone"] or "",
         "network_speed": row["network_speed"] or "",
+        "network_tunnel": row["network_tunnel"] or "",
         "network_connection_params": row["network_connection_params"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
@@ -501,6 +562,7 @@ def _serialize_passport_detail(conn, row):
         "schedule": schedule_for_client,
         "schedule_display": _format_schedule(schedule_raw),
         "photos": _fetch_passport_photos(conn, row["id"]),
+        "network_files": _fetch_network_files(conn, row["id"]),
         "equipment": _fetch_passport_equipment(conn, row["id"]),
     }
     detail["cases"] = _fetch_cases_for_department(detail["department"])
@@ -615,6 +677,7 @@ def _blank_passport_detail():
         "network_legal_entity": "",
         "network_support_phone": "",
         "network_speed": "",
+        "network_tunnel": "",
         "network_connection_params": "",
         "start_date": "",
         "end_date": "",
@@ -631,6 +694,7 @@ def _blank_passport_detail():
         ],
         "schedule_display": "—",
         "photos": [],
+        "network_files": [],
         "equipment": [],
         "cases": [],
     }
@@ -641,6 +705,27 @@ def _render_passport_template(passport_detail, is_new):
     cities = _city_options()
     payload = dict(passport_detail)
     payload["is_new"] = is_new
+    settings = load_settings()
+    network_profiles = settings.get("network_profiles", [])
+
+    def _append_unique(target, value):
+        if value and value not in target:
+            target.append(value)
+
+    provider_options = []
+    contract_options = []
+    support_phone_options = []
+    speed_options = []
+    legal_entity_options = []
+
+    for profile in network_profiles:
+        if not isinstance(profile, dict):
+            continue
+        _append_unique(provider_options, (profile.get("provider") or "").strip())
+        _append_unique(contract_options, (profile.get("contract_number") or "").strip())
+        _append_unique(support_phone_options, (profile.get("support_phone") or "").strip())
+        _append_unique(speed_options, (profile.get("speed") or "").strip())
+        _append_unique(legal_entity_options, (profile.get("legal_entity") or "").strip())
     return render_template(
         "object_passport_detail.html",
         passport_payload=json.dumps(payload, ensure_ascii=False),
@@ -648,6 +733,12 @@ def _render_passport_template(passport_detail, is_new):
         cities=cities,
         statuses=list(PASSPORT_STATUSES),
         day_labels=WEEKDAY_SEQUENCE,
+        network_profiles=network_profiles,
+        network_provider_options=provider_options,
+        network_contract_options=contract_options,
+        network_support_phone_options=support_phone_options,
+        network_speed_options=speed_options,
+        network_legal_entity_options=legal_entity_options,
     )
 
 
@@ -683,6 +774,7 @@ def _prepare_passport_record(payload):
         "network_legal_entity": clean("network_legal_entity"),
         "network_support_phone": clean("network_support_phone"),
         "network_speed": clean("network_speed"),
+        "network_tunnel": clean("network_tunnel"),
         "network_connection_params": clean("network_connection_params"),
         "start_date": clean("start_date"),
         "end_date": clean("end_date"),
@@ -1183,6 +1275,8 @@ def load_settings():
                 settings.update(json.load(f))
         except:
             pass
+    if not isinstance(settings.get("network_profiles"), list):
+        settings["network_profiles"] = []
     return settings
 
 # Функция для сжатия изображений на лету
@@ -3928,26 +4022,50 @@ def update_settings():
         data = request.json
         
         # Обновляем настройки
-        if "auto_close_hours" in data or "categories" in data or "client_statuses" in data:
+        if any(
+            key in data
+            for key in ("auto_close_hours", "categories", "client_statuses", "network_profiles")
+        ):
             settings = load_settings()
-            
+
             if "auto_close_hours" in data:
                 settings["auto_close_hours"] = data["auto_close_hours"]
-            
+
             if "categories" in data:
                 settings["categories"] = [cat for cat in data["categories"] if cat.strip()]
-            
+
             if "client_statuses" in data:
                 settings["client_statuses"] = [status for status in data["client_statuses"] if status.strip()]
-            
+
+            if "network_profiles" in data:
+                profiles = []
+                for item in data.get("network_profiles") or []:
+                    provider = (item.get("provider") or "").strip()
+                    contract_number = (item.get("contract_number") or "").strip()
+                    support_phone = (item.get("support_phone") or "").strip()
+                    speed = (item.get("speed") or "").strip()
+                    legal_entity = (item.get("legal_entity") or "").strip()
+                    if not any([provider, contract_number, support_phone, speed, legal_entity]):
+                        continue
+                    profiles.append(
+                        {
+                            "provider": provider,
+                            "contract_number": contract_number,
+                            "support_phone": support_phone,
+                            "speed": speed,
+                            "legal_entity": legal_entity,
+                        }
+                    )
+                settings["network_profiles"] = profiles
+
             save_settings(settings)
-        
+
         # Обновляем локации
         if "locations" in data:
             save_locations(data["locations"])
-        
+
         return jsonify({"success": True})
-    
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -4108,6 +4226,7 @@ def api_object_passports_create():
                 city, status, start_date, end_date, schedule_json,
                 network, network_provider, network_contract_number,
                 network_legal_entity, network_support_phone, network_speed,
+                network_tunnel,
                 network_connection_params
             )
             VALUES (
@@ -4115,6 +4234,7 @@ def api_object_passports_create():
                 :city, :status, :start_date, :end_date, :schedule_json,
                 :network, :network_provider, :network_contract_number,
                 :network_legal_entity, :network_support_phone, :network_speed,
+                :network_tunnel,
                 :network_connection_params
             )
             """,
@@ -4174,6 +4294,7 @@ def api_object_passports_update(passport_id):
                 network_legal_entity = :network_legal_entity,
                 network_support_phone = :network_support_phone,
                 network_speed = :network_speed,
+                network_tunnel = :network_tunnel,
                 network_connection_params = :network_connection_params,
                 updated_at = datetime('now')
             WHERE id = :id
@@ -4345,6 +4466,80 @@ def api_object_passport_add_photo(passport_id):
         photos = _fetch_passport_photos(conn, passport_id)
 
     return jsonify({"success": True, "photos": photos})
+
+@app.route("/api/object_passports/<int:passport_id>/network_files", methods=["POST"])
+@login_required_api
+def api_object_passport_add_network_file(passport_id):
+    conn = get_passport_db()
+    try:
+        exists = conn.execute(
+            "SELECT id FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not exists:
+            return jsonify({"success": False, "error": "Паспорт не найден"}), 404
+    finally:
+        conn.close()
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "Необходимо выбрать файл"}), 400
+
+    original_name = file.filename
+    safe_name = secure_filename(original_name)
+    if not safe_name:
+        return jsonify({"success": False, "error": "Недопустимое имя файла"}), 400
+
+    subdir = os.path.join(OBJECT_PASSPORT_UPLOADS_DIR, f"passport_{passport_id}", "network")
+    os.makedirs(subdir, exist_ok=True)
+    unique_name = f"{int(time.time())}_{uuid4().hex}_{safe_name}"
+    file_path = os.path.join(subdir, unique_name)
+    file.save(file_path)
+    file_size = os.path.getsize(file_path)
+    relative_path = os.path.relpath(file_path, OBJECT_PASSPORT_UPLOADS_DIR).replace("\\", "/")
+
+    with get_passport_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO object_passport_network_files (
+                passport_id, original_name, filename, content_type, file_size
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (passport_id, original_name, relative_path, file.mimetype, file_size),
+        )
+        conn.commit()
+        files = _fetch_network_files(conn, passport_id)
+
+    return jsonify({"success": True, "files": files})
+
+
+@app.route("/api/object_passports/network_files/<int:file_id>", methods=["DELETE"])
+@login_required_api
+def api_object_passport_delete_network_file(file_id):
+    with get_passport_db() as conn:
+        row = conn.execute(
+            "SELECT passport_id, filename FROM object_passport_network_files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Файл не найден"}), 404
+
+        conn.execute(
+            "DELETE FROM object_passport_network_files WHERE id = ?",
+            (file_id,),
+        )
+        conn.commit()
+        files = _fetch_network_files(conn, row["passport_id"])
+
+    file_path = os.path.join(OBJECT_PASSPORT_UPLOADS_DIR, row["filename"])
+    try:
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    except Exception:
+        pass
+
+    return jsonify({"success": True, "files": files})
 
 
 @app.route("/api/object_passports/photos/<int:photo_id>", methods=["PATCH"])
