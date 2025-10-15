@@ -27,6 +27,9 @@ from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
+TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
+USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
+LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
@@ -51,7 +54,7 @@ PARAMETER_TYPES = {
 # Подключение к базе
 def get_db():
     # autocommit (isolation_level=None) + увеличенный timeout
-    conn = sqlite3.connect("../tickets.db", timeout=30, isolation_level=None)
+    conn = sqlite3.connect(TICKETS_DB_PATH, timeout=30, isolation_level=None)
     conn.row_factory = sqlite3.Row
     # режим WAL и адекватный busy_timeout на всякий случай
     conn.execute("PRAGMA journal_mode=WAL;")
@@ -60,7 +63,7 @@ def get_db():
     return conn
 
 def get_users_db():
-    conn = sqlite3.connect("../users.db")
+    conn = sqlite3.connect(USERS_DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -204,6 +207,96 @@ def ensure_settings_parameters_schema():
 
 
 ensure_settings_parameters_schema()
+
+def _collect_departments_from_locations() -> tuple[list[str], set[str]]:
+    """
+    Возвращает:
+    - отсортированный список названий департаментов (четвёртая ветка дерева
+      locations.json: бизнес → тип → город → точка);
+    - множество названий третьего уровня (городов/веток) для последующей
+      очистки устаревших значений.
+    """
+
+    try:
+        with open(LOCATIONS_PATH, "r", encoding="utf-8") as f:
+            locations = json.load(f)
+    except Exception:
+        return [], set()
+
+    departments: set[str] = set()
+    third_level_names: set[str] = set()
+
+    for brand in locations.values():
+        if not isinstance(brand, dict):
+            continue
+
+        for partner_type in brand.values():
+            if not isinstance(partner_type, dict):
+                continue
+
+            for city_name, city_departments in partner_type.items():
+                if isinstance(city_name, str) and city_name.strip():
+                    third_level_names.add(city_name.strip())
+
+                if isinstance(city_departments, dict):
+                    iterable = city_departments.values()
+                elif isinstance(city_departments, list):
+                    iterable = city_departments
+                else:
+                    continue
+
+                for department_name in iterable:
+                    if isinstance(department_name, str) and department_name.strip():
+                        departments.add(department_name.strip())
+
+    return (
+        sorted(departments, key=lambda name: name.lower()),
+        third_level_names,
+    )
+
+
+def ensure_departments_seeded():
+    """Добавляет значения департаментов на основе locations.json, если их нет."""
+
+    departments, obsolete_candidates = _collect_departments_from_locations()
+    if not departments:
+        return
+
+    department_set = set(departments)
+
+    try:
+        with get_db() as conn:
+            existing_rows = conn.execute(
+                "SELECT value FROM settings_parameters WHERE param_type = ?",
+                ("department",),
+            ).fetchall()
+            existing = {row["value"] for row in existing_rows if row["value"]}
+
+            obsolete = [
+                value
+                for value in existing
+                if value in obsolete_candidates and value not in department_set
+            ]
+            if obsolete:
+                conn.executemany(
+                    "DELETE FROM settings_parameters WHERE param_type = ? AND value = ?",
+                    [("department", value) for value in obsolete],
+                )
+
+            missing = [dep for dep in departments if dep not in existing]
+            if not missing:
+                return
+
+            conn.executemany(
+                "INSERT OR IGNORE INTO settings_parameters (param_type, value) VALUES (?, ?)",
+                [("department", dep) for dep in missing],
+            )
+            conn.commit()
+    except Exception as e:
+        logging.warning("Не удалось заполнить департаменты: %s", e)
+
+
+ensure_departments_seeded()
 
 def create_unblock_request_task(user_id: str, reason: str = ""):
     """
@@ -519,17 +612,17 @@ def save_settings(settings):
 # Функция для загрузки локаций
 def load_locations():
     locations = {}
-    if os.path.exists("../locations.json"):
+    if os.path.exists(LOCATIONS_PATH):
         try:
-            with open("../locations.json", "r", encoding="utf-8") as f:
+            with open(LOCATIONS_PATH, "r", encoding="utf-8") as f:
                 locations = json.load(f)
-        except:
+        except Exception:
             pass
     return locations
 
 # Функция для сохранения локаций
 def save_locations(locations):
-    with open("../locations.json", "w", encoding="utf-8") as f:
+    with open(LOCATIONS_PATH, "w", encoding="utf-8") as f:
         json.dump(locations, f, ensure_ascii=False, indent=2)
 
 def format_time_duration(minutes):
