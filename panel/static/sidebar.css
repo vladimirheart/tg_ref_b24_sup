@@ -1,0 +1,222 @@
+/* panel/static/sidebar.css */
+:root {
+  --sidebar-w: 260px;
+  --sidebar-w-collapsed: 64px;
+  --sidebar-z: 1040;
+}
+
+body.with-sidebar {
+  display: flex;
+  min-height: 100vh;
+  margin: 0;
+  background: #f8f9fa;
+}
+
+/* Макет: сайдбар слева, контент занимает всё остальное, НИКАКИХ пустот справа */
+.sidebar-layout {
+  display: flex;
+  width: 100%;
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  transition: width .2s ease, opacity .2s ease;
+  z-index: var(--sidebar-z);
+}
+.sidebar.collapsed {
+  width: var(--sidebar-w-collapsed);
+  flex-basis: var(--sidebar-w-collapsed);
+  opacity: .7; /* 70% прозрачности, когда свёрнут */
+}
+.sidebar:not(.pinned).hovering {
+  opacity: .7; /* 70% при неразвёрнутом состоянии */
+}
+.main-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Заголовок сайдбара */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.sidebar .brand {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* Кнопки в шапке */
+.icon-btn {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Навигация */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 4px;
+}
+.sidebar-nav .nav-link {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #111827;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.sidebar-nav .nav-link:hover {
+  background: #f3f4f6;
+}
+
+.sidebar.collapsed .nav-link {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 10px 0;
+}
+.sidebar .nav-link .icon {
+  display: inline-block;
+  width: 24px;
+  text-align: center;
+  font-size: 18px;
+}
+.sidebar .nav-link .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar.collapsed .nav-link .label {
+  display: none !important; /* в свёрнутом показываем только иконки */
+}
+
+/* "Колокольчик" */
+#notify-bell {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: calc(var(--sidebar-z) + 1);
+}
+#notify-bell .bell { cursor: pointer; font-size: 22px; }
+#notify-bell .count {
+  position: absolute; top: -6px; right: -6px;
+  display: inline-block; padding: 2px 6px; border-radius: 999px;
+  background: #ef4444; color: #fff; font-size: 12px;
+}
+
+/* Флайаут уведомлений */
+.notif-flyout {
+  position: fixed;
+  right: 12px;
+  bottom: 48px;
+  width: 360px;
+  max-height: 50vh;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+  padding: 8px;
+}
+.notif-flyout .notif-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.notif-flyout .notif-item:hover { background: #f3f4f6; }
+.notif-flyout .notif-time { font-size: 12px; color: #6b7280; }
+
+/* === Унифицированные состояния иконок в сайдбаре === */
+:root{
+  --sb-active-fg: #1d4ed8;  /* насыщенный синий для активного пункта */
+  --sb-active-bg: #eef2ff;  /* мягкая подложка для активного пункта */
+  --sb-icon-idle: #6b7280;  /* приглушённые иконки по умолчанию */
+}
+
+.sidebar-nav .nav-link{
+  transition: background-color .15s ease, color .15s ease, opacity .15s ease;
+}
+
+/* Иконки по умолчанию — слегка приглушены */
+.sidebar .nav-link .icon{
+  color: var(--sb-icon-idle);
+  opacity: .85;
+  transition: transform .15s ease, color .15s ease, opacity .15s ease;
+}
+
+/* Ховер: чуть ярче и лёгкий сдвиг/масштаб */
+.sidebar-nav .nav-link:hover .icon{
+  opacity: 1;
+  transform: translateX(1px);
+}
+
+/* Активный пункт: контрастный цвет текста + иконки, подложка */
+.sidebar-nav .nav-link.active{
+  background: var(--sb-active-bg);
+  color: var(--sb-active-fg);
+}
+.sidebar-nav .nav-link.active .icon{
+  color: var(--sb-active-fg);
+  opacity: 1;
+  transform: none;
+}
+
+/* В свернутом режиме сохраняем выразительность иконок */
+.sidebar.collapsed .nav-link .icon{
+  opacity: 1;
+}
+.sidebar.collapsed .nav-link.active{
+  background: transparent;     /* чтобы не «полосило» на коротких пунктах */
+}
+.sidebar.collapsed .nav-link.active .icon{
+  color: var(--sb-active-fg);
+}
+
+/* === Унифицированные состояния иконок в сайдбаре (везде одинаково) === */
+:root{
+  --sb-active-fg: #1d4ed8;  /* цвет активной иконки/текста */
+  --sb-active-bg: #eef2ff;  /* фон активного пункта */
+  --sb-icon-idle: #6b7280;  /* цвет иконок по умолчанию */
+}
+
+.sidebar-nav .nav-link{
+  transition: background-color .15s ease, color .15s ease, opacity .15s ease;
+}
+
+/* Иконки по умолчанию — слегка приглушены */
+.sidebar .nav-link .icon{
+  color: var(--sb-icon-idle);
+  opacity: .9;
+  transition: transform .15s ease, color .15s ease, opacity .15s ease;
+}
+
+/* Ховер: чуть ярче */
+.sidebar-nav .nav-link:hover .icon{ opacity: 1; }
+
+/* Активный пункт: контрастный фон и яркая иконка/текст */
+.sidebar-nav .nav-link.active{
+  background: var(--sb-active-bg);
+  color: var(--sb-active-fg);
+}
+.sidebar-nav .nav-link.active .icon{
+  color: var(--sb-active-fg);
+  opacity: 1;
+}
+
+/* В свёрнутом режиме иконки остаются читаемыми */
+.sidebar.collapsed .nav-link .icon{ opacity: 1; }
