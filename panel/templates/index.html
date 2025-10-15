@@ -934,6 +934,15 @@
   opacity: 1;
 }
 
+.modal.fade.modal-closing .modal-dialog {
+  --modal-scale: 0.9;
+  opacity: 0;
+}
+
+.modal.fade.modal-closing {
+  pointer-events: none;
+}
+
 .modal.small-modal {
     align-items: center;
     justify-content: center;
@@ -1551,9 +1560,33 @@ function markTicketReopenedLocally() {
   "categories": {{ settings.categories | tojson if settings and settings.categories else '["Консультация"]' | safe }}
 };
   </script>
-
   <script>
-	const savedPage = parseInt(localStorage.getItem('ticketsCurrentPage') || '1', 10);
+    document.addEventListener('show.bs.modal', function (event) {
+      const modal = event.target;
+      if (!modal || !modal.classList || !modal.classList.contains('modal') || !modal.classList.contains('fade')) {
+        return;
+      }
+      modal.classList.remove('modal-closing');
+    });
+
+    document.addEventListener('hide.bs.modal', function (event) {
+      const modal = event.target;
+      if (!modal || !modal.classList || !modal.classList.contains('modal') || !modal.classList.contains('fade')) {
+        return;
+      }
+      modal.classList.add('modal-closing');
+    });
+
+    document.addEventListener('hidden.bs.modal', function (event) {
+      const modal = event.target;
+      if (!modal || !modal.classList || !modal.classList.contains('modal') || !modal.classList.contains('fade')) {
+        return;
+      }
+      modal.classList.remove('modal-closing');
+    });
+  </script>
+  <script>
+        const savedPage = parseInt(localStorage.getItem('ticketsCurrentPage') || '1', 10);
 	let currentPage = Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1;
 	let totalPages = 1;
 	let allTickets = [];
