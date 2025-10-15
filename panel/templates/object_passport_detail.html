@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Паспорт объекта</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <style>
+    .card h5 { margin-bottom: 0; }
+    .schedule-table input[type="time"] { max-width: 120px; }
+    .photo-card img { object-fit: cover; height: 180px; }
+    .photo-card .card-body { font-size: 0.9rem; }
+    .equipment-card textarea { min-height: 80px; }
+    .equipment-photo img { object-fit: cover; height: 150px; }
+    .equipment-photo .card-body { font-size: 0.85rem; }
+    .form-control-plaintext { padding-left: 0; }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+    <div class="container-fluid mt-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <h2 class="mb-1">🗂 Паспорт объекта</h2>
+          <span class="badge bg-secondary status-badge" id="statusBadge">—</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-secondary" href="/object_passports" target="_self">← К списку</a>
+          <button class="btn btn-primary" id="savePassportBtn" type="button">💾 Сохранить</button>
+        </div>
+      </div>
+
+      <div class="alert d-none" role="alert" id="saveStatus"></div>
+
+      <div class="card mb-4">
+        <div class="card-header">Основная информация</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Департамент<span class="text-danger">*</span></label>
+              <div class="input-group input-group-sm">
+                <select class="form-select" id="departmentSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('department', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Бизнес</label>
+              <div class="input-group input-group-sm">
+                <select class="form-select" id="businessSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('business', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="business" data-target="businessSelect">+</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Тип партнёра</label>
+              <div class="input-group input-group-sm">
+                <select class="form-select" id="partnerTypeSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('partner_type', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="partner_type" data-target="partnerTypeSelect">+</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Страна</label>
+              <div class="input-group input-group-sm">
+                <select class="form-select" id="countrySelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('country', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="country" data-target="countrySelect">+</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Юридическое лицо</label>
+              <div class="input-group input-group-sm">
+                <select class="form-select" id="legalEntitySelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('legal_entity', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="legal_entity" data-target="legalEntitySelect">+</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Город</label>
+              <input type="text" id="cityInput" class="form-control form-control-sm" list="citiesList" placeholder="Например, Москва" />
+              <datalist id="citiesList">
+                {% for value in cities %}
+                <option value="{{ value }}"></option>
+                {% endfor %}
+              </datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Статус</label>
+              <select class="form-select form-select-sm" id="statusSelect">
+                {% for value in statuses %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Дата запуска</label>
+              <input type="date" class="form-control form-control-sm" id="startDateInput" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Дата закрытия</label>
+              <input type="date" class="form-control form-control-sm" id="endDateInput" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Общее время работы</label>
+              <div class="form-control-plaintext fw-semibold" id="totalTimeDisplay">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4" id="scheduleCard">
+        <div class="card-header">Расписание</div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle schedule-table" id="scheduleTable">
+              <thead>
+                <tr>
+                  <th>День недели</th>
+                  <th>С</th>
+                  <th>По</th>
+                  <th>24 часа</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for key, full, short in day_labels %}
+                <tr data-day="{{ key }}">
+                  <td>{{ full }}</td>
+                  <td><input type="time" class="form-control form-control-sm schedule-from" /></td>
+                  <td><input type="time" class="form-control form-control-sm schedule-to" /></td>
+                  <td>
+                    <div class="form-check">
+                      <input class="form-check-input schedule-24" type="checkbox" id="schedule24_{{ key }}" />
+                      <label class="form-check-label" for="schedule24_{{ key }}">Круглосуточно</label>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4" id="casesCard">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Обращения по локации</span>
+          <button class="btn btn-sm btn-outline-primary" id="refreshCasesBtn" type="button">🔄 Обновить</button>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped">
+              <thead>
+                <tr>
+                  <th>ID заявки</th>
+                  <th>Бизнес</th>
+                  <th>Город</th>
+                  <th>Описание</th>
+                  <th>Создано</th>
+                </tr>
+              </thead>
+              <tbody id="casesTableBody"></tbody>
+            </table>
+          </div>
+          <div class="text-muted" id="casesEmptyText">Обращения не найдены.</div>
+        </div>
+      </div>
+
+      <div class="card mb-4" id="photosSection">
+        <div class="card-header">Фотографии объекта</div>
+        <div class="card-body">
+          <div class="alert alert-warning d-none" id="photosDisabledHint">Сохраните паспорт, чтобы добавлять фотографии.</div>
+          <form class="row g-3 align-items-end mb-3" id="photoUploadForm">
+            <div class="col-md-3">
+              <label class="form-label">Тип фото</label>
+              <select class="form-select form-select-sm" name="category" required>
+                <option value="title">Титульное</option>
+                <option value="archive">Архивное</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Подпись</label>
+              <input type="text" class="form-control form-control-sm" name="caption" placeholder="Описание" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Файл</label>
+              <input type="file" class="form-control form-control-sm" name="file" accept="image/*" required />
+            </div>
+            <div class="col-md-1">
+              <button class="btn btn-outline-primary btn-sm w-100" type="submit">Добавить</button>
+            </div>
+          </form>
+          <div class="row g-3" id="photosContainer"></div>
+          <div class="text-muted" id="photosEmptyText">Фотографии ещё не добавлены.</div>
+        </div>
+      </div>
+
+      <div class="card mb-5" id="equipmentSection">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Структура оборудования</span>
+          <button class="btn btn-sm btn-outline-success" id="addEquipmentBtn" type="button">➕ Добавить оборудование</button>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning d-none" id="equipmentDisabledHint">Сохраните паспорт, чтобы управлять оборудованием.</div>
+          <div id="equipmentContainer"></div>
+          <div class="text-muted" id="equipmentEmptyText">Оборудование ещё не добавлено.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script id="passportData" type="application/json">{{ passport_payload | safe }}</script>
+  <script>
+    function escapeHtml(value) {
+      if (value === null || value === undefined) return '';
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    const parameterValuesInitial = {{ parameter_values | tojson }};
+    const statuses = {{ statuses | tojson }};
+    const dayLabels = {{ day_labels | tojson }};
+
+    let passportData = JSON.parse(document.getElementById('passportData').textContent || '{}');
+    let parameterValues = (typeof structuredClone === 'function')
+      ? structuredClone(parameterValuesInitial)
+      : JSON.parse(JSON.stringify(parameterValuesInitial));
+
+    const departmentSelect = document.getElementById('departmentSelect');
+    const businessSelect = document.getElementById('businessSelect');
+    const partnerTypeSelect = document.getElementById('partnerTypeSelect');
+    const countrySelect = document.getElementById('countrySelect');
+    const legalEntitySelect = document.getElementById('legalEntitySelect');
+    const cityInput = document.getElementById('cityInput');
+    const statusSelect = document.getElementById('statusSelect');
+    const startDateInput = document.getElementById('startDateInput');
+    const endDateInput = document.getElementById('endDateInput');
+    const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+    const saveStatusAlert = document.getElementById('saveStatus');
+    const statusBadge = document.getElementById('statusBadge');
+    const photoUploadForm = document.getElementById('photoUploadForm');
+    const photosContainer = document.getElementById('photosContainer');
+    const photosEmptyText = document.getElementById('photosEmptyText');
+    const photosDisabledHint = document.getElementById('photosDisabledHint');
+    const equipmentContainer = document.getElementById('equipmentContainer');
+    const equipmentEmptyText = document.getElementById('equipmentEmptyText');
+    const equipmentDisabledHint = document.getElementById('equipmentDisabledHint');
+    const addEquipmentBtn = document.getElementById('addEquipmentBtn');
+    const casesTableBody = document.getElementById('casesTableBody');
+    const casesEmptyText = document.getElementById('casesEmptyText');
+    const refreshCasesBtn = document.getElementById('refreshCasesBtn');
+    const savePassportBtn = document.getElementById('savePassportBtn');
+
+    function showSaveMessage(type, text) {
+      saveStatusAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
+      saveStatusAlert.classList.add(type === 'error' ? 'alert-danger' : 'alert-success');
+      saveStatusAlert.textContent = text;
+      if (type !== 'error') {
+        setTimeout(() => saveStatusAlert.classList.add('d-none'), 4000);
+      }
+    }
+
+    function updateStatusBadge() {
+      const value = statusSelect.value || '—';
+      statusBadge.textContent = value || '—';
+      statusBadge.classList.remove('bg-success', 'bg-warning', 'bg-secondary');
+      if (value === 'Открыт') {
+        statusBadge.classList.add('bg-success');
+      } else if (value === 'Стройка') {
+        statusBadge.classList.add('bg-warning');
+      } else {
+        statusBadge.classList.add('bg-secondary');
+      }
+    }
+
+    function toggleScheduleInputs(row, is24) {
+      const fromInput = row.querySelector('.schedule-from');
+      const toInput = row.querySelector('.schedule-to');
+      fromInput.disabled = is24;
+      toInput.disabled = is24;
+      if (is24) {
+        fromInput.value = '';
+        toInput.value = '';
+      }
+    }
+
+    function populateSchedule(schedule) {
+      const mapping = {};
+      (schedule || []).forEach((entry) => {
+        if (entry && entry.day) {
+          mapping[entry.day] = entry;
+        }
+      });
+      document.querySelectorAll('#scheduleTable tbody tr').forEach((row) => {
+        const day = row.dataset.day;
+        const data = mapping[day] || {};
+        const is24 = Boolean(data.is_24);
+        row.querySelector('.schedule-24').checked = is24;
+        row.querySelector('.schedule-from').value = is24 ? '' : (data.from || '');
+        row.querySelector('.schedule-to').value = is24 ? '' : (data.to || '');
+        toggleScheduleInputs(row, is24);
+      });
+    }
+
+    function collectSchedule() {
+      return Array.from(document.querySelectorAll('#scheduleTable tbody tr')).map((row) => {
+        const day = row.dataset.day;
+        const is24 = row.querySelector('.schedule-24').checked;
+        const fromInput = row.querySelector('.schedule-from').value;
+        const toInput = row.querySelector('.schedule-to').value;
+        return {
+          day,
+          from: is24 ? '' : fromInput,
+          to: is24 ? '' : toInput,
+          is_24: is24,
+        };
+      });
+    }
+
+    function toggleSectionsAvailability() {
+      const disabled = Boolean(passportData.is_new);
+      photoUploadForm.querySelectorAll('input, select, button').forEach((el) => {
+        el.disabled = disabled;
+      });
+      addEquipmentBtn.disabled = disabled;
+      refreshCasesBtn.disabled = disabled;
+      photosDisabledHint.classList.toggle('d-none', !disabled);
+      equipmentDisabledHint.classList.toggle('d-none', !disabled);
+    }
+
+    function populateForm() {
+      const data = passportData || {};
+      departmentSelect.value = data.department || '';
+      businessSelect.value = data.business || '';
+      partnerTypeSelect.value = data.partner_type || '';
+      countrySelect.value = data.country || '';
+      legalEntitySelect.value = data.legal_entity || '';
+      cityInput.value = data.city || '';
+      statusSelect.value = data.status || (statuses[0] || '');
+      startDateInput.value = data.start_date || '';
+      endDateInput.value = data.end_date || '';
+      totalTimeDisplay.textContent = data.total_work_time || '—';
+      updateStatusBadge();
+      populateSchedule(data.schedule || []);
+      renderPhotos(data.photos || []);
+      renderEquipment(data.equipment || []);
+      renderCases(data.cases || []);
+      toggleSectionsAvailability();
+    }
+
+    function collectFormData() {
+      return {
+        department: departmentSelect.value.trim(),
+        business: businessSelect.value.trim(),
+        partner_type: partnerTypeSelect.value.trim(),
+        country: countrySelect.value.trim(),
+        legal_entity: legalEntitySelect.value.trim(),
+        city: cityInput.value.trim(),
+        status: statusSelect.value.trim(),
+        start_date: startDateInput.value || '',
+        end_date: endDateInput.value || '',
+        schedule: collectSchedule(),
+      };
+    }
+
+    async function savePassport() {
+      const payload = collectFormData();
+      if (!payload.department) {
+        showSaveMessage('error', 'Поле «Департамент» обязательно для заполнения.');
+        return;
+      }
+      const isNew = Boolean(passportData.is_new);
+      const url = isNew ? '/api/object_passports' : `/api/object_passports/${passportData.id}`;
+      const method = isNew ? 'POST' : 'PUT';
+      savePassportBtn.disabled = true;
+      savePassportBtn.innerText = 'Сохранение...';
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить паспорт');
+        }
+        if (isNew && data.id) {
+          window.location.href = `/object_passports/${data.id}`;
+          return;
+        }
+        passportData = data.passport || passportData;
+        passportData.is_new = false;
+        populateForm();
+        showSaveMessage('success', 'Изменения сохранены.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Произошла ошибка при сохранении.');
+      } finally {
+        savePassportBtn.disabled = false;
+        savePassportBtn.innerText = '💾 Сохранить';
+      }
+    }
+
+    async function addParameter(paramType, selectId) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const value = prompt('Введите новое значение:');
+      if (!value || !value.trim()) return;
+      try {
+        const response = await fetch('/api/settings/parameters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ param_type: paramType, value: value.trim() }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось добавить значение');
+        }
+        parameterValues = data.data || parameterValues;
+        updateSelectOptions();
+        select.value = value.trim();
+        showSaveMessage('success', 'Значение успешно добавлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при добавлении значения.');
+      }
+    }
+
+    function updateSelectOptions() {
+      const mapping = [
+        { select: departmentSelect, key: 'department' },
+        { select: businessSelect, key: 'business' },
+        { select: partnerTypeSelect, key: 'partner_type' },
+        { select: countrySelect, key: 'country' },
+        { select: legalEntitySelect, key: 'legal_entity' },
+      ];
+      mapping.forEach(({ select, key }) => {
+        const current = select.value;
+        const options = parameterValues[key] || [];
+        select.innerHTML = '<option value="">Не выбрано</option>' + options.map((val) => `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`).join('');
+        select.value = current;
+      });
+    }
+
+    function renderCases(cases) {
+      const items = Array.isArray(cases) ? cases : [];
+      passportData.cases = items;
+      casesTableBody.innerHTML = '';
+      if (!items.length) {
+        casesEmptyText.classList.remove('d-none');
+        return;
+      }
+      casesEmptyText.classList.add('d-none');
+      items.forEach((item) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><code>${escapeHtml(item.ticket_id || '')}</code></td>
+          <td>${escapeHtml(item.business || '')}</td>
+          <td>${escapeHtml(item.city || '')}</td>
+          <td>${escapeHtml(item.problem || '')}</td>
+          <td>${escapeHtml(item.created_at_display || item.created_at || '')}</td>
+        `;
+        casesTableBody.appendChild(tr);
+      });
+    }
+
+    async function refreshCases() {
+      if (passportData.is_new) return;
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}/cases`);
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при загрузке обращений');
+        }
+        renderCases(data.items || []);
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось обновить обращения.');
+      }
+    }
+
+    function renderPhotos(photos) {
+      const list = Array.isArray(photos) ? photos : [];
+      passportData.photos = list;
+      photosContainer.innerHTML = '';
+      if (!list.length) {
+        photosEmptyText.classList.remove('d-none');
+        return;
+      }
+      photosEmptyText.classList.add('d-none');
+      list.forEach((photo) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4';
+        col.innerHTML = `
+          <div class="card h-100 photo-card" data-id="${photo.id}">
+            <img src="${escapeHtml(photo.url)}" class="card-img-top" alt="Фото" />
+            <div class="card-body">
+              <div class="mb-2">
+                <label class="form-label">Подпись</label>
+                <input type="text" class="form-control form-control-sm photo-caption" value="${escapeHtml(photo.caption || '')}" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Тип</label>
+                <select class="form-select form-select-sm photo-category">
+                  <option value="title" ${photo.category === 'title' ? 'selected' : ''}>Титульное</option>
+                  <option value="archive" ${photo.category === 'archive' ? 'selected' : ''}>Архивное</option>
+                </select>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" data-action="save-photo">Сохранить</button>
+                <button class="btn btn-sm btn-outline-danger" data-action="delete-photo">Удалить</button>
+              </div>
+            </div>
+          </div>
+        `;
+        photosContainer.appendChild(col);
+      });
+    }
+    async function handlePhotoSave(card) {
+      const photoId = card.dataset.id;
+      const caption = card.querySelector('.photo-caption').value;
+      const category = card.querySelector('.photo-category').value;
+      try {
+        const response = await fetch(`/api/object_passports/photos/${photoId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caption, category }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при сохранении фото');
+        }
+        renderPhotos(data.photos || []);
+        showSaveMessage('success', 'Фото обновлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось обновить фото.');
+      }
+    }
+
+    async function handlePhotoDelete(card) {
+      const photoId = card.dataset.id;
+      if (!confirm('Удалить фото?')) return;
+      try {
+        const response = await fetch(`/api/object_passports/photos/${photoId}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при удалении фото');
+        }
+        renderPhotos(data.photos || []);
+        showSaveMessage('success', 'Фото удалено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось удалить фото.');
+      }
+    }
+
+    photosContainer.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const card = button.closest('.photo-card');
+      if (!card) return;
+      if (button.dataset.action === 'save-photo') {
+        handlePhotoSave(card);
+      } else if (button.dataset.action === 'delete-photo') {
+        handlePhotoDelete(card);
+      }
+    });
+
+    photoUploadForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      const formData = new FormData(photoUploadForm);
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}/photos`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при загрузке фото');
+        }
+        photoUploadForm.reset();
+        renderPhotos(data.photos || []);
+        showSaveMessage('success', 'Фото добавлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось загрузить фото.');
+      }
+    });
+
+    function renderEquipment(equipmentList) {
+      const list = Array.isArray(equipmentList) ? equipmentList : [];
+      passportData.equipment = list;
+      equipmentContainer.innerHTML = '';
+      if (!list.length) {
+        equipmentEmptyText.classList.remove('d-none');
+      } else {
+        equipmentEmptyText.classList.add('d-none');
+      }
+      list.forEach((item, index) => {
+        const isNew = item.id === null || typeof item.id === 'undefined';
+        const card = document.createElement('div');
+        card.className = 'card mb-4 equipment-card';
+        card.dataset.id = isNew ? `new-${index}` : item.id;
+        card.innerHTML = `
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>${escapeHtml(item.name || 'Оборудование')}</strong>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-success" data-action="save-equipment">💾 Сохранить</button>
+              ${isNew ? '<button class="btn btn-sm btn-outline-secondary" data-action="cancel-equipment">Отменить</button>' : '<button class="btn btn-sm btn-outline-danger" data-action="delete-equipment">Удалить</button>'}
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Наименование</label>
+                <input type="text" class="form-control form-control-sm equipment-name" value="${escapeHtml(item.name || '')}" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Модель</label>
+                <input type="text" class="form-control form-control-sm equipment-model" value="${escapeHtml(item.model || '')}" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Статус</label>
+                <input type="text" class="form-control form-control-sm equipment-status" value="${escapeHtml(item.status || '')}" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">IP-адрес</label>
+                <input type="text" class="form-control form-control-sm equipment-ip" value="${escapeHtml(item.ip_address || '')}" />
+              </div>
+              <div class="col-md-8">
+                <label class="form-label">Описание</label>
+                <textarea class="form-control form-control-sm equipment-description">${escapeHtml(item.description || '')}</textarea>
+              </div>
+            </div>
+            ${isNew ? '<div class="alert alert-info mt-3 mb-0">Сохраните запись, чтобы добавить фотографии оборудования.</div>' : `
+            <hr>
+            <div class="mt-3">
+              <h6 class="mb-3">Фотографии оборудования</h6>
+              <form class="row g-2 align-items-end equipment-photo-form" data-id="${item.id}">
+                <div class="col-md-6">
+                  <label class="form-label">Подпись</label>
+                  <input type="text" class="form-control form-control-sm" name="caption" placeholder="Описание" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Файл</label>
+                  <input type="file" class="form-control form-control-sm" name="file" accept="image/*" required />
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-outline-primary btn-sm w-100" type="submit">Добавить</button>
+                </div>
+              </form>
+              <div class="row g-3 equipment-photos" data-id="${item.id}"></div>
+              <div class="text-muted small" data-empty-photos="${item.id}">Фотографии ещё не добавлены.</div>
+            </div>`}
+          </div>
+        `;
+        equipmentContainer.appendChild(card);
+        if (!isNew) {
+          renderEquipmentPhotos(item.id, item.photos || []);
+        }
+      });
+    }
+
+    function renderEquipmentPhotos(equipmentId, photos) {
+      const container = equipmentContainer.querySelector(`.equipment-photos[data-id="${equipmentId}"]`);
+      const emptyText = equipmentContainer.querySelector(`[data-empty-photos="${equipmentId}"]`);
+      if (!container) return;
+      container.innerHTML = '';
+      const list = Array.isArray(photos) ? photos : [];
+      if (!list.length) {
+        emptyText?.classList.remove('d-none');
+        return;
+      }
+      emptyText?.classList.add('d-none');
+      list.forEach((photo) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4';
+        col.innerHTML = `
+          <div class="card equipment-photo h-100" data-id="${photo.id}" data-equipment="${equipmentId}">
+            <img src="${escapeHtml(photo.url)}" class="card-img-top" alt="Фото оборудования" />
+            <div class="card-body">
+              <div class="mb-2">
+                <label class="form-label">Подпись</label>
+                <input type="text" class="form-control form-control-sm equipment-photo-caption" value="${escapeHtml(photo.caption || '')}" />
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" data-action="save-equipment-photo">Сохранить</button>
+                <button class="btn btn-sm btn-outline-danger" data-action="delete-equipment-photo">Удалить</button>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(col);
+      });
+    }
+
+    equipmentContainer.addEventListener('click', async (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const card = button.closest('.equipment-card');
+      if (!card) return;
+      const action = button.dataset.action;
+      if (action === 'save-equipment') {
+        handleEquipmentSave(card);
+      } else if (action === 'delete-equipment') {
+        handleEquipmentDelete(card);
+      } else if (action === 'cancel-equipment') {
+        handleEquipmentCancel(card);
+      } else if (action === 'save-equipment-photo') {
+        handleEquipmentPhotoSave(button.closest('.equipment-photo'));
+      } else if (action === 'delete-equipment-photo') {
+        handleEquipmentPhotoDelete(button.closest('.equipment-photo'));
+      }
+    });
+
+    equipmentContainer.addEventListener('submit', async (event) => {
+      if (!event.target.classList.contains('equipment-photo-form')) return;
+      event.preventDefault();
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      const equipmentId = event.target.dataset.id;
+      const formData = new FormData(event.target);
+      try {
+        const response = await fetch(`/api/object_passports/equipment/${equipmentId}/photos`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при добавлении фото оборудования');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Фото оборудования добавлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось добавить фото оборудования.');
+      }
+    });
+    function handleEquipmentCancel(card) {
+      const id = card.dataset.id;
+      passportData.equipment = passportData.equipment.filter((item, index) => `new-${index}` !== id);
+      renderEquipment(passportData.equipment);
+    }
+
+    async function handleEquipmentSave(card) {
+      const id = card.dataset.id;
+      const payload = {
+        name: card.querySelector('.equipment-name').value.trim(),
+        model: card.querySelector('.equipment-model').value.trim(),
+        status: card.querySelector('.equipment-status').value.trim(),
+        ip_address: card.querySelector('.equipment-ip').value.trim(),
+        description: card.querySelector('.equipment-description').value.trim(),
+      };
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      try {
+        let response;
+        if (id && id.startsWith('new-')) {
+          response = await fetch(`/api/object_passports/${passportData.id}/equipment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          response = await fetch(`/api/object_passports/equipment/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить оборудование');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Данные оборудования сохранены.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при сохранении оборудования.');
+      }
+    }
+
+    async function handleEquipmentDelete(card) {
+      const id = card.dataset.id;
+      if (id && id.startsWith('new-')) {
+        handleEquipmentCancel(card);
+        return;
+      }
+      if (!confirm('Удалить оборудование?')) return;
+      try {
+        const response = await fetch(`/api/object_passports/equipment/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось удалить оборудование');
+        }
+        passportData.equipment = data.equipment || passportData.equipment.filter((item) => item.id !== id);
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Оборудование удалено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при удалении оборудования.');
+      }
+    }
+
+    async function handleEquipmentPhotoSave(card) {
+      if (!card) return;
+      const photoId = card.dataset.id;
+      const caption = card.querySelector('.equipment-photo-caption').value;
+      try {
+        const response = await fetch(`/api/object_passports/equipment/photos/${photoId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caption }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить фото оборудования');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Фото оборудования обновлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при обновлении фото оборудования.');
+      }
+    }
+
+    async function handleEquipmentPhotoDelete(card) {
+      if (!card) return;
+      if (!confirm('Удалить фото оборудования?')) return;
+      const photoId = card.dataset.id;
+      try {
+        const response = await fetch(`/api/object_passports/equipment/photos/${photoId}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось удалить фото оборудования');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Фото оборудования удалено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при удалении фото оборудования.');
+      }
+    }
+
+    document.querySelectorAll('[data-action="add-parameter"]').forEach((button) => {
+      button.addEventListener('click', () => addParameter(button.dataset.paramType, button.dataset.target));
+    });
+
+    document.querySelectorAll('#scheduleTable .schedule-24').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        toggleScheduleInputs(checkbox.closest('tr'), checkbox.checked);
+      });
+    });
+
+    statusSelect.addEventListener('change', updateStatusBadge);
+    refreshCasesBtn.addEventListener('click', refreshCases);
+    savePassportBtn.addEventListener('click', savePassport);
+
+    addEquipmentBtn.addEventListener('click', () => {
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      passportData.equipment = Array.isArray(passportData.equipment) ? passportData.equipment : [];
+      passportData.equipment.push({ id: null, name: '', model: '', status: '', ip_address: '', description: '', photos: [] });
+      renderEquipment(passportData.equipment);
+    });
+
+    populateForm();
+  </script>
+  <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
+</body>
+</html>
