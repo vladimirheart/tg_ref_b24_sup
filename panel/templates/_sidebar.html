@@ -43,3 +43,106 @@
   <span id="notify-count" class="count" hidden>0</span>
   <div id="notify-dropdown" class="notify-dropdown" hidden></div>
 </div>
+
+<style id="modal-animations-style">
+  .modal.fade .modal-dialog {
+    --modal-scale-hidden: 0.92;
+    --modal-scale-visible: 1;
+    --modal-scale-closing: 0.9;
+    --modal-scale: var(--modal-scale-hidden);
+    transform: var(--modal-transform, scale(var(--modal-scale)));
+    opacity: 0;
+    transform-origin: center;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  .modal.fade.show .modal-dialog,
+  .modal.fade.showing .modal-dialog {
+    --modal-scale: var(--modal-scale-visible);
+    opacity: 1;
+  }
+
+  .modal.fade.modal-closing .modal-dialog {
+    --modal-scale: var(--modal-scale-closing);
+    opacity: 0;
+  }
+
+  .modal.fade.modal-closing {
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  (function setupModalAnimations() {
+    if (window.__modalAnimationsInitialized) {
+      return;
+    }
+    window.__modalAnimationsInitialized = true;
+
+    const closingClass = 'modal-closing';
+
+    const isAnimatedModal = (modal) =>
+      modal && modal.classList && modal.classList.contains('modal') && modal.classList.contains('fade');
+
+    const removeClosingState = (modal) => {
+      if (!modal) return;
+      modal.classList.remove(closingClass);
+      if (modal.dataset) {
+        delete modal.dataset.modalClosing;
+      }
+    };
+
+    document.addEventListener(
+      'show.bs.modal',
+      (event) => {
+        const modal = event.target;
+        if (!isAnimatedModal(modal)) return;
+        removeClosingState(modal);
+      },
+      true
+    );
+
+    document.addEventListener(
+      'hide.bs.modal',
+      (event) => {
+        const modal = event.target;
+        if (!isAnimatedModal(modal)) return;
+
+        if (modal.dataset) {
+          modal.dataset.modalClosing = 'true';
+        }
+
+        if (!modal.classList.contains(closingClass)) {
+          modal.classList.add(closingClass);
+
+          const dialog = modal.querySelector('.modal-dialog');
+          if (dialog) {
+            // Форсируем reflow, чтобы анимация точно запустилась
+            void dialog.offsetHeight;
+          }
+        }
+      },
+      true
+    );
+
+    document.addEventListener(
+      'hidePrevented.bs.modal',
+      (event) => {
+        const modal = event.target;
+        if (!isAnimatedModal(modal)) return;
+        removeClosingState(modal);
+      },
+      true
+    );
+
+    document.addEventListener(
+      'hidden.bs.modal',
+      (event) => {
+        const modal = event.target;
+        if (!isAnimatedModal(modal)) return;
+        removeClosingState(modal);
+      },
+      true
+    );
+  })();
+</script>
