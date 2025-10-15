@@ -1865,6 +1865,45 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
                 || window.filteredTickets?.find(t => String(t.ticket_id) === id)
                 || null;
         }
+
+        function toBool(value) {
+          return value === true || value === 1 || value === '1';
+        }
+
+        function normalizeSingleTicket(rawTicket) {
+          if (!rawTicket || typeof rawTicket !== 'object') {
+            return rawTicket;
+          }
+
+          const ticket = { ...rawTicket };
+
+          const statusLower = String(ticket.status || '').toLowerCase();
+          const rawStatusLower = String(ticket.raw_status || '').toLowerCase();
+
+          const isResolved = statusLower.includes('решен') || statusLower.includes('закрыт')
+            || ['resolved', 'closed'].includes(rawStatusLower);
+
+          if (!isResolved) {
+            const supportResponded = toBool(ticket.has_support_reply);
+            const lastSenderRaw = (ticket.last_sender ?? ticket.last_sender_type ?? '') || '';
+            const lastSender = String(lastSenderRaw).toLowerCase().trim();
+
+            if (!supportResponded) {
+              ticket.status = 'Новая';
+            } else if (['user', 'client', 'клиент'].includes(lastSender)) {
+              ticket.status = 'Ожидает реакции';
+            } else if (lastSender) {
+              ticket.status = 'Ожидает клиента';
+            }
+          }
+
+          return ticket;
+        }
+
+        function normalizeTicketsFromServer(rawTickets) {
+          if (!Array.isArray(rawTickets)) return [];
+          return rawTickets.map(normalizeSingleTicket);
+        }
 		        function shouldDisplayUnreadBadge(ticket, overrideStatus) {
           if (!ticket) return true;
           const resolvedBy = String(ticket.resolved_by || '').toLowerCase();
@@ -2758,14 +2797,15 @@ function initColumnResize() {
 			if (resolvedEl) resolvedEl.textContent = data.resolved || 0;
 
 			const responseTable = await fetch('/tickets_list');
-			let tickets = await responseTable.json(); // ← переменная tickets объявлена здесь
+                          let tickets = await responseTable.json(); // ← переменная tickets объявлена здесь
+                          tickets = normalizeTicketsFromServer(tickets);
 
 			// подтягиваем статусы клиентов
 			const statuses = await loadClientStatuses();
-			tickets = tickets.map(t => ({
-				...t,
-				client_status: (statuses?.[t.user_id] ?? t.client_status ?? '—')
-			}));
+                          tickets = tickets.map(t => ({
+                                  ...t,
+                                  client_status: (statuses?.[t.user_id] ?? t.client_status ?? '—')
+                          }));
 
 			console.log("📩 Полученные заявки:", tickets);
 
@@ -3624,10 +3664,12 @@ function displayTicketsForCurrentPage() {
 					fetch(`/tickets/${ticket_id}`)
 				]);
 
-				const [allTickets, ticketFull] = await Promise.all([
-					ticketsResp.json(),
-					ticketResp.json()
-				]);
+                                  const [ticketsRaw, ticketFull] = await Promise.all([
+                                          ticketsResp.json(),
+                                          ticketResp.json()
+                                  ]);
+
+                                  const allTickets = normalizeTicketsFromServer(ticketsRaw);
 
 				const qs = new URLSearchParams({
 					user_id: String(user_id),
@@ -4327,8 +4369,8 @@ function displayTicketsForCurrentPage() {
 		// === Загрузка текучной категории заявки ===
 		async function loadTicketCategory(ticket_id) {
 			try {
-				const response = await fetch('/tickets_list');
-				const tickets = await response.json();
+                                const response = await fetch('/tickets_list');
+                                const tickets = normalizeTicketsFromServer(await response.json());
 				const ticket = tickets.find(t => t.ticket_id == ticket_id);
 		
 				if (ticket && ticket.category) {
@@ -4513,12 +4555,21 @@ function displayTicketsForCurrentPage() {
 		  if (ticketIndex >= 0) {
                         const ticket = window.allTickets[ticketIndex];
                         ticket.status = newStatus;
-                        if (newStatus === 'Ожидает клиента') ticket.raw_status = 'pending';
-                        else if (newStatus === 'Открыта') ticket.raw_status = 'open';
-                        else if (newStatus === 'Закрыта') ticket.raw_status = 'closed';
-                        else if (newStatus === 'Ожидает оператора') ticket.raw_status = 'active';
-                        else if (newStatus === 'Решено') ticket.raw_status = 'resolved';
-                        else ticket.raw_status = 'pending';
+                          if (newStatus === 'Ожидает клиента') ticket.raw_status = 'pending';
+                          else if (newStatus === 'Открыта') ticket.raw_status = 'open';
+                          else if (newStatus === 'Закрыта') ticket.raw_status = 'closed';
+                          else if (newStatus === 'Ожидает оператора') ticket.raw_status = 'active';
+                          else if (newStatus === 'Решено') ticket.raw_status = 'resolved';
+                          else ticket.raw_status = 'pending';
+                          if (newStatus === 'Ожидает клиента') {
+                            ticket.last_sender = 'support';
+                            ticket.has_support_reply = true;
+                          } else if (newStatus === 'Ожидает реакции') {
+                            ticket.last_sender = 'user';
+                          } else if (newStatus === 'Новая') {
+                            ticket.has_support_reply = false;
+                            ticket.last_sender = 'user';
+                          }
                         const statusLower = String(newStatus || '').toLowerCase();
                         const isResolvedLike = statusLower.includes('решен') || statusLower.includes('закры');
                         ticket.resolved_by = isResolvedLike ? ticket.resolved_by : null;
@@ -4532,12 +4583,21 @@ function displayTicketsForCurrentPage() {
 		  if (filteredIndex >= 0) {
                         const filteredTicket = window.filteredTickets[filteredIndex];
                         filteredTicket.status = newStatus;
-                        if (newStatus === 'Ожидает клиента') filteredTicket.raw_status = 'pending';
-                        else if (newStatus === 'Открыта') filteredTicket.raw_status = 'open';
-                        else if (newStatus === 'Закрыта') filteredTicket.raw_status = 'closed';
-                        else if (newStatus === 'Ожидает оператора') filteredTicket.raw_status = 'active';
-                        else if (newStatus === 'Решено') filteredTicket.raw_status = 'resolved';
-                        else filteredTicket.raw_status = 'pending';
+                          if (newStatus === 'Ожидает клиента') filteredTicket.raw_status = 'pending';
+                          else if (newStatus === 'Открыта') filteredTicket.raw_status = 'open';
+                          else if (newStatus === 'Закрыта') filteredTicket.raw_status = 'closed';
+                          else if (newStatus === 'Ожидает оператора') filteredTicket.raw_status = 'active';
+                          else if (newStatus === 'Решено') filteredTicket.raw_status = 'resolved';
+                          else filteredTicket.raw_status = 'pending';
+                          if (newStatus === 'Ожидает клиента') {
+                            filteredTicket.last_sender = 'support';
+                            filteredTicket.has_support_reply = true;
+                          } else if (newStatus === 'Ожидает реакции') {
+                            filteredTicket.last_sender = 'user';
+                          } else if (newStatus === 'Новая') {
+                            filteredTicket.has_support_reply = false;
+                            filteredTicket.last_sender = 'user';
+                          }
                         const statusLower = String(newStatus || '').toLowerCase();
                         const isResolvedLike = statusLower.includes('решен') || statusLower.includes('закры');
                         filteredTicket.resolved_by = isResolvedLike ? filteredTicket.resolved_by : null;
@@ -4550,12 +4610,21 @@ function displayTicketsForCurrentPage() {
 		  if (fullTicket) {
                         fullTicket.status = newStatus;
                         // подстраховка: корректируем raw_status под конкретное значение
-                        if (newStatus === 'Ожидает клиента') fullTicket.raw_status = 'pending';
-                        else if (newStatus === 'Открыта') fullTicket.raw_status = 'open';
-                        else if (newStatus === 'Закрыта') fullTicket.raw_status = 'closed';
-                        else if (newStatus === 'Ожидает оператора') fullTicket.raw_status = 'active';
-                        else if (newStatus === 'Решено') fullTicket.raw_status = 'resolved';
-                        else fullTicket.raw_status = 'pending';
+                          if (newStatus === 'Ожидает клиента') fullTicket.raw_status = 'pending';
+                          else if (newStatus === 'Открыта') fullTicket.raw_status = 'open';
+                          else if (newStatus === 'Закрыта') fullTicket.raw_status = 'closed';
+                          else if (newStatus === 'Ожидает оператора') fullTicket.raw_status = 'active';
+                          else if (newStatus === 'Решено') fullTicket.raw_status = 'resolved';
+                          else fullTicket.raw_status = 'pending';
+                          if (newStatus === 'Ожидает клиента') {
+                            fullTicket.last_sender = 'support';
+                            fullTicket.has_support_reply = true;
+                          } else if (newStatus === 'Ожидает реакции') {
+                            fullTicket.last_sender = 'user';
+                          } else if (newStatus === 'Новая') {
+                            fullTicket.has_support_reply = false;
+                            fullTicket.last_sender = 'user';
+                          }
                         const statusLower = String(newStatus || '').toLowerCase();
                         const isResolvedLike = statusLower.includes('решен') || statusLower.includes('закры');
                         fullTicket.resolved_by = isResolvedLike ? fullTicket.resolved_by : null;
@@ -4579,15 +4648,37 @@ function displayTicketsForCurrentPage() {
 	  console.log('expectedNewStatus:', expectedNewStatus);
 	  
 	  // Обновляем в allTickets
-	  if (Array.isArray(window.allTickets)) {
-		const ticketIndex = window.allTickets.findIndex(t => String(t.ticket_id) === String(ticketId));
-		if (ticketIndex >= 0) {
-		  console.log('Старый статус:', window.allTickets[ticketIndex].status);
-		  window.allTickets[ticketIndex].status = expectedNewStatus;
-		  window.allTickets[ticketIndex].raw_status = (expectedNewStatus === 'Решено') ? 'resolved' : 'pending';
-		  console.log('Новый статус в allTickets:', window.allTickets[ticketIndex].status);
-		}
-	  }
+            if (Array.isArray(window.allTickets)) {
+                  const ticketIndex = window.allTickets.findIndex(t => String(t.ticket_id) === String(ticketId));
+                  if (ticketIndex >= 0) {
+                    console.log('Старый статус:', window.allTickets[ticketIndex].status);
+                    const targetTicket = window.allTickets[ticketIndex];
+                    targetTicket.status = expectedNewStatus;
+                    targetTicket.raw_status = (expectedNewStatus === 'Решено') ? 'resolved' : 'pending';
+                    if (expectedNewStatus === 'Ожидает клиента') {
+                      targetTicket.last_sender = 'support';
+                      targetTicket.has_support_reply = true;
+                    } else if (expectedNewStatus === 'Ожидает реакции') {
+                      targetTicket.last_sender = 'user';
+                    }
+                    console.log('Новый статус в allTickets:', window.allTickets[ticketIndex].status);
+                  }
+            }
+
+            if (Array.isArray(window.filteredTickets)) {
+                  const filteredIdx = window.filteredTickets.findIndex(t => String(t.ticket_id) === String(ticketId));
+                  if (filteredIdx >= 0) {
+                    const filteredTicket = window.filteredTickets[filteredIdx];
+                    filteredTicket.status = expectedNewStatus;
+                    filteredTicket.raw_status = (expectedNewStatus === 'Решено') ? 'resolved' : 'pending';
+                    if (expectedNewStatus === 'Ожидает клиента') {
+                      filteredTicket.last_sender = 'support';
+                      filteredTicket.has_support_reply = true;
+                    } else if (expectedNewStatus === 'Ожидает реакции') {
+                      filteredTicket.last_sender = 'user';
+                    }
+                  }
+            }
 	  
 	  // Немедленно обновляем отображение
 	  updateTicketStatusInTable(ticketId, expectedNewStatus);
