@@ -19,6 +19,7 @@ import json
 import os
 import logging
 import time, sqlite3
+from uuid import uuid4
 def exec_with_retry(fn, retries=5, base_delay=0.15):
     for i in range(retries):
         try:
@@ -65,6 +66,7 @@ PARAMETER_TYPES = {
     "country": "Страна",
     "legal_entity": "ЮЛ",
     "department": "Департамент",
+    "network": "Сеть",
 }
 
 # Подключение к базе
@@ -113,6 +115,13 @@ def ensure_object_passport_schema():
                 start_date TEXT,
                 end_date TEXT,
                 schedule_json TEXT,
+                network TEXT,
+                network_provider TEXT,
+                network_contract_number TEXT,
+                network_legal_entity TEXT,
+                network_support_phone TEXT,
+                network_speed TEXT,
+                network_connection_params TEXT,
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now'))
             )
@@ -163,6 +172,28 @@ def ensure_object_passport_schema():
 
 
 ensure_object_passport_schema()
+
+def _ensure_object_passport_columns():
+    expected_columns = {
+        "network": "TEXT",
+        "network_provider": "TEXT",
+        "network_contract_number": "TEXT",
+        "network_legal_entity": "TEXT",
+        "network_support_phone": "TEXT",
+        "network_speed": "TEXT",
+        "network_connection_params": "TEXT",
+    }
+    with get_passport_db() as conn:
+        existing_columns = {
+            row["name"]: row["type"].upper()
+            for row in conn.execute("PRAGMA table_info(object_passports)").fetchall()
+        }
+        for column, column_type in expected_columns.items():
+            if column not in existing_columns:
+                conn.execute(f"ALTER TABLE object_passports ADD COLUMN {column} {column_type}")
+
+
+_ensure_object_passport_columns()
 
 PASSPORT_STATUSES = ("Стройка", "Открыт")
 
@@ -423,6 +454,10 @@ def _serialize_passport_row(row):
         "legal_entity": row["legal_entity"] or "",
         "city": row["city"] or "",
         "status": row["status"] or "",
+        "network": row["network"] or "",
+        "network_provider": row["network_provider"] or "",
+        "network_contract_number": row["network_contract_number"] or "",
+        "network_legal_entity": row["network_legal_entity"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
         "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
@@ -453,6 +488,13 @@ def _serialize_passport_detail(conn, row):
         "legal_entity": row["legal_entity"] or "",
         "city": row["city"] or "",
         "status": row["status"] or PASSPORT_STATUSES[0],
+        "network": row["network"] or "",
+        "network_provider": row["network_provider"] or "",
+        "network_contract_number": row["network_contract_number"] or "",
+        "network_legal_entity": row["network_legal_entity"] or "",
+        "network_support_phone": row["network_support_phone"] or "",
+        "network_speed": row["network_speed"] or "",
+        "network_connection_params": row["network_connection_params"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
         "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
@@ -483,6 +525,7 @@ def _fetch_passport_rows(filters):
                 "city",
                 "department",
                 "status",
+                "network",
             ]
             conditions.append(
                 "(" + " OR ".join([f"LOWER(COALESCE({col}, '')) LIKE ?" for col in searchable]) + ")"
@@ -497,6 +540,7 @@ def _fetch_passport_rows(filters):
             "city",
             "department",
             "status",
+            "network",
         ]:
             value = (filters.get(field) or "").strip()
             if value:
@@ -565,6 +609,13 @@ def _blank_passport_detail():
         "legal_entity": "",
         "city": "",
         "status": PASSPORT_STATUSES[0],
+        "network": "",
+        "network_provider": "",
+        "network_contract_number": "",
+        "network_legal_entity": "",
+        "network_support_phone": "",
+        "network_speed": "",
+        "network_connection_params": "",
         "start_date": "",
         "end_date": "",
         "total_work_time": "—",
@@ -626,6 +677,13 @@ def _prepare_passport_record(payload):
         "legal_entity": clean("legal_entity"),
         "city": clean("city"),
         "status": status,
+        "network": clean("network"),
+        "network_provider": clean("network_provider"),
+        "network_contract_number": clean("network_contract_number"),
+        "network_legal_entity": clean("network_legal_entity"),
+        "network_support_phone": clean("network_support_phone"),
+        "network_speed": clean("network_speed"),
+        "network_connection_params": clean("network_connection_params"),
         "start_date": clean("start_date"),
         "end_date": clean("end_date"),
         "schedule_json": schedule_json,
@@ -4047,10 +4105,18 @@ def api_object_passports_create():
             """
             INSERT INTO object_passports (
                 department, business, partner_type, country, legal_entity,
-                city, status, start_date, end_date, schedule_json
+                city, status, start_date, end_date, schedule_json,
+                network, network_provider, network_contract_number,
+                network_legal_entity, network_support_phone, network_speed,
+                network_connection_params
             )
-            VALUES (:department, :business, :partner_type, :country, :legal_entity,
-                    :city, :status, :start_date, :end_date, :schedule_json)
+            VALUES (
+                :department, :business, :partner_type, :country, :legal_entity,
+                :city, :status, :start_date, :end_date, :schedule_json,
+                :network, :network_provider, :network_contract_number,
+                :network_legal_entity, :network_support_phone, :network_speed,
+                :network_connection_params
+            )
             """,
             record,
         )
@@ -4102,6 +4168,13 @@ def api_object_passports_update(passport_id):
                 start_date = :start_date,
                 end_date = :end_date,
                 schedule_json = :schedule_json,
+                network = :network,
+                network_provider = :network_provider,
+                network_contract_number = :network_contract_number,
+                network_legal_entity = :network_legal_entity,
+                network_support_phone = :network_support_phone,
+                network_speed = :network_speed,
+                network_connection_params = :network_connection_params,
                 updated_at = datetime('now')
             WHERE id = :id
             """,
@@ -4188,6 +4261,13 @@ def object_passports_export():
                 "Город": row["city"] or "",
                 "Департамент": row["department"] or "",
                 "Статус": row["status"] or "",
+                "Сеть": row["network"] or "",
+                "Провайдер": row["network_provider"] or "",
+                "Номер договора": row["network_contract_number"] or "",
+                "ЮЛ (сеть)": row["network_legal_entity"] or "",
+                "Телефон ТП провайдера": row["network_support_phone"] or "",
+                "Скорость подключения": row["network_speed"] or "",
+                "Параметры подключения": row["network_connection_params"] or "",
                 "Дата запуска": row["start_date"] or "",
                 "Дата закрытия": row["end_date"] or "",
                 "Общее время работы": _format_total_time(row["start_date"], row["end_date"]),
