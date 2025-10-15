@@ -174,6 +174,35 @@
             <div class="form-text text-muted mt-3">
               Эти значения будут использоваться в формах создания клиентов, задач и других разделов.
             </div>
+      </div>
+    </div>
+  </div>
+      <!-- Профили провайдеров -->
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#networkProfilesCollapse">
+            🌐 Профили провайдеров
+          </button>
+        </h2>
+        <div id="networkProfilesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
+          <div class="accordion-body">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle" id="networkProfilesTable">
+                <thead>
+                  <tr>
+                    <th>Провайдер</th>
+                    <th>Номер договора</th>
+                    <th>Телефон ТП</th>
+                    <th>Скорость</th>
+                    <th>ЮЛ</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="networkProfilesBody"></tbody>
+              </table>
+            </div>
+            <button class="btn btn-sm btn-success mt-3" type="button" onclick="addNetworkProfileRow()">+ Добавить профиль</button>
+            <div class="form-text text-muted mt-2">Эти данные будут автоматически подставляться в паспорт объекта.</div>
           </div>
         </div>
       </div>
@@ -243,6 +272,28 @@
     parameterData[type] = [];
   });
 
+  const networkProfilesInitial = {{ settings.network_profiles | tojson }};
+  let networkProfilesData = Array.isArray(networkProfilesInitial)
+    ? networkProfilesInitial.map((item) => ({
+        provider: (item && item.provider) || '',
+        contract_number: (item && item.contract_number) || '',
+        support_phone: (item && item.support_phone) || '',
+        speed: (item && item.speed) || '',
+        legal_entity: (item && item.legal_entity) || '',
+      }))
+    : [];
+  const networkProfilesBody = document.getElementById('networkProfilesBody');
+
+  function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function renderParameters() {
     Object.keys(PARAMETER_TITLES).forEach((type) => {
       const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
@@ -294,6 +345,71 @@
   }
 
   renderParameters();
+
+  function renderNetworkProfiles() {
+    if (!networkProfilesBody) return;
+    networkProfilesBody.innerHTML = '';
+    if (!networkProfilesData.length) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет профилей</td>';
+      networkProfilesBody.appendChild(emptyRow);
+      return;
+    }
+    networkProfilesData.forEach((profile, index) => {
+      const row = document.createElement('tr');
+      row.dataset.index = index;
+      row.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm" data-field="provider" value="${escapeHtml(profile.provider || '')}"></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="contract_number" value="${escapeHtml(profile.contract_number || '')}"></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="support_phone" value="${escapeHtml(profile.support_phone || '')}"></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="speed" value="${escapeHtml(profile.speed || '')}"></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="legal_entity" value="${escapeHtml(profile.legal_entity || '')}"></td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
+        </td>
+      `;
+      networkProfilesBody.appendChild(row);
+    });
+  }
+
+  function addNetworkProfileRow(profile) {
+    const defaults = { provider: '', contract_number: '', support_phone: '', speed: '', legal_entity: '' };
+    const data = Object.assign({}, defaults, profile || {});
+    networkProfilesData.push(data);
+    renderNetworkProfiles();
+  }
+
+  function removeNetworkProfileRow(index) {
+    if (index < 0 || index >= networkProfilesData.length) return;
+    networkProfilesData.splice(index, 1);
+    renderNetworkProfiles();
+  }
+
+  window.addNetworkProfileRow = addNetworkProfileRow;
+  window.removeNetworkProfileRow = removeNetworkProfileRow;
+
+  if (networkProfilesBody) {
+    networkProfilesBody.addEventListener('input', (event) => {
+      const row = event.target.closest('tr[data-index]');
+      if (!row) return;
+      const index = parseInt(row.dataset.index, 10);
+      const field = event.target.dataset.field;
+      if (Number.isNaN(index) || !field) return;
+      networkProfilesData[index][field] = event.target.value;
+    });
+
+    networkProfilesBody.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action="remove-profile"]');
+      if (!button) return;
+      const row = button.closest('tr[data-index]');
+      if (!row) return;
+      const index = parseInt(row.dataset.index, 10);
+      if (Number.isNaN(index)) return;
+      removeNetworkProfileRow(index);
+    });
+  }
+
+  renderNetworkProfiles();
 
   async function loadParameters() {
     try {
@@ -729,6 +845,16 @@
         .map(inp => inp.value.trim())
         .filter(v => v);
 
+      const networkProfilesPayload = networkProfilesData
+        .map((item) => ({
+          provider: (item.provider || '').trim(),
+          contract_number: (item.contract_number || '').trim(),
+          support_phone: (item.support_phone || '').trim(),
+          speed: (item.speed || '').trim(),
+          legal_entity: (item.legal_entity || '').trim(),
+        }))
+        .filter((profile) => Object.values(profile).some((value) => value));
+
       const response = await fetch('/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -736,7 +862,8 @@
           auto_close_hours: parseInt(hours),
           categories: categories,
           client_statuses: statuses,
-          locations: locationsData
+          locations: locationsData,
+          network_profiles: networkProfilesPayload,
         })
       });
       
@@ -757,6 +884,7 @@
           loadUsers();
           loadChannels(); // <— добавили
           loadParameters();
+          renderNetworkProfiles();
         });
 
   // === КАНАЛЫ (боты) ===
