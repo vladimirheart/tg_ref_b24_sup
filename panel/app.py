@@ -1,5 +1,17 @@
 # panel/app.py
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response, send_file
+from flask import (
+    Flask,
+    render_template,
+    request,
+    jsonify,
+    redirect,
+    url_for,
+    session,
+    Response,
+    send_file,
+    send_from_directory,
+    abort,
+)
 import sqlite3
 import datetime
 import requests
@@ -24,12 +36,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import io
 import mimetypes
 from werkzeug.utils import secure_filename
+import pandas as pd
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
 TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
 USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
+OBJECT_PASSPORT_DB_PATH = os.path.join(BASE_DIR, "object_passports.db")
+OBJECT_PASSPORT_UPLOADS_DIR = os.path.join(BASE_DIR, "object_passport_uploads")
+
+os.makedirs(OBJECT_PASSPORT_UPLOADS_DIR, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
@@ -72,6 +89,550 @@ def _init_sqlite():
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA busy_timeout=5000;")
 _init_sqlite()
+
+def get_passport_db():
+    conn = sqlite3.connect(OBJECT_PASSPORT_DB_PATH, timeout=30, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON;")
+    conn.execute("PRAGMA busy_timeout=30000;")
+    return conn
+
+
+def ensure_object_passport_schema():
+    with get_passport_db() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS object_passports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                department TEXT NOT NULL UNIQUE,
+                business TEXT,
+                partner_type TEXT,
+                country TEXT,
+                legal_entity TEXT,
+                city TEXT,
+                status TEXT,
+                start_date TEXT,
+                end_date TEXT,
+                schedule_json TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS object_passport_photos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                passport_id INTEGER NOT NULL,
+                category TEXT NOT NULL DEFAULT 'archive',
+                caption TEXT,
+                filename TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(passport_id) REFERENCES object_passports(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS object_passport_equipment (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                passport_id INTEGER NOT NULL,
+                name TEXT,
+                model TEXT,
+                status TEXT,
+                ip_address TEXT,
+                description TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(passport_id) REFERENCES object_passports(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS object_passport_equipment_photos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                equipment_id INTEGER NOT NULL,
+                caption TEXT,
+                filename TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(equipment_id) REFERENCES object_passport_equipment(id) ON DELETE CASCADE
+            )
+            """
+        )
+
+
+ensure_object_passport_schema()
+
+PASSPORT_STATUSES = ("Стройка", "Открыт")
+
+WEEKDAY_SEQUENCE = [
+    ("monday", "Понедельник", "Пн"),
+    ("tuesday", "Вторник", "Вт"),
+    ("wednesday", "Среда", "Ср"),
+    ("thursday", "Четверг", "Чт"),
+    ("friday", "Пятница", "Пт"),
+    ("saturday", "Суббота", "Сб"),
+    ("sunday", "Воскресенье", "Вс"),
+]
+
+WEEKDAY_FULL_LABELS = {key: full for key, full, _ in WEEKDAY_SEQUENCE}
+WEEKDAY_SHORT_LABELS = {key: short for key, _, short in WEEKDAY_SEQUENCE}
+WEEKDAY_ORDER = [key for key, *_ in WEEKDAY_SEQUENCE]
+
+
+def _empty_schedule_template():
+    return [
+        {"day": key, "from": None, "to": None, "is_24": False}
+        for key in WEEKDAY_ORDER
+    ]
+
+
+def _normalize_schedule(data):
+    if not isinstance(data, list):
+        return _empty_schedule_template()
+
+    seen = {}
+    for entry in data:
+        day = entry.get("day") if isinstance(entry, dict) else None
+        if day not in WEEKDAY_ORDER:
+            continue
+        start = entry.get("from")
+        end = entry.get("to")
+        start = str(start).strip() if isinstance(start, str) else start
+        end = str(end).strip() if isinstance(end, str) else end
+        start = start or None
+        end = end or None
+        is_24 = bool(entry.get("is_24"))
+        if is_24:
+            start = None
+            end = None
+        seen[day] = {"day": day, "from": start, "to": end, "is_24": bool(is_24)}
+
+    normalized = []
+    for key in WEEKDAY_ORDER:
+        normalized.append(
+            seen.get(key, {"day": key, "from": None, "to": None, "is_24": False})
+        )
+    return normalized
+
+
+def _load_schedule(raw):
+    if not raw:
+        return _empty_schedule_template()
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return _empty_schedule_template()
+    schedule = _normalize_schedule(data)
+    return schedule
+
+
+def _schedule_to_json(schedule):
+    normalized = _normalize_schedule(schedule)
+    return json.dumps(normalized, ensure_ascii=False)
+
+
+def _format_schedule(schedule):
+    if not schedule:
+        return "—"
+
+    parts = []
+    for entry in schedule:
+        day = entry.get("day")
+        if day not in WEEKDAY_ORDER:
+            continue
+        label = WEEKDAY_SHORT_LABELS.get(day, day)
+        if entry.get("is_24"):
+            parts.append(f"{label}: 24 часа")
+        elif entry.get("from") and entry.get("to"):
+            parts.append(f"{label}: {entry['from']}–{entry['to']}")
+        elif entry.get("from") or entry.get("to"):
+            start = entry.get("from") or "—"
+            end = entry.get("to") or "—"
+            parts.append(f"{label}: {start}–{end}")
+    return "; ".join(parts) if parts else "—"
+
+
+def _format_total_time(start_date, end_date):
+    if not start_date:
+        return "—"
+    try:
+        start = dt.fromisoformat(str(start_date))
+    except Exception:
+        return "—"
+
+    if end_date:
+        try:
+            end = dt.fromisoformat(str(end_date))
+        except Exception:
+            end = dt.now()
+    else:
+        end = dt.now()
+
+    if end < start:
+        end = start
+
+    delta = end - start
+    days = delta.days
+    hours = delta.seconds // 3600
+    minutes = (delta.seconds % 3600) // 60
+
+    parts = []
+    if days:
+        parts.append(f"{days} д")
+    if hours:
+        parts.append(f"{hours} ч")
+    if minutes:
+        parts.append(f"{minutes} мин")
+
+    return " ".join(parts) if parts else "0 мин"
+
+
+def _format_display_datetime(value):
+    if not value:
+        return ""
+    try:
+        parsed = dt.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:
+        try:
+            parsed = datetime.datetime.strptime(str(value), "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return str(value)
+    return parsed.strftime("%d.%m.%Y %H:%M")
+
+
+def _fetch_cases_for_department(department, limit=200):
+    if not department:
+        return []
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT ticket_id, business, location_type, city, location_name, problem, created_at
+            FROM messages
+            WHERE LOWER(TRIM(location_name)) = LOWER(TRIM(?))
+            ORDER BY datetime(created_at) DESC
+            LIMIT ?
+            """,
+            (department, limit),
+        ).fetchall()
+        cases = []
+        for row in rows:
+            cases.append(
+                {
+                    "ticket_id": row["ticket_id"],
+                    "business": row["business"],
+                    "location_type": row["location_type"],
+                    "city": row["city"],
+                    "location_name": row["location_name"],
+                    "problem": row["problem"],
+                    "created_at": row["created_at"],
+                    "created_at_display": _format_display_datetime(row["created_at"]),
+                }
+            )
+        return cases
+    finally:
+        conn.close()
+
+
+def _fetch_passport_photos(conn, passport_id):
+    rows = conn.execute(
+        """
+        SELECT id, passport_id, category, caption, filename
+        FROM object_passport_photos
+        WHERE passport_id = ?
+        ORDER BY created_at DESC
+        """,
+        (passport_id,),
+    ).fetchall()
+    items = []
+    for row in rows:
+        items.append(
+            {
+                "id": row["id"],
+                "passport_id": row["passport_id"],
+                "category": row["category"],
+                "caption": row["caption"] or "",
+                "filename": row["filename"],
+                "url": url_for("object_passport_media", filename=row["filename"]),
+            }
+        )
+    return items
+
+
+def _fetch_equipment_photos(conn, equipment_id):
+    rows = conn.execute(
+        """
+        SELECT id, equipment_id, caption, filename
+        FROM object_passport_equipment_photos
+        WHERE equipment_id = ?
+        ORDER BY created_at DESC
+        """,
+        (equipment_id,),
+    ).fetchall()
+    photos = []
+    for row in rows:
+        photos.append(
+            {
+                "id": row["id"],
+                "equipment_id": row["equipment_id"],
+                "caption": row["caption"] or "",
+                "filename": row["filename"],
+                "url": url_for("object_passport_media", filename=row["filename"]),
+            }
+        )
+    return photos
+
+
+def _fetch_passport_equipment(conn, passport_id):
+    rows = conn.execute(
+        """
+        SELECT id, passport_id, name, model, status, ip_address, description
+        FROM object_passport_equipment
+        WHERE passport_id = ?
+        ORDER BY LOWER(COALESCE(name, ''))
+        """,
+        (passport_id,),
+    ).fetchall()
+    equipment = []
+    for row in rows:
+        equipment.append(
+            {
+                "id": row["id"],
+                "passport_id": row["passport_id"],
+                "name": row["name"] or "",
+                "model": row["model"] or "",
+                "status": row["status"] or "",
+                "ip_address": row["ip_address"] or "",
+                "description": row["description"] or "",
+                "photos": _fetch_equipment_photos(conn, row["id"]),
+            }
+        )
+    return equipment
+
+
+def _serialize_passport_row(row):
+    schedule = _load_schedule(row["schedule_json"])
+    return {
+        "id": row["id"],
+        "department": row["department"] or "",
+        "business": row["business"] or "",
+        "partner_type": row["partner_type"] or "",
+        "country": row["country"] or "",
+        "legal_entity": row["legal_entity"] or "",
+        "city": row["city"] or "",
+        "status": row["status"] or "",
+        "start_date": row["start_date"] or "",
+        "end_date": row["end_date"] or "",
+        "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
+        "schedule_display": _format_schedule(schedule),
+    }
+
+
+def _serialize_passport_detail(conn, row):
+    schedule_raw = _load_schedule(row["schedule_json"])
+    schedule_for_client = []
+    for entry in schedule_raw:
+        schedule_for_client.append(
+            {
+                "day": entry.get("day"),
+                "from": entry.get("from") or "",
+                "to": entry.get("to") or "",
+                "is_24": bool(entry.get("is_24")),
+                "label": WEEKDAY_FULL_LABELS.get(entry.get("day"), entry.get("day")),
+            }
+        )
+
+    detail = {
+        "id": row["id"],
+        "department": row["department"] or "",
+        "business": row["business"] or "",
+        "partner_type": row["partner_type"] or "",
+        "country": row["country"] or "",
+        "legal_entity": row["legal_entity"] or "",
+        "city": row["city"] or "",
+        "status": row["status"] or PASSPORT_STATUSES[0],
+        "start_date": row["start_date"] or "",
+        "end_date": row["end_date"] or "",
+        "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
+        "schedule": schedule_for_client,
+        "schedule_display": _format_schedule(schedule_raw),
+        "photos": _fetch_passport_photos(conn, row["id"]),
+        "equipment": _fetch_passport_equipment(conn, row["id"]),
+    }
+    detail["cases"] = _fetch_cases_for_department(detail["department"])
+    return detail
+
+
+def _fetch_passport_rows(filters):
+    conn = get_passport_db()
+    try:
+        query = "SELECT * FROM object_passports"
+        conditions = []
+        params = []
+
+        search = (filters.get("search") or "").strip().lower()
+        if search:
+            like = f"%{search}%"
+            searchable = [
+                "business",
+                "partner_type",
+                "country",
+                "legal_entity",
+                "city",
+                "department",
+                "status",
+            ]
+            conditions.append(
+                "(" + " OR ".join([f"LOWER(COALESCE({col}, '')) LIKE ?" for col in searchable]) + ")"
+            )
+            params.extend([like] * len(searchable))
+
+        for field in [
+            "business",
+            "partner_type",
+            "country",
+            "legal_entity",
+            "city",
+            "department",
+            "status",
+        ]:
+            value = (filters.get(field) or "").strip()
+            if value:
+                conditions.append(f"LOWER(COALESCE({field}, '')) = LOWER(?)")
+                params.append(value)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY LOWER(COALESCE(department, ''))"
+        rows = conn.execute(query, params).fetchall()
+        return rows
+    finally:
+        conn.close()
+
+
+def _parameter_values_for_passports():
+    parameter_values = {key: [] for key in PARAMETER_TYPES.keys()}
+    try:
+        with get_db() as conn:
+            grouped = _fetch_parameters_grouped(conn)
+        for slug, items in grouped.items():
+            parameter_values[slug] = [item["value"] for item in items]
+    except Exception:
+        pass
+    return parameter_values
+
+
+def _city_options():
+    cities = set()
+    _, third_level = _collect_departments_from_locations()
+    for city in third_level:
+        if city:
+            cities.add(city)
+
+    try:
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT city FROM messages WHERE city IS NOT NULL AND TRIM(city) != ''"
+            ).fetchall()
+            for row in rows:
+                cities.add(row["city"])
+    except Exception:
+        pass
+
+    try:
+        with get_passport_db() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT city FROM object_passports WHERE city IS NOT NULL AND TRIM(city) != ''"
+            ).fetchall()
+            for row in rows:
+                cities.add(row["city"])
+    except Exception:
+        pass
+
+    return sorted(cities, key=lambda name: name.lower())
+
+
+def _blank_passport_detail():
+    return {
+        "id": None,
+        "department": "",
+        "business": "",
+        "partner_type": "",
+        "country": "",
+        "legal_entity": "",
+        "city": "",
+        "status": PASSPORT_STATUSES[0],
+        "start_date": "",
+        "end_date": "",
+        "total_work_time": "—",
+        "schedule": [
+            {
+                "day": key,
+                "from": "",
+                "to": "",
+                "is_24": False,
+                "label": WEEKDAY_FULL_LABELS.get(key, key),
+            }
+            for key in WEEKDAY_ORDER
+        ],
+        "schedule_display": "—",
+        "photos": [],
+        "equipment": [],
+        "cases": [],
+    }
+
+
+def _render_passport_template(passport_detail, is_new):
+    parameter_values = _parameter_values_for_passports()
+    cities = _city_options()
+    payload = dict(passport_detail)
+    payload["is_new"] = is_new
+    return render_template(
+        "object_passport_detail.html",
+        passport_payload=json.dumps(payload, ensure_ascii=False),
+        parameter_values=parameter_values,
+        cities=cities,
+        statuses=list(PASSPORT_STATUSES),
+        day_labels=WEEKDAY_SEQUENCE,
+    )
+
+
+def _prepare_passport_record(payload):
+    payload = payload or {}
+    department = (payload.get("department") or "").strip()
+    if not department:
+        return None, None, "Поле «Департамент» обязательно"
+
+    status = (payload.get("status") or PASSPORT_STATUSES[0]).strip()
+    if status not in PASSPORT_STATUSES:
+        return None, None, "Недопустимый статус"
+
+    schedule_data = payload.get("schedule") or []
+    schedule_normalized = _normalize_schedule(schedule_data)
+    schedule_json = json.dumps(schedule_normalized, ensure_ascii=False)
+
+    def clean(field):
+        value = (payload.get(field) or "").strip()
+        return value or None
+
+    record = {
+        "department": department,
+        "business": clean("business"),
+        "partner_type": clean("partner_type"),
+        "country": clean("country"),
+        "legal_entity": clean("legal_entity"),
+        "city": clean("city"),
+        "status": status,
+        "start_date": clean("start_date"),
+        "end_date": clean("end_date"),
+        "schedule_json": schedule_json,
+    }
+
+    return record, schedule_normalized, None
 
 def ensure_tasks_schema():
     with get_db() as conn:
@@ -866,6 +1427,14 @@ def serve_media(ticket_id, filename):
     except Exception as e:
         print(f"Ошибка при обслуживании медиафайла: {e}")
         return "Ошибка загрузки файла", 500
+
+@app.route("/object_passports/media/<path:filename>")
+@login_required
+def object_passport_media(filename):
+    safe_path = os.path.normpath(filename).replace("\\", "/")
+    if safe_path.startswith("../") or safe_path.startswith("/"):
+        abort(404)
+    return send_from_directory(OBJECT_PASSPORT_UPLOADS_DIR, safe_path)
 
 @app.route("/avatar/<int:user_id>")
 @login_required
@@ -3423,6 +3992,563 @@ def api_delete_parameter(param_id):
         return jsonify({"success": True, "data": data})
     finally:
         conn.close()
+
+@app.route("/object_passports")
+@login_required
+def object_passports_page():
+    return render_template(
+        "object_passports.html",
+        parameter_values=_parameter_values_for_passports(),
+        statuses=list(PASSPORT_STATUSES),
+        cities=_city_options(),
+    )
+
+
+@app.route("/object_passports/new")
+@login_required
+def object_passport_new_page():
+    return _render_passport_template(_blank_passport_detail(), True)
+
+
+@app.route("/object_passports/<int:passport_id>")
+@login_required
+def object_passport_detail_page(passport_id):
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+        detail = _serialize_passport_detail(conn, row)
+    finally:
+        conn.close()
+    return _render_passport_template(detail, False)
+
+
+@app.route("/api/object_passports", methods=["GET"])
+@login_required_api
+def api_object_passports_list():
+    rows = _fetch_passport_rows(request.args)
+    items = [_serialize_passport_row(row) for row in rows]
+    return jsonify({"items": items})
+
+
+@app.route("/api/object_passports", methods=["POST"])
+@login_required_api
+def api_object_passports_create():
+    record, _, error = _prepare_passport_record(request.json or {})
+    if error:
+        return jsonify({"success": False, "error": error}), 400
+
+    conn = get_passport_db()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO object_passports (
+                department, business, partner_type, country, legal_entity,
+                city, status, start_date, end_date, schedule_json
+            )
+            VALUES (:department, :business, :partner_type, :country, :legal_entity,
+                    :city, :status, :start_date, :end_date, :schedule_json)
+            """,
+            record,
+        )
+        passport_id = cur.lastrowid
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        detail = _serialize_passport_detail(conn, row)
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return (
+            jsonify({"success": False, "error": "Паспорт для этого департамента уже существует"}),
+            409,
+        )
+    finally:
+        conn.close()
+
+    return jsonify({"success": True, "id": passport_id, "passport": detail})
+
+
+@app.route("/api/object_passports/<int:passport_id>", methods=["PUT"])
+@login_required_api
+def api_object_passports_update(passport_id):
+    record, _, error = _prepare_passport_record(request.json or {})
+    if error:
+        return jsonify({"success": False, "error": error}), 400
+
+    conn = get_passport_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not existing:
+            return jsonify({"success": False, "error": "Паспорт не найден"}), 404
+
+        conn.execute(
+            """
+            UPDATE object_passports
+            SET department = :department,
+                business = :business,
+                partner_type = :partner_type,
+                country = :country,
+                legal_entity = :legal_entity,
+                city = :city,
+                status = :status,
+                start_date = :start_date,
+                end_date = :end_date,
+                schedule_json = :schedule_json,
+                updated_at = datetime('now')
+            WHERE id = :id
+            """,
+            {**record, "id": passport_id},
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        detail = _serialize_passport_detail(conn, row)
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return (
+            jsonify({"success": False, "error": "Паспорт с таким департаментом уже существует"}),
+            409,
+        )
+    finally:
+        conn.close()
+
+    return jsonify({"success": True, "passport": detail})
+
+
+@app.route("/api/object_passports/<int:passport_id>", methods=["GET"])
+@login_required_api
+def api_object_passports_get(passport_id):
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Паспорт не найден"}), 404
+        detail = _serialize_passport_detail(conn, row)
+    finally:
+        conn.close()
+    return jsonify({"success": True, "passport": detail})
+
+
+@app.route("/api/object_passports/<int:passport_id>/cases", methods=["GET"])
+@login_required_api
+def api_object_passport_cases(passport_id):
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT department FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Паспорт не найден"}), 404
+        department = row["department"]
+    finally:
+        conn.close()
+
+    return jsonify({"success": True, "items": _fetch_cases_for_department(department)})
+
+
+@app.route("/object_passports/export")
+@login_required
+def object_passports_export():
+    rows = _fetch_passport_rows(request.args)
+    dataset = []
+    for row in rows:
+        schedule = _load_schedule(row["schedule_json"])
+        dataset.append(
+            {
+                "Бизнес": row["business"] or "",
+                "Тип партнёра": row["partner_type"] or "",
+                "Страна": row["country"] or "",
+                "ЮЛ": row["legal_entity"] or "",
+                "Город": row["city"] or "",
+                "Департамент": row["department"] or "",
+                "Статус": row["status"] or "",
+                "Дата запуска": row["start_date"] or "",
+                "Дата закрытия": row["end_date"] or "",
+                "Общее время работы": _format_total_time(row["start_date"], row["end_date"]),
+                "Расписание": _format_schedule(schedule),
+            }
+        )
+
+    df = pd.DataFrame(dataset)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Паспорта")
+    output.seek(0)
+    filename = f"passports_{dt.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@app.route("/api/object_passports/<int:passport_id>/photos", methods=["POST"])
+@login_required_api
+def api_object_passport_add_photo(passport_id):
+    conn = get_passport_db()
+    try:
+        exists = conn.execute(
+            "SELECT id FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not exists:
+            return jsonify({"success": False, "error": "Паспорт не найден"}), 404
+    finally:
+        conn.close()
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "Необходимо выбрать файл"}), 400
+
+    category = (request.form.get("category") or "archive").strip().lower()
+    if category not in ("title", "archive"):
+        return jsonify({"success": False, "error": "Недопустимый тип фото"}), 400
+
+    caption = (request.form.get("caption") or "").strip()
+    filename = secure_filename(file.filename)
+    if not filename:
+        return jsonify({"success": False, "error": "Недопустимое имя файла"}), 400
+
+    subdir = os.path.join(OBJECT_PASSPORT_UPLOADS_DIR, f"passport_{passport_id}")
+    os.makedirs(subdir, exist_ok=True)
+    unique_name = f"{int(time.time())}_{filename}"
+    file_path = os.path.join(subdir, unique_name)
+    file.save(file_path)
+    relative_path = os.path.relpath(file_path, OBJECT_PASSPORT_UPLOADS_DIR).replace("\\", "/")
+
+    with get_passport_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO object_passport_photos (passport_id, category, caption, filename)
+            VALUES (?, ?, ?, ?)
+            """,
+            (passport_id, category, caption, relative_path),
+        )
+        conn.commit()
+        photos = _fetch_passport_photos(conn, passport_id)
+
+    return jsonify({"success": True, "photos": photos})
+
+
+@app.route("/api/object_passports/photos/<int:photo_id>", methods=["PATCH"])
+@login_required_api
+def api_object_passport_update_photo(photo_id):
+    payload = request.json or {}
+    updates = []
+    params = []
+
+    if "caption" in payload:
+        caption = (payload.get("caption") or "").strip()
+        updates.append("caption = ?")
+        params.append(caption)
+
+    if "category" in payload:
+        category = (payload.get("category") or "").strip().lower()
+        if category not in ("title", "archive"):
+            return jsonify({"success": False, "error": "Недопустимый тип фото"}), 400
+        updates.append("category = ?")
+        params.append(category)
+
+    if not updates:
+        return jsonify({"success": False, "error": "Нет данных для обновления"}), 400
+
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT passport_id FROM object_passport_photos WHERE id = ?",
+            (photo_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Фото не найдено"}), 404
+
+        params.append(photo_id)
+        conn.execute(
+            f"UPDATE object_passport_photos SET {', '.join(updates)}, updated_at = datetime('now') WHERE id = ?",
+            params,
+        )
+        conn.commit()
+        photos = _fetch_passport_photos(conn, row["passport_id"])
+    finally:
+        conn.close()
+
+    return jsonify({"success": True, "photos": photos})
+
+
+@app.route("/api/object_passports/photos/<int:photo_id>", methods=["DELETE"])
+@login_required_api
+def api_object_passport_delete_photo(photo_id):
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT passport_id, filename FROM object_passport_photos WHERE id = ?",
+            (photo_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Фото не найдено"}), 404
+        conn.execute("DELETE FROM object_passport_photos WHERE id = ?", (photo_id,))
+        conn.commit()
+        passport_id = row["passport_id"]
+        filename = row["filename"]
+        photos = _fetch_passport_photos(conn, passport_id)
+    finally:
+        conn.close()
+
+    if filename:
+        try:
+            os.remove(os.path.join(OBJECT_PASSPORT_UPLOADS_DIR, filename))
+        except FileNotFoundError:
+            pass
+
+    return jsonify({"success": True, "photos": photos})
+
+
+@app.route("/api/object_passports/<int:passport_id>/equipment", methods=["POST"])
+@login_required_api
+def api_object_passport_add_equipment(passport_id):
+    payload = request.json or {}
+
+    def clean(field):
+        return (payload.get(field) or "").strip() or None
+
+    conn = get_passport_db()
+    try:
+        exists = conn.execute(
+            "SELECT id FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not exists:
+            return jsonify({"success": False, "error": "Паспорт не найден"}), 404
+
+        conn.execute(
+            """
+            INSERT INTO object_passport_equipment (passport_id, name, model, status, ip_address, description)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                passport_id,
+                clean("name"),
+                clean("model"),
+                clean("status"),
+                clean("ip_address"),
+                clean("description"),
+            ),
+        )
+        conn.commit()
+        equipment = _fetch_passport_equipment(conn, passport_id)
+    finally:
+        conn.close()
+
+    return jsonify({"success": True, "equipment": equipment})
+
+
+@app.route("/api/object_passports/equipment/<int:equipment_id>", methods=["PATCH"])
+@login_required_api
+def api_object_passport_update_equipment(equipment_id):
+    payload = request.json or {}
+    updates = []
+    params = []
+
+    for field in ["name", "model", "status", "ip_address", "description"]:
+        if field in payload:
+            value = (payload.get(field) or "").strip()
+            updates.append(f"{field} = ?")
+            params.append(value or None)
+
+    if not updates:
+        return jsonify({"success": False, "error": "Нет данных для обновления"}), 400
+
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT passport_id FROM object_passport_equipment WHERE id = ?",
+            (equipment_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Оборудование не найдено"}), 404
+
+        params.append(equipment_id)
+        conn.execute(
+            f"UPDATE object_passport_equipment SET {', '.join(updates)}, updated_at = datetime('now') WHERE id = ?",
+            params,
+        )
+        conn.commit()
+        equipment = _fetch_passport_equipment(conn, row["passport_id"])
+    finally:
+        conn.close()
+
+    return jsonify({"success": True, "equipment": equipment})
+
+
+@app.route("/api/object_passports/equipment/<int:equipment_id>", methods=["DELETE"])
+@login_required_api
+def api_object_passport_delete_equipment(equipment_id):
+    photos = []
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT passport_id FROM object_passport_equipment WHERE id = ?",
+            (equipment_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Оборудование не найдено"}), 404
+        passport_id = row["passport_id"]
+        photos = conn.execute(
+            "SELECT filename FROM object_passport_equipment_photos WHERE equipment_id = ?",
+            (equipment_id,),
+        ).fetchall()
+        conn.execute("DELETE FROM object_passport_equipment WHERE id = ?", (equipment_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    for photo in photos:
+        filename = photo["filename"]
+        if filename:
+            try:
+                os.remove(os.path.join(OBJECT_PASSPORT_UPLOADS_DIR, filename))
+            except FileNotFoundError:
+                pass
+
+    with get_passport_db() as conn:
+        equipment = _fetch_passport_equipment(conn, passport_id)
+
+    return jsonify({"success": True, "equipment": equipment})
+
+
+@app.route("/api/object_passports/equipment/<int:equipment_id>/photos", methods=["POST"])
+@login_required_api
+def api_object_passport_equipment_add_photo(equipment_id):
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT passport_id FROM object_passport_equipment WHERE id = ?",
+            (equipment_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Оборудование не найдено"}), 404
+        passport_id = row["passport_id"]
+    finally:
+        conn.close()
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "Необходимо выбрать файл"}), 400
+
+    caption = (request.form.get("caption") or "").strip()
+    filename = secure_filename(file.filename)
+    if not filename:
+        return jsonify({"success": False, "error": "Недопустимое имя файла"}), 400
+
+    subdir = os.path.join(
+        OBJECT_PASSPORT_UPLOADS_DIR,
+        f"passport_{passport_id}",
+        f"equipment_{equipment_id}",
+    )
+    os.makedirs(subdir, exist_ok=True)
+    unique_name = f"{int(time.time())}_{filename}"
+    file_path = os.path.join(subdir, unique_name)
+    file.save(file_path)
+    relative_path = os.path.relpath(file_path, OBJECT_PASSPORT_UPLOADS_DIR).replace("\\", "/")
+
+    with get_passport_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO object_passport_equipment_photos (equipment_id, caption, filename)
+            VALUES (?, ?, ?)
+            """,
+            (equipment_id, caption, relative_path),
+        )
+        conn.commit()
+        equipment = _fetch_passport_equipment(conn, passport_id)
+
+    return jsonify({"success": True, "equipment": equipment})
+
+
+@app.route("/api/object_passports/equipment/photos/<int:photo_id>", methods=["PATCH"])
+@login_required_api
+def api_object_passport_equipment_update_photo(photo_id):
+    payload = request.json or {}
+    if "caption" not in payload:
+        return jsonify({"success": False, "error": "Нет данных для обновления"}), 400
+
+    caption = (payload.get("caption") or "").strip()
+
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT equipment_id FROM object_passport_equipment_photos WHERE id = ?",
+            (photo_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Фото не найдено"}), 404
+        equipment_row = conn.execute(
+            "SELECT passport_id FROM object_passport_equipment WHERE id = ?",
+            (row["equipment_id"],),
+        ).fetchone()
+        if not equipment_row:
+            return jsonify({"success": False, "error": "Оборудование не найдено"}), 404
+
+        conn.execute(
+            "UPDATE object_passport_equipment_photos SET caption = ? WHERE id = ?",
+            (caption, photo_id),
+        )
+        conn.commit()
+        equipment = _fetch_passport_equipment(conn, equipment_row["passport_id"])
+    finally:
+        conn.close()
+
+    return jsonify({"success": True, "equipment": equipment})
+
+
+@app.route("/api/object_passports/equipment/photos/<int:photo_id>", methods=["DELETE"])
+@login_required_api
+def api_object_passport_equipment_delete_photo(photo_id):
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT equipment_id, filename FROM object_passport_equipment_photos WHERE id = ?",
+            (photo_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Фото не найдено"}), 404
+        equipment_row = conn.execute(
+            "SELECT passport_id FROM object_passport_equipment WHERE id = ?",
+            (row["equipment_id"],),
+        ).fetchone()
+        passport_id = equipment_row["passport_id"] if equipment_row else None
+        conn.execute("DELETE FROM object_passport_equipment_photos WHERE id = ?", (photo_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    if row["filename"]:
+        try:
+            os.remove(os.path.join(OBJECT_PASSPORT_UPLOADS_DIR, row["filename"]))
+        except FileNotFoundError:
+            pass
+
+    equipment = []
+    if passport_id:
+        with get_passport_db() as conn:
+            equipment = _fetch_passport_equipment(conn, passport_id)
+
+    return jsonify({"success": True, "equipment": equipment})
 
 # === API для управления пользователями ===
 @app.route("/users")
