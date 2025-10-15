@@ -36,7 +36,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import io
 import mimetypes
 from werkzeug.utils import secure_filename
-import pandas as pd
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
@@ -4164,6 +4163,18 @@ def api_object_passport_cases(passport_id):
 @app.route("/object_passports/export")
 @login_required
 def object_passports_export():
+    try:
+        import pandas as pd
+    except ImportError as exc:
+        logging.exception("Failed to import pandas for object passport export")
+        abort(
+            500,
+            description=(
+                "Не удалось сформировать Excel-файл: отсутствует библиотека pandas "
+                "или её зависимости. Установите зависимости из requirements.txt"
+            ),
+        )
+
     rows = _fetch_passport_rows(request.args)
     dataset = []
     for row in rows:
@@ -4186,8 +4197,18 @@ def object_passports_export():
 
     df = pd.DataFrame(dataset)
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Паспорта")
+    try:
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Паспорта")
+    except ImportError:
+        logging.exception("Failed to import Excel writer dependency")
+        abort(
+            500,
+            description=(
+                "Не удалось сформировать Excel-файл: отсутствует библиотека openpyxl. "
+                "Установите зависимости из requirements.txt"
+            ),
+        )
     output.seek(0)
     filename = f"passports_{dt.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     return send_file(
