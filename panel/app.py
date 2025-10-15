@@ -3281,10 +3281,17 @@ def api_channels_delete(channel_id):
 def settings_page():
     settings = load_settings()
     locations = load_locations()
+    city_names = sorted({
+        city
+        for brand in locations.values()
+        for partner_types in (brand or {}).values()
+        for city in (partner_types or {}).keys()
+    })
     return render_template(
         "settings.html",
         settings=settings,
         locations=locations,
+        cities=city_names,
         parameter_types=PARAMETER_TYPES,
     )
 
