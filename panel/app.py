@@ -40,6 +40,14 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROUP_CHAT_ID = int(os.getenv("GROUP_CHAT_ID"))
 
+PARAMETER_TYPES = {
+    "business": "Бизнес",
+    "partner_type": "Тип партнёра",
+    "country": "Страна",
+    "legal_entity": "ЮЛ",
+    "department": "Департамент",
+}
+
 # Подключение к базе
 def get_db():
     # autocommit (isolation_level=None) + увеличенный timeout
@@ -175,6 +183,27 @@ def ensure_client_blacklist_schema():
         print(f"ensure_client_blacklist_schema: {e}")
 
 ensure_client_blacklist_schema()
+
+
+def ensure_settings_parameters_schema():
+    try:
+        with get_db() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS settings_parameters (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    param_type TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(param_type, value)
+                )
+                """
+            )
+    except Exception as e:
+        print(f"ensure_settings_parameters_schema: {e}")
+
+
+ensure_settings_parameters_schema()
 
 def create_unblock_request_task(user_id: str, reason: str = ""):
     """
@@ -1096,7 +1125,7 @@ def tickets_list():
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
-            SELECT 
+            SELECT
                 m.ticket_id,
                 m.user_id,
                 m.username as username,
@@ -1133,6 +1162,24 @@ def tickets_list():
                    h.rowid DESC
                  LIMIT 1
                 ) AS last_sender,
+
+                -- количество сообщений клиента (для подсчёта непрочитанных)
+                (
+                  SELECT COUNT(*)
+                  FROM chat_history h
+                  WHERE h.ticket_id = m.ticket_id
+                    AND (h.channel_id = t.channel_id OR h.channel_id IS NULL OR t.channel_id IS NULL)
+                    AND LOWER(COALESCE(h.sender, '')) = 'user'
+                ) AS user_msg_count,
+
+                -- время последнего сообщения клиента (может пригодиться на фронтенде)
+                (
+                  SELECT MAX(timestamp)
+                  FROM chat_history h
+                  WHERE h.ticket_id = m.ticket_id
+                    AND (h.channel_id = t.channel_id OR h.channel_id IS NULL OR t.channel_id IS NULL)
+                    AND LOWER(COALESCE(h.sender, '')) = 'user'
+                ) AS last_user_message_at,
 
                 -- был ли ответ поддержки (с учётом канала)
                 EXISTS (
@@ -3141,7 +3188,12 @@ def api_channels_delete(channel_id):
 def settings_page():
     settings = load_settings()
     locations = load_locations()
-    return render_template("settings.html", settings=settings, locations=locations)
+    return render_template(
+        "settings.html",
+        settings=settings,
+        locations=locations,
+        parameter_types=PARAMETER_TYPES,
+    )
 
 @app.route("/settings", methods=["POST"])
 @login_required
@@ -3172,6 +3224,105 @@ def update_settings():
     
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+
+def _fetch_parameters_grouped(conn):
+    rows = conn.execute(
+        "SELECT id, param_type, value FROM settings_parameters ORDER BY param_type, value COLLATE NOCASE"
+    ).fetchall()
+    grouped = {key: [] for key in PARAMETER_TYPES.keys()}
+    for row in rows:
+        slug = row["param_type"]
+        if slug in grouped:
+            grouped[slug].append({"id": row["id"], "value": row["value"]})
+    return grouped
+
+@app.route("/api/settings/parameters", methods=["GET"])
+@login_required
+def api_get_parameters():
+    conn = get_db()
+    try:
+        data = _fetch_parameters_grouped(conn)
+        return jsonify(data)
+    finally:
+        conn.close()
+
+@app.route("/api/settings/parameters", methods=["POST"])
+@login_required
+def api_create_parameter():
+    payload = request.json or {}
+    param_type = (payload.get("param_type") or "").strip()
+    value = (payload.get("value") or "").strip()
+
+    if param_type not in PARAMETER_TYPES:
+        return jsonify({"success": False, "error": "Неизвестный тип параметра"}), 400
+
+    if not value:
+        return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
+
+    conn = get_db()
+    try:
+        try:
+            cur = conn.execute(
+                "INSERT INTO settings_parameters (param_type, value) VALUES (?, ?)",
+                (param_type, value),
+            )
+            new_id = cur.lastrowid
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return (
+                jsonify({"success": False, "error": "Такое значение уже существует"}),
+                409,
+            )
+
+        data = _fetch_parameters_grouped(conn)
+        return jsonify({"success": True, "id": new_id, "data": data})
+    finally:
+        conn.close()
+
+@app.route("/api/settings/parameters/<int:param_id>", methods=["PATCH"])
+@login_required
+def api_update_parameter(param_id):
+    payload = request.json or {}
+    value = (payload.get("value") or "").strip()
+
+    if not value:
+        return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
+
+    conn = get_db()
+    try:
+        try:
+            cur = conn.execute(
+                "UPDATE settings_parameters SET value = ? WHERE id = ?",
+                (value, param_id),
+            )
+            if cur.rowcount == 0:
+                return jsonify({"success": False, "error": "Параметр не найден"}), 404
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return (
+                jsonify({"success": False, "error": "Такое значение уже существует"}),
+                409,
+            )
+
+        data = _fetch_parameters_grouped(conn)
+        return jsonify({"success": True, "data": data})
+    finally:
+        conn.close()
+
+
+@app.route("/api/settings/parameters/<int:param_id>", methods=["DELETE"])
+@login_required
+def api_delete_parameter(param_id):
+    conn = get_db()
+    try:
+        cur = conn.execute("DELETE FROM settings_parameters WHERE id = ?", (param_id,))
+        if cur.rowcount == 0:
+            return jsonify({"success": False, "error": "Параметр не найден"}), 404
+        conn.commit()
+        data = _fetch_parameters_grouped(conn)
+        return jsonify({"success": True, "data": data})
+    finally:
+        conn.close()
 
 # === API для управления пользователями ===
 @app.route("/users")
