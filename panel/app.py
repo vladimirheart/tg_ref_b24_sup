@@ -197,6 +197,9 @@ def _ensure_object_passport_columns():
         "network_speed": "TEXT",
         "network_tunnel": "TEXT",
         "network_connection_params": "TEXT",
+        "status_task_id": "INTEGER",
+        "suspension_date": "TEXT",
+        "resume_date": "TEXT",
     }
     with get_passport_db() as conn:
         existing_columns = {
@@ -210,7 +213,16 @@ def _ensure_object_passport_columns():
 
 _ensure_object_passport_columns()
 
-PASSPORT_STATUSES = ("Стройка", "Открыт")
+PASSPORT_STATUSES = (
+    "Стройка",
+    "Открыт",
+    "Закрыт",
+    "Реконструкция",
+    "Заморожен",
+    "Другое",
+)
+
+PASSPORT_STATUSES_REQUIRING_TASK = {"Закрыт", "Реконструкция", "Заморожен", "Другое"}
 
 WEEKDAY_SEQUENCE = [
     ("monday", "Понедельник", "Пн"),
@@ -397,6 +409,77 @@ def _fetch_cases_for_department(department, limit=200):
     finally:
         conn.close()
 
+def _fetch_tasks_for_department(department, search=None, limit=200):
+    if not department:
+        return []
+
+    try:
+        limit_value = int(limit)
+    except (TypeError, ValueError):
+        limit_value = 200
+    limit_value = max(1, min(limit_value, 200))
+
+    conn = get_db()
+    try:
+        conn.row_factory = sqlite3.Row
+        params = [department]
+        query = """
+            SELECT DISTINCT
+                t.id,
+                t.seq,
+                t.source,
+                t.title,
+                t.status,
+                t.assignee,
+                t.tag,
+                t.due_at,
+                t.last_activity_at
+            FROM tasks t
+            JOIN task_links tl ON tl.task_id = t.id
+            JOIN messages m ON m.ticket_id = tl.ticket_id
+            WHERE LOWER(TRIM(m.location_name)) = LOWER(TRIM(?))
+        """
+
+        search_value = (search or "").strip().lower()
+        if search_value:
+            like = f"%{search_value}%"
+            query += """
+                AND (
+                    LOWER(COALESCE(t.title, '')) LIKE ?
+                    OR LOWER(COALESCE(t.assignee, '')) LIKE ?
+                    OR LOWER(COALESCE(t.tag, '')) LIKE ?
+                    OR LOWER(COALESCE(t.status, '')) LIKE ?
+                    OR LOWER(COALESCE(t.source, '')) || '_' || CAST(t.seq AS TEXT) LIKE ?
+                    OR CAST(t.seq AS TEXT) LIKE ?
+                    OR CAST(t.id AS TEXT) LIKE ?
+                )
+            """
+            params.extend([like, like, like, like, like, like, like])
+
+        query += " ORDER BY datetime(COALESCE(t.last_activity_at, t.created_at)) DESC LIMIT ?"
+        params.append(limit_value)
+        rows = conn.execute(query, params).fetchall()
+
+        tasks = []
+        for row in rows:
+            tasks.append(
+                {
+                    "id": row["id"],
+                    "display_no": _display_no(row["source"], row["seq"]),
+                    "title": row["title"] or "",
+                    "status": row["status"] or "",
+                    "assignee": row["assignee"] or "",
+                    "tag": row["tag"] or "",
+                    "due_at": row["due_at"],
+                    "due_at_display": _format_display_datetime(row["due_at"]),
+                    "last_activity_at": row["last_activity_at"],
+                    "last_activity_display": _format_display_datetime(row["last_activity_at"]),
+                }
+            )
+        return tasks
+    finally:
+        conn.close()
+
 
 def _fetch_passport_photos(conn, passport_id):
     rows = conn.execute(
@@ -520,6 +603,9 @@ def _serialize_passport_row(row):
         "network_tunnel": row["network_tunnel"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
+        "suspension_date": row["suspension_date"] or "",
+        "resume_date": row["resume_date"] or "",
+        "status_task_id": row["status_task_id"],
         "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
         "schedule_display": _format_schedule(schedule),
     }
@@ -558,6 +644,8 @@ def _serialize_passport_detail(conn, row):
         "network_connection_params": row["network_connection_params"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
+        "suspension_date": row["suspension_date"] or "",
+        "resume_date": row["resume_date"] or "",
         "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
         "schedule": schedule_for_client,
         "schedule_display": _format_schedule(schedule_raw),
@@ -565,7 +653,29 @@ def _serialize_passport_detail(conn, row):
         "network_files": _fetch_network_files(conn, row["id"]),
         "equipment": _fetch_passport_equipment(conn, row["id"]),
     }
+        detail["status_task_id"] = row["status_task_id"]
+    detail["status_task"] = None
+    if row["status_task_id"]:
+        with get_db() as main_conn:
+            main_conn.row_factory = sqlite3.Row
+            task_row = main_conn.execute(
+                "SELECT id, seq, source, title, status, assignee, due_at, last_activity_at FROM tasks WHERE id = ?",
+                (row["status_task_id"],),
+            ).fetchone()
+            if task_row:
+                detail["status_task"] = {
+                    "id": task_row["id"],
+                    "display_no": _display_no(task_row["source"], task_row["seq"]),
+                    "title": task_row["title"] or "",
+                    "status": task_row["status"] or "",
+                    "assignee": task_row["assignee"] or "",
+                    "due_at": task_row["due_at"],
+                    "due_at_display": _format_display_datetime(task_row["due_at"]),
+                    "last_activity": task_row["last_activity_at"],
+                    "last_activity_display": _format_display_datetime(task_row["last_activity_at"]),
+                }
     detail["cases"] = _fetch_cases_for_department(detail["department"])
+    detail["tasks"] = _fetch_tasks_for_department(detail["department"])
     return detail
 
 
@@ -696,6 +806,10 @@ def _blank_passport_detail():
         "network_connection_params": "",
         "start_date": "",
         "end_date": "",
+        "suspension_date": "",
+        "resume_date": "",
+        "status_task_id": None,
+        "status_task": None,
         "total_work_time": "—",
         "schedule": [
             {
@@ -712,6 +826,7 @@ def _blank_passport_detail():
         "network_files": [],
         "equipment": [],
         "cases": [],
+        "tasks": [],
     }
 
 
@@ -767,6 +882,26 @@ def _prepare_passport_record(payload):
     if status not in PASSPORT_STATUSES:
         return None, None, "Недопустимый статус"
 
+    status_task_id = payload.get("status_task_id")
+    if status_task_id in ("", None):
+        status_task_id_int = None
+    else:
+        try:
+            status_task_id_int = int(status_task_id)
+        except (TypeError, ValueError):
+            return None, None, "Некорректная задача для статуса"
+
+        with get_db() as conn:
+            exists = conn.execute(
+                "SELECT 1 FROM tasks WHERE id = ?",
+                (status_task_id_int,),
+            ).fetchone()
+        if not exists:
+            return None, None, "Выбранная задача не найдена"
+
+    if status in PASSPORT_STATUSES_REQUIRING_TASK and not status_task_id_int:
+        return None, None, "Для выбранного статуса необходимо выбрать задачу"
+
     schedule_data = payload.get("schedule") or []
     schedule_normalized = _normalize_schedule(schedule_data)
     schedule_json = json.dumps(schedule_normalized, ensure_ascii=False)
@@ -793,6 +928,9 @@ def _prepare_passport_record(payload):
         "network_connection_params": clean("network_connection_params"),
         "start_date": clean("start_date"),
         "end_date": clean("end_date"),
+        "suspension_date": clean("suspension_date"),
+        "resume_date": clean("resume_date"),
+        "status_task_id": status_task_id_int,
         "schedule_json": schedule_json,
     }
 
@@ -4270,19 +4408,23 @@ def api_object_passports_create():
             """
             INSERT INTO object_passports (
                 department, business, partner_type, country, legal_entity,
-                city, status, start_date, end_date, schedule_json,
+                city, status, start_date, end_date, suspension_date,
+                resume_date, schedule_json,
                 network, network_provider, network_contract_number,
                 network_legal_entity, network_support_phone, network_speed,
                 network_tunnel,
-                network_connection_params
+                network_connection_params,
+                status_task_id
             )
             VALUES (
                 :department, :business, :partner_type, :country, :legal_entity,
-                :city, :status, :start_date, :end_date, :schedule_json,
+                :city, :status, :start_date, :end_date, :suspension_date,
+                :resume_date, :schedule_json,
                 :network, :network_provider, :network_contract_number,
                 :network_legal_entity, :network_support_phone, :network_speed,
                 :network_tunnel,
-                :network_connection_params
+                :network_connection_params,
+                :status_task_id
             )
             """,
             record,
@@ -4343,6 +4485,9 @@ def api_object_passports_update(passport_id):
                 network_speed = :network_speed,
                 network_tunnel = :network_tunnel,
                 network_connection_params = :network_connection_params,
+                suspension_date = :suspension_date,
+                resume_date = :resume_date,
+                status_task_id = :status_task_id,
                 updated_at = datetime('now')
             WHERE id = :id
             """,
@@ -4400,6 +4545,30 @@ def api_object_passport_cases(passport_id):
 
     return jsonify({"success": True, "items": _fetch_cases_for_department(department)})
 
+@app.route("/api/object_passports/<int:passport_id>/tasks", methods=["GET"])
+@login_required_api
+def api_object_passport_tasks(passport_id):
+    conn = get_passport_db()
+    try:
+        row = conn.execute(
+            "SELECT department FROM object_passports WHERE id = ?",
+            (passport_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Паспорт не найден"}), 404
+        department = row["department"]
+    finally:
+        conn.close()
+
+    search = request.args.get("search") if request.args else None
+    limit = request.args.get("limit") if request.args else None
+    return jsonify(
+        {
+            "success": True,
+            "items": _fetch_tasks_for_department(department, search=search, limit=limit),
+        }
+    )
+
 
 @app.route("/object_passports/export")
 @login_required
@@ -4438,6 +4607,9 @@ def object_passports_export():
                 "Параметры подключения": row["network_connection_params"] or "",
                 "Дата запуска": row["start_date"] or "",
                 "Дата закрытия": row["end_date"] or "",
+                "Дата приостановки": row["suspension_date"] or "",
+                "Дата разморозки": row["resume_date"] or "",
+                "ID задачи статуса": row["status_task_id"] or "",
                 "Общее время работы": _format_total_time(row["start_date"], row["end_date"]),
                 "Расписание": _format_schedule(schedule),
             }
