@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Паспорт объекта</title>
+  <title>Новый паспорт объекта</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
   <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
@@ -287,9 +287,13 @@
               <div class="form-control-plaintext fw-semibold" id="statusHistoryTotal">—</div>
             </div>
             <div class="col-12">
-              <label class="form-label">История приостановок</label>
-              <div class="status-history-list" id="statusHistoryList">
-                <div class="text-muted small">История ещё не добавлена.</div>
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label mb-0" for="statusHistoryCollapse">История приостановок</label>
+                <button class="btn btn-sm btn-outline-secondary d-none" type="button" id="statusHistoryToggle" data-bs-toggle="collapse" data-bs-target="#statusHistoryCollapse" aria-expanded="false">Показать ▼</button>
+              </div>
+              <div class="text-muted small" id="statusHistoryEmpty">История ещё не добавлена.</div>
+              <div class="collapse mt-2" id="statusHistoryCollapse">
+                <div class="status-history-list" id="statusHistoryList"></div>
               </div>
             </div>
             <div class="col-12 col-lg-6 d-none" id="statusTaskContainer">
@@ -563,8 +567,18 @@
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-body">
-          <img src="" alt="Фото" class="img-fluid rounded" id="photoPreviewImage" />
-          <div class="mt-3">
+          <div id="photoPreviewCarousel" class="carousel slide">
+            <div class="carousel-inner" id="photoPreviewCarouselInner"></div>
+            <button class="carousel-control-prev d-none" type="button" id="photoPreviewPrev" data-bs-target="#photoPreviewCarousel" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Предыдущее</span>
+            </button>
+            <button class="carousel-control-next d-none" type="button" id="photoPreviewNext" data-bs-target="#photoPreviewCarousel" data-bs-slide="next">
+              <span class="carousel-control-next-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Следующее</span>
+            </button>
+          </div>
+          <div class="mt-3" id="photoPreviewMeta">
             <div class="text-muted small">Подпись</div>
             <div id="photoPreviewCaption" class="fw-semibold"></div>
           </div>
@@ -626,6 +640,9 @@
     const totalTimeDisplay = document.getElementById('totalTimeDisplay');
     const statusHistoryTotal = document.getElementById('statusHistoryTotal');
     const statusHistoryList = document.getElementById('statusHistoryList');
+    const statusHistoryCollapse = document.getElementById('statusHistoryCollapse');
+    const statusHistoryToggle = document.getElementById('statusHistoryToggle');
+    const statusHistoryEmpty = document.getElementById('statusHistoryEmpty');
     const saveStatusAlert = document.getElementById('saveStatus');
     const statusBadge = document.getElementById('statusBadge');
     const networkBadge = document.getElementById('networkBadge');
@@ -652,14 +669,36 @@
     const statusTaskSearchInput = document.getElementById('statusTaskSearchInput');
     const statusTaskHint = document.getElementById('statusTaskHint');
     const photoPreviewModalEl = document.getElementById('photoPreviewModal');
-    const photoPreviewImage = document.getElementById('photoPreviewImage');
+    const photoPreviewCarouselEl = document.getElementById('photoPreviewCarousel');
+    const photoPreviewCarouselInner = document.getElementById('photoPreviewCarouselInner');
+    const photoPreviewPrev = document.getElementById('photoPreviewPrev');
+    const photoPreviewNext = document.getElementById('photoPreviewNext');
     const photoPreviewCaption = document.getElementById('photoPreviewCaption');
     const photoPreviewDownload = document.getElementById('photoPreviewDownload');
     let photoPreviewModalInstance = null;
+    let photoPreviewCarouselInstance = null;
+    let currentPhotoPreviewList = [];
+    let statusHistoryCollapseInstance = null;
     const searchableSelectRegistry = new Map();
     const savePassportBtn = document.getElementById('savePassportBtn');
 
     const statusesRequiringTask = new Set(['Закрыт', 'Реконструкция', 'Заморожен', 'Другое']);
+
+    function ensureStatusHistoryCollapse() {
+      if (!statusHistoryCollapse || typeof bootstrap === 'undefined') return null;
+      if (!statusHistoryCollapseInstance) {
+        statusHistoryCollapseInstance = bootstrap.Collapse.getOrCreateInstance(statusHistoryCollapse, {
+          toggle: false,
+        });
+      }
+      return statusHistoryCollapseInstance;
+    }
+
+    function updateStatusHistoryToggleLabel(isExpanded) {
+      if (!statusHistoryToggle) return;
+      statusHistoryToggle.textContent = isExpanded ? 'Скрыть ▲' : 'Показать ▼';
+      statusHistoryToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
 
     function refreshSearchableSelect(select) {
       if (!select) return;
@@ -722,7 +761,13 @@
         if (select.value !== value) {
           select.value = value;
           select.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          select.dispatchEvent(new Event('change', { bubbles: true }));
         }
+        updateLabel();
+        optionsContainer.querySelectorAll('.dropdown-item').forEach((item) => {
+          item.classList.toggle('active', item === button);
+        });
         if (dropdownInstance) {
           dropdownInstance.hide();
         }
@@ -822,11 +867,17 @@
       }
     }
 
+    function updatePageTitle() {
+      const departmentName = departmentSelect ? (departmentSelect.value || '').trim() : '';
+      document.title = departmentName ? `Паспорт ${departmentName}` : 'Новый паспорт объекта';
+    }
+
     function updateObjectTitle() {
       const parts = [businessSelect.value, cityInput.value, departmentSelect.value]
         .map((part) => (part || '').trim())
         .filter(Boolean);
       objectTitle.textContent = parts.length ? parts.join(' · ') : '—';
+      updatePageTitle();
     }
 
     function updateTitlePhotoPreview(photos) {
@@ -834,19 +885,14 @@
       const list = Array.isArray(photos) ? photos : [];
       const titlePhoto = list.find((photo) => photo && photo.category === 'title' && photo.url);
       if (titlePhoto) {
-        const captionData = encodeURIComponent(titlePhoto.caption || '');
         titlePhotoImage.src = titlePhoto.url;
-        titlePhotoImage.dataset.photoUrl = titlePhoto.url;
-        titlePhotoImage.dataset.photoCaption = captionData;
-        titlePhotoPreview.dataset.photoUrl = titlePhoto.url;
-        titlePhotoPreview.dataset.photoCaption = captionData;
+        titlePhotoImage.dataset.photoId = titlePhoto.id != null ? String(titlePhoto.id) : '';
+        titlePhotoPreview.dataset.photoId = titlePhotoImage.dataset.photoId;
         titlePhotoPreview.classList.remove('d-none');
       } else {
         titlePhotoImage.src = '';
-        delete titlePhotoImage.dataset.photoUrl;
-        delete titlePhotoImage.dataset.photoCaption;
-        delete titlePhotoPreview.dataset.photoUrl;
-        delete titlePhotoPreview.dataset.photoCaption;
+        delete titlePhotoImage.dataset.photoId;
+        delete titlePhotoPreview.dataset.photoId;
         titlePhotoPreview.classList.add('d-none');
       }
     }
@@ -1076,6 +1122,10 @@
         passportData = data.passport || passportData;
         passportData.is_new = false;
         populateForm();
+        if (payload.resume_date) {
+          resumeDateInput.value = '';
+          passportData.resume_date = '';
+        }
         showSaveMessage('success', 'Изменения сохранены.');
       } catch (error) {
         console.error(error);
@@ -1326,7 +1376,17 @@
       const items = Array.isArray(history) ? history : [];
       passportData.status_history = items;
       if (!items.length) {
-        statusHistoryList.innerHTML = '<div class="text-muted small">История ещё не добавлена.</div>';
+        statusHistoryList.innerHTML = '';
+        if (statusHistoryEmpty) {
+          statusHistoryEmpty.classList.remove('d-none');
+        }
+        if (statusHistoryToggle) {
+          statusHistoryToggle.classList.add('d-none');
+        }
+        if (statusHistoryCollapse) {
+          statusHistoryCollapse.classList.remove('show');
+        }
+        updateStatusHistoryToggleLabel(false);
         return;
       }
       statusHistoryList.innerHTML = '';
@@ -1350,29 +1410,49 @@
         `;
         statusHistoryList.appendChild(entry);
       });
+      if (statusHistoryEmpty) {
+        statusHistoryEmpty.classList.add('d-none');
+      }
+      if (statusHistoryToggle) {
+        statusHistoryToggle.classList.remove('d-none');
+      }
+      const collapseInstance = ensureStatusHistoryCollapse();
+      if (collapseInstance) {
+        collapseInstance.hide();
+      } else if (statusHistoryCollapse) {
+        statusHistoryCollapse.classList.remove('show');
+      }
+      updateStatusHistoryToggleLabel(false);
     }
 
     function renderPhotos(photos) {
       const list = Array.isArray(photos) ? photos : [];
-      passportData.photos = list;
+      const sorted = list.slice().sort((a, b) => {
+        const aIsTitle = ((a && a.category) || '').toLowerCase() === 'title';
+        const bIsTitle = ((b && b.category) || '').toLowerCase() === 'title';
+        if (aIsTitle === bIsTitle) return 0;
+        return aIsTitle ? -1 : 1;
+      });
+      passportData.photos = sorted;
       photosContainer.innerHTML = '';
-      updateTitlePhotoPreview(list);
-      if (!list.length) {
+      updateTitlePhotoPreview(sorted);
+      if (!sorted.length) {
         photosEmptyText.classList.remove('d-none');
         return;
       }
       photosEmptyText.classList.add('d-none');
-      list.forEach((photo) => {
+      sorted.forEach((photo) => {
         const col = document.createElement('div');
         col.className = 'col-md-4';
         const captionRaw = photo.caption || '';
         const captionHtml = escapeHtml(captionRaw).replace(/\n/g, '<br>');
-        const captionData = encodeURIComponent(captionRaw);
-        const categoryLabel = photo.category === 'title' ? 'Титульное' : 'Архивное';
+        const categoryValue = ((photo && photo.category) || '').toLowerCase();
+        const isTitleCategory = categoryValue === 'title';
+        const categoryLabel = isTitleCategory ? 'Титульное' : 'Архивное';
         col.innerHTML = `
-          <div class="card h-100 photo-card" data-id="${photo.id}">
+          <div class="card h-100 photo-card" data-id="${photo.id != null ? photo.id : ''}">
             <div class="position-relative">
-              ${photo.category === 'title' ? '<span class="title-indicator">✔</span>' : ''}
+              ${isTitleCategory ? '<span class="title-indicator">✔</span>' : ''}
               <div class="dropdown photo-toolbar">
                 <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
                 <ul class="dropdown-menu dropdown-menu-end">
@@ -1382,7 +1462,7 @@
                   <li><a class="dropdown-item text-danger" href="#" data-action="delete-photo">Удалить</a></li>
                 </ul>
               </div>
-              <img src="${escapeHtml(photo.url)}" class="card-img-top passport-photo" alt="Фото" data-photo-url="${escapeHtml(photo.url)}" data-photo-caption="${captionData}" />
+              <img src="${escapeHtml(photo.url)}" class="card-img-top passport-photo" alt="Фото" data-photo-id="${photo.id != null ? photo.id : ''}" />
             </div>
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-2">
@@ -1397,8 +1477,8 @@
                 <div class="mb-3">
                   <label class="form-label">Тип</label>
                   <select class="form-select form-select-sm photo-category">
-                    <option value="title" ${photo.category === 'title' ? 'selected' : ''}>Титульное</option>
-                    <option value="archive" ${photo.category === 'archive' ? 'selected' : ''}>Архивное</option>
+                    <option value="title" ${isTitleCategory ? 'selected' : ''}>Титульное</option>
+                    <option value="archive" ${isTitleCategory ? '' : 'selected'}>Архивное</option>
                   </select>
                 </div>
                 <div class="d-flex gap-2">
@@ -1410,6 +1490,128 @@
           </div>
         `;
         photosContainer.appendChild(col);
+      });
+    }
+
+    function updatePhotoPreviewMeta(activeIndex) {
+      if (!Array.isArray(currentPhotoPreviewList) || !currentPhotoPreviewList.length) return;
+      const index = typeof activeIndex === 'number' ? activeIndex : 0;
+      const boundedIndex = Math.max(0, Math.min(index, currentPhotoPreviewList.length - 1));
+      const photo = currentPhotoPreviewList[boundedIndex];
+      if (!photo) return;
+      const captionHtml = escapeHtml(photo.caption || '').replace(/\n/g, '<br>');
+      if (photoPreviewCaption) {
+        photoPreviewCaption.innerHTML = captionHtml || '—';
+      }
+      if (photoPreviewDownload) {
+        if (photo.url) {
+          photoPreviewDownload.href = photo.url;
+          photoPreviewDownload.classList.remove('disabled');
+        } else {
+          photoPreviewDownload.href = '#';
+          photoPreviewDownload.classList.add('disabled');
+        }
+      }
+    }
+
+    function buildPhotoPreviewCarousel(photos, activeIndex) {
+      if (!photoPreviewCarouselInner) return;
+      photoPreviewCarouselInner.innerHTML = '';
+      photos.forEach((photo, index) => {
+        const item = document.createElement('div');
+        item.className = `carousel-item${index === activeIndex ? ' active' : ''}`;
+        item.innerHTML = `<img src="${escapeHtml(photo.url)}" class="d-block w-100 rounded" alt="Фото" data-photo-id="${photo.id != null ? photo.id : ''}" />`;
+        photoPreviewCarouselInner.appendChild(item);
+      });
+      const hasMultiple = photos.length > 1;
+      if (photoPreviewPrev) {
+        photoPreviewPrev.classList.toggle('d-none', !hasMultiple);
+      }
+      if (photoPreviewNext) {
+        photoPreviewNext.classList.toggle('d-none', !hasMultiple);
+      }
+    }
+
+    function openPhotoPreviewById(photoId) {
+      if (!photoPreviewModalEl || !photoPreviewCarouselEl) return;
+      const photos = Array.isArray(passportData.photos) ? passportData.photos : [];
+      if (!photos.length) return;
+      currentPhotoPreviewList = photos;
+      let activeIndex = photos.findIndex((photo) => String(photo.id) === String(photoId));
+      if (activeIndex < 0) {
+        activeIndex = 0;
+      }
+      buildPhotoPreviewCarousel(currentPhotoPreviewList, activeIndex);
+      if (typeof bootstrap !== 'undefined') {
+        const existingCarousel = bootstrap.Carousel.getInstance(photoPreviewCarouselEl);
+        if (existingCarousel) {
+          existingCarousel.dispose();
+        }
+        photoPreviewCarouselInstance = bootstrap.Carousel.getOrCreateInstance(photoPreviewCarouselEl, {
+          interval: false,
+          ride: false,
+          wrap: true,
+        });
+        if (typeof photoPreviewCarouselInstance.to === 'function') {
+          photoPreviewCarouselInstance.to(activeIndex);
+        }
+        updatePhotoPreviewMeta(activeIndex);
+        if (!photoPreviewModalInstance) {
+          photoPreviewModalInstance = new bootstrap.Modal(photoPreviewModalEl);
+        }
+        photoPreviewModalInstance.show();
+      } else {
+        updatePhotoPreviewMeta(activeIndex);
+      }
+    }
+
+    function openSinglePhotoPreview(url, caption) {
+      if (!photoPreviewModalEl || !photoPreviewCarouselEl) return;
+      const safeUrl = url || '';
+      if (!safeUrl) return;
+      let decodedCaption = '';
+      if (caption) {
+        try {
+          decodedCaption = decodeURIComponent(caption);
+        } catch (error) {
+          decodedCaption = caption;
+        }
+      }
+      currentPhotoPreviewList = [
+        {
+          id: '__single__',
+          url: safeUrl,
+          caption: decodedCaption,
+        },
+      ];
+      buildPhotoPreviewCarousel(currentPhotoPreviewList, 0);
+      if (typeof bootstrap !== 'undefined') {
+        const existingCarousel = bootstrap.Carousel.getInstance(photoPreviewCarouselEl);
+        if (existingCarousel) {
+          existingCarousel.dispose();
+        }
+        photoPreviewCarouselInstance = bootstrap.Carousel.getOrCreateInstance(photoPreviewCarouselEl, {
+          interval: false,
+          ride: false,
+          wrap: false,
+        });
+        if (typeof photoPreviewCarouselInstance.to === 'function') {
+          photoPreviewCarouselInstance.to(0);
+        }
+        updatePhotoPreviewMeta(0);
+        if (!photoPreviewModalInstance) {
+          photoPreviewModalInstance = new bootstrap.Modal(photoPreviewModalEl);
+        }
+        photoPreviewModalInstance.show();
+      } else {
+        updatePhotoPreviewMeta(0);
+      }
+    }
+
+    if (photoPreviewCarouselEl) {
+      photoPreviewCarouselEl.addEventListener('slid.bs.carousel', (event) => {
+        const nextIndex = typeof event.to === 'number' ? event.to : 0;
+        updatePhotoPreviewMeta(nextIndex);
       });
     }
 
@@ -1517,7 +1719,7 @@
       if (!actionEl) {
         const previewTarget = event.target.closest('.passport-photo');
         if (previewTarget) {
-          showPhotoPreview(previewTarget.dataset.photoUrl, previewTarget.dataset.photoCaption || '');
+          openPhotoPreviewById(previewTarget.dataset.photoId);
         }
         return;
       }
@@ -1537,36 +1739,7 @@
     });
 
     function showPhotoPreview(url, caption) {
-      if (!photoPreviewModalEl || !photoPreviewImage) return;
-      const safeUrl = url || '';
-      let decodedCaption = '';
-      if (caption) {
-        try {
-          decodedCaption = decodeURIComponent(caption);
-        } catch (e) {
-          decodedCaption = caption;
-        }
-      }
-      const captionHtml = escapeHtml(decodedCaption).replace(/\n/g, '<br>');
-      photoPreviewImage.src = safeUrl;
-      if (photoPreviewCaption) {
-        photoPreviewCaption.innerHTML = captionHtml || '—';
-      }
-      if (photoPreviewDownload) {
-        if (safeUrl) {
-          photoPreviewDownload.href = safeUrl;
-          photoPreviewDownload.classList.remove('disabled');
-        } else {
-          photoPreviewDownload.href = '#';
-          photoPreviewDownload.classList.add('disabled');
-        }
-      }
-      if (typeof bootstrap !== 'undefined') {
-        if (!photoPreviewModalInstance) {
-          photoPreviewModalInstance = new bootstrap.Modal(photoPreviewModalEl);
-        }
-        photoPreviewModalInstance.show();
-      }
+      openSinglePhotoPreview(url, caption);
     }
 
     photoUploadForm.addEventListener('submit', async (event) => {
@@ -1936,12 +2109,19 @@
 
     initializeSearchableSelects();
 
+    if (statusHistoryCollapse) {
+      statusHistoryCollapse.addEventListener('shown.bs.collapse', () => updateStatusHistoryToggleLabel(true));
+      statusHistoryCollapse.addEventListener('hidden.bs.collapse', () => updateStatusHistoryToggleLabel(false));
+    }
+    updateStatusHistoryToggleLabel(false);
+
     function handleTitlePhotoClick() {
       if (!titlePhotoPreview || !titlePhotoImage) return;
-      const url = titlePhotoPreview.dataset.photoUrl || titlePhotoImage.dataset.photoUrl;
-      const caption = titlePhotoPreview.dataset.photoCaption || titlePhotoImage.dataset.photoCaption || '';
-      if (url) {
-        showPhotoPreview(url, caption);
+      const photoId = titlePhotoPreview.dataset.photoId || titlePhotoImage.dataset.photoId;
+      if (photoId) {
+        openPhotoPreviewById(photoId);
+      } else if (titlePhotoImage.src) {
+        openSinglePhotoPreview(titlePhotoImage.src, '');
       }
     }
 
