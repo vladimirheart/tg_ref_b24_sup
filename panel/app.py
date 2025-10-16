@@ -329,6 +329,12 @@ def _format_schedule(schedule):
 
 
 def _format_total_time(start_date, end_date):
+    """Возвращает строку с общей длительностью работы.
+
+    Теперь формат включает грубую оценку в годах/месяцах/днях и
+    прежний формат (дни/часы/минуты) в скобках, чтобы не потерять
+    первоначальную точность отображения."""
+
     if not start_date:
         return "—"
     try:
@@ -348,19 +354,39 @@ def _format_total_time(start_date, end_date):
         end = start
 
     delta = end - start
-    days = delta.days
+
+    # «Старый» формат (дни/часы/минуты) сохраняем для точности в скобках.
+    days_total = delta.days
     hours = delta.seconds // 3600
     minutes = (delta.seconds % 3600) // 60
 
-    parts = []
-    if days:
-        parts.append(f"{days} д")
+    legacy_parts = []
+    if days_total:
+        legacy_parts.append(f"{days_total} д")
     if hours:
-        parts.append(f"{hours} ч")
+        legacy_parts.append(f"{hours} ч")
     if minutes:
-        parts.append(f"{minutes} мин")
+        legacy_parts.append(f"{minutes} мин")
+    if not legacy_parts:
+        legacy_parts.append("0 мин")
+    legacy_display = " ".join(legacy_parts)
 
-    return " ".join(parts) if parts else "0 мин"
+    # Грубое представление в годах/месяцах/днях.
+    remaining_days = days_total
+    years = remaining_days // 365
+    remaining_days -= years * 365
+    months = remaining_days // 30
+    remaining_days -= months * 30
+
+    extended_parts = []
+    if years:
+        extended_parts.append(f"{years} г")
+    if months:
+        extended_parts.append(f"{months} мес")
+    if remaining_days or not extended_parts:
+        extended_parts.append(f"{remaining_days} д")
+
+    return f"{' '.join(extended_parts)} ({legacy_display})"
 
 
 def _parse_iso_date(value):
@@ -622,6 +648,9 @@ def _fetch_network_files(conn, passport_id):
                 "size": row["file_size"] or 0,
                 "size_display": _format_file_size(row["file_size"]),
                 "url": url_for("object_passport_media", filename=row["filename"]),
+                "download_url": url_for(
+                    "api_object_passport_download_network_file", file_id=row["id"]
+                ),
                 "created_at": row["created_at"],
                 "created_at_display": _format_display_datetime(row["created_at"]),
             }
@@ -813,6 +842,7 @@ def _serialize_passport_row(row):
         "network_contract_number": row["network_contract_number"] or "",
         "network_legal_entity": row["network_legal_entity"] or "",
         "network_tunnel": row["network_tunnel"] or "",
+        "network_speed": row["network_speed"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
         "suspension_date": row["suspension_date"] or "",
@@ -5003,6 +5033,28 @@ def api_object_passport_delete_network_file(file_id):
 
     return jsonify({"success": True, "files": files})
 
+@app.route("/api/object_passports/network_files/<int:file_id>/download")
+@login_required
+def api_object_passport_download_network_file(file_id):
+    with get_passport_db() as conn:
+        row = conn.execute(
+            "SELECT filename, original_name FROM object_passport_network_files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+
+    safe_path = os.path.normpath(row["filename"]).replace("\\", "/")
+    if safe_path.startswith("../") or safe_path.startswith("/"):
+        abort(404)
+
+    download_name = row["original_name"] or os.path.basename(safe_path)
+    return send_from_directory(
+        OBJECT_PASSPORT_UPLOADS_DIR,
+        safe_path,
+        as_attachment=True,
+        download_name=download_name,
+    )
 
 @app.route("/api/object_passports/photos/<int:photo_id>", methods=["PATCH"])
 @login_required_api
