@@ -251,7 +251,7 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 
 /* Плавное появление и скрытие модальных окон */
 .modal-backdrop {
-  z-index: 99998;
+  z-index: 1040;
   transition: opacity 0.25s ease;
 }
 
