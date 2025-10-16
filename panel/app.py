@@ -160,6 +160,20 @@ def ensure_object_passport_schema():
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS object_passport_status_periods (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                passport_id INTEGER NOT NULL,
+                status TEXT,
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(passport_id) REFERENCES object_passports(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS object_passport_equipment_photos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 equipment_id INTEGER NOT NULL,
@@ -223,6 +237,8 @@ PASSPORT_STATUSES = (
 )
 
 PASSPORT_STATUSES_REQUIRING_TASK = {"Закрыт", "Реконструкция", "Заморожен", "Другое"}
+
+PASSPORT_STATUSES_WITH_PERIODS = {"Заморожен", "Реконструкция", "Другое", "Закрыт"}
 
 WEEKDAY_SEQUENCE = [
     ("monday", "Понедельник", "Пн"),
@@ -344,6 +360,53 @@ def _format_total_time(start_date, end_date):
     if minutes:
         parts.append(f"{minutes} мин")
 
+    return " ".join(parts) if parts else "0 мин"
+
+
+def _parse_iso_date(value):
+    if not value:
+        return None
+    try:
+        return dt.fromisoformat(str(value))
+    except Exception:
+        try:
+            return dt.strptime(str(value), "%Y-%m-%d")
+        except Exception:
+            return None
+
+
+def _format_display_date(value):
+    parsed = _parse_iso_date(value)
+    if not parsed:
+        return ""
+    return parsed.strftime("%d.%m.%Y")
+
+
+def _format_status_history_total(history):
+    total = timedelta()
+    for entry in history or []:
+        start = _parse_iso_date(entry.get("started_at"))
+        if not start:
+            continue
+        end_value = entry.get("ended_at")
+        end = _parse_iso_date(end_value) if end_value else dt.now()
+        if end < start:
+            end = start
+        total += end - start
+
+    if not total or (total.days == 0 and total.seconds == 0):
+        return "—"
+
+    days = total.days
+    hours = total.seconds // 3600
+    minutes = (total.seconds % 3600) // 60
+    parts = []
+    if days:
+        parts.append(f"{days} д")
+    if hours:
+        parts.append(f"{hours} ч")
+    if minutes:
+        parts.append(f"{minutes} мин")
     return " ".join(parts) if parts else "0 мин"
 
 
@@ -585,6 +648,123 @@ def _fetch_passport_equipment(conn, passport_id):
     return equipment
 
 
+def _fetch_status_periods(conn, passport_id):
+    rows = conn.execute(
+        """
+        SELECT id, status, started_at, ended_at
+        FROM object_passport_status_periods
+        WHERE passport_id = ?
+        ORDER BY started_at DESC, id DESC
+        """,
+        (passport_id,),
+    ).fetchall()
+    history = []
+    for row in rows:
+        started_at = row["started_at"] or ""
+        ended_at = row["ended_at"] or ""
+        history.append(
+            {
+                "id": row["id"],
+                "status": row["status"] or "",
+                "started_at": started_at,
+                "ended_at": ended_at,
+                "started_display": _format_display_date(started_at),
+                "ended_display": _format_display_date(ended_at) if ended_at else "",
+                "duration_display": _format_total_time(started_at, ended_at),
+                "is_active": not bool(ended_at),
+            }
+        )
+    return history
+
+
+def _sync_status_period(conn, passport_id, status, suspension_date, resume_date):
+    start = (suspension_date or "").strip()
+    end = (resume_date or "").strip()
+    if not start and not end:
+        return
+
+    open_row = conn.execute(
+        """
+        SELECT id, started_at, status
+        FROM object_passport_status_periods
+        WHERE passport_id = ? AND ended_at IS NULL
+        ORDER BY started_at DESC, id DESC
+        LIMIT 1
+        """,
+        (passport_id,),
+    ).fetchone()
+
+    if end and open_row:
+        conn.execute(
+            """
+            UPDATE object_passport_status_periods
+            SET ended_at = ?, status = COALESCE(?, status), updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (end, status or open_row["status"], open_row["id"]),
+        )
+        open_row = None
+
+    if not start:
+        return
+
+    if open_row and not end:
+        assignments = []
+        params = {"id": open_row["id"]}
+        if open_row["started_at"] != start:
+            assignments.append("started_at = :started_at")
+            params["started_at"] = start
+        if status and open_row["status"] != status:
+            assignments.append("status = :status")
+            params["status"] = status
+        if assignments:
+            assignments.append("updated_at = datetime('now')")
+            conn.execute(
+                f"UPDATE object_passport_status_periods SET {', '.join(assignments)} WHERE id = :id",
+                params,
+            )
+        return
+
+    existing = conn.execute(
+        """
+        SELECT id, ended_at, status
+        FROM object_passport_status_periods
+        WHERE passport_id = ? AND started_at = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (passport_id, start),
+    ).fetchone()
+
+    if existing:
+        assignments = []
+        params = {"id": existing["id"]}
+        if end and (existing["ended_at"] or "") != end:
+            assignments.append("ended_at = :ended_at")
+            params["ended_at"] = end
+        if status and existing["status"] != status:
+            assignments.append("status = :status")
+            params["status"] = status
+        if assignments:
+            assignments.append("updated_at = datetime('now')")
+            conn.execute(
+                f"UPDATE object_passport_status_periods SET {', '.join(assignments)} WHERE id = :id",
+                params,
+            )
+        return
+
+    if status not in PASSPORT_STATUSES_WITH_PERIODS and not end:
+        return
+
+    conn.execute(
+        """
+        INSERT INTO object_passport_status_periods (passport_id, status, started_at, ended_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (passport_id, status or "", start, end or None),
+    )
+
+
 def _serialize_passport_row(row):
     schedule = _load_schedule(row["schedule_json"])
     return {
@@ -646,6 +826,7 @@ def _serialize_passport_detail(conn, row):
         "end_date": row["end_date"] or "",
         "suspension_date": row["suspension_date"] or "",
         "resume_date": row["resume_date"] or "",
+        "status_task_id": row["status_task_id"],
         "total_work_time": _format_total_time(row["start_date"], row["end_date"]),
         "schedule": schedule_for_client,
         "schedule_display": _format_schedule(schedule_raw),
@@ -653,7 +834,18 @@ def _serialize_passport_detail(conn, row):
         "network_files": _fetch_network_files(conn, row["id"]),
         "equipment": _fetch_passport_equipment(conn, row["id"]),
     }
-        detail["status_task_id"] = row["status_task_id"]
+    status_history = _fetch_status_periods(conn, row["id"])
+    if not status_history and (row["suspension_date"] or row["resume_date"]):
+        _sync_status_period(
+            conn,
+            row["id"],
+            row["status"],
+            row["suspension_date"],
+            row["resume_date"],
+        )
+        status_history = _fetch_status_periods(conn, row["id"])
+    detail["status_history"] = status_history
+    detail["status_history_total"] = _format_status_history_total(status_history)
     detail["status_task"] = None
     if row["status_task_id"]:
         with get_db() as main_conn:
@@ -810,6 +1002,8 @@ def _blank_passport_detail():
         "resume_date": "",
         "status_task_id": None,
         "status_task": None,
+        "status_history": [],
+        "status_history_total": "—",
         "total_work_time": "—",
         "schedule": [
             {
@@ -4430,6 +4624,13 @@ def api_object_passports_create():
             record,
         )
         passport_id = cur.lastrowid
+        _sync_status_period(
+            conn,
+            passport_id,
+            record.get("status"),
+            record.get("suspension_date"),
+            record.get("resume_date"),
+        )
         conn.commit()
         row = conn.execute(
             "SELECT * FROM object_passports WHERE id = ?",
@@ -4492,6 +4693,13 @@ def api_object_passports_update(passport_id):
             WHERE id = :id
             """,
             {**record, "id": passport_id},
+        )
+        _sync_status_period(
+            conn,
+            passport_id,
+            record.get("status"),
+            record.get("suspension_date"),
+            record.get("resume_date"),
         )
         conn.commit()
         row = conn.execute(
