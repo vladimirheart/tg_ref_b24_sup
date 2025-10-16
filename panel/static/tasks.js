@@ -234,12 +234,21 @@
 `;
       tbody.appendChild(tr);
     }
+
+    if (!items.length) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = '<td class="text-center text-muted" colspan="10">Задачи не найдены. Попробуйте изменить фильтры или создать новую задачу.</td>';
+      tbody.appendChild(emptyRow);
+    }
+
     if (totalCounter) totalCounter.textContent = state.total;
     if (shownCounter) shownCounter.textContent = items.length;
-    const totalPages = Math.max(1, Math.ceil(state.total / state.page_size));
+    const totalPages = Math.max(1, Math.ceil(Math.max(state.total, 1) / state.page_size));
     if (state.page > totalPages) state.page = totalPages;
     if (summaryEl) {
-      summaryEl.textContent = `Показано ${items.length} из ${state.total} · Страница ${state.page}/${totalPages}`;
+      summaryEl.textContent = state.total
+        ? `Показано ${items.length} из ${state.total} · Страница ${state.page}/${totalPages}`
+        : 'Нет задач, подходящих под условия фильтра.';
     }
     updateOverdueTasks();
     renderPager();
