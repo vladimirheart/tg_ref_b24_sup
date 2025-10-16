@@ -570,13 +570,27 @@ def _serialize_passport_detail(conn, row):
 
 
 def _fetch_passport_rows(filters):
+    filters = filters or {}
+    if hasattr(filters, "copy"):
+        filters_local = filters.copy()
+    else:
+        filters_local = dict(filters)
+
+    contract_alias = (
+        (filters_local.get("network_contract_number") or "").strip()
+        or (filters_local.get("contract_number") or "").strip()
+        or (filters_local.get("contract") or "").strip()
+    )
+    if contract_alias and not (filters_local.get("network_contract_number") or "").strip():
+        filters_local["network_contract_number"] = contract_alias
+
     conn = get_passport_db()
     try:
         query = "SELECT * FROM object_passports"
         conditions = []
         params = []
 
-        search = (filters.get("search") or "").strip().lower()
+        search = (filters_local.get("search") or "").strip().lower()
         if search:
             like = f"%{search}%"
             searchable = [
@@ -588,6 +602,8 @@ def _fetch_passport_rows(filters):
                 "department",
                 "status",
                 "network",
+                "network_contract_number",
+            ]
             ]
             conditions.append(
                 "(" + " OR ".join([f"LOWER(COALESCE({col}, '')) LIKE ?" for col in searchable]) + ")"
@@ -602,9 +618,9 @@ def _fetch_passport_rows(filters):
             "city",
             "department",
             "status",
-            "network",
+            "network_contract_number",
         ]:
-            value = (filters.get(field) or "").strip()
+            value = (filters_local.get(field) or "").strip()
             if value:
                 conditions.append(f"LOWER(COALESCE({field}, '')) = LOWER(?)")
                 params.append(value)
@@ -4007,12 +4023,33 @@ def settings_page():
         for partner_types in (brand or {}).values()
         for city in (partner_types or {}).keys()
     })
+    contract_usage = {}
+    try:
+        with get_passport_db() as conn:
+            rows = conn.execute(
+                """
+                SELECT TRIM(COALESCE(network_contract_number, '')) AS contract_number,
+                       COUNT(*) AS total
+                FROM object_passports
+                WHERE TRIM(COALESCE(network_contract_number, '')) != ''
+                GROUP BY TRIM(COALESCE(network_contract_number, ''))
+                """
+            ).fetchall()
+            contract_usage = {
+                row["contract_number"]: row["total"]
+                for row in rows
+                if row["contract_number"]
+            }
+    except Exception:
+        contract_usage = {}
+
     return render_template(
         "settings.html",
         settings=settings,
         locations=locations,
         cities=city_names,
         parameter_types=PARAMETER_TYPES,
+        contract_usage=contract_usage,
     )
 
 @app.route("/settings", methods=["POST"])
@@ -4171,11 +4208,22 @@ def api_delete_parameter(param_id):
 @app.route("/object_passports")
 @login_required
 def object_passports_page():
+    settings = load_settings()
+    network_profiles = settings.get("network_profiles", []) if isinstance(settings, dict) else []
+    contract_numbers = sorted(
+        {
+            (profile.get("contract_number") or "").strip()
+            for profile in network_profiles
+            if isinstance(profile, dict) and (profile.get("contract_number") or "").strip()
+        },
+        key=lambda value: value.lower(),
+    )
     return render_template(
         "object_passports.html",
         parameter_values=_parameter_values_for_passports(),
         statuses=list(PASSPORT_STATUSES),
         cities=_city_options(),
+        contract_numbers=contract_numbers,
     )
 
 
