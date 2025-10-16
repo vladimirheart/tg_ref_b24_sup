@@ -201,6 +201,8 @@
               <th scope="col" class="sortable" data-sort-key="department">Департамент</th>
               <th scope="col" class="sortable" data-sort-key="total_work_time">Общее время работы</th>
               <th scope="col" class="sortable" data-sort-key="network">Внутренняя сеть</th>
+              <th scope="col" class="sortable" data-sort-key="network_provider">Провайдер</th>
+              <th scope="col" class="sortable" data-sort-key="network_speed">Скорость</th>
               <th scope="col" class="sortable" data-sort-key="schedule_display">Расписание</th>
             </tr>
           </thead>
@@ -272,9 +274,11 @@
 
     function parseWorkTime(value) {
       if (!value || value === '—') return 0;
+      const matchLegacy = value.match(/\(([^)]+)\)$/);
+      const source = matchLegacy ? matchLegacy[1] : value;
       let total = 0;
-      const hours = value.match(/(\d+)\s*ч/i);
-      const minutes = value.match(/(\d+)\s*мин/i);
+      const hours = source.match(/(\d+)\s*ч/i);
+      const minutes = source.match(/(\d+)\s*мин/i);
       if (hours) total += parseInt(hours[1], 10) * 60;
       if (minutes) total += parseInt(minutes[1], 10);
       return total;
@@ -305,12 +309,12 @@
     }
 
     function renderTable(items = currentItems) {
-      const data = applySorting(Array.isArray(items) ? items.slice() : []);
+        const data = applySorting(Array.isArray(items) ? items.slice() : []);
       tableBody.innerHTML = '';
       resultsCountEl.textContent = data.length;
       if (!data.length) {
         emptyState.classList.remove('d-none');
-		updateSortIndicators();
+        updateSortIndicators();
         return;
       }
       emptyState.classList.add('d-none');
@@ -326,6 +330,8 @@
           <td>${escapeHtml(item.department)}</td>
           <td>${escapeHtml(item.total_work_time)}</td>
           <td>${escapeHtml(item.network)}</td>
+          <td>${escapeHtml(item.network_provider) || '—'}</td>
+          <td>${escapeHtml(item.network_speed) || '—'}</td>
           <td>${escapeHtml(item.schedule_display)}</td>
         `;
         tr.addEventListener('click', () => {
@@ -342,7 +348,7 @@
       const params = buildParams();
       const query = params.toString();
       const url = query ? `/api/object_passports?${query}` : '/api/object_passports';
-      tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="11" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
       emptyState.classList.add('d-none');
       try {
         const response = await fetch(url);
@@ -353,7 +359,7 @@
       } catch (error) {
         console.error(error);
         currentItems = [];
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Не удалось загрузить данные</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">Не удалось загрузить данные</td></tr>';
         resultsCountEl.textContent = '0';
         updateSortIndicators();
       }
