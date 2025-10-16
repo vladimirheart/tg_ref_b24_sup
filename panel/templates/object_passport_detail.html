@@ -133,7 +133,7 @@
           <div class="row g-3">
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Департамент<span class="text-danger">*</span></label>
-              <div class="searchable-select dropdown" data-select-id="departmentSelect">
+              <div class="searchable-select dropdown" data-select-id="departmentSelect" data-force-custom-dropdown>
                 <select class="form-select d-none" id="departmentSelect">
                   <option value="">Не выбрано</option>
                   {% for value in parameter_values.get('department', []) %}
@@ -154,7 +154,7 @@
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Бизнес</label>
-              <div class="searchable-select dropdown" data-select-id="businessSelect">
+              <div class="searchable-select dropdown" data-select-id="businessSelect" data-force-custom-dropdown>
                 <select class="form-select d-none" id="businessSelect">
                   <option value="">Не выбрано</option>
                   {% for value in parameter_values.get('business', []) %}
@@ -175,7 +175,7 @@
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Тип партнёра</label>
-              <div class="searchable-select dropdown" data-select-id="partnerTypeSelect">
+              <div class="searchable-select dropdown" data-select-id="partnerTypeSelect" data-force-custom-dropdown>
                 <select class="form-select d-none" id="partnerTypeSelect">
                   <option value="">Не выбрано</option>
                   {% for value in parameter_values.get('partner_type', []) %}
@@ -196,7 +196,7 @@
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Страна</label>
-              <div class="searchable-select dropdown" data-select-id="countrySelect">
+              <div class="searchable-select dropdown" data-select-id="countrySelect" data-force-custom-dropdown>
                 <select class="form-select d-none" id="countrySelect">
                   <option value="">Не выбрано</option>
                   {% for value in parameter_values.get('country', []) %}
@@ -217,7 +217,7 @@
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Юридическое лицо</label>
-              <div class="searchable-select dropdown" data-select-id="legalEntitySelect">
+              <div class="searchable-select dropdown" data-select-id="legalEntitySelect" data-force-custom-dropdown>
                 <select class="form-select d-none" id="legalEntitySelect">
                   <option value="">Не выбрано</option>
                   {% for value in parameter_values.get('legal_entity', []) %}
@@ -722,7 +722,10 @@
       const dropdownMenu = wrapper.querySelector('.dropdown-menu');
       if (!dropdownToggle || !labelEl || !searchInput || !optionsContainer || !dropdownMenu) return;
 
-      const dropdownInstance = typeof bootstrap !== 'undefined'
+      const shouldUseBootstrapDropdown =
+        typeof bootstrap !== 'undefined' && !wrapper.hasAttribute('data-force-custom-dropdown');
+
+      const dropdownInstance = shouldUseBootstrapDropdown
         ? bootstrap.Dropdown.getOrCreateInstance(dropdownToggle, { autoClose: false })
         : null;
 
