@@ -2643,15 +2643,15 @@ function initColumnResize() {
     }
 
     // === Отправить ответ (с поддержкой reply/edit) ===
-		async function sendReply() {
-		  const ta    = document.getElementById('replyText');
-		  const text  = (ta?.value || '').trim();
-		  const admin = getOperatorName();
-		  if (!text) { alert('Введите текст ответа'); return; }
+                async function sendReply() {
+                  const ta    = document.getElementById('replyText');
+                  const text  = (ta?.value || '').trim();
+                  const admin = getOperatorName();
+                  if (!text) { alert('Введите текст ответа'); return; }
 
-		  try {
-			const resp = await fetch('/reply', {
-			  method: 'POST',
+                  try {
+                        const resp = await fetch('/reply', {
+                          method: 'POST',
 			  headers: { 'Content-Type':'application/json' },
 			  body: JSON.stringify({
 				user_id:   currentUserId,
@@ -2663,20 +2663,22 @@ function initColumnResize() {
 			});
 
 			const data = await resp.json();
-			if (!data.success) {
-			  if (typeof data.retry_after === 'number' && data.retry_after > 0) {
-				alert(`⏳ Лимит Telegram. Подождите ${data.retry_after} сек и повторите отправку.`);
-				return;
-			  }
-			  throw new Error(data.error || 'Ошибка отправки');
-			}
+                        if (!data.success) {
+                          if (typeof data.retry_after === 'number' && data.retry_after > 0) {
+                                alert(`⏳ Лимит Telegram. Подождите ${data.retry_after} сек и повторите отправку.`);
+                                return;
+                          }
+                          throw new Error(data.error || 'Ошибка отправки');
+                        }
 
-			if (data.reopened) {
-			  markTicketReopenedLocally();
-			  try { await autoRefreshTickets(); } catch(e) {}
-			  document.getElementById('closeTicketBtn')?.removeAttribute('disabled');
-			  if (typeof showToast === 'function') showToast('Заявка переоткрыта');
-			}
+                        if (data.reopened) {
+                          markTicketReopenedLocally();
+                          document.getElementById('closeTicketBtn')?.removeAttribute('disabled');
+                          if (typeof showToast === 'function') showToast('Заявка переоткрыта');
+                        }
+
+                        updateTicketStatus(currentTicketId, 'Ожидает клиента');
+                        try { await autoRefreshTickets(); } catch(e) { console.debug('Auto-refresh failed:', e); }
 
 			window.currentReplyToTgId = null;
 			window.currentEditTgId = null;
@@ -5090,26 +5092,7 @@ function findTicketEverywhere(ticketId) {
     // обработчик изменения
     sel.addEventListener('change', (e) => setOperatorTZ(e.target.value));
   })();
-  async function createTaskFromDialog(problem, location) {
-    try {
-      const r = await fetch('/api/tasks/from_dialog', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ problem, location })
-      });
-      if (!r.ok) {
-        const txt = await r.text();
-        alert('Не удалось создать задачу: ' + txt);
-        return;
-      }
-      // после успешного создания — переходим на страницу задач
-      window.location.href = '/tasks';
-    } catch (e) {
-      alert('Ошибка сети при создании задачи');
-    }
-  }
-	</script>
+        </script>
 <div class="modal fade" id="imageModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content bg-dark">
@@ -5338,30 +5321,6 @@ function findTicketEverywhere(ticketId) {
     });
   }
 })();
-
-document.addEventListener('click', async (e)=>{
-  const btn = e.target.closest('.create-task-btn');
-  if (!btn) return;
-  const payload = {
-    problem: btn.dataset.problem || '',
-    location: btn.dataset.location || ''
-  };
-  try {
-    const r = await fetch('/api/tasks/from_dialog', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials:'same-origin',
-      body: JSON.stringify(payload)
-    });
-    if (r.status === 401) { alert('Сессия истекла. Войдите заново.'); window.location.href='/login'; return; }
-    const data = await r.json();
-    if (data && data.ok) { window.location.href = '/tasks'; }
-    else { alert(data && data.error ? data.error : 'Не удалось создать задачу'); }
-  } catch (error) {
-      console.error('Не удалось создать задачу из диалога:', error);
-      alert('Сеть недоступна. Попробуйте ещё раз.');
-  }
-});
 
 document.addEventListener('click', async (e)=>{
   // открыть задачу по кнопке №DL_id
