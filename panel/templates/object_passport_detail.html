@@ -719,11 +719,56 @@
       const labelEl = wrapper.querySelector('.searchable-select-label');
       const searchInput = wrapper.querySelector('.searchable-select-search');
       const optionsContainer = wrapper.querySelector('.searchable-select-options');
-      if (!dropdownToggle || !labelEl || !searchInput || !optionsContainer) return;
+      const dropdownMenu = wrapper.querySelector('.dropdown-menu');
+      if (!dropdownToggle || !labelEl || !searchInput || !optionsContainer || !dropdownMenu) return;
 
       const dropdownInstance = typeof bootstrap !== 'undefined'
         ? bootstrap.Dropdown.getOrCreateInstance(dropdownToggle, { autoClose: false })
         : null;
+
+      const showMenu = () => {
+        if (dropdownInstance) {
+          dropdownInstance.show();
+          return;
+        }
+        wrapper.classList.add('show');
+        dropdownMenu.classList.add('show');
+        dropdownMenu.style.display = 'block';
+        dropdownToggle.setAttribute('aria-expanded', 'true');
+      };
+
+      const hideMenu = () => {
+        if (dropdownInstance) {
+          dropdownInstance.hide();
+          return;
+        }
+        wrapper.classList.remove('show');
+        dropdownMenu.classList.remove('show');
+        dropdownMenu.style.display = '';
+        dropdownToggle.setAttribute('aria-expanded', 'false');
+      };
+
+      const toggleMenu = () => {
+        const isShown = dropdownInstance
+          ? dropdownToggle.getAttribute('aria-expanded') === 'true'
+          : dropdownMenu.classList.contains('show');
+        if (isShown) {
+          hideMenu();
+        } else {
+          showMenu();
+        }
+      };
+
+      const handleDropdownShown = () => {
+        searchInput.value = '';
+        filterOptions('');
+        setTimeout(() => searchInput.focus(), 50);
+      };
+
+      const handleDropdownHidden = () => {
+        searchInput.value = '';
+        filterOptions('');
+      };
 
       function buildOptions() {
         optionsContainer.innerHTML = '';
@@ -768,23 +813,37 @@
         optionsContainer.querySelectorAll('.dropdown-item').forEach((item) => {
           item.classList.toggle('active', item === button);
         });
-        if (dropdownInstance) {
-          dropdownInstance.hide();
-        }
+        hideMenu();
+        handleDropdownHidden();
       });
 
       searchInput.addEventListener('input', () => filterOptions(searchInput.value));
 
-      wrapper.addEventListener('shown.bs.dropdown', () => {
-        searchInput.value = '';
-        filterOptions('');
-        setTimeout(() => searchInput.focus(), 50);
-      });
+      if (dropdownInstance) {
+        wrapper.addEventListener('shown.bs.dropdown', handleDropdownShown);
+        wrapper.addEventListener('hidden.bs.dropdown', handleDropdownHidden);
+      } else {
+        dropdownToggle.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const wasShown = dropdownMenu.classList.contains('show');
+          toggleMenu();
+          if (wasShown) {
+            handleDropdownHidden();
+          } else {
+            handleDropdownShown();
+          }
+        });
 
-      wrapper.addEventListener('hidden.bs.dropdown', () => {
-        searchInput.value = '';
-        filterOptions('');
-      });
+        document.addEventListener('click', (event) => {
+          if (!wrapper.contains(event.target)) {
+            if (dropdownMenu.classList.contains('show')) {
+              hideMenu();
+              handleDropdownHidden();
+            }
+          }
+        });
+      }
 
       const refresh = () => {
         buildOptions();
