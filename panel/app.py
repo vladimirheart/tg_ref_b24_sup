@@ -327,6 +327,17 @@ def _format_schedule(schedule):
             parts.append(f"{label}: {start}–{end}")
     return "; ".join(parts) if parts else "—"
 
+def _plural_form_ru(value, forms):
+    """Russian pluralization helper."""
+    try:
+        n = abs(int(value))
+    except (TypeError, ValueError):
+        n = 0
+    if n % 10 == 1 and n % 100 != 11:
+        return forms[0]
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return forms[1]
+    return forms[2]
 
 def _format_total_time(start_date, end_date):
     """Возвращает строку с общей длительностью работы.
@@ -380,7 +391,8 @@ def _format_total_time(start_date, end_date):
 
     extended_parts = []
     if years:
-        extended_parts.append(f"{years} г")
+        years_label = _plural_form_ru(years, ("год", "года", "лет"))
+        extended_parts.append(f"{years} {years_label}")
     if months:
         extended_parts.append(f"{months} мес")
     if remaining_days or not extended_parts:
