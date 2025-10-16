@@ -2,8 +2,14 @@
 <div class="sidebar" id="app-sidebar">
   <div class="sidebar-header">
     <span class="brand">Поддержка</span>
-    <button id="bellBtn" class="icon-btn" title="Оповещения">🔔</button>
-    <button id="pinSidebarBtn" class="icon-btn" title="Прикрепить/открепить">📌</button>
+    <div class="sidebar-actions" id="notify-bell-wrapper">
+      <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
+        <span class="icon">🔔</span>
+        <span id="notify-count" class="notify-count" hidden>0</span>
+      </button>
+      <div id="notify-dropdown" class="notify-dropdown" hidden role="listbox" aria-label="Оповещения"></div>
+      <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
+    </div>
   </div>
 
   <nav class="sidebar-nav">
@@ -38,13 +44,6 @@
       <span class="icon">✅</span><span class="label">Задачи</span>
     </a>
   </nav>
-</div>
-
-<!-- Колокольчик -->
-<div id="notify-bell" class="notify-bell" title="Оповещения">
-  <span class="bell">🔔</span>
-  <span id="notify-count" class="count" hidden>0</span>
-  <div id="notify-dropdown" class="notify-dropdown" hidden></div>
 </div>
 
 <style id="modal-animations-style">
