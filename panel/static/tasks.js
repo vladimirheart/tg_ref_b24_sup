@@ -88,8 +88,36 @@
 		if (sec < month) return `${Math.floor(sec / week)} нед`;
 		if (sec < year) return `${Math.floor(sec / month)} мес`;
 		return `${Math.floor(sec / year)} г`;
-	  }
         }
+        }
+
+  function formatDurationAbs(ms) {
+    const sec = Math.floor(Math.abs(ms) / 1000);
+    if (sec < 60) return `${sec} сек`;
+    if (sec < 3600) return `${Math.floor(sec / 60)} мин`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)} ч`;
+    if (sec < 604800) return `${Math.floor(sec / 86400)} дн`;
+    if (sec < 2592000) return `${Math.floor(sec / 604800)} нед`;
+    if (sec < 31536000) return `${Math.floor(sec / 2592000)} мес`;
+    return `${Math.floor(sec / 31536000)} г`;
+  }
+
+  function describeFinalOverdue(dueAt, closedAt) {
+    if (!dueAt) return { text: '', overdue: false };
+    const dueTs = new Date(dueAt).getTime();
+    const closedTs = closedAt ? new Date(closedAt).getTime() : Date.now();
+    if (Number.isNaN(dueTs) || Number.isNaN(closedTs)) {
+      return { text: '', overdue: false };
+    }
+    const diff = closedTs - dueTs;
+    if (diff > 0) {
+      return { text: `Просрочено на ${formatDurationAbs(diff)}`, overdue: true };
+    }
+    if (diff === 0) {
+      return { text: 'Завершена в срок', overdue: false };
+    }
+    return { text: 'Завершена досрочно', overdue: false };
+  }
 
   function getModalInstance() {
     if (typeof bootstrap === 'undefined' || !modalEl) return null;
@@ -158,25 +186,42 @@
 
       const final = isFinalStatus(t.status);
       const dueAtValue = t.due_at || '';
+      const closedAtValue = t.closed_at || '';
       tr.dataset.status = t.status || '';
       tr.dataset.dueAt = dueAtValue;
+      tr.dataset.closedAt = closedAtValue;
       tr.dataset.id = t.id || '';
       tr.className = '';
-      if (!final && dueAtValue) {
-        const left = new Date(dueAtValue).getTime() - Date.now();
-        if (left < 0) tr.classList.add('overdue');
-        else if (left < 86400000) tr.classList.add('warn');
+      let timeLeftText = '';
+      let timeLeftClass = 'text-muted';
+      let finalOverdue = false;
+      if (dueAtValue) {
+        if (final) {
+          const info = describeFinalOverdue(dueAtValue, closedAtValue);
+          timeLeftText = info.text;
+          finalOverdue = info.overdue;
+          timeLeftClass = info.overdue ? 'text-danger fw-semibold' : 'text-muted';
+          if (info.overdue) {
+            tr.classList.add('overdue');
+          }
+        } else {
+          const left = new Date(dueAtValue).getTime() - Date.now();
+          timeLeftText = humanLeft(left);
+          if (left < 0) {
+            tr.classList.add('overdue');
+            timeLeftClass = 'pulsating';
+          } else if (left < 86400000) {
+            tr.classList.add('warn');
+          }
+        }
       }
-      const timeLeftText = dueAtValue ? (final ? '—' : humanLeft(new Date(dueAtValue) - Date.now())) : '';
-      const timeLeftClass = (!final && tr.classList.contains('overdue')) ? 'pulsating' : 'text-muted';
-      const safeStatusAttr = (t.status || '').replace(/"/g, '&quot;');
       tr.innerHTML = `
   <td>${t.display_no || ''}</td>
   <td>${t.title || ''}</td>
   <td>${t.assignee || ''}</td>
   <td>
     ${dueAtValue ? fmtDT(dueAtValue) : '—'}
-    <div class="small ${timeLeftClass} time-left" data-due="${dueAtValue}" data-status="${safeStatusAttr}">
+    <div class="small ${timeLeftClass} time-left" data-due="${dueAtValue}" data-status="${safeStatusAttr}" data-final="${final ? '1' : '0'}" data-overdue="${finalOverdue ? '1' : '0'}">
       ${timeLeftText}
     </div>
   </td>
@@ -210,12 +255,22 @@ function updateOverdueTasks() {
     const final = isFinalStatus(status);
     if (!timeEl) return;
 
-    if (!dueAt || final) {
+    if (!dueAt) {
       row.classList.remove('overdue', 'warn');
       timeEl.classList.remove('pulsating');
       timeEl.classList.add('text-muted');
-      if (final && dueAt) timeEl.textContent = '—';
-      else if (!dueAt) timeEl.textContent = '';
+      timeEl.textContent = '';
+      return;
+    }
+
+    if (final) {
+      const isFinalOverdue = timeEl.dataset.overdue === '1';
+      row.classList.toggle('overdue', isFinalOverdue);
+      row.classList.remove('warn');
+      timeEl.classList.remove('pulsating');
+      timeEl.classList.toggle('text-danger', isFinalOverdue);
+      timeEl.classList.toggle('fw-semibold', isFinalOverdue);
+      timeEl.classList.toggle('text-muted', !isFinalOverdue);
       return;
     }
 
