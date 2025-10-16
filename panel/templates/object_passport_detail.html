@@ -59,6 +59,13 @@
     .card-toggle-btn { white-space: nowrap; border-radius: 999px; }
     .table-row-link { cursor: pointer; }
     .passport-card .card-body .form-label { font-weight: 600; font-size: 0.85rem; color: #2f3b52; }
+     #itBlock { border-top: 1px solid rgba(15, 23, 42, 0.08); padding-top: 1.5rem; }
+    .it-equipment-list { border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 0.75rem; padding: 0.75rem 1rem; background-color: #f8fafc; }
+    .it-equipment-item { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.9rem; padding: 0.25rem 0; }
+    .it-equipment-item + .it-equipment-item { border-top: 1px dashed rgba(15, 23, 42, 0.12); }
+    .it-equipment-name { font-weight: 600; color: #0f172a; }
+    .it-equipment-ip { font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: #475569; }
+    .it-equipment-empty { color: #64748b; font-size: 0.9rem; }
     .passport-card .form-control,
     .passport-card .form-select { font-size: 0.9rem; }
     .searchable-select.dropdown { width: 100%; }
@@ -126,7 +133,10 @@
       <div class="card passport-card mb-4" id="basicInfoCard">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Основная информация</span>
-          <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#basicInfoBody" aria-expanded="true">Свернуть ▲</button>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary card-toggle-btn" type="button" id="toggleItBlockBtn" aria-expanded="false">Раскрыть IT-блок</button>
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#basicInfoBody" aria-expanded="true">Свернуть ▲</button>
+          </div>
         </div>
         <div class="section-collapse show" id="basicInfoBody">
           <div class="card-body">
@@ -306,6 +316,63 @@
               </div>
               <div class="form-text" id="statusTaskHint">Выберите задачу, отражающую текущее состояние объекта.</div>
               <div class="small mt-2 text-muted" id="statusTaskInfo"></div>
+            </div>
+          </div>
+          <div class="mt-4 it-block d-none" id="itBlock">
+            <h6 class="text-uppercase text-muted small mb-3">IT-блок</h6>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Оборудование и IP-адреса</label>
+                <div class="it-equipment-list" id="itEquipmentList">
+                  <div class="it-equipment-empty">Оборудование ещё не добавлено.</div>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Подключение</label>
+                <select class="form-select form-select-sm" id="itConnectionSelect">
+                  <option value="">Не выбрано</option>
+                  {% for option in it_connection_options %}
+                  <option value="{{ option }}">{{ option }}</option>
+                  {% endfor %}
+                </select>
+                <div class="row g-2 mt-2 d-none" id="itConnectionCredentials">
+                  <div class="col-sm-6">
+                    <input type="text" class="form-control form-control-sm" id="itConnectionIdInput" placeholder="введите id" />
+                  </div>
+                  <div class="col-sm-6">
+                    <input type="text" class="form-control form-control-sm" id="itConnectionPasswordInput" placeholder="введите пароль" />
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Адрес сервера iiko</label>
+                <select class="form-select form-select-sm" id="iikoServerSelect">
+                  <option value="">Не выбрано</option>
+                  {% for option in iiko_server_options %}
+                  <option value="{{ option }}">{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Номер телефона объекта</label>
+                <input type="text" class="form-control form-control-sm" id="itObjectPhoneInput" placeholder="+7..." />
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Управляющий</label>
+                <input type="text" class="form-control form-control-sm" id="itManagerNameInput" placeholder="ФИО управляющего" />
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Телефон управляющего</label>
+                <input type="text" class="form-control form-control-sm" id="itManagerPhoneInput" placeholder="+7..." />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Затраченное время по обращениям</label>
+                <div class="form-control-plaintext fw-semibold" id="caseTimeDisplay">—</div>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Затраченное время по задачам</label>
+                <div class="form-control-plaintext fw-semibold" id="taskTimeDisplay">—</div>
+              </div>
             </div>
           </div>
           </div>
@@ -640,6 +707,19 @@
     const networkSupportPhoneInput = document.getElementById('networkSupportPhoneInput');
     const networkSpeedInput = document.getElementById('networkSpeedInput');
     const networkParamsInput = document.getElementById('networkParamsInput');
+    const itBlock = document.getElementById('itBlock');
+    const toggleItBlockBtn = document.getElementById('toggleItBlockBtn');
+    const itEquipmentList = document.getElementById('itEquipmentList');
+    const itConnectionSelect = document.getElementById('itConnectionSelect');
+    const itConnectionCredentials = document.getElementById('itConnectionCredentials');
+    const itConnectionIdInput = document.getElementById('itConnectionIdInput');
+    const itConnectionPasswordInput = document.getElementById('itConnectionPasswordInput');
+    const itObjectPhoneInput = document.getElementById('itObjectPhoneInput');
+    const itManagerNameInput = document.getElementById('itManagerNameInput');
+    const itManagerPhoneInput = document.getElementById('itManagerPhoneInput');
+    const iikoServerSelect = document.getElementById('iikoServerSelect');
+    const caseTimeDisplay = document.getElementById('caseTimeDisplay');
+    const taskTimeDisplay = document.getElementById('taskTimeDisplay');
     const networkFilesForm = document.getElementById('networkFilesForm');
     const networkFilesList = document.getElementById('networkFilesList');
     const networkFilesEmptyText = document.getElementById('networkFilesEmptyText');
@@ -952,6 +1032,108 @@
       updatePageTitle();
     }
 
+    function updateItConnectionVisibility() {
+      if (!itConnectionCredentials) return;
+      const hasValue = itConnectionSelect && (itConnectionSelect.value || '').trim();
+      itConnectionCredentials.classList.toggle('d-none', !hasValue);
+    }
+
+    function hasItBlockContent(data) {
+      if (!data || typeof data !== 'object') return false;
+      const equipmentList = Array.isArray(data.equipment) ? data.equipment : [];
+      if (
+        equipmentList.some((item) => {
+          if (!item) return false;
+          const name = typeof item.name === 'string' ? item.name.trim() : '';
+          const ip = typeof item.ip_address === 'string' ? item.ip_address.trim() : '';
+          return Boolean(name || ip);
+        })
+      ) {
+        return true;
+      }
+      const textFields = [
+        data.it_connection_type,
+        data.it_connection_id,
+        data.it_connection_password,
+        data.it_object_phone,
+        data.it_manager_name,
+        data.it_manager_phone,
+        data.it_iiko_server,
+      ];
+      if (textFields.some((value) => typeof value === 'string' && value.trim())) {
+        return true;
+      }
+      const numericFields = [data.case_time_minutes, data.task_time_minutes];
+      if (numericFields.some((value) => typeof value === 'number' && value > 0)) {
+        return true;
+      }
+      return false;
+    }
+
+    function syncItBlockToggleButton() {
+      if (!toggleItBlockBtn || !itBlock) return;
+      const hidden = itBlock.classList.contains('d-none');
+      toggleItBlockBtn.textContent = hidden ? 'Раскрыть IT-блок' : 'Свернуть IT-блок';
+      toggleItBlockBtn.setAttribute('aria-expanded', String(!hidden));
+    }
+
+    function autoShowItBlock(data) {
+      if (!itBlock) return;
+      if (itBlock.dataset.userCollapsed === 'true') {
+        syncItBlockToggleButton();
+        return;
+      }
+      if (hasItBlockContent(data)) {
+        itBlock.classList.remove('d-none');
+        itBlock.dataset.userCollapsed = 'false';
+      }
+      syncItBlockToggleButton();
+    }
+
+    function updateItEquipmentList(equipmentList) {
+      if (!itEquipmentList) return;
+      const list = Array.isArray(equipmentList) ? equipmentList.filter(Boolean) : [];
+      if (!list.length) {
+        itEquipmentList.innerHTML = '<div class="it-equipment-empty">Оборудование ещё не добавлено.</div>';
+        return;
+      }
+      itEquipmentList.innerHTML = '';
+      list.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'it-equipment-item';
+        const name = escapeHtml((item && item.name) || '—');
+        const ip = escapeHtml((item && item.ip_address) || '—');
+        row.innerHTML = `<span class="it-equipment-name">${name}</span><span class="it-equipment-ip">${ip}</span>`;
+        itEquipmentList.appendChild(row);
+      });
+      autoShowItBlock(passportData);
+    }
+
+    function updateItMetrics(metrics = {}) {
+      if (!passportData || typeof passportData !== 'object') {
+        passportData = {};
+      }
+      if (typeof metrics.caseMinutes === 'number' && !Number.isNaN(metrics.caseMinutes)) {
+        passportData.case_time_minutes = metrics.caseMinutes;
+      }
+      if (typeof metrics.caseDisplay === 'string') {
+        passportData.case_time_display = metrics.caseDisplay;
+      }
+      if (caseTimeDisplay) {
+        caseTimeDisplay.textContent = passportData.case_time_display || '—';
+      }
+      if (typeof metrics.taskMinutes === 'number' && !Number.isNaN(metrics.taskMinutes)) {
+        passportData.task_time_minutes = metrics.taskMinutes;
+      }
+      if (typeof metrics.taskDisplay === 'string') {
+        passportData.task_time_display = metrics.taskDisplay;
+      }
+      if (taskTimeDisplay) {
+        taskTimeDisplay.textContent = passportData.task_time_display || '—';
+      }
+      autoShowItBlock(passportData);
+    }
+
     function updateTitlePhotoPreview(photos) {
       if (!titlePhotoPreview || !titlePhotoImage) return;
       const list = Array.isArray(photos) ? photos : [];
@@ -1138,11 +1320,26 @@
       endDateInput.value = data.end_date || '';
       suspensionDateInput.value = data.suspension_date || '';
       resumeDateInput.value = data.resume_date || '';
+      if (itConnectionSelect) itConnectionSelect.value = data.it_connection_type || '';
+      if (itConnectionIdInput) itConnectionIdInput.value = data.it_connection_id || '';
+      if (itConnectionPasswordInput) itConnectionPasswordInput.value = data.it_connection_password || '';
+      if (itObjectPhoneInput) itObjectPhoneInput.value = data.it_object_phone || '';
+      if (itManagerNameInput) itManagerNameInput.value = data.it_manager_name || '';
+      if (itManagerPhoneInput) itManagerPhoneInput.value = data.it_manager_phone || '';
+      if (iikoServerSelect) iikoServerSelect.value = data.it_iiko_server || '';
       passportData.status_task_id = data.status_task_id != null ? data.status_task_id : null;
       passportData.status_task = data.status_task || null;
       totalTimeDisplay.textContent = data.total_work_time || '—';
       statusHistoryTotal.textContent = data.status_history_total || '—';
       passportData.status_history_total = data.status_history_total || '—';
+      updateItConnectionVisibility();
+      autoShowItBlock(data);
+      updateItMetrics({
+        caseMinutes: typeof data.case_time_minutes === 'number' ? data.case_time_minutes : undefined,
+        caseDisplay: data.case_time_display,
+        taskMinutes: typeof data.task_time_minutes === 'number' ? data.task_time_minutes : undefined,
+        taskDisplay: data.task_time_display,
+      });
       renderStatusHistory(data.status_history || []);
       updateStatusBadge();
       updateNetworkBadge();
@@ -1151,8 +1348,14 @@
       renderPhotos(data.photos || []);
       renderNetworkFiles(data.network_files || []);
       renderEquipment(data.equipment || []);
-      renderTasks(data.tasks || []);
-      renderCases(data.cases || []);
+      renderTasks(data.tasks || [], {
+        totalMinutes: typeof data.task_time_minutes === 'number' ? data.task_time_minutes : undefined,
+        totalDisplay: data.task_time_display,
+      });
+      renderCases(data.cases || [], {
+        totalMinutes: typeof data.case_time_minutes === 'number' ? data.case_time_minutes : undefined,
+        totalDisplay: data.case_time_display,
+      });
       toggleSectionsAvailability();
       updateStatusTaskRequirement();
     }
@@ -1174,6 +1377,13 @@
         network_speed: formatNetworkSpeedValue(networkSpeedInput.value),
         network_tunnel: networkTunnelInput.value.trim(),
         network_connection_params: networkParamsInput.value.trim(),
+        it_connection_type: itConnectionSelect ? itConnectionSelect.value.trim() : '',
+        it_connection_id: itConnectionIdInput ? itConnectionIdInput.value.trim() : '',
+        it_connection_password: itConnectionPasswordInput ? itConnectionPasswordInput.value.trim() : '',
+        it_object_phone: itObjectPhoneInput ? itObjectPhoneInput.value.trim() : '',
+        it_manager_name: itManagerNameInput ? itManagerNameInput.value.trim() : '',
+        it_manager_phone: itManagerPhoneInput ? itManagerPhoneInput.value.trim() : '',
+        it_iiko_server: iikoServerSelect ? iikoServerSelect.value.trim() : '',
         start_date: startDateInput.value || '',
         end_date: endDateInput.value || '',
         suspension_date: suspensionDateInput.value || '',
@@ -1276,9 +1486,32 @@
       updateObjectTitle();
     }
 
-    function renderCases(cases) {
+    function renderCases(cases, summary) {
       const items = Array.isArray(cases) ? cases : [];
       passportData.cases = items;
+      const summaryData = summary && typeof summary === 'object' ? summary : {};
+      const summaryMinutesRaw = summaryData.totalMinutes ?? summaryData.total_minutes;
+      const summaryDisplayRaw = summaryData.formattedTotal || summaryData.totalDisplay || summaryData.total_display;
+      if (typeof summaryMinutesRaw === 'number' && !Number.isNaN(summaryMinutesRaw)) {
+        passportData.case_time_minutes = summaryMinutesRaw;
+      }
+      if (typeof summaryDisplayRaw === 'string') {
+        passportData.case_time_display = summaryDisplayRaw;
+      }
+      const caseMinutesValue =
+        typeof summaryMinutesRaw === 'number' && !Number.isNaN(summaryMinutesRaw)
+          ? summaryMinutesRaw
+          : passportData.case_time_minutes;
+      const caseDisplayValue =
+        typeof summaryDisplayRaw === 'string' && summaryDisplayRaw
+          ? summaryDisplayRaw
+          : passportData.case_time_display;
+      updateItMetrics({
+        caseMinutes: typeof caseMinutesValue === 'number' && !Number.isNaN(caseMinutesValue)
+          ? caseMinutesValue
+          : undefined,
+        caseDisplay: caseDisplayValue,
+      });
       casesTableBody.innerHTML = '';
       if (!items.length) {
         casesEmptyText.classList.remove('d-none');
@@ -1318,14 +1551,17 @@
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Ошибка при загрузке обращений');
         }
-        renderCases(data.items || []);
+        renderCases(data.items || [], {
+          totalMinutes: typeof data.total_minutes === 'number' ? data.total_minutes : undefined,
+          totalDisplay: data.total_display,
+        });
       } catch (error) {
         console.error(error);
         showSaveMessage('error', error.message || 'Не удалось обновить обращения.');
       }
     }
 
-    function renderTasks(tasks) {
+    function renderTasks(tasks, summary) {
       if (!tasksTableBody || !tasksEmptyText) return;
       const list = Array.isArray(tasks) ? tasks : [];
       passportData.tasks = list;
@@ -1335,6 +1571,29 @@
           passportData.status_task = matchedTask;
         }
       }
+      const summaryData = summary && typeof summary === 'object' ? summary : {};
+      const taskMinutesRaw = summaryData.totalMinutes ?? summaryData.total_minutes;
+      const taskDisplayRaw = summaryData.formattedTotal || summaryData.totalDisplay || summaryData.total_display;
+      if (typeof taskMinutesRaw === 'number' && !Number.isNaN(taskMinutesRaw)) {
+        passportData.task_time_minutes = taskMinutesRaw;
+      }
+      if (typeof taskDisplayRaw === 'string') {
+        passportData.task_time_display = taskDisplayRaw;
+      }
+      const taskMinutesValue =
+        typeof taskMinutesRaw === 'number' && !Number.isNaN(taskMinutesRaw)
+          ? taskMinutesRaw
+          : passportData.task_time_minutes;
+      const taskDisplayValue =
+        typeof taskDisplayRaw === 'string' && taskDisplayRaw
+          ? taskDisplayRaw
+          : passportData.task_time_display;
+      updateItMetrics({
+        taskMinutes: typeof taskMinutesValue === 'number' && !Number.isNaN(taskMinutesValue)
+          ? taskMinutesValue
+          : undefined,
+        taskDisplay: taskDisplayValue,
+      });
       tasksTableBody.innerHTML = '';
       if (!list.length) {
         tasksEmptyText.classList.remove('d-none');
@@ -1377,7 +1636,10 @@
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Ошибка при загрузке задач');
         }
-        renderTasks(data.items || []);
+        renderTasks(data.items || [], {
+          totalMinutes: typeof data.total_minutes === 'number' ? data.total_minutes : undefined,
+          totalDisplay: data.total_display,
+        });
       } catch (error) {
         console.error(error);
         showSaveMessage('error', error.message || 'Не удалось обновить задачи.');
@@ -1931,6 +2193,7 @@
       } else {
         equipmentEmptyText.classList.add('d-none');
       }
+      updateItEquipmentList(list);
       list.forEach((item, index) => {
         const isNew = item.id === null || typeof item.id === 'undefined';
         const card = document.createElement('div');
@@ -2248,6 +2511,17 @@
       select.addEventListener('change', updateObjectTitle);
     });
     cityInput.addEventListener('input', updateObjectTitle);
+    if (toggleItBlockBtn && itBlock) {
+      toggleItBlockBtn.addEventListener('click', () => {
+        const hiddenNow = itBlock.classList.toggle('d-none');
+        itBlock.dataset.userCollapsed = hiddenNow ? 'true' : 'false';
+        syncItBlockToggleButton();
+      });
+      syncItBlockToggleButton();
+    }
+    if (itConnectionSelect) {
+      itConnectionSelect.addEventListener('change', updateItConnectionVisibility);
+    }
     refreshCasesBtn.addEventListener('click', refreshCases);
     if (refreshTasksBtn) {
       refreshTasksBtn.addEventListener('click', refreshTasks);
