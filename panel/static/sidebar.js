@@ -73,6 +73,29 @@
   const bellWrapper = document.getElementById('notify-bell-wrapper');
   const bellDropdown = document.getElementById('notify-dropdown');
   let notificationsOpen = false;
+  let toastEl = null;
+  let toastTimer = null;
+  let lastUnreadCount = 0;
+  let hasInitialUnread = false;
+
+  function showNotificationToast(message) {
+    if (!message) return;
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'notify-toast';
+      toastEl.setAttribute('role', 'status');
+      toastEl.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      if (toastEl) {
+        toastEl.classList.remove('show');
+      }
+    }, 3000);
+  }
 
   function setBellCount(value) {
     if (!bellBadge) return;
@@ -118,6 +141,8 @@
       const items = Array.isArray(data) ? data : Array.isArray(data.items) ? data.items : [];
       renderNotifications(items);
       setBellCount(0);
+      lastUnreadCount = 0;
+      hasInitialUnread = true;
       const markPromises = items
         .filter((item) => item && item.id)
         .map((item) => fetch(`/api/notifications/${item.id}/read`, { method: 'POST' }));
@@ -141,7 +166,15 @@
       const response = await fetch('/api/notifications/unread_count');
       if (!response.ok) return;
       const data = await response.json();
-      setBellCount(Number(data.count || 0));
+      const newCount = Number(data.count || 0);
+      setBellCount(newCount);
+      if (hasInitialUnread && newCount > lastUnreadCount) {
+        const diff = newCount - lastUnreadCount;
+        const message = diff === 1 ? 'Новое оповещение' : `Новых оповещений: ${diff}`;
+        showNotificationToast(message);
+      }
+      lastUnreadCount = newCount;
+      hasInitialUnread = true;
     } catch (error) {
       /* ignore */
     }
