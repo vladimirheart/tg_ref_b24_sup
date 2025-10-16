@@ -544,16 +544,48 @@ def _fetch_tasks_for_department(department, search=None, limit=200):
         conn.close()
 
 
+def _ensure_single_title_photo(conn, passport_id, keep_photo_id):
+    if keep_photo_id is None:
+        return
+    conn.execute(
+        """
+        UPDATE object_passport_photos
+        SET category = 'archive', updated_at = datetime('now')
+        WHERE passport_id = ?
+          AND id != ?
+          AND LOWER(COALESCE(category, '')) = 'title'
+        """,
+        (passport_id, keep_photo_id),
+    )
+
+
 def _fetch_passport_photos(conn, passport_id):
     rows = conn.execute(
         """
-        SELECT id, passport_id, category, caption, filename
+        SELECT id, passport_id, category, caption, filename, created_at
         FROM object_passport_photos
         WHERE passport_id = ?
-        ORDER BY created_at DESC
+        ORDER BY CASE WHEN LOWER(COALESCE(category, '')) = 'title' THEN 0 ELSE 1 END,
+                 datetime(created_at) DESC,
+                 id DESC
         """,
         (passport_id,),
     ).fetchall()
+    title_ids = [row["id"] for row in rows if (row["category"] or "").lower() == "title"]
+    if len(title_ids) > 1:
+        _ensure_single_title_photo(conn, passport_id, title_ids[0])
+        conn.commit()
+        rows = conn.execute(
+            """
+            SELECT id, passport_id, category, caption, filename, created_at
+            FROM object_passport_photos
+            WHERE passport_id = ?
+            ORDER BY CASE WHEN LOWER(COALESCE(category, '')) = 'title' THEN 0 ELSE 1 END,
+                     datetime(created_at) DESC,
+                     id DESC
+            """,
+            (passport_id,),
+        ).fetchall()
     items = []
     for row in rows:
         items.append(
@@ -4882,13 +4914,16 @@ def api_object_passport_add_photo(passport_id):
     relative_path = os.path.relpath(file_path, OBJECT_PASSPORT_UPLOADS_DIR).replace("\\", "/")
 
     with get_passport_db() as conn:
-        conn.execute(
+        cur = conn.execute(
             """
             INSERT INTO object_passport_photos (passport_id, category, caption, filename)
             VALUES (?, ?, ?, ?)
             """,
             (passport_id, category, caption, relative_path),
         )
+        photo_id = cur.lastrowid
+        if category == "title":
+            _ensure_single_title_photo(conn, passport_id, photo_id)
         conn.commit()
         photos = _fetch_passport_photos(conn, passport_id)
 
@@ -4975,6 +5010,7 @@ def api_object_passport_update_photo(photo_id):
     payload = request.json or {}
     updates = []
     params = []
+    set_title = False
 
     if "caption" in payload:
         caption = (payload.get("caption") or "").strip()
@@ -4987,6 +5023,7 @@ def api_object_passport_update_photo(photo_id):
             return jsonify({"success": False, "error": "Недопустимый тип фото"}), 400
         updates.append("category = ?")
         params.append(category)
+        set_title = category == "title"
 
     if not updates:
         return jsonify({"success": False, "error": "Нет данных для обновления"}), 400
@@ -5005,6 +5042,8 @@ def api_object_passport_update_photo(photo_id):
             f"UPDATE object_passport_photos SET {', '.join(updates)}, updated_at = datetime('now') WHERE id = ?",
             params,
         )
+        if set_title:
+            _ensure_single_title_photo(conn, row["passport_id"], photo_id)
         conn.commit()
         photos = _fetch_passport_photos(conn, row["passport_id"])
     finally:
