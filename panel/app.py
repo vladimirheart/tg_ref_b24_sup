@@ -2389,11 +2389,9 @@ def tickets_list():
                 -- кто последний писал (с учётом канала)
                 (SELECT sender
                  FROM chat_history h
-                 WHERE h.ticket_id = m.ticket_id AND (h.channel_id = t.channel_id OR h.channel_id IS NULL OR t.channel_id IS NULL)
-                 ORDER BY
-                   substr(timestamp,1,19) DESC,
-                   COALESCE(tg_message_id, 0) DESC,
-                   h.rowid DESC
+                 WHERE h.ticket_id = m.ticket_id
+                   AND (h.channel_id = t.channel_id OR h.channel_id IS NULL OR t.channel_id IS NULL)
+                 ORDER BY h.rowid DESC
                  LIMIT 1
                 ) AS last_sender,
 
@@ -2408,11 +2406,13 @@ def tickets_list():
 
                 -- время последнего сообщения клиента (может пригодиться на фронтенде)
                 (
-                  SELECT MAX(timestamp)
+                  SELECT h.timestamp
                   FROM chat_history h
                   WHERE h.ticket_id = m.ticket_id
                     AND (h.channel_id = t.channel_id OR h.channel_id IS NULL OR t.channel_id IS NULL)
                     AND LOWER(COALESCE(h.sender, '')) = 'user'
+                  ORDER BY h.rowid DESC
+                  LIMIT 1
                 ) AS last_user_message_at,
 
                 -- был ли ответ поддержки (с учётом канала)
