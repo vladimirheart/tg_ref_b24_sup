@@ -119,6 +119,39 @@ body.with-sidebar {
   background: #ef4444; color: #fff; font-size: 12px;
 }
 
+.notify-dropdown {
+  position: fixed;
+  right: 12px;
+  bottom: 48px;
+  width: 360px;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+  padding: 8px;
+  z-index: calc(var(--sidebar-z) + 2);
+}
+
+.notify-dropdown .notif-item {
+  position: relative;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.notify-dropdown .notif-item:hover {
+  background: #f3f4f6;
+}
+
+.notify-dropdown .notif-time {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
 /* Флайаут уведомлений */
 .notif-flyout {
   position: fixed;
