@@ -152,8 +152,9 @@ body.with-sidebar {
 .notify-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
-  width: min(320px, calc(100vw - 32px));
+  left: 3px;
+  right: auto;
+  width: min(360px, calc(100vw - 6px));
   max-height: 50vh;
   overflow-y: auto;
   background: #fff;
@@ -180,6 +181,28 @@ body.with-sidebar {
   font-size: 12px;
   color: #6b7280;
   margin-top: 4px;
+}
+
+.notify-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 12px);
+  background: #1d4ed8;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.25);
+  font-size: 15px;
+  z-index: calc(var(--sidebar-z) + 5);
+  opacity: 0;
+  transition: opacity .2s ease, transform .2s ease;
+  pointer-events: none;
+}
+
+.notify-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 /* === Унифицированные состояния иконок в сайдбаре === */
