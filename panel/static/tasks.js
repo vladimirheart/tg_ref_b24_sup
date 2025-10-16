@@ -49,6 +49,13 @@
     const d = new Date(s);
     return d.toLocaleString();
   }
+  function escapeAttr(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
     function isFinalStatus(status) {
     return FINAL_STATUSES.has(String(status || '').trim().toLowerCase());
   }
@@ -215,6 +222,7 @@
           }
         }
       }
+      const safeStatusAttr = escapeAttr(t.status);
       tr.innerHTML = `
   <td>${t.display_no || ''}</td>
   <td>${t.title || ''}</td>
