@@ -9,11 +9,61 @@
   <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
   <style>
     .filters-card label { font-weight: 600; font-size: 0.85rem; }
-    .filters-card .form-control, .filters-card .form-select { font-size: 0.9rem; }
-    #passportsTable tbody tr { cursor: pointer; transition: background-color 0.15s ease-in-out; }
-    #passportsTable tbody tr:hover { background-color: rgba(13, 110, 253, 0.1); }
-    .table-responsive { overflow-x: auto; }
-    .status-badge { font-size: 0.8rem; }
+    .filters-card .form-control,
+    .filters-card .form-select {
+      font-size: 0.9rem;
+    }
+    #passportsTable tbody tr {
+      cursor: pointer;
+      transition: background-color 0.15s ease-in-out;
+    }
+    #passportsTable tbody tr:hover {
+      background-color: rgba(13, 110, 253, 0.1);
+    }
+    .table-responsive {
+      overflow-x: auto;
+    }
+    .status-badge {
+      font-size: 0.8rem;
+    }
+    .sortable {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .sortable::after {
+      content: " \2195";
+      font-size: 0.8em;
+      opacity: 0.5;
+    }
+    .sort-asc::after {
+      content: " \2191";
+      opacity: 1;
+    }
+    .sort-desc::after {
+      content: " \2193";
+      opacity: 1;
+    }
+    .table-dark th.sortable {
+      background-color: #003366 !important;
+      color: #fff !important;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+    }
+    .table-dark th.sortable:hover {
+      background-color: #cce6ff !important;
+      color: #000 !important;
+    }
+    .filters-trigger {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
+    .filters-trigger label {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
@@ -31,75 +81,105 @@
         </div>
       </div>
 
-      <div class="card mt-4 filters-card">
-        <div class="card-body">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4 col-lg-3">
-              <label for="searchInput" class="form-label">Поиск по всем колонкам</label>
-              <input type="text" id="searchInput" class="form-control" placeholder="Введите текст для поиска" />
+      <div class="filters-trigger mt-4">
+        <div class="flex-grow-1 flex-sm-grow-0">
+          <label for="searchInput" class="form-label">Поиск по всем колонкам</label>
+          <input type="text" id="searchInput" class="form-control" placeholder="Введите текст для поиска" />
+        </div>
+        <div class="d-flex align-items-end gap-2">
+          <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#filtersModal">
+            ⚙️ Фильтры
+          </button>
+          <button class="btn btn-outline-secondary" type="button" id="resetFiltersBtn">Сбросить</button>
+        </div>
+      </div>
+
+      <div class="modal fade" id="filtersModal" tabindex="-1" aria-labelledby="filtersModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="filtersModalLabel">Фильтры паспортов</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
-            <div class="col-md-3 col-lg-2">
-              <label for="filterBusiness" class="form-label">Бизнес</label>
-              <select id="filterBusiness" class="form-select">
-                <option value="">Все</option>
-                {% for value in parameter_values.get('business', []) %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterBusiness" class="form-label">Бизнес</label>
+                  <select id="filterBusiness" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in parameter_values.get('business', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterPartnerType" class="form-label">Тип партнёра</label>
+                  <select id="filterPartnerType" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in parameter_values.get('partner_type', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterCountry" class="form-label">Страна</label>
+                  <select id="filterCountry" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in parameter_values.get('country', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterLegalEntity" class="form-label">ЮЛ</label>
+                  <select id="filterLegalEntity" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in parameter_values.get('legal_entity', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterCity" class="form-label">Город</label>
+                  <select id="filterCity" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in cities %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterDepartment" class="form-label">Департамент</label>
+                  <select id="filterDepartment" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in parameter_values.get('department', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterStatus" class="form-label">Статус</label>
+                  <select id="filterStatus" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in statuses %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="filterContract" class="form-label">Номер договора</label>
+                  <select id="filterContract" class="form-select">
+                    <option value="">Все</option>
+                    {% for value in contract_numbers %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div class="col-md-3 col-lg-2">
-              <label for="filterPartnerType" class="form-label">Тип партнёра</label>
-              <select id="filterPartnerType" class="form-select">
-                <option value="">Все</option>
-                {% for value in parameter_values.get('partner_type', []) %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3 col-lg-2">
-              <label for="filterCountry" class="form-label">Страна</label>
-              <select id="filterCountry" class="form-select">
-                <option value="">Все</option>
-                {% for value in parameter_values.get('country', []) %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3 col-lg-2">
-              <label for="filterLegalEntity" class="form-label">ЮЛ</label>
-              <select id="filterLegalEntity" class="form-select">
-                <option value="">Все</option>
-                {% for value in parameter_values.get('legal_entity', []) %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3 col-lg-2">
-              <label for="filterCity" class="form-label">Город</label>
-              <select id="filterCity" class="form-select">
-                <option value="">Все</option>
-                {% for value in cities %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3 col-lg-2">
-              <label for="filterDepartment" class="form-label">Департамент</label>
-              <select id="filterDepartment" class="form-select">
-                <option value="">Все</option>
-                {% for value in parameter_values.get('department', []) %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3 col-lg-2">
-              <label for="filterStatus" class="form-label">Статус</label>
-              <select id="filterStatus" class="form-select">
-                <option value="">Все</option>
-                {% for value in statuses %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-action="reset-modal-filters">Сбросить</button>
+              <button type="button" class="btn btn-primary" id="applyFiltersBtn">Применить</button>
             </div>
           </div>
         </div>
@@ -113,15 +193,15 @@
         <table class="table table-hover align-middle" id="passportsTable">
           <thead class="table-dark">
             <tr>
-              <th scope="col">Бизнес</th>
-              <th scope="col">Тип партнёра</th>
-              <th scope="col">Страна</th>
-              <th scope="col">ЮЛ</th>
-              <th scope="col">Город</th>
-              <th scope="col">Департамент</th>
-              <th scope="col">Общее время работы</th>
-              <th scope="col">Внутренняя сеть</th>
-              <th scope="col">Расписание</th>
+              <th scope="col" class="sortable" data-sort-key="business">Бизнес</th>
+              <th scope="col" class="sortable" data-sort-key="partner_type">Тип партнёра</th>
+              <th scope="col" class="sortable" data-sort-key="country">Страна</th>
+              <th scope="col" class="sortable" data-sort-key="legal_entity">ЮЛ</th>
+              <th scope="col" class="sortable" data-sort-key="city">Город</th>
+              <th scope="col" class="sortable" data-sort-key="department">Департамент</th>
+              <th scope="col" class="sortable" data-sort-key="total_work_time">Общее время работы</th>
+              <th scope="col" class="sortable" data-sort-key="network">Внутренняя сеть</th>
+              <th scope="col" class="sortable" data-sort-key="schedule_display">Расписание</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -133,6 +213,7 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     const filters = {
       search: document.getElementById('searchInput'),
@@ -143,11 +224,20 @@
       city: document.getElementById('filterCity'),
       department: document.getElementById('filterDepartment'),
       status: document.getElementById('filterStatus'),
+      contract: document.getElementById('filterContract'),
     };
 
     const resultsCountEl = document.getElementById('resultsCount');
     const tableBody = document.querySelector('#passportsTable tbody');
     const emptyState = document.getElementById('emptyState');
+    const filtersModalEl = document.getElementById('filtersModal');
+    const filtersModal = filtersModalEl ? new bootstrap.Modal(filtersModalEl) : null;
+    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+    const resetModalBtn = filtersModalEl ? filtersModalEl.querySelector('[data-action="reset-modal-filters"]') : null;
+
+    let currentItems = [];
+    let sortConfig = { key: null, direction: 'asc' };
 
     function escapeHtml(value) {
       if (value === null || value === undefined) return '';
@@ -161,16 +251,17 @@
 
     function buildParams() {
       const params = new URLSearchParams();
-      const searchValue = filters.search.value.trim();
+      const searchValue = (filters.search?.value || '').trim();
       if (searchValue) params.set('search', searchValue);
       const mapping = [
-        ['business', filters.business.value],
-        ['partner_type', filters.partnerType.value],
-        ['country', filters.country.value],
-        ['legal_entity', filters.legalEntity.value],
-        ['city', filters.city.value],
-        ['department', filters.department.value],
-        ['status', filters.status.value],
+        ['business', filters.business?.value],
+        ['partner_type', filters.partnerType?.value],
+        ['country', filters.country?.value],
+        ['legal_entity', filters.legalEntity?.value],
+        ['city', filters.city?.value],
+        ['department', filters.department?.value],
+        ['status', filters.status?.value],
+        ['network_contract_number', filters.contract?.value],
       ];
       mapping.forEach(([key, value]) => {
         const trimmed = (value || '').trim();
@@ -179,34 +270,51 @@
       return params;
     }
 
-    async function loadPassports() {
-      const params = buildParams();
-      const query = params.toString();
-      const url = query ? `/api/object_passports?${query}` : '/api/object_passports';
-      tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
-      emptyState.classList.add('d-none');
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Ошибка загрузки данных');
-        const data = await response.json();
-        const items = Array.isArray(data.items) ? data.items : [];
-        renderTable(items);
-      } catch (error) {
-        console.error(error);
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Не удалось загрузить данные</td></tr>';
-        resultsCountEl.textContent = '0';
-      }
+    function parseWorkTime(value) {
+      if (!value || value === '—') return 0;
+      let total = 0;
+      const hours = value.match(/(\d+)\s*ч/i);
+      const minutes = value.match(/(\d+)\s*мин/i);
+      if (hours) total += parseInt(hours[1], 10) * 60;
+      if (minutes) total += parseInt(minutes[1], 10);
+      return total;
     }
 
-    function renderTable(items) {
+    function applySorting(items) {
+      if (!sortConfig.key) return items;
+      const multiplier = sortConfig.direction === 'asc' ? 1 : -1;
+      const key = sortConfig.key;
+      items.sort((a, b) => {
+        if (key === 'total_work_time') {
+          return (parseWorkTime(a[key]) - parseWorkTime(b[key])) * multiplier;
+        }
+        const valueA = (a[key] ?? '').toString().toLowerCase();
+        const valueB = (b[key] ?? '').toString().toLowerCase();
+        return valueA.localeCompare(valueB, 'ru') * multiplier;
+      });
+      return items;
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll('#passportsTable thead th.sortable').forEach((th) => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sortKey === sortConfig.key) {
+          th.classList.add(sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+      });
+    }
+
+    function renderTable(items = currentItems) {
+      const data = applySorting(Array.isArray(items) ? items.slice() : []);
       tableBody.innerHTML = '';
-      resultsCountEl.textContent = items.length;
-      if (!items.length) {
+      resultsCountEl.textContent = data.length;
+      if (!data.length) {
         emptyState.classList.remove('d-none');
+		updateSortIndicators();
         return;
       }
       emptyState.classList.add('d-none');
-      items.forEach((item) => {
+      data.forEach((item) => {
         const tr = document.createElement('tr');
         tr.dataset.id = item.id;
         tr.innerHTML = `
@@ -227,23 +335,116 @@
         });
         tableBody.appendChild(tr);
       });
+      updateSortIndicators();
     }
 
-    let searchTimeout;
-    filters.search.addEventListener('input', () => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(loadPassports, 300);
+    async function loadPassports() {
+      const params = buildParams();
+      const query = params.toString();
+      const url = query ? `/api/object_passports?${query}` : '/api/object_passports';
+      tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
+      emptyState.classList.add('d-none');
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Ошибка загрузки данных');
+        const data = await response.json();
+        currentItems = Array.isArray(data.items) ? data.items : [];
+        renderTable(currentItems);
+      } catch (error) {
+        console.error(error);
+        currentItems = [];
+        tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Не удалось загрузить данные</td></tr>';
+        resultsCountEl.textContent = '0';
+        updateSortIndicators();
+      }
+    }
+
+    function toggleSort(key) {
+      if (!key) return;
+      if (sortConfig.key === key) {
+        sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortConfig.key = key;
+        sortConfig.direction = 'asc';
+      }
+      renderTable();
+    }
+
+    document.querySelectorAll('#passportsTable thead th.sortable').forEach((th) => {
+      th.addEventListener('click', () => toggleSort(th.dataset.sortKey));
     });
 
-    [filters.business, filters.partnerType, filters.country, filters.legalEntity, filters.city, filters.department, filters.status].forEach((select) => {
-      select.addEventListener('change', loadPassports);
-    });
+    let searchTimeout;
+    if (filters.search) {
+      filters.search.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(loadPassports, 300);
+      });
+    }
+
+    function resetAllFilters({ includeSearch = false } = {}) {
+      Object.values(filters).forEach((element) => {
+        if (!element) return;
+        if (!includeSearch && element === filters.search) return;
+        element.value = '';
+      });
+    }
+
+    if (applyFiltersBtn) {
+      applyFiltersBtn.addEventListener('click', () => {
+        loadPassports();
+        if (filtersModal) {
+          filtersModal.hide();
+        }
+      });
+    }
+
+    if (resetFiltersBtn) {
+      resetFiltersBtn.addEventListener('click', () => {
+        resetAllFilters({ includeSearch: true });
+        loadPassports();
+      });
+    }
+
+    if (resetModalBtn) {
+      resetModalBtn.addEventListener('click', () => {
+        resetAllFilters();
+      });
+    }
 
     document.getElementById('exportBtn').addEventListener('click', () => {
       const params = buildParams();
       const query = params.toString();
       const url = query ? `/object_passports/export?${query}` : '/object_passports/export';
       window.location.href = url;
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (filters.search) {
+      const searchFromUrl = urlParams.get('search');
+      if (searchFromUrl) {
+        filters.search.value = searchFromUrl;
+      }
+    }
+
+    const filterParamMapping = {
+      business: ['business'],
+      partnerType: ['partner_type'],
+      country: ['country'],
+      legalEntity: ['legal_entity'],
+      city: ['city'],
+      department: ['department'],
+      status: ['status'],
+      contract: ['network_contract_number', 'contract_number', 'contract'],
+    };
+
+    Object.entries(filterParamMapping).forEach(([key, paramNames]) => {
+      const element = filters[key];
+      if (!element) return;
+      const valueFromUrl = paramNames.map((name) => urlParams.get(name)).find((val) => val !== null && val !== '');
+      if (valueFromUrl) {
+        element.value = valueFromUrl;
+      }
     });
 
     loadPassports();
