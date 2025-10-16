@@ -67,6 +67,8 @@ PARAMETER_TYPES = {
     "legal_entity": "ЮЛ",
     "department": "Департамент",
     "network": "Внутренняя сеть",
+    "it_connection": "Подключения IT-блока",
+    "iiko_server": "Адреса серверов iiko",
 }
 
 # Подключение к базе
@@ -214,6 +216,13 @@ def _ensure_object_passport_columns():
         "status_task_id": "INTEGER",
         "suspension_date": "TEXT",
         "resume_date": "TEXT",
+        "it_connection_type": "TEXT",
+        "it_connection_id": "TEXT",
+        "it_connection_password": "TEXT",
+        "it_object_phone": "TEXT",
+        "it_manager_name": "TEXT",
+        "it_manager_phone": "TEXT",
+        "it_iiko_server": "TEXT",
     }
     with get_passport_db() as conn:
         existing_columns = {
@@ -475,6 +484,66 @@ def _format_file_size(value):
             return f"{size_float:.1f} {unit}".replace(".0", "")
         size_float /= 1024
     return f"{size_float:.1f} ТБ"
+
+
+def _calculate_department_case_minutes(department):
+    if not department:
+        return 0
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """
+            SELECT SUM(
+                CASE
+                    WHEN t.status = 'resolved'
+                         AND t.resolved_at IS NOT NULL
+                         AND m.created_date IS NOT NULL
+                         AND m.created_time IS NOT NULL
+                    THEN (julianday(t.resolved_at) - julianday(m.created_date || ' ' || m.created_time)) * 24 * 60
+                    ELSE 0
+                END
+            ) AS total_minutes
+            FROM tickets t
+            JOIN messages m ON m.ticket_id = t.ticket_id
+            WHERE LOWER(TRIM(m.location_name)) = LOWER(TRIM(?))
+            """,
+            (department,),
+        ).fetchone()
+        total = row["total_minutes"] if row and row["total_minutes"] is not None else 0
+        if total is None:
+            return 0
+        return max(int(round(total)), 0)
+    finally:
+        conn.close()
+
+
+def _calculate_department_task_minutes(department):
+    if not department:
+        return 0
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """
+            SELECT SUM(
+                CASE
+                    WHEN t.closed_at IS NOT NULL AND t.created_at IS NOT NULL
+                    THEN (julianday(t.closed_at) - julianday(t.created_at)) * 24 * 60
+                    ELSE 0
+                END
+            ) AS total_minutes
+            FROM tasks t
+            JOIN task_links tl ON tl.task_id = t.id
+            JOIN messages m ON m.ticket_id = tl.ticket_id
+            WHERE LOWER(TRIM(m.location_name)) = LOWER(TRIM(?))
+            """,
+            (department,),
+        ).fetchone()
+        total = row["total_minutes"] if row and row["total_minutes"] is not None else 0
+        if total is None:
+            return 0
+        return max(int(round(total)), 0)
+    finally:
+        conn.close()
 
 
 def _fetch_cases_for_department(department, limit=200):
@@ -855,6 +924,13 @@ def _serialize_passport_row(row):
         "network_legal_entity": row["network_legal_entity"] or "",
         "network_tunnel": row["network_tunnel"] or "",
         "network_speed": row["network_speed"] or "",
+        "it_connection_type": row["it_connection_type"] or "",
+        "it_connection_id": row["it_connection_id"] or "",
+        "it_connection_password": row["it_connection_password"] or "",
+        "it_object_phone": row["it_object_phone"] or "",
+        "it_manager_name": row["it_manager_name"] or "",
+        "it_manager_phone": row["it_manager_phone"] or "",
+        "it_iiko_server": row["it_iiko_server"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
         "suspension_date": row["suspension_date"] or "",
@@ -896,6 +972,13 @@ def _serialize_passport_detail(conn, row):
         "network_speed": row["network_speed"] or "",
         "network_tunnel": row["network_tunnel"] or "",
         "network_connection_params": row["network_connection_params"] or "",
+        "it_connection_type": row["it_connection_type"] or "",
+        "it_connection_id": row["it_connection_id"] or "",
+        "it_connection_password": row["it_connection_password"] or "",
+        "it_object_phone": row["it_object_phone"] or "",
+        "it_manager_name": row["it_manager_name"] or "",
+        "it_manager_phone": row["it_manager_phone"] or "",
+        "it_iiko_server": row["it_iiko_server"] or "",
         "start_date": row["start_date"] or "",
         "end_date": row["end_date"] or "",
         "suspension_date": row["suspension_date"] or "",
@@ -907,7 +990,17 @@ def _serialize_passport_detail(conn, row):
         "photos": _fetch_passport_photos(conn, row["id"]),
         "network_files": _fetch_network_files(conn, row["id"]),
         "equipment": _fetch_passport_equipment(conn, row["id"]),
+        "case_time_minutes": 0,
+        "case_time_display": "—",
+        "task_time_minutes": 0,
+        "task_time_display": "—",
     }
+    case_minutes = _calculate_department_case_minutes(detail["department"])
+    detail["case_time_minutes"] = case_minutes
+    detail["case_time_display"] = format_time_duration(case_minutes)
+    task_minutes = _calculate_department_task_minutes(detail["department"])
+    detail["task_time_minutes"] = task_minutes
+    detail["task_time_display"] = format_time_duration(task_minutes)
     status_history = _fetch_status_periods(conn, row["id"])
     if not status_history and (row["suspension_date"] or row["resume_date"]):
         _sync_status_period(
@@ -1070,6 +1163,13 @@ def _blank_passport_detail():
         "network_speed": "",
         "network_tunnel": "",
         "network_connection_params": "",
+        "it_connection_type": "",
+        "it_connection_id": "",
+        "it_connection_password": "",
+        "it_object_phone": "",
+        "it_manager_name": "",
+        "it_manager_phone": "",
+        "it_iiko_server": "",
         "start_date": "",
         "end_date": "",
         "suspension_date": "",
@@ -1079,6 +1179,10 @@ def _blank_passport_detail():
         "status_history": [],
         "status_history_total": "—",
         "total_work_time": "—",
+        "case_time_minutes": 0,
+        "case_time_display": "—",
+        "task_time_minutes": 0,
+        "task_time_display": "—",
         "schedule": [
             {
                 "day": key,
@@ -1115,6 +1219,8 @@ def _render_passport_template(passport_detail, is_new):
     support_phone_options = []
     speed_options = []
     legal_entity_options = []
+    it_connection_options = []
+    iiko_server_options = []
 
     for profile in network_profiles:
         if not isinstance(profile, dict):
@@ -1124,6 +1230,14 @@ def _render_passport_template(passport_detail, is_new):
         _append_unique(support_phone_options, (profile.get("support_phone") or "").strip())
         _append_unique(speed_options, (profile.get("speed") or "").strip())
         _append_unique(legal_entity_options, (profile.get("legal_entity") or "").strip())
+
+    for option in parameter_values.get("it_connection", []):
+        _append_unique(it_connection_options, (option or "").strip())
+    if not it_connection_options:
+        it_connection_options = ["RMSviewer", "Anydes", "Ассистент", "VNC"]
+
+    for option in parameter_values.get("iiko_server", []):
+        _append_unique(iiko_server_options, (option or "").strip())
     return render_template(
         "object_passport_detail.html",
         passport_payload=json.dumps(payload, ensure_ascii=False),
@@ -1137,6 +1251,8 @@ def _render_passport_template(passport_detail, is_new):
         network_support_phone_options=support_phone_options,
         network_speed_options=speed_options,
         network_legal_entity_options=legal_entity_options,
+        it_connection_options=it_connection_options,
+        iiko_server_options=iiko_server_options,
     )
 
 
@@ -1194,6 +1310,13 @@ def _prepare_passport_record(payload):
         "network_speed": clean("network_speed"),
         "network_tunnel": clean("network_tunnel"),
         "network_connection_params": clean("network_connection_params"),
+        "it_connection_type": clean("it_connection_type"),
+        "it_connection_id": clean("it_connection_id"),
+        "it_connection_password": clean("it_connection_password"),
+        "it_object_phone": clean("it_object_phone"),
+        "it_manager_name": clean("it_manager_name"),
+        "it_manager_phone": clean("it_manager_phone"),
+        "it_iiko_server": clean("it_iiko_server"),
         "start_date": clean("start_date"),
         "end_date": clean("end_date"),
         "suspension_date": clean("suspension_date"),
@@ -4682,6 +4805,9 @@ def api_object_passports_create():
                 network_legal_entity, network_support_phone, network_speed,
                 network_tunnel,
                 network_connection_params,
+                it_connection_type, it_connection_id, it_connection_password,
+                it_object_phone, it_manager_name, it_manager_phone,
+                it_iiko_server,
                 status_task_id
             )
             VALUES (
@@ -4692,6 +4818,9 @@ def api_object_passports_create():
                 :network_legal_entity, :network_support_phone, :network_speed,
                 :network_tunnel,
                 :network_connection_params,
+                :it_connection_type, :it_connection_id, :it_connection_password,
+                :it_object_phone, :it_manager_name, :it_manager_phone,
+                :it_iiko_server,
                 :status_task_id
             )
             """,
@@ -4760,6 +4889,13 @@ def api_object_passports_update(passport_id):
                 network_speed = :network_speed,
                 network_tunnel = :network_tunnel,
                 network_connection_params = :network_connection_params,
+                it_connection_type = :it_connection_type,
+                it_connection_id = :it_connection_id,
+                it_connection_password = :it_connection_password,
+                it_object_phone = :it_object_phone,
+                it_manager_name = :it_manager_name,
+                it_manager_phone = :it_manager_phone,
+                it_iiko_server = :it_iiko_server,
                 suspension_date = :suspension_date,
                 resume_date = :resume_date,
                 status_task_id = :status_task_id,
@@ -4825,7 +4961,15 @@ def api_object_passport_cases(passport_id):
     finally:
         conn.close()
 
-    return jsonify({"success": True, "items": _fetch_cases_for_department(department)})
+    total_minutes = _calculate_department_case_minutes(department)
+    return jsonify(
+        {
+            "success": True,
+            "items": _fetch_cases_for_department(department),
+            "total_minutes": total_minutes,
+            "total_display": format_time_duration(total_minutes),
+        }
+    )
 
 @app.route("/api/object_passports/<int:passport_id>/tasks", methods=["GET"])
 @login_required_api
@@ -4844,10 +4988,14 @@ def api_object_passport_tasks(passport_id):
 
     search = request.args.get("search") if request.args else None
     limit = request.args.get("limit") if request.args else None
+    items = _fetch_tasks_for_department(department, search=search, limit=limit)
+    total_minutes = _calculate_department_task_minutes(department)
     return jsonify(
         {
             "success": True,
-            "items": _fetch_tasks_for_department(department, search=search, limit=limit),
+            "items": items,
+            "total_minutes": total_minutes,
+            "total_display": format_time_duration(total_minutes),
         }
     )
 
