@@ -61,9 +61,22 @@
     .passport-card .card-body .form-label { font-weight: 600; font-size: 0.85rem; color: #2f3b52; }
     .passport-card .form-control,
     .passport-card .form-select { font-size: 0.9rem; }
-	.select-search-wrapper { display: flex; flex-direction: column; gap: 0.25rem; }
+    .searchable-select.dropdown { width: 100%; }
+    .searchable-select .dropdown-toggle { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .searchable-select .dropdown-toggle .searchable-select-label { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .searchable-select .dropdown-menu { width: 100%; max-height: 320px; overflow: hidden; }
+    .searchable-select .searchable-select-options { max-height: 240px; overflow-y: auto; }
+    .searchable-select .dropdown-item.active { background-color: rgba(13, 110, 253, 0.15); color: #0d6efd; }
+    .searchable-select .dropdown-item.active:hover { background-color: rgba(13, 110, 253, 0.25); }
+    .searchable-select .dropdown-item { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .select-search-wrapper { display: flex; flex-direction: column; gap: 0.25rem; }
     .select-search-wrapper .input-group { flex-wrap: nowrap; }
     .select-search-input { font-size: 0.85rem; }
+    .status-history-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .status-history-entry { padding: 0.75rem 1rem; border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 0.75rem; background: #f8fafc; }
+    .status-history-entry .history-dates { font-weight: 600; }
+    .status-history-entry .history-duration { font-size: 0.85rem; color: #64748b; }
+    .title-photo-preview { cursor: zoom-in; }
     .photo-card { position: relative; overflow: hidden; }
     .photo-card .card-img-top { cursor: zoom-in; border-radius: 0.75rem 0.75rem 0 0; }
     .photo-card .photo-toolbar { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2; }
@@ -120,76 +133,106 @@
           <div class="row g-3">
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Департамент<span class="text-danger">*</span></label>
-              <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="departmentSelect" placeholder="Поиск..." />
+              <div class="searchable-select dropdown" data-select-id="departmentSelect">
+                <select class="form-select d-none" id="departmentSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('department', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
                 <div class="input-group input-group-sm">
-                  <select class="form-select" id="departmentSelect">
-                    <option value="">Не выбрано</option>
-                    {% for value in parameter_values.get('department', []) %}
-                    <option value="{{ value }}">{{ value }}</option>
-                    {% endfor %}
-                  </select>
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
                 </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Бизнес</label>
-              <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="businessSelect" placeholder="Поиск..." />
+              <div class="searchable-select dropdown" data-select-id="businessSelect">
+                <select class="form-select d-none" id="businessSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('business', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
                 <div class="input-group input-group-sm">
-                  <select class="form-select" id="businessSelect">
-                    <option value="">Не выбрано</option>
-                    {% for value in parameter_values.get('business', []) %}
-                    <option value="{{ value }}">{{ value }}</option>
-                    {% endfor %}
-                  </select>
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="business" data-target="businessSelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
                 </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Тип партнёра</label>
-              <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="partnerTypeSelect" placeholder="Поиск..." />
+              <div class="searchable-select dropdown" data-select-id="partnerTypeSelect">
+                <select class="form-select d-none" id="partnerTypeSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('partner_type', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
                 <div class="input-group input-group-sm">
-                  <select class="form-select" id="partnerTypeSelect">
-                    <option value="">Не выбрано</option>
-                    {% for value in parameter_values.get('partner_type', []) %}
-                    <option value="{{ value }}">{{ value }}</option>
-                    {% endfor %}
-                  </select>
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="partner_type" data-target="partnerTypeSelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
                 </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Страна</label>
-              <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="countrySelect" placeholder="Поиск..." />
+              <div class="searchable-select dropdown" data-select-id="countrySelect">
+                <select class="form-select d-none" id="countrySelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('country', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
                 <div class="input-group input-group-sm">
-                  <select class="form-select" id="countrySelect">
-                    <option value="">Не выбрано</option>
-                    {% for value in parameter_values.get('country', []) %}
-                    <option value="{{ value }}">{{ value }}</option>
-                    {% endfor %}
-                  </select>
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="country" data-target="countrySelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
                 </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Юридическое лицо</label>
-              <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="legalEntitySelect" placeholder="Поиск..." />
+              <div class="searchable-select dropdown" data-select-id="legalEntitySelect">
+                <select class="form-select d-none" id="legalEntitySelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('legal_entity', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
                 <div class="input-group input-group-sm">
-                  <select class="form-select" id="legalEntitySelect">
-                    <option value="">Не выбрано</option>
-                    {% for value in parameter_values.get('legal_entity', []) %}
-                    <option value="{{ value }}">{{ value }}</option>
-                    {% endfor %}
-                  </select>
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="legal_entity" data-target="legalEntitySelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
                 </div>
               </div>
             </div>
@@ -204,13 +247,19 @@
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Статус</label>
-              <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusSelect" placeholder="Поиск..." />
-                <select class="form-select form-select-sm" id="statusSelect">
+              <div class="searchable-select dropdown" data-select-id="statusSelect">
+                <select class="form-select d-none" id="statusSelect">
                   {% for value in statuses %}
                   <option value="{{ value }}">{{ value }}</option>
                   {% endfor %}
                 </select>
+                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                  <span class="searchable-select-label">Не выбрано</span>
+                </button>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
@@ -221,7 +270,7 @@
               <label class="form-label">Дата закрытия</label>
               <input type="date" class="form-control form-control-sm" id="endDateInput" />
             </div>
-			<div class="col-sm-6 col-xl-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Дата приостановки</label>
               <input type="date" class="form-control form-control-sm" id="suspensionDateInput" />
             </div>
@@ -233,7 +282,17 @@
               <label class="form-label">Общее время работы</label>
               <div class="form-control-plaintext fw-semibold" id="totalTimeDisplay">—</div>
             </div>
-			<div class="col-12 col-lg-6 d-none" id="statusTaskContainer">
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Время в статусах приостановки</label>
+              <div class="form-control-plaintext fw-semibold" id="statusHistoryTotal">—</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label">История приостановок</label>
+              <div class="status-history-list" id="statusHistoryList">
+                <div class="text-muted small">История ещё не добавлена.</div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6 d-none" id="statusTaskContainer">
               <label class="form-label">Связанная задача<span class="text-danger">*</span></label>
               <div class="select-search-wrapper">
                 <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusTaskSelect" id="statusTaskSearchInput" placeholder="Поиск по номеру или названию" autocomplete="off" />
@@ -518,6 +577,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script id="passportData" type="application/json">{{ passport_payload | safe }}</script>
   <script>
     function escapeHtml(value) {
@@ -564,6 +624,8 @@
     const suspensionDateInput = document.getElementById('suspensionDateInput');
     const resumeDateInput = document.getElementById('resumeDateInput');
     const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+    const statusHistoryTotal = document.getElementById('statusHistoryTotal');
+    const statusHistoryList = document.getElementById('statusHistoryList');
     const saveStatusAlert = document.getElementById('saveStatus');
     const statusBadge = document.getElementById('statusBadge');
     const networkBadge = document.getElementById('networkBadge');
@@ -594,16 +656,118 @@
     const photoPreviewCaption = document.getElementById('photoPreviewCaption');
     const photoPreviewDownload = document.getElementById('photoPreviewDownload');
     let photoPreviewModalInstance = null;
+    const searchableSelectRegistry = new Map();
     const savePassportBtn = document.getElementById('savePassportBtn');
 
     const statusesRequiringTask = new Set(['Закрыт', 'Реконструкция', 'Заморожен', 'Другое']);
+
+    function refreshSearchableSelect(select) {
+      if (!select) return;
+      const state = searchableSelectRegistry.get(select.id);
+      if (state && typeof state.refresh === 'function') {
+        state.refresh();
+      }
+    }
+
+    function registerSearchableSelect(wrapper) {
+      if (!wrapper) return;
+      const selectId = wrapper.dataset.selectId;
+      if (!selectId) return;
+      const select = document.getElementById(selectId);
+      if (!select) return;
+
+      const dropdownToggle = wrapper.querySelector('[data-bs-toggle="dropdown"]');
+      const labelEl = wrapper.querySelector('.searchable-select-label');
+      const searchInput = wrapper.querySelector('.searchable-select-search');
+      const optionsContainer = wrapper.querySelector('.searchable-select-options');
+      if (!dropdownToggle || !labelEl || !searchInput || !optionsContainer) return;
+
+      const dropdownInstance = typeof bootstrap !== 'undefined'
+        ? bootstrap.Dropdown.getOrCreateInstance(dropdownToggle, { autoClose: false })
+        : null;
+
+      function buildOptions() {
+        optionsContainer.innerHTML = '';
+        Array.from(select.options).forEach((option) => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'dropdown-item text-start';
+          item.dataset.value = option.value;
+          item.dataset.label = option.text;
+          item.textContent = option.text || '—';
+          if (option.selected) {
+            item.classList.add('active');
+          }
+          optionsContainer.appendChild(item);
+        });
+      }
+
+      function updateLabel() {
+        const option = select.options[select.selectedIndex];
+        labelEl.textContent = option ? option.text : 'Не выбрано';
+      }
+
+      function filterOptions(value) {
+        const normalized = (value || '').trim().toLowerCase();
+        optionsContainer.querySelectorAll('.dropdown-item').forEach((item) => {
+          const label = (item.dataset.label || item.textContent || '').toLowerCase();
+          item.classList.toggle('d-none', Boolean(normalized) && !label.includes(normalized));
+        });
+      }
+
+      optionsContainer.addEventListener('click', (event) => {
+        const button = event.target.closest('.dropdown-item');
+        if (!button) return;
+        const value = button.dataset.value || '';
+        if (select.value !== value) {
+          select.value = value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (dropdownInstance) {
+          dropdownInstance.hide();
+        }
+      });
+
+      searchInput.addEventListener('input', () => filterOptions(searchInput.value));
+
+      wrapper.addEventListener('shown.bs.dropdown', () => {
+        searchInput.value = '';
+        filterOptions('');
+        setTimeout(() => searchInput.focus(), 50);
+      });
+
+      wrapper.addEventListener('hidden.bs.dropdown', () => {
+        searchInput.value = '';
+        filterOptions('');
+      });
+
+      const refresh = () => {
+        buildOptions();
+        updateLabel();
+        filterOptions(searchInput.value);
+      };
+
+      refresh();
+      searchableSelectRegistry.set(selectId, { refresh, select, labelEl });
+
+      select.addEventListener('change', () => {
+        updateLabel();
+        optionsContainer.querySelectorAll('.dropdown-item').forEach((item) => {
+          item.classList.toggle('active', item.dataset.value === select.value);
+        });
+      });
+    }
+
+    function initializeSearchableSelects() {
+      document.querySelectorAll('.searchable-select').forEach((wrapper) => registerSearchableSelect(wrapper));
+    }
 
     function syncSelectSearchInput(select) {
       if (!select) return;
       const input = document.querySelector(`.select-search-input[data-select-target="${select.id}"]`);
       if (!input) return;
       const option = select.options[select.selectedIndex];
-      input.value = option && option.value ? option.text : '';
+      input.value = option ? option.text : '';
     }
 
     function filterSelectOptions(select, value) {
@@ -616,19 +780,6 @@
         }
         const match = option.text.toLowerCase().includes(normalized);
         option.hidden = Boolean(normalized) && !match && !option.selected;
-      });
-    }
-
-    function setupSelectSearchInputs() {
-      document.querySelectorAll('.select-search-input').forEach((input) => {
-        const targetId = input.dataset.selectTarget;
-        if (!targetId) return;
-        const select = document.getElementById(targetId);
-        if (!select) return;
-        input.addEventListener('input', () => filterSelectOptions(select, input.value));
-        input.addEventListener('focus', () => filterSelectOptions(select, input.value));
-        select.addEventListener('change', () => syncSelectSearchInput(select));
-        syncSelectSearchInput(select);
       });
     }
 
@@ -683,10 +834,19 @@
       const list = Array.isArray(photos) ? photos : [];
       const titlePhoto = list.find((photo) => photo && photo.category === 'title' && photo.url);
       if (titlePhoto) {
+        const captionData = encodeURIComponent(titlePhoto.caption || '');
         titlePhotoImage.src = titlePhoto.url;
+        titlePhotoImage.dataset.photoUrl = titlePhoto.url;
+        titlePhotoImage.dataset.photoCaption = captionData;
+        titlePhotoPreview.dataset.photoUrl = titlePhoto.url;
+        titlePhotoPreview.dataset.photoCaption = captionData;
         titlePhotoPreview.classList.remove('d-none');
       } else {
         titlePhotoImage.src = '';
+        delete titlePhotoImage.dataset.photoUrl;
+        delete titlePhotoImage.dataset.photoCaption;
+        delete titlePhotoPreview.dataset.photoUrl;
+        delete titlePhotoPreview.dataset.photoCaption;
         titlePhotoPreview.classList.add('d-none');
       }
     }
@@ -815,18 +975,18 @@
     function populateForm() {
       const data = passportData || {};
       departmentSelect.value = data.department || '';
-      syncSelectSearchInput(departmentSelect);
+      refreshSearchableSelect(departmentSelect);
       businessSelect.value = data.business || '';
-      syncSelectSearchInput(businessSelect);
+      refreshSearchableSelect(businessSelect);
       partnerTypeSelect.value = data.partner_type || '';
-      syncSelectSearchInput(partnerTypeSelect);
+      refreshSearchableSelect(partnerTypeSelect);
       countrySelect.value = data.country || '';
-      syncSelectSearchInput(countrySelect);
+      refreshSearchableSelect(countrySelect);
       legalEntitySelect.value = data.legal_entity || '';
-      syncSelectSearchInput(legalEntitySelect);
+      refreshSearchableSelect(legalEntitySelect);
       cityInput.value = data.city || '';
       statusSelect.value = data.status || (statuses[0] || '');
-      syncSelectSearchInput(statusSelect);
+      refreshSearchableSelect(statusSelect);
       internalNetworkInput.value = data.network || '';
       networkTunnelInput.value = data.network_tunnel || '';
       networkProviderInput.value = data.network_provider || '';
@@ -842,6 +1002,9 @@
       passportData.status_task_id = data.status_task_id != null ? data.status_task_id : null;
       passportData.status_task = data.status_task || null;
       totalTimeDisplay.textContent = data.total_work_time || '—';
+      statusHistoryTotal.textContent = data.status_history_total || '—';
+      passportData.status_history_total = data.status_history_total || '—';
+      renderStatusHistory(data.status_history || []);
       updateStatusBadge();
       updateNetworkBadge();
       updateObjectTitle();
@@ -941,6 +1104,7 @@
         parameterValues = data.data || parameterValues;
         updateSelectOptions();
         select.value = value.trim();
+        refreshSearchableSelect(select);
         if (select === businessSelect || select === departmentSelect) {
           updateObjectTitle();
         }
@@ -964,7 +1128,7 @@
         const options = parameterValues[key] || [];
         select.innerHTML = '<option value="">Не выбрано</option>' + options.map((val) => `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`).join('');
         select.value = current;
-        syncSelectSearchInput(select);
+        refreshSearchableSelect(select);
       });
       updateObjectTitle();
     }
@@ -1155,6 +1319,37 @@
       if (task.due_at_display || task.due_at) parts.push(`Дедлайн: ${task.due_at_display || task.due_at}`);
       if (task.last_activity_display || task.last_activity) parts.push(`Обновлено: ${task.last_activity_display || task.last_activity}`);
       statusTaskInfo.textContent = parts.join(' · ');
+    }
+
+    function renderStatusHistory(history) {
+      if (!statusHistoryList) return;
+      const items = Array.isArray(history) ? history : [];
+      passportData.status_history = items;
+      if (!items.length) {
+        statusHistoryList.innerHTML = '<div class="text-muted small">История ещё не добавлена.</div>';
+        return;
+      }
+      statusHistoryList.innerHTML = '';
+      items.forEach((item) => {
+        const entry = document.createElement('div');
+        entry.className = 'status-history-entry';
+        const statusLabel = escapeHtml(item.status || '—');
+        const startDisplay = escapeHtml(item.started_display || item.started_at || '—');
+        const endRaw = item.ended_display || item.ended_at || '';
+        const endDisplay = escapeHtml(endRaw || '');
+        const durationDisplay = escapeHtml(item.duration_display || '—');
+        const isActive = Boolean(item.is_active) || !endRaw;
+        const periodText = endDisplay ? `с ${startDisplay} по ${endDisplay}` : `с ${startDisplay}`;
+        entry.innerHTML = `
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-light text-dark">${statusLabel}</span>
+            ${isActive ? '<span class="badge bg-warning text-dark">Активно</span>' : ''}
+          </div>
+          <div class="history-dates">${periodText}</div>
+          <div class="history-duration">Длительность: ${durationDisplay}</div>
+        `;
+        statusHistoryList.appendChild(entry);
+      });
     }
 
     function renderPhotos(photos) {
@@ -1739,7 +1934,23 @@
       });
     });
 
-    setupSelectSearchInputs();
+    initializeSearchableSelects();
+
+    function handleTitlePhotoClick() {
+      if (!titlePhotoPreview || !titlePhotoImage) return;
+      const url = titlePhotoPreview.dataset.photoUrl || titlePhotoImage.dataset.photoUrl;
+      const caption = titlePhotoPreview.dataset.photoCaption || titlePhotoImage.dataset.photoCaption || '';
+      if (url) {
+        showPhotoPreview(url, caption);
+      }
+    }
+
+    if (titlePhotoPreview) {
+      titlePhotoPreview.addEventListener('click', handleTitlePhotoClick);
+    }
+    if (titlePhotoImage) {
+      titlePhotoImage.addEventListener('click', handleTitlePhotoClick);
+    }
 
     statusSelect.addEventListener('change', () => {
       updateStatusBadge();
@@ -1775,6 +1986,10 @@
         syncSelectSearchInput(statusTaskSelect);
         updateStatusTaskInfo();
       });
+    }
+    if (statusTaskSearchInput && statusTaskSelect) {
+      statusTaskSearchInput.addEventListener('input', () => filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value));
+      statusTaskSearchInput.addEventListener('focus', () => filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value));
     }
     savePassportBtn.addEventListener('click', savePassport);
 
