@@ -4,7 +4,7 @@
   if (!sidebar) return;
 
   const pinBtn = document.getElementById('pinSidebarBtn');
-  const bellBtn = document.getElementById('bellBtn') || document.querySelector('#notify-bell .bell');
+  const bellBtn = document.getElementById('bellBtn');
   const bellBadge = document.getElementById('notify-count');
 
   const LS_KEY_PIN = 'sidebarPinned';
@@ -70,7 +70,7 @@
     });
   }
 
-  const bellWrapper = document.getElementById('notify-bell');
+  const bellWrapper = document.getElementById('notify-bell-wrapper');
   const bellDropdown = document.getElementById('notify-dropdown');
   let notificationsOpen = false;
 
@@ -110,6 +110,7 @@
     bellDropdown.hidden = false;
     bellDropdown.innerHTML = '<div class="notif-item text-muted">Загрузка...</div>';
     notificationsOpen = true;
+    if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
     try {
       const response = await fetch('/api/notifications');
       if (!response.ok) throw new Error('Failed to load notifications');
@@ -132,11 +133,12 @@
     if (!bellDropdown) return;
     bellDropdown.hidden = true;
     notificationsOpen = false;
+    if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
   }
 
   async function updateNotificationCount() {
     try {
-const response = await fetch('/api/notifications/unread_count');
+      const response = await fetch('/api/notifications/unread_count');
       if (!response.ok) return;
       const data = await response.json();
       setBellCount(Number(data.count || 0));
@@ -160,6 +162,12 @@ const response = await fetch('/api/notifications/unread_count');
     if (!notificationsOpen) return;
     if (bellWrapper && bellWrapper.contains(event.target)) return;
     closeNotifications();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && notificationsOpen) {
+      closeNotifications();
+    }
   });
 
   updateNotificationCount();
