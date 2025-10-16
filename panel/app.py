@@ -604,7 +604,6 @@ def _fetch_passport_rows(filters):
                 "network",
                 "network_contract_number",
             ]
-            ]
             conditions.append(
                 "(" + " OR ".join([f"LOWER(COALESCE({col}, '')) LIKE ?" for col in searchable]) + ")"
             )
