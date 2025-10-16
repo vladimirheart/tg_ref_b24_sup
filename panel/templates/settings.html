@@ -195,6 +195,7 @@
                     <th>Телефон ТП</th>
                     <th>Скорость</th>
                     <th>ЮЛ</th>
+					<th>Объектов</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -272,6 +273,7 @@
     parameterData[type] = [];
   });
 
+  const contractUsageData = {{ contract_usage | tojson }};
   const networkProfilesInitial = {{ settings.network_profiles | tojson }};
   let networkProfilesData = Array.isArray(networkProfilesInitial)
     ? networkProfilesInitial.map((item) => ({
@@ -292,6 +294,18 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  function renderContractUsageLink(contractNumber) {
+    const trimmed = (contractNumber || '').trim();
+    if (!trimmed) {
+      return '<span class="text-muted">—</span>';
+    }
+    const count = contractUsageData && typeof contractUsageData === 'object'
+      ? (contractUsageData[trimmed] || 0)
+      : 0;
+    const url = `/object_passports?network_contract_number=${encodeURIComponent(trimmed)}`;
+    return `<a href="${url}" class="btn btn-link btn-sm p-0">${count}</a>`;
   }
 
   function renderParameters() {
@@ -351,7 +365,7 @@
     networkProfilesBody.innerHTML = '';
     if (!networkProfilesData.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет профилей</td>';
+      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет профилей</td>';
       networkProfilesBody.appendChild(emptyRow);
       return;
     }
@@ -364,10 +378,15 @@
         <td><input type="text" class="form-control form-control-sm" data-field="support_phone" value="${escapeHtml(profile.support_phone || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="speed" value="${escapeHtml(profile.speed || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="legal_entity" value="${escapeHtml(profile.legal_entity || '')}"></td>
+		<td data-usage-cell></td>
         <td class="text-nowrap">
           <button class="btn btn-sm btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
         </td>
       `;
+      const usageCell = row.querySelector('[data-usage-cell]');
+      if (usageCell) {
+        usageCell.innerHTML = renderContractUsageLink(profile.contract_number);
+      }
       networkProfilesBody.appendChild(row);
     });
   }
@@ -396,6 +415,12 @@
       const field = event.target.dataset.field;
       if (Number.isNaN(index) || !field) return;
       networkProfilesData[index][field] = event.target.value;
+	  if (field === 'contract_number') {
+        const usageCell = row.querySelector('[data-usage-cell]');
+        if (usageCell) {
+          usageCell.innerHTML = renderContractUsageLink(networkProfilesData[index][field]);
+        }
+      }
     });
 
     networkProfilesBody.addEventListener('click', (event) => {
