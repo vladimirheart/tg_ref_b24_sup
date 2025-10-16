@@ -8,6 +8,41 @@
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
   <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
   <style>
+    body.with-sidebar .main-content {
+      background-color: #f4f6fb;
+      min-height: 100vh;
+    }
+    .passport-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .passport-overview,
+    .passport-card {
+      border: 0;
+      border-radius: 1rem;
+      background: #ffffff;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    }
+    .passport-card {
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+    }
+    .passport-overview .card-body {
+      padding: 1.75rem 2rem;
+    }
+    .passport-card .card-header {
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), rgba(32, 201, 151, 0.08));
+      border: 0;
+      border-radius: 1rem 1rem 0 0;
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+      color: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .passport-card .card-body {
+      padding: 1.5rem;
+    }
     .card h5 { margin-bottom: 0; }
     .schedule-table input[type="time"] { max-width: 120px; }
     .photo-card img { object-fit: cover; height: 180px; }
@@ -16,45 +51,54 @@
     .equipment-photo img { object-fit: cover; height: 150px; }
     .equipment-photo .card-body { font-size: 0.85rem; }
     .form-control-plaintext { padding-left: 0; }
-    .object-title { font-size: 1.1rem; }
-    .title-photo-preview { width: 180px; height: 120px; border-radius: 0.5rem; overflow: hidden; background: #f8f9fa; display: flex; align-items: center; justify-content: center; }
+    .object-title { font-size: 1.15rem; }
+    .title-photo-preview { width: 180px; height: 120px; border-radius: 0.75rem; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(15, 23, 42, 0.08); }
     .title-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
     .section-collapse { display: none; }
     .section-collapse.show { display: block; }
-    .card-toggle-btn { white-space: nowrap; }
+    .card-toggle-btn { white-space: nowrap; border-radius: 999px; }
     .table-row-link { cursor: pointer; }
+    .passport-card .card-body .form-label { font-weight: 600; font-size: 0.85rem; color: #2f3b52; }
+    .passport-card .form-control,
+    .passport-card .form-select { font-size: 0.9rem; }
     @media (max-width: 576px) {
       .title-photo-preview { width: 140px; height: 90px; }
+      .passport-overview .card-body { padding: 1.25rem; }
+      .passport-card .card-header { padding: 0.75rem 1rem; }
+      .passport-card .card-body { padding: 1rem; }
     }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
   {% include "_sidebar.html" %}
   <main class="main-content container-fluid">
-    <div class="container-fluid mt-4">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-        <div class="d-flex flex-wrap align-items-start gap-3">
-          <div>
-            <h2 class="mb-1">🗂 Паспорт объекта</h2>
-            <div class="text-muted object-title" id="objectTitle">—</div>
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-              <span class="badge bg-secondary status-badge" id="statusBadge">—</span>
-              <span class="badge bg-secondary status-badge" id="networkBadge">Внутренняя сеть: —</span>
+    <div class="passport-container container-xxl mt-4">
+      <div class="card passport-overview mb-4">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex flex-wrap align-items-start gap-3">
+              <div>
+                <h2 class="mb-1">🗂 Паспорт объекта</h2>
+                <div class="text-muted object-title" id="objectTitle">—</div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                  <span class="badge bg-secondary status-badge" id="statusBadge">—</span>
+                  <span class="badge bg-secondary status-badge" id="networkBadge">Внутренняя сеть: —</span>
+                </div>
+              </div>
+              <div class="title-photo-preview d-none" id="titlePhotoPreview">
+                <img src="" alt="Титульное фото" id="titlePhotoImage" />
+              </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <a class="btn btn-outline-secondary" href="/object_passports" target="_self">← К списку</a>
+              <button class="btn btn-primary" id="savePassportBtn" type="button">💾 Сохранить</button>
             </div>
           </div>
-          <div class="title-photo-preview d-none" id="titlePhotoPreview">
-            <img src="" alt="Титульное фото" id="titlePhotoImage" />
-          </div>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-          <a class="btn btn-outline-secondary" href="/object_passports" target="_self">← К списку</a>
-          <button class="btn btn-primary" id="savePassportBtn" type="button">💾 Сохранить</button>
+          <div class="alert d-none mt-3 mb-0" role="alert" id="saveStatus"></div>
         </div>
       </div>
 
-      <div class="alert d-none" role="alert" id="saveStatus"></div>
-
-      <div class="card mb-4" id="basicInfoCard">
+      <div class="card passport-card mb-4" id="basicInfoCard">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Основная информация</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#basicInfoBody" aria-expanded="true">Свернуть ▲</button>
@@ -62,7 +106,7 @@
         <div class="section-collapse show" id="basicInfoBody">
           <div class="card-body">
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Департамент<span class="text-danger">*</span></label>
               <div class="input-group input-group-sm">
                 <select class="form-select" id="departmentSelect">
@@ -74,7 +118,7 @@
                 <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Бизнес</label>
               <div class="input-group input-group-sm">
                 <select class="form-select" id="businessSelect">
@@ -86,7 +130,7 @@
                 <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="business" data-target="businessSelect">+</button>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Тип партнёра</label>
               <div class="input-group input-group-sm">
                 <select class="form-select" id="partnerTypeSelect">
@@ -98,7 +142,7 @@
                 <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="partner_type" data-target="partnerTypeSelect">+</button>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Страна</label>
               <div class="input-group input-group-sm">
                 <select class="form-select" id="countrySelect">
@@ -110,7 +154,7 @@
                 <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="country" data-target="countrySelect">+</button>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Юридическое лицо</label>
               <div class="input-group input-group-sm">
                 <select class="form-select" id="legalEntitySelect">
@@ -122,7 +166,7 @@
                 <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="legal_entity" data-target="legalEntitySelect">+</button>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Город</label>
               <input type="text" id="cityInput" class="form-control form-control-sm" list="citiesList" placeholder="Например, Москва" />
               <datalist id="citiesList">
@@ -131,7 +175,7 @@
                 {% endfor %}
               </datalist>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Статус</label>
               <select class="form-select form-select-sm" id="statusSelect">
                 {% for value in statuses %}
@@ -139,15 +183,15 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Дата запуска</label>
               <input type="date" class="form-control form-control-sm" id="startDateInput" />
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Дата закрытия</label>
               <input type="date" class="form-control form-control-sm" id="endDateInput" />
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Общее время работы</label>
               <div class="form-control-plaintext fw-semibold" id="totalTimeDisplay">—</div>
             </div>
@@ -157,7 +201,7 @@
       </div>
       </div>
 
-      <div class="card mb-4" id="networkCard">
+      <div class="card passport-card mb-4" id="networkCard">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Информация о сети</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#networkBody" aria-expanded="false">Развернуть ▼</button>
@@ -165,31 +209,31 @@
         <div class="section-collapse" id="networkBody">
           <div class="card-body network-info">
             <div class="row g-3">
-              <div class="col-md-4">
+              <div class="col-sm-6 col-xl-4">
                 <label class="form-label">Внутренняя сеть</label>
                 <input type="text" class="form-control form-control-sm" id="internalNetworkInput" list="internalNetworkOptions" placeholder="Например, CorpLAN" />
               </div>
-              <div class="col-md-4">
+              <div class="col-sm-6 col-xl-4">
                 <label class="form-label">Туннель</label>
                 <input type="text" class="form-control form-control-sm" id="networkTunnelInput" placeholder="Например, VPN-01" />
               </div>
-              <div class="col-md-4">
+              <div class="col-sm-6 col-xl-4">
                 <label class="form-label">Наименование провайдера</label>
                 <input type="text" class="form-control form-control-sm" id="networkProviderInput" list="networkProviderOptions" placeholder="Например, Ростелеком" />
               </div>
-              <div class="col-md-4">
+              <div class="col-sm-6 col-xl-4">
                 <label class="form-label">Номер договора</label>
                 <input type="text" class="form-control form-control-sm" id="networkContractInput" list="networkContractOptions" placeholder="№ договора" />
               </div>
-              <div class="col-md-4">
+              <div class="col-sm-6 col-xl-4">
                 <label class="form-label">ЮЛ</label>
                 <input type="text" class="form-control form-control-sm" id="networkLegalEntityInput" list="networkLegalEntityOptions" placeholder="Юридическое лицо" />
               </div>
-              <div class="col-md-4">
+              <div class="col-sm-6 col-xl-4">
                 <label class="form-label">Телефон ТП провайдера</label>
                 <input type="text" class="form-control form-control-sm" id="networkSupportPhoneInput" list="networkSupportPhoneOptions" placeholder="Контакт ТП" />
               </div>
-              <div class="col-md-4">
+              <div class="col-sm-6 col-xl-4">
                 <label class="form-label">Скорость подключения</label>
                 <input type="text" class="form-control form-control-sm" id="networkSpeedInput" list="networkSpeedOptions" placeholder="Например, 100 Мбит/с" />
               </div>
@@ -257,7 +301,7 @@
         </div>
       </div>
 
-      <div class="card mb-4" id="scheduleCard">
+      <div class="card passport-card mb-4" id="scheduleCard">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Расписание</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#scheduleBody" aria-expanded="false">Развернуть ▼</button>
@@ -295,7 +339,7 @@
         </div>
       </div>
 
-      <div class="card mb-4" id="casesCard">
+      <div class="card passport-card mb-4" id="casesCard">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Обращения по локации</span>
           <div class="d-flex gap-2">
@@ -324,7 +368,7 @@
         </div>
       </div>
 
-      <div class="card mb-4" id="photosSection">
+      <div class="card passport-card mb-4" id="photosSection">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Фотографии объекта</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#photosBody" aria-expanded="false">Развернуть ▼</button>
@@ -358,7 +402,7 @@
         </div>
       </div>
 
-      <div class="card mb-5" id="equipmentSection">
+      <div class="card passport-card mb-5" id="equipmentSection">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Структура оборудования</span>
           <div class="d-flex gap-2">
@@ -493,11 +537,28 @@
       }
     }
 
+    function formatNetworkSpeedValue(value) {
+      const raw = (value || '').trim();
+      if (!raw) return '';
+      if (/бит\s*\/\s*с$/i.test(raw)) {
+        return raw.replace(/\s+/g, ' ').replace(/бит\s*\/\s*с$/i, 'Мбит/с');
+      }
+      const numeric = raw.replace(/\s+/g, '').replace(',', '.');
+      if (/^\d+(?:\.\d+)?$/.test(numeric)) {
+        return `${numeric} Мбит/с`;
+      }
+      return raw;
+    }
+
+    const handleSpeedFormatting = () => {
+      if (!networkSpeedInput) return;
+      networkSpeedInput.value = formatNetworkSpeedValue(networkSpeedInput.value);
+    };
+
     const networkProfileFieldMapping = {
       provider: networkProviderInput,
       contract_number: networkContractInput,
       support_phone: networkSupportPhoneInput,
-      speed: networkSpeedInput,
       legal_entity: networkLegalEntityInput,
     };
 
@@ -610,7 +671,7 @@
       networkContractInput.value = data.network_contract_number || '';
       networkLegalEntityInput.value = data.network_legal_entity || '';
       networkSupportPhoneInput.value = data.network_support_phone || '';
-      networkSpeedInput.value = data.network_speed || '';
+      networkSpeedInput.value = formatNetworkSpeedValue(data.network_speed || '');
       networkParamsInput.value = data.network_connection_params || '';
       startDateInput.value = data.start_date || '';
       endDateInput.value = data.end_date || '';
@@ -640,7 +701,7 @@
         network_contract_number: networkContractInput.value.trim(),
         network_legal_entity: networkLegalEntityInput.value.trim(),
         network_support_phone: networkSupportPhoneInput.value.trim(),
-        network_speed: networkSpeedInput.value.trim(),
+        network_speed: formatNetworkSpeedValue(networkSpeedInput.value),
 		network_tunnel: networkTunnelInput.value.trim(),
         network_connection_params: networkParamsInput.value.trim(),
         start_date: startDateInput.value || '',
@@ -1269,7 +1330,8 @@
     networkProviderInput.addEventListener('change', () => handleNetworkProfileSelection('provider', networkProviderInput.value));
     networkContractInput.addEventListener('change', () => handleNetworkProfileSelection('contract_number', networkContractInput.value));
     networkSupportPhoneInput.addEventListener('change', () => handleNetworkProfileSelection('support_phone', networkSupportPhoneInput.value));
-    networkSpeedInput.addEventListener('change', () => handleNetworkProfileSelection('speed', networkSpeedInput.value));
+    networkSpeedInput.addEventListener('change', handleSpeedFormatting);
+    networkSpeedInput.addEventListener('blur', handleSpeedFormatting);
     networkLegalEntityInput.addEventListener('change', () => handleNetworkProfileSelection('legal_entity', networkLegalEntityInput.value));
     [businessSelect, departmentSelect].forEach((select) => {
       select.addEventListener('change', updateObjectTitle);
