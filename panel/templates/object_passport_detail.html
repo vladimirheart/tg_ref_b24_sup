@@ -320,40 +320,50 @@
         </div>
         <div class="section-collapse" id="networkBody">
           <div class="card-body network-info">
-            <div class="row g-3">
-              <div class="col-sm-6 col-xl-4">
-                <label class="form-label">Внутренняя сеть</label>
-                <input type="text" class="form-control form-control-sm" id="internalNetworkInput" list="internalNetworkOptions" placeholder="Например, CorpLAN" />
+            <div class="row g-4">
+              <div class="col-12 col-xl-6">
+                <h6 class="text-uppercase text-muted small mb-3">Внутренняя сеть</h6>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Внутренняя сеть</label>
+                    <input type="text" class="form-control form-control-sm" id="internalNetworkInput" list="internalNetworkOptions" placeholder="Например, CorpLAN" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Туннель</label>
+                    <input type="text" class="form-control form-control-sm" id="networkTunnelInput" placeholder="Например, VPN-01" />
+                  </div>
+                </div>
               </div>
-              <div class="col-sm-6 col-xl-4">
-                <label class="form-label">Туннель</label>
-                <input type="text" class="form-control form-control-sm" id="networkTunnelInput" placeholder="Например, VPN-01" />
-              </div>
-              <div class="col-sm-6 col-xl-4">
-                <label class="form-label">Наименование провайдера</label>
-                <input type="text" class="form-control form-control-sm" id="networkProviderInput" list="networkProviderOptions" placeholder="Например, Ростелеком" />
-              </div>
-              <div class="col-sm-6 col-xl-4">
-                <label class="form-label">Номер договора</label>
-                <input type="text" class="form-control form-control-sm" id="networkContractInput" list="networkContractOptions" placeholder="№ договора" />
-              </div>
-              <div class="col-sm-6 col-xl-4">
-                <label class="form-label">ЮЛ</label>
-                <input type="text" class="form-control form-control-sm" id="networkLegalEntityInput" list="networkLegalEntityOptions" placeholder="Юридическое лицо" />
-              </div>
-              <div class="col-sm-6 col-xl-4">
-                <label class="form-label">Телефон ТП провайдера</label>
-                <input type="text" class="form-control form-control-sm" id="networkSupportPhoneInput" list="networkSupportPhoneOptions" placeholder="Контакт ТП" />
-              </div>
-              <div class="col-sm-6 col-xl-4">
-                <label class="form-label">Скорость подключения</label>
-                <input type="text" class="form-control form-control-sm" id="networkSpeedInput" list="networkSpeedOptions" placeholder="Например, 100 Мбит/с" />
+              <div class="col-12 col-xl-6">
+                <h6 class="text-uppercase text-muted small mb-3">Провайдер</h6>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Наименование провайдера</label>
+                    <input type="text" class="form-control form-control-sm" id="networkProviderInput" list="networkProviderOptions" placeholder="Например, Ростелеком" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">Номер договора</label>
+                    <input type="text" class="form-control form-control-sm" id="networkContractInput" list="networkContractOptions" placeholder="№ договора" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">ЮЛ</label>
+                    <input type="text" class="form-control form-control-sm" id="networkLegalEntityInput" list="networkLegalEntityOptions" placeholder="Юридическое лицо" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">Телефон ТП провайдера</label>
+                    <input type="text" class="form-control form-control-sm" id="networkSupportPhoneInput" list="networkSupportPhoneOptions" placeholder="Контакт ТП" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">Скорость подключения</label>
+                    <input type="text" class="form-control form-control-sm" id="networkSpeedInput" list="networkSpeedOptions" placeholder="Например, 100 Мбит/с" />
+                  </div>
+                </div>
               </div>
               <div class="col-12">
                 <label class="form-label">Параметры подключения к сети интернет</label>
                 <textarea class="form-control form-control-sm" id="networkParamsInput" rows="3" placeholder="IP, VLAN, логин/пароль и т.д."></textarea>
               </div>
-			  <div class="col-12">
+              <div class="col-12">
                 <label class="form-label">Файлы</label>
                 <form class="row g-2 align-items-end" id="networkFilesForm">
                   <div class="col-md-6 col-lg-4">
@@ -367,7 +377,7 @@
                 <div class="text-muted small" id="networkFilesEmptyText">Файлы ещё не добавлены.</div>
               </div>
             </div>
-			<datalist id="internalNetworkOptions">
+            <datalist id="internalNetworkOptions">
               {% for value in parameter_values.get('network', []) %}
               {% if value %}
               <option value="{{ value }}"></option>
@@ -962,14 +972,35 @@
     function formatNetworkSpeedValue(value) {
       const raw = (value || '').trim();
       if (!raw) return '';
-      if (/бит\s*\/\s*с$/i.test(raw)) {
-        return raw.replace(/\s+/g, ' ').replace(/бит\s*\/\s*с$/i, 'Мбит/с');
+
+      const normalized = raw.replace(/\s+/g, ' ');
+      const numericFrom = (source) => {
+        const cleaned = source.replace(/[\s,]/g, (match) => (match === ',' ? '.' : ''));
+        const numeric = cleaned.replace(/[^0-9.]/g, '');
+        return /^\d+(?:\.\d+)?$/.test(numeric) ? numeric : '';
+      };
+
+      const ensureSuffix = (base) => {
+        const trimmed = base.trim();
+        const numeric = numericFrom(trimmed);
+        return `${numeric || trimmed} Мбит/с`.trim();
+      };
+
+      if (/мбит\s*\/\s*с$/i.test(normalized)) {
+        const base = normalized.replace(/мбит\s*\/\s*с$/i, '');
+        return ensureSuffix(base);
       }
-      const numeric = raw.replace(/\s+/g, '').replace(',', '.');
-      if (/^\d+(?:\.\d+)?$/.test(numeric)) {
+
+      if (/бит\s*\/\s*с$/i.test(normalized)) {
+        const base = normalized.replace(/бит\s*\/\s*с$/i, '');
+        return ensureSuffix(base);
+      }
+
+      const numeric = numericFrom(normalized);
+      if (numeric) {
         return `${numeric} Мбит/с`;
       }
-      return raw;
+      return normalized;
     }
 
     const handleSpeedFormatting = () => {
@@ -1699,12 +1730,19 @@
         const sizePart = file.size_display ? escapeHtml(file.size_display) : '';
         const createdPart = file.created_at_display ? escapeHtml(file.created_at_display) : '';
         const metaParts = [sizePart, createdPart].filter(Boolean).join(' · ');
+        const downloadUrl = escapeHtml(file.download_url || file.url || '#');
+        const viewUrl = escapeHtml(file.url || downloadUrl);
         item.innerHTML = `
           <div class="me-auto">
-            <a href="${file.url}" target="_blank" rel="noopener" download class="fw-semibold text-decoration-none">${escapeHtml(file.original_name || 'Файл')}</a>
+            <a href="${viewUrl}" target="_blank" rel="noopener" class="fw-semibold text-decoration-none">${escapeHtml(file.original_name || 'Файл')}</a>
             ${metaParts ? `<div class="text-muted small">${metaParts}</div>` : ''}
           </div>
-          <button class="btn btn-sm btn-outline-danger" type="button" data-action="delete-network-file">Удалить</button>
+          <div class="btn-group btn-group-sm" role="group">
+            <a class="btn btn-outline-primary" href="${downloadUrl}" download>
+              ⬇️ Скачать
+            </a>
+            <button class="btn btn-outline-danger" type="button" data-action="delete-network-file">Удалить</button>
+          </div>
         `;
         if (networkFilesList) {
           networkFilesList.appendChild(item);
