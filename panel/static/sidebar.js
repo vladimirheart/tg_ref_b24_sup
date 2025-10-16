@@ -70,22 +70,100 @@
     });
   }
 
-  // оповещения (заглушка опроса)
-  async function poll() {
-    try {
-      const r = await fetch('/api/notifications/count');
-      if (!r.ok) return;
-      const data = await r.json();
-      const n = Number(data.count || 0);
-      if (n > 0) {
-        bellBadge.hidden = false;
-        bellBadge.textContent = n;
-      } else {
-        bellBadge.hidden = true;
-      }
-    } catch (e) { /* ignore */ }
+  const bellWrapper = document.getElementById('notify-bell');
+  const bellDropdown = document.getElementById('notify-dropdown');
+  let notificationsOpen = false;
+
+  function setBellCount(value) {
+    if (!bellBadge) return;
+    if (value > 0) {
+      bellBadge.hidden = false;
+      bellBadge.textContent = String(value);
+    } else {
+      bellBadge.hidden = true;
+    }
   }
-  poll(); setInterval(poll, 7000);
+
+  function renderNotifications(items) {
+    if (!bellDropdown) return;
+    if (!Array.isArray(items) || !items.length) {
+      bellDropdown.innerHTML = '<div class="notif-item text-muted">Новых уведомлений нет</div>';
+      return;
+    }
+    bellDropdown.innerHTML = items.map((item) => {
+      const title = (item && item.text) ? item.text : 'Уведомление';
+      const url = item && item.url ? item.url : '';
+      const dateStr = item && item.created_at ? new Date(item.created_at).toLocaleString('ru-RU') : '';
+      const linkStart = url ? `<a class="stretched-link" href="${url}" target="_blank" rel="noopener">` : '';
+      const linkEnd = url ? '</a>' : '';
+      return `
+        <div class="notif-item position-relative" data-id="${item.id || ''}">
+          ${linkStart}<div class="fw-semibold">${title}</div>${linkEnd}
+          ${dateStr ? `<div class="notif-time">${dateStr}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function loadNotifications() {
+    if (!bellDropdown) return;
+    bellDropdown.hidden = false;
+    bellDropdown.innerHTML = '<div class="notif-item text-muted">Загрузка...</div>';
+    notificationsOpen = true;
+    try {
+      const response = await fetch('/api/notifications');
+      if (!response.ok) throw new Error('Failed to load notifications');
+      const data = await response.json();
+      const items = Array.isArray(data) ? data : Array.isArray(data.items) ? data.items : [];
+      renderNotifications(items);
+      setBellCount(0);
+      const markPromises = items
+        .filter((item) => item && item.id)
+        .map((item) => fetch(`/api/notifications/${item.id}/read`, { method: 'POST' }));
+      if (markPromises.length) {
+        Promise.allSettled(markPromises);
+      }
+    } catch (error) {
+      bellDropdown.innerHTML = '<div class="notif-item text-danger">Не удалось загрузить уведомления</div>';
+    }
+  }
+
+  function closeNotifications() {
+    if (!bellDropdown) return;
+    bellDropdown.hidden = true;
+    notificationsOpen = false;
+  }
+
+  async function updateNotificationCount() {
+    try {
+const response = await fetch('/api/notifications/unread_count');
+      if (!response.ok) return;
+      const data = await response.json();
+      setBellCount(Number(data.count || 0));
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  if (bellBtn) {
+    bellBtn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      if (notificationsOpen) {
+        closeNotifications();
+      } else {
+        await loadNotifications();
+      }
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    if (!notificationsOpen) return;
+    if (bellWrapper && bellWrapper.contains(event.target)) return;
+    closeNotifications();
+  });
+
+  updateNotificationCount();
+  setInterval(updateNotificationCount, 15000);
 })();
 
 // Авто-активация пункта меню по текущему пути
