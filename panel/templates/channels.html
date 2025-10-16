@@ -11,231 +11,496 @@
 <body class="with-sidebar sidebar-pinned">
   {% include "_sidebar.html" %}
   <main class="main-content container-fluid">
-  <div class="container mt-4">
-    <h2>Каналы (боты)</h2>
+    <div class="container mt-4">
+      <h2>Каналы (боты)</h2>
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <h5 class="card-title">Добавить канал</h5>
-        <div class="row g-2">
-          <div class="col-md-4">
-            <input id="new_token" class="form-control" placeholder="Токен бота">
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Добавить канал</h5>
+          <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label">Токен бота</label>
+              <input id="new_token" class="form-control" placeholder="Токен из BotFather">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Название в панели</label>
+              <input id="new_channel_name" class="form-control" placeholder="Например: Доставка">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Лимит вопросов</label>
+              <input id="new_max_questions" type="number" min="0" value="0" class="form-control">
+              <div class="form-text">0 — без ограничений</div>
+            </div>
+            <div class="col-md-3 d-grid">
+              <button class="btn btn-primary" type="button" onclick="addChannel()">Добавить канал</button>
+            </div>
           </div>
-          <div class="col-md-3">
-            <input id="new_channel_name" class="form-control" placeholder="Имя канала (вид бота)">
-          </div>
-          <div class="col-md-2">
-            <input id="new_max_questions" type="number" min="0" value="0" class="form-control" placeholder="Лимит вопросов">
-          </div>
-          <div class="col-md-3 d-grid">
-            <button class="btn btn-primary" onclick="addChannel()">Добавить</button>
-          </div>
+          <div class="text-muted small mt-2">Имя бота подтягивается автоматически при валидации токена (метод Telegram <code>getMe</code>).</div>
         </div>
-        <small class="text-muted">Имя бота подтянется автоматически при валидации токена (getMe)</small>
+      </div>
+
+      <div class="table-responsive shadow-sm">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 6%">ID</th>
+              <th style="width: 20%">Канал и бот</th>
+              <th style="width: 18%">Название для панели</th>
+              <th style="width: 14%" class="text-center">Статус</th>
+              <th style="width: 14%">Лимит</th>
+              <th style="width: 20%">Вопросы</th>
+              <th style="width: 8%"></th>
+            </tr>
+          </thead>
+          <tbody id="channelsBody">
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">Загрузка каналов…</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <table class="table table-striped">
-      <thead><tr>
-        <th>ID</th><th>Имя бота</th><th>Имя канала</th><th>Активен</th><th>Лимит</th><th>Действия</th>
-		<button class="btn btn-sm btn-secondary" onclick="openQuestions(this)">Вопросы</button>
-      </tr></thead>
-      <tbody id="channelsBody">
-        {% for c in channels %}
-        <tr data-id="{{ c.id }}">
-          <td>{{ c.id }}</td>
-          <td>{{ c.bot_name or '—' }}</td>
-          <td><input class="form-control form-control-sm channel_name" value="{{ c.channel_name }}"></td>
-          <td><input class="form-check-input is_active" type="checkbox" {% if c.is_active %}checked{% endif %}></td>
-          <td><input class="form-control form-control-sm max_questions" type="number" value="{{ c.max_questions or 0 }}"></td>
-          <td>
-            <button class="btn btn-sm btn-success" onclick="saveRow(this)">Сохранить</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteRow(this)">Удалить</button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <div class="modal fade" id="questionsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Настройка вопросов для канала <span id="questionsChannelLabel" class="text-primary"></span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Лимит вопросов за диалог</label>
+                <input id="questionsLimit" type="number" min="0" class="form-control" value="0">
+                <div class="form-text">0 — без ограничения.</div>
+              </div>
+              <div class="col-md-8">
+                <div class="alert alert-info py-2 mb-0 small">
+                  Сформируйте последовательность вопросов, которые бот задаёт пользователю. Для типа <strong>select</strong> перечислите варианты через запятую.
+                </div>
+              </div>
+            </div>
 
-  <script>
-    async function addChannel() {
-      const token = document.getElementById('new_token').value.trim();
-      const channel_name = document.getElementById('new_channel_name').value.trim();
-      const max_questions = parseInt(document.getElementById('new_max_questions').value || '0', 10);
-      const resp = await fetch('/api/channels', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ token, channel_name, max_questions, questions_cfg: { questions: [], per_dialog_limit: max_questions }})
-      });
-      const j = await resp.json();
-      if (!j.success) return alert(j.error || 'Ошибка');
-      location.reload();
-    }
-    async function saveRow(btn) {
-      const tr = btn.closest('tr');
-      const id = tr.dataset.id;
-      const channel_name = tr.querySelector('.channel_name').value.trim();
-      const is_active = tr.querySelector('.is_active').checked;
-      const max_questions = parseInt(tr.querySelector('.max_questions').value || '0', 10);
-      const resp = await fetch('/api/channels/'+id, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ channel_name, is_active, max_questions })
-      });
-      const j = await resp.json();
-      if (!j.success) return alert(j.error || 'Ошибка');
-      alert('Сохранено');
-    }
-    async function deleteRow(btn) {
-      const tr = btn.closest('tr');
-      const id = tr.dataset.id;
-      if (!confirm('Удалить канал?')) return;
-      const resp = await fetch('/api/channels/'+id, { method: 'DELETE' });
-      const j = await resp.json();
-      if (!j.success) return alert(j.error || 'Ошибка');
-      tr.remove();
-    }
-  </script>
-<script>
-  let qmCurrentId = null;
-  let qmCurrentName = '';
-  let qmQuestions = [];
-  let qmLimit = 0;
+            <div class="table-responsive border rounded">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 18%">Ключ</th>
+                    <th style="width: 32%">Текст вопроса</th>
+                    <th style="width: 15%">Тип</th>
+                    <th style="width: 25%">Опции (для select)</th>
+                    <th style="width: 6%" class="text-center">Обяз.</th>
+                    <th style="width: 4%"></th>
+                  </tr>
+                </thead>
+                <tbody id="questionsTableBody"></tbody>
+              </table>
+            </div>
+            <button id="addQuestionBtn" type="button" class="btn btn-outline-primary mt-2">+ Добавить вопрос</button>
 
-  function openQuestions(btn) {
-    const tr = btn.closest('tr');
-    qmCurrentId = parseInt(tr.dataset.id, 10);
-    qmCurrentName = tr.querySelector('.channel_name')?.value || tr.children[2].textContent.trim();
-    document.getElementById('qmChannelLabel').textContent = `#${qmCurrentId} (${qmCurrentName})`;
-
-    fetch(`/api/channels/${qmCurrentId}`).then(r => r.json()).then(j => {
-      if (!j.success) return alert(j.error || 'Ошибка загрузки');
-      const ch = j.channel || {};
-      let cfg = {};
-      try { cfg = JSON.parse(ch.questions_cfg || '{}'); } catch(e) { cfg = {}; }
-
-      qmLimit = Number(cfg.per_dialog_limit || ch.max_questions || 0);
-      qmQuestions = Array.isArray(cfg.questions) ? cfg.questions : [];
-
-      document.getElementById('qmLimit').value = qmLimit;
-      renderQmTable();
-
-      const m = new bootstrap.Modal(document.getElementById('questionsModal'));
-      m.show();
-    });
-  }
-
-  function renderQmTable() {
-    const body = document.getElementById('qmBody');
-    body.innerHTML = '';
-    if (!Array.isArray(qmQuestions)) qmQuestions = [];
-
-    qmQuestions.forEach((q, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input class="form-control form-control-sm" value="${q.key || ''}" data-idx="${i}" data-field="key"></td>
-        <td><input class="form-control form-control-sm" value="${q.label || ''}" data-idx="${i}" data-field="label"></td>
-        <td>
-          <select class="form-select form-select-sm" data-idx="${i}" data-field="type">
-            <option value="text" ${q.type==='text'?'selected':''}>text</option>
-            <option value="select" ${q.type==='select'?'selected':''}>select</option>
-            <option value="number" ${q.type==='number'?'selected':''}>number</option>
-          </select>
-        </td>
-        <td><input class="form-control form-control-sm" placeholder="для select: вариант1, вариант2" value="${(q.options||[]).join(', ')}" data-idx="${i}" data-field="options"></td>
-        <td class="text-center"><input type="checkbox" class="form-check-input" ${q.required?'checked':''} data-idx="${i}" data-field="required"></td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-danger" onclick="qmDel(${i})">×</button>
-        </td>
-      `;
-      body.appendChild(tr);
-    });
-
-    // Делегированная обработка изменений
-    body.querySelectorAll('input,select').forEach(el => {
-      el.addEventListener('input', () => {
-        const i = Number(el.dataset.idx);
-        const f = el.dataset.field;
-        let v = el.type === 'checkbox' ? el.checked : el.value;
-        if (f === 'options') v = String(v).split(',').map(s => s.trim()).filter(Boolean);
-        if (f === 'type' && v !== 'select') qmQuestions[i].options = [];
-        qmQuestions[i][f] = v;
-      });
-    });
-  }
-
-  function qmAdd() {
-    qmQuestions.push({ key:'', label:'', type:'text', options:[], required:false });
-    renderQmTable();
-  }
-
-  function qmDel(i) {
-    qmQuestions.splice(i, 1);
-    renderQmTable();
-  }
-
-  function saveQuestions() {
-    qmLimit = Number(document.getElementById('qmLimit').value || '0');
-    const cfg = {
-      per_dialog_limit: qmLimit,
-      questions: qmQuestions
-    };
-    fetch(`/api/channels/${qmCurrentId}`, {
-      method: 'PATCH',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ questions_cfg: cfg, max_questions: qmLimit })
-    }).then(r => r.json()).then(j => {
-      if (!j.success) return alert(j.error || 'Ошибка сохранения');
-      // обновим число в строке
-      const row = document.querySelector(`tr[data-id="${qmCurrentId}"]`);
-      if (row) row.querySelector('.max_questions').value = qmLimit;
-      alert('Сохранено');
-      bootstrap.Modal.getInstance(document.getElementById('questionsModal')).hide();
-    });
-  }
-</script>
-
-	  <div class="modal fade" id="questionsModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Состав вопросов для канала <span id="qmChannelLabel"></span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="row g-3 mb-3">
-          <div class="col-md-3">
-            <label class="form-label">Лимит вопросов за диалог</label>
-            <input id="qmLimit" type="number" min="0" value="0" class="form-control">
+            <div class="mt-4">
+              <label class="form-label">Дополнительные настройки (JSON) <span id="questionsExtraBadge" class="badge bg-secondary" hidden>используется</span></label>
+              <textarea id="questionsAdvancedJson" class="form-control" rows="5" placeholder='Например: { "feedback": { ... } }'></textarea>
+              <div class="form-text">Задайте редкие параметры (feedback, prompts и т.п.). Оставьте пустым, если дополнительные сценарии не нужны.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" id="saveQuestionsBtn">Сохранить</button>
           </div>
         </div>
-
-        <div class="table-responsive">
-          <table class="table table-sm align-middle">
-            <thead>
-              <tr>
-                <th style="width: 18%">Ключ</th>
-                <th style="width: 28%">Метка (текст)</th>
-                <th style="width: 14%">Тип</th>
-                <th style="width: 25%">Опции (через запятую)</th>
-                <th style="width: 8%">Обяз.</th>
-                <th style="width: 7%"></th>
-              </tr>
-            </thead>
-            <tbody id="qmBody"></tbody>
-          </table>
-        </div>
-        <button class="btn btn-outline-primary" onclick="qmAdd()">+ Добавить вопрос</button>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-        <button class="btn btn-primary" onclick="saveQuestions()">Сохранить</button>
       </div>
     </div>
-  </div>
-</div>
+
+    <script>
+      const channelsBody = document.getElementById('channelsBody');
+
+      const questionsState = {
+        channelId: null,
+        channelName: '',
+        questions: [],
+        limit: 0,
+        extra: {}
+      };
+
+      function escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function maskToken(token) {
+        const str = String(token || '').trim();
+        if (!str) return '—';
+        if (str.length <= 10) return str;
+        return `${str.slice(0, 6)}…${str.slice(-4)}`;
+      }
+
+      function pluralize(count, forms) {
+        const n = Math.abs(count) % 100;
+        const n1 = n % 10;
+        if (n > 10 && n < 20) return forms[2];
+        if (n1 > 1 && n1 < 5) return forms[1];
+        if (n1 === 1) return forms[0];
+        return forms[2];
+      }
+
+      function normalizeQuestion(raw) {
+        if (typeof raw === 'string') {
+          return { key: '', label: raw, type: 'text', options: [], required: false };
+        }
+        const obj = Object.assign({ key: '', label: '', type: 'text', options: [], required: false }, raw || {});
+        obj.label = String(obj.label || '').trim();
+        obj.key = String(obj.key || '').trim();
+        obj.type = ['text', 'select', 'number'].includes(obj.type) ? obj.type : 'text';
+        obj.options = Array.isArray(obj.options) ? obj.options.map(String) : [];
+        obj.required = Boolean(obj.required);
+        return obj;
+      }
+
+      function normalizeConfig(rawConfig, fallbackLimit = 0) {
+        let cfg = {};
+        if (typeof rawConfig === 'string' && rawConfig.trim()) {
+          try { cfg = JSON.parse(rawConfig); } catch (e) { cfg = {}; }
+        } else if (rawConfig && typeof rawConfig === 'object') {
+          cfg = Object.assign({}, rawConfig);
+        }
+        const questions = Array.isArray(cfg.questions) ? cfg.questions.map(normalizeQuestion).filter(q => q.label) : [];
+        let limit = Number(cfg.per_dialog_limit);
+        if (!Number.isFinite(limit) || limit < 0) limit = Number(fallbackLimit) || 0;
+        const extra = Object.assign({}, cfg);
+        delete extra.questions;
+        delete extra.per_dialog_limit;
+        return { questions, limit, extra };
+      }
+
+      function buildSummary(questions, limit, extra) {
+        const parts = [];
+        const count = questions.length;
+        parts.push(count ? `${count} ${pluralize(count, ['вопрос', 'вопроса', 'вопросов'])}` : 'Нет вопросов');
+        if (limit) parts.push(`лимит ${limit}`);
+        if (extra && Object.keys(extra).length) parts.push('есть доп. настройки');
+        return parts.join(' • ');
+      }
+
+      function renderChannels(rows) {
+        channelsBody.innerHTML = '';
+        if (!rows.length) {
+          channelsBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
+          return;
+        }
+        rows.forEach((row) => {
+          const { questions, limit, extra } = normalizeConfig(row.questions_cfg, row.max_questions);
+          const configForDataset = Object.assign({}, extra, { questions, per_dialog_limit: limit });
+          const tr = document.createElement('tr');
+          tr.dataset.id = row.id;
+          tr.dataset.config = JSON.stringify(configForDataset);
+          tr.dataset.limit = String(limit || 0);
+          tr.innerHTML = `
+            <td class="fw-semibold">#${row.id}</td>
+            <td>
+              <div class="fw-medium">${escapeHtml(row.channel_name || '—')}</div>
+              <div class="text-muted small">Бот: ${escapeHtml(row.bot_name || '—')}</div>
+              <div class="text-muted small">Токен: ${escapeHtml(maskToken(row.token))}</div>
+            </td>
+            <td>
+              <input class="form-control form-control-sm" data-field="channel_name" value="${escapeHtml(row.channel_name || '')}">
+            </td>
+            <td class="text-center align-middle">
+              <div class="form-check form-switch d-inline-flex align-items-center gap-2">
+                <input class="form-check-input" type="checkbox" data-field="is_active" ${row.is_active ? 'checked' : ''}>
+                <label class="form-check-label small" data-status-label>${row.is_active ? 'Активен' : 'Выключен'}</label>
+              </div>
+            </td>
+            <td style="max-width: 160px;">
+              <input type="number" min="0" class="form-control form-control-sm" data-field="max_questions" value="${limit || 0}">
+              <div class="form-text small">0 — без лимита</div>
+            </td>
+            <td>
+              <div class="small text-muted mb-2" data-summary>${buildSummary(questions, limit, extra)}</div>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openQuestionsEditor(${row.id})">Настроить…</button>
+            </td>
+            <td class="text-nowrap">
+              <button type="button" class="btn btn-sm btn-success me-2" onclick="saveChannel(${row.id})">Сохранить</button>
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeChannel(${row.id})">Удалить</button>
+            </td>
+          `;
+
+          const statusSwitch = tr.querySelector('[data-field="is_active"]');
+          const statusLabel = tr.querySelector('[data-status-label]');
+          if (statusSwitch && statusLabel) {
+            statusSwitch.addEventListener('change', () => {
+              statusLabel.textContent = statusSwitch.checked ? 'Активен' : 'Выключен';
+            });
+          }
+
+          channelsBody.appendChild(tr);
+        });
+      }
+
+      async function loadChannels() {
+        try {
+          const resp = await fetch('/api/channels');
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const rows = await resp.json();
+          renderChannels(Array.isArray(rows) ? rows : []);
+        } catch (error) {
+          alert('Не удалось загрузить каналы: ' + error.message);
+        }
+      }
+
+      async function addChannel() {
+        const token = document.getElementById('new_token').value.trim();
+        const channelName = document.getElementById('new_channel_name').value.trim();
+        const maxQuestions = parseInt(document.getElementById('new_max_questions').value || '0', 10);
+        if (!token || !channelName) {
+          alert('Укажите токен и название канала.');
+          return;
+        }
+        try {
+          const resp = await fetch('/api/channels', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, channel_name: channelName, max_questions: maxQuestions, is_active: true })
+          });
+          const data = await resp.json();
+          if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+          document.getElementById('new_token').value = '';
+          document.getElementById('new_channel_name').value = '';
+          document.getElementById('new_max_questions').value = '0';
+          await loadChannels();
+          alert('Канал добавлен.');
+        } catch (error) {
+          alert('Ошибка добавления: ' + error.message);
+        }
+      }
+
+      async function saveChannel(id) {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (!row) return;
+        const nameInput = row.querySelector('[data-field="channel_name"]');
+        const statusInput = row.querySelector('[data-field="is_active"]');
+        const limitInput = row.querySelector('[data-field="max_questions"]');
+        const channelName = (nameInput?.value || '').trim();
+        const maxQuestions = parseInt(limitInput?.value || '0', 10) || 0;
+        if (!channelName) {
+          alert('Укажите имя канала.');
+          return;
+        }
+        try {
+          const resp = await fetch(`/api/channels/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              channel_name: channelName,
+              is_active: statusInput?.checked ? 1 : 0,
+              max_questions: maxQuestions
+            })
+          });
+          const data = await resp.json();
+          if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+          row.dataset.limit = String(maxQuestions);
+          try {
+            const cfg = row.dataset.config ? JSON.parse(row.dataset.config) : {};
+            const { questions, extra } = normalizeConfig(cfg, maxQuestions);
+            const summaryEl = row.querySelector('[data-summary]');
+            if (summaryEl) summaryEl.textContent = buildSummary(questions, maxQuestions, extra);
+          } catch (e) {
+            // игнорируем, при следующем открытии модалки всё обновится
+          }
+          alert('Настройки канала сохранены.');
+        } catch (error) {
+          alert('Ошибка сохранения: ' + error.message);
+        }
+      }
+
+      async function removeChannel(id) {
+        if (!confirm('Удалить канал? Действие необратимо.')) return;
+        try {
+          const resp = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
+          const data = await resp.json();
+          if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+          await loadChannels();
+        } catch (error) {
+          alert('Ошибка удаления: ' + error.message);
+        }
+      }
+
+      function renderQuestionsList() {
+        const body = document.getElementById('questionsTableBody');
+        body.innerHTML = '';
+        if (!questionsState.questions.length) {
+          body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Добавьте первый вопрос</td></tr>';
+          return;
+        }
+        questionsState.questions.forEach((q, index) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="key" value="${escapeHtml(q.key)}"></td>
+            <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="label" value="${escapeHtml(q.label)}" placeholder="Например: Уточните номер заказа"></td>
+            <td>
+              <select class="form-select form-select-sm" data-idx="${index}" data-field="type">
+                <option value="text" ${q.type === 'text' ? 'selected' : ''}>text</option>
+                <option value="select" ${q.type === 'select' ? 'selected' : ''}>select</option>
+                <option value="number" ${q.type === 'number' ? 'selected' : ''}>number</option>
+              </select>
+            </td>
+            <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="options" value="${escapeHtml((q.options || []).join(', '))}" placeholder="Варианты для select"></td>
+            <td class="text-center"><input type="checkbox" class="form-check-input" data-idx="${index}" data-field="required" ${q.required ? 'checked' : ''}></td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-remove-question="${index}">×</button></td>
+          `;
+          body.appendChild(tr);
+        });
+        body.querySelectorAll('input[data-field], select[data-field]').forEach((input) => {
+          input.addEventListener('input', handleQuestionChange);
+          input.addEventListener('change', handleQuestionChange);
+        });
+        body.querySelectorAll('button[data-remove-question]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.removeQuestion, 10);
+            questionsState.questions.splice(idx, 1);
+            renderQuestionsList();
+          });
+        });
+      }
+
+      function handleQuestionChange(event) {
+        const el = event.currentTarget;
+        const idx = parseInt(el.dataset.idx, 10);
+        const field = el.dataset.field;
+        if (Number.isNaN(idx) || !questionsState.questions[idx]) return;
+        if (field === 'required') {
+          questionsState.questions[idx][field] = el.checked;
+        } else if (field === 'options') {
+          questionsState.questions[idx].options = String(el.value || '')
+            .split(',')
+            .map((opt) => opt.trim())
+            .filter(Boolean);
+        } else {
+          questionsState.questions[idx][field] = String(el.value || '');
+        }
+      }
+
+      function updateExtraBadge() {
+        const badge = document.getElementById('questionsExtraBadge');
+        if (!badge) return;
+        badge.hidden = !questionsState.extra || !Object.keys(questionsState.extra).length;
+      }
+
+      async function openQuestionsEditor(id) {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (!row) return;
+        const nameInput = row.querySelector('[data-field="channel_name"]');
+        questionsState.channelId = id;
+        questionsState.channelName = (nameInput?.value || '').trim() || `#${id}`;
+        let rawConfig = row.dataset.config;
+        if (!rawConfig) {
+          try {
+            const resp = await fetch(`/api/channels/${id}`);
+            const data = await resp.json();
+            if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+            rawConfig = data.channel?.questions_cfg || '{}';
+            row.dataset.config = rawConfig;
+          } catch (error) {
+            alert('Не удалось получить конфигурацию вопросов: ' + error.message);
+            return;
+          }
+        }
+        const { questions, limit, extra } = normalizeConfig(rawConfig, row.dataset.limit || 0);
+        questionsState.questions = questions.slice();
+        questionsState.limit = limit;
+        questionsState.extra = extra;
+
+        document.getElementById('questionsChannelLabel').textContent = `${questionsState.channelName} (#${id})`;
+        document.getElementById('questionsLimit').value = limit || 0;
+        document.getElementById('questionsAdvancedJson').value = Object.keys(extra || {}).length ? JSON.stringify(extra, null, 2) : '';
+        updateExtraBadge();
+        renderQuestionsList();
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('questionsModal')).show();
+      }
+
+      function addQuestionRow() {
+        questionsState.questions.push({ key: '', label: '', type: 'text', options: [], required: false });
+        renderQuestionsList();
+      }
+
+      async function saveQuestionsConfig() {
+        const limitInput = document.getElementById('questionsLimit');
+        const extraTextarea = document.getElementById('questionsAdvancedJson');
+        const limit = parseInt(limitInput?.value || '0', 10);
+        if (Number.isNaN(limit) || limit < 0) {
+          alert('Лимит вопросов должен быть неотрицательным числом.');
+          return;
+        }
+        let extra = {};
+        const extraRaw = (extraTextarea?.value || '').trim();
+        if (extraRaw) {
+          try {
+            extra = JSON.parse(extraRaw);
+          } catch (error) {
+            alert('Дополнительные настройки должны быть валидным JSON: ' + error.message);
+            return;
+          }
+        }
+        const cleanedQuestions = questionsState.questions
+          .map(normalizeQuestion)
+          .filter((q) => q.label.trim().length);
+        const payloadConfig = Object.assign({}, extra, {
+          per_dialog_limit: limit,
+          questions: cleanedQuestions
+        });
+        try {
+          const resp = await fetch(`/api/channels/${questionsState.channelId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questions_cfg: payloadConfig, max_questions: limit })
+          });
+          const data = await resp.json();
+          if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+          const row = document.querySelector(`tr[data-id="${questionsState.channelId}"]`);
+          if (row) {
+            row.dataset.config = JSON.stringify(payloadConfig);
+            row.dataset.limit = String(limit || 0);
+            const limitInputRow = row.querySelector('[data-field="max_questions"]');
+            if (limitInputRow) limitInputRow.value = limit || 0;
+            const summaryEl = row.querySelector('[data-summary]');
+            if (summaryEl) summaryEl.textContent = buildSummary(cleanedQuestions, limit, extra);
+          }
+          updateExtraBadge();
+          bootstrap.Modal.getInstance(document.getElementById('questionsModal'))?.hide();
+          alert('Настройки вопросов сохранены.');
+        } catch (error) {
+          alert('Не удалось сохранить вопросы: ' + error.message);
+        }
+      }
+
+      document.getElementById('addQuestionBtn').addEventListener('click', addQuestionRow);
+      document.getElementById('saveQuestionsBtn').addEventListener('click', saveQuestionsConfig);
+      document.getElementById('questionsAdvancedJson').addEventListener('input', () => {
+        try {
+          const value = document.getElementById('questionsAdvancedJson').value.trim();
+          questionsState.extra = value ? JSON.parse(value) : {};
+        } catch (e) {
+          // Подсказку обновим при сохранении, ошибки пользователя не блокируем
+        }
+        updateExtraBadge();
+      });
+
+      document.addEventListener('DOMContentLoaded', loadChannels);
+
+      window.addChannel = addChannel;
+      window.saveChannel = saveChannel;
+      window.removeChannel = removeChannel;
+      window.openQuestionsEditor = openQuestionsEditor;
+    </script>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
 </body>
