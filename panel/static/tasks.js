@@ -14,11 +14,17 @@
   const form = document.getElementById('taskForm');
   const bodyEditor = document.getElementById('bodyEditor');
   const deleteBtn = document.getElementById('deleteTaskBtn');
+  const totalCounter = document.getElementById('tasksTotal');
+  const shownCounter = document.getElementById('tasksShown');
+  const summaryEl = document.getElementById('tasksSummary');
+  const taskNumberEl = document.getElementById('taskNumber');
 
   // элементы могут отсутствовать — страхуемся
   const filtersModal = (typeof bootstrap !== 'undefined' && filtersModalEl)
     ? new bootstrap.Modal(filtersModalEl)
     : null;
+
+  const FINAL_STATUSES = new Set(['завершена', 'отменена']);
 
   // ===== состояние таблицы
   let state = {
@@ -43,10 +49,13 @@
     const d = new Date(s);
     return d.toLocaleString();
   }
+    function isFinalStatus(status) {
+    return FINAL_STATUSES.has(String(status || '').trim().toLowerCase());
+  }
 // ===== utils
-	function humanLeft(ms) {
-	  if (ms == null) return '—';
-	  const sec = Math.floor(ms / 1000);
+        function humanLeft(ms) {
+          if (ms == null) return '—';
+          const sec = Math.floor(ms / 1000);
 	  
 	  if (sec < 0) {
 		// Просрочено - отрицательные значения
@@ -80,7 +89,36 @@
 		if (sec < year) return `${Math.floor(sec / month)} мес`;
 		return `${Math.floor(sec / year)} г`;
 	  }
-	}
+        }
+
+  function getModalInstance() {
+    if (typeof bootstrap === 'undefined' || !modalEl) return null;
+    return bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+
+  let skipDirtyConfirm = false;
+  function hideTaskModal(force = false) {
+    const inst = getModalInstance();
+    if (!inst) return;
+    if (force) skipDirtyConfirm = true;
+    inst.hide();
+  }
+
+  function requestModalClose() {
+    if (isDirty && !confirm('Есть несохранённые изменения. Закрыть без сохранения?')) return;
+    hideTaskModal(true);
+  }
+
+  function syncStatusButtons(value) {
+    if (!form) return;
+    const normalized = String(value || '').trim();
+    const target = normalized || 'Новая';
+    form.dataset.status = target;
+    document.querySelectorAll('.task-status').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.st === target);
+    });
+  }
+
   async function httpJson(url, opts = {}) {
     const r = await fetch(url, { credentials: 'same-origin', ...opts });
     if (r.status === 401) {
@@ -98,28 +136,48 @@
     const r = await httpJson('/api/tasks?' + q);
     const data = await r.json();
     state.total = data.total || 0;
+    const pageFromServer = parseInt(data.page, 10);
+    if (!Number.isNaN(pageFromServer) && pageFromServer > 0) state.page = pageFromServer;
+    const sizeFromServer = parseInt(data.page_size, 10);
+    if (!Number.isNaN(sizeFromServer) && sizeFromServer > 0) state.page_size = sizeFromServer;
+    const items = data.items || [];
+    if (pageSizeSel) {
+      const valueStr = String(state.page_size);
+      if (![...pageSizeSel.options].some(o => o.value === valueStr)) {
+        const opt = document.createElement('option');
+        opt.value = valueStr;
+        opt.textContent = valueStr;
+        pageSizeSel.appendChild(opt);
+      }
+      pageSizeSel.value = valueStr;
+    }
 
     tbody.innerHTML = '';
-    for (const t of (data.items || [])) {
+    for (const t of items) {
       const tr = document.createElement('tr');
 
-      // подсветка строк по дедлайну
-      let cls = '';
-      if (t.due_at) {
-        const left = new Date(t.due_at).getTime() - Date.now();
-        if (left < 0) cls = 'overdue';
-        else if (left < 86400000) cls = 'warn';
+      const final = isFinalStatus(t.status);
+      const dueAtValue = t.due_at || '';
+      tr.dataset.status = t.status || '';
+      tr.dataset.dueAt = dueAtValue;
+      tr.dataset.id = t.id || '';
+      tr.className = '';
+      if (!final && dueAtValue) {
+        const left = new Date(dueAtValue).getTime() - Date.now();
+        if (left < 0) tr.classList.add('overdue');
+        else if (left < 86400000) tr.classList.add('warn');
       }
-      tr.className = cls;
-
-	  tr.innerHTML = `
-  <td>${t.display_no}</td>
+      const timeLeftText = dueAtValue ? (final ? '—' : humanLeft(new Date(dueAtValue) - Date.now())) : '';
+      const timeLeftClass = (!final && tr.classList.contains('overdue')) ? 'pulsating' : 'text-muted';
+      const safeStatusAttr = (t.status || '').replace(/"/g, '&quot;');
+      tr.innerHTML = `
+  <td>${t.display_no || ''}</td>
   <td>${t.title || ''}</td>
   <td>${t.assignee || ''}</td>
   <td>
-    ${t.due_at ? fmtDT(t.due_at) : '—'}
-    <div class="small ${cls === 'overdue' ? 'pulsating' : 'text-muted'}">
-      ${t.due_at ? humanLeft(new Date(t.due_at) - Date.now()) : ''}
+    ${dueAtValue ? fmtDT(dueAtValue) : '—'}
+    <div class="small ${timeLeftClass} time-left" data-due="${dueAtValue}" data-status="${safeStatusAttr}">
+      ${timeLeftText}
     </div>
   </td>
   <td>${fmtDT(t.last_activity_at)}</td>
@@ -131,19 +189,45 @@
 `;
       tbody.appendChild(tr);
     }
+    if (totalCounter) totalCounter.textContent = state.total;
+    if (shownCounter) shownCounter.textContent = items.length;
+    const totalPages = Math.max(1, Math.ceil(state.total / state.page_size));
+    if (state.page > totalPages) state.page = totalPages;
+    if (summaryEl) {
+      summaryEl.textContent = `Показано ${items.length} из ${state.total} · Страница ${state.page}/${totalPages}`;
+    }
+    updateOverdueTasks();
     renderPager();
     markSortHeader();
   }
 
 function updateOverdueTasks() {
-  document.querySelectorAll('.overdue .pulsating').forEach(el => {
-    const taskRow = el.closest('tr');
-    const dueText = el.textContent;
-    // Если текст содержит "просрочено" или начинается с минуса, обновляем
-    if (dueText.includes('просрочено') || dueText.startsWith('-')) {
-      // Можно добавить логику для обновления времени, если нужно
-      // Пока просто поддерживаем анимацию
+  const now = Date.now();
+  document.querySelectorAll('#tasksTable tbody tr').forEach(row => {
+    const status = row.dataset.status || '';
+    const dueAt = row.dataset.dueAt || '';
+    const timeEl = row.querySelector('.time-left');
+    const final = isFinalStatus(status);
+    if (!timeEl) return;
+
+    if (!dueAt || final) {
+      row.classList.remove('overdue', 'warn');
+      timeEl.classList.remove('pulsating');
+      timeEl.classList.add('text-muted');
+      if (final && dueAt) timeEl.textContent = '—';
+      else if (!dueAt) timeEl.textContent = '';
+      return;
     }
+
+    const diff = new Date(dueAt).getTime() - now;
+    const isOverdue = diff < 0;
+    const isWarn = !isOverdue && diff < 86400000;
+
+    row.classList.toggle('overdue', isOverdue);
+    row.classList.toggle('warn', isWarn);
+    timeEl.classList.toggle('pulsating', isOverdue);
+    timeEl.classList.toggle('text-muted', !isOverdue);
+    timeEl.textContent = humanLeft(diff);
   });
 }
 
@@ -218,6 +302,24 @@ setInterval(updateOverdueTasks, 60000);
   const commentEditor = document.getElementById('commentEditor');
   const sendCommentBtn = document.getElementById('sendCommentBtn');
 
+  function handleCommentPaste(e) {
+    if (!commentEditor) return;
+    const items = (e.clipboardData || e.originalEvent?.clipboardData || {}).items || [];
+    for (const it of items) {
+      if (it.type && it.type.indexOf('image') === 0) {
+        const file = it.getAsFile();
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+          const img = new Image();
+          img.src = evt.target.result;
+          img.style.maxWidth = '100%';
+          commentEditor.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  }
+
   let isDirty = false;
   const DRAFT_NEW_KEY = 'taskDraft_new';
   function setDirty() { isDirty = true; }
@@ -259,25 +361,31 @@ setInterval(updateOverdueTasks, 60000);
       if (form.due_at) form.due_at.value = d.due_at || '';
       form.dataset.status = d.status || '';
     } catch { }
+    syncStatusButtons(form.dataset.status);
   }
   if (modalEl) setInterval(() => { if (modalEl.classList.contains('show')) saveDraft(); }, 2000);
 
   if (modalEl) {
     modalEl.addEventListener('hide.bs.modal', (e) => {
-      if (!isDirty) return;
-      if (!confirm('Есть несохранённые изменения. Закрыть без сохранения?')) e.preventDefault();
+      if (skipDirtyConfirm) { skipDirtyConfirm = false; return; }
+      if (isDirty && !confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
+        e.preventDefault();
+      }
+    });
+    modalEl.addEventListener('hidden.bs.modal', () => { skipDirtyConfirm = false; });
+    modalEl.querySelectorAll('[data-task-close]').forEach(btn => {
+      btn.addEventListener('click', (ev) => { ev.preventDefault(); requestModalClose(); });
     });
   }
 
   document.querySelectorAll('.task-status').forEach(b => {
     b.addEventListener('click', (e) => {
       e.preventDefault();
-      form.dataset.status = b.dataset.st;
-      document.querySelectorAll('.task-status').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
+      syncStatusButtons(b.dataset.st);
       setDirty();
     });
   });
+  if (form) syncStatusButtons(form.dataset.status || '');
 
   // создать новую
   const createBtn = document.getElementById('createTaskBtn');
@@ -286,6 +394,8 @@ setInterval(updateOverdueTasks, 60000);
     form.id.value = '';
     if (bodyEditor) bodyEditor.innerHTML = '';
     if (deleteBtn) deleteBtn.hidden = true;
+    if (form.title) form.title.readOnly = false;
+    if (bodyEditor) bodyEditor.setAttribute('contenteditable', 'true');
 
     // в новой задаче блок комментариев скрыт
     if (commentsBlock) commentsBlock.hidden = true;
@@ -294,18 +404,24 @@ setInterval(updateOverdueTasks, 60000);
     if (form.creator && !form.creator.value) form.creator.value = (document.body.dataset.userEmail || '');
     if (form.assignee && !form.assignee.value) form.assignee.value = form.creator.value;
 
+    if (taskNumberEl) taskNumberEl.textContent = 'Новая задача';
+    const createdAt = document.getElementById('createdAt');
+    if (createdAt) createdAt.textContent = '—';
+    const timeLeft = document.getElementById('timeLeft');
+    if (timeLeft) timeLeft.textContent = '—';
+
+    form.dataset.status = 'Новая';
     loadDraft(null);
+    syncStatusButtons(form.dataset.status);
     isDirty = false;
-    if (typeof bootstrap !== 'undefined' && modalEl) new bootstrap.Modal(modalEl).show();
+    const inst = getModalInstance();
+    if (inst) inst.show();
   });
 
   // открыть существующую
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.edit-btn');
-    if (!btn) return;
-    const id = btn.dataset.id;
+  async function openTaskModal(taskId) {
+    if (!taskId) return;
 
-    // поля названия/тела — только для чтения до нажатия «Редактировать задачу»
     if (form.title) form.title.readOnly = true;
     if (bodyEditor) bodyEditor.setAttribute('contenteditable', 'false');
     const toggle = document.getElementById('editToggleBtn');
@@ -316,7 +432,7 @@ setInterval(updateOverdueTasks, 60000);
       bodyEditor.setAttribute('contenteditable', ro ? 'true' : 'false');
     };
 
-    const res = await httpJson(`/api/tasks/${id}`);
+    const res = await httpJson(`/api/tasks/${taskId}`);
     const t = await res.json();
 
     form.id.value = t.id;
@@ -328,12 +444,15 @@ setInterval(updateOverdueTasks, 60000);
     if (form.watchers) form.watchers.value = (t.watchers || []).join(', ');
     if (form.tag) form.tag.value = t.tag || '';
     if (form.due_at) form.due_at.value = t.due_at ? t.due_at.replace('Z', '') : '';
+    if (taskNumberEl) taskNumberEl.textContent = t.display_no ? `№${t.display_no}` : (t.id ? `№DL_${t.id}` : '');
     const createdAt = document.getElementById('createdAt');
     if (createdAt) createdAt.textContent = t.created_at ? (new Date(t.created_at)).toLocaleString() : '—';
     const timeLeft = document.getElementById('timeLeft');
-    if (timeLeft) timeLeft.textContent = t.due_at ? humanLeft(new Date(t.due_at) - Date.now()) : '—';
+    const isFinal = isFinalStatus(t.status);
+    if (timeLeft) timeLeft.textContent = t.due_at ? (isFinal ? '—' : humanLeft(new Date(t.due_at) - Date.now())) : '—';
 
-    // комментарии
+    syncStatusButtons(t.status || '');
+
     const comm = document.getElementById('comments');
     if (comm) {
       comm.innerHTML = (t.comments || []).map(c => `
@@ -342,7 +461,6 @@ setInterval(updateOverdueTasks, 60000);
           <div>${c.html || ''}</div>
         </div>`).join('');
     }
-    // история (сворачиваемая)
     const hist = document.getElementById('history');
     if (hist) {
       hist.innerHTML = (t.history || []).map(h => `
@@ -350,7 +468,6 @@ setInterval(updateOverdueTasks, 60000);
       `).join('');
     }
 
-    // комментарии доступны только для существующей задачи
     if (commentsBlock) commentsBlock.hidden = false;
     if (sendCommentBtn && commentEditor) {
       sendCommentBtn.onclick = async (ev) => {
@@ -373,30 +490,25 @@ setInterval(updateOverdueTasks, 60000);
           document.getElementById('comments').appendChild(wrap);
         }
       };
-      // вставка изображений в комментарий из буфера
-      commentEditor.addEventListener('paste', (e) => {
-        const items = (e.clipboardData || e.originalEvent?.clipboardData || {}).items || [];
-        for (const it of items) {
-          if (it.type && it.type.indexOf("image") === 0) {
-            const file = it.getAsFile();
-            const reader = new FileReader();
-            reader.onload = function (evt) {
-              const img = new Image();
-              img.src = evt.target.result;
-              img.style.maxWidth = '100%';
-              commentEditor.appendChild(img);
-            };
-            reader.readAsDataURL(file);
-          }
-        }
-      });
+      if (!commentEditor.dataset.pasteHandlerAttached) {
+        commentEditor.addEventListener('paste', handleCommentPaste);
+        commentEditor.dataset.pasteHandlerAttached = '1';
+      }
     }
 
-    // черновик редактирования
     loadDraft(t.id);
+    syncStatusButtons(form.dataset.status || t.status || '');
     if (deleteBtn) deleteBtn.hidden = false;
     isDirty = false;
-    if (typeof bootstrap !== 'undefined' && modalEl) new bootstrap.Modal(modalEl).show();
+    const inst = getModalInstance();
+    if (inst) inst.show();
+  }
+
+  // открыть существующую
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.edit-btn');
+    if (!btn) return;
+    await openTaskModal(btn.dataset.id);
   });
 
   // вставка картинок в тело задачи из буфера
@@ -442,7 +554,7 @@ setInterval(updateOverdueTasks, 60000);
       if (data && data.ok) {
         localStorage.removeItem('taskDraft_' + (form.id.value || 'new'));
         isDirty = false;
-        if (typeof bootstrap !== 'undefined' && modalEl) new bootstrap.Modal(modalEl).hide();
+        hideTaskModal(true);
         await load();
       } else {
         alert(data?.error || 'Ошибка сохранения');
@@ -461,7 +573,7 @@ setInterval(updateOverdueTasks, 60000);
     if (data && data.ok) {
       localStorage.removeItem('taskDraft_' + form.id.value);
       isDirty = false;
-      if (typeof bootstrap !== 'undefined' && modalEl) new bootstrap.Modal(modalEl).hide();
+      hideTaskModal(true);
       load();
     } else {
       alert('Ошибка удаления');
@@ -472,26 +584,7 @@ setInterval(updateOverdueTasks, 60000);
   async function openFromHash() {
     const m = (location.hash || '').match(/#task=(\d+)/);
     if (!m) return;
-    const id = m[1];
-    const r = await httpJson(`/api/tasks/${id}`);
-    const t = await r.json();
-
-    // переиспользуем логику из «открыть существующую» (сокращённая версия)
-    form.id.value = t.id;
-    if (form.title) form.title.value = t.title || '';
-    if (bodyEditor) bodyEditor.innerHTML = t.body_html || '';
-    if (form.creator) form.creator.value = t.creator || (document.body.dataset.userEmail || '');
-    if (form.assignee) form.assignee.value = t.assignee || form.creator.value;
-    if (form.co) form.co.value = (t.co || []).join(', ');
-    if (form.watchers) form.watchers.value = (t.watchers || []).join(', ');
-    if (form.tag) form.tag.value = t.tag || '';
-    if (form.due_at) form.due_at.value = t.due_at ? t.due_at.replace('Z', '') : '';
-    const createdAt = document.getElementById('createdAt');
-    if (createdAt) createdAt.textContent = t.created_at ? (new Date(t.created_at)).toLocaleString() : '—';
-    const timeLeft = document.getElementById('timeLeft');
-    if (timeLeft) timeLeft.textContent = t.due_at ? humanLeft(new Date(t.due_at) - Date.now()) : '—';
-
-    if (typeof bootstrap !== 'undefined' && modalEl) new bootstrap.Modal(modalEl).show();
+    await openTaskModal(m[1]);
   }
   window.addEventListener('hashchange', openFromHash);
   openFromHash();
