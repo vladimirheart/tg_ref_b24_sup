@@ -61,6 +61,18 @@
     .passport-card .card-body .form-label { font-weight: 600; font-size: 0.85rem; color: #2f3b52; }
     .passport-card .form-control,
     .passport-card .form-select { font-size: 0.9rem; }
+	.select-search-wrapper { display: flex; flex-direction: column; gap: 0.25rem; }
+    .select-search-wrapper .input-group { flex-wrap: nowrap; }
+    .select-search-input { font-size: 0.85rem; }
+    .photo-card { position: relative; overflow: hidden; }
+    .photo-card .card-img-top { cursor: zoom-in; border-radius: 0.75rem 0.75rem 0 0; }
+    .photo-card .photo-toolbar { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2; }
+    .photo-card .title-indicator { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(25, 135, 84, 0.9); color: #fff; font-size: 1rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); }
+    .photo-card .photo-caption-text { white-space: pre-wrap; word-break: break-word; }
+    .photo-card .photo-meta { font-size: 0.8rem; color: #6b7280; }
+    .photo-card .photo-edit-form { background-color: #f8fafc; border-radius: 0.75rem; padding: 0.75rem; }
+    .passport-photo { cursor: zoom-in; }
+    .equipment-photo img { cursor: zoom-in; }
     @media (max-width: 576px) {
       .title-photo-preview { width: 140px; height: 90px; }
       .passport-overview .card-body { padding: 1.25rem; }
@@ -108,62 +120,77 @@
           <div class="row g-3">
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Департамент<span class="text-danger">*</span></label>
-              <div class="input-group input-group-sm">
-                <select class="form-select" id="departmentSelect">
-                  <option value="">Не выбрано</option>
-                  {% for value in parameter_values.get('department', []) %}
-                  <option value="{{ value }}">{{ value }}</option>
-                  {% endfor %}
-                </select>
-                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="departmentSelect" placeholder="Поиск..." />
+                <div class="input-group input-group-sm">
+                  <select class="form-select" id="departmentSelect">
+                    <option value="">Не выбрано</option>
+                    {% for value in parameter_values.get('department', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
+                </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Бизнес</label>
-              <div class="input-group input-group-sm">
-                <select class="form-select" id="businessSelect">
-                  <option value="">Не выбрано</option>
-                  {% for value in parameter_values.get('business', []) %}
-                  <option value="{{ value }}">{{ value }}</option>
-                  {% endfor %}
-                </select>
-                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="business" data-target="businessSelect">+</button>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="businessSelect" placeholder="Поиск..." />
+                <div class="input-group input-group-sm">
+                  <select class="form-select" id="businessSelect">
+                    <option value="">Не выбрано</option>
+                    {% for value in parameter_values.get('business', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="business" data-target="businessSelect">+</button>
+                </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Тип партнёра</label>
-              <div class="input-group input-group-sm">
-                <select class="form-select" id="partnerTypeSelect">
-                  <option value="">Не выбрано</option>
-                  {% for value in parameter_values.get('partner_type', []) %}
-                  <option value="{{ value }}">{{ value }}</option>
-                  {% endfor %}
-                </select>
-                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="partner_type" data-target="partnerTypeSelect">+</button>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="partnerTypeSelect" placeholder="Поиск..." />
+                <div class="input-group input-group-sm">
+                  <select class="form-select" id="partnerTypeSelect">
+                    <option value="">Не выбрано</option>
+                    {% for value in parameter_values.get('partner_type', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="partner_type" data-target="partnerTypeSelect">+</button>
+                </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Страна</label>
-              <div class="input-group input-group-sm">
-                <select class="form-select" id="countrySelect">
-                  <option value="">Не выбрано</option>
-                  {% for value in parameter_values.get('country', []) %}
-                  <option value="{{ value }}">{{ value }}</option>
-                  {% endfor %}
-                </select>
-                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="country" data-target="countrySelect">+</button>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="countrySelect" placeholder="Поиск..." />
+                <div class="input-group input-group-sm">
+                  <select class="form-select" id="countrySelect">
+                    <option value="">Не выбрано</option>
+                    {% for value in parameter_values.get('country', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="country" data-target="countrySelect">+</button>
+                </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Юридическое лицо</label>
-              <div class="input-group input-group-sm">
-                <select class="form-select" id="legalEntitySelect">
-                  <option value="">Не выбрано</option>
-                  {% for value in parameter_values.get('legal_entity', []) %}
-                  <option value="{{ value }}">{{ value }}</option>
-                  {% endfor %}
-                </select>
-                <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="legal_entity" data-target="legalEntitySelect">+</button>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="legalEntitySelect" placeholder="Поиск..." />
+                <div class="input-group input-group-sm">
+                  <select class="form-select" id="legalEntitySelect">
+                    <option value="">Не выбрано</option>
+                    {% for value in parameter_values.get('legal_entity', []) %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="legal_entity" data-target="legalEntitySelect">+</button>
+                </div>
               </div>
             </div>
             <div class="col-sm-6 col-xl-4">
@@ -177,11 +204,14 @@
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Статус</label>
-              <select class="form-select form-select-sm" id="statusSelect">
-                {% for value in statuses %}
-                <option value="{{ value }}">{{ value }}</option>
-                {% endfor %}
-              </select>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusSelect" placeholder="Поиск..." />
+                <select class="form-select form-select-sm" id="statusSelect">
+                  {% for value in statuses %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+              </div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Дата запуска</label>
@@ -191,9 +221,28 @@
               <label class="form-label">Дата закрытия</label>
               <input type="date" class="form-control form-control-sm" id="endDateInput" />
             </div>
+			<div class="col-sm-6 col-xl-4">
+              <label class="form-label">Дата приостановки</label>
+              <input type="date" class="form-control form-control-sm" id="suspensionDateInput" />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Дата разморозки</label>
+              <input type="date" class="form-control form-control-sm" id="resumeDateInput" />
+            </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Общее время работы</label>
               <div class="form-control-plaintext fw-semibold" id="totalTimeDisplay">—</div>
+            </div>
+			<div class="col-12 col-lg-6 d-none" id="statusTaskContainer">
+              <label class="form-label">Связанная задача<span class="text-danger">*</span></label>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusTaskSelect" id="statusTaskSearchInput" placeholder="Поиск по номеру или названию" autocomplete="off" />
+                <select class="form-select form-select-sm" id="statusTaskSelect">
+                  <option value="">Не выбрано</option>
+                </select>
+              </div>
+              <div class="form-text" id="statusTaskHint">Выберите задачу, отражающую текущее состояние объекта.</div>
+              <div class="small mt-2 text-muted" id="statusTaskInfo"></div>
             </div>
           </div>
           </div>
@@ -368,6 +417,36 @@
         </div>
       </div>
 
+	  <div class="card passport-card mb-4" id="tasksCard">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Задачи по локации</span>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#tasksBody" aria-expanded="false">Развернуть ▼</button>
+            <button class="btn btn-sm btn-outline-primary" id="refreshTasksBtn" type="button">🔄 Обновить</button>
+          </div>
+        </div>
+        <div class="section-collapse" id="tasksBody">
+          <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead>
+                <tr>
+                  <th>№ задачи</th>
+                  <th>Название</th>
+                  <th>Статус</th>
+                  <th>Исполнитель</th>
+                  <th>Дедлайн</th>
+                  <th>Обновлено</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody"></tbody>
+            </table>
+          </div>
+          <div class="text-muted" id="tasksEmptyText">Задачи не найдены.</div>
+                  </div>
+        </div>
+      </div>
+
       <div class="card passport-card mb-4" id="photosSection">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Фотографии объекта</span>
@@ -421,6 +500,24 @@
     </div>
   </main>
 
+  <div class="modal fade" id="photoPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-body">
+          <img src="" alt="Фото" class="img-fluid rounded" id="photoPreviewImage" />
+          <div class="mt-3">
+            <div class="text-muted small">Подпись</div>
+            <div id="photoPreviewCaption" class="fw-semibold"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="#" class="btn btn-primary" id="photoPreviewDownload" download>Скачать</a>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script id="passportData" type="application/json">{{ passport_payload | safe }}</script>
   <script>
     function escapeHtml(value) {
@@ -459,11 +556,13 @@
     const networkSupportPhoneInput = document.getElementById('networkSupportPhoneInput');
     const networkSpeedInput = document.getElementById('networkSpeedInput');
     const networkParamsInput = document.getElementById('networkParamsInput');
-	const networkFilesForm = document.getElementById('networkFilesForm');
+    const networkFilesForm = document.getElementById('networkFilesForm');
     const networkFilesList = document.getElementById('networkFilesList');
     const networkFilesEmptyText = document.getElementById('networkFilesEmptyText');
     const startDateInput = document.getElementById('startDateInput');
     const endDateInput = document.getElementById('endDateInput');
+    const suspensionDateInput = document.getElementById('suspensionDateInput');
+    const resumeDateInput = document.getElementById('resumeDateInput');
     const totalTimeDisplay = document.getElementById('totalTimeDisplay');
     const saveStatusAlert = document.getElementById('saveStatus');
     const statusBadge = document.getElementById('statusBadge');
@@ -482,7 +581,56 @@
     const casesTableBody = document.getElementById('casesTableBody');
     const casesEmptyText = document.getElementById('casesEmptyText');
     const refreshCasesBtn = document.getElementById('refreshCasesBtn');
+    const tasksTableBody = document.getElementById('tasksTableBody');
+    const tasksEmptyText = document.getElementById('tasksEmptyText');
+    const refreshTasksBtn = document.getElementById('refreshTasksBtn');
+    const statusTaskContainer = document.getElementById('statusTaskContainer');
+    const statusTaskSelect = document.getElementById('statusTaskSelect');
+    const statusTaskInfo = document.getElementById('statusTaskInfo');
+    const statusTaskSearchInput = document.getElementById('statusTaskSearchInput');
+    const statusTaskHint = document.getElementById('statusTaskHint');
+    const photoPreviewModalEl = document.getElementById('photoPreviewModal');
+    const photoPreviewImage = document.getElementById('photoPreviewImage');
+    const photoPreviewCaption = document.getElementById('photoPreviewCaption');
+    const photoPreviewDownload = document.getElementById('photoPreviewDownload');
+    let photoPreviewModalInstance = null;
     const savePassportBtn = document.getElementById('savePassportBtn');
+
+    const statusesRequiringTask = new Set(['Закрыт', 'Реконструкция', 'Заморожен', 'Другое']);
+
+    function syncSelectSearchInput(select) {
+      if (!select) return;
+      const input = document.querySelector(`.select-search-input[data-select-target="${select.id}"]`);
+      if (!input) return;
+      const option = select.options[select.selectedIndex];
+      input.value = option && option.value ? option.text : '';
+    }
+
+    function filterSelectOptions(select, value) {
+      if (!select) return;
+      const normalized = (value || '').trim().toLowerCase();
+      Array.from(select.options).forEach((option) => {
+        if (!option.value) {
+          option.hidden = false;
+          return;
+        }
+        const match = option.text.toLowerCase().includes(normalized);
+        option.hidden = Boolean(normalized) && !match && !option.selected;
+      });
+    }
+
+    function setupSelectSearchInputs() {
+      document.querySelectorAll('.select-search-input').forEach((input) => {
+        const targetId = input.dataset.selectTarget;
+        if (!targetId) return;
+        const select = document.getElementById(targetId);
+        if (!select) return;
+        input.addEventListener('input', () => filterSelectOptions(select, input.value));
+        input.addEventListener('focus', () => filterSelectOptions(select, input.value));
+        select.addEventListener('change', () => syncSelectSearchInput(select));
+        syncSelectSearchInput(select);
+      });
+    }
 
     function showSaveMessage(type, text) {
       saveStatusAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
@@ -496,11 +644,17 @@
     function updateStatusBadge() {
       const value = statusSelect.value || '—';
       statusBadge.textContent = value || '—';
-      statusBadge.classList.remove('bg-success', 'bg-warning', 'bg-secondary');
+      statusBadge.classList.remove('bg-success', 'bg-warning', 'bg-secondary', 'bg-dark', 'bg-info', 'text-dark');
       if (value === 'Открыт') {
         statusBadge.classList.add('bg-success');
       } else if (value === 'Стройка') {
-        statusBadge.classList.add('bg-warning');
+        statusBadge.classList.add('bg-warning', 'text-dark');
+      } else if (value === 'Закрыт') {
+        statusBadge.classList.add('bg-dark');
+      } else if (value === 'Реконструкция') {
+        statusBadge.classList.add('bg-info', 'text-dark');
+      } else if (value === 'Заморожен') {
+        statusBadge.classList.add('bg-warning', 'text-dark');
       } else {
         statusBadge.classList.add('bg-secondary');
       }
@@ -645,13 +799,15 @@
       photoUploadForm.querySelectorAll('input, select, button').forEach((el) => {
         el.disabled = disabled;
       });
-	  if (networkFilesForm) {
+      if (networkFilesForm) {
         networkFilesForm.querySelectorAll('input, button').forEach((el) => {
           el.disabled = disabled;
         });
       }
       addEquipmentBtn.disabled = disabled;
-      refreshCasesBtn.disabled = disabled;
+      if (refreshTasksBtn) {
+        refreshTasksBtn.disabled = disabled;
+      }
       photosDisabledHint.classList.toggle('d-none', !disabled);
       equipmentDisabledHint.classList.toggle('d-none', !disabled);
     }
@@ -659,12 +815,18 @@
     function populateForm() {
       const data = passportData || {};
       departmentSelect.value = data.department || '';
+      syncSelectSearchInput(departmentSelect);
       businessSelect.value = data.business || '';
+      syncSelectSearchInput(businessSelect);
       partnerTypeSelect.value = data.partner_type || '';
+      syncSelectSearchInput(partnerTypeSelect);
       countrySelect.value = data.country || '';
+      syncSelectSearchInput(countrySelect);
       legalEntitySelect.value = data.legal_entity || '';
+      syncSelectSearchInput(legalEntitySelect);
       cityInput.value = data.city || '';
       statusSelect.value = data.status || (statuses[0] || '');
+      syncSelectSearchInput(statusSelect);
       internalNetworkInput.value = data.network || '';
       networkTunnelInput.value = data.network_tunnel || '';
       networkProviderInput.value = data.network_provider || '';
@@ -675,16 +837,22 @@
       networkParamsInput.value = data.network_connection_params || '';
       startDateInput.value = data.start_date || '';
       endDateInput.value = data.end_date || '';
+      suspensionDateInput.value = data.suspension_date || '';
+      resumeDateInput.value = data.resume_date || '';
+      passportData.status_task_id = data.status_task_id != null ? data.status_task_id : null;
+      passportData.status_task = data.status_task || null;
       totalTimeDisplay.textContent = data.total_work_time || '—';
       updateStatusBadge();
       updateNetworkBadge();
       updateObjectTitle();
       populateSchedule(data.schedule || []);
       renderPhotos(data.photos || []);
-	  renderNetworkFiles(data.network_files || []);
+      renderNetworkFiles(data.network_files || []);
       renderEquipment(data.equipment || []);
+      renderTasks(data.tasks || []);
       renderCases(data.cases || []);
       toggleSectionsAvailability();
+      updateStatusTaskRequirement();
     }
 
     function collectFormData() {
@@ -702,10 +870,13 @@
         network_legal_entity: networkLegalEntityInput.value.trim(),
         network_support_phone: networkSupportPhoneInput.value.trim(),
         network_speed: formatNetworkSpeedValue(networkSpeedInput.value),
-		network_tunnel: networkTunnelInput.value.trim(),
+        network_tunnel: networkTunnelInput.value.trim(),
         network_connection_params: networkParamsInput.value.trim(),
         start_date: startDateInput.value || '',
         end_date: endDateInput.value || '',
+        suspension_date: suspensionDateInput.value || '',
+        resume_date: resumeDateInput.value || '',
+        status_task_id: statusTaskSelect ? statusTaskSelect.value : '',
         schedule: collectSchedule(),
       };
     }
@@ -714,6 +885,10 @@
       const payload = collectFormData();
       if (!payload.department) {
         showSaveMessage('error', 'Поле «Департамент» обязательно для заполнения.');
+        return;
+      }
+      if (statusesRequiringTask.has(payload.status) && !payload.status_task_id) {
+        showSaveMessage('error', 'Для выбранного статуса необходимо выбрать задачу.');
         return;
       }
       const isNew = Boolean(passportData.is_new);
@@ -789,6 +964,7 @@
         const options = parameterValues[key] || [];
         select.innerHTML = '<option value="">Не выбрано</option>' + options.map((val) => `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`).join('');
         select.value = current;
+        syncSelectSearchInput(select);
       });
       updateObjectTitle();
     }
@@ -842,6 +1018,145 @@
       }
     }
 
+    function renderTasks(tasks) {
+      if (!tasksTableBody || !tasksEmptyText) return;
+      const list = Array.isArray(tasks) ? tasks : [];
+      passportData.tasks = list;
+      if (passportData.status_task_id != null) {
+        const matchedTask = list.find((task) => String(task.id) === String(passportData.status_task_id));
+        if (matchedTask) {
+          passportData.status_task = matchedTask;
+        }
+      }
+      tasksTableBody.innerHTML = '';
+      if (!list.length) {
+        tasksEmptyText.classList.remove('d-none');
+      } else {
+        tasksEmptyText.classList.add('d-none');
+        list.forEach((task) => {
+          const tr = document.createElement('tr');
+          const displayNo = escapeHtml(task.display_no || (task.id != null ? String(task.id) : ''));
+          const title = escapeHtml(task.title || '');
+          const status = escapeHtml(task.status || '');
+          const assignee = escapeHtml(task.assignee || '');
+          const due = escapeHtml(task.due_at_display || task.due_at || '—');
+          const updated = escapeHtml(task.last_activity_display || task.last_activity || '—');
+          tr.innerHTML = `
+            <td>${displayNo || '—'}</td>
+            <td>${title || '—'}</td>
+            <td>${status || '—'}</td>
+            <td>${assignee || '—'}</td>
+            <td>${due}</td>
+            <td>${updated}</td>
+          `;
+          if (task.id) {
+            tr.classList.add('table-row-link');
+            tr.addEventListener('click', () => {
+              window.open(`/tasks#task=${encodeURIComponent(task.id)}`, '_blank');
+            });
+          }
+          tasksTableBody.appendChild(tr);
+        });
+      }
+      renderStatusTaskOptions(list);
+    }
+
+    async function refreshTasks() {
+      if (passportData.is_new) return;
+      if (!passportData.id) return;
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}/tasks`);
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при загрузке задач');
+        }
+        renderTasks(data.items || []);
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось обновить задачи.');
+      }
+    }
+
+    function renderStatusTaskOptions(tasks) {
+      if (!statusTaskSelect) return;
+      const list = Array.isArray(tasks) ? tasks : [];
+      const preservedValue = passportData.status_task_id != null ? String(passportData.status_task_id) : (statusTaskSelect.value || '');
+      const options = ['<option value="">Не выбрано</option>'];
+      list.forEach((task) => {
+        const descriptor = [task.display_no || (task.id != null ? String(task.id) : ''), task.title || '']
+          .filter(Boolean)
+          .join(' · ');
+        options.push(`<option value="${task.id}">${escapeHtml(descriptor || String(task.id || ''))}</option>`);
+      });
+      if (passportData.status_task && passportData.status_task.id && !list.some((task) => String(task.id) === String(passportData.status_task.id))) {
+        const descriptor = [passportData.status_task.display_no || String(passportData.status_task.id), passportData.status_task.title || '']
+          .filter(Boolean)
+          .join(' · ');
+        options.push(`<option value="${passportData.status_task.id}">${escapeHtml(descriptor)}</option>`);
+      }
+      statusTaskSelect.innerHTML = options.join('');
+      if (preservedValue) {
+        statusTaskSelect.value = preservedValue;
+      }
+      if (!statusTaskSelect.value && preservedValue) {
+        statusTaskSelect.value = preservedValue;
+      }
+      if (statusTaskSearchInput) {
+        filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value);
+        if (document.activeElement !== statusTaskSearchInput) {
+          syncSelectSearchInput(statusTaskSelect);
+        }
+      } else {
+        syncSelectSearchInput(statusTaskSelect);
+      }
+      updateStatusTaskInfo();
+    }
+
+    function updateStatusTaskRequirement() {
+      if (!statusTaskContainer || !statusTaskSelect) return;
+      const requiresTask = statusesRequiringTask.has(statusSelect.value);
+      statusTaskContainer.classList.toggle('d-none', !requiresTask);
+      if (statusTaskHint) {
+        statusTaskHint.textContent = passportData.is_new
+          ? 'Сохраните паспорт, чтобы выбрать задачу.'
+          : 'Выберите задачу, отражающую текущее состояние объекта.';
+      }
+      if (requiresTask) {
+        if (!Array.isArray(passportData.tasks) || !passportData.tasks.length) {
+          if (!passportData.is_new) {
+            refreshTasks();
+          }
+        } else {
+          renderStatusTaskOptions(passportData.tasks);
+        }
+      } else if (statusTaskInfo) {
+        statusTaskInfo.textContent = '';
+      }
+    }
+
+    function updateStatusTaskInfo() {
+      if (!statusTaskInfo || !statusTaskSelect) return;
+      const selectedValue = statusTaskSelect.value;
+      if (!selectedValue) {
+        statusTaskInfo.textContent = '';
+        return;
+      }
+      let task = (passportData.tasks || []).find((item) => String(item.id) === selectedValue);
+      if (!task && passportData.status_task && String(passportData.status_task.id) === selectedValue) {
+        task = passportData.status_task;
+      }
+      if (!task) {
+        statusTaskInfo.textContent = '';
+        return;
+      }
+      const parts = [];
+      if (task.status) parts.push(`Статус: ${task.status}`);
+      if (task.assignee) parts.push(`Исполнитель: ${task.assignee}`);
+      if (task.due_at_display || task.due_at) parts.push(`Дедлайн: ${task.due_at_display || task.due_at}`);
+      if (task.last_activity_display || task.last_activity) parts.push(`Обновлено: ${task.last_activity_display || task.last_activity}`);
+      statusTaskInfo.textContent = parts.join(' · ');
+    }
+
     function renderPhotos(photos) {
       const list = Array.isArray(photos) ? photos : [];
       passportData.photos = list;
@@ -855,25 +1170,47 @@
       list.forEach((photo) => {
         const col = document.createElement('div');
         col.className = 'col-md-4';
+        const captionRaw = photo.caption || '';
+        const captionHtml = escapeHtml(captionRaw).replace(/\n/g, '<br>');
+        const captionData = encodeURIComponent(captionRaw);
+        const categoryLabel = photo.category === 'title' ? 'Титульное' : 'Архивное';
         col.innerHTML = `
           <div class="card h-100 photo-card" data-id="${photo.id}">
-            <img src="${escapeHtml(photo.url)}" class="card-img-top" alt="Фото" />
+            <div class="position-relative">
+              ${photo.category === 'title' ? '<span class="title-indicator">✔</span>' : ''}
+              <div class="dropdown photo-toolbar">
+                <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="#" data-action="toggle-photo-edit">Редактировать</a></li>
+                  <li><a class="dropdown-item" href="${escapeHtml(photo.url)}" download>Скачать</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="#" data-action="delete-photo">Удалить</a></li>
+                </ul>
+              </div>
+              <img src="${escapeHtml(photo.url)}" class="card-img-top passport-photo" alt="Фото" data-photo-url="${escapeHtml(photo.url)}" data-photo-caption="${captionData}" />
+            </div>
             <div class="card-body">
-              <div class="mb-2">
-                <label class="form-label">Подпись</label>
-                <input type="text" class="form-control form-control-sm photo-caption" value="${escapeHtml(photo.caption || '')}" />
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-light text-dark">${categoryLabel}</span>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Тип</label>
-                <select class="form-select form-select-sm photo-category">
-                  <option value="title" ${photo.category === 'title' ? 'selected' : ''}>Титульное</option>
-                  <option value="archive" ${photo.category === 'archive' ? 'selected' : ''}>Архивное</option>
-                </select>
-              </div>
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-success" data-action="save-photo">Сохранить</button>
-                <button class="btn btn-sm btn-outline-danger" data-action="delete-photo">Удалить</button>
-              </div>
+              <div class="photo-caption-text">${captionHtml || '—'}</div>
+              <form class="photo-edit-form mt-3 d-none">
+                <div class="mb-2">
+                  <label class="form-label">Подпись</label>
+                  <input type="text" class="form-control form-control-sm photo-caption" value="${escapeHtml(photo.caption || '')}" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Тип</label>
+                  <select class="form-select form-select-sm photo-category">
+                    <option value="title" ${photo.category === 'title' ? 'selected' : ''}>Титульное</option>
+                    <option value="archive" ${photo.category === 'archive' ? 'selected' : ''}>Архивное</option>
+                  </select>
+                </div>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-primary" type="button" data-action="save-photo">Сохранить</button>
+                  <button class="btn btn-sm btn-outline-secondary" type="button" data-action="cancel-photo-edit">Отмена</button>
+                </div>
+              </form>
             </div>
           </div>
         `;
@@ -905,7 +1242,7 @@
         const metaParts = [sizePart, createdPart].filter(Boolean).join(' · ');
         item.innerHTML = `
           <div class="me-auto">
-            <a href="${file.url}" target="_blank" class="fw-semibold text-decoration-none">${escapeHtml(file.original_name || 'Файл')}</a>
+            <a href="${file.url}" target="_blank" rel="noopener" download class="fw-semibold text-decoration-none">${escapeHtml(file.original_name || 'Файл')}</a>
             ${metaParts ? `<div class="text-muted small">${metaParts}</div>` : ''}
           </div>
           <button class="btn btn-sm btn-outline-danger" type="button" data-action="delete-network-file">Удалить</button>
@@ -955,17 +1292,87 @@
       }
     }
 
-    photosContainer.addEventListener('click', (event) => {
-      const button = event.target.closest('button[data-action]');
-      if (!button) return;
-      const card = button.closest('.photo-card');
+    function togglePhotoEdit(card, forceState) {
       if (!card) return;
-      if (button.dataset.action === 'save-photo') {
+      const form = card.querySelector('.photo-edit-form');
+      if (!form) return;
+      let show;
+      if (typeof forceState === 'boolean') {
+        show = forceState;
+      } else {
+        show = form.classList.contains('d-none');
+      }
+      if (show) {
+        const photoId = card.dataset.id;
+        const currentPhoto = (passportData.photos || []).find((item) => String(item.id) === String(photoId));
+        if (currentPhoto) {
+          const captionInput = form.querySelector('.photo-caption');
+          const categorySelect = form.querySelector('.photo-category');
+          if (captionInput) captionInput.value = currentPhoto.caption || '';
+          if (categorySelect) categorySelect.value = currentPhoto.category || 'archive';
+        }
+        form.classList.remove('d-none');
+      } else {
+        form.classList.add('d-none');
+      }
+    }
+
+    photosContainer.addEventListener('click', (event) => {
+      const actionEl = event.target.closest('[data-action]');
+      if (!actionEl) {
+        const previewTarget = event.target.closest('.passport-photo');
+        if (previewTarget) {
+          showPhotoPreview(previewTarget.dataset.photoUrl, previewTarget.dataset.photoCaption || '');
+        }
+        return;
+      }
+      event.preventDefault();
+      const card = actionEl.closest('.photo-card');
+      if (!card) return;
+      const action = actionEl.dataset.action;
+      if (action === 'save-photo') {
         handlePhotoSave(card);
-      } else if (button.dataset.action === 'delete-photo') {
+      } else if (action === 'delete-photo') {
         handlePhotoDelete(card);
+      } else if (action === 'toggle-photo-edit') {
+        togglePhotoEdit(card);
+      } else if (action === 'cancel-photo-edit') {
+        togglePhotoEdit(card, false);
       }
     });
+
+    function showPhotoPreview(url, caption) {
+      if (!photoPreviewModalEl || !photoPreviewImage) return;
+      const safeUrl = url || '';
+      let decodedCaption = '';
+      if (caption) {
+        try {
+          decodedCaption = decodeURIComponent(caption);
+        } catch (e) {
+          decodedCaption = caption;
+        }
+      }
+      const captionHtml = escapeHtml(decodedCaption).replace(/\n/g, '<br>');
+      photoPreviewImage.src = safeUrl;
+      if (photoPreviewCaption) {
+        photoPreviewCaption.innerHTML = captionHtml || '—';
+      }
+      if (photoPreviewDownload) {
+        if (safeUrl) {
+          photoPreviewDownload.href = safeUrl;
+          photoPreviewDownload.classList.remove('disabled');
+        } else {
+          photoPreviewDownload.href = '#';
+          photoPreviewDownload.classList.add('disabled');
+        }
+      }
+      if (typeof bootstrap !== 'undefined') {
+        if (!photoPreviewModalInstance) {
+          photoPreviewModalInstance = new bootstrap.Modal(photoPreviewModalEl);
+        }
+        photoPreviewModalInstance.show();
+      }
+    }
 
     photoUploadForm.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -1139,17 +1546,20 @@
       list.forEach((photo) => {
         const col = document.createElement('div');
         col.className = 'col-md-4';
+        const captionRaw = photo.caption || '';
+        const captionData = encodeURIComponent(captionRaw);
         col.innerHTML = `
           <div class="card equipment-photo h-100" data-id="${photo.id}" data-equipment="${equipmentId}">
-            <img src="${escapeHtml(photo.url)}" class="card-img-top" alt="Фото оборудования" />
+            <img src="${escapeHtml(photo.url)}" class="card-img-top passport-photo" alt="Фото оборудования" data-photo-url="${escapeHtml(photo.url)}" data-photo-caption="${captionData}" />
             <div class="card-body">
               <div class="mb-2">
                 <label class="form-label">Подпись</label>
                 <input type="text" class="form-control form-control-sm equipment-photo-caption" value="${escapeHtml(photo.caption || '')}" />
               </div>
-              <div class="d-flex gap-2">
+              <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-sm btn-success" data-action="save-equipment-photo">Сохранить</button>
                 <button class="btn btn-sm btn-outline-danger" data-action="delete-equipment-photo">Удалить</button>
+                <a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(photo.url)}" download>Скачать</a>
               </div>
             </div>
           </div>
@@ -1159,6 +1569,11 @@
     }
 
     equipmentContainer.addEventListener('click', async (event) => {
+      const previewTarget = event.target.closest('.passport-photo');
+      if (previewTarget) {
+        showPhotoPreview(previewTarget.dataset.photoUrl, previewTarget.dataset.photoCaption || '');
+        return;
+      }
       const button = event.target.closest('button[data-action]');
       if (!button) return;
       const card = button.closest('.equipment-card');
@@ -1324,7 +1739,12 @@
       });
     });
 
-    statusSelect.addEventListener('change', updateStatusBadge);
+    setupSelectSearchInputs();
+
+    statusSelect.addEventListener('change', () => {
+      updateStatusBadge();
+      updateStatusTaskRequirement();
+    });
     internalNetworkInput.addEventListener('input', updateNetworkBadge);
     internalNetworkInput.addEventListener('change', updateNetworkBadge);
     networkProviderInput.addEventListener('change', () => handleNetworkProfileSelection('provider', networkProviderInput.value));
@@ -1338,6 +1758,24 @@
     });
     cityInput.addEventListener('input', updateObjectTitle);
     refreshCasesBtn.addEventListener('click', refreshCases);
+    if (refreshTasksBtn) {
+      refreshTasksBtn.addEventListener('click', refreshTasks);
+    }
+    if (statusTaskSelect) {
+      statusTaskSelect.addEventListener('change', () => {
+        const rawValue = statusTaskSelect.value;
+        const numericValue = rawValue ? Number(rawValue) : null;
+        passportData.status_task_id = Number.isNaN(numericValue) ? null : numericValue;
+        if (rawValue) {
+          const selectedTask = (passportData.tasks || []).find((task) => String(task.id) === rawValue);
+          passportData.status_task = selectedTask || passportData.status_task;
+        } else {
+          passportData.status_task = null;
+        }
+        syncSelectSearchInput(statusTaskSelect);
+        updateStatusTaskInfo();
+      });
+    }
     savePassportBtn.addEventListener('click', savePassport);
 
     document.querySelectorAll('[data-section-toggle]').forEach((button) => {
