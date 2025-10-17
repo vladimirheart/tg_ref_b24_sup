@@ -691,6 +691,20 @@
     let parameterValues = (typeof structuredClone === 'function')
       ? structuredClone(parameterValuesInitial)
       : JSON.parse(JSON.stringify(parameterValuesInitial));
+    const parameterKeys = Object.keys(parameterValuesInitial || {});
+
+    function normalizeParameterResponse(source) {
+      const data = source && typeof source === 'object' ? source : {};
+      const result = {};
+      parameterKeys.forEach((key) => {
+        const items = Array.isArray(data[key]) ? data[key] : [];
+        const values = items
+          .filter((item) => item && !item.is_deleted && typeof item.value === 'string' && item.value.trim())
+          .map((item) => item.value.trim());
+        result[key] = Array.from(new Set(values));
+      });
+      return result;
+    }
 
     const departmentSelect = document.getElementById('departmentSelect');
     const businessSelect = document.getElementById('businessSelect');
@@ -1454,7 +1468,7 @@
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось добавить значение');
         }
-        parameterValues = data.data || parameterValues;
+        parameterValues = normalizeParameterResponse((data && data.data) || parameterValues);
         updateSelectOptions();
         select.value = value.trim();
         refreshSearchableSelect(select);
