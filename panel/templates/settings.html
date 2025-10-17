@@ -70,6 +70,26 @@
     .location-status-text { font-size: 0.75rem; white-space: nowrap; }
     .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
     .channel-questions-list .question-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
+    .modal-dialog {
+      width: auto;
+      max-width: min(90vw, var(--bs-modal-width, 500px));
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .modal-dialog.modal-lg {
+      --bs-modal-width: 800px;
+    }
+    .modal-dialog.modal-xl {
+      --bs-modal-width: 1140px;
+    }
+    .modal-content {
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-body {
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
