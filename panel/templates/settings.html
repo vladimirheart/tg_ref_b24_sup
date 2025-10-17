@@ -419,9 +419,8 @@
                 <table class="table table-sm align-middle" id="itConnectionsTable">
                   <thead>
                     <tr>
-                      <th>Тип оборудования</th>
-                      <th>Производитель оборудования</th>
-                      <th>Модель оборудования</th>
+                      <th>Категория</th>
+                      <th>Значение</th>
                       <th>Использование</th>
                       <th></th>
                     </tr>
@@ -429,9 +428,40 @@
                   <tbody id="itConnectionsBody"></tbody>
                 </table>
               </div>
-              <button class="btn btn-sm btn-success mt-2" type="button" onclick="addItConnectionRow()">+ Добавить подключение</button>
+              <button
+                class="btn btn-sm btn-success mt-2"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#itConnectionAddModal"
+              >
+                + Добавить подключение
+              </button>
               <div class="form-text text-muted mt-2">Здесь управляйте списком доступных подключений IT-блока.</div>
             </section>
+            <div class="modal fade" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="itConnectionAddModalLabel">Новое подключение</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                  </div>
+                  <form data-it-connection-add-form>
+                    <div class="modal-body">
+                      <label class="form-label" for="itConnectionCategorySelect">Выберите, что необходимо добавить</label>
+                      <select class="form-select" id="itConnectionCategorySelect" data-it-connection-category-select>
+                        {% for key, label in it_connection_categories.items() %}
+                        <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                      <button type="submit" class="btn btn-primary">Добавить</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
             <hr class="my-4" />
             <section>
               <h6 class="text-uppercase text-muted small mb-3">Профили провайдеров</h6>
@@ -529,6 +559,10 @@
     iiko_server: 'it_iiko_server',
   };
 
+  const IT_CONNECTION_CATEGORY_LABELS = {{ it_connection_categories | tojson }} || {};
+  const IT_CONNECTION_CATEGORY_KEYS = Object.keys(IT_CONNECTION_CATEGORY_LABELS);
+  const IT_CONNECTION_DEFAULT_CATEGORY = IT_CONNECTION_CATEGORY_KEYS[0] || 'equipment_type';
+
   const LOCATION_STATUS_SOURCES = {
     business: 'business',
     type: 'partner_type',
@@ -570,35 +604,39 @@
           usage_count: usageCount,
         };
         if (type === 'it_connection') {
-          const parsedFromValue = parseItConnectionValue(value);
-          const equipmentTypeRaw =
-            item && typeof item === 'object' && typeof item.equipment_type === 'string'
-              ? item.equipment_type
-              : extra.equipment_type;
-          const equipmentVendorRaw =
-            item && typeof item === 'object' && typeof item.equipment_vendor === 'string'
-              ? item.equipment_vendor
-              : extra.equipment_vendor;
-          const equipmentModelRaw =
-            item && typeof item === 'object' && typeof item.equipment_model === 'string'
-              ? item.equipment_model
-              : extra.equipment_model;
-          const equipmentType =
-            typeof equipmentTypeRaw === 'string' && equipmentTypeRaw.trim()
-              ? equipmentTypeRaw.trim()
-              : parsedFromValue.equipment_type;
-          const equipmentVendor =
-            typeof equipmentVendorRaw === 'string' && equipmentVendorRaw.trim()
-              ? equipmentVendorRaw.trim()
-              : parsedFromValue.equipment_vendor;
-          const equipmentModel =
-            typeof equipmentModelRaw === 'string' && equipmentModelRaw.trim()
-              ? equipmentModelRaw.trim()
-              : parsedFromValue.equipment_model;
+          const extraData = extra && typeof extra === 'object' ? extra : {};
+          const rawCategory =
+            (item && typeof item.category === 'string' && item.category) ||
+            (typeof extraData.category === 'string' ? extraData.category : '');
+          const category = normalizeItConnectionCategory(rawCategory);
+          const trimmedValue = value.trim();
+          const equipmentTypeSource =
+            (item && typeof item.equipment_type === 'string' && item.equipment_type) ||
+            (typeof extraData.equipment_type === 'string' ? extraData.equipment_type : '');
+          const equipmentVendorSource =
+            (item && typeof item.equipment_vendor === 'string' && item.equipment_vendor) ||
+            (typeof extraData.equipment_vendor === 'string' ? extraData.equipment_vendor : '');
+          const equipmentModelSource =
+            (item && typeof item.equipment_model === 'string' && item.equipment_model) ||
+            (typeof extraData.equipment_model === 'string' ? extraData.equipment_model : '');
+          const equipmentType = typeof equipmentTypeSource === 'string' ? equipmentTypeSource.trim() : '';
+          const equipmentVendor = typeof equipmentVendorSource === 'string' ? equipmentVendorSource.trim() : '';
+          const equipmentModel = typeof equipmentModelSource === 'string' ? equipmentModelSource.trim() : '';
+          let categoryValue = trimmedValue;
+          if (category === 'equipment_type' && equipmentType) {
+            categoryValue = equipmentType;
+          } else if (category === 'equipment_vendor' && equipmentVendor) {
+            categoryValue = equipmentVendor;
+          } else if (category === 'equipment_model' && equipmentModel) {
+            categoryValue = equipmentModel;
+          }
+          entry.value = categoryValue;
+          entry.category = category;
           entry.equipment_type = equipmentType;
           entry.equipment_vendor = equipmentVendor;
           entry.equipment_model = equipmentModel;
           entry.extra = {
+            category,
             equipment_type: equipmentType,
             equipment_vendor: equipmentVendor,
             equipment_model: equipmentModel,
@@ -841,6 +879,21 @@
       .replace(/'/g, '&#039;');
   }
 
+  function normalizeItConnectionCategory(value) {
+    if (typeof value !== 'string') {
+      return IT_CONNECTION_DEFAULT_CATEGORY;
+    }
+    const trimmed = value.trim();
+    return IT_CONNECTION_CATEGORY_KEYS.includes(trimmed)
+      ? trimmed
+      : IT_CONNECTION_DEFAULT_CATEGORY;
+  }
+
+  function getItConnectionCategoryLabel(category) {
+    const normalized = normalizeItConnectionCategory(category);
+    return IT_CONNECTION_CATEGORY_LABELS[normalized] || normalized || '—';
+  }
+
   function renderContractUsageLink(contractNumber) {
     const trimmed = (contractNumber || '').trim();
     if (!trimmed) {
@@ -930,6 +983,13 @@
   let itConnectionDrafts = [];
 
   function renderItConnectionUsageLink(item) {
+    if (!item) {
+      return '<span class="text-muted">—</span>';
+    }
+    const category = normalizeItConnectionCategory(item.category);
+    if (category !== 'equipment_type') {
+      return '<span class="text-muted">—</span>';
+    }
     const filterKey = PARAMETER_FILTER_KEYS.it_connection;
     const value = item && item.value ? String(item.value).trim() : '';
     if (!filterKey || !value) {
@@ -942,43 +1002,28 @@
 
   function buildItConnectionsRows() {
     const existing = Array.isArray(parameterData.it_connection) ? parameterData.it_connection : [];
-    const rows = existing.map((item) => ({ item, isDraft: false }));
+    const rows = existing.map((item) => ({
+      item: Object.assign({}, item, {
+        category: normalizeItConnectionCategory(item && item.category),
+        value: item && typeof item.value === 'string' ? item.value : '',
+      }),
+      isDraft: false,
+    }));
     itConnectionDrafts.forEach((item, index) => {
-      rows.push({ item, isDraft: true, draftIndex: index });
+      const draft = Object.assign(
+        {
+          category: IT_CONNECTION_DEFAULT_CATEGORY,
+          value: '',
+          is_deleted: false,
+          usage_count: 0,
+        },
+        item || {}
+      );
+      draft.category = normalizeItConnectionCategory(draft.category);
+      draft.value = typeof draft.value === 'string' ? draft.value : '';
+      rows.push({ item: draft, isDraft: true, draftIndex: index });
     });
     return rows;
-  }
-
-  function buildItConnectionLabel(source) {
-    const parts = [];
-    if (source && typeof source.equipment_type === 'string') {
-      const trimmed = source.equipment_type.trim();
-      if (trimmed) parts.push(trimmed);
-    }
-    if (source && typeof source.equipment_vendor === 'string') {
-      const trimmed = source.equipment_vendor.trim();
-      if (trimmed) parts.push(trimmed);
-    }
-    if (source && typeof source.equipment_model === 'string') {
-      const trimmed = source.equipment_model.trim();
-      if (trimmed) parts.push(trimmed);
-    }
-    return parts.join(' / ');
-  }
-
-  function parseItConnectionValue(value) {
-    if (value === null || value === undefined) {
-      return { equipment_type: '', equipment_vendor: '', equipment_model: '' };
-    }
-    const parts = String(value)
-      .split('/')
-      .map((part) => part.trim())
-      .filter((part) => part.length > 0);
-    return {
-      equipment_type: parts[0] || '',
-      equipment_vendor: parts[1] || '',
-      equipment_model: parts[2] || '',
-    };
   }
 
   function renderItConnectionsTable() {
@@ -987,13 +1032,15 @@
     itConnectionsBody.innerHTML = '';
     if (!rows.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="5" class="text-muted text-center">Пока нет подключений</td>';
+      emptyRow.innerHTML = '<td colspan="4" class="text-muted text-center">Пока нет подключений</td>';
       itConnectionsBody.appendChild(emptyRow);
       return;
     }
     rows.forEach(({ item, isDraft, draftIndex }) => {
       const row = document.createElement('tr');
       const disabled = !isDraft && Boolean(item && item.is_deleted);
+      const category = normalizeItConnectionCategory(item && item.category);
+      const value = item && typeof item.value === 'string' ? item.value : '';
       if (isDraft) {
         row.dataset.rowKind = 'draft';
         row.dataset.draftIndex = String(draftIndex);
@@ -1008,15 +1055,8 @@
           row.classList.add('table-light', 'text-muted');
         }
       }
-      const equipmentType = item && item.equipment_type ? item.equipment_type : '';
-      const equipmentVendor = item && item.equipment_vendor ? item.equipment_vendor : '';
-      const equipmentModel = item && item.equipment_model ? item.equipment_model : '';
-      const usageLabel = buildItConnectionLabel({
-        equipment_type: equipmentType,
-        equipment_vendor: equipmentVendor,
-        equipment_model: equipmentModel,
-      });
-      const usageItem = Object.assign({}, item || {}, { value: usageLabel || (item && item.value ? item.value : '') });
+      row.dataset.category = category;
+      const usageItem = Object.assign({}, item || {}, { category, value });
       const deletedHint = !isDraft && disabled
         ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>'
         : '';
@@ -1032,12 +1072,11 @@
             <button class="btn btn-sm btn-outline-danger" type="button" data-it-connection-action="delete">Удалить</button>
           `;
       row.innerHTML = `
+        <td>${escapeHtml(getItConnectionCategoryLabel(category))}</td>
         <td>
-          <input type="text" class="form-control form-control-sm" data-field="equipment_type" value="${escapeHtml(equipmentType)}"${disabled ? ' disabled' : ''}>
+          <input type="text" class="form-control form-control-sm" data-field="value" value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>
           ${deletedHint}
         </td>
-        <td><input type="text" class="form-control form-control-sm" data-field="equipment_vendor" value="${escapeHtml(equipmentVendor)}"${disabled ? ' disabled' : ''}></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="equipment_model" value="${escapeHtml(equipmentModel)}"${disabled ? ' disabled' : ''}></td>
         <td class="text-center">${renderItConnectionUsageLink(usageItem)}</td>
         <td class="text-nowrap">
           ${actions}
@@ -1049,43 +1088,45 @@
 
   function addItConnectionRow(initial) {
     const defaults = {
-      equipment_type: '',
-      equipment_vendor: '',
-      equipment_model: '',
-      is_deleted: false,
+      category: IT_CONNECTION_DEFAULT_CATEGORY,
+      value: '',
       usage_count: 0,
+      is_deleted: false,
     };
     const data = Object.assign({}, defaults, initial || {});
+    data.category = normalizeItConnectionCategory(data.category);
+    data.value = typeof data.value === 'string' ? data.value : '';
     itConnectionDrafts.push(data);
     renderItConnectionsTable();
   }
 
   function collectItConnectionPayload(row) {
-    const pick = (field) => {
-      const input = row.querySelector(`[data-field="${field}"]`);
-      return input ? input.value.trim() : '';
-    };
-    const equipment_type = pick('equipment_type');
-    const equipment_vendor = pick('equipment_vendor');
-    const equipment_model = pick('equipment_model');
-    const value = buildItConnectionLabel({ equipment_type, equipment_vendor, equipment_model });
-    return {
-      value,
-      equipment_type,
-      equipment_vendor,
-      equipment_model,
-    };
+    const category = normalizeItConnectionCategory(row && row.dataset ? row.dataset.category : undefined);
+    const input = row ? row.querySelector('[data-field="value"]') : null;
+    const value = input ? input.value.trim() : '';
+    const payload = { value, category };
+    if (category === 'equipment_type') {
+      payload.equipment_type = value;
+      payload.equipment_vendor = '';
+      payload.equipment_model = '';
+    } else if (category === 'equipment_vendor') {
+      payload.equipment_vendor = value;
+      payload.equipment_type = '';
+      payload.equipment_model = '';
+    } else if (category === 'equipment_model') {
+      payload.equipment_model = value;
+      payload.equipment_type = '';
+      payload.equipment_vendor = '';
+    }
+    return payload;
   }
 
   async function saveItConnection(row, context) {
     const { isDraft, draftIndex, id } = context;
     const payload = collectItConnectionPayload(row);
     if (!payload.value) {
-      alert('Необходимо заполнить хотя бы одно поле оборудования');
-      const input =
-        row.querySelector('[data-field="equipment_type"]') ||
-        row.querySelector('[data-field="equipment_vendor"]') ||
-        row.querySelector('[data-field="equipment_model"]');
+      alert('Необходимо указать значение подключения');
+      const input = row.querySelector('[data-field="value"]');
       if (input) input.focus();
       return;
     }
@@ -1224,6 +1265,51 @@
           renderItConnectionsTable();
         }
       }
+    });
+  }
+
+  const itConnectionAddModalEl = document.getElementById('itConnectionAddModal');
+  const itConnectionAddForm = itConnectionAddModalEl
+    ? itConnectionAddModalEl.querySelector('[data-it-connection-add-form]')
+    : null;
+  const itConnectionCategorySelect = itConnectionAddModalEl
+    ? itConnectionAddModalEl.querySelector('[data-it-connection-category-select]')
+    : null;
+  const itConnectionAddModal = itConnectionAddModalEl
+    ? new bootstrap.Modal(itConnectionAddModalEl)
+    : null;
+
+  if (itConnectionAddModalEl) {
+    itConnectionAddModalEl.addEventListener('show.bs.modal', () => {
+      if (itConnectionCategorySelect) {
+        itConnectionCategorySelect.value = IT_CONNECTION_DEFAULT_CATEGORY;
+      }
+    });
+    itConnectionAddModalEl.addEventListener('shown.bs.modal', () => {
+      if (itConnectionCategorySelect) {
+        itConnectionCategorySelect.focus();
+      }
+    });
+  }
+
+  if (itConnectionAddForm) {
+    itConnectionAddForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const selected =
+        itConnectionCategorySelect && itConnectionCategorySelect.value
+          ? itConnectionCategorySelect.value
+          : IT_CONNECTION_DEFAULT_CATEGORY;
+      addItConnectionRow({ category: selected });
+      if (itConnectionAddModal) {
+        itConnectionAddModal.hide();
+      }
+      setTimeout(() => {
+        if (!itConnectionsBody) return;
+        const draftRow = itConnectionsBody.querySelector('tr[data-row-kind="draft"]');
+        if (!draftRow) return;
+        const input = draftRow.querySelector('[data-field="value"]');
+        if (input) input.focus();
+      }, 0);
     });
   }
 
