@@ -1384,7 +1384,7 @@ def _render_passport_template(passport_detail, is_new):
         network_legal_entity_options=legal_entity_options,
         it_connection_options=it_connection_options,
         iiko_server_options=iiko_server_options,
-        t_equipment_options=it_equipment_options,
+        it_equipment_options=it_equipment_options,
     )
 
 
