@@ -4745,16 +4745,14 @@ def update_settings():
                     provider = (item.get("provider") or "").strip()
                     contract_number = (item.get("contract_number") or "").strip()
                     support_phone = (item.get("support_phone") or "").strip()
-                    speed = (item.get("speed") or "").strip()
                     legal_entity = (item.get("legal_entity") or "").strip()
-                    if not any([provider, contract_number, support_phone, speed, legal_entity]):
+                    if not any([provider, contract_number, support_phone, legal_entity]):
                         continue
                     profiles.append(
                         {
                             "provider": provider,
                             "contract_number": contract_number,
                             "support_phone": support_phone,
-                            "speed": speed,
                             "legal_entity": legal_entity,
                         }
                     )
