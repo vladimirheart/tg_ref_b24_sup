@@ -1523,7 +1523,7 @@ def ensure_settings_parameters_schema():
                 conn.execute(
                     "ALTER TABLE settings_parameters ADD COLUMN deleted_at TEXT"
                 )
-                if "extra_json" not in columns:
+            if "extra_json" not in columns:
                 conn.execute(
                     "ALTER TABLE settings_parameters ADD COLUMN extra_json TEXT"
                 )
