@@ -8,10 +8,32 @@
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
   <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
   <style>
-    .settings-section { margin-bottom: 20px; }
-    .settings-section h4 { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-    .accordion-button:not(.collapsed) { background-color: #f8f9fa; }
-    .accordion-body { padding: 1rem; }
+    .settings-tiles .settings-tile {
+      border: 1px solid #e9ecef;
+      border-radius: 1rem;
+      background: linear-gradient(135deg, #f8f9fa, #ffffff);
+      box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .settings-tiles .settings-tile:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.12);
+    }
+
+    .settings-tiles .settings-tile .tile-icon {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 0.75rem;
+      background: rgba(13, 110, 253, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
     .parameter-card .param-items { min-height: 2.5rem; }
     .parameter-card .param-item .btn { min-width: 2.5rem; }
     .parameter-card .param-item input { min-width: 0; }
@@ -25,50 +47,134 @@
   <div class="container mt-4">
     <h2>⚙️ Настройки системы</h2>
 
-    <div class="accordion" id="settingsAccordion">
-      <!-- Пользователи панели -->
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#usersCollapse">
-            👥 Пользователи панели
-          </button>
-        </h2>
-        <div id="usersCollapse" class="accordion-collapse collapse show" data-bs-parent="#settingsAccordion">
-          <div class="accordion-body">
-            <div id="usersList">
-              <!-- Список загрузится динамически -->
-            </div>
-            <button class="btn btn-sm btn-success mt-2" onclick="addUser()">+ Добавить пользователя</button>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 settings-tiles">
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#usersModal">
+          <div class="card-body">
+            <div class="tile-icon">👥</div>
+            <h5 class="card-title">Пользователи панели</h5>
+            <p class="card-text text-muted">Управляйте доступом сотрудников и их ролями.</p>
           </div>
         </div>
       </div>
 
-      <!-- Автоматическое закрытие -->
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#autoCloseCollapse">
-            Автоматическое закрытие диалогов
-          </button>
-        </h2>
-        <div id="autoCloseCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
-          <div class="accordion-body">
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#autoCloseModal">
+          <div class="card-body">
+            <div class="tile-icon">⏱️</div>
+            <h5 class="card-title">Автозакрытие диалогов</h5>
+            <p class="card-text text-muted">Настройте сроки закрытия неактивных заявок.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#categoriesModal">
+          <div class="card-body">
+            <div class="tile-icon">🗂️</div>
+            <h5 class="card-title">Категории обращений</h5>
+            <p class="card-text text-muted">Добавляйте и редактируйте тематические группы.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#locationsModal">
+          <div class="card-body">
+            <div class="tile-icon">🧭</div>
+            <h5 class="card-title">Структура локаций</h5>
+            <p class="card-text text-muted">Управляйте деревом бизнесов, типов и локаций.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#statusesModal">
+          <div class="card-body">
+            <div class="tile-icon">🏷️</div>
+            <h5 class="card-title">Статусы клиентов</h5>
+            <p class="card-text text-muted">Создавайте статусы для сегментации клиентов.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#parametersModal">
+          <div class="card-body">
+            <div class="tile-icon">🧩</div>
+            <h5 class="card-title">Параметры партнёров</h5>
+            <p class="card-text text-muted">Обновляйте справочники и значения для форм.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#networkProfilesModal">
+          <div class="card-body">
+            <div class="tile-icon">🌐</div>
+            <h5 class="card-title">Профили провайдеров</h5>
+            <p class="card-text text-muted">Ведите список договоров и контактных данных.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#channelsModal">
+          <div class="card-body">
+            <div class="tile-icon">🤖</div>
+            <h5 class="card-title">Каналы (боты)</h5>
+            <p class="card-text text-muted">Управляйте подключёнными Telegram-ботами.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Пользователи -->
+    <div class="modal fade" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панели</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div id="usersList" class="mb-3">
+              <!-- Список загрузится динамически -->
+            </div>
+            <button class="btn btn-sm btn-success" onclick="addUser()">+ Добавить пользователя</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Автоматическое закрытие -->
+    <div class="modal fade" id="autoCloseModal" tabindex="-1" aria-labelledby="autoCloseModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="autoCloseModalLabel">⏱️ Автоматическое закрытие диалогов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
             <div class="mb-3">
               <label for="autoCloseHours" class="form-label">Закрывать заявку при неактивности (часы)</label>
               <input type="number" class="form-control" id="autoCloseHours" value="{{ settings.auto_close_hours }}" min="1" max="168">
             </div>
+            <p class="text-muted small">После сохранения параметр будет применён ко всем новым диалогам.</p>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Категории -->
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#categoriesCollapse">
-            Категории обращений
-          </button>
-        </h2>
-        <div id="categoriesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
-          <div class="accordion-body">
+    <!-- Категории -->
+    <div class="modal fade" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="categoriesModalLabel">🗂️ Категории обращений</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
             <div id="categoriesList">
               {% for cat in settings.categories %}
               <div class="input-group mb-2">
@@ -81,34 +187,36 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Структура локаций -->
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#locationsCollapse">
-            🗂 Структура вопросов и локаций
-          </button>
-        </h2>
-        <div id="locationsCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
-          <div class="accordion-body">
+    <!-- Локации -->
+    <div class="modal fade" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="locationsModalLabel">🧭 Структура вопросов и локаций</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
             <p>Редактируйте бизнес → тип → город → локации</p>
-            <div id="locationsEditor">
+            <div id="locationsEditor" class="mb-3">
               <!-- Дерево будет построено динамически -->
             </div>
-            <button class="btn btn-sm btn-success mt-2" onclick="addBusiness()">+ Добавить бизнес</button>
+            <button class="btn btn-sm btn-success" onclick="addBusiness()">+ Добавить бизнес</button>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Статусы клиентов -->
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#statusesCollapse">
-            🏷️ Статусы клиентов
-          </button>
-        </h2>
-        <div id="statusesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
-          <div class="accordion-body">
+    <!-- Статусы клиентов -->
+    <div class="modal fade" id="statusesModal" tabindex="-1" aria-labelledby="statusesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="statusesModalLabel">🏷️ Статусы клиентов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
             <div id="statusesList">
               {% for status in settings.client_statuses %}
               <div class="input-group mb-2">
@@ -121,16 +229,17 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Справочники партнёрских параметров -->
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#directoriesCollapse">
-            🧩 Параметры партнёров
-          </button>
-        </h2>
-        <div id="directoriesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
-          <div class="accordion-body">
+    <!-- Параметры партнёров -->
+    <div class="modal fade" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="parametersModalLabel">🧩 Параметры партнёров</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
             <div class="row g-3">
               {% for slug, title in parameter_types.items() %}
               <div class="col-md-6 col-xl-4">
@@ -174,18 +283,20 @@
             <div class="form-text text-muted mt-3">
               Эти значения будут использоваться в формах создания клиентов, задач и других разделов.
             </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-      <!-- Профили провайдеров -->
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#networkProfilesCollapse">
-            🌐 Профили провайдеров
-          </button>
-        </h2>
-        <div id="networkProfilesCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
-          <div class="accordion-body">
+
+    <!-- Профили провайдеров -->
+    <div class="modal fade" id="networkProfilesModal" tabindex="-1" aria-labelledby="networkProfilesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="networkProfilesModalLabel">🌐 Профили провайдеров</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
             <div class="table-responsive">
               <table class="table table-sm align-middle" id="networkProfilesTable">
                 <thead>
@@ -195,7 +306,7 @@
                     <th>Телефон ТП</th>
                     <th>Скорость</th>
                     <th>ЮЛ</th>
-					<th>Объектов</th>
+                    <th>Объектов</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -207,58 +318,57 @@
           </div>
         </div>
       </div>
-          <!-- 🤖 Каналы (боты) -->
-                <div class="accordion-item">
-                  <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#channelsCollapse">
-			  🤖 Каналы (боты)
-			</button>
-		  </h2>
-		  <div id="channelsCollapse" class="accordion-collapse collapse" data-bs-parent="#settingsAccordion">
-			<div class="accordion-body">
+    <!-- Каналы (боты) -->
+    <div class="modal fade" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="channelsModalLabel">🤖 Каналы (боты)</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="card mb-3">
+              <div class="card-header">Добавить канал</div>
+              <div class="card-body">
+                <div class="row g-2">
+                  <div class="col-md-5">
+                    <input id="ch_token" class="form-control" placeholder="Токен бота (BotFather)">
+                  </div>
+                  <div class="col-md-4">
+                    <input id="ch_name" class="form-control" placeholder="Имя канала (произвольное)">
+                  </div>
+                  <div class="col-md-2">
+                    <input id="ch_maxq" type="number" min="0" class="form-control" placeholder="Кол-во вопросов (0=из JSON)">
+                  </div>
+                  <div class="col-md-1 d-grid">
+                    <button class="btn btn-primary" onclick="addChannel()">Добавить</button>
+                  </div>
+                </div>
+                <div class="form-text mt-2">Имя бота подтянется автоматически через Telegram <code>getMe</code>.</div>
+              </div>
+            </div>
 
-			  <div class="card mb-3">
-				<div class="card-header">Добавить канал</div>
-				<div class="card-body">
-				  <div class="row g-2">
-					<div class="col-md-5">
-					  <input id="ch_token" class="form-control" placeholder="Токен бота (BotFather)">
-					</div>
-					<div class="col-md-4">
-					  <input id="ch_name" class="form-control" placeholder="Имя канала (произвольное)">
-					</div>
-					<div class="col-md-2">
-					  <input id="ch_maxq" type="number" min="0" class="form-control" placeholder="Кол-во вопросов (0=из JSON)">
-					</div>
-					<div class="col-md-1 d-grid">
-					  <button class="btn btn-primary" onclick="addChannel()">Добавить</button>
-					</div>
-				  </div>
-				  <div class="form-text mt-2">Имя бота подтянется автоматически через Telegram <code>getMe</code>.</div>
-				</div>
-			  </div>
-
-			  <div class="table-responsive">
-				<table class="table table-striped align-middle">
-				  <thead>
-					<tr>
-					  <th>ID</th>
-					  <th>Имя канала</th>
-					  <th>Имя бота</th>
-					  <th>Токен</th>
-					  <th>Активен</th>
-					  <th>Лимит вопросов</th>
-					  <th>questions_cfg (JSON)</th>
-					  <th></th>
-					</tr>
-				  </thead>
-				  <tbody id="channelsBody"></tbody>
-				</table>
-			  </div>
-
-			</div>
-		  </div>
-		</div>
+            <div class="table-responsive">
+              <table class="table table-striped align-middle">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Имя канала</th>
+                    <th>Имя бота</th>
+                    <th>Токен</th>
+                    <th>Активен</th>
+                    <th>Лимит вопросов</th>
+                    <th>questions_cfg (JSON)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="channelsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- Сохранить -->
