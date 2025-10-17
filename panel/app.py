@@ -71,6 +71,36 @@ PARAMETER_TYPES = {
     "iiko_server": "Адреса серверов iiko",
 }
 
+PARAMETER_STATE_TYPES = {"partner_type", "country", "legal_entity"}
+PARAMETER_ALLOWED_STATES = (
+    "Активен",
+    "Подписание",
+    "Заблокирован",
+    "Black_List",
+    "Закрыт",
+)
+
+PARAMETER_USAGE_MAPPING = {
+    "business": "business",
+    "partner_type": "partner_type",
+    "country": "country",
+    "legal_entity": "legal_entity",
+    "department": "department",
+    "network": "network",
+    "it_connection": "it_connection_type",
+    "iiko_server": "it_iiko_server",
+}
+
+
+def _normalize_parameter_state(param_type, state):
+    default_state = PARAMETER_ALLOWED_STATES[0]
+    if param_type in PARAMETER_STATE_TYPES:
+        candidate = (state or "").strip()
+        if candidate in PARAMETER_ALLOWED_STATES:
+            return candidate
+        return default_state
+    return default_state
+
 # Подключение к базе
 def get_db():
     # autocommit (isolation_level=None) + увеличенный timeout
@@ -1053,6 +1083,14 @@ def _fetch_passport_rows(filters):
     if contract_alias and not (filters_local.get("network_contract_number") or "").strip():
         filters_local["network_contract_number"] = contract_alias
 
+    it_connection_alias = (filters_local.get("it_connection") or "").strip()
+    if it_connection_alias and not (filters_local.get("it_connection_type") or "").strip():
+        filters_local["it_connection_type"] = it_connection_alias
+
+    iiko_alias = (filters_local.get("iiko_server") or "").strip()
+    if iiko_alias and not (filters_local.get("it_iiko_server") or "").strip():
+        filters_local["it_iiko_server"] = iiko_alias
+
     conn = get_passport_db()
     try:
         query = "SELECT * FROM object_passports"
@@ -1087,6 +1125,9 @@ def _fetch_passport_rows(filters):
             "department",
             "status",
             "network_contract_number",
+            "network",
+            "it_connection_type",
+            "it_iiko_server",
         ]:
             value = (filters_local.get(field) or "").strip()
             if value:
@@ -1107,9 +1148,16 @@ def _parameter_values_for_passports():
     parameter_values = {key: [] for key in PARAMETER_TYPES.keys()}
     try:
         with get_db() as conn:
-            grouped = _fetch_parameters_grouped(conn)
+            grouped = _fetch_parameters_grouped(conn, include_deleted=False)
         for slug, items in grouped.items():
-            parameter_values[slug] = [item["value"] for item in items]
+            values = []
+            for item in items:
+                if not item.get("value"):
+                    continue
+                if item.get("is_deleted"):
+                    continue
+                values.append(item["value"])
+            parameter_values[slug] = values
     except Exception:
         pass
     return parameter_values
@@ -1451,11 +1499,30 @@ def ensure_settings_parameters_schema():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     param_type TEXT NOT NULL,
                     value TEXT NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'Активен',
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    deleted_at TEXT,
                     created_at TEXT DEFAULT (datetime('now')),
                     UNIQUE(param_type, value)
                 )
                 """
             )
+            columns = {
+                row["name"]: row["type"].upper()
+                for row in conn.execute("PRAGMA table_info(settings_parameters)").fetchall()
+            }
+            if "state" not in columns:
+                conn.execute(
+                    "ALTER TABLE settings_parameters ADD COLUMN state TEXT NOT NULL DEFAULT 'Активен'"
+                )
+            if "is_deleted" not in columns:
+                conn.execute(
+                    "ALTER TABLE settings_parameters ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
+                )
+            if "deleted_at" not in columns:
+                conn.execute(
+                    "ALTER TABLE settings_parameters ADD COLUMN deleted_at TEXT"
+                )
     except Exception as e:
         print(f"ensure_settings_parameters_schema: {e}")
 
@@ -1521,7 +1588,7 @@ def ensure_departments_seeded():
     try:
         with get_db() as conn:
             existing_rows = conn.execute(
-                "SELECT value FROM settings_parameters WHERE param_type = ?",
+                "SELECT value FROM settings_parameters WHERE param_type = ? AND is_deleted = 0",
                 ("department",),
             ).fetchall()
             existing = {row["value"] for row in existing_rows if row["value"]}
@@ -1533,7 +1600,7 @@ def ensure_departments_seeded():
             ]
             if obsolete:
                 conn.executemany(
-                    "DELETE FROM settings_parameters WHERE param_type = ? AND value = ?",
+                    "UPDATE settings_parameters SET is_deleted = 1, deleted_at = datetime('now') WHERE param_type = ? AND value = ?",
                     [("department", value) for value in obsolete],
                 )
 
@@ -1542,7 +1609,10 @@ def ensure_departments_seeded():
                 return
 
             conn.executemany(
-                "INSERT OR IGNORE INTO settings_parameters (param_type, value) VALUES (?, ?)",
+                """
+                INSERT OR IGNORE INTO settings_parameters (param_type, value, state, is_deleted)
+                VALUES (?, ?, 'Активен', 0)
+                """,
                 [("department", dep) for dep in missing],
             )
             conn.commit()
@@ -4697,15 +4767,59 @@ def update_settings():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-def _fetch_parameters_grouped(conn):
-    rows = conn.execute(
-        "SELECT id, param_type, value FROM settings_parameters ORDER BY param_type, value COLLATE NOCASE"
-    ).fetchall()
+def _parameter_usage_counts():
+    usage: dict[str, dict[str, int]] = {key: {} for key in PARAMETER_TYPES.keys()}
+    try:
+        with get_passport_db() as conn:
+            for slug, column in PARAMETER_USAGE_MAPPING.items():
+                try:
+                    rows = conn.execute(
+                        f"""
+                        SELECT {column} AS value, COUNT(*) AS total
+                        FROM object_passports
+                        WHERE TRIM(COALESCE({column}, '')) != ''
+                        GROUP BY {column}
+                        """
+                    ).fetchall()
+                except sqlite3.OperationalError:
+                    continue
+                bucket = usage.setdefault(slug, {})
+                for row in rows:
+                    value = (row["value"] or "").strip()
+                    if value:
+                        bucket[value] = row["total"]
+    except Exception:
+        return usage
+    return usage
+
+
+def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
+    query = (
+        "SELECT id, param_type, value, state, is_deleted, deleted_at "
+        "FROM settings_parameters "
+    )
+    if not include_deleted:
+        query += "WHERE is_deleted = 0 "
+    query += "ORDER BY param_type, value COLLATE NOCASE"
+    rows = conn.execute(query).fetchall()
+    usage = _parameter_usage_counts()
     grouped = {key: [] for key in PARAMETER_TYPES.keys()}
     for row in rows:
         slug = row["param_type"]
-        if slug in grouped:
-            grouped[slug].append({"id": row["id"], "value": row["value"]})
+        if slug not in grouped:
+            continue
+        value = row["value"]
+        normalized = (value or "").strip()
+        grouped[slug].append(
+            {
+                "id": row["id"],
+                "value": value,
+                "state": row["state"] or "Активен",
+                "is_deleted": bool(row["is_deleted"]),
+                "deleted_at": row["deleted_at"],
+                "usage_count": usage.get(slug, {}).get(normalized, 0),
+            }
+        )
     return grouped
 
 @app.route("/api/settings/parameters", methods=["GET"])
@@ -4713,7 +4827,7 @@ def _fetch_parameters_grouped(conn):
 def api_get_parameters():
     conn = get_db()
     try:
-        data = _fetch_parameters_grouped(conn)
+        data = _fetch_parameters_grouped(conn, include_deleted=True)
         return jsonify(data)
     finally:
         conn.close()
@@ -4724,6 +4838,7 @@ def api_create_parameter():
     payload = request.json or {}
     param_type = (payload.get("param_type") or "").strip()
     value = (payload.get("value") or "").strip()
+    state = payload.get("state")
 
     if param_type not in PARAMETER_TYPES:
         return jsonify({"success": False, "error": "Неизвестный тип параметра"}), 400
@@ -4731,12 +4846,16 @@ def api_create_parameter():
     if not value:
         return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
 
+    normalized_state = _normalize_parameter_state(param_type, state)
     conn = get_db()
     try:
         try:
             cur = conn.execute(
-                "INSERT INTO settings_parameters (param_type, value) VALUES (?, ?)",
-                (param_type, value),
+                """
+                INSERT INTO settings_parameters (param_type, value, state, is_deleted)
+                VALUES (?, ?, ?, 0)
+                """,
+                (param_type, value, normalized_state),
             )
             new_id = cur.lastrowid
             conn.commit()
@@ -4746,7 +4865,7 @@ def api_create_parameter():
                 409,
             )
 
-        data = _fetch_parameters_grouped(conn)
+        data = _fetch_parameters_grouped(conn, include_deleted=True)
         return jsonify({"success": True, "id": new_id, "data": data})
     finally:
         conn.close()
@@ -4755,20 +4874,49 @@ def api_create_parameter():
 @login_required
 def api_update_parameter(param_id):
     payload = request.json or {}
-    value = (payload.get("value") or "").strip()
-
-    if not value:
-        return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
 
     conn = get_db()
     try:
+        row = conn.execute(
+            "SELECT id, param_type FROM settings_parameters WHERE id = ?",
+            (param_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Параметр не найден"}), 404
+
+        param_type = row["param_type"]
+        updates = []
+        params = []
+
+        if "value" in payload:
+            value = (payload.get("value") or "").strip()
+            if not value:
+                return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
+            updates.append("value = ?")
+            params.append(value)
+
+        if "state" in payload:
+            normalized_state = _normalize_parameter_state(param_type, payload.get("state"))
+            updates.append("state = ?")
+            params.append(normalized_state)
+
+        if "is_deleted" in payload:
+            is_deleted = 1 if bool(payload.get("is_deleted")) else 0
+            updates.append("is_deleted = ?")
+            params.append(is_deleted)
+            if is_deleted:
+                updates.append("deleted_at = datetime('now')")
+            else:
+                updates.append("deleted_at = NULL")
+
+        if not updates:
+            return jsonify({"success": False, "error": "Нет данных для обновления"}), 400
+
+        query = f"UPDATE settings_parameters SET {', '.join(updates)} WHERE id = ?"
+        params.append(param_id)
+
         try:
-            cur = conn.execute(
-                "UPDATE settings_parameters SET value = ? WHERE id = ?",
-                (value, param_id),
-            )
-            if cur.rowcount == 0:
-                return jsonify({"success": False, "error": "Параметр не найден"}), 404
+            conn.execute(query, params)
             conn.commit()
         except sqlite3.IntegrityError:
             return (
@@ -4776,7 +4924,7 @@ def api_update_parameter(param_id):
                 409,
             )
 
-        data = _fetch_parameters_grouped(conn)
+        data = _fetch_parameters_grouped(conn, include_deleted=True)
         return jsonify({"success": True, "data": data})
     finally:
         conn.close()
@@ -4787,11 +4935,18 @@ def api_update_parameter(param_id):
 def api_delete_parameter(param_id):
     conn = get_db()
     try:
-        cur = conn.execute("DELETE FROM settings_parameters WHERE id = ?", (param_id,))
+        cur = conn.execute(
+            """
+            UPDATE settings_parameters
+            SET is_deleted = 1, deleted_at = datetime('now')
+            WHERE id = ?
+            """,
+            (param_id,),
+        )
         if cur.rowcount == 0:
             return jsonify({"success": False, "error": "Параметр не найден"}), 404
         conn.commit()
-        data = _fetch_parameters_grouped(conn)
+        data = _fetch_parameters_grouped(conn, include_deleted=True)
         return jsonify({"success": True, "data": data})
     finally:
         conn.close()
