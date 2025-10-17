@@ -1590,9 +1590,11 @@ def ensure_channels_schema():
         conn = get_db()
         cur = conn.cursor()
         cols = {r['name'] for r in cur.execute("PRAGMA table_info(channels)").fetchall()}
-        # ожидаемые поля: id, token, bot_name, channel_name, questions_cfg, max_questions, is_active
+        # ожидаемые поля: id, token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active
         if 'bot_name' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN bot_name TEXT")
+        if 'bot_username' not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN bot_username TEXT")
         if 'channel_name' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN channel_name TEXT")
         if 'questions_cfg' not in cols:
@@ -1601,6 +1603,12 @@ def ensure_channels_schema():
             cur.execute("ALTER TABLE channels ADD COLUMN max_questions INTEGER DEFAULT 0")
         if 'is_active' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN is_active INTEGER DEFAULT 1")
+        try:
+            cur.execute(
+                "UPDATE channels SET bot_username = COALESCE(bot_username, bot_name) WHERE bot_username IS NULL OR bot_username = ''"
+            )
+        except Exception:
+            pass
         conn.commit()
     except Exception as e:
         print(f"ensure_channels_schema: {e}")
@@ -1608,6 +1616,56 @@ def ensure_channels_schema():
         try: conn.close()
         except: pass
 ensure_channels_schema()
+
+def _fetch_bot_identity(token: str) -> tuple[str, str]:
+    if not token:
+        raise ValueError("Пустой токен")
+    response = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=10)
+    data = response.json()
+    if not data.get("ok"):
+        raise ValueError(data.get("description") or "Не удалось получить данные бота")
+    result = data.get("result") or {}
+    username = (result.get("username") or "").strip()
+    first_name = (result.get("first_name") or "").strip()
+    last_name = (result.get("last_name") or "").strip()
+    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
+    display_name = full_name or username
+    return display_name, username
+
+
+def _refresh_bot_identity_if_needed(conn: sqlite3.Connection, channel_row: dict) -> dict:
+    if not channel_row:
+        return channel_row
+    token = (channel_row.get("token") or "").strip()
+    if not token:
+        return channel_row
+    existing_name = (channel_row.get("bot_name") or "").strip()
+    existing_username = (channel_row.get("bot_username") or "").strip()
+    needs_refresh = (not existing_name) or (not existing_username) or (existing_name == existing_username)
+    if not needs_refresh:
+        return channel_row
+    try:
+        display_name, username = _fetch_bot_identity(token)
+    except Exception as exc:
+        logging.warning("Не удалось обновить имя бота #%s: %s", channel_row.get("id"), exc)
+        return channel_row
+
+    updated_name = display_name or existing_name
+    updated_username = username or existing_username
+    if updated_name == existing_name and updated_username == existing_username:
+        return channel_row
+
+    channel_row["bot_name"] = updated_name
+    channel_row["bot_username"] = updated_username
+    try:
+        conn.execute(
+            "UPDATE channels SET bot_name = ?, bot_username = ? WHERE id = ?",
+            (updated_name, updated_username, channel_row.get("id")),
+        )
+        conn.commit()
+    except Exception as exc:
+        logging.warning("Не удалось сохранить имя бота #%s: %s", channel_row.get("id"), exc)
+    return channel_row
 
 def ensure_feedback_requests_table():
     try:
@@ -4463,47 +4521,52 @@ def channels_page():
 @login_required
 def api_channels_list():
     conn = get_db()
-    rows = conn.execute("SELECT * FROM channels ORDER BY id DESC").fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
+    try:
+        rows = conn.execute("SELECT * FROM channels ORDER BY id DESC").fetchall()
+        result = []
+        for row in rows:
+            data = dict(row)
+            refreshed = _refresh_bot_identity_if_needed(conn, data)
+            result.append(refreshed)
+        return jsonify(result)
+    finally:
+        conn.close()
 
 @app.route("/api/channels", methods=["POST"])
 @login_required
 def api_channels_create():
     data = request.get_json(force=True)
-    token        = (data.get("token") or "").strip()
+    token = (data.get("token") or "").strip()
     channel_name = (data.get("channel_name") or "").strip()
-    questions_cfg= data.get("questions_cfg") or {}
-    max_questions= int(data.get("max_questions") or 0)
-    is_active    = 1 if data.get("is_active", True) else 0
+    questions_cfg = data.get("questions_cfg") or {}
+    max_questions = int(data.get("max_questions") or 0)
+    is_active = 1 if data.get("is_active", True) else 0
 
     if not token or not channel_name:
         return jsonify({"success": False, "error": "token и channel_name обязательны"}), 400
 
-    # Валидация токена — запрашиваем getMe
-    bot_name = None
     try:
-        r = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=10)
-        j = r.json()
-        if not j.get("ok"):
-            return jsonify({"success": False, "error": "Токен невалиден"}), 400
-        bot_name = j["result"]["username"]
+        bot_display_name, bot_username = _fetch_bot_identity(token)
     except Exception as e:
         return jsonify({"success": False, "error": f"Ошибка проверки токена: {e}"}), 400
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO channels(token, bot_name, channel_name, questions_cfg, max_questions, is_active)
-        VALUES (:token, :bot_name, :channel_name, :questions_cfg, :max_questions, :is_active)
-    """, {
-        "token": token,
-        "bot_name": bot_name,
-        "channel_name": channel_name,
-        "questions_cfg": json.dumps(questions_cfg, ensure_ascii=False),
-        "max_questions": max_questions,
-        "is_active": is_active
-    })
+    cur.execute(
+        """
+        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active)
+        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active)
+        """,
+        {
+            "token": token,
+            "bot_name": bot_display_name,
+            "bot_username": bot_username,
+            "channel_name": channel_name,
+            "questions_cfg": json.dumps(questions_cfg, ensure_ascii=False),
+            "max_questions": max_questions,
+            "is_active": is_active,
+        },
+    )
     conn.commit()
     conn.close()
     return jsonify({"success": True})
@@ -5592,12 +5655,11 @@ def delete_user(user_id):
 @app.route("/api/channels/<int:channel_id>", methods=["GET"])
 @login_required
 def api_channels_get(channel_id):
-    conn = get_db()
-    row = conn.execute("SELECT * FROM channels WHERE id = ?", (channel_id,)).fetchone()
-    conn.close()
-    if not row:
-        return jsonify({"success": False, "error": "Канал не найден"}), 404
-    d = dict(row)
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM channels WHERE id = ?", (channel_id,)).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Канал не найден"}), 404
+        d = _refresh_bot_identity_if_needed(conn, dict(row))
     # Попробуем распарсить JSON, но вернём как есть — фронт сам приведёт
     return jsonify({"success": True, "channel": d})
 
