@@ -165,11 +165,11 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#networkProfilesModal">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#itConnectionsModal">
           <div class="card-body">
-            <div class="tile-icon">🌐</div>
-            <h5 class="card-title">Профили провайдеров</h5>
-            <p class="card-text text-muted">Ведите список договоров и контактных данных.</p>
+            <div class="tile-icon">🖧</div>
+            <h5 class="card-title">Подключения IT-блока</h5>
+            <p class="card-text text-muted">Управляйте подключениями и профилями провайдеров.</p>
           </div>
         </div>
       </div>
@@ -345,6 +345,7 @@
           <div class="modal-body">
             <div class="row g-3">
               {% for slug, title in parameter_types.items() %}
+              {% if slug != 'it_connection' %}
               <div class="col-md-6 col-xl-4">
                 <div class="card shadow-sm parameter-card" data-param-type="{{ slug }}">
                   <div class="card-header d-flex justify-content-between align-items-center">
@@ -359,6 +360,7 @@
                   </div>
                 </div>
               </div>
+              {% endif %}
               {% endfor %}
               <div class="col-md-6 col-xl-4">
                 <div class="card shadow-sm parameter-card">
@@ -402,33 +404,57 @@
       </div>
     </div>
 
-    <!-- Профили провайдеров -->
-    <div class="modal fade" id="networkProfilesModal" tabindex="-1" aria-labelledby="networkProfilesModalLabel" aria-hidden="true">
+    <!-- Подключения IT-блока и профили провайдеров -->
+    <div class="modal fade" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="networkProfilesModalLabel">🌐 Профили провайдеров</h5>
+            <h5 class="modal-title" id="itConnectionsModalLabel">🖧 Подключения IT-блока</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div class="table-responsive">
-              <table class="table table-sm align-middle" id="networkProfilesTable">
-                <thead>
-                  <tr>
-                    <th>Провайдер</th>
-                    <th>Номер договора</th>
-                    <th>Телефон ТП</th>
-                    <th>Скорость</th>
-                    <th>ЮЛ</th>
-                    <th>Объектов</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="networkProfilesBody"></tbody>
-              </table>
-            </div>
-            <button class="btn btn-sm btn-success mt-3" type="button" onclick="addNetworkProfileRow()">+ Добавить профиль</button>
-            <div class="form-text text-muted mt-2">Эти данные будут автоматически подставляться в паспорт объекта.</div>
+            <section class="mb-4">
+              <h6 class="text-uppercase text-muted small mb-3">Подключения</h6>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle" id="itConnectionsTable">
+                  <thead>
+                    <tr>
+                      <th>Название подключения</th>
+                      <th>Тип оборудования</th>
+                      <th>Производитель оборудования</th>
+                      <th>Модель оборудования</th>
+                      <th>Использование</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="itConnectionsBody"></tbody>
+                </table>
+              </div>
+              <button class="btn btn-sm btn-success mt-2" type="button" onclick="addItConnectionRow()">+ Добавить подключение</button>
+              <div class="form-text text-muted mt-2">Здесь управляйте списком доступных подключений IT-блока.</div>
+            </section>
+            <hr class="my-4" />
+            <section>
+              <h6 class="text-uppercase text-muted small mb-3">Профили провайдеров</h6>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle" id="networkProfilesTable">
+                  <thead>
+                    <tr>
+                      <th>Провайдер</th>
+                      <th>Номер договора</th>
+                      <th>Телефон ТП</th>
+                      <th>Скорость</th>
+                      <th>ЮЛ</th>
+                      <th>Объектов</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="networkProfilesBody"></tbody>
+                </table>
+              </div>
+              <button class="btn btn-sm btn-success mt-3" type="button" onclick="addNetworkProfileRow()">+ Добавить профиль</button>
+              <div class="form-text text-muted mt-2">Эти данные будут автоматически подставляться в паспорт объекта.</div>
+            </section>
           </div>
         </div>
       </div>
@@ -536,7 +562,8 @@
         const state = item && typeof item.state === 'string' && item.state ? item.state : PARAMETER_STATES[0];
         const usageRaw = Number(item && item.usage_count);
         const usageCount = Number.isFinite(usageRaw) ? usageRaw : 0;
-        return {
+        const extra = item && typeof item.extra === 'object' && item.extra !== null ? item.extra : {};
+        const entry = {
           id: Number.isFinite(normalizedId) ? normalizedId : null,
           value,
           state: PARAMETER_STATES.includes(state) ? state : PARAMETER_STATES[0],
@@ -544,6 +571,34 @@
           deleted_at: item && item.deleted_at ? item.deleted_at : null,
           usage_count: usageCount,
         };
+        if (type === 'it_connection') {
+          const equipmentTypeRaw =
+            item && typeof item === 'object' && typeof item.equipment_type === 'string'
+              ? item.equipment_type
+              : extra.equipment_type;
+          const equipmentVendorRaw =
+            item && typeof item === 'object' && typeof item.equipment_vendor === 'string'
+              ? item.equipment_vendor
+              : extra.equipment_vendor;
+          const equipmentModelRaw =
+            item && typeof item === 'object' && typeof item.equipment_model === 'string'
+              ? item.equipment_model
+              : extra.equipment_model;
+          const equipmentType = typeof equipmentTypeRaw === 'string' ? equipmentTypeRaw.trim() : '';
+          const equipmentVendor = typeof equipmentVendorRaw === 'string' ? equipmentVendorRaw.trim() : '';
+          const equipmentModel = typeof equipmentModelRaw === 'string' ? equipmentModelRaw.trim() : '';
+          entry.equipment_type = equipmentType;
+          entry.equipment_vendor = equipmentVendor;
+          entry.equipment_model = equipmentModel;
+          entry.extra = {
+            equipment_type: equipmentType,
+            equipment_vendor: equipmentVendor,
+            equipment_model: equipmentModel,
+          };
+        } else if (extra && Object.keys(extra).length) {
+          entry.extra = extra;
+        }
+        return entry;
       });
     });
     parameterData = result;
@@ -854,6 +909,267 @@
       }
     });
 
+  const itConnectionsBody = document.getElementById('itConnectionsBody');
+  let itConnectionDrafts = [];
+
+  function renderItConnectionUsageLink(item) {
+    const filterKey = PARAMETER_FILTER_KEYS.it_connection;
+    const value = item && item.value ? String(item.value).trim() : '';
+    if (!filterKey || !value) {
+      return '<span class="text-muted">—</span>';
+    }
+    const usage = Number.isFinite(Number(item && item.usage_count)) ? Number(item.usage_count) : 0;
+    const url = `/object_passports?${filterKey}=${encodeURIComponent(value)}`;
+    return `<a href="${url}" class="btn btn-link btn-sm p-0">${usage}</a>`;
+  }
+
+  function buildItConnectionsRows() {
+    const existing = Array.isArray(parameterData.it_connection) ? parameterData.it_connection : [];
+    const rows = existing.map((item) => ({ item, isDraft: false }));
+    itConnectionDrafts.forEach((item, index) => {
+      rows.push({ item, isDraft: true, draftIndex: index });
+    });
+    return rows;
+  }
+
+  function renderItConnectionsTable() {
+    if (!itConnectionsBody) return;
+    const rows = buildItConnectionsRows();
+    itConnectionsBody.innerHTML = '';
+    if (!rows.length) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет подключений</td>';
+      itConnectionsBody.appendChild(emptyRow);
+      return;
+    }
+    rows.forEach(({ item, isDraft, draftIndex }) => {
+      const row = document.createElement('tr');
+      const disabled = !isDraft && Boolean(item && item.is_deleted);
+      if (isDraft) {
+        row.dataset.rowKind = 'draft';
+        row.dataset.draftIndex = String(draftIndex);
+      } else {
+        row.dataset.rowKind = 'existing';
+        const rawId = item && Object.prototype.hasOwnProperty.call(item, 'id') ? item.id : null;
+        const idNumber = Number.parseInt(rawId, 10);
+        if (Number.isFinite(idNumber)) {
+          row.dataset.id = String(idNumber);
+        }
+        if (disabled) {
+          row.classList.add('table-light', 'text-muted');
+        }
+      }
+      const value = item && item.value ? item.value : '';
+      const equipmentType = item && item.equipment_type ? item.equipment_type : '';
+      const equipmentVendor = item && item.equipment_vendor ? item.equipment_vendor : '';
+      const equipmentModel = item && item.equipment_model ? item.equipment_model : '';
+      const deletedHint = !isDraft && disabled
+        ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>'
+        : '';
+      const actions = isDraft
+        ? `
+            <button class="btn btn-sm btn-outline-success" type="button" data-it-connection-action="save">Сохранить</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-it-connection-action="discard">Отменить</button>
+          `
+        : disabled
+          ? '<button class="btn btn-sm btn-outline-secondary" type="button" data-it-connection-action="restore">Восстановить</button>'
+          : `
+            <button class="btn btn-sm btn-outline-success" type="button" data-it-connection-action="save">Сохранить</button>
+            <button class="btn btn-sm btn-outline-danger" type="button" data-it-connection-action="delete">Удалить</button>
+          `;
+      row.innerHTML = `
+        <td>
+          <input type="text" class="form-control form-control-sm" data-field="value" value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>
+          ${deletedHint}
+        </td>
+        <td><input type="text" class="form-control form-control-sm" data-field="equipment_type" value="${escapeHtml(equipmentType)}"${disabled ? ' disabled' : ''}></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="equipment_vendor" value="${escapeHtml(equipmentVendor)}"${disabled ? ' disabled' : ''}></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="equipment_model" value="${escapeHtml(equipmentModel)}"${disabled ? ' disabled' : ''}></td>
+        <td class="text-center">${renderItConnectionUsageLink(item)}</td>
+        <td class="text-nowrap">
+          ${actions}
+        </td>
+      `;
+      itConnectionsBody.appendChild(row);
+    });
+  }
+
+  function addItConnectionRow(initial) {
+    const defaults = {
+      value: '',
+      equipment_type: '',
+      equipment_vendor: '',
+      equipment_model: '',
+      is_deleted: false,
+      usage_count: 0,
+    };
+    const data = Object.assign({}, defaults, initial || {});
+    itConnectionDrafts.push(data);
+    renderItConnectionsTable();
+  }
+
+  function collectItConnectionPayload(row) {
+    const pick = (field) => {
+      const input = row.querySelector(`[data-field="${field}"]`);
+      return input ? input.value.trim() : '';
+    };
+    return {
+      value: pick('value'),
+      equipment_type: pick('equipment_type'),
+      equipment_vendor: pick('equipment_vendor'),
+      equipment_model: pick('equipment_model'),
+    };
+  }
+
+  async function saveItConnection(row, context) {
+    const { isDraft, draftIndex, id } = context;
+    const payload = collectItConnectionPayload(row);
+    if (!payload.value) {
+      alert('Название подключения не может быть пустым');
+      const input = row.querySelector('[data-field="value"]');
+      if (input) input.focus();
+      return;
+    }
+    let button = row.querySelector('[data-it-connection-action="save"]');
+    if (button) button.disabled = true;
+    try {
+      let response;
+      if (isDraft || !Number.isFinite(id)) {
+        response = await fetch('/api/settings/parameters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({ param_type: 'it_connection' }, payload)),
+        });
+      } else {
+        response = await fetch(`/api/settings/parameters/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка сохранения');
+      }
+      if (isDraft && Number.isInteger(draftIndex) && draftIndex >= 0) {
+        itConnectionDrafts.splice(draftIndex, 1);
+      }
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
+      if (parameterModal && parameterModalType) {
+        renderParameterModal(parameterModalType);
+      }
+    } catch (error) {
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function deleteItConnection(row, context) {
+    const { isDraft, draftIndex, id } = context;
+    if (isDraft) {
+      if (Number.isInteger(draftIndex) && draftIndex >= 0) {
+        itConnectionDrafts.splice(draftIndex, 1);
+        renderItConnectionsTable();
+      }
+      return;
+    }
+    if (!Number.isFinite(id)) {
+      return;
+    }
+    if (!confirm('Удалить подключение?')) {
+      return;
+    }
+    let button = row.querySelector('[data-it-connection-action="delete"]');
+    if (button) button.disabled = true;
+    try {
+      const response = await fetch(`/api/settings/parameters/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка удаления');
+      }
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
+      if (parameterModal && parameterModalType) {
+        renderParameterModal(parameterModalType);
+      }
+    } catch (error) {
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function restoreItConnection(row, id) {
+    if (!Number.isFinite(id)) {
+      return;
+    }
+    let button = row.querySelector('[data-it-connection-action="restore"]');
+    if (button) button.disabled = true;
+    try {
+      const response = await fetch(`/api/settings/parameters/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_deleted: false }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка восстановления');
+      }
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
+      if (parameterModal && parameterModalType) {
+        renderParameterModal(parameterModalType);
+      }
+    } catch (error) {
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  if (itConnectionsBody) {
+    itConnectionsBody.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-it-connection-action]');
+      if (!button) return;
+      const action = button.dataset.itConnectionAction;
+      const row = button.closest('tr');
+      if (!row) return;
+      const isDraft = row.dataset.rowKind === 'draft';
+      const draftIndex = isDraft ? Number.parseInt(row.dataset.draftIndex, 10) : null;
+      const id = !isDraft && row.dataset.id ? Number.parseInt(row.dataset.id, 10) : null;
+      if (action === 'save') {
+        saveItConnection(row, {
+          isDraft,
+          draftIndex: Number.isFinite(draftIndex) ? draftIndex : null,
+          id: Number.isFinite(id) ? id : null,
+        });
+      } else if (action === 'delete') {
+        deleteItConnection(row, {
+          isDraft,
+          draftIndex: Number.isFinite(draftIndex) ? draftIndex : null,
+          id: Number.isFinite(id) ? id : null,
+        });
+      } else if (action === 'restore') {
+        restoreItConnection(row, Number.isFinite(id) ? id : null);
+      } else if (action === 'discard') {
+        if (isDraft && Number.isFinite(draftIndex) && draftIndex >= 0) {
+          itConnectionDrafts.splice(draftIndex, 1);
+          renderItConnectionsTable();
+        }
+      }
+    });
+  }
+
+  window.addItConnectionRow = addItConnectionRow;
+
     networkProfilesBody.addEventListener('click', (event) => {
       const button = event.target.closest('[data-action="remove-profile"]');
       if (!button) return;
@@ -866,6 +1182,7 @@
   }
 
   renderNetworkProfiles();
+  renderItConnectionsTable();
 
   async function loadParameters() {
     try {
@@ -876,6 +1193,7 @@
       syncParameterData((data && data.data) || data || parameterData);
       parametersLoaded = true;
       renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
       buildLocationsTree();
       if (parameterModal && parameterModalType) {
         renderParameterModal(parameterModalType);
@@ -924,6 +1242,7 @@
         stateSelect.value = PARAMETER_STATES[0];
       }
       renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
       if (parameterModal && parameterModalType === type) {
         renderParameterModal(type);
       }
@@ -962,6 +1281,7 @@
       }
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
       if (parameterModal && parameterModalType === type) {
         renderParameterModal(type);
       }
@@ -990,6 +1310,7 @@
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
       if (parameterModal && parameterModalType === type) {
+      renderItConnectionsTable();
         renderParameterModal(type);
       }
       select.dataset.paramCurrentState = select.value;
@@ -1026,6 +1347,7 @@
       }
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
       if (parameterModal && parameterModalType === type) {
         renderParameterModal(type);
       }
@@ -1051,6 +1373,7 @@
       }
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
       if (parameterModal && parameterModalType === type) {
         renderParameterModal(type);
       }
