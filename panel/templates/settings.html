@@ -419,7 +419,6 @@
                 <table class="table table-sm align-middle" id="itConnectionsTable">
                   <thead>
                     <tr>
-                      <th>Название подключения</th>
                       <th>Тип оборудования</th>
                       <th>Производитель оборудования</th>
                       <th>Модель оборудования</th>
@@ -443,7 +442,6 @@
                       <th>Провайдер</th>
                       <th>Номер договора</th>
                       <th>Телефон ТП</th>
-                      <th>Скорость</th>
                       <th>ЮЛ</th>
                       <th>Объектов</th>
                       <th></th>
@@ -818,7 +816,6 @@
         provider: (item && item.provider) || '',
         contract_number: (item && item.contract_number) || '',
         support_phone: (item && item.support_phone) || '',
-        speed: (item && item.speed) || '',
         legal_entity: (item && item.legal_entity) || '',
       }))
     : [];
@@ -851,7 +848,7 @@
     networkProfilesBody.innerHTML = '';
     if (!networkProfilesData.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет профилей</td>';
+      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет профилей</td>';
       networkProfilesBody.appendChild(emptyRow);
       return;
     }
@@ -862,9 +859,8 @@
         <td><input type="text" class="form-control form-control-sm" data-field="provider" value="${escapeHtml(profile.provider || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="contract_number" value="${escapeHtml(profile.contract_number || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="support_phone" value="${escapeHtml(profile.support_phone || '')}"></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="speed" value="${escapeHtml(profile.speed || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="legal_entity" value="${escapeHtml(profile.legal_entity || '')}"></td>
-		<td data-usage-cell></td>
+        <td data-usage-cell></td>
         <td class="text-nowrap">
           <button class="btn btn-sm btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
         </td>
@@ -878,7 +874,7 @@
   }
 
   function addNetworkProfileRow(profile) {
-    const defaults = { provider: '', contract_number: '', support_phone: '', speed: '', legal_entity: '' };
+    const defaults = { provider: '', contract_number: '', support_phone: '', legal_entity: '' };
     const data = Object.assign({}, defaults, profile || {});
     networkProfilesData.push(data);
     renderNetworkProfiles();
@@ -901,13 +897,24 @@
       const field = event.target.dataset.field;
       if (Number.isNaN(index) || !field) return;
       networkProfilesData[index][field] = event.target.value;
-	  if (field === 'contract_number') {
+      if (field === 'contract_number') {
         const usageCell = row.querySelector('[data-usage-cell]');
         if (usageCell) {
           usageCell.innerHTML = renderContractUsageLink(networkProfilesData[index][field]);
         }
       }
     });
+
+    networkProfilesBody.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action="remove-profile"]');
+      if (!button) return;
+      const row = button.closest('tr[data-index]');
+      if (!row) return;
+      const index = parseInt(row.dataset.index, 10);
+      if (Number.isNaN(index)) return;
+      removeNetworkProfileRow(index);
+    });
+  }
 
   const itConnectionsBody = document.getElementById('itConnectionsBody');
   let itConnectionDrafts = [];
@@ -932,13 +939,30 @@
     return rows;
   }
 
+  function buildItConnectionLabel(source) {
+    const parts = [];
+    if (source && typeof source.equipment_type === 'string') {
+      const trimmed = source.equipment_type.trim();
+      if (trimmed) parts.push(trimmed);
+    }
+    if (source && typeof source.equipment_vendor === 'string') {
+      const trimmed = source.equipment_vendor.trim();
+      if (trimmed) parts.push(trimmed);
+    }
+    if (source && typeof source.equipment_model === 'string') {
+      const trimmed = source.equipment_model.trim();
+      if (trimmed) parts.push(trimmed);
+    }
+    return parts.join(' / ');
+  }
+
   function renderItConnectionsTable() {
     if (!itConnectionsBody) return;
     const rows = buildItConnectionsRows();
     itConnectionsBody.innerHTML = '';
     if (!rows.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет подключений</td>';
+      emptyRow.innerHTML = '<td colspan="5" class="text-muted text-center">Пока нет подключений</td>';
       itConnectionsBody.appendChild(emptyRow);
       return;
     }
@@ -959,10 +983,15 @@
           row.classList.add('table-light', 'text-muted');
         }
       }
-      const value = item && item.value ? item.value : '';
       const equipmentType = item && item.equipment_type ? item.equipment_type : '';
       const equipmentVendor = item && item.equipment_vendor ? item.equipment_vendor : '';
       const equipmentModel = item && item.equipment_model ? item.equipment_model : '';
+      const usageLabel = buildItConnectionLabel({
+        equipment_type: equipmentType,
+        equipment_vendor: equipmentVendor,
+        equipment_model: equipmentModel,
+      });
+      const usageItem = Object.assign({}, item || {}, { value: usageLabel || (item && item.value ? item.value : '') });
       const deletedHint = !isDraft && disabled
         ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>'
         : '';
@@ -979,13 +1008,12 @@
           `;
       row.innerHTML = `
         <td>
-          <input type="text" class="form-control form-control-sm" data-field="value" value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>
+          <input type="text" class="form-control form-control-sm" data-field="equipment_type" value="${escapeHtml(equipmentType)}"${disabled ? ' disabled' : ''}>
           ${deletedHint}
         </td>
-        <td><input type="text" class="form-control form-control-sm" data-field="equipment_type" value="${escapeHtml(equipmentType)}"${disabled ? ' disabled' : ''}></td>
         <td><input type="text" class="form-control form-control-sm" data-field="equipment_vendor" value="${escapeHtml(equipmentVendor)}"${disabled ? ' disabled' : ''}></td>
         <td><input type="text" class="form-control form-control-sm" data-field="equipment_model" value="${escapeHtml(equipmentModel)}"${disabled ? ' disabled' : ''}></td>
-        <td class="text-center">${renderItConnectionUsageLink(item)}</td>
+        <td class="text-center">${renderItConnectionUsageLink(usageItem)}</td>
         <td class="text-nowrap">
           ${actions}
         </td>
@@ -996,7 +1024,6 @@
 
   function addItConnectionRow(initial) {
     const defaults = {
-      value: '',
       equipment_type: '',
       equipment_vendor: '',
       equipment_model: '',
@@ -1013,11 +1040,15 @@
       const input = row.querySelector(`[data-field="${field}"]`);
       return input ? input.value.trim() : '';
     };
+    const equipment_type = pick('equipment_type');
+    const equipment_vendor = pick('equipment_vendor');
+    const equipment_model = pick('equipment_model');
+    const value = buildItConnectionLabel({ equipment_type, equipment_vendor, equipment_model });
     return {
-      value: pick('value'),
-      equipment_type: pick('equipment_type'),
-      equipment_vendor: pick('equipment_vendor'),
-      equipment_model: pick('equipment_model'),
+      value,
+      equipment_type,
+      equipment_vendor,
+      equipment_model,
     };
   }
 
@@ -1025,8 +1056,11 @@
     const { isDraft, draftIndex, id } = context;
     const payload = collectItConnectionPayload(row);
     if (!payload.value) {
-      alert('Название подключения не может быть пустым');
-      const input = row.querySelector('[data-field="value"]');
+      alert('Необходимо заполнить хотя бы одно поле оборудования');
+      const input =
+        row.querySelector('[data-field="equipment_type"]') ||
+        row.querySelector('[data-field="equipment_vendor"]') ||
+        row.querySelector('[data-field="equipment_model"]');
       if (input) input.focus();
       return;
     }
@@ -1169,17 +1203,6 @@
   }
 
   window.addItConnectionRow = addItConnectionRow;
-
-    networkProfilesBody.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-action="remove-profile"]');
-      if (!button) return;
-      const row = button.closest('tr[data-index]');
-      if (!row) return;
-      const index = parseInt(row.dataset.index, 10);
-      if (Number.isNaN(index)) return;
-      removeNetworkProfileRow(index);
-    });
-  }
 
   renderNetworkProfiles();
   renderItConnectionsTable();
@@ -2349,7 +2372,6 @@
           provider: (item.provider || '').trim(),
           contract_number: (item.contract_number || '').trim(),
           support_phone: (item.support_phone || '').trim(),
-          speed: (item.speed || '').trim(),
           legal_entity: (item.legal_entity || '').trim(),
         }))
         .filter((profile) => Object.values(profile).some((value) => value));
