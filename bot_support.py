@@ -1424,7 +1424,14 @@ def get_questions_cfg(channel_id: int) -> dict:
     except:
         cfg = {}
     cfg.setdefault("per_dialog_limit", row["max_questions"] or 0)
-    cfg.setdefault("questions", [])
+    questions = cfg.setdefault("questions", [])
+    try:
+        questions.sort(key=lambda item: int(item.get("order") or 0))
+    except Exception:
+        pass
+    for idx, item in enumerate(questions, start=1):
+        item.setdefault("order", idx)
+        item.setdefault("label", item.get("label") or item.get("question") or "")
     cfg.setdefault("feedback", {})
     fb = cfg["feedback"]
     fb.setdefault("prompts", {
