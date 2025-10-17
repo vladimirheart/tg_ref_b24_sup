@@ -438,30 +438,6 @@
               </button>
               <div class="form-text text-muted mt-2">Здесь управляйте списком доступных подключений IT-блока.</div>
             </section>
-            <div class="modal fade" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true">
-              <div class="modal-dialog">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title" id="itConnectionAddModalLabel">Новое подключение</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                  </div>
-                  <form data-it-connection-add-form>
-                    <div class="modal-body">
-                      <label class="form-label" for="itConnectionCategorySelect">Выберите, что необходимо добавить</label>
-                      <select class="form-select" id="itConnectionCategorySelect" data-it-connection-category-select>
-                        {% for key, label in it_connection_categories.items() %}
-                        <option value="{{ key }}">{{ label }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-                      <button type="submit" class="btn btn-primary">Добавить</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
             <hr class="my-4" />
             <section>
               <h6 class="text-uppercase text-muted small mb-3">Профили провайдеров</h6>
@@ -486,7 +462,32 @@
           </div>
         </div>
       </div>
-     </div>
+    </div>
+
+    <div class="modal fade" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="itConnectionAddModalLabel">Новое подключение</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <form data-it-connection-add-form>
+            <div class="modal-body">
+              <label class="form-label" for="itConnectionCategorySelect">Выберите, что необходимо добавить</label>
+              <select class="form-select" id="itConnectionCategorySelect" data-it-connection-category-select>
+                {% for key, label in it_connection_categories.items() %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+              <button type="submit" class="btn btn-primary">Добавить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
     <!-- Каналы (боты) -->
     <div class="modal fade" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true">
