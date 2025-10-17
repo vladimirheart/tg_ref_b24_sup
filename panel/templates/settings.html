@@ -570,6 +570,7 @@
           usage_count: usageCount,
         };
         if (type === 'it_connection') {
+          const parsedFromValue = parseItConnectionValue(value);
           const equipmentTypeRaw =
             item && typeof item === 'object' && typeof item.equipment_type === 'string'
               ? item.equipment_type
@@ -582,9 +583,18 @@
             item && typeof item === 'object' && typeof item.equipment_model === 'string'
               ? item.equipment_model
               : extra.equipment_model;
-          const equipmentType = typeof equipmentTypeRaw === 'string' ? equipmentTypeRaw.trim() : '';
-          const equipmentVendor = typeof equipmentVendorRaw === 'string' ? equipmentVendorRaw.trim() : '';
-          const equipmentModel = typeof equipmentModelRaw === 'string' ? equipmentModelRaw.trim() : '';
+          const equipmentType =
+            typeof equipmentTypeRaw === 'string' && equipmentTypeRaw.trim()
+              ? equipmentTypeRaw.trim()
+              : parsedFromValue.equipment_type;
+          const equipmentVendor =
+            typeof equipmentVendorRaw === 'string' && equipmentVendorRaw.trim()
+              ? equipmentVendorRaw.trim()
+              : parsedFromValue.equipment_vendor;
+          const equipmentModel =
+            typeof equipmentModelRaw === 'string' && equipmentModelRaw.trim()
+              ? equipmentModelRaw.trim()
+              : parsedFromValue.equipment_model;
           entry.equipment_type = equipmentType;
           entry.equipment_vendor = equipmentVendor;
           entry.equipment_model = equipmentModel;
@@ -954,6 +964,21 @@
       if (trimmed) parts.push(trimmed);
     }
     return parts.join(' / ');
+  }
+
+  function parseItConnectionValue(value) {
+    if (value === null || value === undefined) {
+      return { equipment_type: '', equipment_vendor: '', equipment_model: '' };
+    }
+    const parts = String(value)
+      .split('/')
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+    return {
+      equipment_type: parts[0] || '',
+      equipment_vendor: parts[1] || '',
+      equipment_model: parts[2] || '',
+    };
   }
 
   function renderItConnectionsTable() {
