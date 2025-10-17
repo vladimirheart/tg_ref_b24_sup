@@ -703,7 +703,36 @@
     const itConnectionChoicesRaw = {{ it_connection_options | tojson }};
     const itConnectionChoices = Array.isArray(itConnectionChoicesRaw) ? itConnectionChoicesRaw : [];
 
-    let passportData = JSON.parse(document.getElementById('passportData').textContent || '{}');
+    const passportIdFromUrlMatch = window.location.pathname.match(/object_passports\/(\d+)/);
+    const passportIdFromUrl = passportIdFromUrlMatch ? Number(passportIdFromUrlMatch[1]) : null;
+    const hasValidPassportIdInUrl = Number.isFinite(passportIdFromUrl) && passportIdFromUrl > 0;
+    const passportDataElement = document.getElementById('passportData');
+    let initialPassportParseFailed = false;
+    let passportDataRaw = passportDataElement ? passportDataElement.textContent : '';
+    if (!passportDataRaw || !passportDataRaw.trim()) {
+      passportDataRaw = '{}';
+      if (hasValidPassportIdInUrl) {
+        initialPassportParseFailed = true;
+      }
+    }
+    let passportData = {};
+    try {
+      passportData = JSON.parse(passportDataRaw);
+    } catch (error) {
+      console.error('Failed to parse initial passport payload:', error);
+      initialPassportParseFailed = true;
+      passportData = {};
+    }
+    if (!passportData || typeof passportData !== 'object') {
+      passportData = {};
+    }
+    if (hasValidPassportIdInUrl && !passportData.id) {
+      passportData.id = passportIdFromUrl;
+    }
+    if (typeof passportData.is_new !== 'boolean') {
+      passportData.is_new = !hasValidPassportIdInUrl;
+    }
+
     let parameterValues = (typeof structuredClone === 'function')
       ? structuredClone(parameterValuesInitial)
       : JSON.parse(JSON.stringify(parameterValuesInitial));
@@ -2560,6 +2589,30 @@
       }
     }
 
+    async function ensurePassportDataLoaded() {
+      if (!initialPassportParseFailed || passportData.is_new || !passportData.id) {
+        populateForm();
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.passport) {
+          passportData = data.passport;
+          passportData.is_new = false;
+        }
+      } catch (error) {
+        console.error('Failed to fetch passport data:', error);
+        showSaveMessage('error', 'Не удалось загрузить паспорт. Попробуйте обновить страницу.');
+      }
+
+      populateForm();
+    }
+
     document.querySelectorAll('[data-action="add-parameter"]').forEach((button) => {
       button.addEventListener('click', () => addParameter(button.dataset.paramType, button.dataset.target));
     });
@@ -2683,7 +2736,7 @@
       renderEquipment(passportData.equipment);
     });
 
-    populateForm();
+    ensurePassportDataLoaded();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
