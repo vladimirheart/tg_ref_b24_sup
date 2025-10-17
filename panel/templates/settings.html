@@ -65,6 +65,9 @@
     .location-type-body { padding: 0.75rem 0.25rem 0.25rem 2.25rem; }
     .location-city-block { background: #ffffff; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
     .location-city-block .input-group > .btn { min-width: 5.5rem; }
+    .location-city-collapse { padding-top: 0.5rem; }
+    .location-status-pill { font-size: 0.75rem; font-weight: 500; background-color: #f1f3f5; color: #495057; border: 1px solid #dee2e6; }
+    .location-status-text { font-size: 0.75rem; white-space: nowrap; }
     .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
     .channel-questions-list .question-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
   </style>
@@ -478,7 +481,15 @@
     iiko_server: 'it_iiko_server',
   };
 
+  const LOCATION_STATUS_SOURCES = {
+    business: 'business',
+    type: 'partner_type',
+    city: 'country',
+    location: 'department',
+  };
+
   let parameterData = {};
+  const parameterStatusCache = new Map();
   let parametersLoaded = false;
   Object.keys(PARAMETER_TITLES).forEach((type) => {
     parameterData[type] = [];
@@ -512,6 +523,7 @@
       });
     });
     parameterData = result;
+    parameterStatusCache.clear();
   }
 
   function buildStateSelect(type, selected, disabled, { forInput = false } = {}) {
@@ -840,6 +852,7 @@
       syncParameterData((data && data.data) || data || parameterData);
       parametersLoaded = true;
       renderParameters({ forceBodies: true });
+      buildLocationsTree();
       if (parameterModal && parameterModalType) {
         renderParameterModal(parameterModalType);
       }
@@ -1147,6 +1160,10 @@
     return `collapse-${hashString(business)}-${hashString(type)}`;
   }
 
+  function cityCollapseIdFor(business, type, city) {
+    return `collapse-${hashString(business)}-${hashString(type)}-${hashString(city)}`;
+  }
+
   function attachCollapseToggleText(collapseEl, button) {
     if (!collapseEl || !button) return;
     const updateState = (isShown) => {
@@ -1156,6 +1173,61 @@
     collapseEl.addEventListener('shown.bs.collapse', () => updateState(true));
     collapseEl.addEventListener('hidden.bs.collapse', () => updateState(false));
     updateState(collapseEl.classList.contains('show'));
+  }
+
+  function normalizeStatusLookupValue(value) {
+    return (value || '').toString().trim().toLowerCase();
+  }
+
+  function getParameterItemByValue(type, value) {
+    const lookupType = (type || '').toString().trim();
+    if (!lookupType) return null;
+    const normalizedValue = normalizeStatusLookupValue(value);
+    if (!normalizedValue) return null;
+    const cacheKey = `${lookupType}::${normalizedValue}`;
+    if (parameterStatusCache.has(cacheKey)) {
+      return parameterStatusCache.get(cacheKey);
+    }
+    const items = Array.isArray(parameterData[lookupType]) ? parameterData[lookupType] : [];
+    const found = items.find((item) => normalizeStatusLookupValue(item && item.value) === normalizedValue) || null;
+    parameterStatusCache.set(cacheKey, found);
+    return found;
+  }
+
+  function getLocationStatus(category, value) {
+    const sourceType = LOCATION_STATUS_SOURCES[category];
+    if (!sourceType) return null;
+    const item = getParameterItemByValue(sourceType, value);
+    if (!item || typeof item.state !== 'string') {
+      return null;
+    }
+    const status = item.state.trim();
+    return status || null;
+  }
+
+  function createStatusElement(state, { variant = 'pill' } = {}) {
+    const effective = (state || '').toString().trim() || '—';
+    if (variant === 'input-group') {
+      const span = document.createElement('span');
+      span.className = 'input-group-text location-status-text';
+      span.textContent = `Статус: ${effective}`;
+      return span;
+    }
+    const span = document.createElement('span');
+    span.className = 'badge bg-light text-dark location-status-pill';
+    span.textContent = `Статус: ${effective}`;
+    return span;
+  }
+
+  function confirmMultipleTimes(message, attempts = 3) {
+    const total = Number.isFinite(Number(attempts)) && attempts > 0 ? Math.ceil(attempts) : 1;
+    for (let i = 1; i <= total; i += 1) {
+      const suffix = total > 1 ? `\nПодтвердите действие (${i}/${total})` : '';
+      if (!confirm(`${message}${suffix}`)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   function buildLocationsTree() {
@@ -1205,6 +1277,7 @@
       deleteBusinessBtn.addEventListener('click', () => removeBusiness(businessName));
 
       businessHeader.appendChild(businessInput);
+      businessHeader.appendChild(createStatusElement(getLocationStatus('business', businessName)));
       businessHeader.appendChild(deleteBusinessBtn);
       cardBody.appendChild(businessHeader);
 
@@ -1257,6 +1330,7 @@
 
         typeHeader.appendChild(toggleBtn);
         typeHeader.appendChild(typeInput);
+        typeHeader.appendChild(createStatusElement(getLocationStatus('type', typeName)));
         typeHeader.appendChild(deleteTypeBtn);
 
         const collapse = document.createElement('div');
@@ -1278,8 +1352,17 @@
           const cityBlock = document.createElement('div');
           cityBlock.className = 'location-city-block mb-3';
 
+          const cityCollapseId = cityCollapseIdFor(businessName, typeName, cityName);
+
           const cityHeader = document.createElement('div');
           cityHeader.className = 'd-flex flex-wrap align-items-center gap-2 mb-2';
+
+          const cityToggleBtn = document.createElement('button');
+          cityToggleBtn.type = 'button';
+          cityToggleBtn.className = 'btn btn-sm btn-outline-secondary';
+          cityToggleBtn.setAttribute('data-bs-toggle', 'collapse');
+          cityToggleBtn.setAttribute('data-bs-target', `#${cityCollapseId}`);
+          cityToggleBtn.setAttribute('aria-controls', cityCollapseId);
 
           const cityInput = document.createElement('input');
           cityInput.type = 'text';
@@ -1302,7 +1385,9 @@
           deleteCityBtn.textContent = 'Удалить город';
           deleteCityBtn.addEventListener('click', () => removeCity(businessName, typeName, cityName));
 
+          cityHeader.appendChild(cityToggleBtn);
           cityHeader.appendChild(cityInput);
+          cityHeader.appendChild(createStatusElement(getLocationStatus('city', cityName)));
           cityHeader.appendChild(deleteCityBtn);
 
           const locationList = document.createElement('div');
@@ -1340,6 +1425,7 @@
               deleteLocationBtn.addEventListener('click', () => removeLocation(businessName, typeName, cityName, locationName));
 
               locationRow.appendChild(locationInput);
+              locationRow.appendChild(createStatusElement(getLocationStatus('location', locationName), { variant: 'input-group' }));
               locationRow.appendChild(deleteLocationBtn);
               locationList.appendChild(locationRow);
             });
@@ -1351,10 +1437,36 @@
           addLocationBtn.textContent = '+ Локация';
           addLocationBtn.addEventListener('click', () => addLocation(businessName, typeName, cityName));
 
+          const cityCollapse = document.createElement('div');
+          cityCollapse.className = 'collapse show location-city-collapse';
+          cityCollapse.id = cityCollapseId;
+
+          const cityBody = document.createElement('div');
+          cityBody.className = 'location-city-body';
+          cityBody.appendChild(locationList);
+          cityBody.appendChild(addLocationBtn);
+
+          const cityFooter = document.createElement('div');
+          cityFooter.className = 'd-flex justify-content-end mt-2';
+
+          const cityBottomToggle = document.createElement('button');
+          cityBottomToggle.type = 'button';
+          cityBottomToggle.className = 'btn btn-sm btn-outline-secondary';
+          cityBottomToggle.setAttribute('data-bs-toggle', 'collapse');
+          cityBottomToggle.setAttribute('data-bs-target', `#${cityCollapseId}`);
+          cityBottomToggle.setAttribute('aria-controls', cityCollapseId);
+
+          cityFooter.appendChild(cityBottomToggle);
+
+          cityCollapse.appendChild(cityBody);
+          cityCollapse.appendChild(cityFooter);
+
           cityBlock.appendChild(cityHeader);
-          cityBlock.appendChild(locationList);
-          cityBlock.appendChild(addLocationBtn);
+          cityBlock.appendChild(cityCollapse);
           cityContainer.appendChild(cityBlock);
+
+          attachCollapseToggleText(cityCollapse, cityToggleBtn);
+          attachCollapseToggleText(cityCollapse, cityBottomToggle);
         });
 
         const addCityBtn = document.createElement('button');
@@ -1366,11 +1478,25 @@
         collapse.appendChild(cityContainer);
         collapse.appendChild(addCityBtn);
 
+        const collapseFooter = document.createElement('div');
+        collapseFooter.className = 'd-flex justify-content-end mt-3';
+
+        const collapseBottomToggle = document.createElement('button');
+        collapseBottomToggle.type = 'button';
+        collapseBottomToggle.className = 'btn btn-sm btn-outline-secondary';
+        collapseBottomToggle.setAttribute('data-bs-toggle', 'collapse');
+        collapseBottomToggle.setAttribute('data-bs-target', `#${collapseId}`);
+        collapseBottomToggle.setAttribute('aria-controls', collapseId);
+
+        collapseFooter.appendChild(collapseBottomToggle);
+        collapse.appendChild(collapseFooter);
+
         typeBlock.appendChild(typeHeader);
         typeBlock.appendChild(collapse);
         typesContainer.appendChild(typeBlock);
 
         attachCollapseToggleText(collapse, toggleBtn);
+        attachCollapseToggleText(collapse, collapseBottomToggle);
       });
 
       const addTypeBtn = document.createElement('button');
@@ -1405,10 +1531,11 @@
   }
 
   function removeBusiness(name) {
-    if (confirm(`Удалить бизнес "${name}"?`)) {
-      delete locationsData[name];
-      buildLocationsTree();
+    if (!confirmMultipleTimes(`Удалить бизнес "${name}"?`)) {
+      return;
     }
+    delete locationsData[name];
+    buildLocationsTree();
   }
 
   function updateType(b, oldName, newName) {
@@ -1430,10 +1557,11 @@
   }
 
   function removeType(b, t) {
-    if (confirm(`Удалить тип "${t}"?`)) {
-      delete locationsData[b][t];
-      buildLocationsTree();
+    if (!confirmMultipleTimes(`Удалить тип "${t}"?`)) {
+      return;
     }
+    delete locationsData[b][t];
+    buildLocationsTree();
   }
 
   function updateCity(b, t, oldName, newName) {
@@ -1455,10 +1583,11 @@
   }
 
   function removeCity(b, t, c) {
-    if (confirm(`Удалить город "${c}"?`)) {
-      delete locationsData[b][t][c];
-      buildLocationsTree();
+    if (!confirmMultipleTimes(`Удалить город "${c}"?`)) {
+      return;
     }
+    delete locationsData[b][t][c];
+    buildLocationsTree();
   }
 
   function updateLocation(b, t, c, oldName, newName) {
@@ -1480,12 +1609,13 @@
   }
 
   function removeLocation(b, t, c, loc) {
-    if (confirm(`Удалить локацию "${loc}"?`)) {
-      const idx = locationsData[b][t][c].indexOf(loc);
-      if (idx !== -1) {
-        locationsData[b][t][c].splice(idx, 1);
-        buildLocationsTree();
-      }
+    if (!confirmMultipleTimes(`Удалить локацию "${loc}"?`)) {
+      return;
+    }
+    const idx = locationsData[b][t][c].indexOf(loc);
+    if (idx !== -1) {
+      locationsData[b][t][c].splice(idx, 1);
+      buildLocationsTree();
     }
   }
 
