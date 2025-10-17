@@ -155,6 +155,7 @@ def ensure_object_passport_schema():
                 country TEXT,
                 legal_entity TEXT,
                 city TEXT,
+                location_address TEXT,
                 status TEXT,
                 start_date TEXT,
                 end_date TEXT,
@@ -191,10 +192,15 @@ def ensure_object_passport_schema():
             CREATE TABLE IF NOT EXISTS object_passport_equipment (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 passport_id INTEGER NOT NULL,
+                equipment_type TEXT,
+                vendor TEXT,
                 name TEXT,
                 model TEXT,
                 status TEXT,
                 ip_address TEXT,
+                connection_type TEXT,
+                connection_id TEXT,
+                connection_password TEXT,
                 description TEXT,
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now')),
@@ -247,6 +253,7 @@ ensure_object_passport_schema()
 
 def _ensure_object_passport_columns():
     expected_columns = {
+        "location_address": "TEXT",
         "network": "TEXT",
         "network_provider": "TEXT",
         "network_contract_number": "TEXT",
@@ -277,6 +284,29 @@ def _ensure_object_passport_columns():
 
 
 _ensure_object_passport_columns()
+
+
+def _ensure_object_passport_equipment_columns():
+    expected_columns = {
+        "equipment_type": "TEXT",
+        "vendor": "TEXT",
+        "connection_type": "TEXT",
+        "connection_id": "TEXT",
+        "connection_password": "TEXT",
+    }
+    with get_passport_db() as conn:
+        existing_columns = {
+            row["name"]: row["type"].upper()
+            for row in conn.execute("PRAGMA table_info(object_passport_equipment)").fetchall()
+        }
+        for column, column_type in expected_columns.items():
+            if column not in existing_columns:
+                conn.execute(
+                    f"ALTER TABLE object_passport_equipment ADD COLUMN {column} {column_type}"
+                )
+
+
+_ensure_object_passport_equipment_columns()
 
 PASSPORT_STATUSES = (
     "Стройка",
@@ -808,7 +838,8 @@ def _fetch_equipment_photos(conn, equipment_id):
 def _fetch_passport_equipment(conn, passport_id):
     rows = conn.execute(
         """
-        SELECT id, passport_id, name, model, status, ip_address, description
+        SELECT id, passport_id, equipment_type, vendor, name, model, status, ip_address,
+               connection_type, connection_id, connection_password, description
         FROM object_passport_equipment
         WHERE passport_id = ?
         ORDER BY LOWER(COALESCE(name, ''))
@@ -821,10 +852,15 @@ def _fetch_passport_equipment(conn, passport_id):
             {
                 "id": row["id"],
                 "passport_id": row["passport_id"],
+                "equipment_type": row["equipment_type"] or "",
+                "vendor": row["vendor"] or "",
                 "name": row["name"] or "",
                 "model": row["model"] or "",
                 "status": row["status"] or "",
                 "ip_address": row["ip_address"] or "",
+                "connection_type": row["connection_type"] or "",
+                "connection_id": row["connection_id"] or "",
+                "connection_password": row["connection_password"] or "",
                 "description": row["description"] or "",
                 "photos": _fetch_equipment_photos(conn, row["id"]),
             }
@@ -959,6 +995,7 @@ def _serialize_passport_row(row):
         "country": row["country"] or "",
         "legal_entity": row["legal_entity"] or "",
         "city": row["city"] or "",
+        "location_address": row["location_address"] or "",
         "status": row["status"] or "",
         "network": row["network"] or "",
         "network_provider": row["network_provider"] or "",
@@ -1005,6 +1042,7 @@ def _serialize_passport_detail(conn, row):
         "country": row["country"] or "",
         "legal_entity": row["legal_entity"] or "",
         "city": row["city"] or "",
+        "location_address": row["location_address"] or "",
         "status": row["status"] or PASSPORT_STATUSES[0],
         "network": row["network"] or "",
         "network_provider": row["network_provider"] or "",
@@ -1179,6 +1217,33 @@ def _parameter_values_for_passports():
     return parameter_values
 
 
+def _collect_it_equipment_options():
+    options = {"types": [], "vendors": [], "models": []}
+    try:
+        with get_db() as conn:
+            grouped = _fetch_parameters_grouped(conn, include_deleted=False)
+        items = grouped.get("it_connection", []) if grouped else []
+        for item in items:
+            if not item or item.get("is_deleted"):
+                continue
+            category = (item.get("category") or "").strip()
+            value = (item.get("value") or "").strip()
+            if not value:
+                continue
+            if category == "equipment_type":
+                if value not in options["types"]:
+                    options["types"].append(value)
+            elif category == "equipment_vendor":
+                if value not in options["vendors"]:
+                    options["vendors"].append(value)
+            elif category == "equipment_model":
+                if value not in options["models"]:
+                    options["models"].append(value)
+    except Exception:
+        pass
+    return options
+
+
 def _city_options():
     cities = set()
     _, third_level = _collect_departments_from_locations()
@@ -1218,6 +1283,7 @@ def _blank_passport_detail():
         "country": "",
         "legal_entity": "",
         "city": "",
+        "location_address": "",
         "status": PASSPORT_STATUSES[0],
         "network": "",
         "network_provider": "",
@@ -1273,6 +1339,7 @@ def _render_passport_template(passport_detail, is_new):
     payload["is_new"] = is_new
     settings = load_settings()
     network_profiles = settings.get("network_profiles", [])
+    it_equipment_options = _collect_it_equipment_options()
 
     def _append_unique(target, value):
         if value and value not in target:
@@ -1317,6 +1384,7 @@ def _render_passport_template(passport_detail, is_new):
         network_legal_entity_options=legal_entity_options,
         it_connection_options=it_connection_options,
         iiko_server_options=iiko_server_options,
+        t_equipment_options=it_equipment_options,
     )
 
 
@@ -1365,6 +1433,7 @@ def _prepare_passport_record(payload):
         "country": clean("country"),
         "legal_entity": clean("legal_entity"),
         "city": clean("city"),
+        "location_address": clean("location_address"),
         "status": status,
         "network": clean("network"),
         "network_provider": clean("network_provider"),
@@ -5165,7 +5234,7 @@ def api_object_passports_create():
             """
             INSERT INTO object_passports (
                 department, business, partner_type, country, legal_entity,
-                city, status, start_date, end_date, suspension_date,
+                city, location_address, status, start_date, end_date, suspension_date,
                 resume_date, schedule_json,
                 network, network_provider, network_contract_number,
                 network_legal_entity, network_support_phone, network_speed,
@@ -5178,7 +5247,7 @@ def api_object_passports_create():
             )
             VALUES (
                 :department, :business, :partner_type, :country, :legal_entity,
-                :city, :status, :start_date, :end_date, :suspension_date,
+                :city, :location_address, :status, :start_date, :end_date, :suspension_date,
                 :resume_date, :schedule_json,
                 :network, :network_provider, :network_contract_number,
                 :network_legal_entity, :network_support_phone, :network_speed,
@@ -5243,6 +5312,7 @@ def api_object_passports_update(passport_id):
                 country = :country,
                 legal_entity = :legal_entity,
                 city = :city,
+                location_address = :location_address,
                 status = :status,
                 start_date = :start_date,
                 end_date = :end_date,
@@ -5677,15 +5747,32 @@ def api_object_passport_add_equipment(passport_id):
 
         conn.execute(
             """
-            INSERT INTO object_passport_equipment (passport_id, name, model, status, ip_address, description)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO object_passport_equipment (
+                passport_id,
+                equipment_type,
+                vendor,
+                name,
+                model,
+                status,
+                ip_address,
+                connection_type,
+                connection_id,
+                connection_password,
+                description
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 passport_id,
+                clean("equipment_type"),
+                clean("vendor"),
                 clean("name"),
                 clean("model"),
                 clean("status"),
                 clean("ip_address"),
+                clean("connection_type"),
+                clean("connection_id"),
+                clean("connection_password"),
                 clean("description"),
             ),
         )
@@ -5704,7 +5791,18 @@ def api_object_passport_update_equipment(equipment_id):
     updates = []
     params = []
 
-    for field in ["name", "model", "status", "ip_address", "description"]:
+    for field in [
+        "equipment_type",
+        "vendor",
+        "name",
+        "model",
+        "status",
+        "ip_address",
+        "connection_type",
+        "connection_id",
+        "connection_password",
+        "description",
+    ]:
         if field in payload:
             value = (payload.get(field) or "").strip()
             updates.append(f"{field} = ?")
