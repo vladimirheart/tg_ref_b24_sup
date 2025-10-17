@@ -45,6 +45,7 @@
     .location-city-block { background: #ffffff; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
     .location-city-block .input-group > .btn { min-width: 5.5rem; }
     .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
+    .channel-questions-list .question-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
@@ -410,11 +411,11 @@
                   <tr>
                     <th>ID</th>
                     <th>Внутреннее имя канала</th>
-                    <th>Имя бота</th>
+                    <th>Бот</th>
                     <th>Токен</th>
                     <th>Активен</th>
                     <th>Лимит вопросов</th>
-                    <th>questions_cfg (JSON)</th>
+                    <th>Вопросы при обращении</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -1614,143 +1615,505 @@
   });
 
   // === КАНАЛЫ (боты) ===
-function maskToken(tok) {
-  if (!tok) return '';
-  return tok.replace(/^(.{10}).+(.{4})$/, '$1…$2');
-}
+  const CHANNEL_STATES = new Map();
 
-async function loadChannels() {
-  try {
-    const r = await fetch('/api/channels');
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const rows = await r.json(); // у тебя GET возвращает массив объектов
-    const tb = document.getElementById('channelsBody');
-    tb.innerHTML = (rows || []).map(row => {
-      // questions_cfg может быть строкой -> попробуем красиво напечатать
-      let cfgStr = '';
-      try {
-        const obj = typeof row.questions_cfg === 'string' && row.questions_cfg.trim()
-          ? JSON.parse(row.questions_cfg)
-          : (row.questions_cfg || {});
-        cfgStr = JSON.stringify(obj, null, 2);
-      } catch(e) {
-        cfgStr = row.questions_cfg || '{}';
+  function maskToken(tok) {
+    if (!tok) return '';
+    return tok.replace(/^(.{10}).+(.{4})$/, '$1…$2');
+  }
+
+  function decapitalize(text) {
+    if (!text) return '';
+    return text.charAt(0).toLowerCase() + text.slice(1);
+  }
+
+  function buildQuestionOptions() {
+    const options = [];
+    const parameterTitles = PARAMETER_TITLES || {};
+    Object.entries(parameterTitles).forEach(([slug, title]) => {
+      const normalized = (title || '').toString().trim();
+      if (!normalized) return;
+      options.push({
+        value: `parameter:${slug}`,
+        label: `Параметры партнёров • ${normalized}`,
+        defaultText: `Укажите ${decapitalize(normalized)}`,
+      });
+    });
+    [
+      { key: 'business', title: 'Бизнес' },
+      { key: 'partner_type', title: 'Тип партнёра' },
+      { key: 'city', title: 'Город' },
+      { key: 'location', title: 'Локация' },
+    ].forEach(({ key, title }) => {
+      options.push({
+        value: `location:${key}`,
+        label: `Структура локации • ${title}`,
+        defaultText: `Укажите ${decapitalize(title)}`,
+      });
+    });
+    options.push({ value: 'custom', label: 'Другой вопрос', defaultText: '' });
+    return options;
+  }
+
+  const QUESTION_OPTIONS = buildQuestionOptions();
+  const DEFAULT_QUESTION_OPTION = QUESTION_OPTIONS.find((opt) => opt.value !== 'custom') || QUESTION_OPTIONS[0] || {
+    value: 'custom',
+    defaultText: '',
+  };
+
+  function detectOptionValue(question, text) {
+    const source = (question.source || '').trim();
+    const sourceKey = (question.source_key || question.key || '').trim();
+    if (source && sourceKey) {
+      const candidate = `${source}:${sourceKey}`;
+      if (QUESTION_OPTIONS.some((opt) => opt.value === candidate)) {
+        return candidate;
       }
-
-      return `
-        <tr data-id="${row.id}">
-          <td>${row.id}</td>
-          <td><input class="form-control form-control-sm" value="${row.channel_name || ''}" data-field="channel_name"></td>
-          <td><span class="badge text-bg-secondary">${row.bot_name || '—'}</span></td>
-          <td><code>${maskToken(row.token || '')}</code></td>
-          <td>
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" ${row.is_active ? 'checked' : ''} data-field="is_active">
-            </div>
-          </td>
-          <td><input type="number" min="0" class="form-control form-control-sm" value="${row.max_questions ?? 0}" data-field="max_questions"></td>
-          <td>
-            <textarea class="form-control form-control-sm" rows="6" data-field="questions_cfg">${cfgStr}</textarea>
-            <div class="form-text">Пример:
-			{
-			  "per_dialog_limit": 3,
-			  "questions": [{"key":"phone","label":"Ваш телефон?"}],
-			  "feedback": {
-				"questions": ["Что вам понравилось?", "Что улучшить?"],
-				"post_message": {
-				  "lt3": "Жаль, что так вышло. Мы передадим лидеру смены и свяжемся с вами.",
-				  "gt3lt5": "Спасибо! Учтём замечания и улучшимся 💛",
-				  "eq5": "Ура! Очень рады, что всё понравилось 🎉"
-				},
-				"prompts": {
-				  "on_close": "🌟 Оцените нашу поддержку: отправьте цифру 1–5.",
-				  "on_auto_close": "Диалог закрыт по неактивности. Оцените, пожалуйста: 1–5."
-				},
-				"auto_close_extra_text": "Например: мы будем рады продолжить, если вы ответите на это сообщение.",
-				"disable_default_thanks": false
-			  }
-			}
-			</div>
-
-          </td>
-          <td class="text-nowrap">
-            <button class="btn btn-sm btn-success me-2" onclick="saveChannel(${row.id})">💾 Сохранить</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="removeChannel(${row.id})">🗑 Удалить</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  } catch (e) {
-    alert('Не удалось загрузить каналы: ' + e.message);
+    }
+    const cleanedText = (text || '').trim().toLowerCase();
+    if (cleanedText) {
+      const matched = QUESTION_OPTIONS.find(
+        (opt) => opt.defaultText && opt.defaultText.toLowerCase() === cleanedText,
+      );
+      if (matched) return matched.value;
+    }
+    return 'custom';
   }
-}
 
-async function addChannel() {
-  const token = document.getElementById('ch_token').value.trim();
-  const channel_name = document.getElementById('ch_name').value.trim() || 'Канал';
-  const max_questions = parseInt(document.getElementById('ch_maxq').value || '0', 10);
-
-  if (!token) return alert('Укажите токен');
-  try {
-    const r = await fetch('/api/channels', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ token, channel_name, max_questions, is_active: true })
-    });
-    const j = await r.json();
-    if (!r.ok || j.success === false) throw new Error(j.error || ('HTTP ' + r.status));
-    // очистим форму и перезагрузим список
-    document.getElementById('ch_token').value = '';
-    document.getElementById('ch_name').value = '';
-    document.getElementById('ch_maxq').value = '';
-    await loadChannels();
-  } catch (e) {
-    alert('Ошибка добавления: ' + e.message);
-  }
-}
-
-async function saveChannel(id) {
-  const row = document.querySelector(`tr[data-id="${id}"]`);
-  const nameEl = row.querySelector('[data-field="channel_name"]');
-  const activeEl = row.querySelector('[data-field="is_active"]');
-  const maxqEl = row.querySelector('[data-field="max_questions"]');
-  const cfgEl = row.querySelector('[data-field="questions_cfg"]');
-
-  let cfg;
-  try { cfg = JSON.parse(cfgEl.value || '{}'); }
-  catch(e) { return alert('questions_cfg должен быть валидным JSON'); }
-
-  try {
-    const r = await fetch(`/api/channels/${id}`, {
-      method: 'PATCH',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        channel_name: nameEl.value.trim(),
-        is_active: !!activeEl.checked,
-        max_questions: parseInt(maxqEl.value || '0', 10),
-        questions_cfg: cfg
+  function parseChannelState(row) {
+    const state = { limit: 0, questions: [] };
+    let cfg = {};
+    const rawCfg = row.questions_cfg;
+    if (typeof rawCfg === 'string' && rawCfg.trim()) {
+      try {
+        cfg = JSON.parse(rawCfg);
+      } catch (error) {
+        cfg = {};
+      }
+    } else if (rawCfg && typeof rawCfg === 'object') {
+      cfg = rawCfg;
+    }
+    const limitValue = parseInt(cfg.per_dialog_limit ?? row.max_questions ?? 0, 10);
+    state.limit = Number.isNaN(limitValue) || limitValue < 0 ? 0 : limitValue;
+    const questions = Array.isArray(cfg.questions) ? cfg.questions : [];
+    state.questions = questions
+      .map((question, index) => {
+        const rawText = (question && (question.label || question.question || question.text)) || '';
+        const order = parseInt(question?.order, 10);
+        const optionValue = detectOptionValue(question || {}, rawText);
+        let normalizedText = rawText.toString().trim();
+        if (!normalizedText) {
+          const option = QUESTION_OPTIONS.find((opt) => opt.value === optionValue);
+          if (option && option.value !== 'custom') {
+            normalizedText = option.defaultText || '';
+          }
+        }
+        return {
+          order: Number.isNaN(order) || order <= 0 ? index + 1 : order,
+          text: normalizedText,
+          optionValue,
+        };
       })
-    });
-    const j = await r.json();
-    if (!r.ok || j.success === false) throw new Error(j.error || ('HTTP ' + r.status));
-    alert('Сохранено');
-    await loadChannels();
-  } catch (e) {
-    alert('Ошибка сохранения: ' + e.message);
+      .filter((item) => item.text);
+    if (!state.questions.length && DEFAULT_QUESTION_OPTION) {
+      state.questions = [];
+    }
+    return state;
   }
-}
+  function createQuestionRow(channelId, question, index) {
+    const state = CHANNEL_STATES.get(channelId);
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-center question-item mb-2';
 
-async function removeChannel(id) {
-  if (!confirm('Удалить канал?')) return;
-  try {
-    const r = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
-    const j = await r.json();
-    if (!r.ok || j.success === false) throw new Error(j.error || ('HTTP ' + r.status));
-    await loadChannels();
-  } catch (e) {
-    alert('Ошибка удаления: ' + e.message);
+    const orderCol = document.createElement('div');
+    orderCol.className = 'col-12 col-sm-3 col-lg-2';
+    const orderInput = document.createElement('input');
+    orderInput.type = 'number';
+    orderInput.min = '1';
+    orderInput.className = 'form-control form-control-sm';
+    orderInput.value = question.order || index + 1;
+    orderInput.addEventListener('change', () => {
+      const value = parseInt(orderInput.value || '0', 10);
+      if (Number.isNaN(value) || value <= 0) {
+        question.order = index + 1;
+      } else {
+        question.order = value;
+      }
+      orderInput.value = question.order;
+    });
+    orderCol.appendChild(orderInput);
+    row.appendChild(orderCol);
+
+    const selectCol = document.createElement('div');
+    selectCol.className = 'col-12 col-sm-5 col-lg-3';
+    const select = document.createElement('select');
+    select.className = 'form-select form-select-sm';
+    QUESTION_OPTIONS.forEach((option) => {
+      const optEl = document.createElement('option');
+      optEl.value = option.value;
+      optEl.textContent = option.label;
+      select.appendChild(optEl);
+    });
+    if (!QUESTION_OPTIONS.some((opt) => opt.value === question.optionValue)) {
+      question.optionValue = 'custom';
+    }
+    select.value = question.optionValue;
+    select.addEventListener('change', () => {
+      const previousOption = QUESTION_OPTIONS.find((opt) => opt.value === question.optionValue);
+      question.optionValue = select.value;
+      const selectedOption = QUESTION_OPTIONS.find((opt) => opt.value === question.optionValue);
+      const prevDefault = previousOption?.defaultText || '';
+      if (
+        selectedOption &&
+        question.optionValue !== 'custom' &&
+        (!question.text || question.text === prevDefault)
+      ) {
+        question.text = selectedOption.defaultText || '';
+        textInput.value = question.text;
+      }
+    });
+    selectCol.appendChild(select);
+    row.appendChild(selectCol);
+
+    const textCol = document.createElement('div');
+    textCol.className = 'col-12 col-lg-5';
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'form-control form-control-sm';
+    textInput.placeholder = 'Введите вопрос';
+    textInput.value = question.text;
+    textInput.addEventListener('input', () => {
+      question.text = textInput.value;
+    });
+    textCol.appendChild(textInput);
+    row.appendChild(textCol);
+
+    const removeCol = document.createElement('div');
+    removeCol.className = 'col-12 col-sm-4 col-lg-2 text-sm-end';
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-sm btn-outline-danger w-100';
+    removeBtn.textContent = 'Удалить';
+    removeBtn.addEventListener('click', () => {
+      if (!state) return;
+      state.questions.splice(index, 1);
+      renderQuestionsList(channelId);
+    });
+    removeCol.appendChild(removeBtn);
+    row.appendChild(removeCol);
+
+    return row;
   }
-}
+
+  function renderQuestionsList(channelId) {
+    const state = CHANNEL_STATES.get(channelId);
+    const container = document.querySelector(
+      `tr[data-channel-id="${channelId}"] [data-role="questions-list"]`,
+    );
+    if (!container) return;
+    container.innerHTML = '';
+    if (!state || !state.questions.length) {
+      const empty = document.createElement('div');
+      empty.className = 'text-muted small fst-italic';
+      empty.textContent = 'Вопросы не заданы';
+      container.appendChild(empty);
+      return;
+    }
+    state.questions.sort((a, b) => {
+      const orderDiff = (a.order || 0) - (b.order || 0);
+      if (orderDiff !== 0) return orderDiff;
+      return a.text.localeCompare(b.text, 'ru');
+    });
+    state.questions.forEach((question, index) => {
+      const row = createQuestionRow(channelId, question, index);
+      container.appendChild(row);
+    });
+  }
+
+  function addQuestion(channelId) {
+    const state = CHANNEL_STATES.get(channelId);
+    if (!state) return;
+    const baseOption = DEFAULT_QUESTION_OPTION;
+    const nextOrder = state.questions.reduce((max, item) => {
+      const order = parseInt(item.order, 10);
+      return Math.max(max, Number.isNaN(order) ? 0 : order);
+    }, 0) + 1;
+    state.questions.push({
+      order: nextOrder,
+      text: baseOption?.defaultText || '',
+      optionValue: baseOption?.value || 'custom',
+    });
+    renderQuestionsList(channelId);
+  }
+
+  function createChannelRow(row) {
+    const tr = document.createElement('tr');
+    tr.dataset.channelId = row.id;
+
+    const idCell = document.createElement('td');
+    idCell.textContent = row.id;
+    tr.appendChild(idCell);
+
+    const nameCell = document.createElement('td');
+    const nameInput = document.createElement('input');
+    nameInput.className = 'form-control form-control-sm';
+    nameInput.value = row.channel_name || '';
+    nameInput.dataset.field = 'channel_name';
+    nameCell.appendChild(nameInput);
+    tr.appendChild(nameCell);
+
+    const botCell = document.createElement('td');
+    const botName = ((row.bot_name || '').trim()) || '—';
+    const botNameEl = document.createElement('div');
+    botNameEl.className = 'fw-medium';
+    botNameEl.textContent = botName;
+    botCell.appendChild(botNameEl);
+    if (row.bot_username) {
+      const usernameEl = document.createElement('div');
+      usernameEl.className = 'text-muted small';
+      usernameEl.textContent = `@${row.bot_username}`;
+      botCell.appendChild(usernameEl);
+    }
+    tr.appendChild(botCell);
+
+    const tokenCell = document.createElement('td');
+    const tokenCode = document.createElement('code');
+    tokenCode.textContent = maskToken(row.token || '');
+    tokenCell.appendChild(tokenCode);
+    tr.appendChild(tokenCell);
+
+    const activeCell = document.createElement('td');
+    const switchWrapper = document.createElement('div');
+    switchWrapper.className = 'form-check form-switch';
+    const switchInput = document.createElement('input');
+    switchInput.className = 'form-check-input';
+    switchInput.type = 'checkbox';
+    switchInput.dataset.field = 'is_active';
+    switchInput.checked = !!row.is_active;
+    switchWrapper.appendChild(switchInput);
+    activeCell.appendChild(switchWrapper);
+    tr.appendChild(activeCell);
+
+    const limitCell = document.createElement('td');
+    const limitInput = document.createElement('input');
+    limitInput.type = 'number';
+    limitInput.min = '0';
+    limitInput.className = 'form-control form-control-sm';
+    limitInput.dataset.role = 'questions-limit';
+    const state = CHANNEL_STATES.get(row.id);
+    const limitValue = state ? state.limit : parseInt(row.max_questions ?? 0, 10) || 0;
+    limitInput.value = limitValue;
+    limitInput.addEventListener('change', () => {
+      const currentState = CHANNEL_STATES.get(row.id);
+      if (!currentState) return;
+      const value = parseInt(limitInput.value || '0', 10);
+      currentState.limit = Number.isNaN(value) || value < 0 ? 0 : value;
+      limitInput.value = currentState.limit;
+    });
+    limitCell.appendChild(limitInput);
+    const limitHint = document.createElement('div');
+    limitHint.className = 'form-text small';
+    limitHint.textContent = '0 — без лимита';
+    limitCell.appendChild(limitHint);
+    tr.appendChild(limitCell);
+
+    const questionsCell = document.createElement('td');
+    const listContainer = document.createElement('div');
+    listContainer.dataset.role = 'questions-list';
+    listContainer.className = 'channel-questions-list';
+    questionsCell.appendChild(listContainer);
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+    addBtn.textContent = 'Добавить вопрос';
+    addBtn.addEventListener('click', () => addQuestion(row.id));
+    questionsCell.appendChild(addBtn);
+    tr.appendChild(questionsCell);
+
+    const actionsCell = document.createElement('td');
+    actionsCell.className = 'text-nowrap';
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn btn-sm btn-success me-2';
+    saveBtn.textContent = '💾 Сохранить';
+    saveBtn.addEventListener('click', () => saveChannel(row.id));
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn btn-sm btn-outline-danger';
+    deleteBtn.textContent = '🗑 Удалить';
+    deleteBtn.addEventListener('click', () => removeChannel(row.id));
+    actionsCell.appendChild(saveBtn);
+    actionsCell.appendChild(deleteBtn);
+    tr.appendChild(actionsCell);
+
+    return tr;
+  }
+
+  async function loadChannels() {
+    try {
+      const response = await fetch('/api/channels');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const rows = await response.json();
+      const tbody = document.getElementById('channelsBody');
+      tbody.innerHTML = '';
+      CHANNEL_STATES.clear();
+      if (!Array.isArray(rows) || !rows.length) {
+        const empty = document.createElement('tr');
+        empty.innerHTML = '<td colspan="8" class="text-center text-muted py-4">Каналы ещё не добавлены</td>';
+        tbody.appendChild(empty);
+        return;
+      }
+      rows.forEach((row) => {
+        const state = parseChannelState(row);
+        CHANNEL_STATES.set(row.id, state);
+        const tr = createChannelRow(row);
+        tbody.appendChild(tr);
+        renderQuestionsList(row.id);
+      });
+    } catch (error) {
+      alert('Не удалось загрузить каналы: ' + error.message);
+    }
+  }
+
+  async function addChannel() {
+    const token = document.getElementById('ch_token').value.trim();
+    const channelName = document.getElementById('ch_name').value.trim() || 'Канал';
+    const maxQuestions = parseInt(document.getElementById('ch_maxq').value || '0', 10) || 0;
+
+    if (!token) {
+      alert('Укажите токен');
+      return;
+    }
+    try {
+      const response = await fetch('/api/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, channel_name: channelName, max_questions: maxQuestions, is_active: true }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + response.status));
+      }
+      document.getElementById('ch_token').value = '';
+      document.getElementById('ch_name').value = '';
+      document.getElementById('ch_maxq').value = '';
+      await loadChannels();
+    } catch (error) {
+      alert('Ошибка добавления: ' + error.message);
+    }
+  }
+
+  async function saveChannel(id) {
+    const rowEl = document.querySelector(`tr[data-channel-id="${id}"]`);
+    const state = CHANNEL_STATES.get(id);
+    if (!rowEl || !state) return;
+
+    const nameEl = rowEl.querySelector('[data-field="channel_name"]');
+    const activeEl = rowEl.querySelector('[data-field="is_active"]');
+    const limitEl = rowEl.querySelector('[data-role="questions-limit"]');
+
+    const channelName = (nameEl?.value || '').trim();
+    if (!channelName) {
+      alert('Укажите имя канала.');
+      return;
+    }
+
+    const limitValue = parseInt(limitEl?.value || '0', 10);
+    state.limit = Number.isNaN(limitValue) || limitValue < 0 ? 0 : limitValue;
+    if (limitEl) {
+      limitEl.value = state.limit;
+    }
+
+    const sanitizedQuestions = state.questions.map((question) => ({
+      order: parseInt(question.order, 10) || 0,
+      text: (question.text || '').trim(),
+      optionValue: QUESTION_OPTIONS.some((opt) => opt.value === question.optionValue)
+        ? question.optionValue
+        : 'custom',
+    }));
+
+    if (sanitizedQuestions.some((q) => !q.order || q.order <= 0)) {
+      alert('У каждого вопроса должен быть положительный порядковый номер.');
+      return;
+    }
+    if (sanitizedQuestions.some((q) => !q.text)) {
+      alert('Укажите текст для каждого вопроса.');
+      return;
+    }
+    const orders = sanitizedQuestions.map((q) => q.order);
+    const uniqueOrders = new Set(orders);
+    if (uniqueOrders.size !== orders.length) {
+      alert('Порядковые номера вопросов должны быть уникальными.');
+      return;
+    }
+
+    sanitizedQuestions.sort((a, b) => a.order - b.order);
+    state.questions = sanitizedQuestions.map((item) => ({
+      order: item.order,
+      text: item.text,
+      optionValue: item.optionValue,
+    }));
+    renderQuestionsList(id);
+
+    const payloadQuestions = sanitizedQuestions.map((question, index) => {
+      const payload = { order: question.order, label: question.text };
+      const option = QUESTION_OPTIONS.find((opt) => opt.value === question.optionValue);
+      if (option && option.value.includes(':')) {
+        const [source, key] = option.value.split(':');
+        if (source === 'parameter' || source === 'location') {
+          payload.source = source;
+          payload.source_key = key;
+          payload.key = `${source}_${key}`;
+        }
+      }
+      if (!payload.source) {
+        payload.source = 'custom';
+        payload.key = `custom_${index + 1}`;
+      }
+      return payload;
+    });
+
+    const body = {
+      channel_name: channelName,
+      is_active: activeEl?.checked ? 1 : 0,
+      max_questions: state.limit,
+      questions_cfg: {
+        per_dialog_limit: state.limit,
+        questions: payloadQuestions,
+      },
+    };
+
+    try {
+      const response = await fetch(`/api/channels/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + response.status));
+      }
+      alert('Настройки канала сохранены.');
+      await loadChannels();
+    } catch (error) {
+      alert('Ошибка сохранения: ' + error.message);
+    }
+  }
+
+  async function removeChannel(id) {
+    if (!confirm('Удалить канал?')) return;
+    try {
+      const response = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + response.status));
+      }
+      CHANNEL_STATES.delete(id);
+      await loadChannels();
+    } catch (error) {
+      alert('Ошибка удаления: ' + error.message);
+    }
+  }
   </script>
 </main>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
