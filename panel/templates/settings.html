@@ -38,6 +38,27 @@
     .parameter-card .param-item .btn { min-width: 2.5rem; }
     .parameter-card .param-item input { min-width: 0; }
     .parameter-card .param-items .empty-placeholder { font-size: 0.9rem; color: #6c757d; }
+    .parameter-card .card-header button[data-param-toggle] {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font-weight: 600;
+      text-align: left;
+      color: inherit;
+    }
+    .parameter-card.is-expanded .card-header {
+      background-color: #f8f9fa;
+    }
+    .param-entry--deleted .form-control {
+      text-decoration: line-through;
+    }
+    .parameter-card .param-items a.btn,
+    .parameter-card .param-items .btn {
+      min-width: 3rem;
+    }
+    .parameter-card .param-items .form-select {
+      max-width: 10rem;
+    }
     .location-tree-business .card-body { background: #fdfdfd; }
     .location-type-header { background: #f1f3f5; border-radius: 0.75rem; padding: 0.5rem 0.75rem; }
     .location-type-header .btn[data-bs-toggle="collapse"] { min-width: 7rem; }
@@ -300,15 +321,14 @@
               <div class="col-md-6 col-xl-4">
                 <div class="card shadow-sm parameter-card" data-param-type="{{ slug }}">
                   <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>{{ title }}</span>
+                    <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle>
+                      {{ title }}
+                    </button>
                     <span class="badge bg-secondary" data-param-count>0</span>
                   </div>
-                  <div class="card-body">
-                    <div class="param-items" data-param-list></div>
-                    <div class="input-group input-group-sm mt-3">
-                      <input type="text" class="form-control" placeholder="Добавить значение" data-param-input>
-                      <button class="btn btn-success" type="button" onclick="createParameter('{{ slug }}', this)">Добавить</button>
-                    </div>
+                  <div class="card-body d-none" data-param-body></div>
+                  <div class="px-3 py-2 small text-muted d-none" data-param-hint>
+                    Список содержит более 10 записей. Нажмите, чтобы открыть значения в модальном окне.
                   </div>
                 </div>
               </div>
@@ -339,6 +359,18 @@
               Эти значения будут использоваться в формах создания клиентов, задач и других разделов.
             </div>
           </div>
+    </div>
+  </div>
+</div>
+
+    <div class="modal fade" id="parameterItemsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" data-param-modal-title>Значения параметра</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body" data-param-modal-body></div>
         </div>
       </div>
     </div>
@@ -434,10 +466,249 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
   const PARAMETER_TITLES = {{ parameter_types | tojson }};
+  const PARAMETER_STATE_TYPES = new Set(['partner_type', 'country', 'legal_entity']);
+  const PARAMETER_STATES = ['Активен', 'Подписание', 'Заблокирован', 'Black_List', 'Закрыт'];
+  const PARAMETER_FILTER_KEYS = {
+    business: 'business',
+    partner_type: 'partner_type',
+    country: 'country',
+    legal_entity: 'legal_entity',
+    network: 'network',
+    it_connection: 'it_connection_type',
+    iiko_server: 'it_iiko_server',
+  };
+
   let parameterData = {};
   let parametersLoaded = false;
   Object.keys(PARAMETER_TITLES).forEach((type) => {
     parameterData[type] = [];
+  });
+  const parameterModalEl = document.getElementById('parameterItemsModal');
+  const parameterModal = parameterModalEl ? new bootstrap.Modal(parameterModalEl) : null;
+  let parameterModalType = null;
+
+  function syncParameterData(source) {
+    const data = source && typeof source === 'object' ? source : {};
+    const result = {};
+    Object.keys(PARAMETER_TITLES).forEach((type) => {
+      const items = Array.isArray(data[type]) ? data[type] : [];
+      result[type] = items.map((item) => {
+        const rawId = item && Object.prototype.hasOwnProperty.call(item, 'id') ? item.id : null;
+        const idNumber = Number(rawId);
+        const normalizedId = Number.isFinite(idNumber) ? idNumber : Number.parseInt(rawId, 10);
+        const rawValue = item && Object.prototype.hasOwnProperty.call(item, 'value') ? item.value : '';
+        const value = rawValue === null || rawValue === undefined ? '' : String(rawValue);
+        const state = item && typeof item.state === 'string' && item.state ? item.state : PARAMETER_STATES[0];
+        const usageRaw = Number(item && item.usage_count);
+        const usageCount = Number.isFinite(usageRaw) ? usageRaw : 0;
+        return {
+          id: Number.isFinite(normalizedId) ? normalizedId : null,
+          value,
+          state: PARAMETER_STATES.includes(state) ? state : PARAMETER_STATES[0],
+          is_deleted: Boolean(item && item.is_deleted),
+          deleted_at: item && item.deleted_at ? item.deleted_at : null,
+          usage_count: usageCount,
+        };
+      });
+    });
+    parameterData = result;
+  }
+
+  function buildStateSelect(type, selected, disabled, { forInput = false } = {}) {
+    if (!PARAMETER_STATE_TYPES.has(type)) {
+      return '';
+    }
+    const effective = PARAMETER_STATES.includes(selected) ? selected : PARAMETER_STATES[0];
+    const options = PARAMETER_STATES.map((state) => `<option value="${state}"${state === effective ? ' selected' : ''}>${state}</option>`).join('');
+    const roleAttr = forInput ? 'data-param-state-input' : 'data-param-field="state"';
+    const disabledAttr = disabled ? ' disabled' : '';
+    return `<select class="form-select form-select-sm" ${roleAttr} data-param-type="${type}" data-param-current-state="${effective}"${disabledAttr}>${options}</select>`;
+  }
+
+  function buildUsageControl(type, item) {
+    if (type === 'department') {
+      return '<span class="input-group-text text-muted">—</span>';
+    }
+    const filterKey = PARAMETER_FILTER_KEYS[type];
+    const value = item && item.value ? String(item.value) : '';
+    const trimmedValue = value.trim();
+    if (!filterKey || !trimmedValue) {
+      return '<span class="input-group-text text-muted">—</span>';
+    }
+    const usage = Number.isFinite(Number(item && item.usage_count)) ? Number(item.usage_count) : 0;
+    const url = `/object_passports?${filterKey}=${encodeURIComponent(trimmedValue)}`;
+    const btnClass = usage > 0 ? 'btn btn-outline-primary' : 'btn btn-outline-secondary';
+    return `<a class="${btnClass}" data-param-role="usage" href="${url}" title="Открыть паспорта с этим значением">${usage}</a>`;
+  }
+
+  function buildParameterItem(type, item) {
+    const rawId = item && item.id;
+    const idNumber = Number(rawId);
+    const id = Number.isFinite(idNumber) ? idNumber : Number.parseInt(rawId, 10);
+    if (!Number.isFinite(id)) {
+      return '';
+    }
+    const value = item && item.value ? String(item.value) : '';
+    const disabled = Boolean(item && item.is_deleted);
+    const valueInput = `<input type="text" class="form-control" data-param-field="value" value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>`;
+    const stateSelect = buildStateSelect(type, item ? item.state : undefined, disabled, { forInput: false });
+    const usageControl = buildUsageControl(type, item);
+    const saveButton = `<button class="btn btn-outline-success" type="button" data-param-action="save" data-param-id="${id}" data-param-type="${type}" title="Сохранить"${disabled ? ' disabled' : ''}>💾</button>`;
+    const deleteButton = disabled
+      ? `<button class="btn btn-outline-secondary" type="button" data-param-action="restore" data-param-id="${id}" data-param-type="${type}" title="Восстановить">↩️</button>`
+      : `<button class="btn btn-outline-danger" type="button" data-param-action="delete" data-param-id="${id}" data-param-type="${type}" title="Удалить">🗑</button>`;
+    const deletedHint = disabled ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>' : '';
+    return `
+      <div class="param-entry${disabled ? ' param-entry--deleted' : ''}" data-param-id="${id}" data-param-type="${type}">
+        <div class="input-group input-group-sm mb-2">
+          ${valueInput}
+          ${stateSelect}
+          ${usageControl}
+          ${saveButton}
+          ${deleteButton}
+        </div>
+        ${deletedHint}
+      </div>
+    `;
+  }
+
+  function buildParameterContent(type, items, context) {
+    const listHtml = items.length
+      ? items.map((item) => buildParameterItem(type, item)).join('')
+      : '<div class="empty-placeholder">Пока нет значений</div>';
+    const controls = `
+      <div class="input-group input-group-sm mt-3">
+        ${buildStateSelect(type, PARAMETER_STATES[0], false, { forInput: true })}
+        <input type="text" class="form-control" placeholder="Добавить значение" data-param-input>
+        <button class="btn btn-success" type="button" data-param-action="create" data-param-type="${type}">Добавить</button>
+      </div>
+    `;
+    return `
+      <div data-param-container data-param-type="${type}" data-param-context="${context}">
+        <div class="param-items">${listHtml}</div>
+        ${controls}
+      </div>
+    `;
+  }
+
+  function renderParameterCard(type, { forceBody = false } = {}) {
+    const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
+    if (!card) return;
+    const items = Array.isArray(parameterData[type]) ? parameterData[type] : [];
+    const counter = card.querySelector('[data-param-count]');
+    if (counter) {
+      counter.textContent = items.length;
+    }
+    const hasMany = items.length > 10;
+    card.dataset.hasMany = hasMany ? 'true' : 'false';
+    const hint = card.querySelector('[data-param-hint]');
+    if (hint) {
+      hint.classList.toggle('d-none', !hasMany);
+    }
+    const body = card.querySelector('[data-param-body]');
+    if (!body) return;
+    if (hasMany) {
+      card.classList.remove('is-expanded');
+      body.classList.add('d-none');
+      body.innerHTML = '';
+      return;
+    }
+    if (!card.classList.contains('is-expanded')) {
+      body.classList.add('d-none');
+      body.innerHTML = '';
+      return;
+    }
+    body.classList.remove('d-none');
+    if (forceBody || !body.innerHTML.trim()) {
+      body.innerHTML = buildParameterContent(type, items, 'card');
+    }
+  }
+
+  function renderParameters({ forceBodies = false } = {}) {
+    Object.keys(PARAMETER_TITLES).forEach((type) => {
+      renderParameterCard(type, { forceBody: forceBodies });
+    });
+  }
+
+  function renderParameterModal(type) {
+    if (!parameterModalEl) return;
+    const body = parameterModalEl.querySelector('[data-param-modal-body]');
+    if (!body) return;
+    const items = Array.isArray(parameterData[type]) ? parameterData[type] : [];
+    body.innerHTML = buildParameterContent(type, items, 'modal');
+  }
+
+  function openParameterModal(type) {
+    if (!parameterModal) return;
+    parameterModalType = type;
+    const titleEl = parameterModalEl.querySelector('[data-param-modal-title]');
+    if (titleEl) {
+      const label = PARAMETER_TITLES[type] || 'Значения параметра';
+      titleEl.textContent = `Параметры партнёров • ${label}`;
+    }
+    renderParameterModal(type);
+    parameterModal.show();
+  }
+
+  renderParameters();
+
+  if (parameterModalEl) {
+    parameterModalEl.addEventListener('hidden.bs.modal', () => {
+      parameterModalType = null;
+    });
+  }
+
+  function findParameterContainer(element) {
+    return element ? element.closest('[data-param-container]') : null;
+  }
+
+  document.addEventListener('click', (event) => {
+    const toggleBtn = event.target.closest('[data-param-toggle]');
+    if (toggleBtn) {
+      const card = toggleBtn.closest('.parameter-card');
+      if (!card) return;
+      const type = card.dataset.paramType;
+      if (!type) return;
+      if (card.dataset.hasMany === 'true') {
+        openParameterModal(type);
+        return;
+      }
+      card.classList.toggle('is-expanded');
+      renderParameterCard(type, { forceBody: true });
+      return;
+    }
+    const actionEl = event.target.closest('[data-param-action]');
+    if (!actionEl) return;
+    const action = actionEl.dataset.paramAction;
+    const containerWithType = actionEl.closest('[data-param-type]');
+    const type = actionEl.dataset.paramType || (containerWithType ? containerWithType.dataset.paramType : null);
+    if (!action || !type) return;
+    if (action === 'create') {
+      createParameter(type, actionEl);
+      return;
+    }
+    const entry = actionEl.closest('[data-param-id]');
+    if (!entry) return;
+    const id = Number.parseInt(entry.dataset.paramId, 10);
+    if (!Number.isFinite(id)) return;
+    if (action === 'save') {
+      updateParameterValue(id, type, actionEl);
+    } else if (action === 'delete') {
+      deleteParameter(id, type, actionEl);
+    } else if (action === 'restore') {
+      restoreParameter(id, type, actionEl);
+    }
+  });
+
+  document.addEventListener('change', (event) => {
+    const stateSelect = event.target.closest('[data-param-field="state"]');
+    if (!stateSelect) return;
+    const entry = stateSelect.closest('[data-param-id]');
+    if (!entry) return;
+    const id = Number.parseInt(entry.dataset.paramId, 10);
+    const type = entry.dataset.paramType;
+    if (!Number.isFinite(id) || !type) return;
+    updateParameterState(id, type, stateSelect);
   });
   const CITY_OPTIONS = (() => {
     const values = {{ cities | tojson }};
@@ -483,58 +754,6 @@
     const url = `/object_passports?network_contract_number=${encodeURIComponent(trimmed)}`;
     return `<a href="${url}" class="btn btn-link btn-sm p-0">${count}</a>`;
   }
-
-  function renderParameters() {
-    Object.keys(PARAMETER_TITLES).forEach((type) => {
-      const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
-      if (!card) return;
-      const list = card.querySelector('[data-param-list]');
-      const counter = card.querySelector('[data-param-count]');
-      const items = (parameterData[type] || []);
-      list.innerHTML = '';
-      if (counter) counter.textContent = items.length;
-
-      if (!items.length) {
-        const empty = document.createElement('div');
-        empty.className = 'empty-placeholder';
-        empty.textContent = 'Пока нет значений';
-        list.appendChild(empty);
-        return;
-      }
-
-      items.forEach((item) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'param-item input-group input-group-sm mb-2';
-        wrapper.dataset.paramId = item.id;
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'form-control';
-        input.value = item.value;
-
-        const saveBtn = document.createElement('button');
-        saveBtn.type = 'button';
-        saveBtn.className = 'btn btn-outline-success';
-        saveBtn.textContent = '💾';
-        saveBtn.title = 'Сохранить';
-        saveBtn.addEventListener('click', () => updateParameter(item.id, type, saveBtn));
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'btn btn-outline-danger';
-        deleteBtn.textContent = '🗑';
-        deleteBtn.title = 'Удалить';
-        deleteBtn.addEventListener('click', () => deleteParameter(item.id, type, deleteBtn));
-
-        wrapper.appendChild(input);
-        wrapper.appendChild(saveBtn);
-        wrapper.appendChild(deleteBtn);
-        list.appendChild(wrapper);
-      });
-    });
-  }
-
-  renderParameters();
 
   function renderNetworkProfiles() {
     if (!networkProfilesBody) return;
@@ -618,60 +837,72 @@
       const response = await fetch('/api/settings/parameters');
       if (!response.ok) throw new Error('Ошибка загрузки параметров');
       const data = await response.json();
-      parameterData = data || {};
-      Object.keys(PARAMETER_TITLES).forEach((type) => {
-        if (!parameterData[type]) parameterData[type] = [];
-      });
+      syncParameterData((data && data.data) || data || parameterData);
       parametersLoaded = true;
-      renderParameters();
+      renderParameters({ forceBodies: true });
+      if (parameterModal && parameterModalType) {
+        renderParameterModal(parameterModalType);
+      }
     } catch (error) {
       parametersLoaded = false;
       console.error('Ошибка загрузки параметров:', error);
-      alert('❌ Не удалось загрузить параметры: ' + error.message);
+      const message = error && error.message ? error.message : error;
+      alert('❌ Не удалось загрузить параметры: ' + message);
     }
   }
 
-  async function createParameter(type, btn) {
-    const card = btn.closest('.parameter-card');
-    const input = card ? card.querySelector('[data-param-input]') : null;
+  async function createParameter(type, trigger) {
+    const container = findParameterContainer(trigger);
+    if (!container) return;
+    const input = container.querySelector('[data-param-input]');
     if (!input) return;
     const value = input.value.trim();
     if (!value) {
       input.focus();
       return;
     }
+    const stateSelect = container.querySelector('[data-param-state-input]');
+    const payload = { param_type: type, value };
+    if (stateSelect && PARAMETER_STATE_TYPES.has(type)) {
+      payload.state = stateSelect.value;
+    }
 
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '...';
+    const originalText = trigger.textContent;
+    trigger.disabled = true;
+    trigger.textContent = '...';
 
     try {
       const response = await fetch('/api/settings/parameters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ param_type: type, value })
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
       if (!response.ok || data.success === false) {
         throw new Error(data.error || 'Ошибка создания параметра');
       }
-      parameterData = data.data || parameterData;
-      Object.keys(PARAMETER_TITLES).forEach((key) => {
-        if (!parameterData[key]) parameterData[key] = [];
-      });
+      syncParameterData((data && data.data) || parameterData);
       input.value = '';
-      renderParameters();
+      if (stateSelect) {
+        stateSelect.value = PARAMETER_STATES[0];
+      }
+      renderParameters({ forceBodies: true });
+      if (parameterModal && parameterModalType === type) {
+        renderParameterModal(type);
+      }
     } catch (error) {
-      alert('❌ ' + error.message);
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
     } finally {
-      btn.disabled = false;
-      btn.textContent = originalText;
+      trigger.disabled = false;
+      trigger.textContent = originalText;
     }
   }
 
-  async function updateParameter(id, type, btn) {
-    const row = btn.closest('.param-item');
-    const input = row ? row.querySelector('input') : null;
+  async function updateParameterValue(id, type, trigger) {
+    const entry = trigger.closest('[data-param-id]');
+    if (!entry) return;
+    const input = entry.querySelector('input[data-param-field="value"]');
     if (!input) return;
     const value = input.value.trim();
     if (!value) {
@@ -680,7 +911,7 @@
       return;
     }
 
-    btn.disabled = true;
+    trigger.disabled = true;
 
     try {
       const response = await fetch(`/api/settings/parameters/${id}`, {
@@ -692,22 +923,61 @@
       if (!response.ok || data.success === false) {
         throw new Error(data.error || 'Ошибка сохранения');
       }
-      parameterData = data.data || parameterData;
-      Object.keys(PARAMETER_TITLES).forEach((key) => {
-        if (!parameterData[key]) parameterData[key] = [];
-      });
-      renderParameters();
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      if (parameterModal && parameterModalType === type) {
+        renderParameterModal(type);
+      }
     } catch (error) {
-      alert('❌ ' + error.message);
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
     } finally {
-      btn.disabled = false;
+      trigger.disabled = false;
     }
   }
 
-  async function deleteParameter(id, type, btn) {
-    if (!confirm('Удалить значение?')) return;
+  async function updateParameterState(id, type, select) {
+    const previous = select.dataset.paramCurrentState || select.value;
+    select.disabled = true;
 
-    btn.disabled = true;
+    try {
+      const response = await fetch(`/api/settings/parameters/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: select.value })
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка сохранения состояния');
+      }
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      if (parameterModal && parameterModalType === type) {
+        renderParameterModal(type);
+      }
+      select.dataset.paramCurrentState = select.value;
+    } catch (error) {
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
+      select.value = previous;
+    } finally {
+      select.disabled = false;
+    }
+  }
+
+  async function deleteParameter(id, type, trigger) {
+    const confirmations = [
+      'Удалить значение?',
+      'Подтвердите: запись будет помечена как удалённая.',
+      'Последнее подтверждение перед удалением. Продолжить?'
+    ];
+    for (const message of confirmations) {
+      if (!confirm(message)) {
+        return;
+      }
+    }
+
+    trigger.disabled = true;
 
     try {
       const response = await fetch(`/api/settings/parameters/${id}`, {
@@ -717,15 +987,41 @@
       if (!response.ok || data.success === false) {
         throw new Error(data.error || 'Ошибка удаления');
       }
-      parameterData = data.data || parameterData;
-      Object.keys(PARAMETER_TITLES).forEach((key) => {
-        if (!parameterData[key]) parameterData[key] = [];
-      });
-      renderParameters();
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      if (parameterModal && parameterModalType === type) {
+        renderParameterModal(type);
+      }
     } catch (error) {
-      alert('❌ ' + error.message);
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
     } finally {
-      btn.disabled = false;
+      trigger.disabled = false;
+    }
+  }
+
+  async function restoreParameter(id, type, trigger) {
+    trigger.disabled = true;
+    try {
+      const response = await fetch(`/api/settings/parameters/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_deleted: false })
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка восстановления');
+      }
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      if (parameterModal && parameterModalType === type) {
+        renderParameterModal(type);
+      }
+    } catch (error) {
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
+    } finally {
+      trigger.disabled = false;
     }
   }
 
