@@ -205,7 +205,9 @@
             <td class="fw-semibold">#${row.id}</td>
             <td>
               <div class="fw-medium">${escapeHtml(row.channel_name || '—')}</div>
-              <div class="text-muted small">Бот: ${escapeHtml(row.bot_name || '—')}</div>
+              <div class="text-muted small">
+                Бот: ${escapeHtml(row.bot_name || '—')}${row.bot_username ? ` (@${escapeHtml(row.bot_username)})` : ''}
+              </div>
               <div class="text-muted small">Токен: ${escapeHtml(maskToken(row.token))}</div>
             </td>
             <td>
