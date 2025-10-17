@@ -4832,11 +4832,29 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             equipment_type = (extra_payload.get("equipment_type") or "").strip()
             equipment_vendor = (extra_payload.get("equipment_vendor") or "").strip()
             equipment_model = (extra_payload.get("equipment_model") or "").strip()
+            if not any((equipment_type, equipment_vendor, equipment_model)):
+                parts = [part.strip() for part in (value or "").split("/") if part.strip()]
+                if parts:
+                    equipment_type = parts[0]
+                if len(parts) >= 2:
+                    equipment_vendor = parts[1]
+                if len(parts) >= 3:
+                    equipment_model = parts[2]
+            if extra_payload is None:
+                extra_payload = {}
+            extra_payload.update(
+                {
+                    "equipment_type": equipment_type,
+                    "equipment_vendor": equipment_vendor,
+                    "equipment_model": equipment_model,
+                }
+            )
             entry.update(
                 {
                     "equipment_type": equipment_type,
                     "equipment_vendor": equipment_vendor,
                     "equipment_model": equipment_model,
+                    "extra": extra_payload,
                 }
             )
         grouped[slug].append(entry)
