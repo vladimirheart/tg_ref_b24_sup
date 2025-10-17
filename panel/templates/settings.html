@@ -885,9 +885,18 @@
       return IT_CONNECTION_DEFAULT_CATEGORY;
     }
     const trimmed = value.trim();
-    return IT_CONNECTION_CATEGORY_KEYS.includes(trimmed)
-      ? trimmed
-      : IT_CONNECTION_DEFAULT_CATEGORY;
+    if (!trimmed) {
+      return IT_CONNECTION_DEFAULT_CATEGORY;
+    }
+    if (IT_CONNECTION_CATEGORY_KEYS.includes(trimmed)) {
+      return trimmed;
+    }
+    const lowered = trimmed.toLowerCase();
+    const matchedKey = IT_CONNECTION_CATEGORY_KEYS.find((key) => {
+      const label = IT_CONNECTION_CATEGORY_LABELS[key];
+      return typeof label === 'string' && label.trim().toLowerCase() === lowered;
+    });
+    return matchedKey || IT_CONNECTION_DEFAULT_CATEGORY;
   }
 
   function getItConnectionCategoryLabel(category) {
