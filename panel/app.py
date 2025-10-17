@@ -71,6 +71,18 @@ PARAMETER_TYPES = {
     "iiko_server": "Адреса серверов iiko",
 }
 
+IT_CONNECTION_CATEGORIES = {
+    "equipment_type": "Тип оборудования",
+    "equipment_vendor": "Производитель оборудования",
+    "equipment_model": "Модель оборудования",
+}
+
+IT_CONNECTION_CATEGORY_FIELDS = {
+    "equipment_type": "equipment_type",
+    "equipment_vendor": "equipment_vendor",
+    "equipment_model": "equipment_model",
+}
+
 PARAMETER_STATE_TYPES = {"partner_type", "country", "legal_entity"}
 PARAMETER_ALLOWED_STATES = (
     "Активен",
@@ -1156,6 +1168,10 @@ def _parameter_values_for_passports():
                     continue
                 if item.get("is_deleted"):
                     continue
+                if slug == "it_connection":
+                    category = (item.get("category") or "").strip()
+                    if category and category != "equipment_type":
+                        continue
                 values.append(item["value"])
             parameter_values[slug] = values
     except Exception:
@@ -4714,6 +4730,7 @@ def settings_page():
         locations=locations,
         cities=city_names,
         parameter_types=PARAMETER_TYPES,
+        it_connection_categories=IT_CONNECTION_CATEGORIES,
         contract_usage=contract_usage,
     )
 
@@ -4842,8 +4859,26 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     equipment_model = parts[2]
             if extra_payload is None:
                 extra_payload = {}
+            category_raw = (extra_payload.get("category") or "").strip()
+            if category_raw not in IT_CONNECTION_CATEGORIES:
+                if equipment_type:
+                    category_raw = "equipment_type"
+                elif equipment_vendor:
+                    category_raw = "equipment_vendor"
+                elif equipment_model:
+                    category_raw = "equipment_model"
+                else:
+                    category_raw = "equipment_type"
+            category_field = IT_CONNECTION_CATEGORY_FIELDS.get(category_raw, "equipment_type")
+            value_by_category = {
+                "equipment_type": equipment_type,
+                "equipment_vendor": equipment_vendor,
+                "equipment_model": equipment_model,
+            }
+            effective_value = (value_by_category.get(category_field) or value or "").strip()
             extra_payload.update(
                 {
+                    "category": category_raw,
                     "equipment_type": equipment_type,
                     "equipment_vendor": equipment_vendor,
                     "equipment_model": equipment_model,
@@ -4851,10 +4886,15 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             )
             entry.update(
                 {
+                    "value": effective_value,
+                    "category": category_raw,
                     "equipment_type": equipment_type,
                     "equipment_vendor": equipment_vendor,
                     "equipment_model": equipment_model,
                     "extra": extra_payload,
+                    "usage_count": usage.get(slug, {}).get(effective_value, 0)
+                    if category_raw == "equipment_type" and effective_value
+                    else 0,
                 }
             )
         grouped[slug].append(entry)
@@ -4887,11 +4927,22 @@ def api_create_parameter():
     normalized_state = _normalize_parameter_state(param_type, state)
     extra_payload = {}
     if param_type == "it_connection":
-        extra_payload = {
+        category = (payload.get("category") or "").strip()
+        if category not in IT_CONNECTION_CATEGORIES:
+            return (
+                jsonify({"success": False, "error": "Неизвестная категория подключения"}),
+                400,
+            )
+        sanitized = {
+            "category": category,
             "equipment_type": (payload.get("equipment_type") or "").strip(),
             "equipment_vendor": (payload.get("equipment_vendor") or "").strip(),
             "equipment_model": (payload.get("equipment_model") or "").strip(),
         }
+        category_field = IT_CONNECTION_CATEGORY_FIELDS.get(category, "equipment_type")
+        if not sanitized.get(category_field):
+            sanitized[category_field] = value
+        extra_payload = sanitized
 
     extra_json = json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
 
@@ -4943,13 +4994,13 @@ def api_update_parameter(param_id):
             except Exception:
                 extra_payload = {}
 
-
+        new_value = None
         if "value" in payload:
-            value = (payload.get("value") or "").strip()
-            if not value:
+            new_value = (payload.get("value") or "").strip()
+            if not new_value:
                 return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
             updates.append("value = ?")
-            params.append(value)
+            params.append(new_value)
 
         if "state" in payload:
             normalized_state = _normalize_parameter_state(param_type, payload.get("state"))
@@ -4957,18 +5008,45 @@ def api_update_parameter(param_id):
             params.append(normalized_state)
 
         if param_type == "it_connection":
-            changed = False
-            for key, field in (
-                ("equipment_type", "equipment_type"),
-                ("equipment_vendor", "equipment_vendor"),
-                ("equipment_model", "equipment_model"),
-            ):
-                if key in payload:
-                    extra_payload[field] = (payload.get(key) or "").strip()
-                    changed = True
-            if changed:
-                updates.append("extra_json = ?")
-                params.append(json.dumps(extra_payload, ensure_ascii=False))
+            sanitized = {
+                "category": (extra_payload.get("category") or "").strip(),
+                "equipment_type": (extra_payload.get("equipment_type") or "").strip(),
+                "equipment_vendor": (extra_payload.get("equipment_vendor") or "").strip(),
+                "equipment_model": (extra_payload.get("equipment_model") or "").strip(),
+            }
+            current_category = sanitized["category"]
+            if current_category not in IT_CONNECTION_CATEGORIES:
+                if sanitized["equipment_type"]:
+                    current_category = "equipment_type"
+                elif sanitized["equipment_vendor"]:
+                    current_category = "equipment_vendor"
+                elif sanitized["equipment_model"]:
+                    current_category = "equipment_model"
+                else:
+                    current_category = "equipment_type"
+            sanitized["category"] = current_category
+
+            if "category" in payload:
+                new_category = (payload.get("category") or "").strip()
+                if new_category not in IT_CONNECTION_CATEGORIES:
+                    return (
+                        jsonify({"success": False, "error": "Неизвестная категория подключения"}),
+                        400,
+                    )
+                sanitized["category"] = new_category
+                current_category = new_category
+
+            for field in ("equipment_type", "equipment_vendor", "equipment_model"):
+                if field in payload:
+                    sanitized[field] = (payload.get(field) or "").strip()
+
+            category_field = IT_CONNECTION_CATEGORY_FIELDS.get(current_category, "equipment_type")
+            if new_value is not None:
+                sanitized[category_field] = new_value
+
+            extra_payload = sanitized
+            updates.append("extra_json = ?")
+            params.append(json.dumps(extra_payload, ensure_ascii=False))
 
         if "is_deleted" in payload:
             is_deleted = 1 if bool(payload.get("is_deleted")) else 0
