@@ -1523,6 +1523,10 @@ def ensure_settings_parameters_schema():
                 conn.execute(
                     "ALTER TABLE settings_parameters ADD COLUMN deleted_at TEXT"
                 )
+                if "extra_json" not in columns:
+                conn.execute(
+                    "ALTER TABLE settings_parameters ADD COLUMN extra_json TEXT"
+                )
     except Exception as e:
         print(f"ensure_settings_parameters_schema: {e}")
 
@@ -4795,7 +4799,7 @@ def _parameter_usage_counts():
 
 def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
     query = (
-        "SELECT id, param_type, value, state, is_deleted, deleted_at "
+        "SELECT id, param_type, value, state, is_deleted, deleted_at, extra_json "
         "FROM settings_parameters "
     )
     if not include_deleted:
@@ -4810,16 +4814,34 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             continue
         value = row["value"]
         normalized = (value or "").strip()
-        grouped[slug].append(
-            {
-                "id": row["id"],
-                "value": value,
-                "state": row["state"] or "Активен",
-                "is_deleted": bool(row["is_deleted"]),
-                "deleted_at": row["deleted_at"],
-                "usage_count": usage.get(slug, {}).get(normalized, 0),
-            }
-        )
+        extra_payload = {}
+        raw_extra = row["extra_json"]
+        if raw_extra:
+            try:
+                extra_payload = json.loads(raw_extra)
+            except Exception:
+                extra_payload = {}
+        entry = {
+            "id": row["id"],
+            "value": value,
+            "state": row["state"] or "Активен",
+            "is_deleted": bool(row["is_deleted"]),
+            "deleted_at": row["deleted_at"],
+            "usage_count": usage.get(slug, {}).get(normalized, 0),
+            "extra": extra_payload,
+        }
+        if slug == "it_connection":
+            equipment_type = (extra_payload.get("equipment_type") or "").strip()
+            equipment_vendor = (extra_payload.get("equipment_vendor") or "").strip()
+            equipment_model = (extra_payload.get("equipment_model") or "").strip()
+            entry.update(
+                {
+                    "equipment_type": equipment_type,
+                    "equipment_vendor": equipment_vendor,
+                    "equipment_model": equipment_model,
+                }
+            )
+        grouped[slug].append(entry)
     return grouped
 
 @app.route("/api/settings/parameters", methods=["GET"])
@@ -4847,15 +4869,25 @@ def api_create_parameter():
         return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
 
     normalized_state = _normalize_parameter_state(param_type, state)
+    extra_payload = {}
+    if param_type == "it_connection":
+        extra_payload = {
+            "equipment_type": (payload.get("equipment_type") or "").strip(),
+            "equipment_vendor": (payload.get("equipment_vendor") or "").strip(),
+            "equipment_model": (payload.get("equipment_model") or "").strip(),
+        }
+
+    extra_json = json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
+
     conn = get_db()
     try:
         try:
             cur = conn.execute(
                 """
-                INSERT INTO settings_parameters (param_type, value, state, is_deleted)
-                VALUES (?, ?, ?, 0)
+                INSERT INTO settings_parameters (param_type, value, state, is_deleted, extra_json)
+                VALUES (?, ?, ?, 0, ?)
                 """,
-                (param_type, value, normalized_state),
+                (param_type, value, normalized_state, extra_json),
             )
             new_id = cur.lastrowid
             conn.commit()
@@ -4878,7 +4910,7 @@ def api_update_parameter(param_id):
     conn = get_db()
     try:
         row = conn.execute(
-            "SELECT id, param_type FROM settings_parameters WHERE id = ?",
+            "SELECT id, param_type, extra_json FROM settings_parameters WHERE id = ?",
             (param_id,),
         ).fetchone()
         if not row:
@@ -4887,6 +4919,14 @@ def api_update_parameter(param_id):
         param_type = row["param_type"]
         updates = []
         params = []
+
+        extra_payload = {}
+        if param_type == "it_connection":
+            try:
+                extra_payload = json.loads(row["extra_json"] or "{}")
+            except Exception:
+                extra_payload = {}
+
 
         if "value" in payload:
             value = (payload.get("value") or "").strip()
@@ -4899,6 +4939,20 @@ def api_update_parameter(param_id):
             normalized_state = _normalize_parameter_state(param_type, payload.get("state"))
             updates.append("state = ?")
             params.append(normalized_state)
+
+        if param_type == "it_connection":
+            changed = False
+            for key, field in (
+                ("equipment_type", "equipment_type"),
+                ("equipment_vendor", "equipment_vendor"),
+                ("equipment_model", "equipment_model"),
+            ):
+                if key in payload:
+                    extra_payload[field] = (payload.get(key) or "").strip()
+                    changed = True
+            if changed:
+                updates.append("extra_json = ?")
+                params.append(json.dumps(extra_payload, ensure_ascii=False))
 
         if "is_deleted" in payload:
             is_deleted = 1 if bool(payload.get("is_deleted")) else 0
