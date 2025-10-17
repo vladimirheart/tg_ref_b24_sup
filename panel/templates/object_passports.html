@@ -228,6 +228,11 @@
       status: document.getElementById('filterStatus'),
       contract: document.getElementById('filterContract'),
     };
+    const extraFilters = {
+      network: '',
+      it_connection_type: '',
+      iiko_server: '',
+    };
 
     const resultsCountEl = document.getElementById('resultsCount');
     const tableBody = document.querySelector('#passportsTable tbody');
@@ -266,6 +271,10 @@
         ['network_contract_number', filters.contract?.value],
       ];
       mapping.forEach(([key, value]) => {
+        const trimmed = (value || '').trim();
+        if (trimmed) params.set(key, trimmed);
+      });
+      Object.entries(extraFilters).forEach(([key, value]) => {
         const trimmed = (value || '').trim();
         if (trimmed) params.set(key, trimmed);
       });
@@ -394,6 +403,9 @@
         if (!includeSearch && element === filters.search) return;
         element.value = '';
       });
+      Object.keys(extraFilters).forEach((key) => {
+        extraFilters[key] = '';
+      });
     }
 
     if (applyFiltersBtn) {
@@ -451,6 +463,21 @@
       const valueFromUrl = paramNames.map((name) => urlParams.get(name)).find((val) => val !== null && val !== '');
       if (valueFromUrl) {
         element.value = valueFromUrl;
+      }
+    });
+
+    const extraFilterParamMapping = {
+      network: ['network'],
+      it_connection_type: ['it_connection_type', 'it_connection'],
+      iiko_server: ['iiko_server', 'it_iiko_server'],
+    };
+
+    Object.entries(extraFilterParamMapping).forEach(([key, paramNames]) => {
+      const valueFromUrl = paramNames
+        .map((name) => urlParams.get(name))
+        .find((val) => val !== null && val !== '');
+      if (valueFromUrl) {
+        extraFilters[key] = valueFromUrl;
       }
     });
 
