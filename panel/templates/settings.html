@@ -38,6 +38,13 @@
     .parameter-card .param-item .btn { min-width: 2.5rem; }
     .parameter-card .param-item input { min-width: 0; }
     .parameter-card .param-items .empty-placeholder { font-size: 0.9rem; color: #6c757d; }
+    .location-tree-business .card-body { background: #fdfdfd; }
+    .location-type-header { background: #f1f3f5; border-radius: 0.75rem; padding: 0.5rem 0.75rem; }
+    .location-type-header .btn[data-bs-toggle="collapse"] { min-width: 7rem; }
+    .location-type-body { padding: 0.75rem 0.25rem 0.25rem 2.25rem; }
+    .location-city-block { background: #ffffff; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
+    .location-city-block .input-group > .btn { min-width: 5.5rem; }
+    .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
@@ -198,11 +205,58 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <p>Редактируйте бизнес → тип → город → локации</p>
+            <p class="mb-3">Редактируйте бизнес → тип → город → локации. При открытии дерево свёрнуто до уровня типов.</p>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <button class="btn btn-sm btn-primary" type="button" onclick="openAddLocationWizard()">Добавить запись</button>
+              <button class="btn btn-sm btn-success" type="button" onclick="addBusiness()">+ Добавить бизнес</button>
+            </div>
             <div id="locationsEditor" class="mb-3">
               <!-- Дерево будет построено динамически -->
             </div>
-            <button class="btn btn-sm btn-success" onclick="addBusiness()">+ Добавить бизнес</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Мастер добавления записи локаций -->
+    <div class="modal fade" id="locationWizardModal" tabindex="-1" aria-labelledby="locationWizardLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="locationWizardLabel">Добавление записи</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="location-wizard-steps">
+              <div data-location-wizard-step="0" class="location-wizard-step mb-3">
+                <label for="wizardBusinessSelect" class="form-label">1. Выберите бизнес</label>
+                <select id="wizardBusinessSelect" class="form-select" required></select>
+                <div class="form-text">Список подтягивается из параметров партнёров.</div>
+              </div>
+              <div data-location-wizard-step="1" class="location-wizard-step mb-3 d-none">
+                <label for="wizardTypeSelect" class="form-label">2. Выберите тип</label>
+                <select id="wizardTypeSelect" class="form-select" required></select>
+              </div>
+              <div data-location-wizard-step="2" class="location-wizard-step mb-3 d-none">
+                <label for="wizardCitySelect" class="form-label">3. Выберите город</label>
+                <select id="wizardCitySelect" class="form-select" required></select>
+                <div class="form-text">Данные берутся из блока «Параметры партнёров» → «Город».</div>
+              </div>
+              <div data-location-wizard-step="3" class="location-wizard-step mb-3 d-none">
+                <label for="wizardDepartmentSelect" class="form-label">4. Выберите департамент</label>
+                <select id="wizardDepartmentSelect" class="form-select" required></select>
+              </div>
+            </div>
+            <div class="alert alert-light border" id="wizardSummary"></div>
+          </div>
+          <div class="modal-footer justify-content-between">
+            <div>
+              <button type="button" class="btn btn-outline-secondary" id="wizardPrevStep">Назад</button>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-primary" id="wizardNextStep">Далее</button>
+              <button type="button" class="btn btn-success d-none" id="wizardFinish">Создать запись</button>
+            </div>
           </div>
         </div>
       </div>
@@ -318,6 +372,8 @@
           </div>
         </div>
       </div>
+     </div>
+
     <!-- Каналы (боты) -->
     <div class="modal fade" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -353,8 +409,8 @@
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Имя канала</th>
-                    <th>Внутреннее Имя канала</th>
+                    <th>Внутреннее имя канала</th>
+                    <th>Имя бота</th>
                     <th>Токен</th>
                     <th>Активен</th>
                     <th>Лимит вопросов</th>
@@ -369,7 +425,6 @@
         </div>
       </div>
     </div>
-    </div>
 
     <!-- Сохранить -->
     <button class="btn btn-primary mt-4" onclick="saveSettings()">Сохранить настройки</button>
@@ -379,10 +434,20 @@
   <script>
   const PARAMETER_TITLES = {{ parameter_types | tojson }};
   let parameterData = {};
+  let parametersLoaded = false;
   Object.keys(PARAMETER_TITLES).forEach((type) => {
     parameterData[type] = [];
   });
-
+  const CITY_OPTIONS = (() => {
+    const values = {{ cities | tojson }};
+    if (!Array.isArray(values)) {
+      return [];
+    }
+    const cleaned = values
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => value);
+    return Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b));
+  })();
   const contractUsageData = {{ contract_usage | tojson }};
   const networkProfilesInitial = {{ settings.network_profiles | tojson }};
   let networkProfilesData = Array.isArray(networkProfilesInitial)
@@ -548,6 +613,7 @@
 
   async function loadParameters() {
     try {
+      parametersLoaded = false;
       const response = await fetch('/api/settings/parameters');
       if (!response.ok) throw new Error('Ошибка загрузки параметров');
       const data = await response.json();
@@ -555,8 +621,10 @@
       Object.keys(PARAMETER_TITLES).forEach((type) => {
         if (!parameterData[type]) parameterData[type] = [];
       });
+      parametersLoaded = true;
       renderParameters();
     } catch (error) {
+      parametersLoaded = false;
       console.error('Ошибка загрузки параметров:', error);
       alert('❌ Не удалось загрузить параметры: ' + error.message);
     }
@@ -768,81 +836,256 @@
     return arr.sort((a, b) => a.localeCompare(b));
   }
 
+  function hashString(value) {
+    if (typeof value !== 'string') return 0;
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      hash = (hash << 5) - hash + value.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function collapseIdFor(business, type) {
+    return `collapse-${hashString(business)}-${hashString(type)}`;
+  }
+
+  function attachCollapseToggleText(collapseEl, button) {
+    if (!collapseEl || !button) return;
+    const updateState = (isShown) => {
+      button.textContent = isShown ? 'Свернуть' : 'Развернуть';
+      button.setAttribute('aria-expanded', isShown ? 'true' : 'false');
+    };
+    collapseEl.addEventListener('shown.bs.collapse', () => updateState(true));
+    collapseEl.addEventListener('hidden.bs.collapse', () => updateState(false));
+    updateState(collapseEl.classList.contains('show'));
+  }
+
   function buildLocationsTree() {
     const container = document.getElementById('locationsEditor');
+    if (!container) return;
+
     container.innerHTML = '';
 
-    Object.keys(locationsData).forEach(business => {
-      const bDiv = document.createElement('div');
-      bDiv.className = 'mb-3 border p-3 bg-light';
-      bDiv.innerHTML = `
-        <div class="d-flex">
-          <input type="text" class="form-control me-2" value="${business}" onchange="updateBusiness('${business}', this.value)">
-          <button class="btn btn-outline-danger" onclick="removeBusiness('${business}')">Удалить</button>
-        </div>
-      `;
-      
-      const typesDiv = document.createElement('div');
-      Object.keys(locationsData[business]).forEach(type => {
-        const tDiv = document.createElement('div');
-        tDiv.className = 'ms-3 mb-2';
-        tDiv.innerHTML = `
-          <div class="d-flex">
-            <input type="text" class="form-control me-2" value="${type}" onchange="updateType('${business}', '${type}', this.value)">
-            <button class="btn btn-outline-danger" onclick="removeType('${business}', '${type}')">Удалить</button>
-          </div>
-        `;
-        
-        const citiesDiv = document.createElement('div');
-        Object.keys(locationsData[business][type]).forEach(city => {
-          const cDiv = document.createElement('div');
-          cDiv.className = 'ms-3 mb-2';
-          cDiv.innerHTML = `
-            <div class="d-flex">
-              <input type="text" class="form-control me-2" value="${city}" onchange="updateCity('${business}', '${type}', '${city}', this.value)">
-              <button class="btn btn-outline-danger" onclick="removeCity('${business}', '${type}', '${city}')">Удалить</button>
-            </div>
-          `;
-          
-          const locsDiv = document.createElement('div');
-          locationsData[business][type][city].forEach(loc => {
-            const lDiv = document.createElement('div');
-            lDiv.className = 'ms-4 mb-1 input-group';
-            lDiv.innerHTML = `
-              <input type="text" class="form-control" value="${loc}" onchange="updateLocation('${business}', '${type}', '${city}', '${loc}', this.value)">
-              <button class="btn btn-outline-danger" onclick="removeLocation('${business}', '${type}', '${city}', '${loc}')">Удалить</button>
-            `;
-            locsDiv.appendChild(lDiv);
-          });
-          
-          const addLoc = document.createElement('button');
-          addLoc.className = 'btn btn-sm btn-success ms-4';
-          addLoc.textContent = '+ Локация';
-          addLoc.onclick = () => addLocation(business, type, city);
-          
-          cDiv.appendChild(locsDiv);
-          cDiv.appendChild(addLoc);
-          citiesDiv.appendChild(cDiv);
-        });
-        
-        const addCity = document.createElement('button');
-        addCity.className = 'btn btn-sm btn-success ms-3';
-        addCity.textContent = '+ Город';
-        addCity.onclick = () => addCityToType(business, type);
-        
-        tDiv.appendChild(citiesDiv);
-        tDiv.appendChild(addCity);
-        typesDiv.appendChild(tDiv);
+    const businessNames = Object.keys(locationsData || {});
+    if (!businessNames.length) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'text-muted';
+      placeholder.textContent = 'Пока нет записей';
+      container.appendChild(placeholder);
+      return;
+    }
+
+    businessNames.forEach((businessName) => {
+      const businessCard = document.createElement('div');
+      businessCard.className = 'location-tree-business card shadow-sm mb-3';
+
+      const cardBody = document.createElement('div');
+      cardBody.className = 'card-body';
+
+      const businessHeader = document.createElement('div');
+      businessHeader.className = 'd-flex flex-wrap align-items-center gap-2 mb-3';
+
+      const businessInput = document.createElement('input');
+      businessInput.type = 'text';
+      businessInput.className = 'form-control form-control-sm flex-grow-1';
+      businessInput.value = businessName;
+      businessInput.addEventListener('change', (event) => {
+        const newName = (event.target.value || '').trim();
+        if (!newName) {
+          event.target.value = businessName;
+          return;
+        }
+        if (newName !== businessName) {
+          updateBusiness(businessName, newName);
+        }
       });
-      
-      const addType = document.createElement('button');
-      addType.className = 'btn btn-sm btn-success ms-3';
-      addType.textContent = '+ Тип';
-      addType.onclick = () => addTypeToBusiness(business);
-      
-      bDiv.appendChild(typesDiv);
-      bDiv.appendChild(addType);
-      container.appendChild(bDiv);
+
+      const deleteBusinessBtn = document.createElement('button');
+      deleteBusinessBtn.type = 'button';
+      deleteBusinessBtn.className = 'btn btn-sm btn-outline-danger';
+      deleteBusinessBtn.textContent = 'Удалить бизнес';
+      deleteBusinessBtn.addEventListener('click', () => removeBusiness(businessName));
+
+      businessHeader.appendChild(businessInput);
+      businessHeader.appendChild(deleteBusinessBtn);
+      cardBody.appendChild(businessHeader);
+
+      const typesContainer = document.createElement('div');
+      const partnerTypes = locationsData[businessName] || {};
+      const typeNames = Object.keys(partnerTypes);
+
+      if (!typeNames.length) {
+        const emptyType = document.createElement('div');
+        emptyType.className = 'text-muted small';
+        emptyType.textContent = 'Нет типов для бизнеса';
+        typesContainer.appendChild(emptyType);
+      }
+
+      typeNames.forEach((typeName) => {
+        const collapseId = collapseIdFor(businessName, typeName);
+        const typeBlock = document.createElement('div');
+        typeBlock.className = 'location-type-block mb-3';
+
+        const typeHeader = document.createElement('div');
+        typeHeader.className = 'location-type-header d-flex flex-wrap align-items-center gap-2';
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'btn btn-sm btn-outline-secondary';
+        toggleBtn.setAttribute('data-bs-toggle', 'collapse');
+        toggleBtn.setAttribute('data-bs-target', `#${collapseId}`);
+        toggleBtn.setAttribute('aria-controls', collapseId);
+
+        const typeInput = document.createElement('input');
+        typeInput.type = 'text';
+        typeInput.className = 'form-control form-control-sm flex-grow-1';
+        typeInput.value = typeName;
+        typeInput.addEventListener('change', (event) => {
+          const newTypeName = (event.target.value || '').trim();
+          if (!newTypeName) {
+            event.target.value = typeName;
+            return;
+          }
+          if (newTypeName !== typeName) {
+            updateType(businessName, typeName, newTypeName);
+          }
+        });
+
+        const deleteTypeBtn = document.createElement('button');
+        deleteTypeBtn.type = 'button';
+        deleteTypeBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteTypeBtn.textContent = 'Удалить тип';
+        deleteTypeBtn.addEventListener('click', () => removeType(businessName, typeName));
+
+        typeHeader.appendChild(toggleBtn);
+        typeHeader.appendChild(typeInput);
+        typeHeader.appendChild(deleteTypeBtn);
+
+        const collapse = document.createElement('div');
+        collapse.className = 'collapse location-type-body mt-2';
+        collapse.id = collapseId;
+
+        const cityContainer = document.createElement('div');
+        const cities = partnerTypes[typeName] || {};
+        const cityNames = Object.keys(cities);
+
+        if (!cityNames.length) {
+          const emptyCities = document.createElement('div');
+          emptyCities.className = 'text-muted small mb-2';
+          emptyCities.textContent = 'Нет городов';
+          cityContainer.appendChild(emptyCities);
+        }
+
+        cityNames.forEach((cityName) => {
+          const cityBlock = document.createElement('div');
+          cityBlock.className = 'location-city-block mb-3';
+
+          const cityHeader = document.createElement('div');
+          cityHeader.className = 'd-flex flex-wrap align-items-center gap-2 mb-2';
+
+          const cityInput = document.createElement('input');
+          cityInput.type = 'text';
+          cityInput.className = 'form-control form-control-sm flex-grow-1';
+          cityInput.value = cityName;
+          cityInput.addEventListener('change', (event) => {
+            const newCityName = (event.target.value || '').trim();
+            if (!newCityName) {
+              event.target.value = cityName;
+              return;
+            }
+            if (newCityName !== cityName) {
+              updateCity(businessName, typeName, cityName, newCityName);
+            }
+          });
+
+          const deleteCityBtn = document.createElement('button');
+          deleteCityBtn.type = 'button';
+          deleteCityBtn.className = 'btn btn-sm btn-outline-danger';
+          deleteCityBtn.textContent = 'Удалить город';
+          deleteCityBtn.addEventListener('click', () => removeCity(businessName, typeName, cityName));
+
+          cityHeader.appendChild(cityInput);
+          cityHeader.appendChild(deleteCityBtn);
+
+          const locationList = document.createElement('div');
+          const cityLocations = Array.isArray(cities[cityName]) ? cities[cityName] : [];
+
+          if (!cityLocations.length) {
+            const emptyLocations = document.createElement('div');
+            emptyLocations.className = 'text-muted small mb-2';
+            emptyLocations.textContent = 'Нет локаций';
+            locationList.appendChild(emptyLocations);
+          } else {
+            cityLocations.forEach((locationName) => {
+              const locationRow = document.createElement('div');
+              locationRow.className = 'input-group input-group-sm mb-2';
+
+              const locationInput = document.createElement('input');
+              locationInput.type = 'text';
+              locationInput.className = 'form-control';
+              locationInput.value = locationName;
+              locationInput.addEventListener('change', (event) => {
+                const newLocationName = (event.target.value || '').trim();
+                if (!newLocationName) {
+                  event.target.value = locationName;
+                  return;
+                }
+                if (newLocationName !== locationName) {
+                  updateLocation(businessName, typeName, cityName, locationName, newLocationName);
+                }
+              });
+
+              const deleteLocationBtn = document.createElement('button');
+              deleteLocationBtn.type = 'button';
+              deleteLocationBtn.className = 'btn btn-outline-danger';
+              deleteLocationBtn.textContent = 'Удалить';
+              deleteLocationBtn.addEventListener('click', () => removeLocation(businessName, typeName, cityName, locationName));
+
+              locationRow.appendChild(locationInput);
+              locationRow.appendChild(deleteLocationBtn);
+              locationList.appendChild(locationRow);
+            });
+          }
+
+          const addLocationBtn = document.createElement('button');
+          addLocationBtn.type = 'button';
+          addLocationBtn.className = 'btn btn-sm btn-outline-success';
+          addLocationBtn.textContent = '+ Локация';
+          addLocationBtn.addEventListener('click', () => addLocation(businessName, typeName, cityName));
+
+          cityBlock.appendChild(cityHeader);
+          cityBlock.appendChild(locationList);
+          cityBlock.appendChild(addLocationBtn);
+          cityContainer.appendChild(cityBlock);
+        });
+
+        const addCityBtn = document.createElement('button');
+        addCityBtn.type = 'button';
+        addCityBtn.className = 'btn btn-sm btn-outline-success';
+        addCityBtn.textContent = '+ Город';
+        addCityBtn.addEventListener('click', () => addCityToType(businessName, typeName));
+
+        collapse.appendChild(cityContainer);
+        collapse.appendChild(addCityBtn);
+
+        typeBlock.appendChild(typeHeader);
+        typeBlock.appendChild(collapse);
+        typesContainer.appendChild(typeBlock);
+
+        attachCollapseToggleText(collapse, toggleBtn);
+      });
+
+      const addTypeBtn = document.createElement('button');
+      addTypeBtn.type = 'button';
+      addTypeBtn.className = 'btn btn-sm btn-outline-success';
+      addTypeBtn.textContent = '+ Тип';
+      addTypeBtn.addEventListener('click', () => addTypeToBusiness(businessName));
+
+      cardBody.appendChild(typesContainer);
+      cardBody.appendChild(addTypeBtn);
+      businessCard.appendChild(cardBody);
+      container.appendChild(businessCard);
     });
   }
 
@@ -949,6 +1192,353 @@
     }
   }
 
+  const TYPE_OPTIONS = ['Корпоративная сеть', 'Партнёры-франчайзи'];
+  let locationWizardModal = null;
+  let locationWizardInitialised = false;
+  let locationWizardStep = 0;
+  const locationWizardState = {
+    business: '',
+    type: '',
+    city: '',
+    department: '',
+  };
+  let wizardSteps = [];
+  let wizardSummary;
+  let wizardBusinessSelect;
+  let wizardTypeSelect;
+  let wizardCitySelect;
+  let wizardDepartmentSelect;
+  let wizardPrevBtn;
+  let wizardNextBtn;
+  let wizardFinishBtn;
+
+  function uniqueSorted(values) {
+    return Array.from(
+      new Set(
+        (values || [])
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter((value) => value)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  }
+
+  function getBusinessOptions() {
+    const options = uniqueSorted((parameterData.business || []).map((item) => item.value));
+    if (options.length) {
+      return options;
+    }
+    return uniqueSorted(Object.keys(locationsData || {}));
+  }
+
+  function getCityOptions() {
+    if (CITY_OPTIONS && CITY_OPTIONS.length) {
+      return CITY_OPTIONS;
+    }
+    const collected = [];
+    Object.values(locationsData || {}).forEach((types) => {
+      Object.values(types || {}).forEach((cities) => {
+        Object.keys(cities || {}).forEach((city) => {
+          collected.push(city);
+        });
+      });
+    });
+    return uniqueSorted(collected);
+  }
+
+  function getDepartmentOptions() {
+    const options = uniqueSorted((parameterData.department || []).map((item) => item.value));
+    if (options.length) {
+      return options;
+    }
+    const collected = [];
+    Object.values(locationsData || {}).forEach((types) => {
+      Object.values(types || {}).forEach((cities) => {
+        Object.values(cities || {}).forEach((departments) => {
+          if (Array.isArray(departments)) {
+            departments.forEach((department) => collected.push(department));
+          }
+        });
+      });
+    });
+    return uniqueSorted(collected);
+  }
+
+  function clearInvalid(selectEl) {
+    if (selectEl) {
+      selectEl.classList.remove('is-invalid');
+    }
+  }
+
+  function markInvalid(selectEl) {
+    if (selectEl) {
+      selectEl.classList.add('is-invalid');
+      selectEl.focus();
+    }
+  }
+
+  function fillSelect(selectEl, options, placeholder, selectedValue) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = placeholder;
+    placeholderOption.disabled = true;
+    if (!selectedValue) {
+      placeholderOption.selected = true;
+    }
+    selectEl.appendChild(placeholderOption);
+    options.forEach((value) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      if (value === selectedValue) {
+        option.selected = true;
+      }
+      selectEl.appendChild(option);
+    });
+    if (selectedValue && !options.includes(selectedValue)) {
+      placeholderOption.selected = true;
+      selectEl.value = '';
+    }
+    clearInvalid(selectEl);
+  }
+
+  function populateWizardOptions() {
+    fillSelect(wizardBusinessSelect, getBusinessOptions(), 'Выберите бизнес', locationWizardState.business);
+    fillSelect(wizardTypeSelect, TYPE_OPTIONS.slice(), 'Выберите тип', locationWizardState.type);
+    fillSelect(wizardCitySelect, getCityOptions(), 'Выберите город', locationWizardState.city);
+    fillSelect(
+      wizardDepartmentSelect,
+      getDepartmentOptions(),
+      'Выберите департамент',
+      locationWizardState.department,
+    );
+  }
+
+  function resetLocationWizardState() {
+    locationWizardState.business = '';
+    locationWizardState.type = '';
+    locationWizardState.city = '';
+    locationWizardState.department = '';
+    locationWizardStep = 0;
+  }
+
+  function updateWizardSummary() {
+    if (!wizardSummary) return;
+    const entries = [
+      ['Бизнес', locationWizardState.business || '—'],
+      ['Тип', locationWizardState.type || '—'],
+      ['Город', locationWizardState.city || '—'],
+      ['Департамент', locationWizardState.department || '—'],
+    ];
+    wizardSummary.innerHTML = `
+      <ul class="mb-0 small">
+        ${entries.map(([label, value]) => `<li><strong>${label}:</strong> ${value}</li>`).join('')}
+      </ul>
+    `;
+  }
+
+  function showLocationWizardStep(step) {
+    locationWizardStep = step;
+    if (wizardSteps && wizardSteps.length) {
+      wizardSteps.forEach((stepEl, index) => {
+        stepEl.classList.toggle('d-none', index !== step);
+      });
+    }
+    if (wizardPrevBtn) {
+      wizardPrevBtn.disabled = step === 0;
+      wizardPrevBtn.classList.toggle('disabled', step === 0);
+    }
+    if (wizardNextBtn) {
+      wizardNextBtn.classList.toggle('d-none', step === wizardSteps.length - 1);
+    }
+    if (wizardFinishBtn) {
+      wizardFinishBtn.classList.toggle('d-none', step !== wizardSteps.length - 1);
+    }
+    updateWizardSummary();
+  }
+
+  function handleLocationWizardPrev() {
+    if (locationWizardStep > 0) {
+      showLocationWizardStep(locationWizardStep - 1);
+    }
+  }
+
+  function handleLocationWizardNext() {
+    if (locationWizardStep === 0) {
+      if (!locationWizardState.business) {
+        markInvalid(wizardBusinessSelect);
+        return;
+      }
+    } else if (locationWizardStep === 1) {
+      if (!locationWizardState.type) {
+        markInvalid(wizardTypeSelect);
+        return;
+      }
+    } else if (locationWizardStep === 2) {
+      if (!locationWizardState.city) {
+        markInvalid(wizardCitySelect);
+        return;
+      }
+    }
+    showLocationWizardStep(Math.min(locationWizardStep + 1, wizardSteps.length - 1));
+  }
+
+  function addLocationEntryFromWizard(entry) {
+    const business = (entry.business || '').trim();
+    const type = (entry.type || '').trim();
+    const city = (entry.city || '').trim();
+    const department = (entry.department || '').trim();
+    if (!business || !type || !city || !department) {
+      return false;
+    }
+
+    if (!locationsData[business]) {
+      locationsData[business] = {};
+    }
+    if (!locationsData[business][type]) {
+      locationsData[business][type] = {};
+    }
+    if (!Array.isArray(locationsData[business][type][city])) {
+      locationsData[business][type][city] = [];
+    }
+
+    const targetList = locationsData[business][type][city];
+    if (targetList.includes(department)) {
+      return false;
+    }
+
+    targetList.push(department);
+    locationsData[business][type][city] = sortArrayAlphabetically(targetList);
+    locationsData[business][type] = sortObjectAlphabetically(locationsData[business][type]);
+    locationsData[business] = sortObjectAlphabetically(locationsData[business]);
+    locationsData = sortObjectAlphabetically(locationsData);
+    buildLocationsTree();
+
+    const collapseId = collapseIdFor(business, type);
+    const collapseEl = document.getElementById(collapseId);
+    if (collapseEl && typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+      const collapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+      collapse.show();
+    }
+
+    return true;
+  }
+
+  function handleLocationWizardFinish() {
+    if (!locationWizardState.department) {
+      markInvalid(wizardDepartmentSelect);
+      return;
+    }
+    if (!addLocationEntryFromWizard(locationWizardState)) {
+      alert('Такая запись уже существует в выбранной структуре.');
+      return;
+    }
+    if (locationWizardModal) {
+      locationWizardModal.hide();
+    }
+  }
+
+  function initLocationWizard() {
+    if (locationWizardInitialised) return;
+    const wizardModalEl = document.getElementById('locationWizardModal');
+    if (!wizardModalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+      return;
+    }
+    locationWizardModal = bootstrap.Modal.getOrCreateInstance(wizardModalEl);
+    wizardBusinessSelect = document.getElementById('wizardBusinessSelect');
+    wizardTypeSelect = document.getElementById('wizardTypeSelect');
+    wizardCitySelect = document.getElementById('wizardCitySelect');
+    wizardDepartmentSelect = document.getElementById('wizardDepartmentSelect');
+    wizardPrevBtn = document.getElementById('wizardPrevStep');
+    wizardNextBtn = document.getElementById('wizardNextStep');
+    wizardFinishBtn = document.getElementById('wizardFinish');
+    wizardSummary = document.getElementById('wizardSummary');
+    wizardSteps = Array.from(document.querySelectorAll('[data-location-wizard-step]'));
+
+    if (wizardPrevBtn) {
+      wizardPrevBtn.addEventListener('click', handleLocationWizardPrev);
+    }
+    if (wizardNextBtn) {
+      wizardNextBtn.addEventListener('click', handleLocationWizardNext);
+    }
+    if (wizardFinishBtn) {
+      wizardFinishBtn.addEventListener('click', handleLocationWizardFinish);
+    }
+    if (wizardBusinessSelect) {
+      wizardBusinessSelect.addEventListener('change', (event) => {
+        locationWizardState.business = (event.target.value || '').trim();
+        locationWizardState.type = '';
+        locationWizardState.city = '';
+        locationWizardState.department = '';
+        if (wizardTypeSelect) wizardTypeSelect.value = '';
+        if (wizardCitySelect) wizardCitySelect.value = '';
+        if (wizardDepartmentSelect) wizardDepartmentSelect.value = '';
+        clearInvalid(wizardBusinessSelect);
+        clearInvalid(wizardTypeSelect);
+        clearInvalid(wizardCitySelect);
+        clearInvalid(wizardDepartmentSelect);
+        updateWizardSummary();
+      });
+    }
+    if (wizardTypeSelect) {
+      wizardTypeSelect.addEventListener('change', (event) => {
+        locationWizardState.type = (event.target.value || '').trim();
+        locationWizardState.city = '';
+        locationWizardState.department = '';
+        if (wizardCitySelect) wizardCitySelect.value = '';
+        if (wizardDepartmentSelect) wizardDepartmentSelect.value = '';
+        clearInvalid(wizardTypeSelect);
+        clearInvalid(wizardCitySelect);
+        clearInvalid(wizardDepartmentSelect);
+        updateWizardSummary();
+      });
+    }
+    if (wizardCitySelect) {
+      wizardCitySelect.addEventListener('change', (event) => {
+        locationWizardState.city = (event.target.value || '').trim();
+        locationWizardState.department = '';
+        if (wizardDepartmentSelect) wizardDepartmentSelect.value = '';
+        clearInvalid(wizardCitySelect);
+        clearInvalid(wizardDepartmentSelect);
+        updateWizardSummary();
+      });
+    }
+    if (wizardDepartmentSelect) {
+      wizardDepartmentSelect.addEventListener('change', (event) => {
+        locationWizardState.department = (event.target.value || '').trim();
+        clearInvalid(wizardDepartmentSelect);
+        updateWizardSummary();
+      });
+    }
+
+    wizardModalEl.addEventListener('hidden.bs.modal', () => {
+      resetLocationWizardState();
+      populateWizardOptions();
+      showLocationWizardStep(0);
+    });
+
+    populateWizardOptions();
+    showLocationWizardStep(0);
+    locationWizardInitialised = true;
+  }
+
+  async function openAddLocationWizard() {
+    initLocationWizard();
+    if (!locationWizardModal) return;
+    if (!parametersLoaded) {
+      await loadParameters();
+      populateWizardOptions();
+    }
+    resetLocationWizardState();
+    populateWizardOptions();
+    showLocationWizardStep(0);
+    updateWizardSummary();
+    locationWizardModal.show();
+  }
+
+  window.openAddLocationWizard = openAddLocationWizard;
+
   // === Функции для категорий ===
   function addCategory() {
     const container = document.getElementById('categoriesList');
@@ -1015,12 +1605,13 @@
 
   // === Запуск при загрузке страницы ===
   document.addEventListener('DOMContentLoaded', () => {
-          buildLocationsTree();
-          loadUsers();
-          loadChannels(); // <— добавили
-          loadParameters();
-          renderNetworkProfiles();
-        });
+    initLocationWizard();
+    buildLocationsTree();
+    loadUsers();
+    loadChannels(); // <— добавили
+    loadParameters();
+    renderNetworkProfiles();
+  });
 
   // === КАНАЛЫ (боты) ===
 function maskToken(tok) {
