@@ -726,11 +726,13 @@
     if (!passportData || typeof passportData !== 'object') {
       passportData = {};
     }
-    if (hasValidPassportIdInUrl && !passportData.id) {
-      passportData.id = passportIdFromUrl;
-    }
-    if (typeof passportData.is_new !== 'boolean') {
-      passportData.is_new = !hasValidPassportIdInUrl;
+    if (hasValidPassportIdInUrl) {
+      if (!passportData.id) {
+        passportData.id = passportIdFromUrl;
+      }
+      passportData.is_new = false;
+    } else if (typeof passportData.is_new !== 'boolean') {
+      passportData.is_new = true;
     }
 
     let parameterValues = (typeof structuredClone === 'function')
