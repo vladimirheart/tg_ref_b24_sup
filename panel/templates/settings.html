@@ -447,6 +447,36 @@
               </button>
               <div class="form-text text-muted mt-2">Здесь управляйте списком доступных подключений IT-блока.</div>
             </section>
+            <section class="mb-4">
+              <h6 class="text-uppercase text-muted small mb-3">Каталог оборудования</h6>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle" id="itEquipmentTable">
+                  <thead>
+                    <tr>
+                      <th>Тип оборудования</th>
+                      <th>Производитель</th>
+                      <th>Модель</th>
+                      <th>Серийный номер</th>
+                      <th>Доп. оборудование</th>
+                      <th>Фото</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="itEquipmentBody"></tbody>
+                </table>
+              </div>
+              <button
+                class="btn btn-sm btn-success mt-2"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#itEquipmentAddModal"
+              >
+                + Добавить оборудование
+              </button>
+              <div class="form-text text-muted mt-2">
+                Подготовьте справочник оборудования для быстрого заполнения паспортов объектов.
+              </div>
+            </section>
             <hr class="my-4" />
             <section>
               <h6 class="text-uppercase text-muted small mb-3">Профили провайдеров</h6>
@@ -511,6 +541,53 @@
                 >
                 <div class="form-text">Введите или вставьте новое значение подключения.</div>
                 <div class="invalid-feedback">Укажите значение подключения.</div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+              <button type="submit" class="btn btn-primary">Добавить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="itEquipmentAddModalLabel">Новое оборудование</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <form data-it-equipment-add-form>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label" for="itEquipmentTypeSelect">Тип оборудования</label>
+                <select class="form-select" id="itEquipmentTypeSelect" data-it-equipment-field="equipment_type" required></select>
+                <div class="form-text">Выберите тип из ранее созданных подключений.</div>
+                <div class="invalid-feedback">Укажите тип оборудования.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="itEquipmentVendorSelect">Производитель оборудования</label>
+                <select class="form-select" id="itEquipmentVendorSelect" data-it-equipment-field="equipment_vendor" required></select>
+                <div class="invalid-feedback">Укажите производителя оборудования.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="itEquipmentModelSelect">Модель оборудования</label>
+                <select class="form-select" id="itEquipmentModelSelect" data-it-equipment-field="equipment_model" required></select>
+                <div class="invalid-feedback">Укажите модель оборудования.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="itEquipmentSerialInput">Серийный номер <span class="text-muted">(необязательно)</span></label>
+                <input type="text" class="form-control" id="itEquipmentSerialInput" data-it-equipment-field="serial_number" placeholder="Например, SN123456" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="itEquipmentAccessoriesInput">Дополнительное оборудование <span class="text-muted">(необязательно)</span></label>
+                <textarea class="form-control" id="itEquipmentAccessoriesInput" data-it-equipment-field="accessories" rows="2" placeholder="Список сопутствующего оборудования"></textarea>
+              </div>
+              <div>
+                <label class="form-label" for="itEquipmentPhotoInput">Фото <span class="text-muted">(ссылка, необязательно)</span></label>
+                <input type="text" class="form-control" id="itEquipmentPhotoInput" data-it-equipment-field="photo_url" placeholder="https://..." />
               </div>
             </div>
             <div class="modal-footer">
@@ -1212,6 +1289,8 @@
 
   const itConnectionsBody = document.getElementById('itConnectionsBody');
   let itConnectionDrafts = [];
+  const itEquipmentBody = document.getElementById('itEquipmentBody');
+  let itEquipmentItems = [];
 
   function renderItConnectionUsageLink(item) {
     if (!item) {
@@ -1265,6 +1344,7 @@
       const emptyRow = document.createElement('tr');
       emptyRow.innerHTML = '<td colspan="4" class="text-muted text-center">Пока нет подключений</td>';
       itConnectionsBody.appendChild(emptyRow);
+      renderItEquipmentTable();
       return;
     }
     rows.forEach(({ item, isDraft, draftIndex }) => {
@@ -1315,6 +1395,233 @@
       `;
       itConnectionsBody.appendChild(row);
     });
+    renderItEquipmentTable();
+  }
+
+  function collectEquipmentOptionSets() {
+    const result = {
+      types: new Set(),
+      vendors: new Set(),
+      models: new Set(),
+    };
+    const items = Array.isArray(parameterData.it_connection) ? parameterData.it_connection : [];
+    items.forEach((item) => {
+      if (!item) return;
+      const category = normalizeItConnectionCategory(
+        (item && item.category) || (item && item.extra && item.extra.category)
+      );
+      const values = {
+        equipment_type: typeof item.equipment_type === 'string' ? item.equipment_type.trim() : '',
+        equipment_vendor: typeof item.equipment_vendor === 'string' ? item.equipment_vendor.trim() : '',
+        equipment_model: typeof item.equipment_model === 'string' ? item.equipment_model.trim() : '',
+        value: typeof item.value === 'string' ? item.value.trim() : '',
+      };
+      if (category === 'equipment_type') {
+        if (values.equipment_type) result.types.add(values.equipment_type);
+        if (values.value) result.types.add(values.value);
+      } else if (category === 'equipment_vendor') {
+        if (values.equipment_vendor) result.vendors.add(values.equipment_vendor);
+        if (values.value) result.vendors.add(values.value);
+      } else if (category === 'equipment_model') {
+        if (values.equipment_model) result.models.add(values.equipment_model);
+        if (values.value) result.models.add(values.value);
+      }
+    });
+    const sorter = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
+    return {
+      types: Array.from(result.types).sort(sorter),
+      vendors: Array.from(result.vendors).sort(sorter),
+      models: Array.from(result.models).sort(sorter),
+    };
+  }
+
+  function buildEquipmentSelectOptions(values, selectedValue) {
+    const list = Array.isArray(values) ? values : [];
+    const normalizedSelected = typeof selectedValue === 'string' ? selectedValue.trim() : '';
+    const options = ['<option value="">—</option>'];
+    const seen = new Set();
+    list.forEach((raw) => {
+      const value = typeof raw === 'string' ? raw.trim() : '';
+      if (!value || seen.has(value)) return;
+      const selectedAttr = value === normalizedSelected ? ' selected' : '';
+      options.push(`<option value="${escapeHtml(value)}"${selectedAttr}>${escapeHtml(value)}</option>`);
+      seen.add(value);
+    });
+    if (normalizedSelected && !seen.has(normalizedSelected)) {
+      options.push(
+        `<option value="${escapeHtml(normalizedSelected)}" selected>${escapeHtml(normalizedSelected)}</option>`
+      );
+    }
+    return options.join('');
+  }
+
+  function renderItEquipmentTable() {
+    if (!itEquipmentBody) return;
+    const list = Array.isArray(itEquipmentItems) ? itEquipmentItems : [];
+    itEquipmentBody.innerHTML = '';
+    if (!list.length) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет оборудования</td>';
+      itEquipmentBody.appendChild(emptyRow);
+      return;
+    }
+    const optionSets = collectEquipmentOptionSets();
+    list.forEach((item) => {
+      const row = document.createElement('tr');
+      const idNumber = Number.parseInt(item && item.id, 10);
+      if (Number.isFinite(idNumber)) {
+        row.dataset.id = String(idNumber);
+      }
+      const equipmentType = typeof (item && item.equipment_type) === 'string' ? item.equipment_type : '';
+      const equipmentVendor = typeof (item && item.equipment_vendor) === 'string' ? item.equipment_vendor : '';
+      const equipmentModel = typeof (item && item.equipment_model) === 'string' ? item.equipment_model : '';
+      const serialNumber = typeof (item && item.serial_number) === 'string' ? item.serial_number : '';
+      const accessories = typeof (item && item.accessories) === 'string' ? item.accessories : '';
+      const photoUrl = typeof (item && item.photo_url) === 'string' ? item.photo_url : '';
+      const photoLink = photoUrl
+        ? `<a href="${escapeHtml(photoUrl)}" target="_blank" rel="noopener" class="btn btn-link btn-sm p-0" title="Открыть">🔗</a>`
+        : '<span class="text-muted small">—</span>';
+      row.innerHTML = `
+        <td><select class="form-select form-select-sm" data-field="equipment_type">${buildEquipmentSelectOptions(optionSets.types, equipmentType)}</select></td>
+        <td><select class="form-select form-select-sm" data-field="equipment_vendor">${buildEquipmentSelectOptions(optionSets.vendors, equipmentVendor)}</select></td>
+        <td><select class="form-select form-select-sm" data-field="equipment_model">${buildEquipmentSelectOptions(optionSets.models, equipmentModel)}</select></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="serial_number" value="${escapeHtml(serialNumber)}" placeholder="SN..."></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="accessories" value="${escapeHtml(accessories)}" placeholder="Доп. оборудование"></td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <input type="text" class="form-control form-control-sm" data-field="photo_url" value="${escapeHtml(photoUrl)}" placeholder="https://">
+            ${photoLink}
+          </div>
+        </td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-success" type="button" data-it-equipment-action="save">Сохранить</button>
+          <button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-action="delete">Удалить</button>
+        </td>
+      `;
+      itEquipmentBody.appendChild(row);
+    });
+  }
+
+  function collectItEquipmentPayload(row) {
+    if (!row) return {};
+    const selectValue = (selector) => {
+      const element = row.querySelector(selector);
+      return element ? element.value.trim() : '';
+    };
+    return {
+      equipment_type: selectValue('[data-field="equipment_type"]'),
+      equipment_vendor: selectValue('[data-field="equipment_vendor"]'),
+      equipment_model: selectValue('[data-field="equipment_model"]'),
+      serial_number: selectValue('[data-field="serial_number"]'),
+      accessories: selectValue('[data-field="accessories"]'),
+      photo_url: selectValue('[data-field="photo_url"]'),
+    };
+  }
+
+  async function saveItEquipmentRow(row) {
+    if (!row) return;
+    const id = Number.parseInt(row.dataset.id, 10);
+    if (!Number.isFinite(id)) return;
+    const payload = collectItEquipmentPayload(row);
+    if (!payload.equipment_type) {
+      alert('Укажите тип оборудования');
+      const select = row.querySelector('[data-field="equipment_type"]');
+      if (select) select.focus();
+      return;
+    }
+    if (!payload.equipment_vendor) {
+      alert('Укажите производителя оборудования');
+      const select = row.querySelector('[data-field="equipment_vendor"]');
+      if (select) select.focus();
+      return;
+    }
+    if (!payload.equipment_model) {
+      alert('Укажите модель оборудования');
+      const select = row.querySelector('[data-field="equipment_model"]');
+      if (select) select.focus();
+      return;
+    }
+    const button = row.querySelector('[data-it-equipment-action="save"]');
+    const originalText = button ? button.textContent : '';
+    if (button) {
+      button.disabled = true;
+      button.textContent = '...';
+    }
+    try {
+      const response = await fetch(`/api/settings/it-equipment/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error((data && data.error) || 'Ошибка сохранения оборудования');
+      }
+      if (Array.isArray(data.items)) {
+        itEquipmentItems = data.items;
+      } else if (data.item) {
+        const updatedId = Number.parseInt(data.item.id, 10);
+        const index = itEquipmentItems.findIndex((entry) => Number.parseInt(entry.id, 10) === updatedId);
+        if (index >= 0) {
+          itEquipmentItems[index] = data.item;
+        }
+      }
+      renderItEquipmentTable();
+    } catch (error) {
+      alert('❌ ' + (error && error.message ? error.message : error));
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText || 'Сохранить';
+      }
+    }
+  }
+
+  async function deleteItEquipmentRow(row) {
+    if (!row) return;
+    const id = Number.parseInt(row.dataset.id, 10);
+    if (!Number.isFinite(id)) return;
+    if (!confirm('Удалить оборудование?')) return;
+    const button = row.querySelector('[data-it-equipment-action="delete"]');
+    const originalText = button ? button.textContent : '';
+    if (button) {
+      button.disabled = true;
+      button.textContent = '...';
+    }
+    try {
+      const response = await fetch(`/api/settings/it-equipment/${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error((data && data.error) || 'Ошибка удаления оборудования');
+      }
+      itEquipmentItems = Array.isArray(data.items) ? data.items : [];
+      renderItEquipmentTable();
+    } catch (error) {
+      alert('❌ ' + (error && error.message ? error.message : error));
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText || 'Удалить';
+      }
+    }
+  }
+
+  async function loadItEquipment() {
+    if (!itEquipmentBody) return;
+    try {
+      const response = await fetch('/api/settings/it-equipment');
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки оборудования');
+      }
+      const data = await response.json();
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Ошибка загрузки оборудования');
+      }
+      itEquipmentItems = Array.isArray(data && data.items) ? data.items : [];
+      renderItEquipmentTable();
+    } catch (error) {
+      console.error('Ошибка загрузки каталога оборудования:', error);
+    }
   }
 
   function addItConnectionRow(initial) {
@@ -1506,6 +1813,21 @@
     });
   }
 
+  if (itEquipmentBody) {
+    itEquipmentBody.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-it-equipment-action]');
+      if (!button) return;
+      const row = button.closest('tr');
+      if (!row) return;
+      const action = button.dataset.itEquipmentAction;
+      if (action === 'save') {
+        saveItEquipmentRow(row);
+      } else if (action === 'delete') {
+        deleteItEquipmentRow(row);
+      }
+    });
+  }
+
   const itConnectionAddModalEl = document.getElementById('itConnectionAddModal');
   const itConnectionAddForm = itConnectionAddModalEl
     ? itConnectionAddModalEl.querySelector('[data-it-connection-add-form]')
@@ -1522,6 +1844,199 @@
   const itConnectionAddModal = itConnectionAddModalEl
     ? new bootstrap.Modal(itConnectionAddModalEl)
     : null;
+
+  const itEquipmentAddModalEl = document.getElementById('itEquipmentAddModal');
+  const itEquipmentAddForm = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('[data-it-equipment-add-form]')
+    : null;
+  const itEquipmentTypeSelect = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentTypeSelect')
+    : null;
+  const itEquipmentVendorSelect = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentVendorSelect')
+    : null;
+  const itEquipmentModelSelect = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentModelSelect')
+    : null;
+  const itEquipmentSerialInput = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentSerialInput')
+    : null;
+  const itEquipmentAccessoriesInput = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentAccessoriesInput')
+    : null;
+  const itEquipmentPhotoInput = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentPhotoInput')
+    : null;
+  const itEquipmentAddSubmitButton = itEquipmentAddForm
+    ? itEquipmentAddForm.querySelector('button[type="submit"]')
+    : null;
+  const itEquipmentAddModal = itEquipmentAddModalEl
+    ? new bootstrap.Modal(itEquipmentAddModalEl)
+    : null;
+
+  function populateItEquipmentAddOptions(selectedValues = {}) {
+    const optionSets = collectEquipmentOptionSets();
+    const ensureOptions = (select, values, emptyLabel, key) => {
+      if (!select) return false;
+      const list = Array.isArray(values) ? values : [];
+      const selectedValue = selectedValues[key] || '';
+      if (!list.length) {
+        select.innerHTML = `<option value="" disabled selected>${escapeHtml(emptyLabel)}</option>`;
+        select.disabled = true;
+        select.value = '';
+        select.classList.remove('is-invalid');
+        return false;
+      }
+      select.disabled = false;
+      select.innerHTML = buildEquipmentSelectOptions(list, selectedValue);
+      select.value = selectedValue || '';
+      select.classList.remove('is-invalid');
+      return true;
+    };
+    const hasType = ensureOptions(
+      itEquipmentTypeSelect,
+      optionSets.types,
+      'Добавьте тип в разделе «Подключения»',
+      'equipment_type'
+    );
+    const hasVendor = ensureOptions(
+      itEquipmentVendorSelect,
+      optionSets.vendors,
+      'Добавьте производителя в разделе «Подключения»',
+      'equipment_vendor'
+    );
+    const hasModel = ensureOptions(
+      itEquipmentModelSelect,
+      optionSets.models,
+      'Добавьте модель в разделе «Подключения»',
+      'equipment_model'
+    );
+    return hasType && hasVendor && hasModel;
+  }
+
+  if (itEquipmentAddModalEl) {
+    itEquipmentAddModalEl.addEventListener('show.bs.modal', () => {
+      const hasOptions = populateItEquipmentAddOptions();
+      if (itEquipmentSerialInput) {
+        itEquipmentSerialInput.value = '';
+      }
+      if (itEquipmentAccessoriesInput) {
+        itEquipmentAccessoriesInput.value = '';
+      }
+      if (itEquipmentPhotoInput) {
+        itEquipmentPhotoInput.value = '';
+      }
+      if (itEquipmentAddSubmitButton) {
+        itEquipmentAddSubmitButton.disabled = !hasOptions;
+      }
+    });
+    itEquipmentAddModalEl.addEventListener('shown.bs.modal', () => {
+      if (itEquipmentTypeSelect && !itEquipmentTypeSelect.disabled) {
+        itEquipmentTypeSelect.focus();
+      } else if (itEquipmentVendorSelect && !itEquipmentVendorSelect.disabled) {
+        itEquipmentVendorSelect.focus();
+      } else if (itEquipmentModelSelect && !itEquipmentModelSelect.disabled) {
+        itEquipmentModelSelect.focus();
+      }
+    });
+  }
+
+  [itEquipmentTypeSelect, itEquipmentVendorSelect, itEquipmentModelSelect].forEach((select) => {
+    if (!select) return;
+    select.addEventListener('change', () => {
+      select.classList.remove('is-invalid');
+    });
+  });
+
+  if (itEquipmentAddForm) {
+    itEquipmentAddForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = {
+        equipment_type:
+          itEquipmentTypeSelect && !itEquipmentTypeSelect.disabled
+            ? itEquipmentTypeSelect.value.trim()
+            : '',
+        equipment_vendor:
+          itEquipmentVendorSelect && !itEquipmentVendorSelect.disabled
+            ? itEquipmentVendorSelect.value.trim()
+            : '',
+        equipment_model:
+          itEquipmentModelSelect && !itEquipmentModelSelect.disabled
+            ? itEquipmentModelSelect.value.trim()
+            : '',
+        serial_number: itEquipmentSerialInput ? itEquipmentSerialInput.value.trim() : '',
+        accessories: itEquipmentAccessoriesInput ? itEquipmentAccessoriesInput.value.trim() : '',
+        photo_url: itEquipmentPhotoInput ? itEquipmentPhotoInput.value.trim() : '',
+      };
+
+      let hasError = false;
+      if (!payload.equipment_type) {
+        if (itEquipmentTypeSelect) {
+          itEquipmentTypeSelect.classList.add('is-invalid');
+        }
+        hasError = true;
+      }
+      if (!payload.equipment_vendor) {
+        if (itEquipmentVendorSelect) {
+          itEquipmentVendorSelect.classList.add('is-invalid');
+        }
+        hasError = true;
+      }
+      if (!payload.equipment_model) {
+        if (itEquipmentModelSelect) {
+          itEquipmentModelSelect.classList.add('is-invalid');
+        }
+        hasError = true;
+      }
+
+      if (hasError) {
+        const firstInvalid = [
+          itEquipmentTypeSelect,
+          itEquipmentVendorSelect,
+          itEquipmentModelSelect,
+        ].find((element) => element && element.classList.contains('is-invalid'));
+        if (firstInvalid) {
+          firstInvalid.focus();
+        }
+        return;
+      }
+
+      const button = itEquipmentAddSubmitButton;
+      const originalText = button ? button.textContent : '';
+      if (button) {
+        button.disabled = true;
+        button.textContent = '...';
+      }
+
+      try {
+        const response = await fetch('/api/settings/it-equipment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error((data && data.error) || 'Ошибка создания оборудования');
+        }
+        if (Array.isArray(data.items)) {
+          itEquipmentItems = data.items;
+        } else if (data.item) {
+          itEquipmentItems.push(data.item);
+        }
+        renderItEquipmentTable();
+        if (itEquipmentAddModal) {
+          itEquipmentAddModal.hide();
+        }
+      } catch (error) {
+        alert('❌ ' + (error && error.message ? error.message : error));
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalText || 'Добавить';
+        }
+      }
+    });
+  }
 
   if (itConnectionCategorySelect) {
     rebuildItConnectionCategorySelect(itConnectionCategorySelect);
@@ -1670,6 +2185,7 @@
 
   renderNetworkProfiles();
   renderItConnectionsTable();
+  loadItEquipment();
 
   async function loadParameters() {
     try {
