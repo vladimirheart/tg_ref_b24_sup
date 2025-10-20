@@ -276,3 +276,60 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 .modal.fade.modal-closing {
   pointer-events: none;
 }
+
+/* Автогенерируемые кнопки копирования */
+[data-copy-enhanced="true"].copyable-inline-container,
+[data-copy-enhanced="true"].copyable-block-container {
+  position: relative;
+}
+
+.copyable-inline-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.copyable-block-container {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.copy-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.15rem;
+  color: var(--bs-secondary-color, #6c757d);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.copy-icon-btn:hover,
+.copy-icon-btn:focus {
+  color: var(--bs-body-color, #212529);
+  background-color: rgba(108, 117, 125, 0.12);
+}
+
+.copy-icon-btn:focus-visible {
+  outline: 2px solid var(--bs-primary, #0d6efd);
+  outline-offset: 2px;
+}
+
+.copy-icon-btn .copy-icon {
+  width: 1em;
+  height: 1em;
+}
+
+.copy-icon-btn[data-copy-state='copied'] {
+  color: var(--bs-success, #198754);
+}
+
+.copy-icon-btn[data-copy-state='error'] {
+  color: var(--bs-danger, #dc3545);
+}
