@@ -1052,16 +1052,19 @@
       };
 
       let matchToApply = null;
-      if (changedField && selectedFieldMap[changedField]) {
-        const targetValue = state[selectedFieldMap[changedField]];
-        if (targetValue) {
-          matchToApply = matches.find((match) => {
-            const catalogValue = normalizeCatalogValue(match[selectedFieldMap[changedField]]);
-            return catalogValue && catalogValue === targetValue;
-          });
-        }
+      const selectedFieldKey = changedField ? selectedFieldMap[changedField] : null;
+      const selectedValue = selectedFieldKey ? state[selectedFieldKey] : '';
+      if (selectedFieldKey && selectedValue) {
+        matchToApply = matches.find((match) => {
+          const catalogValue = normalizeCatalogValue(match[selectedFieldKey]);
+          return catalogValue && catalogValue === selectedValue;
+        });
       }
       if (!matchToApply) {
+        if (selectedFieldKey && selectedValue) {
+          card.dataset.catalogMatched = '';
+          return;
+        }
         matchToApply = matches[0];
       }
 
