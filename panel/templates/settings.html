@@ -482,12 +482,26 @@
           </div>
           <form data-it-connection-add-form>
             <div class="modal-body">
-              <label class="form-label" for="itConnectionCategorySelect">Выберите, что необходимо добавить</label>
-              <select class="form-select" id="itConnectionCategorySelect" data-it-connection-category-select>
-                {% for key, label in it_connection_categories.items() %}
-                <option value="{{ key }}">{{ label }}</option>
-                {% endfor %}
-              </select>
+                            <div class="mb-3">
+                <label class="form-label" for="itConnectionCategorySelect">Выберите, что необходимо добавить</label>
+                <select class="form-select" id="itConnectionCategorySelect" data-it-connection-category-select>
+                  {% for key, label in it_connection_categories.items() %}
+                  <option value="{{ key }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="form-label" for="itConnectionValueInput">Значение подключения</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="itConnectionValueInput"
+                  placeholder="Например, TeamViewer"
+                  data-it-connection-value-input
+                >
+                <div class="form-text">Введите или вставьте новое значение подключения.</div>
+                <div class="invalid-feedback">Укажите значение подключения.</div>
+              </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -1205,25 +1219,31 @@
     renderItConnectionsTable();
   }
 
-  function collectItConnectionPayload(row) {
-    const category = normalizeItConnectionCategory(row && row.dataset ? row.dataset.category : undefined);
-    const input = row ? row.querySelector('[data-field="value"]') : null;
-    const value = input ? input.value.trim() : '';
-    const payload = { value, category };
-    if (category === 'equipment_type') {
-      payload.equipment_type = value;
+  function buildItConnectionPayload(category, value) {
+    const normalizedCategory = normalizeItConnectionCategory(category);
+    const trimmedValue = typeof value === 'string' ? value.trim() : '';
+    const payload = { value: trimmedValue, category: normalizedCategory };
+    if (normalizedCategory === 'equipment_type') {
+      payload.equipment_type = trimmedValue;
       payload.equipment_vendor = '';
       payload.equipment_model = '';
-    } else if (category === 'equipment_vendor') {
-      payload.equipment_vendor = value;
+    } else if (normalizedCategory === 'equipment_vendor') {
+      payload.equipment_vendor = trimmedValue;
       payload.equipment_type = '';
       payload.equipment_model = '';
-    } else if (category === 'equipment_model') {
-      payload.equipment_model = value;
+    } else if (normalizedCategory === 'equipment_model') {
+      payload.equipment_model = trimmedValue;
       payload.equipment_type = '';
       payload.equipment_vendor = '';
     }
     return payload;
+  }
+
+  function collectItConnectionPayload(row) {
+    const category = normalizeItConnectionCategory(row && row.dataset ? row.dataset.category : undefined);
+    const input = row ? row.querySelector('[data-field="value"]') : null;
+    const value = input ? input.value : '';
+    return buildItConnectionPayload(category, value);
   }
 
   async function saveItConnection(row, context) {
@@ -1380,6 +1400,9 @@
   const itConnectionCategorySelect = itConnectionAddModalEl
     ? itConnectionAddModalEl.querySelector('[data-it-connection-category-select]')
     : null;
+  const itConnectionValueInput = itConnectionAddModalEl
+    ? itConnectionAddModalEl.querySelector('[data-it-connection-value-input]')
+    : null;
   const itConnectionAddModal = itConnectionAddModalEl
     ? new bootstrap.Modal(itConnectionAddModalEl)
     : null;
@@ -1389,32 +1412,93 @@
       if (itConnectionCategorySelect) {
         itConnectionCategorySelect.value = IT_CONNECTION_DEFAULT_CATEGORY;
       }
+      if (itConnectionValueInput) {
+        itConnectionValueInput.value = '';
+        itConnectionValueInput.classList.remove('is-invalid');
+      }
     });
     itConnectionAddModalEl.addEventListener('shown.bs.modal', () => {
-      if (itConnectionCategorySelect) {
+      if (itConnectionValueInput) {
+        itConnectionValueInput.focus();
+      } else if (itConnectionCategorySelect) {
         itConnectionCategorySelect.focus();
       }
     });
   }
 
+  if (itConnectionValueInput) {
+    itConnectionValueInput.addEventListener('input', () => {
+      itConnectionValueInput.classList.remove('is-invalid');
+    });
+  }
+
   if (itConnectionAddForm) {
-    itConnectionAddForm.addEventListener('submit', (event) => {
+    itConnectionAddForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const selected =
         itConnectionCategorySelect && itConnectionCategorySelect.value
           ? itConnectionCategorySelect.value
           : IT_CONNECTION_DEFAULT_CATEGORY;
-      addItConnectionRow({ category: selected });
-      if (itConnectionAddModal) {
-        itConnectionAddModal.hide();
+      const payload = buildItConnectionPayload(selected, itConnectionValueInput ? itConnectionValueInput.value : '');
+      if (!payload.value) {
+        if (itConnectionValueInput) {
+          itConnectionValueInput.classList.add('is-invalid');
+          itConnectionValueInput.focus();
+        }
+        return;
       }
-      setTimeout(() => {
-        if (!itConnectionsBody) return;
-        const draftRow = itConnectionsBody.querySelector('tr[data-row-kind="draft"]');
-        if (!draftRow) return;
-        const input = draftRow.querySelector('[data-field="value"]');
-        if (input) input.focus();
-      }, 0);
+
+      const submitButton = itConnectionAddForm.querySelector('button[type="submit"]');
+      const originalButtonText = submitButton ? submitButton.textContent : '';
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = '...';
+      }
+
+      try {
+        const response = await fetch('/api/settings/parameters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({ param_type: 'it_connection' }, payload)),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка создания подключения');
+        }
+        if (itConnectionValueInput) {
+          itConnectionValueInput.value = '';
+          itConnectionValueInput.classList.remove('is-invalid');
+        }
+        syncParameterData((data && data.data) || parameterData);
+        renderParameters({ forceBodies: true });
+        renderItConnectionsTable();
+        if (parameterModal && parameterModalType) {
+          renderParameterModal(parameterModalType);
+        }
+        if (itConnectionAddModal) {
+          itConnectionAddModal.hide();
+        }
+        setTimeout(() => {
+          if (!itConnectionsBody) return;
+          const rows = Array.from(itConnectionsBody.querySelectorAll('tr'));
+          const createdRow = rows.find((row) => {
+            const input = row.querySelector('[data-field="value"]');
+            return input && input.value.trim() === payload.value;
+          });
+          if (createdRow) {
+            const input = createdRow.querySelector('[data-field="value"]');
+            if (input) input.focus();
+          }
+        }, 0);
+      } catch (error) {
+        const message = error && error.message ? error.message : error;
+        alert('❌ ' + message);
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
+      }
     });
   }
 
