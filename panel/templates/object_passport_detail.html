@@ -266,7 +266,7 @@
             </div>
             <div class="col-12">
               <label class="form-label">Адрес локации</label>
-              <input type="text" class="form-control form-control-sm" id="locationAddressInput" placeholder="Например, ул. Ленина, 1" />
+              <input type="text" class="form-control form-control-sm" id="locationAddressInput" placeholder="Например, г. Волгоград ул. Ленина, 1" />
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Статус</label>
@@ -1040,6 +1040,21 @@
       document.querySelectorAll('.searchable-select').forEach((wrapper) => registerSearchableSelect(wrapper));
     }
 
+    function ensureSelectHasOption(select, value) {
+      if (!select) return;
+      const normalized = typeof value === 'string' ? value.trim() : '';
+      if (!normalized) return;
+      const hasOption = Array.from(select.options).some(
+        (option) => (option.value || '').trim() === normalized,
+      );
+      if (!hasOption) {
+        const option = document.createElement('option');
+        option.value = normalized;
+        option.textContent = normalized;
+        select.appendChild(option);
+      }
+    }
+
     function syncSelectSearchInput(select) {
       if (!select) return;
       const input = document.querySelector(`.select-search-input[data-select-target="${select.id}"]`);
@@ -1382,20 +1397,26 @@
 
     function populateForm() {
       const data = passportData || {};
+      ensureSelectHasOption(departmentSelect, data.department || '');
       departmentSelect.value = data.department || '';
       refreshSearchableSelect(departmentSelect);
+      ensureSelectHasOption(businessSelect, data.business || '');
       businessSelect.value = data.business || '';
       refreshSearchableSelect(businessSelect);
+      ensureSelectHasOption(partnerTypeSelect, data.partner_type || '');
       partnerTypeSelect.value = data.partner_type || '';
       refreshSearchableSelect(partnerTypeSelect);
+      ensureSelectHasOption(countrySelect, data.country || '');
       countrySelect.value = data.country || '';
       refreshSearchableSelect(countrySelect);
+      ensureSelectHasOption(legalEntitySelect, data.legal_entity || '');
       legalEntitySelect.value = data.legal_entity || '';
       refreshSearchableSelect(legalEntitySelect);
       cityInput.value = data.city || '';
       if (locationAddressInput) {
         locationAddressInput.value = data.location_address || '';
       }
+      ensureSelectHasOption(statusSelect, data.status || (statuses[0] || ''));
       statusSelect.value = data.status || (statuses[0] || '');
       refreshSearchableSelect(statusSelect);
       internalNetworkInput.value = data.network || '';
@@ -1564,10 +1585,15 @@
         { select: legalEntitySelect, key: 'legal_entity' },
       ];
       mapping.forEach(({ select, key }) => {
-        const current = select.value;
+        const current = (select.value || '').trim();
         const options = parameterValues[key] || [];
         select.innerHTML = '<option value="">Не выбрано</option>' + options.map((val) => `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`).join('');
-        select.value = current;
+        if (current) {
+          ensureSelectHasOption(select, current);
+          select.value = current;
+        } else {
+          select.value = '';
+        }
         refreshSearchableSelect(select);
       });
       updateObjectTitle();
