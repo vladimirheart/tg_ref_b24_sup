@@ -1077,25 +1077,53 @@
       if (matches.length === 1) {
         const match = matches[0];
         const typeValue = normalizeCatalogValue(match.equipment_type);
-        if (typeValue) {
+        const vendorValue = normalizeCatalogValue(match.equipment_vendor);
+        const modelValue = normalizeCatalogValue(match.equipment_model);
+        const serialValue = normalizeCatalogValue(match.serial_number);
+
+        const shouldUpdateType =
+          typeValue && (
+            changedField !== 'equipment_type' ||
+            !state.equipment_type ||
+            state.equipment_type === typeValue
+          );
+        if (shouldUpdateType) {
           ensureSelectHasOption(typeSelect, typeValue);
           typeSelect.value = typeValue;
           state.equipment_type = typeValue;
         }
-        const vendorValue = normalizeCatalogValue(match.equipment_vendor);
-        if (vendorValue) {
+
+        const shouldUpdateVendor =
+          vendorValue && (
+            changedField !== 'equipment_vendor' ||
+            !state.equipment_vendor ||
+            state.equipment_vendor === vendorValue
+          );
+        if (shouldUpdateVendor) {
           ensureSelectHasOption(vendorSelect, vendorValue);
           vendorSelect.value = vendorValue;
           state.equipment_vendor = vendorValue;
         }
-        const modelValue = normalizeCatalogValue(match.equipment_model);
-        if (modelValue) {
+
+        const shouldUpdateModel =
+          modelValue && (
+            changedField !== 'equipment_model' ||
+            !state.equipment_model ||
+            state.equipment_model === modelValue
+          );
+        if (shouldUpdateModel) {
           ensureSelectHasOption(modelSelect, modelValue);
           modelSelect.value = modelValue;
           state.equipment_model = modelValue;
         }
-        const serialValue = normalizeCatalogValue(match.serial_number);
-        if (serialValue) {
+
+        const shouldUpdateSerial =
+          serialValue && (
+            changedField !== 'serial_number' ||
+            !state.serial_number ||
+            state.serial_number === serialValue
+          );
+        if (shouldUpdateSerial) {
           serialInput.value = serialValue;
           state.serial_number = serialValue;
         }
