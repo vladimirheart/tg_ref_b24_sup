@@ -18,6 +18,8 @@ import requests
 import json
 import os
 import logging
+import re
+import unicodedata
 import time, sqlite3
 from uuid import uuid4
 def exec_with_retry(fn, retries=5, base_delay=0.15):
@@ -71,17 +73,109 @@ PARAMETER_TYPES = {
     "iiko_server": "Адреса серверов iiko",
 }
 
-IT_CONNECTION_CATEGORIES = {
+DEFAULT_IT_CONNECTION_CATEGORIES = {
     "equipment_type": "Тип оборудования",
     "equipment_vendor": "Производитель оборудования",
     "equipment_model": "Модель оборудования",
 }
 
-IT_CONNECTION_CATEGORY_FIELDS = {
+DEFAULT_IT_CONNECTION_CATEGORY_FIELDS = {
     "equipment_type": "equipment_type",
     "equipment_vendor": "equipment_vendor",
     "equipment_model": "equipment_model",
 }
+
+
+def slugify_it_connection_category(label: str, existing: set[str] | None = None) -> str:
+    """Create a slug identifier for an IT-connection category."""
+    normalized = unicodedata.normalize("NFKD", str(label or "")).strip()
+    # Replace all non-word characters with underscores
+    base = re.sub(r"[^\w]+", "_", normalized, flags=re.UNICODE).strip("_").lower()
+    if not base:
+        base = "category"
+    if base[0].isdigit():
+        base = f"cat_{base}"
+    existing_keys = set(existing or set())
+    candidate = base
+    counter = 2
+    while candidate in existing_keys:
+        candidate = f"{base}_{counter}"
+        counter += 1
+    return candidate
+
+
+def normalize_it_connection_categories(raw) -> dict[str, str]:
+    """Normalize user-provided IT-connection categories into a {slug: label} dict."""
+    categories: dict[str, str] = {}
+    if isinstance(raw, dict):
+        for key, label in raw.items():
+            key_clean = str(key or "").strip()
+            label_clean = str(label or "").strip()
+            if not key_clean or not label_clean:
+                continue
+            categories[key_clean] = label_clean
+        return categories
+    if isinstance(raw, list):
+        existing = set(DEFAULT_IT_CONNECTION_CATEGORIES.keys())
+        for item in raw:
+            label = None
+            key = None
+            if isinstance(item, dict):
+                label = str(item.get("label") or "").strip()
+                key = str(item.get("key") or "").strip()
+            else:
+                label = str(item or "").strip()
+            if not label:
+                continue
+            if not key:
+                key = slugify_it_connection_category(label, existing)
+            categories[key] = label
+            existing.add(key)
+        return categories
+    return {}
+
+
+def get_custom_it_connection_categories(settings: dict | None = None) -> dict[str, str]:
+    """Return custom categories stored in settings.json."""
+    if settings is None:
+        settings = load_settings()
+    raw = settings.get("it_connection_categories") if isinstance(settings, dict) else {}
+    normalized = normalize_it_connection_categories(raw)
+    return normalized
+
+
+def get_it_connection_categories(
+    settings: dict | None = None, *, include: dict[str, str] | None = None
+) -> dict[str, str]:
+    """Return full list of IT-connection categories including defaults and custom ones."""
+    if settings is None:
+        settings = load_settings()
+    custom = get_custom_it_connection_categories(settings)
+    categories: dict[str, str] = dict(DEFAULT_IT_CONNECTION_CATEGORIES)
+    for key, label in custom.items():
+        if not key or not label:
+            continue
+        categories[key] = label
+    if include:
+        for key, label in include.items():
+            key_clean = str(key or "").strip()
+            if not key_clean:
+                continue
+            label_clean = str(label or "").strip() or key_clean
+            categories.setdefault(key_clean, label_clean)
+    return categories
+
+
+def save_it_connection_categories(
+    categories: dict[str, str], settings: dict | None = None
+) -> dict[str, str]:
+    """Persist custom IT-connection categories to settings.json."""
+    if settings is None:
+        settings = load_settings()
+    normalized = normalize_it_connection_categories(categories)
+    settings["it_connection_categories"] = normalized
+    save_settings(settings)
+    return settings
 
 PARAMETER_STATE_TYPES = {"partner_type", "country", "legal_entity"}
 PARAMETER_ALLOWED_STATES = (
@@ -2038,6 +2132,9 @@ def load_settings():
             pass
     if not isinstance(settings.get("network_profiles"), list):
         settings["network_profiles"] = []
+    settings["it_connection_categories"] = normalize_it_connection_categories(
+        settings.get("it_connection_categories")
+    )
     return settings
 
 # Функция для сжатия изображений на лету
@@ -4799,7 +4896,8 @@ def settings_page():
         locations=locations,
         cities=city_names,
         parameter_types=PARAMETER_TYPES,
-        it_connection_categories=IT_CONNECTION_CATEGORIES,
+        it_connection_categories=get_it_connection_categories(settings),
+        it_connection_category_fields=DEFAULT_IT_CONNECTION_CATEGORY_FIELDS,
         contract_usage=contract_usage,
     )
 
@@ -4892,6 +4990,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
     rows = conn.execute(query).fetchall()
     usage = _parameter_usage_counts()
     grouped = {key: [] for key in PARAMETER_TYPES.keys()}
+    it_connection_categories = get_it_connection_categories()
     for row in rows:
         slug = row["param_type"]
         if slug not in grouped:
@@ -4929,7 +5028,8 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             if extra_payload is None:
                 extra_payload = {}
             category_raw = (extra_payload.get("category") or "").strip()
-            if category_raw not in IT_CONNECTION_CATEGORIES:
+            category_label = (extra_payload.get("category_label") or "").strip()
+            if not category_raw:
                 if equipment_type:
                     category_raw = "equipment_type"
                 elif equipment_vendor:
@@ -4938,16 +5038,28 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     category_raw = "equipment_model"
                 else:
                     category_raw = "equipment_type"
-            category_field = IT_CONNECTION_CATEGORY_FIELDS.get(category_raw, "equipment_type")
+            if category_raw not in it_connection_categories:
+                fallback_label = category_label or category_raw
+                it_connection_categories.setdefault(category_raw, fallback_label)
+            category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(category_raw)
             value_by_category = {
                 "equipment_type": equipment_type,
                 "equipment_vendor": equipment_vendor,
                 "equipment_model": equipment_model,
             }
-            effective_value = (value_by_category.get(category_field) or value or "").strip()
+            if category_field:
+                effective_value = (value_by_category.get(category_field) or value or "").strip()
+            else:
+                effective_value = (value or "").strip()
+            effective_label = (
+                category_label
+                or it_connection_categories.get(category_raw)
+                or category_raw
+            )
             extra_payload.update(
                 {
                     "category": category_raw,
+                    "category_label": effective_label,
                     "equipment_type": equipment_type,
                     "equipment_vendor": equipment_vendor,
                     "equipment_model": equipment_model,
@@ -4957,6 +5069,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                 {
                     "value": effective_value,
                     "category": category_raw,
+                    "category_label": effective_label,
                     "equipment_type": equipment_type,
                     "equipment_vendor": equipment_vendor,
                     "equipment_model": equipment_model,
@@ -4990,6 +5103,53 @@ def api_get_parameters():
     finally:
         conn.close()
 
+@app.route("/api/settings/it-connection-categories", methods=["POST"])
+@login_required
+def api_create_it_connection_category():
+    payload = request.json or {}
+    label = (payload.get("label") or "").strip()
+    requested_key = (payload.get("key") or "").strip()
+    if not label:
+        return jsonify({"success": False, "error": "Название категории обязательно"}), 400
+
+    settings = load_settings()
+    custom_categories = get_custom_it_connection_categories(settings)
+    categories = get_it_connection_categories(settings)
+    existing_keys = set(categories.keys())
+    normalized_label = label.lower()
+    for key, existing_label in categories.items():
+        if existing_label and existing_label.strip().lower() == normalized_label:
+            return (
+                jsonify({"success": False, "error": "Такая категория уже существует"}),
+                409,
+            )
+
+    if requested_key:
+        category_key = requested_key
+        if category_key in existing_keys:
+            return (
+                jsonify({"success": False, "error": "Идентификатор категории уже используется"}),
+                409,
+            )
+    else:
+        category_key = slugify_it_connection_category(label, existing_keys)
+
+    custom_categories[category_key] = label
+    settings = save_it_connection_categories(custom_categories, settings=settings)
+    categories_updated = get_it_connection_categories(settings)
+
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                "key": category_key,
+                "label": label,
+                "categories": categories_updated,
+            },
+        }
+    )
+
+
 @app.route("/api/settings/parameters", methods=["POST"])
 @login_required
 def api_create_parameter():
@@ -5008,20 +5168,31 @@ def api_create_parameter():
     extra_payload = {}
     if param_type == "it_connection":
         category = (payload.get("category") or "").strip()
-        if category not in IT_CONNECTION_CATEGORIES:
+        categories = get_it_connection_categories()
+        if category not in categories:
             return (
                 jsonify({"success": False, "error": "Неизвестная категория подключения"}),
                 400,
             )
         sanitized = {
             "category": category,
+            "category_label": categories.get(category, category),
             "equipment_type": (payload.get("equipment_type") or "").strip(),
             "equipment_vendor": (payload.get("equipment_vendor") or "").strip(),
             "equipment_model": (payload.get("equipment_model") or "").strip(),
         }
-        category_field = IT_CONNECTION_CATEGORY_FIELDS.get(category, "equipment_type")
-        if not sanitized.get(category_field):
-            sanitized[category_field] = value
+        category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(category)
+        if category_field:
+            if not sanitized.get(category_field):
+                sanitized[category_field] = value
+        else:
+            sanitized.update(
+                {
+                    "equipment_type": "",
+                    "equipment_vendor": "",
+                    "equipment_model": "",
+                }
+            )
         extra_payload = sanitized
     elif param_type == "iiko_server":
         server_name = (payload.get("server_name") or "").strip()
@@ -5118,14 +5289,16 @@ def api_update_parameter(param_id):
                 params.append(json.dumps(extra_payload, ensure_ascii=False))
 
         if param_type == "it_connection":
+            categories = get_it_connection_categories()
             sanitized = {
                 "category": (extra_payload.get("category") or "").strip(),
+                "category_label": (extra_payload.get("category_label") or "").strip(),
                 "equipment_type": (extra_payload.get("equipment_type") or "").strip(),
                 "equipment_vendor": (extra_payload.get("equipment_vendor") or "").strip(),
                 "equipment_model": (extra_payload.get("equipment_model") or "").strip(),
             }
             current_category = sanitized["category"]
-            if current_category not in IT_CONNECTION_CATEGORIES:
+            if not current_category:
                 if sanitized["equipment_type"]:
                     current_category = "equipment_type"
                 elif sanitized["equipment_vendor"]:
@@ -5134,25 +5307,41 @@ def api_update_parameter(param_id):
                     current_category = "equipment_model"
                 else:
                     current_category = "equipment_type"
+            if current_category not in categories and sanitized.get("category_label"):
+                categories = get_it_connection_categories(include={current_category: sanitized["category_label"]})
             sanitized["category"] = current_category
 
             if "category" in payload:
                 new_category = (payload.get("category") or "").strip()
-                if new_category not in IT_CONNECTION_CATEGORIES:
+                if new_category not in categories:
                     return (
                         jsonify({"success": False, "error": "Неизвестная категория подключения"}),
                         400,
                     )
-                sanitized["category"] = new_category
                 current_category = new_category
+                sanitized["category"] = new_category
+                sanitized["category_label"] = categories.get(new_category, new_category)
+            else:
+                sanitized["category_label"] = sanitized.get("category_label") or categories.get(
+                    current_category, current_category
+                )
 
             for field in ("equipment_type", "equipment_vendor", "equipment_model"):
                 if field in payload:
                     sanitized[field] = (payload.get(field) or "").strip()
 
-            category_field = IT_CONNECTION_CATEGORY_FIELDS.get(current_category, "equipment_type")
-            if new_value is not None:
+            category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(current_category)
+            if new_value is not None and category_field:
                 sanitized[category_field] = new_value
+
+            if not category_field:
+                sanitized.update(
+                    {
+                        "equipment_type": "",
+                        "equipment_vendor": "",
+                        "equipment_model": "",
+                    }
+                )
 
             extra_payload = sanitized
             updates.append("extra_json = ?")
