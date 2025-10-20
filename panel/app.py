@@ -4966,6 +4966,17 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     else 0,
                 }
             )
+        elif slug == "iiko_server":
+            server_name = (extra_payload.get("server_name") or "").strip()
+            if extra_payload is None:
+                extra_payload = {}
+            extra_payload["server_name"] = server_name
+            entry.update(
+                {
+                    "server_name": server_name,
+                    "extra": extra_payload,
+                }
+            )
         grouped[slug].append(entry)
     return grouped
 
@@ -5012,6 +5023,14 @@ def api_create_parameter():
         if not sanitized.get(category_field):
             sanitized[category_field] = value
         extra_payload = sanitized
+    elif param_type == "iiko_server":
+        server_name = (payload.get("server_name") or "").strip()
+        if not server_name:
+            return (
+                jsonify({"success": False, "error": "Поле «Имя сервера» обязательно"}),
+                400,
+            )
+        extra_payload = {"server_name": server_name}
 
     extra_json = json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
 
@@ -5056,12 +5075,12 @@ def api_update_parameter(param_id):
         updates = []
         params = []
 
-        extra_payload = {}
-        if param_type == "it_connection":
-            try:
-                extra_payload = json.loads(row["extra_json"] or "{}")
-            except Exception:
-                extra_payload = {}
+        try:
+            extra_payload = json.loads(row["extra_json"] or "{}")
+        except Exception:
+            extra_payload = {}
+        if not isinstance(extra_payload, dict):
+            extra_payload = {}
 
         new_value = None
         if "value" in payload:
@@ -5075,6 +5094,28 @@ def api_update_parameter(param_id):
             normalized_state = _normalize_parameter_state(param_type, payload.get("state"))
             updates.append("state = ?")
             params.append(normalized_state)
+
+        if param_type == "iiko_server":
+            existing_name = (extra_payload.get("server_name") or "").strip()
+            new_name = existing_name
+            should_update_extra = False
+            if "server_name" in payload:
+                new_name = (payload.get("server_name") or "").strip()
+                if not new_name:
+                    return (
+                        jsonify({"success": False, "error": "Поле «Имя сервера» обязательно"}),
+                        400,
+                    )
+                should_update_extra = True
+            if "value" in payload and not new_name:
+                return (
+                    jsonify({"success": False, "error": "Поле «Имя сервера» обязательно"}),
+                    400,
+                )
+            if should_update_extra or (existing_name and new_name != existing_name) or (not existing_name and new_name):
+                extra_payload["server_name"] = new_name
+                updates.append("extra_json = ?")
+                params.append(json.dumps(extra_payload, ensure_ascii=False))
 
         if param_type == "it_connection":
             sanitized = {
