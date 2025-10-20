@@ -1043,103 +1043,70 @@
         card.dataset.catalogMatched = '';
         return;
       }
-      const uniqueVendors = new Set();
-      const uniqueModels = new Set();
-      const uniqueSerials = new Set();
-      matches.forEach((match) => {
-        uniqueVendors.add(normalizeCatalogValue(match.equipment_vendor));
-        uniqueModels.add(normalizeCatalogValue(match.equipment_model));
-        uniqueSerials.add(normalizeCatalogValue(match.serial_number));
-      });
-      if (!state.equipment_vendor && uniqueVendors.size === 1) {
-        const vendorValue = uniqueVendors.values().next().value;
-        if (vendorValue) {
-          ensureSelectHasOption(vendorSelect, vendorValue);
-          vendorSelect.value = vendorValue;
-          state.equipment_vendor = vendorValue;
+
+      const selectedFieldMap = {
+        equipment_type: 'equipment_type',
+        equipment_vendor: 'equipment_vendor',
+        equipment_model: 'equipment_model',
+        serial_number: 'serial_number',
+      };
+
+      let matchToApply = null;
+      if (changedField && selectedFieldMap[changedField]) {
+        const targetValue = state[selectedFieldMap[changedField]];
+        if (targetValue) {
+          matchToApply = matches.find((match) => {
+            const catalogValue = normalizeCatalogValue(match[selectedFieldMap[changedField]]);
+            return catalogValue && catalogValue === targetValue;
+          });
         }
       }
-      if (!state.equipment_model && uniqueModels.size === 1) {
-        const modelValue = uniqueModels.values().next().value;
-        if (modelValue) {
-          ensureSelectHasOption(modelSelect, modelValue);
-          modelSelect.value = modelValue;
-          state.equipment_model = modelValue;
-        }
+      if (!matchToApply) {
+        matchToApply = matches[0];
       }
-      if (!state.serial_number && uniqueSerials.size === 1) {
-        const serialValue = uniqueSerials.values().next().value;
-        if (serialValue) {
-          serialInput.value = serialValue;
-          state.serial_number = serialValue;
-        }
-      }
-      if (matches.length === 1) {
-        const match = matches[0];
-        const typeValue = normalizeCatalogValue(match.equipment_type);
-        const vendorValue = normalizeCatalogValue(match.equipment_vendor);
-        const modelValue = normalizeCatalogValue(match.equipment_model);
-        const serialValue = normalizeCatalogValue(match.serial_number);
 
-        const shouldUpdateType =
-          typeValue && (
-            changedField !== 'equipment_type' ||
-            !state.equipment_type ||
-            state.equipment_type === typeValue
-          );
-        if (shouldUpdateType) {
-          ensureSelectHasOption(typeSelect, typeValue);
-          typeSelect.value = typeValue;
-          state.equipment_type = typeValue;
-        }
-
-        const shouldUpdateVendor =
-          vendorValue && (
-            changedField !== 'equipment_vendor' ||
-            !state.equipment_vendor ||
-            state.equipment_vendor === vendorValue
-          );
-        if (shouldUpdateVendor) {
-          ensureSelectHasOption(vendorSelect, vendorValue);
-          vendorSelect.value = vendorValue;
-          state.equipment_vendor = vendorValue;
-        }
-
-        const shouldUpdateModel =
-          modelValue && (
-            changedField !== 'equipment_model' ||
-            !state.equipment_model ||
-            state.equipment_model === modelValue
-          );
-        if (shouldUpdateModel) {
-          ensureSelectHasOption(modelSelect, modelValue);
-          modelSelect.value = modelValue;
-          state.equipment_model = modelValue;
-        }
-
-        const shouldUpdateSerial =
-          serialValue && (
-            changedField !== 'serial_number' ||
-            !state.serial_number ||
-            state.serial_number === serialValue
-          );
-        if (shouldUpdateSerial) {
-          serialInput.value = serialValue;
-          state.serial_number = serialValue;
-        }
-        const nameInput = card.querySelector('.equipment-name');
-        if (nameInput && !nameInput.value.trim()) {
-          const pieces = [match.equipment_vendor, match.equipment_model]
-            .map((value) => normalizeCatalogValue(value))
-            .filter(Boolean);
-          if (pieces.length) {
-            nameInput.value = pieces.join(' ');
+      const fieldsToApply = [
+        { select: typeSelect, key: 'equipment_type' },
+        { select: vendorSelect, key: 'equipment_vendor' },
+        { select: modelSelect, key: 'equipment_model' },
+      ];
+      fieldsToApply.forEach(({ select, key }) => {
+        if (!select) return;
+        const valueFromMatch = matchToApply ? normalizeCatalogValue(matchToApply[key]) : '';
+        const shouldApplyValue = valueFromMatch || !state[key] || !matches.some((match) => normalizeCatalogValue(match[key]) === state[key]);
+        if (shouldApplyValue) {
+          if (valueFromMatch) {
+            ensureSelectHasOption(select, valueFromMatch);
+            select.value = valueFromMatch;
+            state[key] = valueFromMatch;
+          } else {
+            select.value = '';
+            state[key] = '';
           }
         }
-        card.dataset.catalogMatched = 'true';
-      } else {
-        card.dataset.catalogMatched = 'partial';
+      });
+
+      const serialValueFromMatch = matchToApply ? normalizeCatalogValue(matchToApply.serial_number) : '';
+      const shouldApplySerial =
+        serialValueFromMatch ||
+        !state.serial_number ||
+        !matches.some((match) => normalizeCatalogValue(match.serial_number) === state.serial_number);
+      if (shouldApplySerial) {
+        serialInput.value = serialValueFromMatch || '';
+        state.serial_number = serialValueFromMatch || '';
       }
+
+      const nameInput = card.querySelector('.equipment-name');
+      if (nameInput && !nameInput.value.trim() && matchToApply) {
+        const pieces = [matchToApply.equipment_vendor, matchToApply.equipment_model]
+          .map((value) => normalizeCatalogValue(value))
+          .filter(Boolean);
+        if (pieces.length) {
+          nameInput.value = pieces.join(' ');
+        }
+      }
+
+      card.dataset.catalogMatched = matches.length === 1 ? 'true' : 'partial';
     }
 
     function updateEquipmentCardOptions(card) {
