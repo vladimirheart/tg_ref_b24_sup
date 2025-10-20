@@ -1064,6 +1064,7 @@
   }
 
   function renderRemoteAccessSection() {
+    const remoteAccessContainer = document.querySelector('[data-remote-access-container]');
     if (!remoteAccessContainer) return;
     const items = Array.isArray(parameterData.remote_access) ? parameterData.remote_access : [];
     remoteAccessContainer.innerHTML = buildParameterContent('remote_access', items, 'it');
@@ -1436,7 +1437,6 @@
   }
 
   const itConnectionsContainer = document.querySelector('[data-it-connections-container]');
-  const remoteAccessContainer = document.querySelector('[data-remote-access-container]');
   let itConnectionDrafts = [];
   const itEquipmentBody = document.getElementById('itEquipmentBody');
   let itEquipmentItems = [];
