@@ -205,6 +205,13 @@ PARAMETER_USAGE_MAPPING = {
     "iiko_server": "it_iiko_server",
 }
 
+def _is_missing_table_error(error: Exception, table: str) -> bool:
+    """Return True if the sqlite error corresponds to a missing table."""
+
+    if not isinstance(error, sqlite3.OperationalError):
+        return False
+    message = str(error).lower()
+    return f"no such table: {table}".lower() in message
 
 def _normalize_parameter_state(param_type, state):
     default_state = PARAMETER_ALLOWED_STATES[0]
@@ -1403,15 +1410,20 @@ def _serialize_it_equipment_row(row):
         "accessories": (row["accessories"] or "").strip(),
     }
 
-
 def _fetch_it_equipment_catalog(conn):
-    rows = conn.execute(
-        """
-        SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories
-        FROM it_equipment_catalog
-        ORDER BY equipment_type COLLATE NOCASE, equipment_vendor COLLATE NOCASE, equipment_model COLLATE NOCASE
-        """
-    ).fetchall()
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories
+            FROM it_equipment_catalog
+            ORDER BY equipment_type COLLATE NOCASE, equipment_vendor COLLATE NOCASE, equipment_model COLLATE NOCASE
+            """
+        ).fetchall()
+    except sqlite3.OperationalError as exc:
+        if _is_missing_table_error(exc, "it_equipment_catalog"):
+            ensure_it_equipment_catalog_schema()
+            return []
+        raise
     return [_serialize_it_equipment_row(row) for row in rows]
 
 
@@ -5097,7 +5109,13 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
     if not include_deleted:
         query += "WHERE is_deleted = 0 "
     query += "ORDER BY param_type, value COLLATE NOCASE"
-    rows = conn.execute(query).fetchall()
+    try:
+        rows = conn.execute(query).fetchall()
+    except sqlite3.OperationalError as exc:
+        if _is_missing_table_error(exc, "settings_parameters"):
+            ensure_settings_parameters_schema()
+            return {key: [] for key in PARAMETER_TYPES.keys()}
+        raise
     usage = _parameter_usage_counts()
     grouped = {key: [] for key in PARAMETER_TYPES.keys()}
     it_connection_categories = get_it_connection_categories()
@@ -5237,6 +5255,7 @@ def ensure_remote_access_defaults(conn) -> None:
 @app.route("/api/settings/parameters", methods=["GET"])
 @login_required
 def api_get_parameters():
+    ensure_settings_parameters_schema()
     conn = get_db()
     try:
         data = _fetch_parameters_grouped(conn, include_deleted=True)
@@ -5294,6 +5313,7 @@ def api_create_it_connection_category():
 @app.route("/api/settings/parameters", methods=["POST"])
 @login_required
 def api_create_parameter():
+    ensure_settings_parameters_schema()
     payload = request.json or {}
     param_type = (payload.get("param_type") or "").strip()
     value = (payload.get("value") or "").strip()
@@ -5372,6 +5392,7 @@ def api_create_parameter():
 @app.route("/api/settings/parameters/<int:param_id>", methods=["PATCH"])
 @login_required
 def api_update_parameter(param_id):
+    ensure_settings_parameters_schema()
     payload = request.json or {}
 
     conn = get_db()
@@ -5521,6 +5542,7 @@ def api_update_parameter(param_id):
 @app.route("/api/settings/parameters/<int:param_id>", methods=["DELETE"])
 @login_required
 def api_delete_parameter(param_id):
+    ensure_settings_parameters_schema()
     conn = get_db()
     try:
         cur = conn.execute(
@@ -5542,6 +5564,7 @@ def api_delete_parameter(param_id):
 @app.route("/api/settings/it-equipment", methods=["GET"])
 @login_required
 def api_list_it_equipment():
+    ensure_it_equipment_catalog_schema()
     conn = get_db()
     try:
         items = _fetch_it_equipment_catalog(conn)
@@ -5553,6 +5576,7 @@ def api_list_it_equipment():
 @app.route("/api/settings/it-equipment", methods=["POST"])
 @login_required
 def api_create_it_equipment():
+    ensure_it_equipment_catalog_schema()
     payload = request.json or {}
     equipment_type = (payload.get("equipment_type") or "").strip()
     equipment_vendor = (payload.get("equipment_vendor") or "").strip()
@@ -5598,6 +5622,7 @@ def api_create_it_equipment():
 @app.route("/api/settings/it-equipment/<int:item_id>", methods=["PATCH"])
 @login_required
 def api_update_it_equipment(item_id):
+    ensure_it_equipment_catalog_schema()
     payload = request.json or {}
     conn = get_db()
     try:
@@ -5678,6 +5703,7 @@ def api_update_it_equipment(item_id):
 @app.route("/api/settings/it-equipment/<int:item_id>", methods=["DELETE"])
 @login_required
 def api_delete_it_equipment(item_id):
+    ensure_it_equipment_catalog_schema()
     conn = get_db()
     try:
         cur = conn.execute("DELETE FROM it_equipment_catalog WHERE id = ?", (item_id,))
