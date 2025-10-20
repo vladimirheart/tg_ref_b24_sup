@@ -290,6 +290,7 @@ def ensure_object_passport_schema():
                 vendor TEXT,
                 name TEXT,
                 model TEXT,
+                serial_number TEXT,
                 status TEXT,
                 ip_address TEXT,
                 connection_type TEXT,
@@ -387,6 +388,7 @@ def _ensure_object_passport_equipment_columns():
         "connection_type": "TEXT",
         "connection_id": "TEXT",
         "connection_password": "TEXT",
+        "serial_number": "TEXT",
     }
     with get_passport_db() as conn:
         existing_columns = {
@@ -932,7 +934,7 @@ def _fetch_equipment_photos(conn, equipment_id):
 def _fetch_passport_equipment(conn, passport_id):
     rows = conn.execute(
         """
-        SELECT id, passport_id, equipment_type, vendor, name, model, status, ip_address,
+        SELECT id, passport_id, equipment_type, vendor, name, model, serial_number, status, ip_address,
                connection_type, connection_id, connection_password, description
         FROM object_passport_equipment
         WHERE passport_id = ?
@@ -950,6 +952,7 @@ def _fetch_passport_equipment(conn, passport_id):
                 "vendor": row["vendor"] or "",
                 "name": row["name"] or "",
                 "model": row["model"] or "",
+                "serial_number": row["serial_number"] or "",
                 "status": row["status"] or "",
                 "ip_address": row["ip_address"] or "",
                 "connection_type": row["connection_type"] or "",
@@ -1312,10 +1315,12 @@ def _parameter_values_for_passports():
 
 
 def _collect_it_equipment_options():
-    options = {"types": [], "vendors": [], "models": []}
+    options = {"types": [], "vendors": [], "models": [], "serials": []}
+    catalog_items = []
     try:
         with get_db() as conn:
             grouped = _fetch_parameters_grouped(conn, include_deleted=False)
+            catalog_items = _fetch_it_equipment_catalog(conn)
         items = grouped.get("it_connection", []) if grouped else []
         for item in items:
             if not item or item.get("is_deleted"):
@@ -1333,6 +1338,19 @@ def _collect_it_equipment_options():
             elif category == "equipment_model":
                 if value not in options["models"]:
                     options["models"].append(value)
+        for catalog_item in catalog_items:
+            equipment_type = (catalog_item.get("equipment_type") or "").strip()
+            vendor = (catalog_item.get("equipment_vendor") or "").strip()
+            model = (catalog_item.get("equipment_model") or "").strip()
+            serial = (catalog_item.get("serial_number") or "").strip()
+            if equipment_type and equipment_type not in options["types"]:
+                options["types"].append(equipment_type)
+            if vendor and vendor not in options["vendors"]:
+                options["vendors"].append(vendor)
+            if model and model not in options["models"]:
+                options["models"].append(model)
+            if serial and serial not in options["serials"]:
+                options["serials"].append(serial)
     except Exception:
         pass
     return options
@@ -1457,6 +1475,11 @@ def _render_passport_template(passport_detail, is_new):
     settings = load_settings()
     network_profiles = settings.get("network_profiles", [])
     it_equipment_options = _collect_it_equipment_options()
+    try:
+        with get_db() as conn:
+            it_equipment_catalog = _fetch_it_equipment_catalog(conn)
+    except Exception:
+        it_equipment_catalog = []
 
     def _append_unique(target, value):
         if value and value not in target:
@@ -1502,6 +1525,7 @@ def _render_passport_template(passport_detail, is_new):
         it_connection_options=it_connection_options,
         iiko_server_options=iiko_server_options,
         it_equipment_options=it_equipment_options,
+        it_equipment_catalog=it_equipment_catalog,
     )
 
 
@@ -6178,6 +6202,7 @@ def api_object_passport_add_equipment(passport_id):
                 vendor,
                 name,
                 model,
+                serial_number,
                 status,
                 ip_address,
                 connection_type,
@@ -6193,6 +6218,7 @@ def api_object_passport_add_equipment(passport_id):
                 clean("vendor"),
                 clean("name"),
                 clean("model"),
+                clean("serial_number"),
                 clean("status"),
                 clean("ip_address"),
                 clean("connection_type"),
@@ -6221,6 +6247,7 @@ def api_object_passport_update_equipment(equipment_id):
         "vendor",
         "name",
         "model",
+        "serial_number",
         "status",
         "ip_address",
         "connection_type",
