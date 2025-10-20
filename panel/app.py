@@ -1355,6 +1355,67 @@ def _collect_it_equipment_options():
         pass
     return options
 
+def _collect_remote_connection_options(settings: dict | None = None) -> list[str]:
+    """Return list of remote connection types configured in settings."""
+
+    try:
+        categories = get_it_connection_categories(settings)
+    except Exception:
+        categories = {}
+
+    normalized_target_labels = {"тип удалённого подключения".casefold()}
+    fallback_slugs = {
+        "remote_connection_type",
+        "remote_connection",
+        "remote_access_type",
+        "remote_type",
+    }
+
+    target_keys: set[str] = set()
+    for key, label in (categories or {}).items():
+        label_clean = str(label or "").strip()
+        if label_clean.casefold() in normalized_target_labels or key in fallback_slugs:
+            target_keys.add(key)
+
+    try:
+        with get_db() as conn:
+            grouped = _fetch_parameters_grouped(conn, include_deleted=False)
+    except Exception:
+        grouped = {}
+
+    items = grouped.get("it_connection", []) if isinstance(grouped, dict) else []
+    if not items:
+        return []
+
+    seen: set[str] = set()
+    options: list[str] = []
+    for item in items:
+        if not item or item.get("is_deleted"):
+            continue
+        value = (item.get("value") or "").strip()
+        if not value or value in seen:
+            continue
+        category = (item.get("category") or "").strip()
+        category_label = (item.get("category_label") or "").strip()
+        category_casefold = category.casefold()
+        label_casefold = category_label.casefold()
+
+        if target_keys:
+            if category in target_keys or category_casefold in fallback_slugs:
+                options.append(value)
+                seen.add(value)
+                continue
+        else:
+            if category_casefold in fallback_slugs:
+                options.append(value)
+                seen.add(value)
+                continue
+
+        if label_casefold in normalized_target_labels:
+            options.append(value)
+            seen.add(value)
+
+    return options
 
 def _serialize_it_equipment_row(row):
     return {
@@ -1502,8 +1563,11 @@ def _render_passport_template(passport_detail, is_new):
         _append_unique(speed_options, (profile.get("speed") or "").strip())
         _append_unique(legal_entity_options, (profile.get("legal_entity") or "").strip())
 
-    for option in parameter_values.get("it_connection", []):
+    for option in _collect_remote_connection_options(settings):
         _append_unique(it_connection_options, (option or "").strip())
+    if not it_connection_options:
+        for option in parameter_values.get("it_connection", []):
+            _append_unique(it_connection_options, (option or "").strip())
     if not it_connection_options:
         it_connection_options = ["RMSviewer", "Anydes", "Ассистент", "VNC"]
 
