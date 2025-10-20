@@ -1338,6 +1338,29 @@ def _collect_it_equipment_options():
     return options
 
 
+def _serialize_it_equipment_row(row):
+    return {
+        "id": row["id"],
+        "equipment_type": (row["equipment_type"] or "").strip(),
+        "equipment_vendor": (row["equipment_vendor"] or "").strip(),
+        "equipment_model": (row["equipment_model"] or "").strip(),
+        "photo_url": (row["photo_url"] or "").strip(),
+        "serial_number": (row["serial_number"] or "").strip(),
+        "accessories": (row["accessories"] or "").strip(),
+    }
+
+
+def _fetch_it_equipment_catalog(conn):
+    rows = conn.execute(
+        """
+        SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories
+        FROM it_equipment_catalog
+        ORDER BY equipment_type COLLATE NOCASE, equipment_vendor COLLATE NOCASE, equipment_model COLLATE NOCASE
+        """
+    ).fetchall()
+    return [_serialize_it_equipment_row(row) for row in rows]
+
+
 def _city_options():
     cities = set()
     _, third_level = _collect_departments_from_locations()
@@ -1710,7 +1733,30 @@ def ensure_settings_parameters_schema():
         print(f"ensure_settings_parameters_schema: {e}")
 
 
+def ensure_it_equipment_catalog_schema():
+    try:
+        with get_db() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS it_equipment_catalog (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    equipment_type TEXT NOT NULL,
+                    equipment_vendor TEXT NOT NULL,
+                    equipment_model TEXT NOT NULL,
+                    photo_url TEXT,
+                    serial_number TEXT,
+                    accessories TEXT,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    updated_at TEXT DEFAULT (datetime('now'))
+                )
+                """
+            )
+    except Exception as e:
+        print(f"ensure_it_equipment_catalog_schema: {e}")
+
+
 ensure_settings_parameters_schema()
+ensure_it_equipment_catalog_schema()
 
 def _collect_departments_from_locations() -> tuple[list[str], set[str]]:
     """
@@ -5395,6 +5441,155 @@ def api_delete_parameter(param_id):
         conn.commit()
         data = _fetch_parameters_grouped(conn, include_deleted=True)
         return jsonify({"success": True, "data": data})
+    finally:
+        conn.close()
+
+@app.route("/api/settings/it-equipment", methods=["GET"])
+@login_required
+def api_list_it_equipment():
+    conn = get_db()
+    try:
+        items = _fetch_it_equipment_catalog(conn)
+        return jsonify({"success": True, "items": items})
+    finally:
+        conn.close()
+
+
+@app.route("/api/settings/it-equipment", methods=["POST"])
+@login_required
+def api_create_it_equipment():
+    payload = request.json or {}
+    equipment_type = (payload.get("equipment_type") or "").strip()
+    equipment_vendor = (payload.get("equipment_vendor") or "").strip()
+    equipment_model = (payload.get("equipment_model") or "").strip()
+    photo_url = (payload.get("photo_url") or payload.get("photo") or "").strip()
+    serial_number = (payload.get("serial_number") or "").strip()
+    accessories = (payload.get("accessories") or payload.get("additional_equipment") or "").strip()
+
+    if not equipment_type:
+        return jsonify({"success": False, "error": "Поле «Тип оборудования» обязательно"}), 400
+    if not equipment_vendor:
+        return jsonify({"success": False, "error": "Поле «Производитель оборудования» обязательно"}), 400
+    if not equipment_model:
+        return jsonify({"success": False, "error": "Поле «Модель оборудования» обязательно"}), 400
+
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO it_equipment_catalog (
+                equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            """,
+            (equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories),
+        )
+        new_id = cur.lastrowid
+        row = conn.execute(
+            """
+            SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories
+            FROM it_equipment_catalog
+            WHERE id = ?
+            """,
+            (new_id,),
+        ).fetchone()
+        item = _serialize_it_equipment_row(row) if row else None
+        items = _fetch_it_equipment_catalog(conn)
+        return jsonify({"success": True, "item": item, "items": items, "id": new_id})
+    finally:
+        conn.close()
+
+
+@app.route("/api/settings/it-equipment/<int:item_id>", methods=["PATCH"])
+@login_required
+def api_update_it_equipment(item_id):
+    payload = request.json or {}
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """
+            SELECT id FROM it_equipment_catalog WHERE id = ?
+            """,
+            (item_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Оборудование не найдено"}), 404
+
+        updates = []
+        params = []
+
+        if "equipment_type" in payload:
+            equipment_type = (payload.get("equipment_type") or "").strip()
+            if not equipment_type:
+                return jsonify({"success": False, "error": "Поле «Тип оборудования» обязательно"}), 400
+            updates.append("equipment_type = ?")
+            params.append(equipment_type)
+
+        if "equipment_vendor" in payload:
+            equipment_vendor = (payload.get("equipment_vendor") or "").strip()
+            if not equipment_vendor:
+                return (
+                    jsonify({"success": False, "error": "Поле «Производитель оборудования» обязательно"}),
+                    400,
+                )
+            updates.append("equipment_vendor = ?")
+            params.append(equipment_vendor)
+
+        if "equipment_model" in payload:
+            equipment_model = (payload.get("equipment_model") or "").strip()
+            if not equipment_model:
+                return jsonify({"success": False, "error": "Поле «Модель оборудования» обязательно"}), 400
+            updates.append("equipment_model = ?")
+            params.append(equipment_model)
+
+        if "photo_url" in payload or "photo" in payload:
+            photo_url = (payload.get("photo_url") or payload.get("photo") or "").strip()
+            updates.append("photo_url = ?")
+            params.append(photo_url)
+
+        if "serial_number" in payload:
+            serial_number = (payload.get("serial_number") or "").strip()
+            updates.append("serial_number = ?")
+            params.append(serial_number)
+
+        if "accessories" in payload or "additional_equipment" in payload:
+            accessories = (payload.get("accessories") or payload.get("additional_equipment") or "").strip()
+            updates.append("accessories = ?")
+            params.append(accessories)
+
+        if not updates:
+            return jsonify({"success": False, "error": "Нет данных для обновления"}), 400
+
+        updates.append("updated_at = datetime('now')")
+        query = f"UPDATE it_equipment_catalog SET {', '.join(updates)} WHERE id = ?"
+        params.append(item_id)
+        conn.execute(query, params)
+
+        updated_row = conn.execute(
+            """
+            SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories
+            FROM it_equipment_catalog
+            WHERE id = ?
+            """,
+            (item_id,),
+        ).fetchone()
+        item = _serialize_it_equipment_row(updated_row) if updated_row else None
+        items = _fetch_it_equipment_catalog(conn)
+        return jsonify({"success": True, "item": item, "items": items})
+    finally:
+        conn.close()
+
+
+@app.route("/api/settings/it-equipment/<int:item_id>", methods=["DELETE"])
+@login_required
+def api_delete_it_equipment(item_id):
+    conn = get_db()
+    try:
+        cur = conn.execute("DELETE FROM it_equipment_catalog WHERE id = ?", (item_id,))
+        if cur.rowcount == 0:
+            return jsonify({"success": False, "error": "Оборудование не найдено"}), 404
+        items = _fetch_it_equipment_catalog(conn)
+        return jsonify({"success": True, "items": items})
     finally:
         conn.close()
 
