@@ -345,7 +345,7 @@
         `;
         tr.addEventListener('click', () => {
           if (item.id) {
-            window.open(`/object_passports/${item.id}`, '_blank');
+            window.location.href = `/object_passports/${item.id}`;
           }
         });
         tableBody.appendChild(tr);
