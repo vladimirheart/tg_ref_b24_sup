@@ -422,82 +422,141 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <section class="mb-4">
-              <h6 class="text-uppercase text-muted small mb-3">Подключения</h6>
-              <div class="table-responsive">
-                <table class="table table-sm align-middle" id="itConnectionsTable">
-                  <thead>
-                    <tr>
-                      <th>Категория</th>
-                      <th>Значение</th>
-                      <th>Использование</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="itConnectionsBody"></tbody>
-                </table>
+            <div class="accordion" id="itSettingsAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="itConnectionsSectionHeading">
+                  <button
+                    class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#itConnectionsSection"
+                    aria-expanded="true"
+                    aria-controls="itConnectionsSection"
+                  >
+                    Подключения
+                  </button>
+                </h2>
+                <div
+                  id="itConnectionsSection"
+                  class="accordion-collapse collapse show"
+                  aria-labelledby="itConnectionsSectionHeading"
+                  data-bs-parent="#itSettingsAccordion"
+                >
+                  <div class="accordion-body">
+                    <div
+                      class="accordion"
+                      id="itConnectionsCategoryAccordion"
+                      data-it-connections-container
+                    ></div>
+                    <button
+                      class="btn btn-sm btn-success mt-3"
+                      type="button"
+                      data-bs-toggle="modal"
+                      data-bs-target="#itConnectionAddModal"
+                    >
+                      + Добавить подключение
+                    </button>
+                    <div class="form-text text-muted mt-2">
+                      Здесь управляйте списком доступных подключений IT-блока.
+                    </div>
+                  </div>
+                </div>
               </div>
-              <button
-                class="btn btn-sm btn-success mt-2"
-                type="button"
-                data-bs-toggle="modal"
-                data-bs-target="#itConnectionAddModal"
-              >
-                + Добавить подключение
-              </button>
-              <div class="form-text text-muted mt-2">Здесь управляйте списком доступных подключений IT-блока.</div>
-            </section>
-            <section class="mb-4">
-              <h6 class="text-uppercase text-muted small mb-3">Каталог оборудования</h6>
-              <div class="table-responsive">
-                <table class="table table-sm align-middle" id="itEquipmentTable">
-                  <thead>
-                    <tr>
-                      <th>Тип оборудования</th>
-                      <th>Производитель</th>
-                      <th>Модель</th>
-                      <th>Серийный номер</th>
-                      <th>Доп. оборудование</th>
-                      <th>Фото</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="itEquipmentBody"></tbody>
-                </table>
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="itEquipmentSectionHeading">
+                  <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#itEquipmentSection"
+                    aria-expanded="false"
+                    aria-controls="itEquipmentSection"
+                  >
+                    Каталог оборудования
+                  </button>
+                </h2>
+                <div
+                  id="itEquipmentSection"
+                  class="accordion-collapse collapse"
+                  aria-labelledby="itEquipmentSectionHeading"
+                  data-bs-parent="#itSettingsAccordion"
+                >
+                  <div class="accordion-body">
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle" id="itEquipmentTable">
+                        <thead>
+                          <tr>
+                            <th>Тип оборудования</th>
+                            <th>Производитель</th>
+                            <th>Модель</th>
+                            <th>Серийный номер</th>
+                            <th>Ссылки</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody id="itEquipmentBody"></tbody>
+                      </table>
+                    </div>
+                    <button
+                      class="btn btn-sm btn-success mt-3"
+                      type="button"
+                      data-bs-toggle="modal"
+                      data-bs-target="#itEquipmentAddModal"
+                    >
+                      + Добавить оборудование
+                    </button>
+                    <div class="form-text text-muted mt-2">
+                      Подготовьте справочник оборудования для быстрого заполнения паспортов объектов.
+                    </div>
+                  </div>
+                </div>
               </div>
-              <button
-                class="btn btn-sm btn-success mt-2"
-                type="button"
-                data-bs-toggle="modal"
-                data-bs-target="#itEquipmentAddModal"
-              >
-                + Добавить оборудование
-              </button>
-              <div class="form-text text-muted mt-2">
-                Подготовьте справочник оборудования для быстрого заполнения паспортов объектов.
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="networkProfilesSectionHeading">
+                  <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#networkProfilesSection"
+                    aria-expanded="false"
+                    aria-controls="networkProfilesSection"
+                  >
+                    Профили провайдеров
+                  </button>
+                </h2>
+                <div
+                  id="networkProfilesSection"
+                  class="accordion-collapse collapse"
+                  aria-labelledby="networkProfilesSectionHeading"
+                  data-bs-parent="#itSettingsAccordion"
+                >
+                  <div class="accordion-body">
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle" id="networkProfilesTable">
+                        <thead>
+                          <tr>
+                            <th>Провайдер</th>
+                            <th>Номер договора</th>
+                            <th>Телефон ТП</th>
+                            <th>ЮЛ</th>
+                            <th>Объектов</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody id="networkProfilesBody"></tbody>
+                      </table>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3">
+                      <button class="btn btn-sm btn-success" type="button" onclick="addNetworkProfileRow()">+ Добавить профиль</button>
+                      <button class="btn btn-sm btn-primary" type="button" data-network-profiles-save>
+                        💾 Сохранить изменения
+                      </button>
+                    </div>
+                    <div class="form-text text-muted mt-2">Эти данные будут автоматически подставляться в паспорт объекта.</div>
+                  </div>
+                </div>
               </div>
-            </section>
-            <hr class="my-4" />
-            <section>
-              <h6 class="text-uppercase text-muted small mb-3">Профили провайдеров</h6>
-              <div class="table-responsive">
-                <table class="table table-sm align-middle" id="networkProfilesTable">
-                  <thead>
-                    <tr>
-                      <th>Провайдер</th>
-                      <th>Номер договора</th>
-                      <th>Телефон ТП</th>
-                      <th>ЮЛ</th>
-                      <th>Объектов</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="networkProfilesBody"></tbody>
-                </table>
-              </div>
-              <button class="btn btn-sm btn-success mt-3" type="button" onclick="addNetworkProfileRow()">+ Добавить профиль</button>
-              <div class="form-text text-muted mt-2">Эти данные будут автоматически подставляться в паспорт объекта.</div>
-            </section>
+            </div>
           </div>
         </div>
       </div>
@@ -582,12 +641,16 @@
                 <input type="text" class="form-control" id="itEquipmentSerialInput" data-it-equipment-field="serial_number" placeholder="Например, SN123456" />
               </div>
               <div class="mb-3">
-                <label class="form-label" for="itEquipmentAccessoriesInput">Дополнительное оборудование <span class="text-muted">(необязательно)</span></label>
-                <textarea class="form-control" id="itEquipmentAccessoriesInput" data-it-equipment-field="accessories" rows="2" placeholder="Список сопутствующего оборудования"></textarea>
-              </div>
-              <div>
-                <label class="form-label" for="itEquipmentPhotoInput">Фото <span class="text-muted">(ссылка, необязательно)</span></label>
-                <input type="text" class="form-control" id="itEquipmentPhotoInput" data-it-equipment-field="photo_url" placeholder="https://..." />
+                <label class="form-label">Ссылки <span class="text-muted">(необязательно)</span></label>
+                <div class="d-flex flex-column gap-2" data-it-equipment-add-links></div>
+                <button
+                  class="btn btn-sm btn-outline-secondary mt-2"
+                  type="button"
+                  data-it-equipment-add-link
+                >
+                  + Добавить ссылку
+                </button>
+                <div class="form-text">Можно указать несколько ссылок на инструкции, карточки и т.п.</div>
               </div>
             </div>
             <div class="modal-footer">
@@ -1167,6 +1230,18 @@
       }))
     : [];
   const networkProfilesBody = document.getElementById('networkProfilesBody');
+  const networkProfilesSaveButton = document.querySelector('[data-network-profiles-save]');
+
+  function collectNetworkProfilesPayload() {
+    return networkProfilesData
+      .map((item) => ({
+        provider: (item.provider || '').trim(),
+        contract_number: (item.contract_number || '').trim(),
+        support_phone: (item.support_phone || '').trim(),
+        legal_entity: (item.legal_entity || '').trim(),
+      }))
+      .filter((profile) => Object.values(profile).some((value) => value));
+  }
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -1287,10 +1362,143 @@
     });
   }
 
-  const itConnectionsBody = document.getElementById('itConnectionsBody');
+  async function saveNetworkProfilesSection() {
+    if (networkProfilesSaveButton && networkProfilesSaveButton.disabled) {
+      return;
+    }
+    const button = networkProfilesSaveButton;
+    const originalText = button ? button.textContent : '';
+    if (button) {
+      button.disabled = true;
+      button.textContent = '...';
+    }
+    try {
+      const payload = { network_profiles: collectNetworkProfilesPayload() };
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error((data && data.error) || 'Ошибка сохранения профилей');
+      }
+      alert('✅ Профили провайдеров сохранены');
+    } catch (error) {
+      alert('❌ ' + (error && error.message ? error.message : error));
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText || 'Сохранить изменения';
+      }
+    }
+  }
+
+  if (networkProfilesSaveButton) {
+    networkProfilesSaveButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      saveNetworkProfilesSection();
+    });
+  }
+
+  const itConnectionsContainer = document.querySelector('[data-it-connections-container]');
   let itConnectionDrafts = [];
   const itEquipmentBody = document.getElementById('itEquipmentBody');
   let itEquipmentItems = [];
+
+  function parseEquipmentLinks(raw) {
+    if (Array.isArray(raw)) {
+      return raw.map((item) => (item || '').toString().trim()).filter(Boolean);
+    }
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        return [];
+      }
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.map((item) => (item || '').toString().trim()).filter(Boolean);
+          }
+        } catch (error) {
+          // игнорируем ошибки парсинга и используем значение как строку
+        }
+      }
+      if (trimmed.includes('\n')) {
+        return trimmed
+          .split('\n')
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+      return [trimmed];
+    }
+    return [];
+  }
+
+  function formatEquipmentLinksPayload(links) {
+    const normalized = Array.isArray(links)
+      ? links.map((item) => (item || '').toString().trim()).filter(Boolean)
+      : [];
+    if (!normalized.length) {
+      return '';
+    }
+    try {
+      return JSON.stringify(normalized);
+    } catch (error) {
+      return normalized.join('\n');
+    }
+  }
+
+  function ensureEquipmentLinksPlaceholder(container) {
+    if (!container) return;
+    const hasItems = container.querySelector('[data-link-item]');
+    const placeholder = container.querySelector('[data-link-placeholder]');
+    if (hasItems && placeholder) {
+      placeholder.remove();
+    } else if (!hasItems && !placeholder) {
+      const hint = document.createElement('div');
+      hint.className = 'text-muted small';
+      hint.dataset.linkPlaceholder = 'true';
+      hint.textContent = 'Ссылок нет';
+      container.appendChild(hint);
+    }
+  }
+
+  function addEquipmentLinkInput(container, value = '') {
+    if (!container) return null;
+    const item = document.createElement('div');
+    item.className = 'input-group input-group-sm';
+    item.dataset.linkItem = 'true';
+    item.innerHTML = `
+      <input type="text" class="form-control form-control-sm" data-link-input placeholder="https://..." value="${escapeHtml(value)}">
+      <button class="btn btn-outline-danger" type="button" data-it-equipment-link-action="remove-link">&times;</button>
+    `;
+    container.appendChild(item);
+    ensureEquipmentLinksPlaceholder(container);
+    return item;
+  }
+
+  function renderEquipmentLinks(container, links) {
+    if (!container) return;
+    container.innerHTML = '';
+    const list = Array.isArray(links) ? links : [];
+    if (!list.length) {
+      ensureEquipmentLinksPlaceholder(container);
+      return;
+    }
+    list.forEach((link) => {
+      addEquipmentLinkInput(container, link);
+    });
+    ensureEquipmentLinksPlaceholder(container);
+  }
+
+  function collectEquipmentLinks(container) {
+    if (!container) return [];
+    return Array.from(container.querySelectorAll('[data-link-input]'))
+      .map((input) => (input.value || '').trim())
+      .filter(Boolean);
+  }
 
   function renderItConnectionUsageLink(item) {
     if (!item) {
@@ -1337,64 +1545,115 @@
   }
 
   function renderItConnectionsTable() {
-    if (!itConnectionsBody) return;
+    if (!itConnectionsContainer) return;
     const rows = buildItConnectionsRows();
-    itConnectionsBody.innerHTML = '';
+    itConnectionsContainer.innerHTML = '';
     if (!rows.length) {
-      const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="4" class="text-muted text-center">Пока нет подключений</td>';
-      itConnectionsBody.appendChild(emptyRow);
+      const emptyState = document.createElement('div');
+      emptyState.className = 'text-muted text-center py-3';
+      emptyState.textContent = 'Пока нет подключений';
+      itConnectionsContainer.appendChild(emptyState);
       renderItEquipmentTable();
       return;
     }
-    rows.forEach(({ item, isDraft, draftIndex }) => {
-      const row = document.createElement('tr');
-      const disabled = !isDraft && Boolean(item && item.is_deleted);
-      const category = normalizeItConnectionCategory(item && item.category);
-      const value = item && typeof item.value === 'string' ? item.value : '';
-      if (isDraft) {
-        row.dataset.rowKind = 'draft';
-        row.dataset.draftIndex = String(draftIndex);
-      } else {
-        row.dataset.rowKind = 'existing';
-        const rawId = item && Object.prototype.hasOwnProperty.call(item, 'id') ? item.id : null;
-        const idNumber = Number.parseInt(rawId, 10);
-        if (Number.isFinite(idNumber)) {
-          row.dataset.id = String(idNumber);
-        }
-        if (disabled) {
-          row.classList.add('table-light', 'text-muted');
-        }
+
+    const grouped = rows.reduce((acc, entry) => {
+      const category = normalizeItConnectionCategory(entry && entry.item && entry.item.category);
+      if (!acc.has(category)) {
+        acc.set(category, []);
       }
-      row.dataset.category = category;
-      const usageItem = Object.assign({}, item || {}, { category, value });
-      const deletedHint = !isDraft && disabled
-        ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>'
-        : '';
-      const actions = isDraft
-        ? `
-            <button class="btn btn-sm btn-outline-success" type="button" data-it-connection-action="save">Сохранить</button>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-it-connection-action="discard">Отменить</button>
-          `
-        : disabled
-          ? '<button class="btn btn-sm btn-outline-secondary" type="button" data-it-connection-action="restore">Восстановить</button>'
-          : `
-            <button class="btn btn-sm btn-outline-success" type="button" data-it-connection-action="save">Сохранить</button>
-            <button class="btn btn-sm btn-outline-danger" type="button" data-it-connection-action="delete">Удалить</button>
-          `;
-      row.innerHTML = `
-        <td>${escapeHtml(getItConnectionCategoryLabel(category))}</td>
-        <td>
-          <input type="text" class="form-control form-control-sm" data-field="value" value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>
-          ${deletedHint}
-        </td>
-        <td class="text-center">${renderItConnectionUsageLink(usageItem)}</td>
-        <td class="text-nowrap">
-          ${actions}
-        </td>
-      `;
-      itConnectionsBody.appendChild(row);
+      acc.get(category).push(entry);
+      return acc;
+    }, new Map());
+
+    const accordionId = 'itConnectionsCategoryAccordion';
+    const categoryEntries = Array.from(grouped.entries()).sort(([a], [b]) => {
+      const labelA = getItConnectionCategoryLabel(a);
+      const labelB = getItConnectionCategoryLabel(b);
+      return labelA.localeCompare(labelB, 'ru', { sensitivity: 'base' });
     });
+
+    categoryEntries.forEach(([category, items], index) => {
+      const collapseIdSlug = (category || 'uncategorized')
+        .toString()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'all';
+      const collapseId = `${accordionId}-panel-${index}-${collapseIdSlug}`;
+      const headerId = `${collapseId}-header`;
+      const accordionItem = document.createElement('div');
+      accordionItem.className = 'accordion-item';
+      accordionItem.innerHTML = `
+        <h2 class="accordion-header" id="${headerId}">
+          <button class="accordion-button${index === 0 ? '' : ' collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${index === 0}" aria-controls="${collapseId}">
+            ${escapeHtml(getItConnectionCategoryLabel(category))}
+          </button>
+        </h2>
+        <div id="${collapseId}" class="accordion-collapse collapse${index === 0 ? ' show' : ''}" aria-labelledby="${headerId}" data-bs-parent="#${accordionId}">
+          <div class="accordion-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 55%">Значение</th>
+                    <th class="text-center" style="width: 10%">Использование</th>
+                    <th style="width: 35%"></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+      const tbody = accordionItem.querySelector('tbody');
+      items.forEach(({ item, isDraft, draftIndex }) => {
+        const row = document.createElement('tr');
+        const disabled = !isDraft && Boolean(item && item.is_deleted);
+        const value = item && typeof item.value === 'string' ? item.value : '';
+        if (isDraft) {
+          row.dataset.rowKind = 'draft';
+          row.dataset.draftIndex = String(draftIndex);
+        } else {
+          row.dataset.rowKind = 'existing';
+          const rawId = item && Object.prototype.hasOwnProperty.call(item, 'id') ? item.id : null;
+          const idNumber = Number.parseInt(rawId, 10);
+          if (Number.isFinite(idNumber)) {
+            row.dataset.id = String(idNumber);
+          }
+          if (disabled) {
+            row.classList.add('table-light', 'text-muted');
+          }
+        }
+        row.dataset.category = category;
+        const usageItem = Object.assign({}, item || {}, { category, value });
+        const deletedHint = !isDraft && disabled
+          ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>'
+          : '';
+        const actions = isDraft
+          ? `
+              <button class="btn btn-sm btn-outline-success" type="button" data-it-connection-action="save">Сохранить</button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-it-connection-action="discard">Отменить</button>
+            `
+          : disabled
+            ? '<button class="btn btn-sm btn-outline-secondary" type="button" data-it-connection-action="restore">Восстановить</button>'
+            : `
+              <button class="btn btn-sm btn-outline-success" type="button" data-it-connection-action="save">Сохранить</button>
+              <button class="btn btn-sm btn-outline-danger" type="button" data-it-connection-action="delete">Удалить</button>
+            `;
+        row.innerHTML = `
+          <td>
+            <input type="text" class="form-control form-control-sm" data-field="value" value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>
+            ${deletedHint}
+          </td>
+          <td class="text-center">${renderItConnectionUsageLink(usageItem)}</td>
+          <td class="text-nowrap">${actions}</td>
+        `;
+        tbody.appendChild(row);
+      });
+      itConnectionsContainer.appendChild(accordionItem);
+    });
+
     renderItEquipmentTable();
   }
 
@@ -1461,7 +1720,7 @@
     itEquipmentBody.innerHTML = '';
     if (!list.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет оборудования</td>';
+      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет оборудования</td>';
       itEquipmentBody.appendChild(emptyRow);
       return;
     }
@@ -1476,28 +1735,23 @@
       const equipmentVendor = typeof (item && item.equipment_vendor) === 'string' ? item.equipment_vendor : '';
       const equipmentModel = typeof (item && item.equipment_model) === 'string' ? item.equipment_model : '';
       const serialNumber = typeof (item && item.serial_number) === 'string' ? item.serial_number : '';
-      const accessories = typeof (item && item.accessories) === 'string' ? item.accessories : '';
-      const photoUrl = typeof (item && item.photo_url) === 'string' ? item.photo_url : '';
-      const photoLink = photoUrl
-        ? `<a href="${escapeHtml(photoUrl)}" target="_blank" rel="noopener" class="btn btn-link btn-sm p-0" title="Открыть">🔗</a>`
-        : '<span class="text-muted small">—</span>';
+      const links = parseEquipmentLinks(item && item.photo_url);
       row.innerHTML = `
         <td><select class="form-select form-select-sm" data-field="equipment_type">${buildEquipmentSelectOptions(optionSets.types, equipmentType)}</select></td>
         <td><select class="form-select form-select-sm" data-field="equipment_vendor">${buildEquipmentSelectOptions(optionSets.vendors, equipmentVendor)}</select></td>
         <td><select class="form-select form-select-sm" data-field="equipment_model">${buildEquipmentSelectOptions(optionSets.models, equipmentModel)}</select></td>
         <td><input type="text" class="form-control form-control-sm" data-field="serial_number" value="${escapeHtml(serialNumber)}" placeholder="SN..."></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="accessories" value="${escapeHtml(accessories)}" placeholder="Доп. оборудование"></td>
         <td>
-          <div class="d-flex align-items-center gap-2">
-            <input type="text" class="form-control form-control-sm" data-field="photo_url" value="${escapeHtml(photoUrl)}" placeholder="https://">
-            ${photoLink}
-          </div>
+          <div class="d-flex flex-column gap-2" data-links-container></div>
+          <button class="btn btn-sm btn-outline-secondary align-self-start" type="button" data-it-equipment-link-action="add-link">+ Ссылка</button>
         </td>
         <td class="text-nowrap">
           <button class="btn btn-sm btn-outline-success" type="button" data-it-equipment-action="save">Сохранить</button>
           <button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-action="delete">Удалить</button>
         </td>
       `;
+      const linksContainer = row.querySelector('[data-links-container]');
+      renderEquipmentLinks(linksContainer, links);
       itEquipmentBody.appendChild(row);
     });
   }
@@ -1513,8 +1767,7 @@
       equipment_vendor: selectValue('[data-field="equipment_vendor"]'),
       equipment_model: selectValue('[data-field="equipment_model"]'),
       serial_number: selectValue('[data-field="serial_number"]'),
-      accessories: selectValue('[data-field="accessories"]'),
-      photo_url: selectValue('[data-field="photo_url"]'),
+      photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(row.querySelector('[data-links-container]'))),
     };
   }
 
@@ -1780,8 +2033,8 @@
     }
   }
 
-  if (itConnectionsBody) {
-    itConnectionsBody.addEventListener('click', (event) => {
+  if (itConnectionsContainer) {
+    itConnectionsContainer.addEventListener('click', (event) => {
       const button = event.target.closest('[data-it-connection-action]');
       if (!button) return;
       const action = button.dataset.itConnectionAction;
@@ -1815,6 +2068,29 @@
 
   if (itEquipmentBody) {
     itEquipmentBody.addEventListener('click', (event) => {
+      const linkButton = event.target.closest('[data-it-equipment-link-action]');
+      if (linkButton) {
+        const row = linkButton.closest('tr');
+        if (!row) return;
+        const action = linkButton.dataset.itEquipmentLinkAction;
+        const container = row.querySelector('[data-links-container]');
+        if (!container) return;
+        if (action === 'add-link') {
+          const item = addEquipmentLinkInput(container, '');
+          const input = item ? item.querySelector('[data-link-input]') : null;
+          if (input) {
+            input.focus();
+          }
+        } else if (action === 'remove-link') {
+          const item = linkButton.closest('[data-link-item]');
+          if (item) {
+            item.remove();
+            ensureEquipmentLinksPlaceholder(container);
+          }
+        }
+        return;
+      }
+
       const button = event.target.closest('[data-it-equipment-action]');
       if (!button) return;
       const row = button.closest('tr');
@@ -1861,11 +2137,8 @@
   const itEquipmentSerialInput = itEquipmentAddModalEl
     ? itEquipmentAddModalEl.querySelector('#itEquipmentSerialInput')
     : null;
-  const itEquipmentAccessoriesInput = itEquipmentAddModalEl
-    ? itEquipmentAddModalEl.querySelector('#itEquipmentAccessoriesInput')
-    : null;
-  const itEquipmentPhotoInput = itEquipmentAddModalEl
-    ? itEquipmentAddModalEl.querySelector('#itEquipmentPhotoInput')
+  const itEquipmentAddLinksContainer = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('[data-it-equipment-add-links]')
     : null;
   const itEquipmentAddSubmitButton = itEquipmentAddForm
     ? itEquipmentAddForm.querySelector('button[type="submit"]')
@@ -1920,11 +2193,8 @@
       if (itEquipmentSerialInput) {
         itEquipmentSerialInput.value = '';
       }
-      if (itEquipmentAccessoriesInput) {
-        itEquipmentAccessoriesInput.value = '';
-      }
-      if (itEquipmentPhotoInput) {
-        itEquipmentPhotoInput.value = '';
+      if (itEquipmentAddLinksContainer) {
+        renderEquipmentLinks(itEquipmentAddLinksContainer, []);
       }
       if (itEquipmentAddSubmitButton) {
         itEquipmentAddSubmitButton.disabled = !hasOptions;
@@ -1937,6 +2207,27 @@
         itEquipmentVendorSelect.focus();
       } else if (itEquipmentModelSelect && !itEquipmentModelSelect.disabled) {
         itEquipmentModelSelect.focus();
+      }
+    });
+    itEquipmentAddModalEl.addEventListener('click', (event) => {
+      const addLinkButton = event.target.closest('[data-it-equipment-add-link]');
+      if (addLinkButton) {
+        if (itEquipmentAddLinksContainer) {
+          const item = addEquipmentLinkInput(itEquipmentAddLinksContainer, '');
+          const input = item ? item.querySelector('[data-link-input]') : null;
+          if (input) {
+            input.focus();
+          }
+        }
+        return;
+      }
+      const removeButton = event.target.closest('[data-it-equipment-link-action="remove-link"]');
+      if (removeButton && itEquipmentAddLinksContainer) {
+        const item = removeButton.closest('[data-link-item]');
+        if (item) {
+          item.remove();
+          ensureEquipmentLinksPlaceholder(itEquipmentAddLinksContainer);
+        }
       }
     });
   }
@@ -1965,8 +2256,7 @@
             ? itEquipmentModelSelect.value.trim()
             : '',
         serial_number: itEquipmentSerialInput ? itEquipmentSerialInput.value.trim() : '',
-        accessories: itEquipmentAccessoriesInput ? itEquipmentAccessoriesInput.value.trim() : '',
-        photo_url: itEquipmentPhotoInput ? itEquipmentPhotoInput.value.trim() : '',
+        photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(itEquipmentAddLinksContainer)),
       };
 
       let hasError = false;
@@ -2158,8 +2448,8 @@
           itConnectionAddModal.hide();
         }
         setTimeout(() => {
-          if (!itConnectionsBody) return;
-          const rows = Array.from(itConnectionsBody.querySelectorAll('tr'));
+          if (!itConnectionsContainer) return;
+          const rows = Array.from(itConnectionsContainer.querySelectorAll('tr'));
           const createdRow = rows.find((row) => {
             const input = row.querySelector('[data-field="value"]');
             return input && input.value.trim() === payload.value;
@@ -3384,14 +3674,7 @@
         .map(inp => inp.value.trim())
         .filter(v => v);
 
-      const networkProfilesPayload = networkProfilesData
-        .map((item) => ({
-          provider: (item.provider || '').trim(),
-          contract_number: (item.contract_number || '').trim(),
-          support_phone: (item.support_phone || '').trim(),
-          legal_entity: (item.legal_entity || '').trim(),
-        }))
-        .filter((profile) => Object.values(profile).some((value) => value));
+      const networkProfilesPayload = collectNetworkProfilesPayload();
 
       const response = await fetch('/settings', {
         method: 'POST',
