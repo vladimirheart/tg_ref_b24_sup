@@ -140,7 +140,7 @@
       </div>
 
       <div class="card passport-card mb-4" id="basicInfoCard">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#basicInfoBody">
           <span>Основная информация</span>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-primary card-toggle-btn" type="button" id="toggleItBlockBtn" aria-expanded="false">Раскрыть IT-блок</button>
@@ -376,7 +376,7 @@
       </div>
       </div>
 
-      <div class="card passport-card mb-4" id="networkCard">
+      <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#networkBody">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Информация о сети</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#networkBody" aria-expanded="false">Развернуть ▼</button>
@@ -493,7 +493,7 @@
       </div>
 
       <div class="card passport-card mb-4" id="scheduleCard">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#scheduleBody">
           <span>Расписание</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#scheduleBody" aria-expanded="false">Развернуть ▼</button>
         </div>
@@ -531,7 +531,7 @@
       </div>
 
       <div class="card passport-card mb-4" id="casesCard">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#casesBody">
           <span>Обращения по локации</span>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#casesBody" aria-expanded="false">Развернуть ▼</button>
@@ -559,8 +559,8 @@
         </div>
       </div>
 
-	  <div class="card passport-card mb-4" id="tasksCard">
-        <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="card passport-card mb-4" id="tasksCard">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#tasksBody">
           <span>Задачи по локации</span>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#tasksBody" aria-expanded="false">Развернуть ▼</button>
@@ -590,7 +590,7 @@
       </div>
 
       <div class="card passport-card mb-4" id="photosSection">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#photosBody">
           <span>Фотографии объекта</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#photosBody" aria-expanded="false">Развернуть ▼</button>
         </div>
@@ -624,7 +624,7 @@
       </div>
 
       <div class="card passport-card mb-5" id="equipmentSection">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#equipmentBody">
           <span>Структура оборудования</span>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#equipmentBody" aria-expanded="false">Развернуть ▼</button>
@@ -699,7 +699,29 @@
       models: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.models)
         ? equipmentOptionSetsRaw.models
         : [],
+      serials: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.serials)
+        ? equipmentOptionSetsRaw.serials
+        : [],
     };
+    const itEquipmentCatalogRaw = {{ it_equipment_catalog | tojson }};
+    const equipmentCatalog = Array.isArray(itEquipmentCatalogRaw)
+      ? itEquipmentCatalogRaw
+          .filter((item) => item && typeof item === 'object')
+          .map((item) => ({
+            equipment_type: normalizeCatalogValue(item.equipment_type),
+            equipment_vendor: normalizeCatalogValue(item.equipment_vendor),
+            equipment_model: normalizeCatalogValue(item.equipment_model),
+            serial_number: normalizeCatalogValue(item.serial_number),
+            accessories: typeof item.accessories === 'string' ? item.accessories.trim() : '',
+            photo_url: typeof item.photo_url === 'string' ? item.photo_url.trim() : '',
+          }))
+      : [];
+    equipmentCatalog.forEach((item) => {
+      addUniqueOption(equipmentOptionSets.types, item.equipment_type);
+      addUniqueOption(equipmentOptionSets.vendors, item.equipment_vendor);
+      addUniqueOption(equipmentOptionSets.models, item.equipment_model);
+      addUniqueOption(equipmentOptionSets.serials, item.serial_number);
+    });
     const itConnectionChoicesRaw = {{ it_connection_options | tojson }};
     const itConnectionChoices = Array.isArray(itConnectionChoicesRaw) ? itConnectionChoicesRaw : [];
 
@@ -734,6 +756,8 @@
     } else if (typeof passportData.is_new !== 'boolean') {
       passportData.is_new = true;
     }
+
+    enrichEquipmentOptionSetsFromEquipment(passportData.equipment);
 
     let parameterValues = (typeof structuredClone === 'function')
       ? structuredClone(parameterValuesInitial)
@@ -773,6 +797,390 @@
         options.push(`<option value="${escaped}"${selected}>${escaped}</option>`);
       });
       return options.join('');
+    }
+
+    function normalizeCatalogValue(value) {
+      return typeof value === 'string' ? value.trim() : '';
+    }
+
+    function addUniqueOption(list, value) {
+      if (!Array.isArray(list)) return;
+      const normalized = normalizeCatalogValue(value);
+      if (!normalized || list.includes(normalized)) return;
+      list.push(normalized);
+    }
+
+    function buildDatalistOptions(values, currentValue) {
+      const list = Array.isArray(values) ? values.filter(Boolean) : [];
+      const normalizedCurrent = normalizeCatalogValue(currentValue || '');
+      const unique = [];
+      list.forEach((item) => {
+        const normalized = normalizeCatalogValue(item);
+        if (normalized && !unique.includes(normalized)) {
+          unique.push(normalized);
+        }
+      });
+      if (normalizedCurrent && !unique.includes(normalizedCurrent)) {
+        unique.push(normalizedCurrent);
+      }
+      return unique.map((item) => `<option value="${escapeHtml(item)}"></option>`).join('');
+    }
+
+    function enrichEquipmentOptionSetsFromEquipment(list) {
+      if (!Array.isArray(list)) return;
+      list.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        addUniqueOption(equipmentOptionSets.types, item.equipment_type);
+        addUniqueOption(equipmentOptionSets.vendors, item.vendor);
+        addUniqueOption(equipmentOptionSets.models, item.model);
+        addUniqueOption(equipmentOptionSets.serials, item.serial_number);
+      });
+    }
+
+    function collectCatalogValues(field, filters = {}) {
+      if (!Array.isArray(equipmentCatalog) || !equipmentCatalog.length) {
+        return [];
+      }
+      const normalizedFilters = {
+        equipment_type: normalizeCatalogValue(filters.equipment_type || filters.type),
+        equipment_vendor: normalizeCatalogValue(filters.equipment_vendor || filters.vendor),
+        equipment_model: normalizeCatalogValue(filters.equipment_model || filters.model),
+        serial_number: normalizeCatalogValue(filters.serial_number || filters.serial),
+      };
+      const result = new Set();
+      equipmentCatalog.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const typeValue = normalizeCatalogValue(item.equipment_type);
+        const vendorValue = normalizeCatalogValue(item.equipment_vendor);
+        const modelValue = normalizeCatalogValue(item.equipment_model);
+        const serialValue = normalizeCatalogValue(item.serial_number);
+        if (field !== 'equipment_type' && normalizedFilters.equipment_type && typeValue !== normalizedFilters.equipment_type) {
+          return;
+        }
+        if (field !== 'equipment_vendor' && normalizedFilters.equipment_vendor && vendorValue !== normalizedFilters.equipment_vendor) {
+          return;
+        }
+        if (field !== 'equipment_model' && normalizedFilters.equipment_model && modelValue !== normalizedFilters.equipment_model) {
+          return;
+        }
+        if (field !== 'serial_number' && normalizedFilters.serial_number && serialValue !== normalizedFilters.serial_number) {
+          return;
+        }
+        let valueToAdd = '';
+        if (field === 'equipment_type') {
+          valueToAdd = typeValue;
+        } else if (field === 'equipment_vendor') {
+          valueToAdd = vendorValue;
+        } else if (field === 'equipment_model') {
+          valueToAdd = modelValue;
+        } else if (field === 'serial_number') {
+          valueToAdd = serialValue;
+        }
+        if (valueToAdd) {
+          result.add(valueToAdd);
+        }
+      });
+      return Array.from(result).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    function getCombinedCatalogOptions(field, filters = {}) {
+      const normalizedFilters = {
+        equipment_type: normalizeCatalogValue(filters.equipment_type || filters.type),
+        equipment_vendor: normalizeCatalogValue(filters.equipment_vendor || filters.vendor),
+        equipment_model: normalizeCatalogValue(filters.equipment_model || filters.model),
+        serial_number: normalizeCatalogValue(filters.serial_number || filters.serial),
+      };
+      let baseList = [];
+      if (field === 'equipment_type') {
+        baseList = equipmentOptionSets.types || [];
+      } else if (field === 'equipment_vendor') {
+        baseList = equipmentOptionSets.vendors || [];
+      } else if (field === 'equipment_model') {
+        baseList = equipmentOptionSets.models || [];
+      } else if (field === 'serial_number') {
+        baseList = equipmentOptionSets.serials || [];
+      }
+      const values = new Set();
+      baseList.forEach((item) => {
+        const normalized = normalizeCatalogValue(item);
+        if (normalized) {
+          values.add(normalized);
+        }
+      });
+      collectCatalogValues(field, normalizedFilters).forEach((value) => {
+        const normalized = normalizeCatalogValue(value);
+        if (normalized) {
+          values.add(normalized);
+        }
+      });
+      return Array.from(values).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    function rebuildEquipmentSelect(select, options, currentValue) {
+      if (!select) return;
+      const normalizedCurrent = normalizeCatalogValue(currentValue || select.value);
+      const fragment = document.createDocumentFragment();
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Не выбрано';
+      fragment.appendChild(placeholder);
+      const seen = new Set();
+      options.forEach((value) => {
+        const normalized = normalizeCatalogValue(value);
+        if (!normalized || seen.has(normalized)) return;
+        const option = document.createElement('option');
+        option.value = normalized;
+        option.textContent = normalized;
+        if (normalized === normalizedCurrent) {
+          option.selected = true;
+        }
+        fragment.appendChild(option);
+        seen.add(normalized);
+      });
+      if (normalizedCurrent && !seen.has(normalizedCurrent)) {
+        const option = document.createElement('option');
+        option.value = normalizedCurrent;
+        option.textContent = normalizedCurrent;
+        option.selected = true;
+        fragment.appendChild(option);
+      }
+      select.innerHTML = '';
+      select.appendChild(fragment);
+      if (normalizedCurrent) {
+        select.value = normalizedCurrent;
+      } else {
+        select.value = '';
+      }
+    }
+
+    function rebuildEquipmentSerialOptions(datalist, options, currentValue) {
+      if (!datalist) return;
+      const normalizedCurrent = normalizeCatalogValue(currentValue);
+      const fragment = document.createDocumentFragment();
+      const seen = new Set();
+      options.forEach((value) => {
+        const normalized = normalizeCatalogValue(value);
+        if (!normalized || seen.has(normalized)) return;
+        const option = document.createElement('option');
+        option.value = normalized;
+        fragment.appendChild(option);
+        seen.add(normalized);
+      });
+      if (normalizedCurrent && !seen.has(normalizedCurrent)) {
+        const option = document.createElement('option');
+        option.value = normalizedCurrent;
+        fragment.appendChild(option);
+      }
+      datalist.innerHTML = '';
+      datalist.appendChild(fragment);
+    }
+
+    function findCatalogMatches(filters = {}) {
+      if (!Array.isArray(equipmentCatalog) || !equipmentCatalog.length) {
+        return [];
+      }
+      const normalizedFilters = {
+        equipment_type: normalizeCatalogValue(filters.equipment_type || filters.type),
+        equipment_vendor: normalizeCatalogValue(filters.equipment_vendor || filters.vendor),
+        equipment_model: normalizeCatalogValue(filters.equipment_model || filters.model),
+        serial_number: normalizeCatalogValue(filters.serial_number || filters.serial),
+      };
+      return equipmentCatalog.filter((item) => {
+        if (!item || typeof item !== 'object') return false;
+        if (normalizedFilters.equipment_type && normalizeCatalogValue(item.equipment_type) !== normalizedFilters.equipment_type) {
+          return false;
+        }
+        if (normalizedFilters.equipment_vendor && normalizeCatalogValue(item.equipment_vendor) !== normalizedFilters.equipment_vendor) {
+          return false;
+        }
+        if (normalizedFilters.equipment_model && normalizeCatalogValue(item.equipment_model) !== normalizedFilters.equipment_model) {
+          return false;
+        }
+        if (normalizedFilters.serial_number && normalizeCatalogValue(item.serial_number) !== normalizedFilters.serial_number) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function applyCatalogMatchToCard(card, changedField) {
+      if (!card) return;
+      const typeSelect = card.querySelector('.equipment-type');
+      const vendorSelect = card.querySelector('.equipment-vendor');
+      const modelSelect = card.querySelector('.equipment-model');
+      const serialInput = card.querySelector('.equipment-serial');
+      if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      const state = {
+        equipment_type: normalizeCatalogValue(typeSelect.value),
+        equipment_vendor: normalizeCatalogValue(vendorSelect.value),
+        equipment_model: normalizeCatalogValue(modelSelect.value),
+        serial_number: normalizeCatalogValue(serialInput.value),
+      };
+      const attempts = [];
+      attempts.push(state);
+      attempts.push({
+        equipment_type: state.equipment_type,
+        equipment_vendor: state.equipment_vendor,
+        equipment_model: state.equipment_model,
+      });
+      attempts.push({ equipment_type: state.equipment_type, equipment_vendor: state.equipment_vendor });
+      attempts.push({ equipment_type: state.equipment_type, equipment_model: state.equipment_model });
+      attempts.push({ equipment_vendor: state.equipment_vendor, equipment_model: state.equipment_model });
+      if (state.serial_number) {
+        attempts.push({ serial_number: state.serial_number });
+      }
+      let matches = [];
+      for (const candidate of attempts) {
+        if (!candidate) continue;
+        const hasValue = Object.values(candidate).some((value) => normalizeCatalogValue(value));
+        if (!hasValue) continue;
+        matches = findCatalogMatches(candidate);
+        if (matches.length) {
+          break;
+        }
+      }
+      if (!matches.length) {
+        card.dataset.catalogMatched = '';
+        return;
+      }
+      const uniqueVendors = new Set();
+      const uniqueModels = new Set();
+      const uniqueSerials = new Set();
+      matches.forEach((match) => {
+        uniqueVendors.add(normalizeCatalogValue(match.equipment_vendor));
+        uniqueModels.add(normalizeCatalogValue(match.equipment_model));
+        uniqueSerials.add(normalizeCatalogValue(match.serial_number));
+      });
+      if (!state.equipment_vendor && uniqueVendors.size === 1) {
+        const vendorValue = uniqueVendors.values().next().value;
+        if (vendorValue) {
+          ensureSelectHasOption(vendorSelect, vendorValue);
+          vendorSelect.value = vendorValue;
+          state.equipment_vendor = vendorValue;
+        }
+      }
+      if (!state.equipment_model && uniqueModels.size === 1) {
+        const modelValue = uniqueModels.values().next().value;
+        if (modelValue) {
+          ensureSelectHasOption(modelSelect, modelValue);
+          modelSelect.value = modelValue;
+          state.equipment_model = modelValue;
+        }
+      }
+      if (!state.serial_number && uniqueSerials.size === 1) {
+        const serialValue = uniqueSerials.values().next().value;
+        if (serialValue) {
+          serialInput.value = serialValue;
+          state.serial_number = serialValue;
+        }
+      }
+      if (matches.length === 1) {
+        const match = matches[0];
+        const typeValue = normalizeCatalogValue(match.equipment_type);
+        if (typeValue) {
+          ensureSelectHasOption(typeSelect, typeValue);
+          typeSelect.value = typeValue;
+          state.equipment_type = typeValue;
+        }
+        const vendorValue = normalizeCatalogValue(match.equipment_vendor);
+        if (vendorValue) {
+          ensureSelectHasOption(vendorSelect, vendorValue);
+          vendorSelect.value = vendorValue;
+          state.equipment_vendor = vendorValue;
+        }
+        const modelValue = normalizeCatalogValue(match.equipment_model);
+        if (modelValue) {
+          ensureSelectHasOption(modelSelect, modelValue);
+          modelSelect.value = modelValue;
+          state.equipment_model = modelValue;
+        }
+        const serialValue = normalizeCatalogValue(match.serial_number);
+        if (serialValue) {
+          serialInput.value = serialValue;
+          state.serial_number = serialValue;
+        }
+        const nameInput = card.querySelector('.equipment-name');
+        if (nameInput && !nameInput.value.trim()) {
+          const pieces = [match.equipment_vendor, match.equipment_model]
+            .map((value) => normalizeCatalogValue(value))
+            .filter(Boolean);
+          if (pieces.length) {
+            nameInput.value = pieces.join(' ');
+          }
+        }
+        card.dataset.catalogMatched = 'true';
+      } else {
+        card.dataset.catalogMatched = 'partial';
+      }
+    }
+
+    function updateEquipmentCardOptions(card) {
+      if (!card) return;
+      const typeSelect = card.querySelector('.equipment-type');
+      const vendorSelect = card.querySelector('.equipment-vendor');
+      const modelSelect = card.querySelector('.equipment-model');
+      const serialInput = card.querySelector('.equipment-serial');
+      const serialDatalist = card.querySelector('.equipment-serial-options');
+      if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      const typeValue = normalizeCatalogValue(typeSelect.value);
+      const vendorValue = normalizeCatalogValue(vendorSelect.value);
+      const modelValue = normalizeCatalogValue(modelSelect.value);
+      const serialValue = normalizeCatalogValue(serialInput.value);
+      const typeOptions = getCombinedCatalogOptions('equipment_type', {
+        equipment_vendor: vendorValue,
+        equipment_model: modelValue,
+        serial_number: serialValue,
+      });
+      rebuildEquipmentSelect(typeSelect, typeOptions, typeValue);
+      const vendorOptions = getCombinedCatalogOptions('equipment_vendor', {
+        equipment_type: typeValue,
+        equipment_model: modelValue,
+        serial_number: serialValue,
+      });
+      rebuildEquipmentSelect(vendorSelect, vendorOptions, vendorValue);
+      const modelOptions = getCombinedCatalogOptions('equipment_model', {
+        equipment_type: typeValue,
+        equipment_vendor: vendorValue,
+        serial_number: serialValue,
+      });
+      rebuildEquipmentSelect(modelSelect, modelOptions, modelValue);
+      const serialOptions = getCombinedCatalogOptions('serial_number', {
+        equipment_type: typeValue,
+        equipment_vendor: vendorValue,
+        equipment_model: modelValue,
+      });
+      rebuildEquipmentSerialOptions(serialDatalist, serialOptions, serialValue);
+    }
+
+    function initializeEquipmentCard(card) {
+      if (!card) return;
+      const typeSelect = card.querySelector('.equipment-type');
+      const vendorSelect = card.querySelector('.equipment-vendor');
+      const modelSelect = card.querySelector('.equipment-model');
+      const serialInput = card.querySelector('.equipment-serial');
+      if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      typeSelect.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'equipment_type');
+        updateEquipmentCardOptions(card);
+      });
+      vendorSelect.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'equipment_vendor');
+        updateEquipmentCardOptions(card);
+      });
+      modelSelect.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'equipment_model');
+        updateEquipmentCardOptions(card);
+      });
+      serialInput.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'serial_number');
+        updateEquipmentCardOptions(card);
+      });
+      serialInput.addEventListener('input', () => {
+        updateEquipmentCardOptions(card);
+      });
+      updateEquipmentCardOptions(card);
+      applyCatalogMatchToCard(card);
+      updateEquipmentCardOptions(card);
     }
 
     const departmentSelect = document.getElementById('departmentSelect');
@@ -2300,6 +2708,7 @@
     function renderEquipment(equipmentList) {
       const list = Array.isArray(equipmentList) ? equipmentList : [];
       passportData.equipment = list;
+      enrichEquipmentOptionSetsFromEquipment(list);
       equipmentContainer.innerHTML = '';
       if (!list.length) {
         equipmentEmptyText.classList.remove('d-none');
@@ -2312,15 +2721,32 @@
         const card = document.createElement('div');
         card.className = 'card mb-4 equipment-card';
         card.dataset.id = isNew ? `new-${index}` : item.id;
-        const typeOptions = buildSelectOptions(equipmentOptionSets.types, item.equipment_type || '');
-        const vendorOptions = buildSelectOptions(equipmentOptionSets.vendors, item.vendor || '');
-        const modelOptions = buildSelectOptions(equipmentOptionSets.models, item.model || '');
+        const typeValues = getCombinedCatalogOptions('equipment_type', {
+          equipment_vendor: item.vendor,
+          equipment_model: item.model,
+          serial_number: item.serial_number,
+        });
+        const vendorValues = getCombinedCatalogOptions('equipment_vendor', {
+          equipment_type: item.equipment_type,
+          equipment_model: item.model,
+          serial_number: item.serial_number,
+        });
+        const modelValues = getCombinedCatalogOptions('equipment_model', {
+          equipment_type: item.equipment_type,
+          equipment_vendor: item.vendor,
+          serial_number: item.serial_number,
+        });
+        const typeOptions = buildSelectOptions(typeValues, item.equipment_type || '');
+        const vendorOptions = buildSelectOptions(vendorValues, item.vendor || '');
+        const modelOptions = buildSelectOptions(modelValues, item.model || '');
         const connectionOptions = buildSelectOptions(itConnectionChoices, item.connection_type || '');
         const collapseId = `equipmentPhotos-${isNew ? `new-${index}` : item.id}`;
         const hasPhotos = Array.isArray(item.photos) && item.photos.length > 0;
         const collapseShowClass = hasPhotos ? ' show' : '';
         const collapseButtonClass = hasPhotos ? '' : ' collapsed';
         const collapseExpanded = hasPhotos ? 'true' : 'false';
+        const serialOptionsId = `equipmentSerialOptions-${isNew ? `new-${index}` : item.id}`;
+        const serialOptions = buildDatalistOptions(equipmentOptionSets.serials, item.serial_number || '');
         card.innerHTML = `
           <div class="card-header d-flex justify-content-between align-items-center">
             <strong>${escapeHtml(item.name || 'Оборудование')}</strong>
@@ -2343,15 +2769,20 @@
                 <label class="form-label">Наименование</label>
                 <input type="text" class="form-control form-control-sm equipment-name" value="${escapeHtml(item.name || '')}" />
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <label class="form-label">Модель</label>
                 <select class="form-select form-select-sm equipment-model">${modelOptions}</select>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
+                <label class="form-label">Серийный номер</label>
+                <input type="text" class="form-control form-control-sm equipment-serial" value="${escapeHtml(item.serial_number || '')}" list="${serialOptionsId}" placeholder="SN..." />
+                <datalist id="${serialOptionsId}" class="equipment-serial-options">${serialOptions}</datalist>
+              </div>
+              <div class="col-md-3">
                 <label class="form-label">Статус</label>
                 <input type="text" class="form-control form-control-sm equipment-status" value="${escapeHtml(item.status || '')}" />
               </div>
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <label class="form-label">IP-адрес</label>
                 <input type="text" class="form-control form-control-sm equipment-ip" value="${escapeHtml(item.ip_address || '')}" />
               </div>
@@ -2405,6 +2836,7 @@
           </div>
         `;
         equipmentContainer.appendChild(card);
+        initializeEquipmentCard(card);
         if (!isNew) {
           renderEquipmentPhotos(item.id, item.photos || []);
         }
@@ -2458,10 +2890,37 @@
         showPhotoPreview(previewTarget.dataset.photoUrl, previewTarget.dataset.photoCaption || '');
         return;
       }
+      const card = event.target.closest('.equipment-card');
+      const photosToggle = event.target.closest('.equipment-photos-toggle');
+      if (photosToggle) {
+        event.preventDefault();
+        event.stopPropagation();
+        const targetSelector = photosToggle.getAttribute('data-bs-target');
+        const collapseElement = targetSelector
+          ? (card ? card.querySelector(targetSelector) : document.querySelector(targetSelector))
+          : null;
+        if (collapseElement) {
+          const isShown = collapseElement.classList.contains('show');
+          if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+            const collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapseElement, {
+              toggle: false,
+            });
+            if (isShown) {
+              collapseInstance.hide();
+            } else {
+              collapseInstance.show();
+            }
+          } else {
+            collapseElement.classList.toggle('show');
+          }
+          photosToggle.classList.toggle('collapsed', isShown);
+          photosToggle.setAttribute('aria-expanded', (!isShown).toString());
+        }
+        return;
+      }
+      if (!card) return;
       const button = event.target.closest('button[data-action]');
       if (!button) return;
-      const card = button.closest('.equipment-card');
-      if (!card) return;
       const action = button.dataset.action;
       if (action === 'save-equipment') {
         handleEquipmentSave(card);
@@ -2515,6 +2974,7 @@
         vendor: card.querySelector('.equipment-vendor').value.trim(),
         name: card.querySelector('.equipment-name').value.trim(),
         model: card.querySelector('.equipment-model').value.trim(),
+        serial_number: card.querySelector('.equipment-serial').value.trim(),
         status: card.querySelector('.equipment-status').value.trim(),
         ip_address: card.querySelector('.equipment-ip').value.trim(),
         connection_type: card.querySelector('.equipment-connection-type').value.trim(),
@@ -2742,6 +3202,21 @@
       });
     });
 
+    document.querySelectorAll('[data-section-header]').forEach((header) => {
+      header.addEventListener('click', (event) => {
+        const interactiveTarget = event.target.closest(
+          'button, a, input, select, textarea, [data-bs-toggle], [data-no-header-toggle]'
+        );
+        if (interactiveTarget) {
+          return;
+        }
+        const toggleButton = header.querySelector('[data-section-toggle]');
+        if (toggleButton) {
+          toggleButton.click();
+        }
+      });
+    });
+
     addEquipmentBtn.addEventListener('click', () => {
       if (passportData.is_new) {
         showSaveMessage('error', 'Сначала сохраните паспорт.');
@@ -2754,6 +3229,7 @@
         vendor: '',
         name: '',
         model: '',
+        serial_number: '',
         status: '',
         ip_address: '',
         connection_type: '',
