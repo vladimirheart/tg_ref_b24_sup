@@ -70,8 +70,16 @@ PARAMETER_TYPES = {
     "department": "Департамент",
     "network": "Внутренняя сеть",
     "it_connection": "Подключения IT-блока",
+    "remote_access": "Параметры удалённого доступа",
     "iiko_server": "Адреса серверов iiko",
 }
+
+REMOTE_ACCESS_DEFAULTS = (
+    "RMSviewer",
+    "Anydes",
+    "Ассистент",
+    "VNC",
+)
 
 DEFAULT_IT_CONNECTION_CATEGORIES = {
     "equipment_type": "Тип оборудования",
@@ -1359,62 +1367,29 @@ def _collect_remote_connection_options(settings: dict | None = None) -> list[str
     """Return list of remote connection types configured in settings."""
 
     try:
-        categories = get_it_connection_categories(settings)
-    except Exception:
-        categories = {}
-
-    normalized_target_labels = {"тип удалённого подключения".casefold()}
-    fallback_slugs = {
-        "remote_connection_type",
-        "remote_connection",
-        "remote_access_type",
-        "remote_type",
-    }
-
-    target_keys: set[str] = set()
-    for key, label in (categories or {}).items():
-        label_clean = str(label or "").strip()
-        if label_clean.casefold() in normalized_target_labels or key in fallback_slugs:
-            target_keys.add(key)
-
-    try:
         with get_db() as conn:
             grouped = _fetch_parameters_grouped(conn, include_deleted=False)
     except Exception:
         grouped = {}
 
-    items = grouped.get("it_connection", []) if isinstance(grouped, dict) else []
-    if not items:
-        return []
-
     seen: set[str] = set()
     options: list[str] = []
+    items = grouped.get("remote_access", []) if isinstance(grouped, dict) else []
     for item in items:
-        if not item or item.get("is_deleted"):
+        if not isinstance(item, dict):
+            continue
+        if item.get("is_deleted"):
             continue
         value = (item.get("value") or "").strip()
-        if not value or value in seen:
+        if not value:
             continue
-        category = (item.get("category") or "").strip()
-        category_label = (item.get("category_label") or "").strip()
-        category_casefold = category.casefold()
-        label_casefold = category_label.casefold()
-
-        if target_keys:
-            if category in target_keys or category_casefold in fallback_slugs:
-                options.append(value)
-                seen.add(value)
-                continue
-        else:
-            if category_casefold in fallback_slugs:
-                options.append(value)
-                seen.add(value)
-                continue
-
-        if label_casefold in normalized_target_labels:
-            options.append(value)
-            seen.add(value)
-
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        options.append(value)
+    if not options:
+        options = list(REMOTE_ACCESS_DEFAULTS)
     return options
 
 def _serialize_it_equipment_row(row):
@@ -5114,6 +5089,7 @@ def _parameter_usage_counts():
 
 
 def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
+    ensure_remote_access_defaults(conn)
     query = (
         "SELECT id, param_type, value, state, is_deleted, deleted_at, extra_json "
         "FROM settings_parameters "
@@ -5226,6 +5202,37 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             )
         grouped[slug].append(entry)
     return grouped
+
+def ensure_remote_access_defaults(conn) -> None:
+    """Ensure that the default remote access entries exist."""
+    try:
+        rows = conn.execute(
+            "SELECT value FROM settings_parameters WHERE param_type = ?",
+            ("remote_access",),
+        ).fetchall()
+    except sqlite3.Error:
+        return
+
+    existing = {
+        (row["value"] or "").strip().lower()
+        for row in rows
+        if row and (row["value"] or "").strip()
+    }
+
+    for value in REMOTE_ACCESS_DEFAULTS:
+        normalized = (value or "").strip()
+        if not normalized:
+            continue
+        if normalized.lower() in existing:
+            continue
+        conn.execute(
+            """
+            INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json)
+            VALUES (?, ?, ?, 0, NULL)
+            """,
+            ("remote_access", normalized, PARAMETER_ALLOWED_STATES[0]),
+        )
+        existing.add(normalized.lower())
 
 @app.route("/api/settings/parameters", methods=["GET"])
 @login_required
