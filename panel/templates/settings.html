@@ -363,13 +363,19 @@
               {% endif %}
               {% endfor %}
               <div class="col-md-6 col-xl-4">
-                <div class="card shadow-sm parameter-card">
+                <div
+                  class="card shadow-sm parameter-card"
+                  data-city-card
+                  data-city-count="{{ cities | length }}"
+                >
                   <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Город</span>
+                    <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle>
+                      Город
+                    </button>
                     <span class="badge bg-secondary">{{ cities | length }}</span>
                   </div>
-                  <div class="card-body">
-                    <div class="param-items">
+                 <div class="card-body" data-city-body>
+                    <div class="param-items" data-city-list>
                       {% if cities %}
                       <ul class="list-group list-group-flush">
                         {% for city in cities %}
@@ -380,6 +386,9 @@
                       <div class="empty-placeholder">Пока нет значений</div>
                       {% endif %}
                     </div>
+                  </div>
+                  <div class="px-3 py-2 small text-muted d-none" data-city-hint>
+                    Список содержит более 10 записей. Нажмите, чтобы открыть значения в модальном окне.
                   </div>
                 </div>
               </div>
@@ -559,6 +568,8 @@
     it_connection: 'it_connection_type',
     iiko_server: 'it_iiko_server',
   };
+  const CITY_PARAMETER_TYPE = 'city';
+  const CITY_PARAMETER_LABEL = 'Город';
 
   const IT_CONNECTION_CATEGORY_LABELS = {{ it_connection_categories | tojson }} || {};
   const IT_CONNECTION_CATEGORY_KEYS = Object.keys(IT_CONNECTION_CATEGORY_LABELS);
@@ -580,6 +591,7 @@
   const parameterModalEl = document.getElementById('parameterItemsModal');
   const parameterModal = parameterModalEl ? new bootstrap.Modal(parameterModalEl) : null;
   let parameterModalType = null;
+  const cityCardEl = document.querySelector('[data-city-card]');
 
   function syncParameterData(source) {
     const data = source && typeof source === 'object' ? source : {};
@@ -642,6 +654,14 @@
             equipment_vendor: equipmentVendor,
             equipment_model: equipmentModel,
           };
+        } else if (type === 'iiko_server') {
+          const extraData = extra && typeof extra === 'object' ? extra : {};
+          const serverNameSource =
+            (item && typeof item.server_name === 'string' && item.server_name) ||
+            (typeof extraData.server_name === 'string' ? extraData.server_name : '');
+          const serverName = typeof serverNameSource === 'string' ? serverNameSource.trim() : '';
+          entry.server_name = serverName;
+          entry.extra = Object.assign({}, extraData, { server_name: serverName });
         } else if (extra && Object.keys(extra).length) {
           entry.extra = extra;
         }
@@ -688,7 +708,19 @@
     }
     const value = item && item.value ? String(item.value) : '';
     const disabled = Boolean(item && item.is_deleted);
-    const valueInput = `<input type="text" class="form-control" data-param-field="value" value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>`;
+    let serverNameInput = '';
+    if (type === 'iiko_server') {
+      let serverNameSource = '';
+      if (item && typeof item.server_name === 'string') {
+        serverNameSource = item.server_name;
+      } else if (item && item.extra && typeof item.extra.server_name === 'string') {
+        serverNameSource = item.extra.server_name;
+      }
+      const serverName = typeof serverNameSource === 'string' ? serverNameSource.trim() : '';
+      serverNameInput = `<input type="text" class="form-control" data-param-field="server_name" placeholder="Имя сервера" value="${escapeHtml(serverName)}"${disabled ? ' disabled' : ''}>`;
+    }
+    const valuePlaceholder = type === 'iiko_server' ? 'Адрес сервера' : '';
+    const valueInput = `<input type="text" class="form-control" data-param-field="value"${valuePlaceholder ? ` placeholder="${valuePlaceholder}"` : ''} value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>`;
     const stateSelect = buildStateSelect(type, item ? item.state : undefined, disabled, { forInput: false });
     const usageControl = buildUsageControl(type, item);
     const saveButton = `<button class="btn btn-outline-success" type="button" data-param-action="save" data-param-id="${id}" data-param-type="${type}" title="Сохранить"${disabled ? ' disabled' : ''}>💾</button>`;
@@ -699,6 +731,7 @@
     return `
       <div class="param-entry${disabled ? ' param-entry--deleted' : ''}" data-param-id="${id}" data-param-type="${type}">
         <div class="input-group input-group-sm mb-2">
+          ${serverNameInput}
           ${valueInput}
           ${stateSelect}
           ${usageControl}
@@ -714,10 +747,18 @@
     const listHtml = items.length
       ? items.map((item) => buildParameterItem(type, item)).join('')
       : '<div class="empty-placeholder">Пока нет значений</div>';
+    const createPlaceholder = type === 'iiko_server' ? 'Адрес сервера' : 'Добавить значение';
+    const extraControls = [];
+    if (type === 'iiko_server') {
+      extraControls.push(
+        '<input type="text" class="form-control" placeholder="Имя сервера" data-param-create-field="server_name">'
+      );
+    }
     const controls = `
       <div class="input-group input-group-sm mt-3">
         ${buildStateSelect(type, PARAMETER_STATES[0], false, { forInput: true })}
-        <input type="text" class="form-control" placeholder="Добавить значение" data-param-input>
+        ${extraControls.join('')}
+        <input type="text" class="form-control" placeholder="${createPlaceholder}" data-param-input>
         <button class="btn btn-success" type="button" data-param-action="create" data-param-type="${type}">Добавить</button>
       </div>
     `;
@@ -768,12 +809,57 @@
     });
   }
 
+  function buildCityModalContent() {
+    if (!CITY_OPTIONS.length) {
+      return '<div class="empty-placeholder">Пока нет значений</div>';
+    }
+    const items = CITY_OPTIONS.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
+    return `
+      <div data-param-container data-param-type="${CITY_PARAMETER_TYPE}">
+        <div class="param-items">
+          <ul class="list-group list-group-flush">${items}</ul>
+        </div>
+      </div>
+    `;
+  }
+
   function renderParameterModal(type) {
     if (!parameterModalEl) return;
     const body = parameterModalEl.querySelector('[data-param-modal-body]');
     if (!body) return;
+    if (type === CITY_PARAMETER_TYPE) {
+      body.innerHTML = buildCityModalContent();
+      return;
+    }
     const items = Array.isArray(parameterData[type]) ? parameterData[type] : [];
     body.innerHTML = buildParameterContent(type, items, 'modal');
+  }
+
+  function renderCityCard() {
+    if (!cityCardEl) return;
+    const count = Array.isArray(CITY_OPTIONS) ? CITY_OPTIONS.length : 0;
+    cityCardEl.dataset.cityCount = String(count);
+    const body = cityCardEl.querySelector('[data-city-body]');
+    const hint = cityCardEl.querySelector('[data-city-hint]');
+    const counter = cityCardEl.querySelector('.badge');
+    if (counter) {
+      counter.textContent = String(count);
+    }
+    const listContainer = cityCardEl.querySelector('[data-city-list]');
+    if (listContainer) {
+      if (count) {
+        const items = CITY_OPTIONS.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
+        listContainer.innerHTML = `<ul class="list-group list-group-flush">${items}</ul>`;
+      } else {
+        listContainer.innerHTML = '<div class="empty-placeholder">Пока нет значений</div>';
+      }
+    }
+    if (body) {
+      body.classList.toggle('d-none', count > 10);
+    }
+    if (hint) {
+      hint.classList.toggle('d-none', !(count > 10));
+    }
   }
 
   function openParameterModal(type) {
@@ -781,7 +867,8 @@
     parameterModalType = type;
     const titleEl = parameterModalEl.querySelector('[data-param-modal-title]');
     if (titleEl) {
-      const label = PARAMETER_TITLES[type] || 'Значения параметра';
+      const label =
+        PARAMETER_TITLES[type] || (type === CITY_PARAMETER_TYPE ? CITY_PARAMETER_LABEL : 'Значения параметра');
       titleEl.textContent = `Параметры партнёров • ${label}`;
     }
     renderParameterModal(type);
@@ -801,6 +888,13 @@
   }
 
   document.addEventListener('click', (event) => {
+    const cityToggle = event.target.closest('[data-city-toggle]');
+    if (cityToggle) {
+      if (Array.isArray(CITY_OPTIONS) && CITY_OPTIONS.length > 10) {
+        openParameterModal(CITY_PARAMETER_TYPE);
+      }
+      return;
+    }
     const toggleBtn = event.target.closest('[data-param-toggle]');
     if (toggleBtn) {
       const card = toggleBtn.closest('.parameter-card');
@@ -858,6 +952,7 @@
       .filter((value) => value);
     return Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b));
   })();
+  renderCityCard();
   const contractUsageData = {{ contract_usage | tojson }};
   const networkProfilesInitial = {{ settings.network_profiles | tojson }};
   let networkProfilesData = Array.isArray(networkProfilesInitial)
@@ -1337,6 +1432,7 @@
       syncParameterData((data && data.data) || data || parameterData);
       parametersLoaded = true;
       renderParameters({ forceBodies: true });
+      renderCityCard();
       renderItConnectionsTable();
       buildLocationsTree();
       if (parameterModal && parameterModalType) {
@@ -1361,9 +1457,25 @@
       return;
     }
     const stateSelect = container.querySelector('[data-param-state-input]');
+    let serverNameInput = null;
+    let serverName = '';
+    if (type === 'iiko_server') {
+      serverNameInput = container.querySelector('[data-param-create-field="server_name"]');
+      serverName = serverNameInput ? serverNameInput.value.trim() : '';
+      if (!serverName) {
+        if (serverNameInput) {
+          serverNameInput.focus();
+        }
+        alert('Поле «Имя сервера» обязательно');
+        return;
+      }
+    }
     const payload = { param_type: type, value };
     if (stateSelect && PARAMETER_STATE_TYPES.has(type)) {
       payload.state = stateSelect.value;
+    }
+    if (type === 'iiko_server') {
+      payload.server_name = serverName;
     }
 
     const originalText = trigger.textContent;
@@ -1382,6 +1494,9 @@
       }
       syncParameterData((data && data.data) || parameterData);
       input.value = '';
+      if (serverNameInput) {
+        serverNameInput.value = '';
+      }
       if (stateSelect) {
         stateSelect.value = PARAMETER_STATES[0];
       }
@@ -1410,14 +1525,31 @@
       input.focus();
       return;
     }
+    let serverNameInput = null;
+    let serverName = '';
+    if (type === 'iiko_server') {
+      serverNameInput = entry.querySelector('input[data-param-field="server_name"]');
+      serverName = serverNameInput ? serverNameInput.value.trim() : '';
+      if (!serverName) {
+        alert('Имя сервера обязательно');
+        if (serverNameInput) {
+          serverNameInput.focus();
+        }
+        return;
+      }
+    }
 
     trigger.disabled = true;
 
     try {
+      const payload = { value };
+      if (type === 'iiko_server') {
+        payload.server_name = serverName;
+      }
       const response = await fetch(`/api/settings/parameters/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value })
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
       if (!response.ok || data.success === false) {
