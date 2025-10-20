@@ -270,7 +270,7 @@
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Статус</label>
-              <div class="searchable-select dropdown" data-select-id="statusSelect">
+              <div class="searchable-select dropdown" data-select-id="statusSelect" data-force-custom-dropdown>
                 <select class="form-select d-none" id="statusSelect">
                   {% for value in statuses %}
                   <option value="{{ value }}">{{ value }}</option>
@@ -1259,6 +1259,13 @@
     let currentPhotoPreviewList = [];
     let statusHistoryCollapseInstance = null;
     const searchableSelectRegistry = new Map();
+
+    function closeOtherSearchableSelects(exceptId) {
+      searchableSelectRegistry.forEach((state, id) => {
+        if (id === exceptId || !state || typeof state.hide !== 'function') return;
+        state.hide();
+      });
+    }
     const savePassportBtn = document.getElementById('savePassportBtn');
 
     const statusesRequiringTask = new Set(['Закрыт', 'Реконструкция', 'Заморожен', 'Другое']);
@@ -1330,17 +1337,6 @@
         dropdownToggle.setAttribute('aria-expanded', 'false');
       };
 
-      const toggleMenu = () => {
-        const isShown = dropdownInstance
-          ? dropdownToggle.getAttribute('aria-expanded') === 'true'
-          : dropdownMenu.classList.contains('show');
-        if (isShown) {
-          hideMenu();
-        } else {
-          showMenu();
-        }
-      };
-
       const handleDropdownShown = () => {
         searchInput.value = '';
         filterOptions('');
@@ -1351,6 +1347,11 @@
         searchInput.value = '';
         filterOptions('');
       };
+
+      const isMenuShown = () =>
+        dropdownInstance
+          ? dropdownToggle.getAttribute('aria-expanded') === 'true'
+          : dropdownMenu.classList.contains('show');
 
       function buildOptions() {
         optionsContainer.innerHTML = '';
@@ -1401,40 +1402,53 @@
 
       searchInput.addEventListener('input', () => filterOptions(searchInput.value));
 
+      const refreshState = () => {
+        buildOptions();
+        updateLabel();
+        filterOptions(searchInput.value);
+      };
+
+      const state = {
+        refresh: refreshState,
+        select,
+        labelEl,
+        hide: () => {
+          if (!isMenuShown()) return;
+          hideMenu();
+          if (!dropdownInstance) {
+            handleDropdownHidden();
+          }
+        },
+        isShown: isMenuShown,
+      };
+
+      searchableSelectRegistry.set(selectId, state);
+
       if (dropdownInstance) {
+        wrapper.addEventListener('show.bs.dropdown', () => closeOtherSearchableSelects(selectId));
         wrapper.addEventListener('shown.bs.dropdown', handleDropdownShown);
         wrapper.addEventListener('hidden.bs.dropdown', handleDropdownHidden);
       } else {
         dropdownToggle.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
-          const wasShown = dropdownMenu.classList.contains('show');
-          toggleMenu();
-          if (wasShown) {
-            handleDropdownHidden();
+          if (isMenuShown()) {
+            state.hide();
           } else {
+            closeOtherSearchableSelects(selectId);
+            showMenu();
             handleDropdownShown();
           }
         });
 
         document.addEventListener('click', (event) => {
           if (!wrapper.contains(event.target)) {
-            if (dropdownMenu.classList.contains('show')) {
-              hideMenu();
-              handleDropdownHidden();
-            }
+            state.hide();
           }
         });
       }
 
-      const refresh = () => {
-        buildOptions();
-        updateLabel();
-        filterOptions(searchInput.value);
-      };
-
-      refresh();
-      searchableSelectRegistry.set(selectId, { refresh, select, labelEl });
+      state.refresh();
 
       select.addEventListener('change', () => {
         updateLabel();
