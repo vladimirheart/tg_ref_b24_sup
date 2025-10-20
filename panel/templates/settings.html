@@ -482,13 +482,23 @@
           </div>
           <form data-it-connection-add-form>
             <div class="modal-body">
-                            <div class="mb-3">
+              <div class="mb-3">
                 <label class="form-label" for="itConnectionCategorySelect">Выберите, что необходимо добавить</label>
-                <select class="form-select" id="itConnectionCategorySelect" data-it-connection-category-select>
-                  {% for key, label in it_connection_categories.items() %}
-                  <option value="{{ key }}">{{ label }}</option>
-                  {% endfor %}
-                </select>
+                <div class="input-group">
+                  <select class="form-select" id="itConnectionCategorySelect" data-it-connection-category-select>
+                    {% for key, label in it_connection_categories.items() %}
+                    <option value="{{ key }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    data-it-connection-category-create
+                  >
+                    + Новая категория
+                  </button>
+                </div>
+                <div class="form-text">Если нужной категории нет в списке, создайте её.</div>
               </div>
               <div>
                 <label class="form-label" for="itConnectionValueInput">Значение подключения</label>
@@ -585,9 +595,97 @@
   const CITY_PARAMETER_TYPE = 'city';
   const CITY_PARAMETER_LABEL = 'Город';
 
-  const IT_CONNECTION_CATEGORY_LABELS = {{ it_connection_categories | tojson }} || {};
-  const IT_CONNECTION_CATEGORY_KEYS = Object.keys(IT_CONNECTION_CATEGORY_LABELS);
-  const IT_CONNECTION_DEFAULT_CATEGORY = IT_CONNECTION_CATEGORY_KEYS[0] || 'equipment_type';
+  const IT_CONNECTION_FALLBACK_LABELS = {{ it_connection_categories | tojson }} || {};
+  const IT_CONNECTION_CATEGORY_FIELDS = {{ it_connection_category_fields | tojson }} || {};
+  let IT_CONNECTION_CATEGORY_LABELS = {};
+  let IT_CONNECTION_CATEGORY_KEYS = [];
+  let IT_CONNECTION_DEFAULT_CATEGORY = 'equipment_type';
+  let itConnectionCategorySelect = null;
+
+  function determineItConnectionDefaultCategory(keys) {
+    if (Array.isArray(keys) && keys.includes('equipment_type')) {
+      return 'equipment_type';
+    }
+    if (Array.isArray(keys) && keys.length) {
+      return keys[0];
+    }
+    return 'equipment_type';
+  }
+
+  function sanitizeItConnectionCategoryMap(source) {
+    const target = {};
+    if (!source || typeof source !== 'object') {
+      return target;
+    }
+    Object.keys(source).forEach((key) => {
+      const rawKey = typeof key === 'string' ? key : String(key || '');
+      const label = source[key];
+      if (typeof rawKey !== 'string' || typeof label !== 'string') {
+        return;
+      }
+      const trimmedKey = rawKey.trim();
+      const trimmedLabel = label.trim();
+      if (!trimmedKey || !trimmedLabel) {
+        return;
+      }
+      target[trimmedKey] = trimmedLabel;
+    });
+    return target;
+  }
+
+  function rebuildItConnectionCategorySelect(select, selectedKey) {
+    if (!select) return;
+    const desiredValue = typeof selectedKey === 'string' ? selectedKey : select.value;
+    const fragment = document.createDocumentFragment();
+    IT_CONNECTION_CATEGORY_KEYS.forEach((key) => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = IT_CONNECTION_CATEGORY_LABELS[key] || key;
+      if (key === desiredValue) {
+        option.selected = true;
+      }
+      fragment.appendChild(option);
+    });
+    select.innerHTML = '';
+    if (fragment.childNodes.length) {
+      select.appendChild(fragment);
+    } else {
+      const fallbackOption = document.createElement('option');
+      fallbackOption.value = IT_CONNECTION_DEFAULT_CATEGORY;
+      fallbackOption.textContent =
+        IT_CONNECTION_CATEGORY_LABELS[IT_CONNECTION_DEFAULT_CATEGORY] || IT_CONNECTION_DEFAULT_CATEGORY;
+      select.appendChild(fallbackOption);
+    }
+    if (
+      desiredValue &&
+      select.value !== desiredValue &&
+      IT_CONNECTION_CATEGORY_KEYS.includes(desiredValue)
+    ) {
+      select.value = desiredValue;
+    }
+  }
+
+  function setItConnectionCategories(newLabels, options = {}) {
+    const base = sanitizeItConnectionCategoryMap(IT_CONNECTION_FALLBACK_LABELS);
+    const overrides = sanitizeItConnectionCategoryMap(newLabels);
+    Object.keys(overrides).forEach((key) => {
+      base[key] = overrides[key];
+    });
+    if (!Object.keys(base).length) {
+      base.equipment_type = 'Тип оборудования';
+      base.equipment_vendor = 'Производитель оборудования';
+      base.equipment_model = 'Модель оборудования';
+    }
+    IT_CONNECTION_CATEGORY_LABELS = base;
+    IT_CONNECTION_CATEGORY_KEYS = Object.keys(IT_CONNECTION_CATEGORY_LABELS);
+    IT_CONNECTION_DEFAULT_CATEGORY = determineItConnectionDefaultCategory(IT_CONNECTION_CATEGORY_KEYS);
+    if (itConnectionCategorySelect) {
+      const selectedKey = typeof options.selectedKey === 'string' ? options.selectedKey : undefined;
+      rebuildItConnectionCategorySelect(itConnectionCategorySelect, selectedKey);
+    }
+  }
+
+  setItConnectionCategories(IT_CONNECTION_FALLBACK_LABELS);
 
   const LOCATION_STATUS_SOURCES = {
     business: 'business',
@@ -610,6 +708,7 @@
   function syncParameterData(source) {
     const data = source && typeof source === 'object' ? source : {};
     const result = {};
+    const itConnectionCategoryUpdates = {}
     Object.keys(PARAMETER_TITLES).forEach((type) => {
       const items = Array.isArray(data[type]) ? data[type] : [];
       result[type] = items.map((item) => {
@@ -637,6 +736,10 @@
             (typeof extraData.category === 'string' ? extraData.category : '');
           const category = normalizeItConnectionCategory(rawCategory);
           const trimmedValue = value.trim();
+          const rawCategoryLabel =
+            (item && typeof item.category_label === 'string' && item.category_label) ||
+            (typeof extraData.category_label === 'string' ? extraData.category_label : '');
+          const categoryLabel = typeof rawCategoryLabel === 'string' ? rawCategoryLabel.trim() : '';
           const equipmentTypeSource =
             (item && typeof item.equipment_type === 'string' && item.equipment_type) ||
             (typeof extraData.equipment_type === 'string' ? extraData.equipment_type : '');
@@ -657,13 +760,19 @@
           } else if (category === 'equipment_model' && equipmentModel) {
             categoryValue = equipmentModel;
           }
+          if (category && categoryLabel) {
+            itConnectionCategoryUpdates[category] = categoryLabel;
+          }
+          const effectiveLabel = categoryLabel || IT_CONNECTION_CATEGORY_LABELS[category] || category;
           entry.value = categoryValue;
           entry.category = category;
+          entry.category_label = effectiveLabel;
           entry.equipment_type = equipmentType;
           entry.equipment_vendor = equipmentVendor;
           entry.equipment_model = equipmentModel;
           entry.extra = {
             category,
+            category_label: effectiveLabel,
             equipment_type: equipmentType,
             equipment_vendor: equipmentVendor,
             equipment_model: equipmentModel,
@@ -682,6 +791,9 @@
         return entry;
       });
     });
+    if (Object.keys(itConnectionCategoryUpdates).length) {
+      setItConnectionCategories(itConnectionCategoryUpdates);
+    }
     parameterData = result;
     parameterStatusCache.clear();
   }
@@ -1005,7 +1117,7 @@
       const label = IT_CONNECTION_CATEGORY_LABELS[key];
       return typeof label === 'string' && label.trim().toLowerCase() === lowered;
     });
-    return matchedKey || IT_CONNECTION_DEFAULT_CATEGORY;
+    return matchedKey || trimmed;
   }
 
   function getItConnectionCategoryLabel(category) {
@@ -1223,15 +1335,16 @@
     const normalizedCategory = normalizeItConnectionCategory(category);
     const trimmedValue = typeof value === 'string' ? value.trim() : '';
     const payload = { value: trimmedValue, category: normalizedCategory };
-    if (normalizedCategory === 'equipment_type') {
+    const mappedField = IT_CONNECTION_CATEGORY_FIELDS[normalizedCategory];
+    if (mappedField === 'equipment_type') {
       payload.equipment_type = trimmedValue;
       payload.equipment_vendor = '';
       payload.equipment_model = '';
-    } else if (normalizedCategory === 'equipment_vendor') {
+    } else if (mappedField === 'equipment_vendor') {
       payload.equipment_vendor = trimmedValue;
       payload.equipment_type = '';
       payload.equipment_model = '';
-    } else if (normalizedCategory === 'equipment_model') {
+    } else if (mappedField === 'equipment_model') {
       payload.equipment_model = trimmedValue;
       payload.equipment_type = '';
       payload.equipment_vendor = '';
@@ -1397,8 +1510,11 @@
   const itConnectionAddForm = itConnectionAddModalEl
     ? itConnectionAddModalEl.querySelector('[data-it-connection-add-form]')
     : null;
-  const itConnectionCategorySelect = itConnectionAddModalEl
-    ? itConnectionAddModalEl.querySelector('[data-it-connection-category-select]')
+  if (itConnectionAddModalEl) {
+    itConnectionCategorySelect = itConnectionAddModalEl.querySelector('[data-it-connection-category-select]');
+  }
+  const itConnectionCategoryCreateButton = itConnectionAddModalEl
+    ? itConnectionAddModalEl.querySelector('[data-it-connection-category-create]')
     : null;
   const itConnectionValueInput = itConnectionAddModalEl
     ? itConnectionAddModalEl.querySelector('[data-it-connection-value-input]')
@@ -1407,8 +1523,13 @@
     ? new bootstrap.Modal(itConnectionAddModalEl)
     : null;
 
+  if (itConnectionCategorySelect) {
+    rebuildItConnectionCategorySelect(itConnectionCategorySelect);
+  }
+
   if (itConnectionAddModalEl) {
     itConnectionAddModalEl.addEventListener('show.bs.modal', () => {
+      rebuildItConnectionCategorySelect(itConnectionCategorySelect, IT_CONNECTION_DEFAULT_CATEGORY);
       if (itConnectionCategorySelect) {
         itConnectionCategorySelect.value = IT_CONNECTION_DEFAULT_CATEGORY;
       }
@@ -1422,6 +1543,49 @@
         itConnectionValueInput.focus();
       } else if (itConnectionCategorySelect) {
         itConnectionCategorySelect.focus();
+      }
+    });
+  }
+
+  if (itConnectionCategoryCreateButton) {
+    itConnectionCategoryCreateButton.addEventListener('click', async () => {
+      const promptMessage = 'Введите название новой категории подключения';
+      let label = window.prompt(promptMessage);
+      if (label === null) {
+        return;
+      }
+      label = String(label).trim();
+      if (!label) {
+        alert('Название категории не может быть пустым');
+        return;
+      }
+      itConnectionCategoryCreateButton.disabled = true;
+      try {
+        const response = await fetch('/api/settings/it-connection-categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error((data && data.error) || 'Ошибка создания категории');
+        }
+        const payload = (data && data.data) || {};
+        const categories = payload.categories || {};
+        const createdKey = payload.key || null;
+        setItConnectionCategories(categories, { selectedKey: createdKey });
+        renderItConnectionsTable();
+        if (createdKey && itConnectionCategorySelect) {
+          itConnectionCategorySelect.value = createdKey;
+        }
+        if (itConnectionValueInput) {
+          itConnectionValueInput.focus();
+        }
+      } catch (error) {
+        const message = error && error.message ? error.message : error;
+        alert('❌ ' + message);
+      } finally {
+        itConnectionCategoryCreateButton.disabled = false;
       }
     });
   }
