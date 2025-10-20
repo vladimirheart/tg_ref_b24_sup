@@ -345,7 +345,7 @@
           <div class="modal-body">
             <div class="row g-3">
               {% for slug, title in parameter_types.items() %}
-              {% if slug != 'it_connection' %}
+              {% if slug not in ['it_connection', 'remote_access'] %}
               <div class="col-md-6 col-xl-4">
                 <div class="card shadow-sm parameter-card" data-param-type="{{ slug }}">
                   <div class="card-header d-flex justify-content-between align-items-center">
@@ -433,7 +433,7 @@
                     aria-expanded="true"
                     aria-controls="itConnectionsSection"
                   >
-                    Подключения
+                    Оборудование
                   </button>
                 </h2>
                 <div
@@ -460,12 +460,39 @@
                       Здесь управляйте списком доступных подключений IT-блока.
                     </div>
                   </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="remoteAccessSectionHeading">
+                <button
+                  class="accordion-button collapsed"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#remoteAccessSection"
+                  aria-expanded="false"
+                  aria-controls="remoteAccessSection"
+                >
+                  Параметры удалённого доступа
+                </button>
+              </h2>
+              <div
+                id="remoteAccessSection"
+                class="accordion-collapse collapse"
+                aria-labelledby="remoteAccessSectionHeading"
+                data-bs-parent="#itSettingsAccordion"
+              >
+                <div class="accordion-body">
+                  <p class="text-muted small mb-3">
+                    Справочник приложений для удалённого подключения инженеров.
+                  </p>
+                  <div data-remote-access-container></div>
                 </div>
               </div>
-              <div class="accordion-item">
-                <h2 class="accordion-header" id="itEquipmentSectionHeading">
-                  <button
-                    class="accordion-button collapsed"
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="itEquipmentSectionHeading">
+                <button
+                  class="accordion-button collapsed"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#itEquipmentSection"
@@ -1036,6 +1063,12 @@
     `;
   }
 
+  function renderRemoteAccessSection() {
+    if (!remoteAccessContainer) return;
+    const items = Array.isArray(parameterData.remote_access) ? parameterData.remote_access : [];
+    remoteAccessContainer.innerHTML = buildParameterContent('remote_access', items, 'it');
+  }
+
   function renderParameterCard(type, { forceBody = false } = {}) {
     const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
     if (!card) return;
@@ -1073,6 +1106,7 @@
     Object.keys(PARAMETER_TITLES).forEach((type) => {
       renderParameterCard(type, { forceBody: forceBodies });
     });
+    renderRemoteAccessSection();
   }
 
   function buildCityModalContent() {
@@ -1402,6 +1436,7 @@
   }
 
   const itConnectionsContainer = document.querySelector('[data-it-connections-container]');
+  const remoteAccessContainer = document.querySelector('[data-remote-access-container]');
   let itConnectionDrafts = [];
   const itEquipmentBody = document.getElementById('itEquipmentBody');
   let itEquipmentItems = [];
