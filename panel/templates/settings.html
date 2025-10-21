@@ -815,21 +815,14 @@
             <section class="mb-4">
               <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                 <div>
-                  <h6 class="mb-1">Структура вопросов</h6>
+                  <h6 class="mb-1">Шаблоны вопросов</h6>
                   <p class="small text-muted mb-0">
-                    Настройте последовательность вопросов для пользователей бота. Можно использовать свободный текст или
-                    выбрать готовое поле из структуры локаций.
+                    Создайте несколько сценариев вопросов для бота и выберите основной. Каждый шаблон можно редактировать отдельно.
                   </p>
                 </div>
-                <button class="btn btn-sm btn-outline-success" type="button" data-bot-question-add>+ Вопрос</button>
+                <button class="btn btn-sm btn-outline-success" type="button" data-bot-template-create>+ Шаблон</button>
               </div>
-              <div id="botQuestionsList" class="d-flex flex-column gap-3" data-bot-questions-container></div>
-              <div class="card border-0 bg-light mt-3" data-bot-presets-summary>
-                <div class="card-body py-3">
-                  <div class="fw-semibold mb-1">Доступные готовые поля</div>
-                  <div class="small text-muted" data-bot-preset-hints></div>
-                </div>
-              </div>
+              <div class="d-flex flex-column gap-3" data-bot-templates-container></div>
             </section>
 
             <hr>
@@ -838,10 +831,13 @@
               <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                 <div>
                   <h6 class="mb-1">Система оценок</h6>
-                  <p class="small text-muted mb-0">
-                    Укажите количество вариантов оценки и действия, которые бот выполнит после получения оценки.
-                  </p>
+                  <p class="small text-muted mb-0">Настройте запрос оценки и ответы, которые бот отправит при каждой оценке.</p>
                 </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="botRatingPromptInput">Текст запроса</label>
+                <input type="text" class="form-control" id="botRatingPromptInput" data-bot-rating-prompt>
+                <div class="form-text">Поддерживаются подстановки {ticket_id} и {scale}.</div>
               </div>
               <div class="row g-3">
                 <div class="col-md-4">
@@ -858,12 +854,9 @@
                   <div class="form-text">Пользователь сможет выбрать значение от 1 до указанного числа.</div>
                 </div>
                 <div class="col-md-8">
-                  <label class="form-label">Действия после оценки</label>
-                  <div class="d-flex flex-column gap-2" id="botRatingActionsList" data-bot-rating-actions></div>
-                  <button class="btn btn-sm btn-outline-secondary mt-1" type="button" data-bot-rating-add-action>
-                    + Добавить действие
-                  </button>
-                  <div class="form-text">Каждый пункт будет отправлен пользователю отдельной строкой после оценки.</div>
+                  <label class="form-label">Ответы для оценок</label>
+                  <div class="d-flex flex-column gap-2" data-bot-rating-responses></div>
+                  <div class="form-text">Каждый текст отправляется при соответствующей оценке. Доступны подстановки {value} и {scale}.</div>
                 </div>
               </div>
             </section>
@@ -872,6 +865,51 @@
             <div class="small text-muted me-auto" data-bot-settings-status></div>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
             <button type="button" class="btn btn-primary" data-bot-settings-save>Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="botTemplateEditorModal" tabindex="-1" aria-labelledby="botTemplateEditorLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="botTemplateEditorLabel">Редактирование шаблона вопросов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="botTemplateNameInput">Название шаблона</label>
+              <input type="text" class="form-control" id="botTemplateNameInput" data-bot-template-name>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="botTemplateDescriptionInput">Описание (необязательно)</label>
+              <textarea class="form-control" id="botTemplateDescriptionInput" rows="2" data-bot-template-description></textarea>
+            </div>
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                  <h6 class="mb-1">Структура вопросов</h6>
+                  <p class="small text-muted mb-0">Настройте последовательность вопросов. Используйте свободный текст или готовые поля из справочников.</p>
+                </div>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-primary" type="button" data-bot-question-add data-type="custom">+ Свободный вопрос</button>
+                  <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="preset">+ Готовое поле</button>
+                </div>
+              </div>
+              <div class="d-flex flex-column gap-3" data-bot-questions-container></div>
+              <div class="card border-0 bg-light mt-3" data-bot-presets-summary>
+                <div class="card-body py-3">
+                  <div class="fw-semibold mb-1">Доступные готовые поля</div>
+                  <div class="small text-muted" data-bot-preset-hints></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div class="small text-muted me-auto" data-bot-template-status></div>
+            <button type="button" class="btn btn-outline-secondary" data-bot-template-cancel data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-bot-template-save>Сохранить шаблон</button>
           </div>
         </div>
       </div>
