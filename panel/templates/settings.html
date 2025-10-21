@@ -831,40 +831,68 @@
               <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                 <div>
                   <h6 class="mb-1">Система оценок</h6>
-                  <p class="small text-muted mb-0">Настройте запрос оценки и ответы, которые бот отправит при каждой оценке.</p>
+                  <p class="small text-muted mb-0">Создайте несколько сценариев оценок для ботов и выберите активный шаблон.</p>
                 </div>
+                <button class="btn btn-sm btn-outline-success" type="button" data-bot-rating-template-create>+ Шаблон</button>
               </div>
-              <div class="mb-3">
-                <label class="form-label" for="botRatingPromptInput">Текст запроса</label>
-                <input type="text" class="form-control" id="botRatingPromptInput" data-bot-rating-prompt>
-                <div class="form-text">Поддерживаются подстановки {ticket_id} и {scale}.</div>
-              </div>
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label" for="botRatingScaleInput">Количество оценок</label>
-                  <input
-                    type="number"
-                    class="form-control"
-                    id="botRatingScaleInput"
-                    min="1"
-                    max="10"
-                    step="1"
-                    data-bot-rating-scale
-                  >
-                  <div class="form-text">Пользователь сможет выбрать значение от 1 до указанного числа.</div>
-                </div>
-                <div class="col-md-8">
-                  <label class="form-label">Ответы для оценок</label>
-                  <div class="d-flex flex-column gap-2" data-bot-rating-responses></div>
-                  <div class="form-text">Каждый текст отправляется при соответствующей оценке. Доступны подстановки {value} и {scale}.</div>
-                </div>
-              </div>
+              <div class="d-flex flex-column gap-3" data-bot-rating-templates-container></div>
             </section>
           </div>
           <div class="modal-footer">
             <div class="small text-muted me-auto" data-bot-settings-status></div>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
             <button type="button" class="btn btn-primary" data-bot-settings-save>Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="botRatingTemplateModal" tabindex="-1" aria-labelledby="botRatingTemplateLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="botRatingTemplateLabel">Редактирование шаблона оценок</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="botRatingTemplateName">Название шаблона</label>
+              <input type="text" class="form-control" id="botRatingTemplateName" data-bot-rating-template-name>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="botRatingTemplateDescription">Описание (необязательно)</label>
+              <textarea class="form-control" id="botRatingTemplateDescription" rows="2" data-bot-rating-template-description></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="botRatingTemplatePrompt">Текст запроса</label>
+              <textarea class="form-control" id="botRatingTemplatePrompt" rows="2" data-bot-rating-template-prompt></textarea>
+              <div class="form-text">Поддерживаются подстановки {ticket_id} и {scale}.</div>
+            </div>
+            <div class="row g-3">
+              <div class="col-lg-4">
+                <label class="form-label" for="botRatingTemplateScale">Количество оценок</label>
+                <input
+                  type="number"
+                  class="form-control"
+                  id="botRatingTemplateScale"
+                  min="1"
+                  max="10"
+                  step="1"
+                  data-bot-rating-template-scale
+                >
+                <div class="form-text">Пользователь сможет выбрать значение от 1 до указанного числа.</div>
+              </div>
+              <div class="col-lg-8">
+                <label class="form-label">Ответы для оценок</label>
+                <div class="d-flex flex-column gap-2" data-bot-rating-template-responses></div>
+                <div class="form-text">Каждый текст отправляется при соответствующей оценке. Доступны подстановки {value} и {scale}.</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div class="small text-muted me-auto" data-bot-rating-template-status></div>
+            <button type="button" class="btn btn-outline-secondary" data-bot-rating-template-cancel data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-bot-rating-template-save>Сохранить шаблон</button>
           </div>
         </div>
       </div>
