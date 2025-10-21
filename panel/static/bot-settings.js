@@ -49,7 +49,16 @@
             .map((value) => (typeof value === 'string' ? value.trim() : ''))
             .filter((value) => value)
         : [];
-      fields[fieldKey] = { label: fieldLabel || fieldKey, options };
+      const optionDependencies = fieldValue.option_dependencies && typeof fieldValue.option_dependencies === 'object'
+        ? fieldValue.option_dependencies
+        : {};
+      const tree = fieldValue.tree && typeof fieldValue.tree === 'object' ? fieldValue.tree : null;
+      fields[fieldKey] = {
+        label: fieldLabel || fieldKey,
+        options,
+        optionDependencies,
+        tree,
+      };
     });
     PRESET_GROUPS[groupKey] = { label: label || groupKey, fields };
   });
@@ -97,6 +106,10 @@
       label: fieldValue.label || field,
       options: Array.isArray(fieldValue.options) ? fieldValue.options : [],
       groupLabel: groupValue.label || group,
+      optionDependencies: fieldValue.optionDependencies && typeof fieldValue.optionDependencies === 'object'
+        ? fieldValue.optionDependencies
+        : {},
+      tree: fieldValue.tree && typeof fieldValue.tree === 'object' ? fieldValue.tree : null,
     };
   }
 
@@ -162,6 +175,9 @@
     const excluded = Array.isArray(question && question.excludedOptions)
       ? Array.from(new Set(question.excludedOptions.map((value) => (value || '').toString())))
       : [];
+    const filterState = question && typeof question.filterState === 'object'
+      ? Object.assign({}, question.filterState)
+      : {};
     return {
       id,
       type: question && question.type === 'preset' ? 'preset' : 'custom',
@@ -169,6 +185,7 @@
       order: Number.isFinite(question && question.order) ? Number(question.order) : 0,
       preset,
       excludedOptions: excluded,
+      filterState,
     };
   }
 
@@ -621,6 +638,122 @@ const id = ensureQuestionId(source.id);
     summaryEl.textContent = `Скрыто: ${excluded.length} из ${options.length}`;
   }
 
+  function collectDependencyValues(optionDependencies) {
+    const values = {
+      business: new Set(),
+      location_type: new Set(),
+    };
+    if (!optionDependencies || typeof optionDependencies !== 'object') {
+      return values;
+    }
+    Object.values(optionDependencies).forEach((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      const businessValues = Array.isArray(entry.business) ? entry.business : [];
+      businessValues.forEach((value) => {
+        if (typeof value === 'string' && value.trim()) {
+          values.business.add(value.trim());
+        }
+      });
+      const typeValues = Array.isArray(entry.location_type) ? entry.location_type : [];
+      typeValues.forEach((value) => {
+        if (typeof value === 'string' && value.trim()) {
+          values.location_type.add(value.trim());
+        }
+      });
+    });
+    return values;
+  }
+
+  function buildFilterSelectHtml(key, label, valuesSet) {
+    if (!valuesSet || typeof valuesSet.forEach !== 'function' || valuesSet.size <= 1) {
+      return '';
+    }
+    const collator = typeof Intl !== 'undefined' && Intl.Collator
+      ? new Intl.Collator('ru', { sensitivity: 'base' })
+      : null;
+    const sorted = Array.from(valuesSet).sort((a, b) => {
+      if (collator) {
+        return collator.compare(a, b);
+      }
+      return a.localeCompare(b);
+    });
+    const options = ['<option value="">Все</option>'].concat(
+      sorted.map((value) => `<option value="${html(value)}">${html(value)}</option>`),
+    );
+    return `
+      <div class="d-flex align-items-center gap-1" data-bot-question-filter-wrapper="${html(key)}">
+        <span class="small text-muted">${html(label)}:</span>
+        <select class="form-select form-select-sm" data-bot-question-filter="${html(key)}">
+          ${options.join('')}
+        </select>
+      </div>
+    `;
+  }
+
+  function buildFilterControls(meta) {
+    if (!meta || typeof meta.optionDependencies !== 'object') {
+      return '';
+    }
+    const dependencyValues = collectDependencyValues(meta.optionDependencies);
+    const pieces = [];
+    const businessFilter = buildFilterSelectHtml('business', 'Бизнес', dependencyValues.business);
+    if (businessFilter) {
+      pieces.push(businessFilter);
+    }
+    const locationTypeFilter = buildFilterSelectHtml('location_type', 'Тип бизнеса', dependencyValues.location_type);
+    if (locationTypeFilter) {
+      pieces.push(locationTypeFilter);
+    }
+    if (!pieces.length) {
+      return '';
+    }
+    return `<div class="d-flex flex-wrap gap-2 align-items-center" data-bot-question-filters>${pieces.join('')}</div>`;
+  }
+
+  function applyQuestionFilters(card) {
+    if (!card) {
+      return;
+    }
+    const container = card.querySelector('[data-bot-question-options]');
+    if (!container) {
+      return;
+    }
+    const filters = {
+      business: card.dataset.filterBusiness || '',
+      location_type: card.dataset.filterLocationType || '',
+    };
+    let visibleCount = 0;
+    container.querySelectorAll('.form-check').forEach((row) => {
+      if (!(row instanceof HTMLElement)) {
+        return;
+      }
+      let visible = true;
+      if (filters.business) {
+        const tags = (row.dataset.businessTags || '').split('|').filter(Boolean);
+        if (!tags.includes(filters.business)) {
+          visible = false;
+        }
+      }
+      if (visible && filters.location_type) {
+        const tags = (row.dataset.locationTypeTags || '').split('|').filter(Boolean);
+        if (!tags.includes(filters.location_type)) {
+          visible = false;
+        }
+      }
+      row.classList.toggle('d-none', !visible);
+      if (visible) {
+        visibleCount += 1;
+      }
+    });
+    const placeholder = container.querySelector('[data-bot-question-options-empty]');
+    if (placeholder) {
+      placeholder.classList.toggle('d-none', visibleCount > 0);
+    }
+  }
+
+
   function renderQuestions() {
     if (!questionsContainer) {
       return;
@@ -666,23 +799,58 @@ const id = ensureQuestionId(source.id);
       })();
       const meta = preset ? getPresetMeta(preset.group, preset.field) : null;
       const options = meta && Array.isArray(meta.options) ? meta.options : [];
+      const optionDependencies = meta && typeof meta.optionDependencies === 'object' ? meta.optionDependencies : {};
       const excluded = new Set(Array.isArray(question.excludedOptions) ? question.excludedOptions : []);
-      const optionsHtml = options.length
-        ? options
-            .map((option) => {
-              const checked = excluded.has(option) ? '' : ' checked';
-              return `
-                <div class="form-check form-check-sm">
-                  <input class="form-check-input" type="checkbox" value="${html(option)}" data-bot-question-option${checked}>
-                  <label class="form-check-label">${html(option)}</label>
-                </div>
-              `;
-            })
-            .join('')
-        : '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
+      let optionsHtml;
+      if (options.length) {
+        const items = options
+          .map((option) => {
+            const optionValue = typeof option === 'string' ? option.trim() : '';
+            if (!optionValue) {
+              return '';
+            }
+            const deps = optionDependencies[optionValue] && typeof optionDependencies[optionValue] === 'object'
+              ? optionDependencies[optionValue]
+              : {};
+            const locationTypeTags = Array.isArray(deps.location_type)
+              ? deps.location_type.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
+              : [];
+            const businessTags = Array.isArray(deps.business)
+              ? deps.business.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
+              : [];
+            const locationTypeAttr = locationTypeTags.length
+              ? ` data-location-type-tags="${html(locationTypeTags.join('|'))}"`
+              : '';
+            const businessAttr = businessTags.length
+              ? ` data-business-tags="${html(businessTags.join('|'))}"`
+              : '';
+            const checked = excluded.has(optionValue) ? '' : ' checked';
+            return `
+              <div class="form-check form-check-sm"${locationTypeAttr}${businessAttr}>
+                <input class="form-check-input" type="checkbox" value="${html(optionValue)}" data-bot-question-option${checked}>
+                <label class="form-check-label">${html(optionValue)}</label>
+              </div>
+            `;
+          })
+          .filter(Boolean);
+        if (items.length) {
+          items.push('<div class="text-muted small d-none" data-bot-question-options-empty>Нет вариантов для выбранных фильтров.</div>');
+          optionsHtml = items.join('');
+        } else {
+          optionsHtml = '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
+        }
+      } else {
+        optionsHtml = '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
+      }
       const hintText = meta && meta.options && meta.options.length
         ? `Варианты: ${meta.options.slice(0, 5).join(', ')}${meta.options.length > 5 ? ' ...' : ''}`
         : 'Значения берутся из выбранного справочника.';
+      const filtersHtml = isPreset ? buildFilterControls(meta) : '';
+      const filterState = question.filterState && typeof question.filterState === 'object'
+        ? question.filterState
+        : {};
+      card.dataset.filterBusiness = filterState.business || '';
+      card.dataset.filterLocationType = filterState.location_type || '';
       card.innerHTML = `
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
@@ -717,9 +885,12 @@ const id = ensureQuestionId(source.id);
             </div>
           </div>
           <div class="mt-3${isPreset ? '' : ' d-none'}" data-bot-question-options-wrapper>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="small fw-semibold">Варианты для отображения</span>
-              <span class="small text-muted" data-bot-question-hidden-summary></span>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="small fw-semibold">Варианты для отображения</span>
+                <span class="small text-muted" data-bot-question-hidden-summary></span>
+              </div>
+              ${filtersHtml}
             </div>
             <div class="border rounded-3 p-3 bg-light" data-bot-question-options>
               ${optionsHtml}
@@ -728,17 +899,29 @@ const id = ensureQuestionId(source.id);
         </div>
       `;
       questionsContainer.appendChild(card);
-      renderHiddenSummary(card, question, meta);
       if (isPreset) {
         const select = card.querySelector('[data-bot-question-preset]');
         if (select) {
           select.value = presetValue;
         }
       }
+      const filterSelects = card.querySelectorAll('[data-bot-question-filter]');
+      filterSelects.forEach((select) => {
+        if (!(select instanceof HTMLSelectElement)) {
+          return;
+        }
+        const filterKey = select.dataset.botQuestionFilter;
+        if (filterKey === 'business') {
+          select.value = card.dataset.filterBusiness || '';
+        } else if (filterKey === 'location_type') {
+          select.value = card.dataset.filterLocationType || '';
+        }
+      });
+      applyQuestionFilters(card);
+      renderHiddenSummary(card, question, meta);
     });
     renderPresetHints();
   }
-
   function openTemplateEditor(index) {
     if (!templateModal) {
       return;
@@ -877,6 +1060,7 @@ const id = ensureQuestionId(source.id);
       order: editorState.questionFlow.length + 1,
       preset: null,
       excludedOptions: [],
+      filterState: {},
     };
     if (question.type === 'preset') {
       const [group, field] = firstPreset();
@@ -955,6 +1139,7 @@ const id = ensureQuestionId(source.id);
       question.preset = null;
       question.excludedOptions = [];
     }
+    question.filterState = {};
     renderQuestions();
   }
 
@@ -976,6 +1161,7 @@ const id = ensureQuestionId(source.id);
       question.text = meta ? meta.label : question.text;
     }
     question.excludedOptions = Array.isArray(question.excludedOptions) ? question.excludedOptions : [];
+    question.filterState = {};
     renderQuestions();
   }
 
@@ -1245,6 +1431,27 @@ const id = ensureQuestionId(source.id);
       }
       const index = Number.parseInt(card.dataset.index, 10);
       if (!Number.isFinite(index)) {
+        return;
+      }
+      const filterSelect = event.target.closest('[data-bot-question-filter]');
+      if (filterSelect) {
+        const filterKey = filterSelect.dataset.botQuestionFilter;
+        const value = filterSelect.value || '';
+        if (filterKey === 'business') {
+          card.dataset.filterBusiness = value;
+        } else if (filterKey === 'location_type') {
+          card.dataset.filterLocationType = value;
+        }
+        const question = editorState.questionFlow[index];
+        if (question) {
+          if (!question.filterState || typeof question.filterState !== 'object') {
+            question.filterState = {};
+          }
+          if (filterKey === 'business' || filterKey === 'location_type') {
+            question.filterState[filterKey] = value;
+          }
+        }
+        applyQuestionFilters(card);
         return;
       }
       const typeSelect = event.target.closest('[data-bot-question-type]');
