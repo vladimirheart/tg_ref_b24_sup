@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Настройки</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
   <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
   <style>
@@ -73,96 +72,10 @@
     .location-entry-row input[disabled] {
       background-color: #f8f9fa;
     }
-    .location-status-select {
-      min-width: 12rem;
-      flex: 0 0 auto;
-    }
-    .location-entry-row {
-      gap: 0.5rem;
-    }
-    .location-entry-row .location-status-select {
-      min-width: 10rem;
-    }
-    .location-entry-row .btn {
-      min-width: 0;
-    }
-    .btn-icon {
-      width: 2.25rem;
-      height: 2.25rem;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .btn-icon i {
-      font-size: 1.1rem;
-      line-height: 1;
-    }
-    .location-entry-actions {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      flex: 0 0 auto;
-      margin-left: auto;
-    }
-    .location-section-header,
-    .location-entry-row {
-      flex-wrap: nowrap;
-    }
-    .location-section-header input,
-    .location-entry-row input {
-      min-width: 0;
-    }
-    @media (max-width: 576px) {
-      .location-section-header,
-      .location-entry-row {
-        flex-wrap: wrap;
-      }
-      .location-entry-actions {
-        margin-left: 0;
-        width: 100%;
-        justify-content: flex-end;
-      }
-    }
-    .location-status-surface {
-      border-radius: 0.75rem;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid transparent;
-      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-    .location-status-default {
-      background-color: #f8f9fa;
-      border-color: #e9ecef;
-    }
-    .location-status-active {
-      background-color: rgba(25, 135, 84, 0.12);
-      border-color: rgba(25, 135, 84, 0.4);
-      box-shadow: 0 0 0 1px rgba(25, 135, 84, 0.08);
-    }
-    .location-status-closed {
-      background-color: rgba(108, 117, 125, 0.12);
-      border-color: rgba(108, 117, 125, 0.4);
-      box-shadow: 0 0 0 1px rgba(108, 117, 125, 0.08);
-    }
-    .location-status-pending {
-      background-color: rgba(255, 193, 7, 0.16);
-      border-color: rgba(255, 193, 7, 0.5);
-      box-shadow: 0 0 0 1px rgba(255, 193, 7, 0.12);
-    }
-    .location-status-paused {
-      background-color: rgba(13, 110, 253, 0.12);
-      border-color: rgba(13, 110, 253, 0.45);
-      box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.1);
-    }
-    .location-status-frozen {
-      background-color: rgba(111, 66, 193, 0.14);
-      border-color: rgba(111, 66, 193, 0.45);
-      box-shadow: 0 0 0 1px rgba(111, 66, 193, 0.1);
-    }
-    .location-status-surface .form-control,
-    .location-status-surface .form-select {
-      background-color: transparent;
-    }
+    .location-status-select { min-width: 12rem; }
+    .location-entry-row { gap: 0.5rem; }
+    .location-entry-row .location-status-select { min-width: 10rem; }
+    .location-entry-row .btn { min-width: 5rem; }
     .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
     .channel-questions-list .question-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
     .modal-dialog {
@@ -3062,15 +2975,6 @@
   ];
   const DEFAULT_LOCATION_STATUS = LOCATION_STATUS_OPTIONS[0];
   const LOCATIONS_INITIAL = {{ locations | tojson }};
-  const STATUS_HIGHLIGHT_CLASS_MAP = {
-    Активен: 'location-status-active',
-    Закрыт: 'location-status-closed',
-    'Готовится к запуску': 'location-status-pending',
-    'Приостановлен': 'location-status-paused',
-    Заморожен: 'location-status-frozen',
-  };
-  const STATUS_HIGHLIGHT_CLASSES = Object.values(STATUS_HIGHLIGHT_CLASS_MAP);
-  const DEFAULT_STATUS_HIGHLIGHT_CLASS = 'location-status-default';
 
   function sanitizeStatusesMap(source) {
     const result = {};
@@ -3083,28 +2987,6 @@
       result[key] = LOCATION_STATUS_OPTIONS.includes(raw) ? raw : DEFAULT_LOCATION_STATUS;
     });
     return result;
-  }
-
-  function getStatusHighlightClass(status) {
-    return STATUS_HIGHLIGHT_CLASS_MAP[status] || DEFAULT_STATUS_HIGHLIGHT_CLASS;
-  }
-
-  function applyStatusHighlight(target, status) {
-    if (!target) return;
-    target.classList.add('location-status-surface');
-    target.classList.remove(DEFAULT_STATUS_HIGHLIGHT_CLASS, ...STATUS_HIGHLIGHT_CLASSES);
-    const highlightClass = getStatusHighlightClass(status);
-    target.classList.add(DEFAULT_STATUS_HIGHLIGHT_CLASS);
-    if (highlightClass && highlightClass !== DEFAULT_STATUS_HIGHLIGHT_CLASS) {
-      target.classList.add(highlightClass);
-    }
-  }
-
-  function bindStatusHighlight(select, target) {
-    if (!select || !target) return;
-    const apply = () => applyStatusHighlight(target, select.value);
-    select.addEventListener('change', apply);
-    apply();
   }
 
   function sortObjectAlphabetically(obj) {
@@ -3326,15 +3208,7 @@
     });
   }
 
-  function configureEditControls({
-    input,
-    statusSelect,
-    editButton,
-    deleteButton,
-    statusTarget,
-    onSubmit,
-    onReset,
-  }) {
+  function configureEditControls({ input, statusSelect, editButton, onSubmit, onReset }) {
     const fields = [];
     if (input) {
       input.disabled = true;
@@ -3347,46 +3221,20 @@
       statusSelect.dataset.originalValue = statusSelect.value;
       fields.push(statusSelect);
     }
-    const highlightElement =
-      statusTarget ||
-      (input && input.closest('.location-status-surface')) ||
-      (statusSelect && statusSelect.closest('.location-status-surface'));
-    if (statusSelect && highlightElement) {
-      bindStatusHighlight(statusSelect, highlightElement);
-    }
-    if (deleteButton) {
-      deleteButton.disabled = true;
-      deleteButton.setAttribute('data-no-toggle', 'true');
-    }
     if (!editButton) {
       return;
     }
     editButton.dataset.mode = 'view';
     editButton.setAttribute('data-no-toggle', 'true');
-    const viewIcon = editButton.dataset.iconView || 'bi-pencil';
-    const editIcon = editButton.dataset.iconEdit || 'bi-check-lg';
-    const viewTitle = editButton.dataset.viewTitle || 'Редактировать';
-    const editTitle = editButton.dataset.editTitle || 'Сохранить';
-
-    const setEditButtonAppearance = (iconClass, title) => {
-      editButton.innerHTML = `<i class="bi ${iconClass}"></i>`;
-      editButton.title = title;
-      editButton.setAttribute('aria-label', title);
-    };
-
-    setEditButtonAppearance(viewIcon, viewTitle);
 
     const enterEdit = () => {
       fields.forEach((field) => {
         field.disabled = false;
       });
       editButton.dataset.mode = 'edit';
-      setEditButtonAppearance(editIcon, editTitle);
+      editButton.textContent = 'Сохранить';
       editButton.classList.remove('btn-outline-secondary');
       editButton.classList.add('btn-outline-success');
-      if (deleteButton) {
-        deleteButton.disabled = false;
-      }
       if (input) {
         input.focus();
         input.select();
@@ -3398,12 +3246,9 @@
         field.disabled = true;
       });
       editButton.dataset.mode = 'view';
-      setEditButtonAppearance(viewIcon, viewTitle);
+      editButton.textContent = 'Редактировать';
       editButton.classList.remove('btn-outline-success');
       editButton.classList.add('btn-outline-secondary');
-      if (deleteButton) {
-        deleteButton.disabled = true;
-      }
     };
 
     const resetFields = () => {
@@ -3416,9 +3261,6 @@
       }
       if (statusSelect) {
         statusSelect.value = statusSelect.dataset.originalValue || statusSelect.value;
-      }
-      if (statusSelect && highlightElement) {
-        applyStatusHighlight(highlightElement, statusSelect.value);
       }
     };
 
@@ -3438,9 +3280,6 @@
       }
       if (statusSelect) {
         statusSelect.dataset.originalValue = statusSelect.value;
-      }
-      if (statusSelect && highlightElement) {
-        applyStatusHighlight(highlightElement, statusSelect.value);
       }
       exitEdit();
     };
@@ -3515,8 +3354,7 @@
 
       const businessCollapseId = businessCollapseIdFor(businessName);
       const businessHeader = document.createElement('div');
-      businessHeader.className =
-        'location-section-header location-status-surface d-flex align-items-center gap-2 mb-3';
+      businessHeader.className = 'location-section-header d-flex flex-wrap align-items-center gap-2 mb-3';
 
       const businessInput = document.createElement('input');
       businessInput.type = 'text';
@@ -3527,29 +3365,20 @@
 
       const businessEditBtn = document.createElement('button');
       businessEditBtn.type = 'button';
-      businessEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
-      businessEditBtn.dataset.viewTitle = 'Редактировать бизнес';
-      businessEditBtn.dataset.editTitle = 'Сохранить бизнес';
-      businessEditBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+      businessEditBtn.className = 'btn btn-sm btn-outline-secondary';
+      businessEditBtn.textContent = 'Редактировать';
 
       const deleteBusinessBtn = document.createElement('button');
       deleteBusinessBtn.type = 'button';
-      deleteBusinessBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
-      deleteBusinessBtn.innerHTML = '<i class="bi bi-trash"></i>';
-      deleteBusinessBtn.title = 'Удалить бизнес';
-      deleteBusinessBtn.setAttribute('aria-label', 'Удалить бизнес');
+      deleteBusinessBtn.className = 'btn btn-sm btn-outline-danger';
+      deleteBusinessBtn.textContent = 'Удалить бизнес';
       deleteBusinessBtn.setAttribute('data-no-toggle', 'true');
       deleteBusinessBtn.addEventListener('click', () => removeBusiness(businessName));
 
-      const businessActions = document.createElement('div');
-      businessActions.className = 'location-entry-actions';
-      businessActions.setAttribute('data-no-toggle', 'true');
-      businessActions.appendChild(businessEditBtn);
-      businessActions.appendChild(deleteBusinessBtn);
-
-      businessHeader.appendChild(businessStatus);
       businessHeader.appendChild(businessInput);
-      businessHeader.appendChild(businessActions);
+      businessHeader.appendChild(businessStatus);
+      businessHeader.appendChild(businessEditBtn);
+      businessHeader.appendChild(deleteBusinessBtn);
       cardBody.appendChild(businessHeader);
       attachHeaderToggle(businessHeader, () => {
         const collapseEl = document.getElementById(businessCollapseId);
@@ -3562,8 +3391,6 @@
         input: businessInput,
         statusSelect: businessStatus,
         editButton: businessEditBtn,
-        deleteButton: deleteBusinessBtn,
-        statusTarget: businessHeader,
         onReset: () => {
           businessInput.value = businessName;
           businessStatus.value = getStatus('business', businessName);
@@ -3592,8 +3419,7 @@
         typeBlock.className = 'location-type-block mb-3';
 
         const typeHeader = document.createElement('div');
-        typeHeader.className =
-          'location-section-header location-status-surface d-flex align-items-center gap-2';
+        typeHeader.className = 'location-section-header d-flex flex-wrap align-items-center gap-2';
 
         const typeInput = document.createElement('input');
         typeInput.type = 'text';
@@ -3604,29 +3430,20 @@
 
         const typeEditBtn = document.createElement('button');
         typeEditBtn.type = 'button';
-        typeEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
-        typeEditBtn.dataset.viewTitle = 'Редактировать тип';
-        typeEditBtn.dataset.editTitle = 'Сохранить тип';
-        typeEditBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+        typeEditBtn.className = 'btn btn-sm btn-outline-secondary';
+        typeEditBtn.textContent = 'Редактировать';
 
         const deleteTypeBtn = document.createElement('button');
         deleteTypeBtn.type = 'button';
-        deleteTypeBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
-        deleteTypeBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        deleteTypeBtn.title = 'Удалить тип';
-        deleteTypeBtn.setAttribute('aria-label', 'Удалить тип');
+        deleteTypeBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteTypeBtn.textContent = 'Удалить тип';
         deleteTypeBtn.setAttribute('data-no-toggle', 'true');
         deleteTypeBtn.addEventListener('click', () => removeType(businessName, currentTypeName));
 
-        const typeActions = document.createElement('div');
-        typeActions.className = 'location-entry-actions';
-        typeActions.setAttribute('data-no-toggle', 'true');
-        typeActions.appendChild(typeEditBtn);
-        typeActions.appendChild(deleteTypeBtn);
-
-        typeHeader.appendChild(typeStatus);
         typeHeader.appendChild(typeInput);
-        typeHeader.appendChild(typeActions)
+        typeHeader.appendChild(typeStatus);
+        typeHeader.appendChild(typeEditBtn);
+        typeHeader.appendChild(deleteTypeBtn);
         attachHeaderToggle(typeHeader, () => {
           const el = document.getElementById(collapseId);
           if (!el) return;
@@ -3638,8 +3455,6 @@
           input: typeInput,
           statusSelect: typeStatus,
           editButton: typeEditBtn,
-          deleteButton: deleteTypeBtn,
-          statusTarget: typeHeader,
           onReset: () => {
             typeInput.value = currentTypeName;
             typeStatus.value = getStatus('type', businessName, currentTypeName);
@@ -3671,8 +3486,7 @@
           const cityCollapseId = cityCollapseIdFor(businessName, currentTypeName, currentCityName);
 
           const cityHeader = document.createElement('div');
-          cityHeader.className =
-            'location-section-header location-status-surface d-flex align-items-center gap-2 mb-2';
+          cityHeader.className = 'location-section-header d-flex flex-wrap align-items-center gap-2 mb-2';
 
           const cityInput = document.createElement('input');
           cityInput.type = 'text';
@@ -3683,29 +3497,20 @@
 
           const cityEditBtn = document.createElement('button');
           cityEditBtn.type = 'button';
-          cityEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
-          cityEditBtn.dataset.viewTitle = 'Редактировать город';
-          cityEditBtn.dataset.editTitle = 'Сохранить город';
-          cityEditBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+          cityEditBtn.className = 'btn btn-sm btn-outline-secondary';
+          cityEditBtn.textContent = 'Редактировать';
 
           const deleteCityBtn = document.createElement('button');
           deleteCityBtn.type = 'button';
-          deleteCityBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
-          deleteCityBtn.innerHTML = '<i class="bi bi-trash"></i>';
-          deleteCityBtn.title = 'Удалить город';
-          deleteCityBtn.setAttribute('aria-label', 'Удалить город');
+          deleteCityBtn.className = 'btn btn-sm btn-outline-danger';
+          deleteCityBtn.textContent = 'Удалить город';
           deleteCityBtn.setAttribute('data-no-toggle', 'true');
           deleteCityBtn.addEventListener('click', () => removeCity(businessName, currentTypeName, currentCityName));
 
-          const cityActions = document.createElement('div');
-          cityActions.className = 'location-entry-actions';
-          cityActions.setAttribute('data-no-toggle', 'true');
-          cityActions.appendChild(cityEditBtn);
-          cityActions.appendChild(deleteCityBtn);
-
-          cityHeader.appendChild(cityStatus);
           cityHeader.appendChild(cityInput);
-          cityHeader.appendChild(cityActions);
+          cityHeader.appendChild(cityStatus);
+          cityHeader.appendChild(cityEditBtn);
+          cityHeader.appendChild(deleteCityBtn);
           attachHeaderToggle(cityHeader, () => {
             const el = document.getElementById(cityCollapseId);
             if (!el) return;
@@ -3717,8 +3522,6 @@
             input: cityInput,
             statusSelect: cityStatus,
             editButton: cityEditBtn,
-            deleteButton: deleteCityBtn,
-            statusTarget: cityHeader,
             onReset: () => {
               cityInput.value = currentCityName;
               cityStatus.value = getStatus('city', businessName, currentTypeName, currentCityName);
@@ -3750,8 +3553,7 @@
             cityLocations.forEach((locationName) => {
               const currentLocationName = locationName;
               const locationRow = document.createElement('div');
-              locationRow.className =
-                'location-entry-row location-status-surface d-flex align-items-center gap-2 mb-2';
+              locationRow.className = 'location-entry-row d-flex flex-wrap align-items-center mb-2';
 
               const locationInput = document.createElement('input');
               locationInput.type = 'text';
@@ -3767,38 +3569,28 @@
 
               const locationEditBtn = document.createElement('button');
               locationEditBtn.type = 'button';
-              locationEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
-              locationEditBtn.dataset.viewTitle = 'Редактировать локацию';
-              locationEditBtn.dataset.editTitle = 'Сохранить локацию';
-              locationEditBtn.innerHTML = '<i class="bi bi-pencil"></i>';;
+              locationEditBtn.className = 'btn btn-sm btn-outline-secondary';
+              locationEditBtn.textContent = 'Редактировать';
+              locationEditBtn.setAttribute('data-no-toggle', 'true');
 
               const deleteLocationBtn = document.createElement('button');
               deleteLocationBtn.type = 'button';
-              deleteLocationBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
-              deleteLocationBtn.innerHTML = '<i class="bi bi-trash"></i>';
-              deleteLocationBtn.title = 'Удалить локацию';
-              deleteLocationBtn.setAttribute('aria-label', 'Удалить локацию');
+              deleteLocationBtn.className = 'btn btn-sm btn-outline-danger';
+              deleteLocationBtn.textContent = 'Удалить';
               deleteLocationBtn.setAttribute('data-no-toggle', 'true');
               deleteLocationBtn.addEventListener('click', () =>
                 removeLocation(businessName, currentTypeName, currentCityName, currentLocationName)
               );
 
-              const locationActions = document.createElement('div');
-              locationActions.className = 'location-entry-actions';
-              locationActions.setAttribute('data-no-toggle', 'true');
-              locationActions.appendChild(locationEditBtn);
-              locationActions.appendChild(deleteLocationBtn);
-
-              locationRow.appendChild(locationStatus);
               locationRow.appendChild(locationInput);
-              locationRow.appendChild(locationActions);
+              locationRow.appendChild(locationStatus);
+              locationRow.appendChild(locationEditBtn);
+              locationRow.appendChild(deleteLocationBtn);
 
               configureEditControls({
                 input: locationInput,
                 statusSelect: locationStatus,
                 editButton: locationEditBtn,
-                deleteButton: deleteLocationBtn,
-                statusTarget: locationRow,
                 onReset: () => {
                   locationInput.value = currentLocationName;
                   locationStatus.value = getStatus(
