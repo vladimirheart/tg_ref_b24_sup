@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Настройки</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
   <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
   <style>
@@ -72,10 +73,74 @@
     .location-entry-row input[disabled] {
       background-color: #f8f9fa;
     }
-    .location-status-select { min-width: 12rem; }
-    .location-entry-row { gap: 0.5rem; }
-    .location-entry-row .location-status-select { min-width: 10rem; }
-    .location-entry-row .btn { min-width: 5rem; }
+    .location-structure-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid transparent;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+      background-color: #fff;
+    }
+    .location-structure-row.location-entry-row {
+      padding-right: 0.5rem;
+    }
+    .location-structure-row .location-name-input {
+      flex: 1 1 auto;
+      min-width: 12rem;
+    }
+    .location-status-select {
+      min-width: 10rem;
+      flex: 0 0 auto;
+    }
+    .location-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+    .location-actions .btn-icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.5rem;
+    }
+    .location-actions .btn-icon i {
+      pointer-events: none;
+      font-size: 1rem;
+    }
+    .location-actions .btn-icon:disabled {
+      opacity: 0.5;
+    }
+    .location-structure-row.status-default {
+      background-color: #f8f9fa;
+      border-color: #e9ecef;
+    }
+    .location-structure-row.status-active {
+      background-color: #e8f5e9;
+      border-color: #c7e8ce;
+    }
+    .location-structure-row.status-closed {
+      background-color: #fde2e4;
+      border-color: #f5b5bb;
+    }
+    .location-structure-row.status-prelaunch {
+      background-color: #fff4d6;
+      border-color: #ffe09f;
+    }
+    .location-structure-row.status-paused {
+      background-color: #f1f3f5;
+      border-color: #d3d7dc;
+    }
+    .location-structure-row.status-frozen {
+      background-color: #e3f2ff;
+      border-color: #b6dcff;
+    }
     .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
     .channel-questions-list .question-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
     .modal-dialog {
@@ -2974,6 +3039,17 @@
     'Заморожен',
   ];
   const DEFAULT_LOCATION_STATUS = LOCATION_STATUS_OPTIONS[0];
+  const LOCATION_STATUS_CLASS_MAP = {
+    Активен: 'status-active',
+    Закрыт: 'status-closed',
+    'Готовится к запуску': 'status-prelaunch',
+    Приостановлен: 'status-paused',
+    Заморожен: 'status-frozen',
+  };
+  const LOCATION_STATUS_DEFAULT_CLASS = 'status-default';
+  const EDIT_ICON_HTML = '<i class="bi bi-pencil"></i>';
+  const SAVE_ICON_HTML = '<i class="bi bi-check-lg"></i>';
+  const DELETE_ICON_HTML = '<i class="bi bi-trash"></i>';
   const LOCATIONS_INITIAL = {{ locations | tojson }};
 
   function sanitizeStatusesMap(source) {
@@ -3196,6 +3272,21 @@
     return select;
   }
 
+  function applyStatusStyle(element, status) {
+    if (!element) return;
+    const classesToRemove = new Set(Object.values(LOCATION_STATUS_CLASS_MAP));
+    classesToRemove.add(LOCATION_STATUS_DEFAULT_CLASS);
+    classesToRemove.forEach((cls) => {
+      if (cls) {
+        element.classList.remove(cls);
+      }
+    });
+    const targetClass = LOCATION_STATUS_CLASS_MAP[status] || LOCATION_STATUS_DEFAULT_CLASS;
+    if (targetClass) {
+      element.classList.add(targetClass);
+    }
+  }
+
   function attachHeaderToggle(element, toggler) {
     if (!element) return;
     element.addEventListener('click', (event) => {
@@ -3208,7 +3299,7 @@
     });
   }
 
-  function configureEditControls({ input, statusSelect, editButton, onSubmit, onReset }) {
+  function configureEditControls({ input, statusSelect, editButton, deleteButton, onSubmit, onReset }) {
     const fields = [];
     if (input) {
       input.disabled = true;
@@ -3226,15 +3317,26 @@
     }
     editButton.dataset.mode = 'view';
     editButton.setAttribute('data-no-toggle', 'true');
+    editButton.innerHTML = EDIT_ICON_HTML;
+    editButton.title = 'Редактировать';
+
+    if (deleteButton) {
+      deleteButton.disabled = true;
+      deleteButton.setAttribute('data-no-toggle', 'true');
+    }
 
     const enterEdit = () => {
       fields.forEach((field) => {
         field.disabled = false;
       });
       editButton.dataset.mode = 'edit';
-      editButton.textContent = 'Сохранить';
+      editButton.innerHTML = SAVE_ICON_HTML;
+      editButton.title = 'Сохранить';
       editButton.classList.remove('btn-outline-secondary');
       editButton.classList.add('btn-outline-success');
+      if (deleteButton) {
+        deleteButton.disabled = false;
+      }
       if (input) {
         input.focus();
         input.select();
@@ -3246,9 +3348,13 @@
         field.disabled = true;
       });
       editButton.dataset.mode = 'view';
-      editButton.textContent = 'Редактировать';
+      editButton.innerHTML = EDIT_ICON_HTML;
+      editButton.title = 'Редактировать';
       editButton.classList.remove('btn-outline-success');
       editButton.classList.add('btn-outline-secondary');
+      if (deleteButton) {
+        deleteButton.disabled = true;
+      }
     };
 
     const resetFields = () => {
@@ -3354,31 +3460,40 @@
 
       const businessCollapseId = businessCollapseIdFor(businessName);
       const businessHeader = document.createElement('div');
-      businessHeader.className = 'location-section-header d-flex flex-wrap align-items-center gap-2 mb-3';
+      businessHeader.className = 'location-section-header location-structure-row flex-wrap mb-3';
 
       const businessInput = document.createElement('input');
       businessInput.type = 'text';
-      businessInput.className = 'form-control form-control-sm flex-grow-1';
+      businessInput.className = 'form-control form-control-sm location-name-input';
       businessInput.value = businessName;
 
       const businessStatus = createStatusSelect('business', [businessName]);
 
+      const businessActions = document.createElement('div');
+      businessActions.className = 'location-actions';
+      businessActions.setAttribute('data-no-toggle', 'true');
+
       const businessEditBtn = document.createElement('button');
       businessEditBtn.type = 'button';
-      businessEditBtn.className = 'btn btn-sm btn-outline-secondary';
-      businessEditBtn.textContent = 'Редактировать';
+      businessEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
+      businessEditBtn.innerHTML = EDIT_ICON_HTML;
+      businessEditBtn.title = 'Редактировать';
 
       const deleteBusinessBtn = document.createElement('button');
       deleteBusinessBtn.type = 'button';
-      deleteBusinessBtn.className = 'btn btn-sm btn-outline-danger';
-      deleteBusinessBtn.textContent = 'Удалить бизнес';
+      deleteBusinessBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
+      deleteBusinessBtn.innerHTML = DELETE_ICON_HTML;
+      deleteBusinessBtn.title = 'Удалить бизнес';
+      deleteBusinessBtn.disabled = true;
       deleteBusinessBtn.setAttribute('data-no-toggle', 'true');
       deleteBusinessBtn.addEventListener('click', () => removeBusiness(businessName));
 
-      businessHeader.appendChild(businessInput);
+      businessActions.appendChild(businessEditBtn);
+      businessActions.appendChild(deleteBusinessBtn);
+
       businessHeader.appendChild(businessStatus);
-      businessHeader.appendChild(businessEditBtn);
-      businessHeader.appendChild(deleteBusinessBtn);
+      businessHeader.appendChild(businessInput);
+      businessHeader.appendChild(businessActions);
       cardBody.appendChild(businessHeader);
       attachHeaderToggle(businessHeader, () => {
         const collapseEl = document.getElementById(businessCollapseId);
@@ -3387,13 +3502,19 @@
         instance.toggle();
       });
 
+      const updateBusinessAppearance = () => applyStatusStyle(businessHeader, businessStatus.value);
+      businessStatus.addEventListener('change', updateBusinessAppearance);
+      updateBusinessAppearance();
+
       configureEditControls({
         input: businessInput,
         statusSelect: businessStatus,
         editButton: businessEditBtn,
+        deleteButton: deleteBusinessBtn,
         onReset: () => {
           businessInput.value = businessName;
           businessStatus.value = getStatus('business', businessName);
+          updateBusinessAppearance();
         },
         onSubmit: (newName, meta) => updateBusiness(businessName, newName || businessName, meta.status),
       });
@@ -3419,31 +3540,40 @@
         typeBlock.className = 'location-type-block mb-3';
 
         const typeHeader = document.createElement('div');
-        typeHeader.className = 'location-section-header d-flex flex-wrap align-items-center gap-2';
+        typeHeader.className = 'location-section-header location-structure-row flex-wrap';
 
         const typeInput = document.createElement('input');
         typeInput.type = 'text';
-        typeInput.className = 'form-control form-control-sm flex-grow-1';
+        typeInput.className = 'form-control form-control-sm location-name-input';
         typeInput.value = currentTypeName;
 
         const typeStatus = createStatusSelect('type', [businessName, currentTypeName]);
 
+        const typeActions = document.createElement('div');
+        typeActions.className = 'location-actions';
+        typeActions.setAttribute('data-no-toggle', 'true');
+
         const typeEditBtn = document.createElement('button');
         typeEditBtn.type = 'button';
-        typeEditBtn.className = 'btn btn-sm btn-outline-secondary';
-        typeEditBtn.textContent = 'Редактировать';
+        typeEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
+        typeEditBtn.innerHTML = EDIT_ICON_HTML;
+        typeEditBtn.title = 'Редактировать';
 
         const deleteTypeBtn = document.createElement('button');
         deleteTypeBtn.type = 'button';
-        deleteTypeBtn.className = 'btn btn-sm btn-outline-danger';
-        deleteTypeBtn.textContent = 'Удалить тип';
+        deleteTypeBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
+        deleteTypeBtn.innerHTML = DELETE_ICON_HTML;
+        deleteTypeBtn.title = 'Удалить тип';
+        deleteTypeBtn.disabled = true;
         deleteTypeBtn.setAttribute('data-no-toggle', 'true');
         deleteTypeBtn.addEventListener('click', () => removeType(businessName, currentTypeName));
 
-        typeHeader.appendChild(typeInput);
+        typeActions.appendChild(typeEditBtn);
+        typeActions.appendChild(deleteTypeBtn);
+
         typeHeader.appendChild(typeStatus);
-        typeHeader.appendChild(typeEditBtn);
-        typeHeader.appendChild(deleteTypeBtn);
+        typeHeader.appendChild(typeInput);
+        typeHeader.appendChild(typeActions);
         attachHeaderToggle(typeHeader, () => {
           const el = document.getElementById(collapseId);
           if (!el) return;
@@ -3451,13 +3581,19 @@
           instance.toggle();
         });
 
+        const updateTypeAppearance = () => applyStatusStyle(typeHeader, typeStatus.value);
+        typeStatus.addEventListener('change', updateTypeAppearance);
+        updateTypeAppearance();
+
         configureEditControls({
           input: typeInput,
           statusSelect: typeStatus,
           editButton: typeEditBtn,
+          deleteButton: deleteTypeBtn,
           onReset: () => {
             typeInput.value = currentTypeName;
             typeStatus.value = getStatus('type', businessName, currentTypeName);
+            updateTypeAppearance();
           },
           onSubmit: (newName, meta) =>
             updateType(businessName, currentTypeName, newName || currentTypeName, meta.status),
@@ -3486,31 +3622,40 @@
           const cityCollapseId = cityCollapseIdFor(businessName, currentTypeName, currentCityName);
 
           const cityHeader = document.createElement('div');
-          cityHeader.className = 'location-section-header d-flex flex-wrap align-items-center gap-2 mb-2';
+          cityHeader.className = 'location-section-header location-structure-row flex-wrap mb-2';
 
           const cityInput = document.createElement('input');
           cityInput.type = 'text';
-          cityInput.className = 'form-control form-control-sm flex-grow-1';
+          cityInput.className = 'form-control form-control-sm location-name-input';
           cityInput.value = currentCityName;
 
           const cityStatus = createStatusSelect('city', [businessName, currentTypeName, currentCityName]);
 
+          const cityActions = document.createElement('div');
+          cityActions.className = 'location-actions';
+          cityActions.setAttribute('data-no-toggle', 'true');
+
           const cityEditBtn = document.createElement('button');
           cityEditBtn.type = 'button';
-          cityEditBtn.className = 'btn btn-sm btn-outline-secondary';
-          cityEditBtn.textContent = 'Редактировать';
+          cityEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
+          cityEditBtn.innerHTML = EDIT_ICON_HTML;
+          cityEditBtn.title = 'Редактировать';
 
           const deleteCityBtn = document.createElement('button');
           deleteCityBtn.type = 'button';
-          deleteCityBtn.className = 'btn btn-sm btn-outline-danger';
-          deleteCityBtn.textContent = 'Удалить город';
+          deleteCityBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
+          deleteCityBtn.innerHTML = DELETE_ICON_HTML;
+          deleteCityBtn.title = 'Удалить город';
+          deleteCityBtn.disabled = true;
           deleteCityBtn.setAttribute('data-no-toggle', 'true');
           deleteCityBtn.addEventListener('click', () => removeCity(businessName, currentTypeName, currentCityName));
 
-          cityHeader.appendChild(cityInput);
+          cityActions.appendChild(cityEditBtn);
+          cityActions.appendChild(deleteCityBtn);
+
           cityHeader.appendChild(cityStatus);
-          cityHeader.appendChild(cityEditBtn);
-          cityHeader.appendChild(deleteCityBtn);
+          cityHeader.appendChild(cityInput);
+          cityHeader.appendChild(cityActions);
           attachHeaderToggle(cityHeader, () => {
             const el = document.getElementById(cityCollapseId);
             if (!el) return;
@@ -3518,13 +3663,19 @@
             instance.toggle();
           });
 
+          const updateCityAppearance = () => applyStatusStyle(cityHeader, cityStatus.value);
+          cityStatus.addEventListener('change', updateCityAppearance);
+          updateCityAppearance();
+
           configureEditControls({
             input: cityInput,
             statusSelect: cityStatus,
             editButton: cityEditBtn,
+            deleteButton: deleteCityBtn,
             onReset: () => {
               cityInput.value = currentCityName;
               cityStatus.value = getStatus('city', businessName, currentTypeName, currentCityName);
+              updateCityAppearance();
             },
             onSubmit: (newName, meta) =>
               updateCity(
@@ -3553,11 +3704,11 @@
             cityLocations.forEach((locationName) => {
               const currentLocationName = locationName;
               const locationRow = document.createElement('div');
-              locationRow.className = 'location-entry-row d-flex flex-wrap align-items-center mb-2';
+              locationRow.className = 'location-entry-row location-structure-row flex-wrap mb-2';
 
               const locationInput = document.createElement('input');
               locationInput.type = 'text';
-              locationInput.className = 'form-control form-control-sm flex-grow-1';
+              locationInput.className = 'form-control form-control-sm location-name-input';
               locationInput.value = currentLocationName;
 
               const locationStatus = createStatusSelect('location', [
@@ -3567,30 +3718,40 @@
                 currentLocationName,
               ]);
 
+              const locationActions = document.createElement('div');
+              locationActions.className = 'location-actions';
+              locationActions.setAttribute('data-no-toggle', 'true');
+
               const locationEditBtn = document.createElement('button');
               locationEditBtn.type = 'button';
-              locationEditBtn.className = 'btn btn-sm btn-outline-secondary';
-              locationEditBtn.textContent = 'Редактировать';
+              locationEditBtn.className = 'btn btn-sm btn-outline-secondary btn-icon';
+              locationEditBtn.innerHTML = EDIT_ICON_HTML;
+              locationEditBtn.title = 'Редактировать';
               locationEditBtn.setAttribute('data-no-toggle', 'true');
 
               const deleteLocationBtn = document.createElement('button');
               deleteLocationBtn.type = 'button';
-              deleteLocationBtn.className = 'btn btn-sm btn-outline-danger';
-              deleteLocationBtn.textContent = 'Удалить';
+              deleteLocationBtn.className = 'btn btn-sm btn-outline-danger btn-icon';
+              deleteLocationBtn.innerHTML = DELETE_ICON_HTML;
+              deleteLocationBtn.title = 'Удалить локацию';
+              deleteLocationBtn.disabled = true;
               deleteLocationBtn.setAttribute('data-no-toggle', 'true');
               deleteLocationBtn.addEventListener('click', () =>
                 removeLocation(businessName, currentTypeName, currentCityName, currentLocationName)
               );
 
-              locationRow.appendChild(locationInput);
+              locationActions.appendChild(locationEditBtn);
+              locationActions.appendChild(deleteLocationBtn);
+
               locationRow.appendChild(locationStatus);
-              locationRow.appendChild(locationEditBtn);
-              locationRow.appendChild(deleteLocationBtn);
+              locationRow.appendChild(locationInput);
+              locationRow.appendChild(locationActions);
 
               configureEditControls({
                 input: locationInput,
                 statusSelect: locationStatus,
                 editButton: locationEditBtn,
+                deleteButton: deleteLocationBtn,
                 onReset: () => {
                   locationInput.value = currentLocationName;
                   locationStatus.value = getStatus(
@@ -3600,6 +3761,7 @@
                     currentCityName,
                     currentLocationName
                   );
+                  updateLocationAppearance();
                 },
                 onSubmit: (newName, meta) =>
                   updateLocation(
@@ -3611,6 +3773,10 @@
                     meta.status
                   ),
               });
+
+              const updateLocationAppearance = () => applyStatusStyle(locationRow, locationStatus.value);
+              locationStatus.addEventListener('change', updateLocationAppearance);
+              updateLocationAppearance();
 
               cityBody.appendChild(locationRow);
             });
