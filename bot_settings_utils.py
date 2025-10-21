@@ -94,6 +94,14 @@ def default_bot_settings(definitions: Mapping[str, Any] | None = None) -> Dict[s
 
     default_scale = 5
     rating_prompt = _default_rating_prompt(default_scale)
+    default_rating_template_id = "rating-template-default"
+    default_rating_template = {
+        "id": default_rating_template_id,
+        "name": "Базовый сценарий оценок",
+        "prompt_text": rating_prompt,
+        "scale_size": default_scale,
+        "responses": _build_default_responses(default_scale),
+    }
 
     settings = {
         "question_templates": [
@@ -104,6 +112,8 @@ def default_bot_settings(definitions: Mapping[str, Any] | None = None) -> Dict[s
             }
         ],
         "active_template_id": default_template_id,
+        "rating_templates": [default_rating_template],
+        "active_rating_template_id": default_rating_template_id,
         "rating_system": {
             "prompt_text": rating_prompt,
             "scale_size": default_scale,
@@ -296,40 +306,118 @@ def sanitize_bot_settings(
     if active_template_id not in {tpl["id"] for tpl in templates}:
         active_template_id = templates[0]["id"]
 
-    rating_defaults = defaults["rating_system"]
+    rating_templates: list[Dict[str, Any]] = []
+    seen_rating_ids: set[str] = set()
+    raw_rating_templates = raw.get("rating_templates")
+    if isinstance(raw_rating_templates, Iterable) and not isinstance(
+        raw_rating_templates, (str, bytes)
+    ):
+        for item in raw_rating_templates:
+            if not isinstance(item, Mapping):
+                continue
+            template_id = _ensure_uuid(item.get("id"))
+            if template_id in seen_rating_ids:
+                template_id = _ensure_uuid(None)
+            seen_rating_ids.add(template_id)
+            name = str(item.get("name") or "").strip() or "Шаблон оценок"
+            description = str(item.get("description") or "").strip()
+            raw_scale = item.get("scale_size") or item.get("scale") or item.get("scaleSize")
+            try:
+                scale = int(raw_scale)
+            except (TypeError, ValueError):
+                scale = int(defaults["rating_system"].get("scale_size", 5))
+            if scale < 1:
+                scale = 1
+            if max_scale and scale > max_scale:
+                scale = max_scale
+            prompt = str(
+                item.get("prompt_text")
+                or item.get("prompt")
+                or item.get("promptText")
+                or ""
+            ).strip()
+            if not prompt:
+                prompt = str(_default_rating_prompt(scale))
+            responses = _sanitize_rating_responses(
+                item.get("responses"),
+                scale=scale,
+                defaults=_build_default_responses(scale),
+            )
+            template_entry: Dict[str, Any] = {
+                "id": template_id,
+                "name": name,
+                "prompt_text": prompt,
+                "scale_size": scale,
+                "responses": responses,
+            }
+            if description:
+                template_entry["description"] = description
+            rating_templates.append(template_entry)
+
+    rating_defaults = defaults.get("rating_templates") or []
     rating_raw = raw.get("rating_system") if isinstance(raw.get("rating_system"), Mapping) else {}
-    raw_scale = rating_raw.get("scale_size")
-    try:
-        scale = int(raw_scale)
-    except (TypeError, ValueError):
-        scale = rating_defaults.get("scale_size", 5)
-    if scale < 1:
-        scale = rating_defaults.get("scale_size", 5)
-    if max_scale and scale > max_scale:
-        scale = max_scale
+    if not rating_templates and rating_raw:
+        template_id = _ensure_uuid(rating_raw.get("id"))
+        name = str(rating_raw.get("name") or "").strip() or "Шаблон оценок"
+        description = str(rating_raw.get("description") or "").strip()
+        raw_scale = rating_raw.get("scale_size") or rating_raw.get("scale") or rating_raw.get("scaleSize")
+        try:
+            scale = int(raw_scale)
+        except (TypeError, ValueError):
+            scale = int(defaults["rating_system"].get("scale_size", 5))
+        if scale < 1:
+            scale = 1
+        if max_scale and scale > max_scale:
+            scale = max_scale
+        prompt = str(rating_raw.get("prompt_text") or rating_raw.get("prompt") or "").strip()
+        if not prompt:
+            prompt = str(_default_rating_prompt(scale))
+        responses = _sanitize_rating_responses(
+            rating_raw.get("responses"),
+            scale=scale,
+            defaults=_build_default_responses(scale),
+        )
+        entry: Dict[str, Any] = {
+            "id": template_id,
+            "name": name,
+            "prompt_text": prompt,
+            "scale_size": scale,
+            "responses": responses,
+        }
+        if description:
+            entry["description"] = description
+        rating_templates.append(entry)
 
-    prompt = str(rating_raw.get("prompt_text") or rating_raw.get("prompt") or "").strip()
-    if not prompt:
-        prompt = str(rating_defaults.get("prompt_text") or _default_rating_prompt(scale))
+    if not rating_templates:
+        rating_templates = rating_defaults if rating_defaults else defaults["rating_templates"]
 
-    responses = _sanitize_rating_responses(
-        rating_raw.get("responses"),
-        scale=scale,
-        defaults=rating_defaults.get("responses", []),
+    raw_active_rating = raw.get("active_rating_template_id")
+    if isinstance(raw_active_rating, str) and raw_active_rating.strip():
+        active_rating_template_id = raw_active_rating.strip()
+    else:
+        active_rating_template_id = rating_templates[0]["id"]
+    rating_ids = {tpl["id"] for tpl in rating_templates}
+    if active_rating_template_id not in rating_ids:
+        active_rating_template_id = next(iter(rating_ids))
+
+    active_template = next((tpl for tpl in templates if tpl["id"] == active_template_id), templates[0])
+    active_rating_template = next(
+        (tpl for tpl in rating_templates if tpl["id"] == active_rating_template_id),
+        rating_templates[0],
     )
 
     rating = {
-        "prompt_text": prompt,
-        "scale_size": scale,
-        "responses": responses,
+        "prompt_text": active_rating_template.get("prompt_text", ""),
+        "scale_size": active_rating_template.get("scale_size", 1),
+        "responses": active_rating_template.get("responses", []),
     }
-
-    active_template = next((tpl for tpl in templates if tpl["id"] == active_template_id), templates[0])
 
     return {
         "question_templates": templates,
         "active_template_id": active_template_id,
         "question_flow": active_template.get("question_flow", []),
+        "rating_templates": rating_templates,
+        "active_rating_template_id": active_rating_template_id,
         "rating_system": rating,
     }
 
