@@ -22,6 +22,12 @@ import re
 import unicodedata
 import time, sqlite3
 from uuid import uuid4
+
+from bot_settings_utils import (
+    DEFAULT_BOT_PRESET_DEFINITIONS,
+    build_location_presets,
+    sanitize_bot_settings,
+)
 def exec_with_retry(fn, retries=5, base_delay=0.15):
     for i in range(retries):
         try:
@@ -2398,6 +2404,9 @@ def load_settings():
         settings["network_profiles"] = []
     settings["it_connection_categories"] = normalize_it_connection_categories(
         settings.get("it_connection_categories")
+    )
+    settings["bot_settings"] = sanitize_bot_settings(
+        settings.get("bot_settings"), definitions=DEFAULT_BOT_PRESET_DEFINITIONS
     )
     return ensure_dialog_config(settings)
 
@@ -5179,6 +5188,10 @@ def settings_page():
     except Exception:
         contract_usage = {}
 
+    bot_question_presets = build_location_presets(
+        location_tree, base_definitions=DEFAULT_BOT_PRESET_DEFINITIONS
+    )
+
     return render_template(
         "settings.html",
         settings=settings,
@@ -5188,6 +5201,7 @@ def settings_page():
         it_connection_categories=get_it_connection_categories(settings),
         it_connection_category_fields=DEFAULT_IT_CONNECTION_CATEGORY_FIELDS,
         contract_usage=contract_usage,
+        bot_question_presets=bot_question_presets,
     )
 
 @app.route("/settings", methods=["POST"])
@@ -5233,6 +5247,21 @@ def update_settings():
                     }
                 )
             settings["network_profiles"] = profiles
+            settings_modified = True
+
+        if "bot_settings" in data:
+            locations_payload = load_locations()
+            location_tree = (
+                locations_payload.get("tree", {})
+                if isinstance(locations_payload, dict)
+                else {}
+            )
+            definitions = build_location_presets(
+                location_tree, base_definitions=DEFAULT_BOT_PRESET_DEFINITIONS
+            )
+            settings["bot_settings"] = sanitize_bot_settings(
+                data.get("bot_settings"), definitions=definitions
+            )
             settings_modified = True
 
         if any(
