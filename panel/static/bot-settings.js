@@ -17,11 +17,10 @@
 
   const templatesContainer = mainModal.querySelector('[data-bot-templates-container]');
   const createTemplateButton = mainModal.querySelector('[data-bot-template-create]');
+  const ratingTemplatesContainer = mainModal.querySelector('[data-bot-rating-templates-container]');
+  const ratingCreateButton = mainModal.querySelector('[data-bot-rating-template-create]');
   const saveButton = mainModal.querySelector('[data-bot-settings-save]');
   const statusEl = mainModal.querySelector('[data-bot-settings-status]');
-  const ratingPromptInput = mainModal.querySelector('[data-bot-rating-prompt]');
-  const ratingScaleInput = mainModal.querySelector('[data-bot-rating-scale]');
-  const ratingResponsesContainer = mainModal.querySelector('[data-bot-rating-responses]');
 
   const templateNameInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-name]') : null;
   const templateDescriptionInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-description]') : null;
@@ -31,6 +30,19 @@
   const templateStatusEl = templateModalEl ? templateModalEl.querySelector('[data-bot-template-status]') : null;
   const templateSaveButton = templateModalEl ? templateModalEl.querySelector('[data-bot-template-save]') : null;
   const templateCancelButton = templateModalEl ? templateModalEl.querySelector('[data-bot-template-cancel]') : null;
+
+  const ratingModalEl = document.getElementById('botRatingTemplateModal');
+  const ratingModal = ratingModalEl && typeof bootstrap !== 'undefined'
+    ? new bootstrap.Modal(ratingModalEl)
+    : null;
+  const ratingNameInput = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-name]') : null;
+  const ratingDescriptionInput = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-description]') : null;
+  const ratingPromptInput = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-prompt]') : null;
+  const ratingScaleInput = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-scale]') : null;
+  const ratingResponsesContainer = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-responses]') : null;
+  const ratingStatusEl = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-status]') : null;
+  const ratingSaveButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-save]') : null;
+  const ratingCancelButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-cancel]') : null;
 
   const PRESET_GROUPS = {};
   Object.entries(BOT_PRESET_DEFINITIONS || {}).forEach(([groupKey, groupValue]) => {
@@ -65,6 +77,7 @@
 
   const generatedQuestionIds = new Set();
   const generatedTemplateIds = new Set();
+  const generatedRatingTemplateIds = new Set();
 
   function html(value) {
     if (typeof window.escapeHtml === 'function') {
@@ -167,6 +180,24 @@
     return generateTemplateId();
   }
 
+  function generateRatingTemplateId() {
+    let id;
+    do {
+      id = `rtpl_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    } while (generatedRatingTemplateIds.has(id));
+    generatedRatingTemplateIds.add(id);
+    return id;
+  }
+
+  function ensureRatingTemplateId(rawId) {
+    if (typeof rawId === 'string' && rawId.trim()) {
+      const trimmed = rawId.trim();
+      generatedRatingTemplateIds.add(trimmed);
+      return trimmed;
+    }
+    return generateRatingTemplateId();
+  }
+
   function cloneQuestion(question, { preserveId = true } = {}) {
     const id = preserveId ? ensureQuestionId(question && question.id) : generateQuestionId();
     const preset = question && question.preset && question.preset.group && question.preset.field
@@ -202,6 +233,14 @@
     };
   }
 
+  function defaultRatingPrompt(scale) {
+    const normalized = normalizeScale(scale);
+    if (normalized <= 1) {
+      return 'Пожалуйста, оцените качество ответа: отправьте число 1.';
+    }
+    return `Пожалуйста, оцените качество ответа от 1 до ${normalized}.`;
+  }
+
   function normalizeScale(value) {
     const num = Number.parseInt(value, 10);
     if (!Number.isFinite(num)) {
@@ -214,6 +253,66 @@
       return 10;
     }
     return num;
+  }
+
+  function normalizeRatingResponses(rawResponses, scale) {
+    const collected = {};
+    if (Array.isArray(rawResponses)) {
+      rawResponses.forEach((item) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+        const rawValue = item.value != null ? item.value : item.key;
+        const rawText = item.text != null ? item.text : item.label;
+        const value = Number.parseInt(rawValue, 10);
+        if (!Number.isFinite(value)) {
+          return;
+        }
+        const text = typeof rawText === 'string' ? rawText.trim() : '';
+        if (text) {
+          collected[String(value)] = text;
+        }
+      });
+    } else if (rawResponses && typeof rawResponses === 'object') {
+      Object.entries(rawResponses).forEach(([key, rawText]) => {
+        const value = Number.parseInt(key, 10);
+        if (!Number.isFinite(value)) {
+          return;
+        }
+        const text = typeof rawText === 'string' ? rawText.trim() : '';
+        if (text) {
+          collected[String(value)] = text;
+        }
+      });
+    }
+    const ensured = {};
+    const defaults = defaultResponsesMap(scale);
+    for (let value = 1; value <= Math.max(1, scale); value += 1) {
+      const key = String(value);
+      ensured[key] = collected[key] || defaults[key] || `Спасибо за вашу оценку ${value}!`;
+    }
+    return ensured;
+  }
+
+  function cloneRatingTemplate(template, { preserveId = true } = {}) {
+    const id = preserveId ? ensureRatingTemplateId(template && template.id) : generateRatingTemplateId();
+    const name = template && typeof template.name === 'string' ? template.name.trim() : '';
+    const description = template && typeof template.description === 'string' ? template.description.trim() : '';
+    const scale = normalizeScale(template && (template.scaleSize ?? template.scale_size ?? template.scale));
+    const promptSource = template && (template.promptText ?? template.prompt_text ?? template.prompt);
+    const promptText = typeof promptSource === 'string' && promptSource.trim()
+      ? promptSource.trim()
+      : defaultRatingPrompt(scale);
+    const responsesSource = template && template.responses ? template.responses : {};
+    const responses = normalizeRatingResponses(responsesSource, scale);
+    return {
+      id,
+      name: name || 'Шаблон оценок',
+      description,
+      promptText,
+      scaleSize: scale,
+      responses,
+    };
   }
 
   function normalizeQuestion(raw, order) {
@@ -303,61 +402,33 @@ const id = ensureQuestionId(source.id);
     return map;
   }
 
-  function normalizeRatingSystem(raw) {
-    const source = raw && typeof raw === 'object' ? raw : {};
-    const scale = normalizeScale(source.scale_size ?? source.scaleSize);
-    const prompt = typeof source.prompt_text === 'string' && source.prompt_text.trim()
-      ? source.prompt_text.trim()
-      : '';
-    const responses = {};
-    const rawResponses = Array.isArray(source.responses)
-      ? source.responses
-      : source.responses && typeof source.responses === 'object'
-        ? Object.entries(source.responses).map(([value, text]) => ({ value, text }))
-        : [];
-    rawResponses.forEach((item) => {
-      if (!item || typeof item !== 'object') {
-        return;
-      }
-      const rawValue = item.value;
-      const rawText = item.text != null ? item.text : item.label;
-      const value = Number.parseInt(rawValue, 10);
-      if (!Number.isFinite(value)) {
-        return;
-      }
-      const textValue = typeof rawText === 'string' ? rawText.trim() : '';
-      if (!textValue) {
-        return;
-      }
-      responses[String(value)] = textValue;
-    });
-    const defaults = Array.isArray(BOT_SETTINGS_INITIAL?.rating_system?.responses)
-      ? BOT_SETTINGS_INITIAL.rating_system.responses.reduce((acc, item) => {
-          if (item && typeof item === 'object') {
-            const value = Number.parseInt(item.value, 10);
-            const text = typeof item.text === 'string' ? item.text.trim() : '';
-            if (Number.isFinite(value) && text) {
-              acc[String(value)] = text;
-            }
-          }
-          return acc;
-        }, {})
-      : defaultResponsesMap(scale);
-    const ensured = {};
-    for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      const key = String(value);
-      ensured[key] = responses[key] || defaults[key] || `Спасибо за вашу оценку ${value}!`;
+  function normalizeRatingTemplate(raw, index) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
     }
+    const templateId = ensureRatingTemplateId(raw.id || `rtpl_${index}`);
+    const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Шаблон оценок';
+    const description = typeof raw.description === 'string' ? raw.description.trim() : '';
+    const scale = normalizeScale(raw.scale_size ?? raw.scaleSize ?? raw.scale);
+    const promptSource = raw.prompt_text ?? raw.promptText ?? raw.prompt;
+    const promptText = typeof promptSource === 'string' && promptSource.trim()
+      ? promptSource.trim()
+      : defaultRatingPrompt(scale);
+    const responses = normalizeRatingResponses(raw.responses, scale);
     return {
-      prompt_text: prompt,
-      scale_size: scale,
-      responses: ensured,
+      id: templateId,
+      name,
+      description,
+      promptText,
+      scaleSize: scale,
+      responses,
     };
   }
 
   function normalizeSettings(raw) {
     generatedQuestionIds.clear();
     generatedTemplateIds.clear();
+    generatedRatingTemplateIds.clear();
     const source = raw && typeof raw === 'object' ? raw : {};
     const templateSource = Array.isArray(source.question_templates) ? source.question_templates : [];
     const templates = templateSource
@@ -419,19 +490,83 @@ const id = ensureQuestionId(source.id);
       ? activeIdRaw
       : templates[0]?.id;
 
-    const ratingSystem = normalizeRatingSystem(source.rating_system || source.ratingSystem);
+    const ratingTemplateSource = Array.isArray(source.rating_templates) ? source.rating_templates : [];
+    const ratingTemplates = ratingTemplateSource
+      .map((item, index) => normalizeRatingTemplate(item, index))
+      .filter((template) => template && template.promptText);
+
+    if (!ratingTemplates.length) {
+      const ratingSystemSource = source.rating_system || source.ratingSystem;
+      if (ratingSystemSource && typeof ratingSystemSource === 'object') {
+        const fallback = normalizeRatingTemplate(
+          {
+            id: ratingSystemSource.id,
+            name: ratingSystemSource.name,
+            description: ratingSystemSource.description,
+            prompt_text: ratingSystemSource.prompt_text
+              ?? ratingSystemSource.promptText
+              ?? ratingSystemSource.prompt,
+            scale_size: ratingSystemSource.scale_size
+              ?? ratingSystemSource.scaleSize
+              ?? ratingSystemSource.scale,
+            responses: ratingSystemSource.responses,
+          },
+          0,
+        );
+        if (fallback) {
+          ratingTemplates.push(fallback);
+        }
+      }
+    }
+
+    if (!ratingTemplates.length && Array.isArray(BOT_SETTINGS_INITIAL?.rating_templates)) {
+      BOT_SETTINGS_INITIAL.rating_templates.forEach((item, index) => {
+        const normalized = normalizeRatingTemplate(item, index);
+        if (normalized) {
+          ratingTemplates.push(normalized);
+        }
+      });
+    }
+
+    if (!ratingTemplates.length && BOT_SETTINGS_INITIAL?.rating_system) {
+      const normalized = normalizeRatingTemplate(BOT_SETTINGS_INITIAL.rating_system, 0);
+      if (normalized) {
+        ratingTemplates.push(normalized);
+      }
+    }
+
+    if (!ratingTemplates.length) {
+      const scale = 5;
+      ratingTemplates.push({
+        id: generateRatingTemplateId(),
+        name: 'Шаблон оценок',
+        description: '',
+        promptText: defaultRatingPrompt(scale),
+        scaleSize: scale,
+        responses: defaultResponsesMap(scale),
+      });
+    }
+
+    const activeRatingRaw = typeof source.active_rating_template_id === 'string'
+      ? source.active_rating_template_id.trim()
+      : '';
+    const activeRatingTemplateId = ratingTemplates.some((template) => template.id === activeRatingRaw)
+      ? activeRatingRaw
+      : ratingTemplates[0]?.id;
 
     return {
       templates,
       activeTemplateId,
-      ratingSystem,
+      ratingTemplates,
+      activeRatingTemplateId,
     };
   }
 
   const state = {
     templates: [],
     activeTemplateId: null,
-    ratingSystem: { prompt_text: '', scale_size: 5, responses: {} },
+    ratingTemplates: [],
+    activeRatingTemplateId: null,
   };
 
   const editorState = {
@@ -442,17 +577,24 @@ const id = ensureQuestionId(source.id);
     questionFlow: [],
   };
 
+  const ratingEditorState = {
+    index: -1,
+    templateId: null,
+    name: '',
+    description: '',
+    promptText: '',
+    scaleSize: 5,
+    responses: {},
+  };
+
   let initialState = normalizeSettings(BOT_SETTINGS_INITIAL);
 
   function hydrateStateFrom(source) {
     const normalized = normalizeSettings(source);
     state.templates = normalized.templates.map((template) => cloneTemplate(template));
     state.activeTemplateId = normalized.activeTemplateId;
-    state.ratingSystem = {
-      prompt_text: normalized.ratingSystem.prompt_text || '',
-      scale_size: normalized.ratingSystem.scale_size || 5,
-      responses: Object.assign({}, normalized.ratingSystem.responses || {}),
-    };
+    state.ratingTemplates = normalized.ratingTemplates.map((template) => cloneRatingTemplate(template));
+    state.activeRatingTemplateId = normalized.activeRatingTemplateId;
   }
 
   function setStatus(message, isError) {
@@ -540,29 +682,40 @@ const id = ensureQuestionId(source.id);
     });
   }
 
-  function ensureRatingResponses(scale) {
-    const responses = state.ratingSystem.responses || {};
-    const ensured = {};
-    for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      const key = String(value);
-      if (responses[key] && responses[key].trim()) {
-        ensured[key] = responses[key];
-      } else {
-        ensured[key] = `Спасибо за вашу оценку ${value}!`;
-      }
+  function setRatingTemplateStatus(message, isError) {
+    if (!ratingStatusEl) {
+      return;
     }
-    state.ratingSystem.responses = ensured;
+    ratingStatusEl.classList.remove('text-danger', 'text-success');
+    if (!message) {
+      ratingStatusEl.textContent = '';
+      return;
+    }
+    ratingStatusEl.textContent = message;
+    ratingStatusEl.classList.add(isError ? 'text-danger' : 'text-success');
+    if (!isError) {
+      setTimeout(() => {
+        if (ratingStatusEl.textContent === message) {
+          ratingStatusEl.textContent = '';
+          ratingStatusEl.classList.remove('text-danger', 'text-success');
+        }
+      }, 3000);
+    }
   }
 
-  function renderRatingResponses() {
+  function ensureRatingEditorResponses(scale) {
+    ratingEditorState.responses = normalizeRatingResponses(ratingEditorState.responses, scale);
+  }
+
+  function renderRatingEditorResponses() {
     if (!ratingResponsesContainer) {
       return;
     }
     ratingResponsesContainer.innerHTML = '';
-    const scale = state.ratingSystem.scale_size || 5;
-    ensureRatingResponses(scale);
+    const scale = normalizeScale(ratingEditorState.scaleSize || 5);
+    ensureRatingEditorResponses(scale);
     for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      const textValue = state.ratingSystem.responses[String(value)] || '';
+      const textValue = ratingEditorState.responses[String(value)] || '';
       const card = document.createElement('div');
       card.className = 'card border rounded-3';
       card.innerHTML = `
@@ -571,21 +724,185 @@ const id = ensureQuestionId(source.id);
             <span class="fw-semibold">Оценка ${value}</span>
             <span class="badge bg-light text-muted">${value}</span>
           </div>
-          <textarea class="form-control" rows="2" data-bot-rating-response data-value="${value}">${html(textValue)}</textarea>
+          <textarea class="form-control" rows="2" data-bot-rating-template-response data-value="${value}">${html(textValue)}</textarea>
         </div>
       `;
       ratingResponsesContainer.appendChild(card);
     }
   }
 
-  function renderRating() {
+  function renderRatingTemplates() {
+    if (!ratingTemplatesContainer) {
+      return;
+    }
+    ratingTemplatesContainer.innerHTML = '';
+    if (!state.ratingTemplates.length) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'alert alert-light border mb-0';
+      placeholder.textContent = 'Шаблоны оценок не созданы. Добавьте шаблон, чтобы настроить систему оценок.';
+      ratingTemplatesContainer.appendChild(placeholder);
+      return;
+    }
+    state.ratingTemplates.forEach((template) => {
+      const card = document.createElement('div');
+      card.className = 'card shadow-sm';
+      card.dataset.ratingTemplateId = template.id;
+      const descriptionHtml = template.description
+        ? `<p class="small text-muted mb-1">${html(template.description)}</p>`
+        : '';
+      const scale = normalizeScale(template.scaleSize || template.scale_size || 5);
+      const responsesCount = Object.keys(template.responses || {}).length;
+      const responsesLabel = responsesCount === 1 ? '1 ответ' : `${responsesCount} ответ${responsesCount >= 5 ? 'ов' : responsesCount >= 2 ? 'а' : ''}`;
+      const promptPreview = template.promptText ? template.promptText.trim() : '';
+      const promptSummary = promptPreview.length > 120 ? `${promptPreview.slice(0, 117)}…` : promptPreview;
+      const summaryParts = [`Шкала: 1–${scale}`, responsesLabel];
+      if (promptSummary) {
+        summaryParts.push(`Запрос: ${promptSummary}`);
+      }
+      const summaryText = summaryParts.join(' • ');
+      card.innerHTML = `
+        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+          <div>
+            <h6 class="mb-1">${html(template.name || 'Шаблон оценок')}</h6>
+            ${descriptionHtml}
+            <div class="small text-muted">${html(summaryText)}</div>
+          </div>
+          <div class="d-flex flex-column align-items-lg-end gap-2 w-100 w-lg-auto">
+            <div class="form-check form-switch align-self-start align-self-lg-end">
+              <input class="form-check-input" type="radio" name="bot-rating-template-default" value="${html(template.id)}" ${template.id === state.activeRatingTemplateId ? 'checked' : ''} data-bot-rating-template-select>
+              <label class="form-check-label small">Использовать по умолчанию</label>
+            </div>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary" type="button" data-bot-rating-template-edit>Редактировать</button>
+              <button class="btn btn-outline-secondary" type="button" data-bot-rating-template-duplicate>Дублировать</button>
+              <button class="btn btn-outline-danger" type="button" data-bot-rating-template-delete ${state.ratingTemplates.length === 1 ? 'disabled' : ''}>Удалить</button>
+            </div>
+          </div>
+        </div>
+      `;
+      ratingTemplatesContainer.appendChild(card);
+    });
+  }
+
+  function openRatingTemplateEditor(index) {
+    ratingEditorState.index = Number.isFinite(index) ? index : -1;
+    ratingEditorState.templateId = null;
+    ratingEditorState.name = '';
+    ratingEditorState.description = '';
+    ratingEditorState.scaleSize = 5;
+    ratingEditorState.promptText = defaultRatingPrompt(5);
+    ratingEditorState.responses = defaultResponsesMap(5);
+
+    const existing = Number.isFinite(index) && index >= 0 && index < state.ratingTemplates.length
+      ? state.ratingTemplates[index]
+      : null;
+    if (existing) {
+      ratingEditorState.templateId = existing.id;
+      ratingEditorState.name = existing.name || '';
+      ratingEditorState.description = existing.description || '';
+      ratingEditorState.scaleSize = normalizeScale(existing.scaleSize || existing.scale_size || 5);
+      ratingEditorState.promptText = existing.promptText || existing.prompt_text || defaultRatingPrompt(ratingEditorState.scaleSize);
+      ratingEditorState.responses = Object.assign({}, existing.responses || {});
+      ensureRatingEditorResponses(ratingEditorState.scaleSize);
+    } else {
+      ensureRatingEditorResponses(ratingEditorState.scaleSize);
+    }
+
+    if (ratingNameInput) {
+      ratingNameInput.value = ratingEditorState.name;
+    }
+    if (ratingDescriptionInput) {
+      ratingDescriptionInput.value = ratingEditorState.description;
+    }
     if (ratingPromptInput) {
-      ratingPromptInput.value = state.ratingSystem.prompt_text || '';
+      ratingPromptInput.value = ratingEditorState.promptText;
     }
     if (ratingScaleInput) {
-      ratingScaleInput.value = state.ratingSystem.scale_size || 5;
+      ratingScaleInput.value = ratingEditorState.scaleSize;
     }
-    renderRatingResponses();
+
+    renderRatingEditorResponses();
+    setRatingTemplateStatus('', false);
+    if (ratingModal) {
+      ratingModal.show();
+    }
+  }
+
+  function saveRatingTemplateFromEditor() {
+    const name = ratingNameInput ? ratingNameInput.value.trim() : '';
+    const description = ratingDescriptionInput ? ratingDescriptionInput.value.trim() : '';
+    const promptText = ratingPromptInput ? ratingPromptInput.value.trim() : '';
+    const scale = ratingScaleInput ? normalizeScale(ratingScaleInput.value) : normalizeScale(ratingEditorState.scaleSize);
+    ensureRatingEditorResponses(scale);
+    const responses = {};
+    for (let value = 1; value <= Math.max(1, scale); value += 1) {
+      const key = String(value);
+      const text = ratingEditorState.responses[key] ? ratingEditorState.responses[key].trim() : '';
+      if (!text) {
+        setRatingTemplateStatus(`Укажите текст ответа для оценки ${value}.`, true);
+        return;
+      }
+      responses[key] = text;
+    }
+    if (!promptText) {
+      setRatingTemplateStatus('Укажите текст запроса оценки.', true);
+      return;
+    }
+
+    const templateId = ensureRatingTemplateId(ratingEditorState.templateId);
+    const template = {
+      id: templateId,
+      name: name || 'Шаблон оценок',
+      description,
+      promptText,
+      scaleSize: scale,
+      responses,
+    };
+
+    const isExisting = ratingEditorState.index >= 0 && ratingEditorState.index < state.ratingTemplates.length;
+    if (isExisting) {
+      const previous = state.ratingTemplates[ratingEditorState.index];
+      const wasActive = previous && previous.id === state.activeRatingTemplateId;
+      state.ratingTemplates[ratingEditorState.index] = template;
+      if (wasActive) {
+        state.activeRatingTemplateId = template.id;
+      }
+    } else {
+      state.ratingTemplates.push(template);
+      if (!state.activeRatingTemplateId) {
+        state.activeRatingTemplateId = template.id;
+      }
+    }
+
+    if (ratingModal) {
+      ratingModal.hide();
+    }
+    renderRatingTemplates();
+  }
+
+  function findRatingTemplateIndexById(id) {
+    return state.ratingTemplates.findIndex((template) => template.id === id);
+  }
+
+  function duplicateRatingTemplate(index) {
+    if (index < 0 || index >= state.ratingTemplates.length) {
+      return;
+    }
+    const copy = cloneRatingTemplate(state.ratingTemplates[index], { preserveId: false });
+    copy.name = `${state.ratingTemplates[index].name} (копия)`;
+    state.ratingTemplates.splice(index + 1, 0, copy);
+    renderRatingTemplates();
+  }
+
+  function deleteRatingTemplate(index) {
+    if (state.ratingTemplates.length <= 1 || index < 0 || index >= state.ratingTemplates.length) {
+      return;
+    }
+    const removed = state.ratingTemplates.splice(index, 1)[0];
+    if (removed && removed.id === state.activeRatingTemplateId) {
+      state.activeRatingTemplateId = state.ratingTemplates.length ? state.ratingTemplates[0].id : null;
+    }
+    renderRatingTemplates();
   }
 
   function renderPresetHints() {
@@ -1192,7 +1509,7 @@ const id = ensureQuestionId(source.id);
   function resetState() {
     hydrateStateFrom(initialState);
     renderTemplates();
-    renderRating();
+    renderRatingTemplates();
     setStatus('', false);
   }
 
@@ -1227,22 +1544,41 @@ const id = ensureQuestionId(source.id);
       activeTemplateId = templatesPayload.length ? templatesPayload[0].id : null;
     }
     const activeTemplate = templatesPayload.find((template) => template.id === activeTemplateId);
-    const scale = normalizeScale(state.ratingSystem.scale_size);
-    ensureRatingResponses(scale);
-    const responses = [];
-    for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      const key = String(value);
-      responses.push({ value, text: String(state.ratingSystem.responses[key] || '').trim() });
+    const ratingTemplatesPayload = state.ratingTemplates.map((template) => {
+      const scale = normalizeScale(template.scaleSize || template.scale_size || 5);
+      const ensured = normalizeRatingResponses(template.responses || {}, scale);
+      const responses = [];
+      for (let value = 1; value <= Math.max(1, scale); value += 1) {
+        const key = String(value);
+        responses.push({ value, text: String(ensured[key] || '').trim() });
+      }
+      return {
+        id: template.id,
+        name: String(template.name || '').trim() || 'Шаблон оценок',
+        description: String(template.description || '').trim(),
+        prompt_text: String(template.promptText || template.prompt_text || '').trim(),
+        scale_size: scale,
+        responses,
+      };
+    });
+    let activeRatingTemplateId = state.activeRatingTemplateId;
+    if (!ratingTemplatesPayload.some((template) => template.id === activeRatingTemplateId)) {
+      activeRatingTemplateId = ratingTemplatesPayload.length ? ratingTemplatesPayload[0].id : null;
     }
+    const activeRatingTemplate = ratingTemplatesPayload.find((template) => template.id === activeRatingTemplateId) || null;
     return {
       question_templates: templatesPayload,
       active_template_id: activeTemplateId,
       question_flow: activeTemplate ? activeTemplate.question_flow : [],
-      rating_system: {
-        prompt_text: String(state.ratingSystem.prompt_text || '').trim(),
-        scale_size: scale,
-        responses,
-      },
+      rating_templates: ratingTemplatesPayload,
+      active_rating_template_id: activeRatingTemplateId,
+      rating_system: activeRatingTemplate
+        ? {
+            prompt_text: activeRatingTemplate.prompt_text,
+            scale_size: activeRatingTemplate.scale_size,
+            responses: activeRatingTemplate.responses,
+          }
+        : { prompt_text: '', scale_size: 1, responses: [] },
     };
   }
 
@@ -1269,17 +1605,33 @@ const id = ensureQuestionId(source.id);
         return `Укажите текст для вопроса №${i + 1}.`;
       }
     }
-    if (!payload.rating_system || !payload.rating_system.prompt_text) {
-      return 'Укажите текст запроса оценки.';
+    const ratingTemplates = Array.isArray(payload.rating_templates) ? payload.rating_templates : [];
+    if (!ratingTemplates.length) {
+      return 'Добавьте хотя бы один шаблон оценок.';
     }
-    const responses = Array.isArray(payload.rating_system.responses) ? payload.rating_system.responses : [];
-    if (!responses.length) {
-      return 'Укажите сообщения для каждой оценки.';
-    }
-    for (const response of responses) {
-      if (!response || !String(response.text || '').trim()) {
-        return 'Каждое значение оценки должно иметь текст ответа.';
+    const activeRatingId = payload.active_rating_template_id;
+    const nameForMessage = (template) => String(template?.name || '').trim() || 'Шаблон оценок';
+    for (const template of ratingTemplates) {
+      if (!template) {
+        continue;
       }
+      const prompt = String(template.prompt_text || template.prompt || '').trim();
+      if (!prompt) {
+        return `Укажите текст запроса оценки в шаблоне "${nameForMessage(template)}".`;
+      }
+      const scale = normalizeScale(template.scale_size || template.scale || template.scaleSize);
+      const responses = Array.isArray(template.responses) ? template.responses : [];
+      if (responses.length < Math.max(1, scale)) {
+        return `Добавьте ответы для всех значений шкалы в шаблоне "${nameForMessage(template)}".`;
+      }
+      for (const response of responses) {
+        if (!response || !String(response.text || '').trim()) {
+          return `Каждое значение оценки должно иметь текст ответа в шаблоне "${nameForMessage(template)}".`;
+        }
+      }
+    }
+    if (!ratingTemplates.some((template) => template && template.id === activeRatingId)) {
+      return 'Выберите активный шаблон оценок.';
     }
     return null;
   }
@@ -1312,7 +1664,7 @@ const id = ensureQuestionId(source.id);
       initialState = normalizeSettings(payload);
       hydrateStateFrom(initialState);
       renderTemplates();
-      renderRating();
+      renderRatingTemplates();
     } catch (error) {
       const message = error && error.message ? error.message : String(error);
       setStatus(`Ошибка сохранения: ${message}`, true);
@@ -1515,27 +1867,86 @@ const id = ensureQuestionId(source.id);
     });
   }
 
-  if (ratingPromptInput) {
-    ratingPromptInput.addEventListener('input', () => {
-      state.ratingSystem.prompt_text = ratingPromptInput.value;
+  if (ratingCreateButton) {
+    ratingCreateButton.addEventListener('click', () => {
+      openRatingTemplateEditor(-1);
+    });
+  }
+
+  if (ratingTemplatesContainer) {
+    ratingTemplatesContainer.addEventListener('click', (event) => {
+      const card = event.target.closest('.card[data-rating-template-id]');
+      if (!card) {
+        return;
+      }
+      const templateId = card.dataset.ratingTemplateId;
+      const index = findRatingTemplateIndexById(templateId);
+      if (index === -1) {
+        return;
+      }
+      if (event.target.closest('[data-bot-rating-template-edit]')) {
+        openRatingTemplateEditor(index);
+        return;
+      }
+      if (event.target.closest('[data-bot-rating-template-duplicate]')) {
+        duplicateRatingTemplate(index);
+        return;
+      }
+      if (event.target.closest('[data-bot-rating-template-delete]')) {
+        if (state.ratingTemplates.length <= 1) {
+          return;
+        }
+        if (confirm('Удалить шаблон оценок?')) {
+          deleteRatingTemplate(index);
+        }
+      }
+    });
+
+    ratingTemplatesContainer.addEventListener('change', (event) => {
+      const input = event.target.closest('[data-bot-rating-template-select]');
+      if (!input) {
+        return;
+      }
+      const templateId = input.value;
+      if (state.ratingTemplates.some((template) => template.id === templateId)) {
+        state.activeRatingTemplateId = templateId;
+      }
+    });
+  }
+
+  if (ratingSaveButton) {
+    ratingSaveButton.addEventListener('click', () => {
+      saveRatingTemplateFromEditor();
+    });
+  }
+
+  if (ratingCancelButton && ratingModal) {
+    ratingCancelButton.addEventListener('click', () => {
+      ratingModal.hide();
+    });
+  }
+
+  if (ratingModalEl) {
+    ratingModalEl.addEventListener('hidden.bs.modal', () => {
+      setRatingTemplateStatus('', false);
     });
   }
 
   if (ratingScaleInput) {
     ratingScaleInput.addEventListener('input', () => {
-      state.ratingSystem.scale_size = normalizeScale(ratingScaleInput.value);
-      renderRatingResponses();
+      ratingEditorState.scaleSize = normalizeScale(ratingScaleInput.value);
+      renderRatingEditorResponses();
     });
     ratingScaleInput.addEventListener('blur', () => {
-      state.ratingSystem.scale_size = normalizeScale(ratingScaleInput.value);
-      ratingScaleInput.value = state.ratingSystem.scale_size;
-      renderRatingResponses();
+      ratingEditorState.scaleSize = normalizeScale(ratingScaleInput.value);
+      ratingScaleInput.value = ratingEditorState.scaleSize;
+      renderRatingEditorResponses();
     });
   }
 
   if (ratingResponsesContainer) {
     ratingResponsesContainer.addEventListener('input', (event) => {
-      const textarea = event.target.closest('[data-bot-rating-response]');
+      const textarea = event.target.closest('[data-bot-rating-template-response]');
       if (!textarea) {
         return;
       }
@@ -1543,10 +1954,7 @@ const id = ensureQuestionId(source.id);
       if (!Number.isFinite(value)) {
         return;
       }
-      if (!state.ratingSystem.responses) {
-        state.ratingSystem.responses = {};
-      }
-      state.ratingSystem.responses[String(value)] = textarea.value;
+      ratingEditorState.responses[String(value)] = textarea.value;
     });
   }
 
