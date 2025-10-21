@@ -252,7 +252,11 @@ def add_history(conn, ticket_id, sender, text, ts, message_type='text', attachme
 def load_locations():
     try:
         with open("locations.json", "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if isinstance(data, dict) and "tree" in data:
+                tree = data.get("tree")
+                return tree if isinstance(tree, dict) else {}
+            return data if isinstance(data, dict) else {}
     except Exception as e:
         logging.error(f"Ошибка загрузки locations.json: {e}")
         return {}
