@@ -2242,6 +2242,149 @@ def get_latest_client_name(user_id):
         print(f"Ошибка при получении имени клиента: {e}")
         return None
 
+def _generate_template_id(prefix: str) -> str:
+    return f"{prefix}_{uuid4().hex[:8]}"
+
+
+def _sanitize_str(value) -> str:
+    return str(value).strip() if isinstance(value, str) else str(value).strip() if value is not None else ""
+
+
+def _sanitize_category_templates(raw, fallback=None):
+    templates = []
+    seen_ids: set[str] = set()
+    source = raw if isinstance(raw, list) else []
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        template_id = _sanitize_str(item.get("id"))
+        if not template_id:
+            template_id = _generate_template_id("cat")
+        if template_id in seen_ids:
+            template_id = _generate_template_id("cat")
+        seen_ids.add(template_id)
+
+        name = _sanitize_str(item.get("name"))
+        categories = []
+        for raw_cat in item.get("categories", []):
+            cat = _sanitize_str(raw_cat)
+            if cat:
+                categories.append(cat)
+
+        if not name:
+            name = "Общий шаблон" if not templates else "Шаблон без названия"
+
+        templates.append({
+            "id": template_id,
+            "name": name,
+            "categories": categories,
+        })
+
+    if not templates:
+        fallback_categories = []
+        if isinstance(fallback, list):
+            fallback_categories = [_sanitize_str(cat) for cat in fallback if _sanitize_str(cat)]
+        template_id = _generate_template_id("cat")
+        templates.append({
+            "id": template_id,
+            "name": "Общий шаблон",
+            "categories": fallback_categories,
+        })
+
+    return templates
+
+
+def _sanitize_question_templates(raw):
+    templates = []
+    seen_ids: set[str] = set()
+    source = raw if isinstance(raw, list) else []
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        template_id = _sanitize_str(item.get("id"))
+        if not template_id:
+            template_id = _generate_template_id("q")
+        if template_id in seen_ids:
+            template_id = _generate_template_id("q")
+        seen_ids.add(template_id)
+
+        name = _sanitize_str(item.get("name")) or "Новый шаблон вопросов"
+        questions = []
+        for raw_question in item.get("questions", []):
+            question = _sanitize_str(raw_question)
+            if question:
+                questions.append(question)
+
+        if not questions and not name:
+            continue
+
+        templates.append({
+            "id": template_id,
+            "name": name,
+            "questions": questions,
+        })
+
+    return templates
+
+
+def _sanitize_completion_templates(raw):
+    templates = []
+    seen_ids: set[str] = set()
+    source = raw if isinstance(raw, list) else []
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        template_id = _sanitize_str(item.get("id"))
+        if not template_id:
+            template_id = _generate_template_id("act")
+        if template_id in seen_ids:
+            template_id = _generate_template_id("act")
+        seen_ids.add(template_id)
+
+        name = _sanitize_str(item.get("name")) or "Новый шаблон действий"
+        entries = []
+        for raw_entry in item.get("items", []):
+            if not isinstance(raw_entry, dict):
+                continue
+            question = _sanitize_str(raw_entry.get("question"))
+            action = _sanitize_str(raw_entry.get("action"))
+            if not (question or action):
+                continue
+            entries.append({"question": question, "action": action})
+
+        if not entries and not name:
+            continue
+
+        templates.append({
+            "id": template_id,
+            "name": name,
+            "items": entries,
+        })
+
+    return templates
+
+
+def ensure_dialog_config(settings):
+    if not isinstance(settings, dict):
+        settings = {}
+    config = settings.get("dialog_config")
+    if not isinstance(config, dict):
+        config = {}
+
+    fallback_categories = settings.get("categories") if isinstance(settings.get("categories"), list) else []
+    category_templates = _sanitize_category_templates(config.get("category_templates"), fallback=fallback_categories)
+    question_templates = _sanitize_question_templates(config.get("question_templates"))
+    completion_templates = _sanitize_completion_templates(config.get("completion_templates"))
+
+    config["category_templates"] = category_templates
+    config["question_templates"] = question_templates
+    config["completion_templates"] = completion_templates
+
+    settings["dialog_config"] = config
+    settings["categories"] = category_templates[0]["categories"] if category_templates else []
+    return settings
+
+
 # Функция для загрузки настроек
 def load_settings():
     settings = {"auto_close_hours": 24, "categories": ["Консультация"], "client_statuses": ["Новый", "Постоянный", "VIP"]}
@@ -2256,7 +2399,7 @@ def load_settings():
     settings["it_connection_categories"] = normalize_it_connection_categories(
         settings.get("it_connection_categories")
     )
-    return settings
+    return ensure_dialog_config(settings)
 
 # Функция для сжатия изображений на лету
 import io
@@ -5026,46 +5169,82 @@ def settings_page():
 @login_required
 def update_settings():
     try:
-        data = request.json
-        
-        # Обновляем настройки
+        data = request.json or {}
+        settings = load_settings()
+        settings_modified = False
+
+        if "auto_close_hours" in data:
+            try:
+                settings["auto_close_hours"] = int(data["auto_close_hours"])
+            except (TypeError, ValueError):
+                settings["auto_close_hours"] = data["auto_close_hours"]
+            settings_modified = True
+
+        if "categories" in data:
+            settings["categories"] = [cat for cat in data.get("categories", []) if str(cat).strip()]
+            settings_modified = True
+
+        if "client_statuses" in data:
+            settings["client_statuses"] = [status for status in data.get("client_statuses", []) if str(status).strip()]
+            settings_modified = True
+
+        if "network_profiles" in data:
+            profiles = []
+            for item in data.get("network_profiles") or []:
+                if not isinstance(item, dict):
+                    continue
+                provider = (item.get("provider") or "").strip()
+                contract_number = (item.get("contract_number") or "").strip()
+                support_phone = (item.get("support_phone") or "").strip()
+                legal_entity = (item.get("legal_entity") or "").strip()
+                if not any([provider, contract_number, support_phone, legal_entity]):
+                    continue
+                profiles.append(
+                    {
+                        "provider": provider,
+                        "contract_number": contract_number,
+                        "support_phone": support_phone,
+                        "legal_entity": legal_entity,
+                    }
+                )
+            settings["network_profiles"] = profiles
+            settings_modified = True
+
         if any(
             key in data
-            for key in ("auto_close_hours", "categories", "client_statuses", "network_profiles")
+            for key in (
+                "dialog_category_templates",
+                "dialog_question_templates",
+                "dialog_completion_templates",
+            )
         ):
-            settings = load_settings()
+            dialog_config = settings.get("dialog_config")
+            if not isinstance(dialog_config, dict):
+                dialog_config = {}
 
-            if "auto_close_hours" in data:
-                settings["auto_close_hours"] = data["auto_close_hours"]
+            if "dialog_category_templates" in data:
+                dialog_config["category_templates"] = _sanitize_category_templates(
+                    data.get("dialog_category_templates"),
+                    fallback=settings.get("categories"),
+                )
 
-            if "categories" in data:
-                settings["categories"] = [cat for cat in data["categories"] if cat.strip()]
+            if "dialog_question_templates" in data:
+                dialog_config["question_templates"] = _sanitize_question_templates(
+                    data.get("dialog_question_templates")
+                )
 
-            if "client_statuses" in data:
-                settings["client_statuses"] = [status for status in data["client_statuses"] if status.strip()]
+            if "dialog_completion_templates" in data:
+                dialog_config["completion_templates"] = _sanitize_completion_templates(
+                    data.get("dialog_completion_templates")
+                )
 
-            if "network_profiles" in data:
-                profiles = []
-                for item in data.get("network_profiles") or []:
-                    provider = (item.get("provider") or "").strip()
-                    contract_number = (item.get("contract_number") or "").strip()
-                    support_phone = (item.get("support_phone") or "").strip()
-                    legal_entity = (item.get("legal_entity") or "").strip()
-                    if not any([provider, contract_number, support_phone, legal_entity]):
-                        continue
-                    profiles.append(
-                        {
-                            "provider": provider,
-                            "contract_number": contract_number,
-                            "support_phone": support_phone,
-                            "legal_entity": legal_entity,
-                        }
-                    )
-                settings["network_profiles"] = profiles
+            settings["dialog_config"] = dialog_config
+            settings_modified = True
 
+        if settings_modified:
+            settings = ensure_dialog_config(settings)
             save_settings(settings)
 
-        # Обновляем локации
         if "locations" in data:
             save_locations(data["locations"])
 
