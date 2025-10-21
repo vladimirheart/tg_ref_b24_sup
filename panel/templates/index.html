@@ -1277,27 +1277,15 @@ function markTicketReopenedLocally() {
                 
                 <!-- Категория обращения -->
                 <div class="category-selector p-3 sidebar-info">
-                  <label for="ticketCategorySelect" class="form-label">Категория обращения:</label>
+                  <label class="form-label" for="categoryTemplateSelect">Категория обращения:</label>
+                  <select id="categoryTemplateSelect" class="form-select form-select-sm mb-2"></select>
                   <div class="selected-categories mt-2 ellipsis-100ch" id="selectedCategories" style="font-size: 0.9rem;" title=""></div>
-                  <select id="ticketCategorySelect" class="form-select" multiple style="display: none;">
-                    {% for cat in settings.categories %}
-                      <option value="{{ cat }}">{{ cat }}</option>
-                    {% endfor %}
-                  </select>
+                  <select id="ticketCategorySelect" class="form-select" multiple hidden></select>
                   <div class="dropdown" data-bs-auto-close="outside">
                     <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                       Выберите категории...
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="categoryDropdown" style="max-height: 300px; overflow-y: auto;">
-                      {% for cat in settings.categories %}
-                        <li>
-                          <div class="form-check dropdown-item">
-                            <input class="form-check-input category-checkbox" type="checkbox" value="{{ cat }}" id="cat{{ loop.index }}">
-                            <label class="form-check-label w-100" for="cat{{ loop.index }}">{{ cat }}</label>
-                          </div>
-                        </li>
-                      {% endfor %}
-                    </ul>
+                    <ul class="dropdown-menu" aria-labelledby="categoryDropdown" id="categoryOptionsList" style="max-height: 300px; overflow-y: auto;"></ul>
                   </div>
                   <div class="form-text">Можно выбрать несколько категорий</div>
                   <button type="button" class="btn btn-outline-primary mt-2 w-100" onclick="saveTicketCategory()">
@@ -1337,6 +1325,14 @@ function markTicketReopenedLocally() {
                   <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
                   <div class="flex-grow-1 position-relative">
                     <div class="w-100">
+                      <div class="mb-2" id="questionTemplateSection">
+                        <label class="form-label small mb-1" for="questionTemplateSelect">Шаблон типовых вопросов</label>
+                        <div class="input-group input-group-sm">
+                          <select id="questionTemplateSelect" class="form-select"></select>
+                          <button type="button" class="btn btn-outline-secondary" id="applyQuestionTemplateBtn">Вставить все</button>
+                        </div>
+                        <div class="mt-2 d-flex flex-wrap gap-2" id="questionTemplateQuestions"></div>
+                      </div>
                       <div class="d-flex gap-2 mb-1 flex-wrap">
                         <button type="button" class="btn btn-light btn-sm fmt" data-tag="b" title="Жирный">B</button>
                         <button type="button" class="btn btn-light btn-sm fmt" data-tag="i" title="Курсив"><em>I</em></button>
@@ -1445,31 +1441,24 @@ function markTicketReopenedLocally() {
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="category-selector mb-3">
-          <label class="form-label">Категория обращения:</label>
-          <select id="closeCategorySelect" class="form-select" multiple style="display: none;">
-            {% for cat in settings.categories %}
-            <option value="{{ cat }}">{{ cat }}</option>
-            {% endfor %}
-          </select>
-          <div class="dropdown" data-bs-auto-close="outside">
-            <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="closeCategoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-              Выберите категории...
-            </button>
-            <ul class="dropdown-menu" aria-labelledby="closeCategoryDropdown" style="max-height: 300px; overflow-y: auto;">
-              {% for cat in settings.categories %}
-              <li>
-                <div class="form-check dropdown-item">
-                  <input class="form-check-input close-category-checkbox" type="checkbox" value="{{ cat }}" id="closeCat{{ loop.index }}">
-                  <label class="form-check-label w-100" for="closeCat{{ loop.index }}">{{ cat }}</label>
-                </div>
-              </li>
-              {% endfor %}
-            </ul>
+          <div class="category-selector mb-3">
+            <label class="form-label" for="closeCategoryTemplateSelect">Категория обращения:</label>
+            <select id="closeCategoryTemplateSelect" class="form-select form-select-sm mb-2"></select>
+            <select id="closeCategorySelect" class="form-select" multiple hidden></select>
+            <div class="dropdown" data-bs-auto-close="outside">
+              <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="closeCategoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                Выберите категории...
+              </button>
+              <ul class="dropdown-menu" aria-labelledby="closeCategoryDropdown" id="closeCategoryOptionsList" style="max-height: 300px; overflow-y: auto;"></ul>
+            </div>
+            <div class="selected-categories mt-2" id="closeSelectedCategories" style="font-size: 0.9rem;"></div>
+            <div class="form-text">Можно выбрать несколько категорий</div>
           </div>
-          <div class="selected-categories mt-2" id="closeSelectedCategories" style="font-size: 0.9rem;"></div>
-          <div class="form-text">Можно выбрать несколько категорий</div>
-        </div>
+          <div class="mb-3">
+            <label class="form-label" for="completionTemplateSelect">Шаблон действий после диалога:</label>
+            <select id="completionTemplateSelect" class="form-select form-select-sm mb-2"></select>
+            <div id="completionTemplateDetails" class="small text-muted"></div>
+          </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -1524,8 +1513,12 @@ function markTicketReopenedLocally() {
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     window.settings = {
-  "categories": {{ settings.categories | tojson if settings and settings.categories else '["Консультация"]' | safe }}
-};
+      categories: {{ settings.categories | tojson | safe }},
+      dialogConfig: {{ settings.dialog_config | tojson | safe }}
+    };
+    if (!window.settings.dialogConfig || typeof window.settings.dialogConfig !== 'object') {
+      window.settings.dialogConfig = { category_templates: [], question_templates: [], completion_templates: [] };
+    }
   </script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
   <script>
@@ -4262,16 +4255,508 @@ function displayTicketsForCurrentPage() {
           container.classList.add('has-categories');
         }
 
+        function normalizeCategoryTemplates(rawTemplates, fallbackCategories) {
+          const result = [];
+          const source = Array.isArray(rawTemplates) ? rawTemplates : [];
+          const used = new Set();
+          source.forEach((item, index) => {
+            if (!item || typeof item !== 'object') return;
+            let id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `cat-${index}`;
+            while (used.has(id)) {
+              id = `cat-${index}-${Math.random().toString(36).slice(2, 6)}`;
+            }
+            used.add(id);
+            const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : `Шаблон ${index + 1}`;
+            const categories = Array.isArray(item.categories)
+              ? item.categories.map((cat) => String(cat || '').trim()).filter(Boolean)
+              : [];
+            result.push({ id, name, categories });
+          });
+
+          if (!result.length) {
+            const fallback = Array.isArray(fallbackCategories)
+              ? fallbackCategories.map((cat) => String(cat || '').trim()).filter(Boolean)
+              : [];
+            result.push({ id: 'cat-default', name: 'Общий шаблон', categories: fallback });
+          }
+
+          return result;
+        }
+
+        function normalizeQuestionTemplates(rawTemplates) {
+          const result = [];
+          const source = Array.isArray(rawTemplates) ? rawTemplates : [];
+          const used = new Set();
+          source.forEach((item, index) => {
+            if (!item || typeof item !== 'object') return;
+            let id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `q-${index}`;
+            while (used.has(id)) {
+              id = `q-${index}-${Math.random().toString(36).slice(2, 6)}`;
+            }
+            used.add(id);
+            const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : `Шаблон вопросов ${index + 1}`;
+            const questions = Array.isArray(item.questions)
+              ? item.questions.map((question) => String(question || '').trim()).filter(Boolean)
+              : [];
+            result.push({ id, name, questions });
+          });
+          return result;
+        }
+
+        function normalizeCompletionTemplates(rawTemplates) {
+          const result = [];
+          const source = Array.isArray(rawTemplates) ? rawTemplates : [];
+          const used = new Set();
+          source.forEach((item, index) => {
+            if (!item || typeof item !== 'object') return;
+            let id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `act-${index}`;
+            while (used.has(id)) {
+              id = `act-${index}-${Math.random().toString(36).slice(2, 6)}`;
+            }
+            used.add(id);
+            const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : `Шаблон действий ${index + 1}`;
+            const items = Array.isArray(item.items)
+              ? item.items.map((entry) => {
+                  if (!entry || typeof entry !== 'object') return null;
+                  const question = String(entry.question || '').trim();
+                  const action = String(entry.action || '').trim();
+                  if (!question && !action) return null;
+                  return { question, action };
+                }).filter(Boolean)
+              : [];
+            result.push({ id, name, items });
+          });
+          return result;
+        }
+
+        const rawDialogConfig = window.settings && typeof window.settings === 'object' ? window.settings.dialogConfig : {};
+        const CATEGORY_TEMPLATES = normalizeCategoryTemplates(
+          rawDialogConfig && rawDialogConfig.category_templates,
+          window.settings && window.settings.categories
+        );
+        const QUESTION_TEMPLATES = normalizeQuestionTemplates(
+          rawDialogConfig && rawDialogConfig.question_templates
+        );
+        const COMPLETION_TEMPLATES = normalizeCompletionTemplates(
+          rawDialogConfig && rawDialogConfig.completion_templates
+        );
+
+        let activeCategoryTemplateId = CATEGORY_TEMPLATES.length ? CATEGORY_TEMPLATES[0].id : null;
+        let activeQuestionTemplateId = QUESTION_TEMPLATES.length ? QUESTION_TEMPLATES[0].id : '';
+        let activeCompletionTemplateId = COMPLETION_TEMPLATES.length ? COMPLETION_TEMPLATES[0].id : '';
+
+        function getCategoryTemplateById(id) {
+          return CATEGORY_TEMPLATES.find((template) => template.id === id) || null;
+        }
+
+        function getQuestionTemplateById(id) {
+          return QUESTION_TEMPLATES.find((template) => template.id === id) || null;
+        }
+
+        function getCompletionTemplateById(id) {
+          return COMPLETION_TEMPLATES.find((template) => template.id === id) || null;
+        }
+
+        function populateCategoryTemplateSelectors() {
+          const historySelect = document.getElementById('categoryTemplateSelect');
+          const closeSelect = document.getElementById('closeCategoryTemplateSelect');
+          const fragmentHistory = document.createDocumentFragment();
+          const fragmentClose = document.createDocumentFragment();
+
+          CATEGORY_TEMPLATES.forEach((template) => {
+            const optionHistory = document.createElement('option');
+            optionHistory.value = template.id;
+            optionHistory.textContent = template.name;
+            fragmentHistory.appendChild(optionHistory);
+
+            const optionClose = document.createElement('option');
+            optionClose.value = template.id;
+            optionClose.textContent = template.name;
+            fragmentClose.appendChild(optionClose);
+          });
+
+          if (historySelect) {
+            historySelect.innerHTML = '';
+            if (fragmentHistory.childNodes.length) {
+              historySelect.appendChild(fragmentHistory);
+              const hasActive = CATEGORY_TEMPLATES.some((template) => template.id === activeCategoryTemplateId);
+              const defaultId = hasActive ? activeCategoryTemplateId : (CATEGORY_TEMPLATES[0] ? CATEGORY_TEMPLATES[0].id : '');
+              activeCategoryTemplateId = defaultId || null;
+              historySelect.value = defaultId;
+            } else {
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'Нет шаблонов';
+              historySelect.appendChild(option);
+              historySelect.value = '';
+            }
+          }
+
+          if (closeSelect) {
+            closeSelect.innerHTML = '';
+            if (fragmentClose.childNodes.length) {
+              closeSelect.appendChild(fragmentClose);
+              closeSelect.value = activeCategoryTemplateId || '';
+            } else {
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'Нет шаблонов';
+              closeSelect.appendChild(option);
+              closeSelect.value = '';
+            }
+          }
+        }
+
+        function buildCategoryOptionsForContext(selectId, listId, checkboxClass, idPrefix, categories) {
+          const select = document.getElementById(selectId);
+          const list = document.getElementById(listId);
+
+          if (select) {
+            select.innerHTML = '';
+          }
+          if (list) {
+            list.innerHTML = '';
+          }
+
+          if (!Array.isArray(categories) || !categories.length) {
+            if (list) {
+              const empty = document.createElement('li');
+              empty.className = 'dropdown-item text-muted';
+              empty.textContent = 'Нет категорий в шаблоне';
+              list.appendChild(empty);
+            }
+            return;
+          }
+
+          categories.forEach((category, index) => {
+            const value = String(category || '').trim();
+            if (!value) return;
+            if (select) {
+              const option = document.createElement('option');
+              option.value = value;
+              option.textContent = value;
+              select.appendChild(option);
+            }
+            if (list) {
+              const li = document.createElement('li');
+              const inputId = `${idPrefix}${index}`;
+              li.innerHTML = `
+                <div class="form-check dropdown-item">
+                  <input class="form-check-input ${checkboxClass}" type="checkbox" value="${escapeHtml(value)}" id="${inputId}">
+                  <label class="form-check-label w-100" for="${inputId}">${escapeHtml(value)}</label>
+                </div>
+              `;
+              list.appendChild(li);
+            }
+          });
+        }
+
+        function refreshCategoryControls(options) {
+          const template = getCategoryTemplateById(activeCategoryTemplateId);
+          const categories = template ? template.categories : [];
+          const preservedHistory = new Set(
+            (options && options.historySelected) ||
+              Array.from(document.querySelectorAll('.category-checkbox:checked')).map((checkbox) => checkbox.value)
+          );
+          const preservedClose = new Set(
+            (options && options.closeSelected) ||
+              Array.from(document.querySelectorAll('.close-category-checkbox:checked')).map((checkbox) => checkbox.value)
+          );
+
+          buildCategoryOptionsForContext('ticketCategorySelect', 'categoryOptionsList', 'category-checkbox', 'cat', categories);
+          buildCategoryOptionsForContext('closeCategorySelect', 'closeCategoryOptionsList', 'close-category-checkbox', 'closeCat', categories);
+
+          document.querySelectorAll('.category-checkbox').forEach((checkbox) => {
+            checkbox.checked = preservedHistory.has(checkbox.value);
+          });
+          document.querySelectorAll('.close-category-checkbox').forEach((checkbox) => {
+            checkbox.checked = preservedClose.has(checkbox.value);
+          });
+
+          syncCategorySelection();
+          syncCloseCategorySelection();
+        }
+
+        function setActiveCategoryTemplate(templateId, options) {
+          if (!templateId) return;
+          if (templateId === activeCategoryTemplateId && !(options && options.force)) {
+            return;
+          }
+          activeCategoryTemplateId = templateId;
+          const historySelect = document.getElementById('categoryTemplateSelect');
+          if (historySelect) {
+            historySelect.value = templateId;
+          }
+          const closeSelect = document.getElementById('closeCategoryTemplateSelect');
+          if (closeSelect) {
+            closeSelect.value = templateId;
+          }
+          refreshCategoryControls(options);
+        }
+
+        function injectCategoryOption(value) {
+          const category = String(value || '').trim();
+          if (!category) return;
+
+          const historySelect = document.getElementById('ticketCategorySelect');
+          if (historySelect && !Array.from(historySelect.options).some((option) => option.value === category)) {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            historySelect.appendChild(option);
+          }
+
+          const closeSelect = document.getElementById('closeCategorySelect');
+          if (closeSelect && !Array.from(closeSelect.options).some((option) => option.value === category)) {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            closeSelect.appendChild(option);
+          }
+
+          const historyList = document.getElementById('categoryOptionsList');
+          if (historyList && !Array.from(historyList.querySelectorAll('.category-checkbox')).some((checkbox) => checkbox.value === category)) {
+            const li = document.createElement('li');
+            const inputId = `catCustom-${Math.random().toString(36).slice(2, 7)}`;
+            li.innerHTML = `
+              <div class="form-check dropdown-item">
+                <input class="form-check-input category-checkbox" type="checkbox" value="${escapeHtml(category)}" id="${inputId}">
+                <label class="form-check-label w-100" for="${inputId}">${escapeHtml(category)}</label>
+              </div>
+            `;
+            historyList.appendChild(li);
+          }
+
+          const closeList = document.getElementById('closeCategoryOptionsList');
+          if (closeList && !Array.from(closeList.querySelectorAll('.close-category-checkbox')).some((checkbox) => checkbox.value === category)) {
+            const inputId = `closeCatCustom-${Math.random().toString(36).slice(2, 7)}`;
+            const li = document.createElement('li');
+            li.innerHTML = `
+              <div class="form-check dropdown-item">
+                <input class="form-check-input close-category-checkbox" type="checkbox" value="${escapeHtml(category)}" id="${inputId}">
+                <label class="form-check-label w-100" for="${inputId}">${escapeHtml(category)}</label>
+              </div>
+            `;
+            closeList.appendChild(li);
+          }
+        }
+
+        function initializeCategoryTemplatesUI() {
+          populateCategoryTemplateSelectors();
+          refreshCategoryControls({ historySelected: [], closeSelected: [] });
+
+          const historySelect = document.getElementById('categoryTemplateSelect');
+          if (historySelect) {
+            historySelect.addEventListener('change', (event) => {
+              setActiveCategoryTemplate(event.target.value, { historySelected: [], closeSelected: [] });
+            });
+          }
+
+          const closeSelect = document.getElementById('closeCategoryTemplateSelect');
+          if (closeSelect) {
+            closeSelect.addEventListener('change', (event) => {
+              setActiveCategoryTemplate(event.target.value, { historySelected: [], closeSelected: [] });
+            });
+          }
+
+          document.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+            if (target.classList.contains('category-checkbox')) {
+              syncCategorySelection();
+            }
+            if (target.classList.contains('close-category-checkbox')) {
+              syncCloseCategorySelection();
+            }
+          });
+        }
+
+        function setActiveQuestionTemplate(templateId) {
+          activeQuestionTemplateId = templateId || '';
+          renderQuestionTemplateQuestions(activeQuestionTemplateId);
+        }
+
+        function renderQuestionTemplateSelect() {
+          const select = document.getElementById('questionTemplateSelect');
+          const applyBtn = document.getElementById('applyQuestionTemplateBtn');
+          if (!select) return;
+
+          select.innerHTML = '';
+          if (!QUESTION_TEMPLATES.length) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Нет шаблонов';
+            select.appendChild(option);
+            select.value = '';
+            select.disabled = true;
+            if (applyBtn) applyBtn.setAttribute('disabled', 'disabled');
+            renderQuestionTemplateQuestions('');
+            return;
+          }
+
+          select.disabled = false;
+          QUESTION_TEMPLATES.forEach((template) => {
+            const option = document.createElement('option');
+            option.value = template.id;
+            option.textContent = template.name;
+            select.appendChild(option);
+          });
+
+          const defaultId = activeQuestionTemplateId && QUESTION_TEMPLATES.some((tpl) => tpl.id === activeQuestionTemplateId)
+            ? activeQuestionTemplateId
+            : QUESTION_TEMPLATES[0].id;
+          select.value = defaultId;
+          activeQuestionTemplateId = defaultId;
+          if (applyBtn) applyBtn.removeAttribute('disabled');
+          renderQuestionTemplateQuestions(activeQuestionTemplateId);
+        }
+
+        function renderQuestionTemplateQuestions(templateId) {
+          const container = document.getElementById('questionTemplateQuestions');
+          if (!container) return;
+
+          container.innerHTML = '';
+          const template = getQuestionTemplateById(templateId);
+          if (!template || !template.questions.length) {
+            const empty = document.createElement('span');
+            empty.className = 'text-muted small';
+            empty.textContent = template ? 'В этом шаблоне нет вопросов.' : 'Нет типовых вопросов.';
+            container.appendChild(empty);
+            return;
+          }
+
+          template.questions.forEach((question) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-light btn-sm';
+            btn.textContent = question;
+            btn.addEventListener('click', () => {
+              appendTextToReply(question);
+            });
+            container.appendChild(btn);
+          });
+        }
+
+        function appendTextToReply(text) {
+          const textarea = document.getElementById('replyTextInHistory');
+          if (!textarea || !text) return;
+          const current = textarea.value || '';
+          const separator = current && !current.endsWith('\n') ? '\n' : '';
+          textarea.value = current + separator + text;
+          textarea.focus();
+        }
+
+        function initializeQuestionTemplatesUI() {
+          renderQuestionTemplateSelect();
+          const select = document.getElementById('questionTemplateSelect');
+          if (select) {
+            select.addEventListener('change', (event) => {
+              setActiveQuestionTemplate(event.target.value);
+            });
+          }
+          const applyBtn = document.getElementById('applyQuestionTemplateBtn');
+          if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+              const template = getQuestionTemplateById(activeQuestionTemplateId);
+              if (!template || !template.questions.length) return;
+              appendTextToReply(template.questions.join('\n'));
+            });
+          }
+        }
+
+        function renderCompletionTemplateOptions() {
+          const select = document.getElementById('completionTemplateSelect');
+          if (!select) return;
+          select.innerHTML = '';
+
+          if (!COMPLETION_TEMPLATES.length) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Нет шаблонов';
+            select.appendChild(option);
+            select.value = '';
+            select.disabled = true;
+            renderCompletionTemplateDetails('');
+            return;
+          }
+
+          select.disabled = false;
+          COMPLETION_TEMPLATES.forEach((template) => {
+            const option = document.createElement('option');
+            option.value = template.id;
+            option.textContent = template.name;
+            select.appendChild(option);
+          });
+
+          const defaultId = activeCompletionTemplateId && COMPLETION_TEMPLATES.some((tpl) => tpl.id === activeCompletionTemplateId)
+            ? activeCompletionTemplateId
+            : COMPLETION_TEMPLATES[0].id;
+          select.value = defaultId;
+          activeCompletionTemplateId = defaultId;
+          renderCompletionTemplateDetails(activeCompletionTemplateId);
+        }
+
+        function renderCompletionTemplateDetails(templateId) {
+          const container = document.getElementById('completionTemplateDetails');
+          if (!container) return;
+          container.innerHTML = '';
+          const template = getCompletionTemplateById(templateId);
+          if (!template) {
+            container.textContent = 'Шаблон не выбран.';
+            return;
+          }
+          if (!template.items.length) {
+            container.textContent = 'В этом шаблоне нет действий.';
+            return;
+          }
+          const list = document.createElement('ol');
+          list.className = 'ps-3 mb-0';
+          template.items.forEach((item) => {
+            const li = document.createElement('li');
+            const question = item.question ? `<strong>${escapeHtml(item.question)}</strong>` : '';
+            const action = item.action ? `<div class="text-muted">${escapeHtml(item.action)}</div>` : '';
+            li.innerHTML = `${question}${action}`;
+            list.appendChild(li);
+          });
+          container.appendChild(list);
+        }
+
+        function setActiveCompletionTemplate(templateId) {
+          activeCompletionTemplateId = templateId || '';
+          renderCompletionTemplateDetails(activeCompletionTemplateId);
+        }
+
+        function initializeCompletionTemplatesUI() {
+          renderCompletionTemplateOptions();
+          const select = document.getElementById('completionTemplateSelect');
+          if (select) {
+            select.addEventListener('change', (event) => {
+              setActiveCompletionTemplate(event.target.value);
+            });
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          initializeCategoryTemplatesUI();
+          initializeQuestionTemplatesUI();
+          initializeCompletionTemplatesUI();
+        });
+
 // === Синхронизация категорий из истории в окно закрытия ===
-		function syncCloseCategoriesFromHistory() {
-			// Получаем выбранные категории из истории
-				const historyCheckboxes = document.querySelectorAll('.category-checkbox:checked');
-				const selectedValues = Array.from(historyCheckboxes).map(cb => cb.value);
-	  
-			// Устанавливаем те же категории в окне закрытия
-				document.querySelectorAll('.close-category-checkbox').forEach(checkbox => {
-					checkbox.checked = selectedValues.includes(checkbox.value);
-				});
+                function syncCloseCategoriesFromHistory() {
+                        // Получаем выбранные категории из истории
+                                const historyCheckboxes = document.querySelectorAll('.category-checkbox:checked');
+                                const selectedValues = Array.from(historyCheckboxes).map(cb => cb.value);
+
+                        const closeTemplateSelect = document.getElementById('closeCategoryTemplateSelect');
+                        if (closeTemplateSelect && activeCategoryTemplateId) {
+                                closeTemplateSelect.value = activeCategoryTemplateId;
+                        }
+
+                        // Устанавливаем те же категории в окне закрытия
+                                document.querySelectorAll('.close-category-checkbox').forEach(checkbox => {
+                                        checkbox.checked = selectedValues.includes(checkbox.value);
+                                });
 	  
 			// Обновляем отображение выбранных категорий
 				syncCloseCategorySelection();
@@ -4346,27 +4831,33 @@ function displayTicketsForCurrentPage() {
 		}
 
 		// === Установка выбранных категорий ===
-		function setCategorySelection(categories) {
-			if (!categories) return;
-	  
-			const categoryArray = Array.isArray(categories) ? categories : categories.split(',').map(cat => cat.trim());
-	  
-			// Сбрасываем все чекбоксы
-				document.querySelectorAll('.category-checkbox').forEach(checkbox => {
-					checkbox.checked = false;
-				});
-	  
-			// Устанавливаем выбранные категории
-				categoryArray.forEach(cat => {
-					const checkbox = document.querySelector(`.category-checkbox[value="${cat}"]`);
-					if (checkbox) {
-						checkbox.checked = true;
-					}
-				});
-	  
-			// Синхронизируем отображение
-				syncCategorySelection();
-		}
+                function setCategorySelection(categories) {
+                        if (!categories) return;
+
+                        const categoryArray = Array.isArray(categories) ? categories : categories.split(',').map(cat => cat.trim());
+
+                        document.querySelectorAll('.category-checkbox').forEach(checkbox => {
+                                checkbox.checked = false;
+                        });
+                        document.querySelectorAll('.close-category-checkbox').forEach(checkbox => {
+                                checkbox.checked = false;
+                        });
+
+                        categoryArray.forEach(cat => {
+                                if (!cat) return;
+                                injectCategoryOption(cat);
+                        });
+
+                        document.querySelectorAll('.category-checkbox').forEach(checkbox => {
+                                checkbox.checked = categoryArray.includes(checkbox.value);
+                        });
+                        document.querySelectorAll('.close-category-checkbox').forEach(checkbox => {
+                                checkbox.checked = categoryArray.includes(checkbox.value);
+                        });
+
+                        syncCategorySelection();
+                        syncCloseCategorySelection();
+                }
 
 		// === Загрузка текучной категории заявки ===
 		async function loadTicketCategory(ticket_id) {
@@ -4991,47 +5482,11 @@ function findTicketEverywhere(ticketId) {
                 await performTicketClose(selectedCategories, this);
         };
 
-	// === Синхронизация выбора категорий ===
-	function syncCategorySelection() {
-		const checkboxes = document.querySelectorAll('.category-checkbox:checked');
-		const selectedContainer = document.getElementById('selectedCategories');
-  
-		// Обновляем отображение выбранных категорий
-			const selectedValues = Array.from(checkboxes).map(cb => cb.value);
-  
-			if (selectedValues.length > 0) {
-				selectedContainer.textContent = 'Выбрано: ' + selectedValues.join(', ');
-				document.getElementById('categoryDropdown').textContent = `Выбрано: ${selectedValues.length} категорий`;
-			} 
-			else {
-				selectedContainer.textContent = '';
-				document.getElementById('categoryDropdown').textContent = 'Выберите категории...';
-			}
-  
-		return selectedValues;
-	}
-
-
-	// Обработчики событий для чекбоксов
-		document.addEventListener('DOMContentLoaded', function() {
-			document.querySelectorAll('.close-category-checkbox').forEach(checkbox => {
-				checkbox.addEventListener('change', syncCloseCategorySelection);
-			});
-		});
-	// Обработчики для чекбоксов категорий
-		document.querySelectorAll('.category-checkbox').forEach(checkbox => {
-			checkbox.addEventListener('change', syncCategorySelection);
-		});
-  
-		document.querySelectorAll('.close-category-checkbox').forEach(checkbox => {
-			checkbox.addEventListener('change', syncCloseCategorySelection);
-		});
-	
-		// === Подтвердить закрытие (из основного окна) ===
-		function confirmClose(user_id, ticket_id) {
-			if (confirm("Завершить заявку?")) {
-				loadHistory(user_id, ticket_id);
-			}
+                // === Подтвердить закрытие (из основного окна) ===
+                function confirmClose(user_id, ticket_id) {
+                        if (confirm("Завершить заявку?")) {
+                                loadHistory(user_id, ticket_id);
+                        }
 		}
 		// Обработчик ошибок загрузки изображений
 		document.addEventListener('DOMContentLoaded', function() {
