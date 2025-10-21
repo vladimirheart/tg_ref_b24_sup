@@ -60,6 +60,15 @@ for _extra in (F_ANIMATION, F_STICKER, F_VIDEO_NOTE, F_AUDIO):
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from config import DB_PATH, load_settings  # Убраны TOKEN и GROUP_CHAT_ID
+from bot_settings_utils import (
+    DEFAULT_BOT_PRESET_DEFINITIONS,
+    default_bot_settings,
+    rating_actions as collect_rating_actions,
+    rating_allowed_values,
+    rating_scale,
+    sanitize_bot_settings,
+    build_location_presets,
+)
 
 ATTACHMENTS_DIR = "attachments"
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
@@ -263,6 +272,29 @@ def load_locations():
 LOCATIONS = load_locations()
 BUSINESS_OPTIONS = list(LOCATIONS.keys())
 SETTINGS = load_settings()
+
+
+def load_bot_settings_config():
+    try:
+        settings_payload = load_settings()
+    except Exception:
+        settings_payload = {}
+
+    try:
+        locations_tree = load_locations()
+    except Exception:
+        locations_tree = {}
+
+    definitions = build_location_presets(
+        locations_tree if isinstance(locations_tree, dict) else {},
+        base_definitions=DEFAULT_BOT_PRESET_DEFINITIONS,
+    )
+
+    if isinstance(settings_payload, dict):
+        return sanitize_bot_settings(
+            settings_payload.get("bot_settings"), definitions=definitions
+        )
+    return default_bot_settings(definitions)
 
 # --- вспомогательная клавиатура ---
 def get_keyboard_with_back(options, has_back=True, has_cancel=True):
@@ -1295,7 +1327,14 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.chat_data.get("awaiting_rating"):
         return
     txt = (update.message.text or "").strip()
-    if txt not in {"1","2","3","4","5"}:
+    bot_config = load_bot_settings_config()
+    allowed_values = rating_allowed_values(bot_config)
+    if txt not in allowed_values:
+        scale = rating_scale(bot_config)
+        if scale:
+            await update.message.reply_text(
+                f"Пожалуйста, отправьте число от 1 до {scale}."
+            )
         return
     user_id = update.effective_user.id
     with sqlite3.connect(DB_PATH) as conn:
@@ -1306,6 +1345,10 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
     await update.message.reply_text("Спасибо за оценку! 🙏", reply_markup=ReplyKeyboardRemove())
     context.chat_data["awaiting_rating"] = False
+    actions = collect_rating_actions(bot_config)
+    if actions:
+        lines = [f"{idx}. {action}" for idx, action in enumerate(actions, 1)]
+        await update.message.reply_text("Следующие шаги:\n" + "\n".join(lines))
 
 def save_username_if_changed(conn, user_id: int, username: str):
     if not username:
@@ -1359,10 +1402,13 @@ def set_setting(channel_id: int, key: str, value: str):
 def get_rating_prompt_text(channel_id: int, ticket_id: str | None = None) -> str:
     """Шаблон запроса оценки. Поддерживает {ticket_id} в тексте."""
     # Значение можно редактировать на settings.html -> пишет в app_settings
-    default_text = "Пожалуйста, оцените ответ поддержки по заявке #{ticket_id} от 1 до 5."
+    bot_config = load_bot_settings_config()
+    scale = max(1, rating_scale(bot_config))
+    default_template = "Пожалуйста, оцените ответ поддержки по заявке #{ticket_id} от 1 до {scale}."
+    default_text = default_template.format(scale=scale, ticket_id="{ticket_id}")
     txt = get_setting(channel_id, "rating_prompt_text", default_text)
     try:
-        return txt.format(ticket_id=ticket_id or "")
+        return txt.format(ticket_id=ticket_id or "", scale=scale)
     except Exception:
         # На случай некорректного шаблона — не уронить отправку
         return txt
@@ -1438,9 +1484,12 @@ def get_questions_cfg(channel_id: int) -> dict:
         item.setdefault("label", item.get("label") or item.get("question") or "")
     cfg.setdefault("feedback", {})
     fb = cfg["feedback"]
+    bot_config = load_bot_settings_config()
+    scale = max(1, rating_scale(bot_config))
+    scale_hint = f"1–{scale}" if scale > 1 else "1"
     fb.setdefault("prompts", {
-        "on_close": "🌟 Пожалуйста, оцените нашу поддержку: отправьте цифру 1–5.",
-        "on_auto_close": "Диалог закрыт по неактивности. Пожалуйста, оцените нашу поддержку: 1–5."
+        "on_close": f"🌟 Пожалуйста, оцените нашу поддержку: отправьте цифру {scale_hint}.",
+        "on_auto_close": f"Диалог закрыт по неактивности. Пожалуйста, оцените нашу поддержку: {scale_hint}."
     })
     fb.setdefault("auto_close_extra_text", "")
     cfg.setdefault("feedback", {})
@@ -1579,12 +1628,20 @@ async def run_all_bots():
             try:
                 user_id = update.effective_user.id
                 raw = (update.message.text or "").strip()
-                if raw not in {"1","2","3","4","5"}:
+                bot_config = load_bot_settings_config()
+                allowed_values = rating_allowed_values(bot_config)
+                if raw not in allowed_values:
+                    scale = rating_scale(bot_config)
+                    if scale:
+                        await update.message.reply_text(
+                            f"Пожалуйста, отправьте число от 1 до {scale}."
+                        )
                     return
                 rating = int(raw)
 
                 # Проверяем, есть ли активный запрос на оценку (для этого канала и пользователя)
                 now_iso = datetime.now().isoformat()
+                channel_id = get_channel_id_by_token(context.bot.token)
                 with sqlite3.connect(DB_PATH) as conn:
                     conn.row_factory = sqlite3.Row
                     row = conn.execute("""
@@ -1596,7 +1653,7 @@ async def run_all_bots():
                            AND expires_at > ?
                          ORDER BY created_at DESC
                          LIMIT 1
-                    """, (user_id, get_channel_id_by_token(context.bot.token), now_iso)).fetchone()
+                    """, (user_id, channel_id, now_iso)).fetchone()
 
                     if not row:
                         # Нет активного окна ожидания — игнорим (ничего не ломаем)
@@ -1612,7 +1669,7 @@ async def run_all_bots():
                     conn.commit()
 
                 # Опциональные дополнительные вопросы — как у вас было (если конфиг включит)
-                cfg = get_questions_cfg(get_channel_id_by_token(context.bot.token))
+                cfg = get_questions_cfg(channel_id)
                 fb_cfg = (cfg.get("feedback") or {})
 
                 # 4) Если в cfg.feedback есть post_questions, то отправим их
@@ -1624,8 +1681,13 @@ async def run_all_bots():
                         if not label:
                             continue
                         lines.append(f"{i}. {label}")
-                    if lines:
+                                       if lines:
                         await update.message.reply_text("Пара уточняющих вопросов:\n" + "\n".join(lines))
+
+                actions = collect_rating_actions(bot_config)
+                if actions:
+                    action_lines = [f"{idx}. {action}" for idx, action in enumerate(actions, 1)]
+                    await update.message.reply_text("Следующие шаги:\n" + "\n".join(action_lines))
 
                 # 5) Спасибо (если не отключено)
                 if not fb_cfg.get("disable_default_thanks"):
@@ -1635,7 +1697,7 @@ async def run_all_bots():
                 logging.error(f"handle_feedback error: {e}")
 
         # Регистрируем ОДИН раз, только в приватных чатах и ПЕРЕД conv_handler
-        application.add_handler(MessageHandler(filters.Regex(r'^[1-5]$') & filters.ChatType.PRIVATE, handle_feedback))
+        application.add_handler(MessageHandler(filters.Regex(r'^\d+$') & filters.ChatType.PRIVATE, handle_feedback))
 
         conv_handler = ConversationHandler(
             entry_points=[
@@ -1662,7 +1724,7 @@ async def run_all_bots():
         application.add_handler(CommandHandler("stats", stats))
         application.add_handler(CommandHandler("pending", pending))
         application.add_handler(CommandHandler("my", my_tickets))
-        application.add_handler(MessageHandler(filters.TEXT& ~filters.COMMAND& ~filters.Regex(r'^[1-5]$')& filters.ChatType.PRIVATE, save_user_message))
+        application.add_handler(MessageHandler(filters.TEXT& ~filters.COMMAND& ~filters.Regex(r'^\d+$')& filters.ChatType.PRIVATE, save_user_message))
         application.add_handler(MessageHandler(MEDIA_FILTERS & filters.ChatType.PRIVATE, save_user_media,))
         application.add_handler(CommandHandler("media", show_media))
         application.add_handler(MessageHandler(filters.CONTACT & filters.ChatType.PRIVATE, save_user_contact))
