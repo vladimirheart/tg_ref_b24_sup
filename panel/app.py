@@ -22,6 +22,12 @@ import re
 import unicodedata
 import time, sqlite3
 from uuid import uuid4
+import sys
+from pathlib import Path
+
+PARENT_DIR = Path(__file__).resolve().parent.parent
+if str(PARENT_DIR) not in sys.path:
+    sys.path.insert(0, str(PARENT_DIR))
 
 from bot_settings_utils import (
     DEFAULT_BOT_PRESET_DEFINITIONS,
