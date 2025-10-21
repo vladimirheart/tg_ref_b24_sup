@@ -347,30 +347,166 @@ def build_location_presets(
     cities: set[str] = set()
     location_names: set[str] = set()
 
+    # Дополнительные структуры для сохранения зависимостей
+    types_by_business: dict[str, set[str]] = {}
+    cities_by_business: dict[str, set[str]] = {}
+    cities_by_type: dict[str, set[str]] = {}
+    cities_by_path: dict[tuple[str, str], set[str]] = {}
+    locations_by_business: dict[str, set[str]] = {}
+    locations_by_type: dict[str, set[str]] = {}
+    locations_by_city: dict[str, set[str]] = {}
+    locations_by_path: dict[tuple[str, str, str], set[str]] = {}
+
     if isinstance(location_tree, Mapping):
         for business, type_dict in location_tree.items():
             if isinstance(business, str) and business.strip():
-                businesses.add(business.strip())
+                business_key = business.strip()
+                businesses.add(business_key)
+            else:
+                continue
             if not isinstance(type_dict, Mapping):
                 continue
             for loc_type, city_dict in type_dict.items():
-                if isinstance(loc_type, str) and loc_type.strip():
-                    location_types.add(loc_type.strip())
+                if not isinstance(loc_type, str) or not loc_type.strip():
+                    continue
+                loc_type_key = loc_type.strip()
+                location_types.add(loc_type_key)
+                types_by_business.setdefault(business_key, set()).add(loc_type_key)
                 if not isinstance(city_dict, Mapping):
                     continue
                 for city, locations in city_dict.items():
-                    if isinstance(city, str) and city.strip():
-                        cities.add(city.strip())
+                    if not isinstance(city, str) or not city.strip():
+                        continue
+                    city_key = city.strip()
+                    cities.add(city_key)
+                    cities_by_business.setdefault(business_key, set()).add(city_key)
+                    cities_by_type.setdefault(loc_type_key, set()).add(city_key)
+                    cities_by_path.setdefault((business_key, loc_type_key), set()).add(city_key)
                     if isinstance(locations, Iterable):
                         for name in locations:
-                            if isinstance(name, str) and name.strip():
-                                location_names.add(name.strip())
+                            if not isinstance(name, str) or not name.strip():
+                                continue
+                            name_key = name.strip()
+                            location_names.add(name_key)
+                            locations_by_business.setdefault(business_key, set()).add(name_key)
+                            locations_by_type.setdefault(loc_type_key, set()).add(name_key)
+                            locations_by_city.setdefault(city_key, set()).add(name_key)
+                            locations_by_path.setdefault(
+                                (business_key, loc_type_key, city_key),
+                                set(),
+                            ).add(name_key)
 
     option_map = {
         "business": sorted(businesses),
         "location_type": sorted(location_types),
         "city": sorted(cities),
         "location_name": sorted(location_names),
+    }
+
+    # Подготовка зависимостей для вариантов справочников
+    option_dependencies: dict[str, dict[str, dict[str, Any]]] = {
+        "location_type": {},
+        "city": {},
+        "location_name": {},
+    }
+
+    for business, types in types_by_business.items():
+        for loc_type in types:
+            dep = option_dependencies["location_type"].setdefault(loc_type, {"business": set()})
+            dep.setdefault("business", set()).add(business)
+
+    for business, city_set in cities_by_business.items():
+        for city in city_set:
+            dep = option_dependencies["city"].setdefault(city, {"business": set(), "location_type": set(), "paths": set()})
+            dep.setdefault("business", set()).add(business)
+    for loc_type, city_set in cities_by_type.items():
+        for city in city_set:
+            dep = option_dependencies["city"].setdefault(city, {"business": set(), "location_type": set(), "paths": set()})
+            dep.setdefault("location_type", set()).add(loc_type)
+    for (business, loc_type), city_set in cities_by_path.items():
+        for city in city_set:
+            dep = option_dependencies["city"].setdefault(city, {"business": set(), "location_type": set(), "paths": set()})
+            dep.setdefault("paths", set()).add((business, loc_type))
+
+    for business, loc_set in locations_by_business.items():
+        for location in loc_set:
+            dep = option_dependencies["location_name"].setdefault(
+                location,
+                {"business": set(), "location_type": set(), "city": set(), "paths": set()},
+            )
+            dep.setdefault("business", set()).add(business)
+    for loc_type, loc_set in locations_by_type.items():
+        for location in loc_set:
+            dep = option_dependencies["location_name"].setdefault(
+                location,
+                {"business": set(), "location_type": set(), "city": set(), "paths": set()},
+            )
+            dep.setdefault("location_type", set()).add(loc_type)
+    for city, loc_set in locations_by_city.items():
+        for location in loc_set:
+            dep = option_dependencies["location_name"].setdefault(
+                location,
+                {"business": set(), "location_type": set(), "city": set(), "paths": set()},
+            )
+            dep.setdefault("city", set()).add(city)
+    for (business, loc_type, city), loc_set in locations_by_path.items():
+        for location in loc_set:
+            dep = option_dependencies["location_name"].setdefault(
+                location,
+                {"business": set(), "location_type": set(), "city": set(), "paths": set()},
+            )
+            dep.setdefault("paths", set()).add((business, loc_type, city))
+
+    # Построение деревьев для отображения и будущих фильтров
+    location_type_tree: dict[str, list[str]] = {
+        business: sorted(values) for business, values in types_by_business.items()
+    }
+    city_tree: dict[str, dict[str, list[str]]] = {}
+    for (business, loc_type), city_set in cities_by_path.items():
+        city_tree.setdefault(business, {})[loc_type] = sorted(city_set)
+    location_tree_map: dict[str, dict[str, dict[str, list[str]]]] = {}
+    for (business, loc_type, city), loc_set in locations_by_path.items():
+        location_tree_map.setdefault(business, {}).setdefault(loc_type, {})[city] = sorted(loc_set)
+
+    def _finalize_dependencies(raw: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        finalized: dict[str, dict[str, Any]] = {}
+        for option_value, dep_map in raw.items():
+            entry: dict[str, Any] = {}
+            for key, values in dep_map.items():
+                if key == "paths":
+                    if not values:
+                        continue
+                    unique_paths = set(values)
+                    if not unique_paths:
+                        continue
+                    if all(len(item) == 2 for item in unique_paths):
+                        entry[key] = [
+                            {"business": pair[0], "location_type": pair[1]}
+                            for pair in sorted(unique_paths)
+                        ]
+                    elif all(len(item) == 3 for item in unique_paths):
+                        entry[key] = [
+                            {
+                                "business": triple[0],
+                                "location_type": triple[1],
+                                "city": triple[2],
+                            }
+                            for triple in sorted(unique_paths)
+                        ]
+                    continue
+                if isinstance(values, set):
+                    prepared = sorted(values)
+                else:
+                    prepared = list(values)
+                if prepared:
+                    entry[key] = prepared
+            if entry:
+                finalized[option_value] = entry
+        return finalized
+
+    finalized_dependencies = {
+        field: _finalize_dependencies(dep_map)
+        for field, dep_map in option_dependencies.items()
     }
 
     for group_key, group_data in defs.items():
@@ -386,10 +522,20 @@ def build_location_presets(
             if isinstance(meta, Mapping):
                 field_label = str(meta.get("label") or "").strip()
             options = option_map.get(field_key, [])
-            prepared_fields[field_key] = {
+            field_entry: Dict[str, Any] = {
                 "label": field_label or field_key,
                 "options": options,
             }
+            deps = finalized_dependencies.get(field_key)
+            if deps:
+                field_entry["option_dependencies"] = deps
+            if field_key == "location_type" and location_type_tree:
+                field_entry["tree"] = location_type_tree
+            elif field_key == "city" and city_tree:
+                field_entry["tree"] = city_tree
+            elif field_key == "location_name" and location_tree_map:
+                field_entry["tree"] = location_tree_map
+            prepared_fields[field_key] = field_entry
         result[group_key] = {
             "label": group_label or group_key,
             "fields": prepared_fields,
