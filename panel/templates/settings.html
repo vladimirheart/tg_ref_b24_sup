@@ -183,6 +183,16 @@
       </div>
 
       <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#botSettingsModal">
+          <div class="card-body">
+            <div class="tile-icon">🧠</div>
+            <h5 class="card-title">Настройки для ботов</h5>
+            <p class="card-text text-muted">Определите вопросы и сценарий оценок.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
         <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#channelsModal">
           <div class="card-body">
             <div class="tile-icon">🤖</div>
@@ -721,6 +731,87 @@
       </div>
     </div>
 
+    <!-- Настройки ботов -->
+    <div
+      class="modal fade"
+      id="botSettingsModal"
+      tabindex="-1"
+      aria-labelledby="botSettingsModalLabel"
+      aria-hidden="true"
+      data-bot-settings-modal
+    >
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="botSettingsModalLabel">🧠 Настройки для ботов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <section class="mb-4">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                  <h6 class="mb-1">Структура вопросов</h6>
+                  <p class="small text-muted mb-0">
+                    Настройте последовательность вопросов для пользователей бота. Можно использовать свободный текст или
+                    выбрать готовое поле из структуры локаций.
+                  </p>
+                </div>
+                <button class="btn btn-sm btn-outline-success" type="button" data-bot-question-add>+ Вопрос</button>
+              </div>
+              <div id="botQuestionsList" class="d-flex flex-column gap-3" data-bot-questions-container></div>
+              <div class="card border-0 bg-light mt-3" data-bot-presets-summary>
+                <div class="card-body py-3">
+                  <div class="fw-semibold mb-1">Доступные готовые поля</div>
+                  <div class="small text-muted" data-bot-preset-hints></div>
+                </div>
+              </div>
+            </section>
+
+            <hr>
+
+            <section>
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                  <h6 class="mb-1">Система оценок</h6>
+                  <p class="small text-muted mb-0">
+                    Укажите количество вариантов оценки и действия, которые бот выполнит после получения оценки.
+                  </p>
+                </div>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label" for="botRatingScaleInput">Количество оценок</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="botRatingScaleInput"
+                    min="1"
+                    max="10"
+                    step="1"
+                    data-bot-rating-scale
+                  >
+                  <div class="form-text">Пользователь сможет выбрать значение от 1 до указанного числа.</div>
+                </div>
+                <div class="col-md-8">
+                  <label class="form-label">Действия после оценки</label>
+                  <div class="d-flex flex-column gap-2" id="botRatingActionsList" data-bot-rating-actions></div>
+                  <button class="btn btn-sm btn-outline-secondary mt-1" type="button" data-bot-rating-add-action>
+                    + Добавить действие
+                  </button>
+                  <div class="form-text">Каждый пункт будет отправлен пользователю отдельной строкой после оценки.</div>
+                </div>
+              </div>
+            </section>
+          </div>
+          <div class="modal-footer">
+            <div class="small text-muted me-auto" data-bot-settings-status></div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-bot-settings-save>Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Каналы (боты) -->
     <div class="modal fade" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -782,6 +873,9 @@
   const RAW_DIALOG_CONFIG = {{ settings.dialog_config | tojson | safe }};
   const DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
   const FALLBACK_DIALOG_CATEGORIES = {{ settings.categories | tojson | safe }};
+
+  const BOT_SETTINGS_INITIAL = {{ settings.bot_settings | tojson | safe }};
+  const BOT_PRESET_DEFINITIONS = {{ bot_question_presets | tojson | safe }};
 
   const PARAMETER_TITLES = {{ parameter_types | tojson }};
   const PARAMETER_STATE_TYPES = new Set(['partner_type', 'country', 'legal_entity']);
@@ -5065,5 +5159,6 @@
 </main>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
+  <script src="{{ url_for('static', filename='bot-settings.js') }}"></script>
 </body>
 </html>
