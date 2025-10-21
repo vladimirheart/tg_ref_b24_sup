@@ -128,8 +128,8 @@
         <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#categoriesModal">
           <div class="card-body">
             <div class="tile-icon">🗂️</div>
-            <h5 class="card-title">Категории обращений</h5>
-            <p class="card-text text-muted">Добавляйте и редактируйте тематические группы.</p>
+            <h5 class="card-title">Настройка диалогов</h5>
+            <p class="card-text text-muted">Управляйте шаблонами категорий, вопросов и действий.</p>
           </div>
         </div>
       </div>
@@ -222,24 +222,45 @@
       </div>
     </div>
 
-    <!-- Категории -->
+    <!-- Настройки диалогов -->
     <div class="modal fade" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="categoriesModalLabel">🗂️ Категории обращений</h5>
+            <h5 class="modal-title" id="categoriesModalLabel">🗂️ Настройка диалогов</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div id="categoriesList">
-              {% for cat in settings.categories %}
-              <div class="input-group mb-2">
-                <input type="text" class="form-control category-input" value="{{ cat }}">
-                <button class="btn btn-outline-danger" onclick="removeCategory(this)">Удалить</button>
+            <section class="mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Шаблоны категорий обращений</h6>
+                <button class="btn btn-sm btn-outline-success" type="button" onclick="addCategoryTemplate()">+ Шаблон</button>
               </div>
-              {% endfor %}
-            </div>
-            <button class="btn btn-sm btn-success mt-2" onclick="addCategory()">+ Добавить категорию</button>
+              <p class="small text-muted">Сгруппируйте категории обращений в отдельные шаблоны и задайте имена, чтобы быстро переключаться между наборами категорий.</p>
+              <div id="categoryTemplatesList" class="d-flex flex-column gap-3"></div>
+            </section>
+
+            <hr>
+
+            <section class="mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Шаблоны типовых вопросов</h6>
+                <button class="btn btn-sm btn-outline-success" type="button" onclick="addQuestionTemplate()">+ Шаблон</button>
+              </div>
+              <p class="small text-muted">Создайте наборы вопросов, которые можно использовать при общении с клиентом. Они будут доступны в окне диалога.</p>
+              <div id="questionTemplatesList" class="d-flex flex-column gap-3"></div>
+            </section>
+
+            <hr>
+
+            <section>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Шаблоны действий после завершения</h6>
+                <button class="btn btn-sm btn-outline-success" type="button" onclick="addCompletionTemplate()">+ Шаблон</button>
+              </div>
+              <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
+              <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
+            </section>
           </div>
         </div>
       </div>
@@ -747,6 +768,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+  const RAW_DIALOG_CONFIG = {{ settings.dialog_config | tojson | safe }};
+  const DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
+  const FALLBACK_DIALOG_CATEGORIES = {{ settings.categories | tojson | safe }};
+
   const PARAMETER_TITLES = {{ parameter_types | tojson }};
   const PARAMETER_STATE_TYPES = new Set(['partner_type', 'country', 'legal_entity']);
   const PARAMETER_STATES = ['Активен', 'Подписание', 'Заблокирован', 'Black_List', 'Закрыт'];
@@ -3678,20 +3703,307 @@
 
   window.openAddLocationWizard = openAddLocationWizard;
 
-  // === Функции для категорий ===
-  function addCategory() {
-    const container = document.getElementById('categoriesList');
-    const div = document.createElement('div');
-    div.className = 'input-group mb-2';
-    div.innerHTML = `
-      <input type="text" class="form-control category-input" placeholder="Новая категория">
-      <button class="btn btn-outline-danger" onclick="removeCategory(this)">Удалить</button>
-    `;
-    container.appendChild(div);
+  function generateDialogTemplateId(prefix) {
+    const randomPart = Math.random().toString(36).slice(2, 8);
+    const timePart = Date.now().toString(36);
+    return `${prefix}-${randomPart}-${timePart}`;
   }
 
-  function removeCategory(btn) {
-    btn.parentElement.remove();
+  function addCategoryTemplate(template) {
+    const list = document.getElementById('categoryTemplatesList');
+    if (!list) return;
+    const data = template && typeof template === 'object' ? template : {};
+    const templateId = data.id || generateDialogTemplateId('cat');
+    const name = typeof data.name === 'string' ? data.name : '';
+    const categories = Array.isArray(data.categories) ? data.categories : [];
+
+    const card = document.createElement('div');
+    card.className = 'card shadow-sm';
+    card.dataset.categoryTemplate = 'true';
+    card.dataset.templateId = templateId;
+
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center mb-3">
+          <input type="text" class="form-control form-control-sm category-template-name" placeholder="Название шаблона" value="${''}">
+          <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeCategoryTemplate(this)">Удалить шаблон</button>
+        </div>
+        <div class="d-flex flex-column gap-2" data-category-items></div>
+        <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addCategoryRow(this)">+ Категория</button>
+      </div>
+    `;
+
+    list.appendChild(card);
+    const nameInput = card.querySelector('.category-template-name');
+    if (nameInput) {
+      nameInput.value = name;
+    }
+
+    const itemsContainer = card.querySelector('[data-category-items]');
+    if (itemsContainer) {
+      if (categories.length) {
+        categories.forEach((cat) => addCategoryRow(itemsContainer, cat));
+      } else {
+        addCategoryRow(itemsContainer);
+      }
+    }
+
+    return card;
+  }
+
+  function addCategoryRow(source, value = '') {
+    let container = null;
+    if (source instanceof HTMLElement && source.matches('[data-category-items]')) {
+      container = source;
+    } else if (source instanceof HTMLElement) {
+      const card = source.closest('[data-category-template]');
+      container = card ? card.querySelector('[data-category-items]') : null;
+    }
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'input-group input-group-sm';
+    row.innerHTML = `
+      <input type="text" class="form-control category-item-input" placeholder="Категория">
+      <button class="btn btn-outline-danger" type="button" onclick="removeCategoryRow(this)">✕</button>
+    `;
+    container.appendChild(row);
+    const input = row.querySelector('input');
+    if (input) {
+      input.value = value || '';
+    }
+  }
+
+  function removeCategoryTemplate(trigger) {
+    const card = trigger?.closest('[data-category-template]');
+    if (!card) return;
+    const list = document.getElementById('categoryTemplatesList');
+    card.remove();
+    if (list && !list.querySelector('[data-category-template]')) {
+      addCategoryTemplate();
+    }
+  }
+
+  function removeCategoryRow(trigger) {
+    const row = trigger?.closest('.input-group');
+    if (!row) return;
+    const container = row.parentElement;
+    row.remove();
+    if (container && !container.querySelector('.input-group')) {
+      addCategoryRow(container);
+    }
+  }
+
+  function addQuestionTemplate(template) {
+    const list = document.getElementById('questionTemplatesList');
+    if (!list) return;
+    const data = template && typeof template === 'object' ? template : {};
+    const templateId = data.id || generateDialogTemplateId('q');
+    const name = typeof data.name === 'string' ? data.name : '';
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+
+    const card = document.createElement('div');
+    card.className = 'card shadow-sm';
+    card.dataset.questionTemplate = 'true';
+    card.dataset.templateId = templateId;
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center mb-3">
+          <input type="text" class="form-control form-control-sm question-template-name" placeholder="Название шаблона" value="${''}">
+          <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeQuestionTemplate(this)">Удалить шаблон</button>
+        </div>
+        <div class="d-flex flex-column gap-2" data-question-items></div>
+        <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addQuestionRow(this)">+ Вопрос</button>
+      </div>
+    `;
+    list.appendChild(card);
+
+    const nameInput = card.querySelector('.question-template-name');
+    if (nameInput) {
+      nameInput.value = name;
+    }
+
+    const itemsContainer = card.querySelector('[data-question-items]');
+    if (itemsContainer) {
+      if (questions.length) {
+        questions.forEach((question) => addQuestionRow(itemsContainer, question));
+      } else {
+        addQuestionRow(itemsContainer);
+      }
+    }
+
+    return card;
+  }
+
+  function addQuestionRow(source, value = '') {
+    let container = null;
+    if (source instanceof HTMLElement && source.matches('[data-question-items]')) {
+      container = source;
+    } else if (source instanceof HTMLElement) {
+      const card = source.closest('[data-question-template]');
+      container = card ? card.querySelector('[data-question-items]') : null;
+    }
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'input-group input-group-sm';
+    row.innerHTML = `
+      <input type="text" class="form-control question-item-input" placeholder="Типовой вопрос">
+      <button class="btn btn-outline-danger" type="button" onclick="removeQuestionRow(this)">✕</button>
+    `;
+    container.appendChild(row);
+    const input = row.querySelector('input');
+    if (input) {
+      input.value = value || '';
+    }
+  }
+
+  function removeQuestionTemplate(trigger) {
+    const card = trigger?.closest('[data-question-template]');
+    if (!card) return;
+    const list = document.getElementById('questionTemplatesList');
+    card.remove();
+    if (list && !list.querySelector('[data-question-template]')) {
+      addQuestionTemplate();
+    }
+  }
+
+  function removeQuestionRow(trigger) {
+    const row = trigger?.closest('.input-group');
+    if (!row) return;
+    const container = row.parentElement;
+    row.remove();
+    if (container && !container.querySelector('.input-group')) {
+      addQuestionRow(container);
+    }
+  }
+
+  function addCompletionTemplate(template) {
+    const list = document.getElementById('completionTemplatesList');
+    if (!list) return;
+    const data = template && typeof template === 'object' ? template : {};
+    const templateId = data.id || generateDialogTemplateId('act');
+    const name = typeof data.name === 'string' ? data.name : '';
+    const items = Array.isArray(data.items) ? data.items : [];
+
+    const card = document.createElement('div');
+    card.className = 'card shadow-sm';
+    card.dataset.completionTemplate = 'true';
+    card.dataset.templateId = templateId;
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center mb-3">
+          <input type="text" class="form-control form-control-sm completion-template-name" placeholder="Название шаблона" value="${''}">
+          <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeCompletionTemplate(this)">Удалить шаблон</button>
+        </div>
+        <div class="d-flex flex-column gap-3" data-completion-items></div>
+        <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addCompletionRow(this)">+ Действие</button>
+      </div>
+    `;
+    list.appendChild(card);
+
+    const nameInput = card.querySelector('.completion-template-name');
+    if (nameInput) {
+      nameInput.value = name;
+    }
+
+    const itemsContainer = card.querySelector('[data-completion-items]');
+    if (itemsContainer) {
+      if (items.length) {
+        items.forEach((entry) => {
+          const question = entry && typeof entry.question === 'string' ? entry.question : '';
+          const action = entry && typeof entry.action === 'string' ? entry.action : '';
+          addCompletionRow(itemsContainer, question, action);
+        });
+      } else {
+        addCompletionRow(itemsContainer);
+      }
+    }
+
+    return card;
+  }
+
+  function addCompletionRow(source, questionValue = '', actionValue = '') {
+    let container = null;
+    if (source instanceof HTMLElement && source.matches('[data-completion-items]')) {
+      container = source;
+    } else if (source instanceof HTMLElement) {
+      const card = source.closest('[data-completion-template]');
+      container = card ? card.querySelector('[data-completion-items]') : null;
+    }
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-start completion-item-row';
+    row.dataset.completionItem = 'true';
+    row.innerHTML = `
+      <div class="col-md-5">
+        <input type="text" class="form-control form-control-sm completion-question-input" placeholder="Контрольный вопрос">
+      </div>
+      <div class="col-md-6">
+        <input type="text" class="form-control form-control-sm completion-action-input" placeholder="Действие">
+      </div>
+      <div class="col-md-1 d-flex align-items-center">
+        <button class="btn btn-outline-danger btn-sm w-100" type="button" onclick="removeCompletionRow(this)">✕</button>
+      </div>
+    `;
+    container.appendChild(row);
+    const questionInput = row.querySelector('.completion-question-input');
+    const actionInput = row.querySelector('.completion-action-input');
+    if (questionInput) questionInput.value = questionValue || '';
+    if (actionInput) actionInput.value = actionValue || '';
+  }
+
+  function removeCompletionTemplate(trigger) {
+    const card = trigger?.closest('[data-completion-template]');
+    if (!card) return;
+    const list = document.getElementById('completionTemplatesList');
+    card.remove();
+    if (list && !list.querySelector('[data-completion-template]')) {
+      addCompletionTemplate();
+    }
+  }
+
+  function removeCompletionRow(trigger) {
+    const row = trigger?.closest('[data-completion-item]');
+    if (!row) return;
+    const container = row.parentElement;
+    row.remove();
+    if (container && !container.querySelector('[data-completion-item]')) {
+      addCompletionRow(container);
+    }
+  }
+
+  function initDialogTemplates() {
+    const categoryTemplates = Array.isArray(DIALOG_CONFIG.category_templates)
+      ? DIALOG_CONFIG.category_templates
+      : [];
+    if (categoryTemplates.length) {
+      categoryTemplates.forEach((template) => addCategoryTemplate(template));
+    } else {
+      const fallback = Array.isArray(FALLBACK_DIALOG_CATEGORIES)
+        ? [...FALLBACK_DIALOG_CATEGORIES]
+        : [];
+      addCategoryTemplate({ categories: fallback });
+    }
+
+    const questionTemplates = Array.isArray(DIALOG_CONFIG.question_templates)
+      ? DIALOG_CONFIG.question_templates
+      : [];
+    if (questionTemplates.length) {
+      questionTemplates.forEach((template) => addQuestionTemplate(template));
+    } else {
+      addQuestionTemplate();
+    }
+
+    const completionTemplates = Array.isArray(DIALOG_CONFIG.completion_templates)
+      ? DIALOG_CONFIG.completion_templates
+      : [];
+    if (completionTemplates.length) {
+      completionTemplates.forEach((template) => addCompletionTemplate(template));
+    } else {
+      addCompletionTemplate();
+    }
   }
 
   // === Сохранение всех настроек ===
@@ -3699,11 +4011,62 @@
     try {
       const hours = document.getElementById('autoCloseHours').value;
       
-      // Собираем категории
-      const categories = Array.from(document.querySelectorAll('#categoriesList .category-input'))
-        .map(inp => inp.value.trim())
-        .filter(v => v);
-      
+      // Собираем шаблоны категорий
+      const categoryTemplates = Array.from(document.querySelectorAll('[data-category-template]')).map((card, index) => {
+        if (!(card instanceof HTMLElement)) return null;
+        const templateId = card.dataset.templateId || generateDialogTemplateId('cat');
+        card.dataset.templateId = templateId;
+        const name = (card.querySelector('.category-template-name')?.value || '').trim();
+        const categories = Array.from(card.querySelectorAll('.category-item-input'))
+          .map((input) => (input.value || '').trim())
+          .filter((value) => value);
+        return {
+          id: templateId,
+          name: name || `Шаблон категорий ${index + 1}`,
+          categories,
+        };
+      }).filter(Boolean);
+
+      const fallbackCategories = categoryTemplates.length ? categoryTemplates[0].categories : [];
+
+      // Собираем шаблоны вопросов
+      const questionTemplates = Array.from(document.querySelectorAll('[data-question-template]')).map((card, index) => {
+        if (!(card instanceof HTMLElement)) return null;
+        const templateId = card.dataset.templateId || generateDialogTemplateId('q');
+        card.dataset.templateId = templateId;
+        const name = (card.querySelector('.question-template-name')?.value || '').trim();
+        const questions = Array.from(card.querySelectorAll('.question-item-input'))
+          .map((input) => (input.value || '').trim())
+          .filter((value) => value);
+        return {
+          id: templateId,
+          name: name || `Шаблон вопросов ${index + 1}`,
+          questions,
+        };
+      }).filter(Boolean);
+
+      // Собираем шаблоны действий
+      const completionTemplates = Array.from(document.querySelectorAll('[data-completion-template]')).map((card, index) => {
+        if (!(card instanceof HTMLElement)) return null;
+        const templateId = card.dataset.templateId || generateDialogTemplateId('act');
+        card.dataset.templateId = templateId;
+        const name = (card.querySelector('.completion-template-name')?.value || '').trim();
+        const items = Array.from(card.querySelectorAll('[data-completion-item]'))
+          .map((row) => {
+            if (!(row instanceof HTMLElement)) return null;
+            const question = (row.querySelector('.completion-question-input')?.value || '').trim();
+            const action = (row.querySelector('.completion-action-input')?.value || '').trim();
+            if (!question && !action) return null;
+            return { question, action };
+          })
+          .filter(Boolean);
+        return {
+          id: templateId,
+          name: name || `Шаблон действий ${index + 1}`,
+          items,
+        };
+      }).filter(Boolean);
+
       // Собираем статусы
       const statuses = Array.from(document.querySelectorAll('#statusesList .status-input'))
         .map(inp => inp.value.trim())
@@ -3715,11 +4078,14 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          auto_close_hours: parseInt(hours),
-          categories: categories,
+          auto_close_hours: parseInt(hours, 10),
+          categories: fallbackCategories,
           client_statuses: statuses,
           locations: locationsData,
           network_profiles: networkProfilesPayload,
+          dialog_category_templates: categoryTemplates,
+          dialog_question_templates: questionTemplates,
+          dialog_completion_templates: completionTemplates,
         })
       });
       
@@ -3736,6 +4102,7 @@
 
   // === Запуск при загрузке страницы ===
   document.addEventListener('DOMContentLoaded', () => {
+    initDialogTemplates();
     initLocationWizard();
     buildLocationsTree();
     loadUsers();
