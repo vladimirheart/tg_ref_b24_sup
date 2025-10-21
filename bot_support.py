@@ -62,12 +62,13 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from config import DB_PATH, load_settings  # Убраны TOKEN и GROUP_CHAT_ID
 from bot_settings_utils import (
     DEFAULT_BOT_PRESET_DEFINITIONS,
+    build_location_presets,
     default_bot_settings,
-    rating_actions as collect_rating_actions,
     rating_allowed_values,
+    rating_prompt,
+    rating_response_for,
     rating_scale,
     sanitize_bot_settings,
-    build_location_presets,
 )
 
 ATTACHMENTS_DIR = "attachments"
@@ -1343,12 +1344,17 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             (user_id, int(txt), datetime.now().isoformat()),
         )
         conn.commit()
-    await update.message.reply_text("Спасибо за оценку! 🙏", reply_markup=ReplyKeyboardRemove())
     context.chat_data["awaiting_rating"] = False
-    actions = collect_rating_actions(bot_config)
-    if actions:
-        lines = [f"{idx}. {action}" for idx, action in enumerate(actions, 1)]
-        await update.message.reply_text("Следующие шаги:\n" + "\n".join(lines))
+    response_text = rating_response_for(bot_config, txt)
+    scale = rating_scale(bot_config)
+    if response_text:
+        try:
+            response_text = response_text.format(value=txt, scale=scale)
+        except Exception:
+            pass
+    else:
+        response_text = f"Спасибо за вашу оценку {txt}!"
+    await update.message.reply_text(response_text, reply_markup=ReplyKeyboardRemove())
 
 def save_username_if_changed(conn, user_id: int, username: str):
     if not username:
@@ -1404,13 +1410,19 @@ def get_rating_prompt_text(channel_id: int, ticket_id: str | None = None) -> str
     # Значение можно редактировать на settings.html -> пишет в app_settings
     bot_config = load_bot_settings_config()
     scale = max(1, rating_scale(bot_config))
-    default_template = "Пожалуйста, оцените ответ поддержки по заявке #{ticket_id} от 1 до {scale}."
-    default_text = default_template.format(scale=scale, ticket_id="{ticket_id}")
+    base_prompt = rating_prompt(
+        bot_config,
+        default=f"Пожалуйста, оцените ответ поддержки по заявке #{{ticket_id}} от 1 до {{scale}}.",
+    )
+    try:
+        default_text = base_prompt.format(scale=scale, ticket_id="{ticket_id}")
+    except Exception:
+        default_text = base_prompt
     txt = get_setting(channel_id, "rating_prompt_text", default_text)
     try:
         return txt.format(ticket_id=ticket_id or "", scale=scale)
     except Exception:
-        # На случай некорректного шаблона — не уронить отправку
+        # На случай некрректного шаблона — не уронить отправку
         return txt
 
 def insert_phone_if_new(conn, user_id:int, phone:str, source:str, label:str=None, created_by:str='bot'):
@@ -1681,16 +1693,23 @@ async def run_all_bots():
                         if not label:
                             continue
                         lines.append(f"{i}. {label}")
-                                       if lines:
-                        await update.message.reply_text("Пара уточняющих вопросов:\n" + "\n".join(lines))
+                    if lines:
+                        await update.message.reply_text(
+                            "Пара уточняющих вопросов:\n" + "\n".join(lines)
+                        )
 
-                actions = collect_rating_actions(bot_config)
-                if actions:
-                    action_lines = [f"{idx}. {action}" for idx, action in enumerate(actions, 1)]
-                    await update.message.reply_text("Следующие шаги:\n" + "\n".join(action_lines))
+                response_text = rating_response_for(bot_config, rating)
+                scale = rating_scale(bot_config)
+                formatted_response: str | None = None
+                if response_text:
+                    try:
+                        formatted_response = response_text.format(value=rating, scale=scale)
+                    except Exception:
+                        formatted_response = response_text
 
-                # 5) Спасибо (если не отключено)
-                if not fb_cfg.get("disable_default_thanks"):
+                if formatted_response:
+                    await update.message.reply_text(formatted_response, reply_markup=ReplyKeyboardRemove())
+                elif not fb_cfg.get("disable_default_thanks"):
                     await update.message.reply_text("Спасибо за оценку! 🙏", reply_markup=ReplyKeyboardRemove())
 
             except Exception as e:
