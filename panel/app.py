@@ -1843,15 +1843,15 @@ def _collect_departments_from_locations() -> tuple[list[str], set[str]]:
     """
 
     try:
-        with open(LOCATIONS_PATH, "r", encoding="utf-8") as f:
-            locations = json.load(f)
+       locations_payload = load_locations()
     except Exception:
-        return [], set()
+        locations_payload = {"tree": {}, "statuses": {}}
 
+    locations = locations_payload.get("tree") if isinstance(locations_payload, dict) else {}
     departments: set[str] = set()
     third_level_names: set[str] = set()
 
-    for brand in locations.values():
+    for brand in (locations or {}).values():
         if not isinstance(brand, dict):
             continue
 
@@ -2445,19 +2445,43 @@ def save_settings(settings):
 
 # Функция для загрузки локаций
 def load_locations():
-    locations = {}
-    if os.path.exists(LOCATIONS_PATH):
-        try:
-            with open(LOCATIONS_PATH, "r", encoding="utf-8") as f:
-                locations = json.load(f)
-        except Exception:
-            pass
-    return locations
+    tree = {}
+    statuses = {}
+    if not os.path.exists(LOCATIONS_PATH):
+        return {"tree": {}, "statuses": {}}
+
+    try:
+        with open(LOCATIONS_PATH, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+    except Exception:
+        return {"tree": {}, "statuses": {}}
+
+    if isinstance(raw, dict) and "tree" in raw:
+        tree = raw.get("tree") or {}
+        statuses = raw.get("statuses") or {}
+    elif isinstance(raw, dict):
+        tree = raw
+
+    return {
+        "tree": tree if isinstance(tree, dict) else {},
+        "statuses": statuses if isinstance(statuses, dict) else {},
+    }
+
 
 # Функция для сохранения локаций
 def save_locations(locations):
+    payload = {"tree": {}, "statuses": {}}
+    if isinstance(locations, dict):
+        if "tree" in locations or "statuses" in locations:
+            if isinstance(locations.get("tree"), dict):
+                payload["tree"] = locations["tree"]
+            if isinstance(locations.get("statuses"), dict):
+                payload["statuses"] = locations["statuses"]
+        else:
+            payload["tree"] = locations
+
     with open(LOCATIONS_PATH, "w", encoding="utf-8") as f:
-        json.dump(locations, f, ensure_ascii=False, indent=2)
+        json.dump(payload, f, ensure_ascii=False, indent=2)
 
 def format_time_duration(minutes):
     """
@@ -5127,10 +5151,11 @@ def api_channels_delete(channel_id):
 @login_required
 def settings_page():
     settings = load_settings()
-    locations = load_locations()
+    locations_payload = load_locations()
+    location_tree = locations_payload.get("tree", {}) if isinstance(locations_payload, dict) else {}
     city_names = sorted({
         city
-        for brand in locations.values()
+        for brand in (location_tree or {}).values()
         for partner_types in (brand or {}).values()
         for city in (partner_types or {}).keys()
     })
@@ -5157,7 +5182,7 @@ def settings_page():
     return render_template(
         "settings.html",
         settings=settings,
-        locations=locations,
+        locations=locations_payload,
         cities=city_names,
         parameter_types=PARAMETER_TYPES,
         it_connection_categories=get_it_connection_categories(settings),
