@@ -6752,7 +6752,7 @@ def api_object_passport_add_equipment(passport_id):
                 connection_password,
                 description
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 passport_id,
