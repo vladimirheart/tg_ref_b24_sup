@@ -16,6 +16,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
     ConversationHandler,
+    ApplicationHandlerStop,
 )
 # --- PTB filters compatibility (работает и с объектами, и с классами, и с .ALL) ---
 import inspect
@@ -1773,22 +1774,12 @@ async def run_all_bots():
                 user_id = update.effective_user.id
                 raw = (update.message.text or "").strip()
                 channel_id = context.chat_data.get("channel_id") or get_channel_id_by_token(context.bot.token)
-                bot_config = load_bot_settings_config(channel_id)
-                allowed_values = rating_allowed_values(bot_config)
-                if raw not in allowed_values:
-                    scale = rating_scale(bot_config)
-                    if scale:
-                        await update.message.reply_text(
-                            f"Пожалуйста, отправьте число от 1 до {scale}."
-                        )
-                    return
-                rating = int(raw)
 
-                # Проверяем, есть ли активный запрос на оценку (для этого канала и пользователя)
+                # Проверяем наличие активного ожидания оценки ДО любых подсказок
                 now_iso = datetime.now().isoformat()
                 with sqlite3.connect(DB_PATH) as conn:
                     conn.row_factory = sqlite3.Row
-                    row = conn.execute("""
+                    pending_row = conn.execute("""
                         SELECT id, ticket_id
                           FROM pending_feedback_requests
                          WHERE user_id = ?
@@ -1799,17 +1790,31 @@ async def run_all_bots():
                          LIMIT 1
                     """, (user_id, channel_id, now_iso)).fetchone()
 
-                    if not row:
-                        # Нет активного окна ожидания — игнорим (ничего не ломаем)
-                        return
+                if not pending_row:
+                    # Нет активного окна ожидания — позволим другим хендлерам обработать сообщение
+                    return
 
-                    # Сохраняем оценку (минимально — как было)
+                bot_config = load_bot_settings_config(channel_id)
+                allowed_values = rating_allowed_values(bot_config)
+                if raw not in allowed_values:
+                    scale = rating_scale(bot_config)
+                    if scale:
+                        await update.message.reply_text(
+                            f"Пожалуйста, отправьте число от 1 до {scale}."
+                        )
+                    raise ApplicationHandlerStop()
+
+                rating = int(raw)
+
+                with sqlite3.connect(DB_PATH) as conn:
                     conn.execute(
                         "INSERT INTO feedbacks (user_id, rating, timestamp) VALUES (?, ?, ?)",
                         (user_id, rating, now_iso),
                     )
-                    # Закрываем запрос на оценку (убираем из ожидания)
-                    conn.execute("DELETE FROM pending_feedback_requests WHERE id = ?", (row["id"],))
+                    conn.execute(
+                        "DELETE FROM pending_feedback_requests WHERE id = ?",
+                        (pending_row["id"],),
+                    )
                     conn.commit()
 
                 # Опциональные дополнительные вопросы — как у вас было (если конфиг включит)
@@ -1844,11 +1849,18 @@ async def run_all_bots():
                 elif not fb_cfg.get("disable_default_thanks"):
                     await update.message.reply_text("Спасибо за оценку! 🙏", reply_markup=ReplyKeyboardRemove())
 
+                raise ApplicationHandlerStop()
+
+            except ApplicationHandlerStop:
+                raise
             except Exception as e:
                 logging.error(f"handle_feedback error: {e}")
 
         # Регистрируем ОДИН раз, только в приватных чатах и ПЕРЕД conv_handler
-        application.add_handler(MessageHandler(filters.Regex(r'^\d+$') & filters.ChatType.PRIVATE, handle_feedback))
+        application.add_handler(
+            MessageHandler(filters.Regex(r'^\d+$') & filters.ChatType.PRIVATE, handle_feedback),
+            block=False,
+        )
 
         conv_handler = ConversationHandler(
             entry_points=[
