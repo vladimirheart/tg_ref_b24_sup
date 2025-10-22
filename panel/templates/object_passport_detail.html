@@ -43,11 +43,47 @@
     .passport-card .card-body {
       padding: 1.5rem;
     }
+    .passport-card .card-body .row.g-3,
+    .passport-card .card-body .row.g-4 {
+      --bs-gutter-y: 0.75rem;
+      --bs-gutter-x: 0.75rem;
+    }
     .card h5 { margin-bottom: 0; }
     .schedule-table input[type="time"] { max-width: 120px; }
     .photo-card img { object-fit: cover; height: 180px; }
     .photo-card .card-body { font-size: 0.9rem; }
     .equipment-card textarea { min-height: 80px; }
+    .equipment-card .card-header { flex-wrap: wrap; gap: 0.75rem; }
+    .equipment-card .equipment-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .equipment-card .equipment-header-toggle {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      margin: -0.25rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: inherit;
+      text-align: left;
+      flex: 1;
+    }
+    .equipment-card .equipment-header-toggle:focus {
+      outline: none;
+      box-shadow: none;
+    }
+    .equipment-card .equipment-header-summary { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 0; }
+    .equipment-card .equipment-header-title {
+      font-weight: 600;
+      color: #0f172a;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .equipment-card .equipment-header-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.85rem; color: #475569; }
+    .equipment-card .equipment-header-meta strong { color: #334155; font-weight: 600; }
+    .equipment-card .equipment-header-meta span { display: inline-flex; gap: 0.35rem; align-items: baseline; min-width: 0; }
+    .equipment-card .equipment-header-meta span span { white-space: normal; word-break: break-word; }
+    .equipment-card .equipment-header-icon { font-size: 0.65rem; transition: transform 0.2s ease; }
+    .equipment-card .equipment-header-toggle.collapsed .equipment-header-icon { transform: rotate(-90deg); }
     .equipment-photo img { object-fit: cover; height: 150px; }
     .equipment-photo .card-body { font-size: 0.85rem; }
     .form-control-plaintext { padding-left: 0; }
@@ -266,7 +302,7 @@
             </div>
             <div class="col-12">
               <label class="form-label">Адрес локации</label>
-              <input type="text" class="form-control form-control-sm" id="locationAddressInput" placeholder="Например, г. Волгоград ул. Ленина, 1" />
+              <input type="text" class="form-control form-control-sm" id="locationAddressInput" placeholder="Например, г. Волгоград ул. Ленина, 1" data-no-auto-expand="true" />
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Статус</label>
@@ -681,6 +717,37 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function setupAutoExpandTextarea(textarea) {
+      if (!textarea) return;
+      const storedMinHeight = textarea.dataset.autoExpandMinHeight
+        ? Number(textarea.dataset.autoExpandMinHeight)
+        : null;
+      const minHeight = storedMinHeight || Math.max(textarea.clientHeight || textarea.scrollHeight, 80);
+      const adjustHeight = () => {
+        const shouldExpand = (textarea.value || '').length > 50;
+        textarea.style.height = shouldExpand ? 'auto' : `${minHeight}px`;
+        if (shouldExpand) {
+          textarea.style.height = `${Math.max(minHeight, textarea.scrollHeight)}px`;
+        }
+      };
+      if (textarea.dataset.autoExpandInitialized !== 'true') {
+        textarea.dataset.autoExpandInitialized = 'true';
+        textarea.dataset.autoExpandMinHeight = String(minHeight);
+        textarea.style.overflowY = 'hidden';
+        textarea.addEventListener('input', adjustHeight);
+        textarea.addEventListener('change', adjustHeight);
+      }
+      adjustHeight();
+    }
+
+    function initializeAutoExpandTextareas(root = document) {
+      const scope = root instanceof Element ? root : document;
+      scope.querySelectorAll('textarea.form-control.form-control-sm').forEach((textarea) => {
+        if (textarea.dataset.noAutoExpand === 'true') return;
+        setupAutoExpandTextarea(textarea);
+      });
     }
 
     const parameterValuesInitial = {{ parameter_values | tojson }};
@@ -1156,29 +1223,63 @@
       const vendorSelect = card.querySelector('.equipment-vendor');
       const modelSelect = card.querySelector('.equipment-model');
       const serialInput = card.querySelector('.equipment-serial');
+      const nameInput = card.querySelector('.equipment-name');
+      const ipInput = card.querySelector('.equipment-ip');
+      const headerTitle = card.querySelector('.equipment-header-title');
+      const headerModelValue = card.querySelector('[data-role="equipment-header-model"]');
+      const headerIpValue = card.querySelector('[data-role="equipment-header-ip"]');
       if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      const updateHeaderSummary = () => {
+        if (headerTitle && nameInput) {
+          const value = nameInput.value.trim();
+          headerTitle.textContent = value || 'Оборудование';
+        }
+        if (headerModelValue && modelSelect) {
+          const option = modelSelect.options[modelSelect.selectedIndex];
+          const text = option ? option.text : modelSelect.value;
+          headerModelValue.textContent = (text || modelSelect.value || '—').trim() || '—';
+        }
+        if (headerIpValue && ipInput) {
+          const value = ipInput.value.trim();
+          headerIpValue.textContent = value || '—';
+        }
+      };
       typeSelect.addEventListener('change', () => {
         applyCatalogMatchToCard(card, 'equipment_type');
         updateEquipmentCardOptions(card);
+        updateHeaderSummary();
       });
       vendorSelect.addEventListener('change', () => {
         applyCatalogMatchToCard(card, 'equipment_vendor');
         updateEquipmentCardOptions(card);
+        updateHeaderSummary();
       });
       modelSelect.addEventListener('change', () => {
         applyCatalogMatchToCard(card, 'equipment_model');
         updateEquipmentCardOptions(card);
+        updateHeaderSummary();
       });
       serialInput.addEventListener('change', () => {
         applyCatalogMatchToCard(card, 'serial_number');
         updateEquipmentCardOptions(card);
+        updateHeaderSummary();
       });
       serialInput.addEventListener('input', () => {
         updateEquipmentCardOptions(card);
+        updateHeaderSummary();
       });
+      if (nameInput) {
+        nameInput.addEventListener('input', updateHeaderSummary);
+        nameInput.addEventListener('change', updateHeaderSummary);
+      }
+      if (ipInput) {
+        ipInput.addEventListener('input', updateHeaderSummary);
+        ipInput.addEventListener('change', updateHeaderSummary);
+      }
       updateEquipmentCardOptions(card);
       applyCatalogMatchToCard(card);
       updateEquipmentCardOptions(card);
+      updateHeaderSummary();
     }
 
     const departmentSelect = document.getElementById('departmentSelect');
@@ -1234,6 +1335,7 @@
     const equipmentEmptyText = document.getElementById('equipmentEmptyText');
     const equipmentDisabledHint = document.getElementById('equipmentDisabledHint');
     const addEquipmentBtn = document.getElementById('addEquipmentBtn');
+    initializeAutoExpandTextareas();
     const casesTableBody = document.getElementById('casesTableBody');
     const casesEmptyText = document.getElementById('casesEmptyText');
     const refreshCasesBtn = document.getElementById('refreshCasesBtn');
@@ -1847,6 +1949,7 @@
       networkSupportPhoneInput.value = data.network_support_phone || '';
       networkSpeedInput.value = formatNetworkSpeedValue(data.network_speed || '');
       networkParamsInput.value = data.network_connection_params || '';
+      setupAutoExpandTextarea(networkParamsInput);
       startDateInput.value = data.start_date || '';
       endDateInput.value = data.end_date || '';
       suspensionDateInput.value = data.suspension_date || '';
@@ -2753,21 +2856,38 @@
         const modelOptions = buildSelectOptions(modelValues, item.model || '');
         const connectionOptions = buildSelectOptions(itConnectionChoices, item.connection_type || '');
         const collapseId = `equipmentPhotos-${isNew ? `new-${index}` : item.id}`;
+        const detailsCollapseId = `equipmentDetails-${isNew ? `new-${index}` : item.id}`;
         const hasPhotos = Array.isArray(item.photos) && item.photos.length > 0;
         const collapseShowClass = hasPhotos ? ' show' : '';
         const collapseButtonClass = hasPhotos ? '' : ' collapsed';
         const collapseExpanded = hasPhotos ? 'true' : 'false';
+        const detailsShowClass = isNew ? ' show' : '';
+        const detailsToggleClass = isNew ? '' : ' collapsed';
+        const detailsExpanded = isNew ? 'true' : 'false';
+        const headerName = escapeHtml(item.name || 'Оборудование');
+        const headerModel = escapeHtml(item.model || '—');
+        const headerIp = escapeHtml(item.ip_address || '—');
         const serialOptionsId = `equipmentSerialOptions-${isNew ? `new-${index}` : item.id}`;
         const serialOptions = buildDatalistOptions(equipmentOptionSets.serials, item.serial_number || '');
         card.innerHTML = `
           <div class="card-header d-flex justify-content-between align-items-center">
-            <strong>${escapeHtml(item.name || 'Оборудование')}</strong>
-            <div class="d-flex gap-2">
+            <button class="equipment-header-toggle${detailsToggleClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${detailsCollapseId}" aria-expanded="${detailsExpanded}" aria-controls="${detailsCollapseId}">
+              <div class="equipment-header-summary">
+                <div class="equipment-header-title">${headerName}</div>
+                <div class="equipment-header-meta">
+                  <span><strong>Модель:</strong> <span data-role="equipment-header-model">${headerModel}</span></span>
+                  <span><strong>IP-адрес:</strong> <span data-role="equipment-header-ip">${headerIp}</span></span>
+                </div>
+              </div>
+              <span class="equipment-header-icon">▼</span>
+            </button>
+            <div class="equipment-actions">
               <button class="btn btn-sm btn-success" data-action="save-equipment">💾 Сохранить</button>
               ${isNew ? '<button class="btn btn-sm btn-outline-secondary" data-action="cancel-equipment">Отменить</button>' : '<button class="btn btn-sm btn-outline-danger" data-action="delete-equipment">Удалить</button>'}
             </div>
           </div>
-          <div class="card-body">
+          <div class="collapse${detailsShowClass}" id="${detailsCollapseId}">
+            <div class="card-body">
             <div class="row g-3">
               <div class="col-md-4">
                 <label class="form-label">Тип</label>
@@ -2845,9 +2965,11 @@
                 <div class="text-muted small" data-empty-photos="${item.id}">Фотографии ещё не добавлены.</div>
             </div>
           `}
+            </div>
           </div>
         `;
         equipmentContainer.appendChild(card);
+        initializeAutoExpandTextareas(card);
         initializeEquipmentCard(card);
         if (!isNew) {
           renderEquipmentPhotos(item.id, item.photos || []);
