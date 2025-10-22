@@ -66,6 +66,7 @@
       color: inherit;
       text-align: left;
       flex: 1;
+      cursor: pointer;
     }
     .equipment-card .equipment-header-toggle:focus {
       outline: none;
@@ -1237,6 +1238,7 @@
       if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
       const headerToggle = card.querySelector('.equipment-header-toggle');
       const detailsActionToggle = card.querySelector('.equipment-details-toggle');
+      const cardHeader = card.querySelector('.card-header');
       const collapseTargetSelector =
         (headerToggle && headerToggle.getAttribute('data-bs-target')) ||
         (detailsActionToggle && detailsActionToggle.getAttribute('data-bs-target'));
@@ -1271,29 +1273,56 @@
           collapseElement.addEventListener('hidden.bs.collapse', () => syncDetailsCollapseState(false));
           collapseElement.dataset.collapseEventsBound = 'true';
         }
+        const getCurrentExpandedState = () => {
+          if (headerToggle && headerToggle.hasAttribute('aria-expanded')) {
+            return headerToggle.getAttribute('aria-expanded') === 'true';
+          }
+          if (detailsActionToggle && detailsActionToggle.hasAttribute('aria-expanded')) {
+            return detailsActionToggle.getAttribute('aria-expanded') === 'true';
+          }
+          return collapseElement.classList.contains('show');
+        };
+        const applyCollapseState = (shouldExpand) => {
+          const expanded = getCurrentExpandedState();
+          const targetState = typeof shouldExpand === 'boolean' ? shouldExpand : !expanded;
+          if (targetState === expanded) return;
+          if (useBootstrapCollapse) {
+            const instance = getCollapseInstance();
+            if (!instance) {
+              collapseElement.classList.toggle('show', targetState);
+              syncDetailsCollapseState(targetState);
+              return;
+            }
+            if (targetState) {
+              instance.show();
+            } else {
+              instance.hide();
+            }
+          } else {
+            collapseElement.classList.toggle('show', targetState);
+            syncDetailsCollapseState(targetState);
+          }
+        };
         const attachToggleHandler = (button) => {
           if (!button || button.dataset.collapseInitialized === 'true') return;
           button.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (useBootstrapCollapse) {
-              const instance = getCollapseInstance();
-              if (!instance) return;
-              if (collapseElement.classList.contains('show')) {
-                instance.hide();
-              } else {
-                instance.show();
-              }
-            } else {
-              const willShow = !collapseElement.classList.contains('show');
-              collapseElement.classList.toggle('show', willShow);
-              syncDetailsCollapseState(willShow);
-            }
+            applyCollapseState();
           });
           button.dataset.collapseInitialized = 'true';
         };
         attachToggleHandler(headerToggle);
         attachToggleHandler(detailsActionToggle);
+        if (cardHeader && cardHeader.dataset.collapseHeaderInitialized !== 'true') {
+          cardHeader.addEventListener('click', (event) => {
+            if (!headerToggle) return;
+            if (event.target.closest('.equipment-header-toggle')) return;
+            if (event.target.closest('.equipment-actions')) return;
+            applyCollapseState();
+          });
+          cardHeader.dataset.collapseHeaderInitialized = 'true';
+        }
       }
       const updateHeaderSummary = () => {
         if (headerTitle && nameInput) {
