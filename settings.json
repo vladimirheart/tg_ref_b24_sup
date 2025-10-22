@@ -1,98 +1,270 @@
 {
-  {"auto_close_hours": 12,
+  "auto_close_hours": 12,
   "categories": [
     "Консультация",
-    "Не работает акция",
-    "Ошибка отдела обращения",
-    "Техническая проблема",
-    "Другое",
     "Обучение",
-    "цук"
+    "Не работает касса",
+    "Проблемы с акцией"
   ],
   "client_statuses": [
-    "Сотрудник локации",
-    "Менеджер",
-    "ТУ",
-    "Сотрудник офиса",
-    "VIP",
-    "Постоянный клиент",
-    "Новый клиент",
-    "Проблемный клиент"
+    "Новый",
+    "Постоянный",
+    "VIP"
   ],
+  "network_profiles": [],
+  "it_connection_categories": {},
   "dialog_config": {
     "category_templates": [
       {
-        "id": "cat-default",
-        "name": "Основной шаблон",
+        "id": "cat_0840c476",
+        "name": "Шаблон категорий для ресторанов",
         "categories": [
           "Консультация",
-          "Не работает акция",
-          "Ошибка отдела обращения",
-          "Техническая проблема",
-          "Другое",
           "Обучение",
-          "цук"
+          "Не работает касса",
+          "Проблемы с акцией"
         ]
       },
       {
-        "id": "cat-it",
-        "name": "Техническая поддержка",
+        "id": "cat-ci0548-mh0mntpa",
+        "name": "Тестовый шаблон",
         "categories": [
-          "Сбой оборудования",
-          "Проблема с интернетом",
-          "Инцидент безопасности"
+          "Тест1",
+          "тест2",
+          "3тест"
         ]
       }
     ],
     "question_templates": [
       {
-        "id": "q-start",
-        "name": "Базовые вопросы",
+        "id": "q-qdj6wf-mh05zw89",
+        "name": "Шаблон вопросов 1",
         "questions": [
-          "Подскажите, в какой локации возникла проблема?",
-          "Сколько времени длится ситуация?",
-          "Есть ли сопроводительные материалы (фото, скриншоты)?"
+          "ещё остались не отвеченные вопросы?",
+          "опять?",
+          "И зачем?",
+          "С подобным запросом необходимо обратиться к вашему ТУ."
+        ]
+      },
+      {
+        "id": "q-75gmh6-mh0mspiz",
+        "name": "Тестовый шаблон сохранённых ответов",
+        "questions": [
+          "Опять ты?",
+          "Ну ты заходи, если что)©",
+          "Наташа, ты всё проспала)))",
+          "Вставай, нигер",
+          "И кто этого придурка из психушки выпустил?©",
+          "Сказочный клоун"
         ]
       }
     ],
     "completion_templates": [
       {
-        "id": "act-standard",
-        "name": "Стандартные действия",
+        "id": "act-fcbapg-mh05zw89",
+        "name": "Шаблон действий 1",
         "items": [
           {
-            "question": "Клиент подтвердил решение?",
-            "action": "Получить подтверждение и зафиксировать результат в заявке."
-          },
-          {
-            "question": "Нужно ли сопровождение после закрытия?",
-            "action": "Сообщить ответственному и создать напоминание при необходимости."
+            "question": "Закрыть?",
+            "action": "Да"
           }
         ]
       }
     ]
-  }
-}
-  ],
-  "network_profiles": [
-    {
-      "provider": "Ростелеком",
-      "contract_number": "33333",
-      "support_phone": "+7-999-999-99-99",
-      "legal_entity": "Крепвиль"
-    },
-    {
-      "provider": "ДомРу",
-      "contract_number": "ДР555",
-      "support_phone": "+7-955-555-55-55",
-      "legal_entity": "Сашим"
-    },
-    {
-      "provider": "ДомРу",
-      "contract_number": "ДР5555",
-      "support_phone": "+7-955-555-55-59",
-      "legal_entity": "Сашим"
+  },
+  "bot_settings": {
+    "question_templates": [
+      {
+        "id": "tpl_mh1ljy4cnsp9",
+        "name": "Базовый шаблон вопросов",
+        "question_flow": [
+          {
+            "id": "business",
+            "type": "preset",
+            "order": 1,
+            "preset": {
+              "group": "locations",
+              "field": "business"
+            },
+            "text": "Бизнес"
+          },
+          {
+            "id": "location_type",
+            "type": "preset",
+            "order": 2,
+            "preset": {
+              "group": "locations",
+              "field": "location_type"
+            },
+            "text": "Тип бизнеса"
+          },
+          {
+            "id": "city",
+            "type": "preset",
+            "order": 3,
+            "preset": {
+              "group": "locations",
+              "field": "city"
+            },
+            "text": "Город"
+          },
+          {
+            "id": "location_name",
+            "type": "preset",
+            "order": 4,
+            "preset": {
+              "group": "locations",
+              "field": "location_name"
+            },
+            "text": "Локация"
+          },
+          {
+            "id": "q_mh0d2nc0bcg6a9",
+            "type": "custom",
+            "order": 5,
+            "text": "Суть вопроса?"
+          }
+        ]
+      }
+    ],
+    "active_template_id": "tpl_mh1ljy4cnsp9",
+    "question_flow": [
+      {
+        "id": "business",
+        "type": "preset",
+        "order": 1,
+        "preset": {
+          "group": "locations",
+          "field": "business"
+        },
+        "text": "Бизнес"
+      },
+      {
+        "id": "location_type",
+        "type": "preset",
+        "order": 2,
+        "preset": {
+          "group": "locations",
+          "field": "location_type"
+        },
+        "text": "Тип бизнеса"
+      },
+      {
+        "id": "city",
+        "type": "preset",
+        "order": 3,
+        "preset": {
+          "group": "locations",
+          "field": "city"
+        },
+        "text": "Город"
+      },
+      {
+        "id": "location_name",
+        "type": "preset",
+        "order": 4,
+        "preset": {
+          "group": "locations",
+          "field": "location_name"
+        },
+        "text": "Локация"
+      },
+      {
+        "id": "q_mh0d2nc0bcg6a9",
+        "type": "custom",
+        "order": 5,
+        "text": "Суть вопроса?"
+      }
+    ],
+    "rating_templates": [
+      {
+        "id": "1aa5bbbbbf804acdb0fa304c88163389",
+        "name": "Шаблон оценок",
+        "prompt_text": "Пожалуйста, оцените качество ответа от 1 до 5.",
+        "scale_size": 5,
+        "responses": [
+          {
+            "value": 1,
+            "text": "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+          },
+          {
+            "value": 2,
+            "text": "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+          },
+          {
+            "value": 3,
+            "text": "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+          },
+          {
+            "value": 4,
+            "text": "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+          },
+          {
+            "value": 5,
+            "text": "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+          }
+        ]
+      },
+      {
+        "id": "rtpl_mh1ll1f3ceh5",
+        "name": "Тестовый шаблон оценок",
+        "prompt_text": "Выберете оценку: 1 - решено, 2 - не решено.",
+        "scale_size": 2,
+        "responses": [
+          {
+            "value": 1,
+            "text": "Спасибо за вашу оценку 1!"
+          },
+          {
+            "value": 2,
+            "text": "Спасибо за вашу оценку 2!"
+          }
+        ]
+      }
+    ],
+    "active_rating_template_id": "1aa5bbbbbf804acdb0fa304c88163389",
+    "rating_system": {
+      "prompt_text": "Пожалуйста, оцените качество ответа от 1 до 5.",
+      "scale_size": 5,
+      "responses": [
+        {
+          "value": 1,
+          "text": "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+        },
+        {
+          "value": 2,
+          "text": "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+        },
+        {
+          "value": 3,
+          "text": "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+        },
+        {
+          "value": 4,
+          "text": "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+        },
+        {
+          "value": 5,
+          "text": "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+        }
+      ]
     }
-  ],
-  "it_connection_categories": {}
+  },
+  "auto_close_config": {
+    "templates": [
+      {
+        "id": "auto_6e26209e",
+        "name": "Стандартный сценарий",
+        "description": "",
+        "hours": 12
+      },
+      {
+        "id": "auto-nyik8u-mh219tgc",
+        "name": "Тест 9",
+        "description": "",
+        "hours": 9
+      }
+    ],
+    "active_template_id": "auto_6e26209e"
+  }
 }
