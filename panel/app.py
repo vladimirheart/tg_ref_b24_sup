@@ -50,6 +50,7 @@ from datetime import datetime as dt, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 import io
 import mimetypes
+from typing import Any
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -2395,6 +2396,79 @@ def _sanitize_completion_templates(raw):
     return templates
 
 
+def _sanitize_auto_close_templates(raw, *, fallback_hours: int = 24):
+    templates: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    source = raw if isinstance(raw, list) else []
+    try:
+        base_hours = int(fallback_hours)
+    except (TypeError, ValueError):
+        base_hours = 24
+    if base_hours <= 0:
+        base_hours = 24
+    for item in source:
+        if not isinstance(item, dict):
+            continue
+        template_id = _sanitize_str(item.get("id"))
+        if not template_id:
+            template_id = _generate_template_id("auto")
+        if template_id in seen_ids:
+            template_id = _generate_template_id("auto")
+        seen_ids.add(template_id)
+
+        name = _sanitize_str(item.get("name")) or "Шаблон автозакрытия"
+        description = _sanitize_str(item.get("description"))
+
+        hours_raw = None
+        for key in ("hours", "timeout_hours", "auto_close_hours"):
+            value = item.get(key)
+            if value is None:
+                continue
+            try:
+                hours_raw = int(float(value))
+            except (TypeError, ValueError):
+                continue
+            if hours_raw > 0:
+                break
+        if not isinstance(hours_raw, int) or hours_raw <= 0:
+            hours_raw = base_hours
+        hours = max(1, min(hours_raw, 720))
+
+        templates.append(
+            {
+                "id": template_id,
+                "name": name or "Шаблон автозакрытия",
+                "description": description,
+                "hours": hours,
+            }
+        )
+
+    if not templates:
+        template_id = _generate_template_id("auto")
+        templates.append(
+            {
+                "id": template_id,
+                "name": "Стандартный сценарий",
+                "description": "",
+                "hours": max(1, min(base_hours, 720)),
+            }
+        )
+
+    return templates
+
+
+def sanitize_auto_close_config(raw, *, fallback_hours: int = 24):
+    config = raw if isinstance(raw, dict) else {}
+    templates = _sanitize_auto_close_templates(config.get("templates"), fallback_hours=fallback_hours)
+    active_id = _sanitize_str(config.get("active_template_id"))
+    template_ids = {tpl["id"] for tpl in templates}
+    if active_id not in template_ids:
+        active_id = next(iter(template_ids), None)
+    return {
+        "templates": templates,
+        "active_template_id": active_id,
+    }
+
 def ensure_dialog_config(settings):
     if not isinstance(settings, dict):
         settings = {}
@@ -2415,6 +2489,27 @@ def ensure_dialog_config(settings):
     settings["categories"] = category_templates[0]["categories"] if category_templates else []
     return settings
 
+def ensure_auto_close_config(settings):
+    if not isinstance(settings, dict):
+        settings = {}
+    try:
+        fallback_hours = int(settings.get("auto_close_hours", 24))
+    except (TypeError, ValueError):
+        fallback_hours = 24
+    if fallback_hours <= 0:
+        fallback_hours = 24
+    raw_config = settings.get("auto_close_config")
+    auto_close_config = sanitize_auto_close_config(raw_config, fallback_hours=fallback_hours)
+    templates = auto_close_config.get("templates", [])
+    active_id = auto_close_config.get("active_template_id")
+    active_template = next((tpl for tpl in templates if tpl.get("id") == active_id), templates[0] if templates else None)
+    if active_template:
+        settings["auto_close_hours"] = active_template.get("hours", fallback_hours)
+    else:
+        settings["auto_close_hours"] = fallback_hours
+    settings["auto_close_config"] = auto_close_config
+    return settings
+
 
 # Функция для загрузки настроек
 def load_settings():
@@ -2433,6 +2528,7 @@ def load_settings():
     settings["bot_settings"] = sanitize_bot_settings(
         settings.get("bot_settings"), definitions=DEFAULT_BOT_PRESET_DEFINITIONS
     )
+    settings = ensure_auto_close_config(settings)
     return ensure_dialog_config(settings)
 
 # Функция для сжатия изображений на лету
@@ -5300,6 +5396,18 @@ def update_settings():
                 settings["auto_close_hours"] = int(data["auto_close_hours"])
             except (TypeError, ValueError):
                 settings["auto_close_hours"] = data["auto_close_hours"]
+            settings_modified = True
+
+        if "auto_close_config" in data:
+            auto_close_config = sanitize_auto_close_config(
+                data.get("auto_close_config"), fallback_hours=settings.get("auto_close_hours", 24)
+            )
+            templates = auto_close_config.get("templates", [])
+            active_id = auto_close_config.get("active_template_id")
+            active_template = next((tpl for tpl in templates if tpl.get("id") == active_id), templates[0] if templates else None)
+            if active_template:
+                settings["auto_close_hours"] = active_template.get("hours", settings.get("auto_close_hours", 24))
+            settings["auto_close_config"] = auto_close_config
             settings_modified = True
 
         if "categories" in data:
