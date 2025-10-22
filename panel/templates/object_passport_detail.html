@@ -1235,6 +1235,45 @@
       const headerIpValue = card.querySelector('[data-role="equipment-header-ip"]');
       const headerStatusValue = card.querySelector('[data-role="equipment-header-status"]');
       if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      const headerToggle = card.querySelector('.equipment-header-toggle');
+      const collapseTargetSelector = headerToggle ? headerToggle.getAttribute('data-bs-target') : null;
+      const collapseElement = collapseTargetSelector
+        ? (card.querySelector(collapseTargetSelector) || document.querySelector(collapseTargetSelector))
+        : null;
+      const syncHeaderCollapseState = (expanded) => {
+        if (!headerToggle) return;
+        headerToggle.classList.toggle('collapsed', !expanded);
+        headerToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      };
+      if (headerToggle && collapseElement && headerToggle.dataset.collapseInitialized !== 'true') {
+        const initialExpanded = collapseElement.classList.contains('show');
+        syncHeaderCollapseState(initialExpanded);
+        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+          const collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapseElement, {
+            toggle: false,
+          });
+          collapseElement.addEventListener('shown.bs.collapse', () => syncHeaderCollapseState(true));
+          collapseElement.addEventListener('hidden.bs.collapse', () => syncHeaderCollapseState(false));
+          headerToggle.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (collapseElement.classList.contains('show')) {
+              collapseInstance.hide();
+            } else {
+              collapseInstance.show();
+            }
+          });
+        } else {
+          headerToggle.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const willShow = !collapseElement.classList.contains('show');
+            collapseElement.classList.toggle('show', willShow);
+            syncHeaderCollapseState(willShow);
+          });
+        }
+        headerToggle.dataset.collapseInitialized = 'true';
+      }
       const updateHeaderSummary = () => {
         if (headerTitle && nameInput) {
           const value = nameInput.value.trim();
