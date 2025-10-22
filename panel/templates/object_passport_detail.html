@@ -104,19 +104,60 @@
     .it-equipment-ip { font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: #475569; }
     .it-equipment-empty { color: #64748b; font-size: 0.9rem; }
     .network-equipment-summary { border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 0.75rem; padding: 0.75rem 1rem; background-color: #f8fafc; min-height: 3rem; display: flex; align-items: center; }
-    .network-equipment-list { width: 100%; display: flex; flex-direction: column; gap: 0.35rem; }
-    .network-equipment-entry { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.9rem; }
+    .network-equipment-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .network-equipment-list li { width: 100%; }
+    .network-equipment-entry {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      border: 0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .network-equipment-entry:focus { outline: none; box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15); }
+    .network-equipment-list li:nth-child(odd) .network-equipment-entry { background: #ffffff; }
+    .network-equipment-list li:nth-child(even) .network-equipment-entry { background: #e2e8f0; }
+    .network-equipment-entry:hover { background: #dbeafe; }
     .network-equipment-name { font-weight: 600; color: #0f172a; }
     .network-equipment-ip { font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: #475569; }
     .network-equipment-separator { color: #94a3b8; font-weight: 600; }
     .network-equipment-empty { font-size: 0.9rem; }
     .passport-card .form-control,
     .passport-card .form-select { font-size: 0.9rem; }
+    .passport-card .form-select {
+      width: 100%;
+      max-width: 30ch;
+      min-width: 14ch;
+    }
+    .searchable-select .dropdown-toggle {
+      max-width: 30ch;
+      min-width: 14ch;
+    }
+    .searchable-select .dropdown-toggle .searchable-select-label { max-width: 100%; }
     .form-control.auto-resize-input {
-      width: auto;
-      display: inline-block;
+      width: 100% !important;
+      display: block;
       max-width: 100%;
       min-width: 0;
+    }
+    .equipment-card.equipment-highlight {
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.2);
+      transition: box-shadow 0.3s ease;
     }
     .searchable-select.dropdown { width: 100%; }
     .searchable-select .dropdown-toggle { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
@@ -162,6 +203,8 @@
       .passport-card .card-header { padding: 0.75rem 1rem; }
       .passport-card .card-body { padding: 1rem; }
       .form-control.auto-resize-input { width: 100% !important; }
+      .passport-card .form-select,
+      .searchable-select .dropdown-toggle { max-width: 100%; min-width: 0; }
     }
   </style>
 </head>
@@ -771,27 +814,10 @@
 
     function setupAutoResizeInput(input) {
       if (!input) return;
-      const minChars = Number(input.dataset.autoResizeMinChars) || 20;
-      const maxChars = Number(input.dataset.autoResizeMaxChars) || 50;
-      const extraChars = Number(input.dataset.autoResizeExtraChars) || 2;
-      const applyWidth = () => {
-        const valueLength = input.value ? input.value.length : 0;
-        const targetChars = Math.min(maxChars, Math.max(minChars, valueLength));
-        const widthChars = targetChars + extraChars;
-        input.style.width = `calc(${widthChars}ch)`;
-      };
-      if (input.dataset.autoResizeInitialized === 'true') {
-        applyWidth();
-        return;
-      }
       input.dataset.autoResizeInitialized = 'true';
-      input.dataset.autoResizeMinChars = String(minChars);
-      input.dataset.autoResizeMaxChars = String(maxChars);
-      input.dataset.autoResizeExtraChars = String(extraChars);
       input.classList.add('auto-resize-input');
-      input.addEventListener('input', applyWidth);
-      input.addEventListener('change', applyWidth);
-      applyWidth();
+      input.style.width = '100%';
+      input.style.maxWidth = '100%';
     }
 
     function initializeAutoResizeInputs(root = document) {
@@ -805,6 +831,77 @@
           if (input.closest('.dropdown-menu')) return;
           setupAutoResizeInput(input);
         });
+    }
+
+    function ensureEquipmentKey(item, fallbackIndex) {
+      if (!item || typeof item !== 'object') {
+        return `index-${fallbackIndex}`;
+      }
+      if (item.id !== null && typeof item.id !== 'undefined') {
+        return String(item.id);
+      }
+      if (item._internalKey) {
+        return String(item._internalKey);
+      }
+      const uniqueKey = `temp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      try {
+        Object.defineProperty(item, '_internalKey', {
+          value: uniqueKey,
+          enumerable: false,
+          configurable: true,
+        });
+      } catch (error) {
+        item._internalKey = uniqueKey;
+      }
+      return uniqueKey;
+    }
+
+    let highlightedEquipmentCard = null;
+    let highlightedEquipmentTimeoutId = null;
+
+    function highlightEquipmentCard(card) {
+      if (!card) return;
+      if (highlightedEquipmentCard && highlightedEquipmentCard !== card) {
+        highlightedEquipmentCard.classList.remove('equipment-highlight');
+      }
+      card.classList.add('equipment-highlight');
+      if (highlightedEquipmentTimeoutId) {
+        clearTimeout(highlightedEquipmentTimeoutId);
+      }
+      highlightedEquipmentCard = card;
+      highlightedEquipmentTimeoutId = window.setTimeout(() => {
+        card.classList.remove('equipment-highlight');
+        if (highlightedEquipmentCard === card) {
+          highlightedEquipmentCard = null;
+        }
+      }, 2000);
+    }
+
+    function revealEquipmentCardByKey(key) {
+      if (!equipmentContainer) return false;
+      const normalizedKey = String(key || '');
+      if (!normalizedKey) return false;
+      const cards = Array.from(equipmentContainer.querySelectorAll('[data-equipment-key]'));
+      const targetCard = cards.find((element) => element.dataset.equipmentKey === normalizedKey);
+      if (!targetCard) return false;
+      const detailsId = targetCard.dataset.detailsTarget;
+      if (detailsId) {
+        const detailsElement = document.getElementById(detailsId);
+        if (detailsElement) {
+          if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+            bootstrap.Collapse.getOrCreateInstance(detailsElement, { toggle: false }).show();
+          } else {
+            const wasShown = detailsElement.classList.contains('show');
+            detailsElement.classList.add('show');
+            if (!wasShown) {
+              detailsElement.dispatchEvent(new Event('shown.bs.collapse'));
+            }
+          }
+        }
+      }
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      highlightEquipmentCard(targetCard);
+      return true;
     }
 
     const parameterValuesInitial = {{ parameter_values | tojson }};
@@ -1462,6 +1559,15 @@
     const networkSpeedInput = document.getElementById('networkSpeedInput');
     const networkParamsInput = document.getElementById('networkParamsInput');
     const networkEquipmentSummary = document.getElementById('networkEquipmentSummary');
+    if (networkEquipmentSummary) {
+      networkEquipmentSummary.addEventListener('click', (event) => {
+        const button = event.target.closest('.network-equipment-entry[data-equipment-key]');
+        if (!button || !networkEquipmentSummary.contains(button)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        revealEquipmentCardByKey(button.dataset.equipmentKey);
+      });
+    }
     const itBlock = document.getElementById('itBlock');
     const toggleItBlockBtn = document.getElementById('toggleItBlockBtn');
     const itEquipmentList = document.getElementById('itEquipmentList');
@@ -1885,14 +1991,16 @@
       if (!networkEquipmentSummary) return;
       const list = Array.isArray(equipmentList) ? equipmentList : [];
       const items = list
-        .map((item) => {
+        .map((item, index) => {
           if (!item) return null;
           const name = typeof item.name === 'string' ? item.name.trim() : '';
           const ip = typeof item.ip_address === 'string' ? item.ip_address.trim() : '';
           if (!name && !ip) return null;
+          const key = ensureEquipmentKey(item, index);
+          const keyAttr = escapeHtml(String(key));
           const nameHtml = escapeHtml(name || '—');
           const ipHtml = escapeHtml(ip || '—');
-          return `<li class="network-equipment-entry"><span class="network-equipment-name">${nameHtml}</span><span class="network-equipment-separator"></span><span class="network-equipment-ip">${ipHtml}</span></li>`;
+          return `<li><button type="button" class="network-equipment-entry" data-equipment-key="${keyAttr}"><span class="network-equipment-name">${nameHtml}</span><span class="network-equipment-separator">•</span><span class="network-equipment-ip">${ipHtml}</span></button></li>`;
         })
         .filter(Boolean);
       if (!items.length) {
@@ -3011,9 +3119,11 @@
       updateItEquipmentList(list);
       list.forEach((item, index) => {
         const isNew = item.id === null || typeof item.id === 'undefined';
+        const equipmentKey = ensureEquipmentKey(item, index);
         const card = document.createElement('div');
         card.className = 'card mb-4 equipment-card';
         card.dataset.id = isNew ? `new-${index}` : item.id;
+        card.dataset.equipmentKey = equipmentKey;
         const typeValues = getCombinedCatalogOptions('equipment_type', {
           equipment_vendor: item.vendor,
           equipment_model: item.model,
@@ -3034,8 +3144,8 @@
         const modelOptions = buildSelectOptions(modelValues, item.model || '');
         const statusOptions = buildSelectOptions(equipmentOptionSets.statuses, item.status || '');
         const connectionOptions = buildSelectOptions(itConnectionChoices, item.connection_type || '');
-        const collapseId = `equipmentPhotos-${isNew ? `new-${index}` : item.id}`;
-        const detailsCollapseId = `equipmentDetails-${isNew ? `new-${index}` : item.id}`;
+        const collapseId = `equipmentPhotos-${equipmentKey}`;
+        const detailsCollapseId = `equipmentDetails-${equipmentKey}`;
         const hasPhotos = Array.isArray(item.photos) && item.photos.length > 0;
         const collapseShowClass = hasPhotos ? ' show' : '';
         const collapseButtonClass = hasPhotos ? '' : ' collapsed';
@@ -3049,7 +3159,7 @@
         const headerModel = escapeHtml(item.model || '—');
         const headerIp = escapeHtml(item.ip_address || '—');
         const headerStatus = escapeHtml(item.status || '—');
-        const serialOptionsId = `equipmentSerialOptions-${isNew ? `new-${index}` : item.id}`;
+        const serialOptionsId = `equipmentSerialOptions-${equipmentKey}`;
         const serialOptions = buildDatalistOptions(equipmentOptionSets.serials, item.serial_number || '');
         card.innerHTML = `
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -3153,6 +3263,8 @@
           </div>
         `;
         equipmentContainer.appendChild(card);
+        card.dataset.detailsTarget = detailsCollapseId;
+        card.id = `equipment-card-${equipmentKey}`;
         initializeAutoExpandTextareas(card);
         initializeEquipmentCard(card);
         if (!isNew) {
