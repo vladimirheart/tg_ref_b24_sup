@@ -1180,6 +1180,7 @@
       base.equipment_type = 'Тип оборудования';
       base.equipment_vendor = 'Производитель оборудования';
       base.equipment_model = 'Модель оборудования';
+      base.equipment_status = 'Статус оборудования';
     }
     IT_CONNECTION_CATEGORY_LABELS = base;
     IT_CONNECTION_CATEGORY_KEYS = Object.keys(IT_CONNECTION_CATEGORY_LABELS);
@@ -1247,9 +1248,13 @@
           const equipmentModelSource =
             (item && typeof item.equipment_model === 'string' && item.equipment_model) ||
             (typeof extraData.equipment_model === 'string' ? extraData.equipment_model : '');
+          const equipmentStatusSource =
+            (item && typeof item.equipment_status === 'string' && item.equipment_status) ||
+            (typeof extraData.equipment_status === 'string' ? extraData.equipment_status : '');
           const equipmentType = typeof equipmentTypeSource === 'string' ? equipmentTypeSource.trim() : '';
           const equipmentVendor = typeof equipmentVendorSource === 'string' ? equipmentVendorSource.trim() : '';
           const equipmentModel = typeof equipmentModelSource === 'string' ? equipmentModelSource.trim() : '';
+          const equipmentStatus = typeof equipmentStatusSource === 'string' ? equipmentStatusSource.trim() : '';
           let categoryValue = trimmedValue;
           if (category === 'equipment_type' && equipmentType) {
             categoryValue = equipmentType;
@@ -1257,6 +1262,8 @@
             categoryValue = equipmentVendor;
           } else if (category === 'equipment_model' && equipmentModel) {
             categoryValue = equipmentModel;
+          } else if (category === 'equipment_status' && equipmentStatus) {
+            categoryValue = equipmentStatus;
           }
           if (category && categoryLabel) {
             itConnectionCategoryUpdates[category] = categoryLabel;
@@ -1268,12 +1275,14 @@
           entry.equipment_type = equipmentType;
           entry.equipment_vendor = equipmentVendor;
           entry.equipment_model = equipmentModel;
+          entry.equipment_status = equipmentStatus;
           entry.extra = {
             category,
             category_label: effectiveLabel,
             equipment_type: equipmentType,
             equipment_vendor: equipmentVendor,
             equipment_model: equipmentModel,
+            equipment_status: equipmentStatus,
           };
         } else if (type === 'iiko_server') {
           const extraData = extra && typeof extra === 'object' ? extra : {};
@@ -2260,20 +2269,23 @@
   function buildItConnectionPayload(category, value) {
     const normalizedCategory = normalizeItConnectionCategory(category);
     const trimmedValue = typeof value === 'string' ? value.trim() : '';
-    const payload = { value: trimmedValue, category: normalizedCategory };
+    const payload = {
+      value: trimmedValue,
+      category: normalizedCategory,
+      equipment_type: '',
+      equipment_vendor: '',
+      equipment_model: '',
+      equipment_status: '',
+    };
     const mappedField = IT_CONNECTION_CATEGORY_FIELDS[normalizedCategory];
     if (mappedField === 'equipment_type') {
       payload.equipment_type = trimmedValue;
-      payload.equipment_vendor = '';
-      payload.equipment_model = '';
     } else if (mappedField === 'equipment_vendor') {
       payload.equipment_vendor = trimmedValue;
-      payload.equipment_type = '';
-      payload.equipment_model = '';
     } else if (mappedField === 'equipment_model') {
       payload.equipment_model = trimmedValue;
-      payload.equipment_type = '';
-      payload.equipment_vendor = '';
+    } else if (mappedField === 'equipment_status') {
+      payload.equipment_status = trimmedValue;
     }
     return payload;
   }
