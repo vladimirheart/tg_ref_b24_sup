@@ -1,4 +1,3 @@
-<!-- panel/templates/analytics.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,271 +6,313 @@
   <title>Аналитика</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
   <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
   <style>
-    /* ✅ Цвета заголовков таблицы */
-    .table-dark th.sortable {
-      background-color: #003366 !important; /* Тёмно-синий */
-      color: #fff !important; /* Белый текст */
-      font-weight: bold;
-      cursor: pointer;
-      position: relative;
-      transition: background-color 0.2s ease;
+    .analytics-nav .nav-link { font-weight: 600; }
+    .analytics-nav .nav-link .tab-icon { margin-right: 0.25rem; }
+    .analytics-section { padding-top: 1.5rem; }
+    .filter-section { background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    .filter-row { margin-bottom: 10px; }
+    .filter-badge { margin-right: 5px; margin-bottom: 5px; display: inline-block; }
+    .select2-container { width: 100% !important; }
+    .stats-card { transition: transform 0.2s; }
+    .stats-card:hover { transform: translateY(-2px); }
+    .table-container-wrapper { border: 1px solid #dee2e6; border-radius: 0.5rem; overflow: hidden; margin-top: 1rem; }
+    .table-container-wrapper .table-header { max-height: 52px; overflow: hidden; }
+    .table-container-wrapper .table-body { max-height: 600px; overflow-y: auto; }
+    .sortable { cursor: pointer; position: relative; }
+    .table-dark th.sortable { background-color: #003366 !important; color: #fff !important; font-weight: bold; transition: background-color 0.2s ease; }
+    .table-dark th.sortable:hover { background-color: #cce6ff !important; color: #000 !important; }
+    .table-dark th.sortable .sort-arrow { margin-left: 5px; }
+    .ticket-stats-card .card-body { padding: 0.75rem 1rem; }
+    .ticket-stats-card .card-text { font-size: 0.85rem; }
+    .clients-counter { margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; font-weight: bold; }
+    .ticket-pagination { margin-top: 1rem; }
+    .ticket-pagination select { min-width: 120px; }
+    .client-table-container { max-height: calc(100vh - 320px); overflow-y: auto; scrollbar-gutter: stable both-edges; }
+    .client-table-container thead th { position: sticky; top: 0; z-index: 2; background: #212529; color: #fff; }
+    .client-table-container thead th.sortable { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.05); }
+    .client-row:hover { background-color: #f8f9fa; cursor: pointer; }
+    .name-block { font-size: 0.95em; }
+    .name-block .db-name { color: #007bff; font-weight: 500; }
+    .name-block .tg-name { color: #6c757d; }
+    .custom-ticket-filter { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .custom-ticket-input { width: 100px; }
+    .ticket-count-total { font-weight: bold; background-color: #f8f9fa; }
+    .spinner-border-sm { width: 1rem; height: 1rem; }
+    @media (max-width: 768px) {
+      .analytics-nav { flex-wrap: wrap; }
+      .analytics-nav .nav-link { width: 100%; text-align: left; }
     }
-    .table-dark th.sortable:hover {
-      background-color: #cce6ff !important; /* Светло-голубой при наведении */
-      color: #000 !important; /* Чёрный текст */
-    }
-    .sort-arrow {
-      margin-left: 5px;
-      color: #fff; /* Белая стрелка */
-    }
-    .table-dark th.sortable:hover .sort-arrow {
-      color: #000; /* Чёрная стрелка при наведении */
-    }
-    /* ✅ Фильтры */
-    .filter-section {
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 5px;
-      margin-bottom: 20px;
-    }
-    .filter-row {
-      margin-bottom: 10px;
-    }
-    .table-container {
-      max-height: 600px;
-      overflow-y: auto;
-    }
-    .filter-badge {
-      margin-right: 5px;
-      margin-bottom: 5px;
-      display: inline-block;
-    }
-    .select2-container {
-      width: 100% !important;
-    }
-    .stats-card {
-      transition: transform 0.2s;
-    }
-    .stats-card:hover {
-      transform: translateY(-2px);
-    }
-    .active-filters-container {
-      margin-bottom: 15px;
-    }
-    .export-btn {
-      margin-left: 10px;
-    }
-    .spinner-border-sm {
-      width: 1rem;
-      height: 1rem;
-    }
-	
-	/* Стили для компактных карточек */
-	.stats-card-compact .card-body {
-		padding: 0.5rem 1rem; /* Уменьшаем внутренние отступы */
-		font-size: 0.85rem; /* Уменьшаем размер шрифта */
-	}
-	.stats-card-compact .card-text {
-		margin-bottom: 0.1rem !important;
-		font-size: 0.8rem;
-	}
-	.stats-card-compact .card-title {
-		margin-bottom: 0 !important;
-		font-size: 1.1rem;
-	}
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
   {% include "_sidebar.html" %}
   <main class="main-content container-fluid">
-  <div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center">
-      <h2>📊 Аналитика по заявкам</h2>
-      <div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filtersModal">
-          <i class="bi bi-funnel"></i> Фильтры
-        </button>
-        <button class="btn btn-success export-btn" data-bs-toggle="modal" data-bs-target="#exportModal">
-          <i class="bi bi-file-earmark-excel"></i> Экспорт
-        </button>
+    <div class="container-fluid mt-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="mb-0">📊 Аналитика</h2>
       </div>
-    </div>
-    <p>Группировка по бизнесу, типу, городу, локации, категории и статусу.</p>
-    <!-- Кнопки для отображения активных фильтров -->
-    <div class="active-filters-container" id="activeFiltersBadges"></div>
-    <!-- Статистика -->
-<div class="row mb-4">
-  <div class="col-md-3 mb-3"> <!-- Добавил mb-3 для адаптивности -->
-    <div class="card stats-card stats-card-compact" data-stats-card="total-records">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="card-text mb-0">Всего записей</p>
+      <ul class="nav nav-tabs analytics-nav" id="analyticsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab != 'clients' %}active{% endif %}" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#ticketsPane" type="button" role="tab" aria-controls="ticketsPane" aria-selected="{% if active_tab == 'clients' %}false{% else %}true{% endif %}">
+            <span class="tab-icon">🗃️</span>Заявки
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'clients' %}active{% endif %}" id="clients-tab" data-bs-toggle="tab" data-bs-target="#clientsPane" type="button" role="tab" aria-controls="clientsPane" aria-selected="{% if active_tab == 'clients' %}true{% else %}false{% endif %}">
+            <span class="tab-icon">👥</span>Клиенты
+          </button>
+        </li>
+      </ul>
+      <div class="tab-content analytics-section">
+        <div class="tab-pane fade {% if active_tab != 'clients' %}show active{% endif %}" id="ticketsPane" role="tabpanel" aria-labelledby="tickets-tab">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <p class="mb-0 text-muted">Группировка по бизнесу, типу, городу, локации, категории и статусу.</p>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ticketFiltersModal"><i class="bi bi-funnel"></i> Фильтры</button>
+              <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#ticketExportModal"><i class="bi bi-file-earmark-excel"></i> Экспорт</button>
+            </div>
+          </div>
+          <div class="active-filters-container" id="ticketActiveFiltersBadges"></div>
+          <div class="row row-cols-1 row-cols-md-4 g-3">
+            <div class="col">
+              <div class="card stats-card ticket-stats-card" data-ticket-stats="total-records">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                  <div>
+                    <p class="card-text mb-0">Всего записей</p>
+                  </div>
+                  <h5 class="card-title mb-0">{{ ticket_stats | length }}</h5>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="card stats-card ticket-stats-card" data-ticket-stats="total-tickets">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                  <div>
+                    <p class="card-text mb-0">Всего заявок</p>
+                  </div>
+                  <h5 class="card-title mb-0">{{ ticket_total }}</h5>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="card stats-card ticket-stats-card" data-ticket-stats="filtered-records">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                  <div>
+                    <p class="card-text mb-0">Отфильтровано записей</p>
+                  </div>
+                  <h5 class="card-title mb-0" id="ticketFilteredRecordsCount">{{ ticket_stats | length }}</h5>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="card stats-card ticket-stats-card" data-ticket-stats="filtered-tickets">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                  <div>
+                    <p class="card-text mb-0">Отфильтровано заявок</p>
+                  </div>
+                  <h5 class="card-title mb-0" id="ticketFilteredTicketsCount">{{ ticket_total }}</h5>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="table-container-wrapper">
+            <div class="table-header">
+              <table class="table table-striped table-hover mb-0" style="width: 100%; table-layout: fixed;">
+                <thead class="table-dark">
+                  <tr>
+                    <th class="sortable" data-ticket-sort="business" style="width: 15%;">Бизнес ↕</th>
+                    <th class="sortable" data-ticket-sort="location_type" style="width: 15%;">Тип ↕</th>
+                    <th class="sortable" data-ticket-sort="city" style="width: 12%;">Город ↕</th>
+                    <th class="sortable" data-ticket-sort="location_name" style="width: 25%;">Локация ↕</th>
+                    <th class="sortable" data-ticket-sort="category" style="width: 18%;">Категория ↕</th>
+                    <th class="sortable" data-ticket-sort="status" style="width: 15%;">Статус ↕</th>
+                    <th class="sortable" data-ticket-sort="cnt" style="width: 10%;">Количество ↕</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+            <div class="table-body">
+              <table class="table table-striped table-hover" id="ticketAnalyticsTable" style="width: 100%; table-layout: fixed;">
+                <tbody>
+                  {% for s in ticket_stats %}
+                  <tr
+                    data-ticket-business="{{ s.business or '' }}"
+                    data-ticket-location-type="{{ s.location_type or '' }}"
+                    data-ticket-city="{{ s.city or '' }}"
+                    data-ticket-location="{{ s.location_name or '' }}"
+                    data-ticket-category="{{ s.category or '' }}"
+                    data-ticket-status="{{ s.status or '' }}"
+                    data-ticket-count="{{ s.cnt }}"
+                  >
+                    <td style="width: 15%;">{{ s.business or '—' }}</td>
+                    <td style="width: 15%;">{{ s.location_type or '—' }}</td>
+                    <td style="width: 12%;">{{ s.city or '—' }}</td>
+                    <td style="width: 25%;">{{ s.location_name or '—' }}</td>
+                    <td style="width: 18%;">{{ s.category or '—' }}</td>
+                    <td style="width: 15%;">{{ s.status or '—' }}</td>
+                    <td style="width: 10%;"><strong>{{ s.cnt }}</strong></td>
+                  </tr>
+                  {% endfor %}
+                  <tr class="ticket-count-total">
+                    <td colspan="6" class="text-end" style="width: 70%;"><strong>Всего заявок:</strong></td>
+                    <td style="width: 10%;"><strong id="ticketTotalTicketsCount">{{ ticket_total }}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="d-flex justify-content-between align-items-center ticket-pagination">
+            <div class="text-muted">
+              Показано: <span id="ticketVisibleRecordsCount">{{ ticket_stats | length }}</span>
+              из <span id="ticketTotalRecordsCount">{{ ticket_stats | length }}</span> записей
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <label for="ticketPageSizeSelect" class="form-label mb-0">Записей на странице:</label>
+              <select class="form-select form-select-sm" id="ticketPageSizeSelect">
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <h5 class="card-title mb-0">{{ stats | length }}</h5>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3 mb-3">
-    <div class="card stats-card stats-card-compact" data-stats-card="total-tickets">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="card-text mb-0">Всего заявок</p>
+        <div class="tab-pane fade {% if active_tab == 'clients' %}show active{% endif %}" id="clientsPane" role="tabpanel" aria-labelledby="clients-tab">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <p class="mb-0 text-muted">Аналитика активности клиентов по обращениям.</p>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#clientFiltersModal"><i class="bi bi-funnel"></i> Фильтры</button>
+              <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#clientExportModal"><i class="bi bi-file-earmark-excel"></i> Экспорт</button>
+            </div>
+          </div>
+          <div class="active-filters-container" id="clientActiveFiltersBadges"></div>
+          <div class="client-table-container border rounded">
+            <table class="table table-striped table-hover mb-0" id="clientAnalyticsTable">
+              <thead class="table-dark">
+                <tr>
+                  <th class="sortable" data-client-sort="client_name">Клиент ↕</th>
+                  <th class="sortable" data-client-sort="username">Telegram ↕</th>
+                  <th class="sortable" data-client-sort="business">Бизнес ↕</th>
+                  <th class="sortable" data-client-sort="location_type">Тип локации ↕</th>
+                  <th class="sortable" data-client-sort="city">Город ↕</th>
+                  <th class="sortable" data-client-sort="location_name">Локация ↕</th>
+                  <th class="sortable" data-client-sort="category">Категория ↕</th>
+                  <th class="sortable" data-client-sort="status">Статус ↕</th>
+                  <th class="sortable" data-client-sort="tickets">Заявок ↕</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in client_stats %}
+                <tr class="client-row"
+                  data-client-id="{{ c.user_id }}"
+                  data-client-name="{{ c.client_name or '' }}"
+                  data-client-username="{{ c.username or '' }}"
+                  data-client-business="{{ c.business or '' }}"
+                  data-client-location-type="{{ c.location_type or '' }}"
+                  data-client-city="{{ c.city or '' }}"
+                  data-client-location="{{ c.location_name or '' }}"
+                  data-client-category="{{ c.category or '' }}"
+                  data-client-status="{{ c.status or '' }}"
+                  data-client-tickets="{{ c.tickets }}"
+                >
+                  <td>
+                    <div class="name-block">
+                      <div class="db-name">{{ c.client_name or '—' }}</div>
+                    </div>
+                  </td>
+                  <td>{{ c.username or '—' }}</td>
+                  <td>{{ c.business or '—' }}</td>
+                  <td>{{ c.location_type or '—' }}</td>
+                  <td>{{ c.city or '—' }}</td>
+                  <td>{{ c.location_name or '—' }}</td>
+                  <td>{{ c.category or '—' }}</td>
+                  <td>
+                    {% if c.status %}
+                    <span class="badge bg-secondary">{{ c.status }}</span>
+                    {% else %}
+                    <span class="badge bg-light text-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td><strong>{{ c.tickets }}</strong></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="clients-counter" id="clientRecordsCounter">
+            Всего записей: <span id="clientTotalRecordsCount">{{ client_stats | length }}</span>, показано <span id="clientVisibleRecordsCount">{{ client_stats | length }}</span>
+          </div>
         </div>
-        <h5 class="card-title mb-0">{{ total_tickets }}</h5>
       </div>
     </div>
-  </div>
-  <div class="col-md-3 mb-3">
-    <div class="card stats-card stats-card-compact" data-stats-card="filtered-records">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="card-text mb-0">Отфильтровано записей</p>
-        </div>
-        <h5 class="card-title mb-0" id="filteredRecordsCount">{{ stats | length }}</h5>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3 mb-3">
-    <div class="card stats-card stats-card-compact" data-stats-card="filtered-tickets">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="card-text mb-0">Отфильтровано заявок</p>
-        </div>
-        <h5 class="card-title mb-0" id="filteredTicketsCount">{{ total_tickets }}</h5>
-      </div>
-    </div>
-  </div>
-</div>
-    <!-- Таблица -->
-      <!-- Обновлённый контейнер для таблицы с фиксированными заголовками -->
- <div class="table-container-wrapper">
-  <div class="table-header">
-    <table class="table table-striped table-hover mb-0" style="width: 100%; table-layout: fixed;">
-      <thead class="table-dark">
-        <tr>
-          <!-- Задаем явно ширину для каждого столбца -->
-          <th class="sortable" data-sort="business" style="width: 15%;">Бизнес ↕</th>
-          <th class="sortable" data-sort="location_type" style="width: 15%;">Тип ↕</th>
-          <th class="sortable" data-sort="city" style="width: 12%;">Город ↕</th>
-          <th class="sortable" data-sort="location_name" style="width: 25%;">Локация ↕</th>
-          <th class="sortable" data-sort="category" style="width: 18%;">Категория ↕</th>
-          <th class="sortable" data-sort="status" style="width: 15%;">Статус ↕</th>
-          <th class="sortable" data-sort="cnt" style="width: 10%;">Количество ↕</th>
-        </tr>
-      </thead>
-    </table>
-  </div>
-  <div class="table-body">
-    <table class="table table-striped table-hover" id="analyticsTable" style="width: 100%; table-layout: fixed;">
-      <tbody>
-        {% for s in stats %}
-        <tr data-business="{{ s.business or '' }}" 
-            data-location-type="{{ s.location_type or '' }}" 
-            data-city="{{ s.city or '' }}" 
-            data-location="{{ s.location_name or '' }}" 
-            data-category="{{ s.category or '' }}" 
-            data-status="{{ s.status or '' }}"
-            data-cnt="{{ s.cnt }}">
-          <td style="width: 15%;">{{ s.business or '—' }}</td>
-          <td style="width: 15%;">{{ s.location_type or '—' }}</td>
-          <td style="width: 12%;">{{ s.city or '—' }}</td>
-          <td style="width: 25%;">{{ s.location_name or '—' }}</td>
-          <td style="width: 18%;">{{ s.category or '—' }}</td>
-          <td style="width: 15%;">{{ s.status or '—' }}</td>
-          <td style="width: 10%;"><strong>{{ s.cnt }}</strong></td>
-        </tr>
-        {% endfor %}
-        <!-- Строка с итоговым количеством заявок -->
-        <tr class="ticket-count-total">
-          <td colspan="6" class="text-end" style="width: 70%;"><strong>Всего заявок:</strong></td>
-          <td style="width: 10%;"><strong id="totalTicketsCount">{{ total_tickets }}</strong></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-    <!-- Пагинация и счетчик -->
-    <div class="d-flex justify-content-between align-items-center mt-3">
-      <div class="clients-counter" id="recordsCounter">
-        Показано: <span id="visibleRecordsCount">{{ stats | length }}</span> из <span id="totalRecordsCount">{{ stats | length }}</span> записей
-      </div>
-      <div class="pagination-controls">
-        <label>Записей на странице:</label>
-        <select class="form-select form-select-sm d-inline-block w-auto" id="pageSizeSelect">
-          <option value="20">20</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-          <option value="200">200</option>
-          <option value="500">500</option>
-        </select>
-      </div>
-    </div>
-  </div>
-  <!-- Модальное окно: фильтры -->
-  <div class="modal fade" id="filtersModal" tabindex="-1">
+  </main>
+
+  <!-- Ticket Filters Modal -->
+  <div class="modal fade" id="ticketFiltersModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Фильтры аналитики</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <h5 class="modal-title">Фильтры аналитики заявок</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body">
           <div class="row filter-row">
             <div class="col-md-4 mb-3">
               <label>Бизнес</label>
-              <select class="form-select filter-select" id="filterBusiness" multiple>
-                {% for business in businesses %}
-                <option value="{{ business }}">{{ business }}</option>
+              <select class="form-select ticket-filter-select" id="ticketFilterBusiness" multiple>
+                {% for value in ticket_filters.businesses %}
+                <option value="{{ value }}">{{ value }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-4 mb-3">
               <label>Тип локации</label>
-              <select class="form-select filter-select" id="filterLocationType" multiple>
-                {% for type in location_types %}
-                <option value="{{ type }}">{{ type }}</option>
+              <select class="form-select ticket-filter-select" id="ticketFilterLocationType" multiple>
+                {% for value in ticket_filters.location_types %}
+                <option value="{{ value }}">{{ value }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-4 mb-3">
               <label>Город</label>
-              <select class="form-select filter-select" id="filterCity" multiple>
-                {% for city in cities %}
-                <option value="{{ city }}">{{ city }}</option>
+              <select class="form-select ticket-filter-select" id="ticketFilterCity" multiple>
+                {% for value in ticket_filters.cities %}
+                <option value="{{ value }}">{{ value }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-4 mb-3">
               <label>Локация</label>
-              <select class="form-select filter-select" id="filterLocation" multiple>
-                {% for location in locations %}
-                <option value="{{ location }}">{{ location }}</option>
+              <select class="form-select ticket-filter-select" id="ticketFilterLocation" multiple>
+                {% for value in ticket_filters.locations %}
+                <option value="{{ value }}">{{ value }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-4 mb-3">
               <label>Категория</label>
-              <select class="form-select filter-select" id="filterCategory" multiple>
-                {% for category in categories %}
-                <option value="{{ category }}">{{ category }}</option>
+              <select class="form-select ticket-filter-select" id="ticketFilterCategory" multiple>
+                {% for value in ticket_filters.categories %}
+                <option value="{{ value }}">{{ value }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-4 mb-3">
               <label>Статус</label>
-              <select class="form-select filter-select" id="filterStatus" multiple>
-                {% for status in statuses %}
-                <option value="{{ status }}">{{ status }}</option>
+              <select class="form-select ticket-filter-select" id="ticketFilterStatus" multiple>
+                {% for value in ticket_filters.statuses %}
+                <option value="{{ value }}">{{ value }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-6 mb-3">
               <label>Количество заявок</label>
-              <select class="form-select" id="filterTicketCount">
+              <select class="form-select" id="ticketFilterCountSelect">
                 <option value="">Все</option>
                 <option value="1">1 заявка</option>
                 <option value="2">2+ заявки</option>
@@ -279,10 +320,9 @@
                 <option value="10">10+ заявок</option>
                 <option value="custom">Своё значение</option>
               </select>
-              <!-- Поле для ввода своего значения -->
-              <div class="custom-ticket-filter" id="customTicketFilter" style="display: none;">
-                <input type="number" min="1" class="form-control custom-ticket-input" id="customTicketValue" placeholder="Число">
-                <select class="form-select" id="customTicketOperator">
+              <div class="custom-ticket-filter" id="ticketCustomCountWrapper" style="display: none;">
+                <input type="number" min="1" class="form-control custom-ticket-input" id="ticketCustomCountValue" placeholder="Число" />
+                <select class="form-select" id="ticketCustomCountOperator">
                   <option value=">=">>= (минимум)</option>
                   <option value="==">== (точно)</option>
                   <option value="<="><= (максимум)</option>
@@ -290,31 +330,30 @@
               </div>
             </div>
           </div>
-          <!-- Активные фильтры -->
-          <div class="mt-3" id="activeFilters" style="display: none;">
+          <div class="mt-3" id="ticketActiveFilters" style="display: none;">
             <h6>Активные фильтры:</h6>
-            <div id="filterBadges"></div>
+            <div id="ticketFilterBadges"></div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" onclick="resetFilters()">Сбросить</button>
-          <button type="button" class="btn btn-primary" onclick="applyFilters()">Применить</button>
+          <button type="button" class="btn btn-secondary" id="ticketResetFiltersBtn">Сбросить</button>
+          <button type="button" class="btn btn-primary" id="ticketApplyFiltersBtn">Применить</button>
         </div>
       </div>
     </div>
   </div>
-  <!-- Модальное окно: экспорт -->
-  <div class="modal fade" id="exportModal" tabindex="-1">
+
+  <div class="modal fade" id="ticketExportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Экспорт данных аналитики</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">Формат:</label>
-            <select class="form-select" id="exportFormat">
+            <select class="form-select" id="ticketExportFormat">
               <option value="xlsx">Excel (.xlsx)</option>
               <option value="csv">CSV</option>
             </select>
@@ -322,371 +361,630 @@
           <div class="mb-3">
             <label class="form-label">Включить:</label>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="exportAllData" checked>
-              <label class="form-check-label" for="exportAllData">Все данные</label>
+              <input class="form-check-input" type="checkbox" id="ticketExportAll" checked />
+              <label class="form-check-label" for="ticketExportAll">Все данные</label>
             </div>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="exportFilteredData">
-              <label class="form-check-label" for="exportFilteredData">Только отфильтрованные данные</label>
+              <input class="form-check-input" type="checkbox" id="ticketExportFiltered" />
+              <label class="form-check-label" for="ticketExportFiltered">Только отфильтрованные данные</label>
             </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-          <button type="button" class="btn btn-success" onclick="exportData()">Экспортировать</button>
+          <button type="button" class="btn btn-success" id="ticketExportSubmit">Экспортировать</button>
         </div>
       </div>
     </div>
   </div>
-  <!-- Подключение JS -->
+
+  <!-- Client Filters Modal -->
+  <div class="modal fade" id="clientFiltersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Фильтры аналитики клиентов</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row filter-row">
+            <div class="col-md-4 mb-3">
+              <label>Бизнес</label>
+              <select class="form-select client-filter-select" id="clientFilterBusiness" multiple>
+                {% for value in client_filters.businesses %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label>Тип локации</label>
+              <select class="form-select client-filter-select" id="clientFilterLocationType" multiple>
+                {% for value in client_filters.location_types %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label>Город</label>
+              <select class="form-select client-filter-select" id="clientFilterCity" multiple>
+                {% for value in client_filters.cities %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label>Локация</label>
+              <select class="form-select client-filter-select" id="clientFilterLocation" multiple>
+                {% for value in client_filters.locations %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label>Категория</label>
+              <select class="form-select client-filter-select" id="clientFilterCategory" multiple>
+                {% for value in client_filters.categories %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label>Статус</label>
+              <select class="form-select client-filter-select" id="clientFilterStatus" multiple>
+                {% for value in client_filters.statuses %}
+                <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="clientResetFiltersBtn">Сбросить</button>
+          <button type="button" class="btn btn-primary" id="clientApplyFiltersBtn">Применить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="clientExportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Экспорт аналитики клиентов</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Формат:</label>
+            <select class="form-select" id="clientExportFormat">
+              <option value="xlsx">Excel (.xlsx)</option>
+              <option value="csv">CSV</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Включить:</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="clientExportAll" checked />
+              <label class="form-check-label" for="clientExportAll">Все данные</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="clientExportFiltered" />
+              <label class="form-check-label" for="clientExportFiltered">Только отфильтрованные данные</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-success" id="clientExportSubmit">Экспортировать</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/ru.js"></script>
-  <!-- Подключение нашего общего JS файла -->
   <script src="{{ url_for('static', filename='common.js') }}"></script>
   <script>
-    // Переменные для хранения состояния фильтров
-    let customFilter = {
-      value: null,
-      operator: '>='
-    };
-    // Переменные для пагинации
-    let currentPage = 1; // Используем как window.analyticsCurrentPage
-    let pageSize = 20;
-    let filteredRecords = [];
-    let originalRecords = [];
-    
-    // Инициализация
-    $(document).ready(function() {
-      // Инициализация Select2 с помощью функции из common.js
-	  $('.filter-select').select2({
-    placeholder: "Выберите...",
-    allowClear: true,
-    language: "ru",
-    dropdownParent: $('#filtersModal')
-  });
-      CommonUtils.initializeSelect2('.filter-select');
+    (function setupTicketAnalytics() {
+      const table = document.getElementById('ticketAnalyticsTable');
+      if (!table) return;
+      const rows = Array.from(table.querySelectorAll('tbody tr')).filter((row) => !row.classList.contains('ticket-count-total'));
+      let filteredRows = Array.from(rows);
+      let currentPage = 1;
+      let pageSize = 20;
+      const modalElement = document.getElementById('ticketFiltersModal');
+      const exportModal = document.getElementById('ticketExportModal');
+      const filterSelects = $('.ticket-filter-select');
+      const filterCountSelect = document.getElementById('ticketFilterCountSelect');
+      const customCountWrapper = document.getElementById('ticketCustomCountWrapper');
+      const customCountValue = document.getElementById('ticketCustomCountValue');
+      const customCountOperator = document.getElementById('ticketCustomCountOperator');
+      const badgesContainer = document.getElementById('ticketFilterBadges');
+      const activeFiltersBlock = document.getElementById('ticketActiveFilters');
+      const activeBadgesContainer = document.getElementById('ticketActiveFiltersBadges');
+      const visibleRecords = document.getElementById('ticketVisibleRecordsCount');
+      const totalRecords = document.getElementById('ticketTotalRecordsCount');
+      const totalTicketsCount = document.getElementById('ticketTotalTicketsCount');
+      const filteredRecordsCount = document.getElementById('ticketFilteredRecordsCount');
+      const filteredTicketsCount = document.getElementById('ticketFilteredTicketsCount');
+      const pageSizeSelect = document.getElementById('ticketPageSizeSelect');
+      const exportAllCheckbox = document.getElementById('ticketExportAll');
+      const exportFilteredCheckbox = document.getElementById('ticketExportFiltered');
+      const exportFormatSelect = document.getElementById('ticketExportFormat');
 
-      // Сохраняем исходные данные
-      filteredRecords = Array.from(document.querySelectorAll('#analyticsTable tbody tr:not(.ticket-count-total)'));
-      originalRecords = Array.from(filteredRecords);
-      
-      // Обработчики изменения фильтров
-      $('#filterTicketCount').on('change', function() {
-        if ($('#filterTicketCount').val() === 'custom') {
-          $('#customTicketFilter').show();
-        } else {
-          $('#customTicketFilter').hide();
-          customFilter.value = null;
-        }
-      });
-      
-      // Обработчик изменения количества элементов на странице
-      $('#pageSizeSelect').on('change', function() {
-        pageSize = parseInt(this.value);
-        applyPagination(); // Предполагаем, что applyPagination определена ниже
-      });
-      
-      // Инициализация сортировки
-      initSorting(); // Предполагаем, что initSorting определена ниже
-      
-      // Инициализация карточек при загрузке
-      CommonUtils.updateAnalyticsStatsCards(originalRecords, filteredRecords);
-    });
-
-    // --- Функции, оставшиеся в основном скрипте ---
-    
-    // Применить пользовательский фильтр
-    function applyCustomFilter() {
-      const value = parseInt($('#customTicketValue').val());
-      const operator = $('#customTicketOperator').val();
-      if (isNaN(value) || value < 1) {
-        CommonUtils.showNotification('Пожалуйста, введите корректное число (минимум 1)', 'warning');
-        return false; // Возвращаем false при ошибке
+      if (exportAllCheckbox) {
+        exportAllCheckbox.addEventListener('change', () => {
+          if (exportAllCheckbox.checked && exportFilteredCheckbox) {
+            exportFilteredCheckbox.checked = false;
+          } else if (!exportAllCheckbox.checked && exportFilteredCheckbox && !exportFilteredCheckbox.checked) {
+            exportAllCheckbox.checked = true;
+          }
+        });
       }
-      customFilter.value = value;
-      customFilter.operator = operator;
-      return true; // Успешно применен
-    }
-
-    // Применение фильтров
-    function applyFilters() {
-        const filters = {
-            business: $('#filterBusiness').val() || [],
-            location_type: $('#filterLocationType').val() || [],
-            city: $('#filterCity').val() || [],
-            location: $('#filterLocation').val() || [],
-            category: $('#filterCategory').val() || [],
-            status: $('#filterStatus').val() || [],
-            ticketCount: $('#filterTicketCount').val()
-        };
-
-        // Если выбран кастомный фильтр, применяем его
-        if (filters.ticketCount === 'custom') {
-            if (!applyCustomFilter()) {
-                return; // Прерываем, если кастомный фильтр некорректен
-            }
-        }
-
-        // Показать/скрыть активные фильтры
-        showActiveFilters(filters);
-
-        // Применить фильтры к данным
-        filteredRecords = originalRecords.filter(row => {
-            // ... (логика фильтрации остается той же) ...
-            const business = row.getAttribute('data-business') || '';
-            const locationType = row.getAttribute('data-location-type') || '';
-            const city = row.getAttribute('data-city') || '';
-            const location = row.getAttribute('data-location') || '';
-            const category = row.getAttribute('data-category') || '';
-            const status = row.getAttribute('data-status') || '';
-            const ticketCount = parseInt(row.getAttribute('data-cnt'));
-
-            let show = true;
-
-            if (filters.business.length > 0 && !filters.business.includes(business)) show = false;
-            if (filters.location_type.length > 0 && !filters.location_type.includes(locationType)) show = false;
-            if (filters.city.length > 0 && !filters.city.includes(city)) show = false;
-            if (filters.location.length > 0 && !filters.location.includes(location)) show = false;
-            if (filters.category.length > 0 && !filters.category.includes(category)) show = false;
-            if (filters.status.length > 0 && !filters.status.includes(status)) show = false;
-
-            if (filters.ticketCount) {
-                if (filters.ticketCount === 'custom' && customFilter.value !== null) {
-                    if (customFilter.operator === '>=' && ticketCount < customFilter.value) show = false;
-                    else if (customFilter.operator === '==' && ticketCount !== customFilter.value) show = false;
-                    else if (customFilter.operator === '<=' && ticketCount > customFilter.value) show = false;
-                } else {
-                    const minCount = parseInt(filters.ticketCount);
-                    if (minCount === 1 && ticketCount !== 1) show = false;
-                    else if (minCount === 2 && ticketCount < 2) show = false;
-                    else if (minCount === 5 && ticketCount < 5) show = false;
-                    else if (minCount === 10 && ticketCount < 10) show = false;
-                }
-            }
-            return show;
+      if (exportFilteredCheckbox) {
+        exportFilteredCheckbox.addEventListener('change', () => {
+          if (exportFilteredCheckbox.checked && exportAllCheckbox) {
+            exportAllCheckbox.checked = false;
+          } else if (!exportFilteredCheckbox.checked && exportAllCheckbox) {
+            exportAllCheckbox.checked = true;
+          }
         });
+      }
 
-        // Сбрасываем пагинацию и применяем
-        currentPage = 1;
-        window.analyticsCurrentPage = currentPage; // Сохраняем в window для доступа из common.js
-        applyPagination();
-        // Обновляем все карточки статистики
-        CommonUtils.updateAnalyticsStatsCards(originalRecords, filteredRecords);
-        
-        // Закрываем модальное окно
-        const modalElement = document.getElementById('filtersModal');
-        if (modalElement) {
-            bootstrap.Modal.getInstance(modalElement)?.hide();
+      const filterState = {
+        business: [],
+        location_type: [],
+        city: [],
+        location: [],
+        category: [],
+        status: [],
+        ticket_count: null,
+        ticket_operator: '>=',
+      };
+
+      function updateStats() {
+        if (visibleRecords) visibleRecords.textContent = filteredRows.length;
+        if (totalRecords) totalRecords.textContent = rows.length;
+        const tickets = filteredRows.reduce((acc, row) => acc + Number(row.dataset.ticketCount || 0), 0);
+        if (filteredTicketsCount) filteredTicketsCount.textContent = tickets;
+        if (totalTicketsCount) totalTicketsCount.textContent = '{{ ticket_total }}';
+      }
+
+      function applyPagination() {
+        const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
+        currentPage = Math.min(currentPage, totalPages);
+        filteredRows.forEach((row) => (row.style.display = 'none'));
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        filteredRows.slice(start, end).forEach((row) => (row.style.display = ''));
+        updateStats();
+      }
+
+      function buildBadge(label, values) {
+        if (!values || !values.length) return '';
+        return `<span class="badge text-bg-secondary filter-badge">${label}: ${values.join(', ')}</span>`;
+      }
+
+      function refreshBadges() {
+        const fragments = [];
+        fragments.push(buildBadge('Бизнес', filterState.business));
+        fragments.push(buildBadge('Тип локации', filterState.location_type));
+        fragments.push(buildBadge('Город', filterState.city));
+        fragments.push(buildBadge('Локация', filterState.location));
+        fragments.push(buildBadge('Категория', filterState.category));
+        fragments.push(buildBadge('Статус', filterState.status));
+        if (filterState.ticket_count) {
+          fragments.push(`<span class="badge text-bg-primary filter-badge">Заявок ${filterState.ticket_operator} ${filterState.ticket_count}</span>`);
         }
-    }
+        const html = fragments.filter(Boolean).join('');
+        if (badgesContainer) badgesContainer.innerHTML = html;
+        if (activeBadgesContainer) activeBadgesContainer.innerHTML = html;
+        const hasFilters = html.trim().length > 0;
+        if (activeFiltersBlock) activeFiltersBlock.style.display = hasFilters ? '' : 'none';
+        if (activeBadgesContainer) activeBadgesContainer.style.display = hasFilters ? '' : 'none';
+      }
 
+      function normalize(value) {
+        return typeof value === 'string' ? value.trim().toLowerCase() : '';
+      }
 
-    // Применение пагинации (логика остается прежней, но использует window.analyticsCurrentPage)
-    function applyPagination() {
-        const tbody = document.querySelector('#analyticsTable tbody');
-        const totalRow = tbody.querySelector('.ticket-count-total');
-        Array.from(tbody.querySelectorAll('tr:not(.ticket-count-total)')).forEach(row => row.remove());
-
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = Math.min(startIndex + pageSize, filteredRecords.length);
-
-        for (let i = startIndex; i < endIndex; i++) {
-            tbody.insertBefore(filteredRecords[i].cloneNode(true), totalRow);
-        }
-        
-        // Обновляем счетчик видимых записей через общую функцию
-        // Логика обновления счетчика теперь внутри updateAnalyticsStatsCards
-        // Но можно и отдельно, если нужно больше контроля
-        // CommonUtils.updateRecordsCounter(endIndex - startIndex, 'totalRecordsCount'); 
-        // Лучше обновлять все вместе
-         CommonUtils.updateAnalyticsStatsCards(originalRecords, filteredRecords);
-    }
-
-    // Показать активные фильтры (частично использует common.js)
-    function showActiveFilters(filters) {
-        const badgesContainer = document.getElementById('filterBadges');
-        const activeBadgesContainer = document.getElementById('activeFiltersBadges');
-        if (!badgesContainer || !activeBadgesContainer) return;
-
-        badgesContainer.innerHTML = '';
-        activeBadgesContainer.innerHTML = '';
-        let hasActiveFilters = false;
-
-        const multiSelectFilters = [
-            { key: 'business', label: 'Бизнес' },
-            { key: 'location_type', label: 'Тип локации' },
-            { key: 'city', label: 'Город' },
-            { key: 'location', label: 'Локация' },
-            { key: 'category', label: 'Категория' },
-            { key: 'status', label: 'Статус' }
+      function passesFilter(row) {
+        const checks = [
+          { key: 'business', attr: 'ticketBusiness' },
+          { key: 'location_type', attr: 'ticketLocationType' },
+          { key: 'city', attr: 'ticketCity' },
+          { key: 'location', attr: 'ticketLocation' },
+          { key: 'category', attr: 'ticketCategory' },
+          { key: 'status', attr: 'ticketStatus' },
         ];
-
-        multiSelectFilters.forEach(filter => {
-            if (filters[filter.key] && filters[filter.key].length > 0) {
-                hasActiveFilters = true;
-                filters[filter.key].forEach(value => {
-                    if (value) {
-                        const badge = CommonUtils.createFilterBadge(filter.label, value, filter.key, value);
-                        badgesContainer.appendChild(badge);
-                        activeBadgesContainer.appendChild(badge.cloneNode(true));
-                    }
-                });
+        for (const check of checks) {
+          const values = filterState[check.key];
+          if (values && values.length) {
+            const value = normalize(row.dataset[check.attr] || '');
+            if (!values.some((item) => normalize(item) === value)) {
+              return false;
             }
+          }
+        }
+        if (filterState.ticket_count) {
+          const count = Number(row.dataset.ticketCount || 0);
+          const threshold = Number(filterState.ticket_count);
+          if (filterState.ticket_operator === '>=') {
+            if (!(count >= threshold)) return false;
+          } else if (filterState.ticket_operator === '<=') {
+            if (!(count <= threshold)) return false;
+          } else if (filterState.ticket_operator === '==') {
+            if (!(count === threshold)) return false;
+          }
+        }
+        return true;
+      }
+
+      function applyFilters() {
+        filteredRows = rows.filter(passesFilter);
+        currentPage = 1;
+        applyPagination();
+      }
+
+      function resetFilters() {
+        Object.keys(filterState).forEach((key) => {
+          if (Array.isArray(filterState[key])) {
+            filterState[key] = [];
+          } else {
+            filterState[key] = null;
+          }
         });
-
-        if (filters.ticketCount) {
-            hasActiveFilters = true;
-            let label;
-            if (filters.ticketCount === 'custom' && customFilter.value !== null) {
-                const operatorSymbols = { '>=': '≥', '==': '=', '<=': '≤' };
-                label = `${operatorSymbols[customFilter.operator]} ${customFilter.value} заявок`;
-            } else {
-                label = CommonUtils.getTicketCountLabel(filters.ticketCount);
-            }
-            const badge = CommonUtils.createFilterBadge('Заявок', label, 'ticketCount');
-            badgesContainer.appendChild(badge);
-            activeBadgesContainer.appendChild(badge.cloneNode(true));
-        }
-
-        document.getElementById('activeFilters').style.display = hasActiveFilters ? 'block' : 'none';
-        activeBadgesContainer.style.display = hasActiveFilters ? 'block' : 'none';
-    }
-
-    // Удалить конкретный фильтр
-    function removeFilter(filterKey, value = null) {
-        if (filterKey === 'ticketCount') {
-            $('#filterTicketCount').val('').trigger('change'); // Используем trigger для Select2
-            $('#customTicketFilter').hide();
-            $('#customTicketValue').val('');
-            customFilter.value = null;
-        } else if (value) {
-            const selectId = `#filter${filterKey.charAt(0).toUpperCase() + filterKey.slice(1)}`;
-            const select = $(selectId);
-            const currentValues = select.val() || [];
-            const newValues = currentValues.filter(v => v !== value);
-            select.val(newValues).trigger('change'); // Используем trigger для Select2
-        }
+        filterState.ticket_operator = '>=';
+        filterSelects.val(null).trigger('change');
+        if (filterCountSelect) filterCountSelect.value = '';
+        if (customCountWrapper) customCountWrapper.style.display = 'none';
+        if (customCountValue) customCountValue.value = '';
+        refreshBadges();
         applyFilters();
-    }
+      }
 
-    // Сброс всех фильтров
-    function resetFilters() {
-        $('.filter-select').val(null).trigger('change'); // Используем trigger для Select2
-        $('#filterTicketCount').val('').trigger('change');
-        $('#customTicketFilter').hide();
-        $('#customTicketValue').val('');
-        customFilter.value = null;
-
-        filteredRecords = Array.from(originalRecords);
-        
-        currentPage = 1;
-        window.analyticsCurrentPage = currentPage;
-        applyPagination();
-        
-        // Обновляем все карточки статистики
-        CommonUtils.updateAnalyticsStatsCards(originalRecords, filteredRecords);
-
-        document.getElementById('filterBadges').innerHTML = '';
-        document.getElementById('activeFiltersBadges').innerHTML = '';
-        document.getElementById('activeFilters').style.display = 'none';
-
-        const tbody = document.querySelector('#analyticsTable tbody');
-        const totalRow = tbody.querySelector('.ticket-count-total');
-        Array.from(tbody.querySelectorAll('tr:not(.ticket-count-total)')).forEach(row => row.remove());
-        filteredRecords.forEach(row => {
-            tbody.insertBefore(row.cloneNode(true), totalRow);
-        });
-    }
-
-    // Инициализация сортировки (логика остается прежней)
-    function initSorting() {
-        document.querySelectorAll('.sortable').forEach(header => {
-            header.addEventListener('click', function() {
-                const column = this.getAttribute('data-sort');
-                const currentOrder = this.getAttribute('data-order') || 'asc';
-                const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-
-                document.querySelectorAll('.sortable').forEach(h => {
-                    h.innerHTML = h.innerHTML.replace(' ↑', '').replace(' ↓', '').replace(' ↕', ' ↕');
-                    h.setAttribute('data-order', '');
-                });
-
-                this.setAttribute('data-order', newOrder);
-                this.innerHTML = this.innerHTML.replace(' ↕', '') + (newOrder === 'asc' ? ' ↑' : ' ↓');
-
-                sortTable(column, newOrder);
-            });
-        });
-    }
-
-    // Сортировка таблицы (логика остается прежней)
-    function sortTable(column, order) {
-        filteredRecords.sort((a, b) => {
-            let aValue, bValue;
-            if (column === 'cnt') {
-                aValue = parseInt(a.getAttribute('data-cnt'));
-                bValue = parseInt(b.getAttribute('data-cnt'));
-            } else {
-                const colIndex = ['business', 'location_type', 'city', 'location_name', 'category', 'status'].indexOf(column);
-                const cellA = a.querySelector(`td:nth-child(${colIndex + 1})`);
-                const cellB = b.querySelector(`td:nth-child(${colIndex + 1})`);
-                aValue = cellA ? cellA.textContent.toLowerCase() : '';
-                bValue = cellB ? cellB.textContent.toLowerCase() : '';
-            }
-            if (aValue === '—') aValue = '';
-            if (bValue === '—') bValue = '';
-            if (order === 'asc') {
-                return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
-            } else {
-                return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
-            }
-        });
-        currentPage = 1;
-        window.analyticsCurrentPage = currentPage;
-        applyPagination();
-    }
-
-    // Подготовка фильтров для экспорта (логика остается прежней)
-    function prepareFiltersForExport() {
-        const filters = {
-            business: $('#filterBusiness').val() || [],
-            location_type: $('#filterLocationType').val() || [],
-            city: $('#filterCity').val() || [],
-            location: $('#filterLocation').val() || [],
-            category: $('#filterCategory').val() || [],
-            status: $('#filterStatus').val() || [],
-            ticketCount: $('#filterTicketCount').val()
+      function initSorting() {
+        const headers = document.querySelectorAll('[data-ticket-sort]');
+        const datasetMap = {
+          business: 'ticketBusiness',
+          location_type: 'ticketLocationType',
+          city: 'ticketCity',
+          location_name: 'ticketLocation',
+          category: 'ticketCategory',
+          status: 'ticketStatus',
+          cnt: 'ticketCount',
         };
-        if (filters.ticketCount === 'custom' && customFilter.value !== null) {
-            filters.customTicketValue = customFilter.value;
-            filters.customTicketOperator = customFilter.operator;
-        }
-        return filters;
-    }
+        let currentSort = { field: null, direction: 'asc' };
+        headers.forEach((header) => {
+          header.addEventListener('click', () => {
+            const field = header.dataset.ticketSort;
+            const datasetKey = datasetMap[field];
+            if (!field || !datasetKey) return;
+            if (currentSort.field === field) {
+              currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+              currentSort = { field, direction: 'asc' };
+            }
+            const sorted = [...filteredRows].sort((a, b) => {
+              if (field === 'cnt') {
+                const valueA = Number(a.dataset.ticketCount || 0);
+                const valueB = Number(b.dataset.ticketCount || 0);
+                return currentSort.direction === 'asc' ? valueA - valueB : valueB - valueA;
+              }
+              const valueA = (a.dataset[datasetKey] || '').toLowerCase();
+              const valueB = (b.dataset[datasetKey] || '').toLowerCase();
+              if (valueA < valueB) return currentSort.direction === 'asc' ? -1 : 1;
+              if (valueA > valueB) return currentSort.direction === 'asc' ? 1 : -1;
+              return 0;
+            });
+            filteredRows = sorted;
+            currentPage = 1;
+            applyPagination();
+          });
+        });
+      }
 
-    // Экспорт данных (использует common.js)
-    async function exportData() {
-        const format = document.getElementById('exportFormat')?.value || 'xlsx';
-        const exportFiltered = document.getElementById('exportFilteredData')?.checked || false;
-        
-        const filters = exportFiltered ? prepareFiltersForExport() : {};
-        
-        // Используем универсальную функцию экспорта из common.js
-        // URL '/analytics/export' предполагается как endpoint для этой страницы
-        await CommonUtils.exportDataGeneric('/analytics/export', format, filters, exportFiltered, 'analytics');
-        
-        // Закрываем модальное окно после экспорта
-        const exportModalElement = document.getElementById('exportModal');
-        if (exportModalElement) {
-            bootstrap.Modal.getInstance(exportModalElement)?.hide();
+      function collectSelectedValues(select) {
+        return $(select).val() || [];
+      }
+
+      function syncFilterState() {
+        filterState.business = collectSelectedValues('#ticketFilterBusiness');
+        filterState.location_type = collectSelectedValues('#ticketFilterLocationType');
+        filterState.city = collectSelectedValues('#ticketFilterCity');
+        filterState.location = collectSelectedValues('#ticketFilterLocation');
+        filterState.category = collectSelectedValues('#ticketFilterCategory');
+        filterState.status = collectSelectedValues('#ticketFilterStatus');
+        const countValue = filterCountSelect ? filterCountSelect.value : '';
+        if (countValue === 'custom') {
+          const customValue = customCountValue ? Number(customCountValue.value || 0) : 0;
+          filterState.ticket_count = customValue > 0 ? customValue : null;
+          filterState.ticket_operator = customCountOperator ? customCountOperator.value : '>=';
+        } else if (countValue) {
+          filterState.ticket_count = Number(countValue);
+          filterState.ticket_operator = '>=';
+        } else {
+          filterState.ticket_count = null;
         }
-    }
+      }
+
+      function exportData() {
+        const exportFiltered = exportFilteredCheckbox && exportFilteredCheckbox.checked;
+        const payload = {
+          format: exportFormatSelect ? exportFormatSelect.value : 'xlsx',
+          filters: filterState,
+          exportFiltered,
+        };
+        fetch('/analytics/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data && data.success && data.url) {
+              window.open(data.url, '_blank');
+            } else {
+              alert('Не удалось подготовить экспорт.');
+            }
+          })
+          .catch(() => alert('Ошибка экспорта данных.'));
+      }
+
+      $(filterSelects).select2({ placeholder: 'Выберите...', allowClear: true, language: 'ru', dropdownParent: $(modalElement) });
+
+      if (filterCountSelect) {
+        filterCountSelect.addEventListener('change', () => {
+          if (filterCountSelect.value === 'custom') {
+            if (customCountWrapper) customCountWrapper.style.display = '';
+          } else {
+            if (customCountWrapper) customCountWrapper.style.display = 'none';
+            if (customCountValue) customCountValue.value = '';
+          }
+        });
+      }
+
+      if (document.getElementById('ticketApplyFiltersBtn')) {
+        document.getElementById('ticketApplyFiltersBtn').addEventListener('click', () => {
+          syncFilterState();
+          refreshBadges();
+          applyFilters();
+          const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+          modal.hide();
+        });
+      }
+
+      if (document.getElementById('ticketResetFiltersBtn')) {
+        document.getElementById('ticketResetFiltersBtn').addEventListener('click', () => {
+          resetFilters();
+        });
+      }
+
+      if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', () => {
+          pageSize = Number(pageSizeSelect.value || 20);
+          currentPage = 1;
+          applyPagination();
+        });
+      }
+
+      if (document.getElementById('ticketExportSubmit')) {
+        document.getElementById('ticketExportSubmit').addEventListener('click', () => {
+          exportData();
+          const modal = bootstrap.Modal.getOrCreateInstance(exportModal);
+          modal.hide();
+        });
+      }
+
+      initSorting();
+      refreshBadges();
+      applyPagination();
+    })();
+
+    (function setupClientAnalytics() {
+      const table = document.getElementById('clientAnalyticsTable');
+      if (!table) return;
+      let rows = Array.from(table.querySelectorAll('tbody tr'));
+      let filteredRows = Array.from(rows);
+      const filterSelects = $('.client-filter-select');
+      const filterModal = document.getElementById('clientFiltersModal');
+      const badgesContainer = document.getElementById('clientActiveFiltersBadges');
+      const visibleCounter = document.getElementById('clientVisibleRecordsCount');
+      const totalCounter = document.getElementById('clientTotalRecordsCount');
+      const filterState = {
+        business: [],
+        location_type: [],
+        city: [],
+        location: [],
+        category: [],
+        status: [],
+      };
+
+      function normalize(value) {
+        return typeof value === 'string' ? value.trim().toLowerCase() : '';
+      }
+
+      function passes(row) {
+        const checks = [
+          { key: 'business', attr: 'clientBusiness' },
+          { key: 'location_type', attr: 'clientLocationType' },
+          { key: 'city', attr: 'clientCity' },
+          { key: 'location', attr: 'clientLocation' },
+          { key: 'category', attr: 'clientCategory' },
+          { key: 'status', attr: 'clientStatus' },
+        ];
+        for (const check of checks) {
+          const values = filterState[check.key];
+          if (values && values.length) {
+            const value = normalize(row.dataset[check.attr] || '');
+            if (!values.some((item) => normalize(item) === value)) return false;
+          }
+        }
+        return true;
+      }
+
+      function updateCounters() {
+        if (visibleCounter) visibleCounter.textContent = filteredRows.length;
+        if (totalCounter) totalCounter.textContent = rows.length;
+      }
+
+      function applyFilters() {
+        filteredRows = rows.filter(passes);
+        rows.forEach((row) => (row.style.display = 'none'));
+        filteredRows.forEach((row) => (row.style.display = ''));
+        updateCounters();
+      }
+
+      function buildBadge(label, values) {
+        if (!values || !values.length) return '';
+        return `<span class="badge text-bg-secondary filter-badge">${label}: ${values.join(', ')}</span>`;
+      }
+
+      function refreshBadges() {
+        const parts = [];
+        parts.push(buildBadge('Бизнес', filterState.business));
+        parts.push(buildBadge('Тип локации', filterState.location_type));
+        parts.push(buildBadge('Город', filterState.city));
+        parts.push(buildBadge('Локация', filterState.location));
+        parts.push(buildBadge('Категория', filterState.category));
+        parts.push(buildBadge('Статус', filterState.status));
+        if (badgesContainer) badgesContainer.innerHTML = parts.filter(Boolean).join('');
+      }
+
+      function collect(selector) {
+        return $(selector).val() || [];
+      }
+
+      function syncState() {
+        filterState.business = collect('#clientFilterBusiness');
+        filterState.location_type = collect('#clientFilterLocationType');
+        filterState.city = collect('#clientFilterCity');
+        filterState.location = collect('#clientFilterLocation');
+        filterState.category = collect('#clientFilterCategory');
+        filterState.status = collect('#clientFilterStatus');
+      }
+
+      function resetFilters() {
+        Object.keys(filterState).forEach((key) => (filterState[key] = []));
+        filterSelects.val(null).trigger('change');
+        refreshBadges();
+        applyFilters();
+      }
+
+      $(filterSelects).select2({ placeholder: 'Выберите...', allowClear: true, language: 'ru', dropdownParent: $(filterModal) });
+
+      if (document.getElementById('clientApplyFiltersBtn')) {
+        document.getElementById('clientApplyFiltersBtn').addEventListener('click', () => {
+          syncState();
+          refreshBadges();
+          applyFilters();
+          const modal = bootstrap.Modal.getOrCreateInstance(filterModal);
+          modal.hide();
+        });
+      }
+
+      if (document.getElementById('clientResetFiltersBtn')) {
+        document.getElementById('clientResetFiltersBtn').addEventListener('click', () => {
+          resetFilters();
+        });
+      }
+
+      const clientExportAll = document.getElementById('clientExportAll');
+      const clientExportFiltered = document.getElementById('clientExportFiltered');
+      if (clientExportAll) {
+        clientExportAll.addEventListener('change', () => {
+          if (clientExportAll.checked && clientExportFiltered) {
+            clientExportFiltered.checked = false;
+          } else if (!clientExportAll.checked && clientExportFiltered && !clientExportFiltered.checked) {
+            clientExportAll.checked = true;
+          }
+        });
+      }
+      if (clientExportFiltered) {
+        clientExportFiltered.addEventListener('change', () => {
+          if (clientExportFiltered.checked && clientExportAll) {
+            clientExportAll.checked = false;
+          } else if (!clientExportFiltered.checked && clientExportAll) {
+            clientExportAll.checked = true;
+          }
+        });
+      }
+
+      if (document.getElementById('clientExportSubmit')) {
+        document.getElementById('clientExportSubmit').addEventListener('click', () => {
+          const formatSelect = document.getElementById('clientExportFormat');
+          const exportFiltered = clientExportFiltered ? clientExportFiltered.checked : false;
+          const payload = {
+            format: formatSelect ? formatSelect.value : 'xlsx',
+            filters: filterState,
+            exportFiltered,
+          };
+          fetch('/analytics/clients/export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data && data.success && data.url) {
+                window.open(data.url, '_blank');
+              } else {
+                alert('Не удалось подготовить экспорт.');
+              }
+            })
+            .catch(() => alert('Ошибка экспорта данных.'));
+          const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('clientExportModal'));
+          modal.hide();
+        });
+      }
+
+      const headers = document.querySelectorAll('[data-client-sort]');
+      const datasetMap = {
+        client_name: 'clientName',
+        username: 'clientUsername',
+        business: 'clientBusiness',
+        location_type: 'clientLocationType',
+        city: 'clientCity',
+        location_name: 'clientLocation',
+        category: 'clientCategory',
+        status: 'clientStatus',
+        tickets: 'clientTickets',
+      };
+      let currentSort = { field: null, direction: 'asc' };
+      headers.forEach((header) => {
+        header.addEventListener('click', () => {
+          const field = header.dataset.clientSort;
+          const datasetKey = datasetMap[field];
+          if (!field || !datasetKey) return;
+          if (currentSort.field === field) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+          } else {
+            currentSort = { field, direction: 'asc' };
+          }
+          const sorted = [...filteredRows].sort((a, b) => {
+            if (field === 'tickets') {
+              const valueA = Number(a.dataset.clientTickets || 0);
+              const valueB = Number(b.dataset.clientTickets || 0);
+              return currentSort.direction === 'asc' ? valueA - valueB : valueB - valueA;
+            }
+            const valueA = (a.dataset[datasetKey] || '').toLowerCase();
+            const valueB = (b.dataset[datasetKey] || '').toLowerCase();
+            if (valueA < valueB) return currentSort.direction === 'asc' ? -1 : 1;
+            if (valueA > valueB) return currentSort.direction === 'asc' ? 1 : -1;
+            return 0;
+          });
+          filteredRows = sorted;
+          filteredRows.forEach((row) => (row.style.display = 'none'));
+          filteredRows.forEach((row) => (row.style.display = ''));
+          updateCounters();
+        });
+      });
+
+      refreshBadges();
+      applyFilters();
+    })();
   </script>
-  </main>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
-  <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
 </body>
 </html>
