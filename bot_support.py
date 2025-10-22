@@ -1858,8 +1858,7 @@ async def run_all_bots():
 
         # Регистрируем ОДИН раз, только в приватных чатах и ПЕРЕД conv_handler
         application.add_handler(
-            MessageHandler(filters.Regex(r'^\d+$') & filters.ChatType.PRIVATE, handle_feedback),
-            block=False,
+            MessageHandler(filters.Regex(r'^\d+$') & filters.ChatType.PRIVATE, handle_feedback)
         )
 
         conv_handler = ConversationHandler(
