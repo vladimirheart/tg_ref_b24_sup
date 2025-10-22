@@ -112,6 +112,12 @@
     .network-equipment-empty { font-size: 0.9rem; }
     .passport-card .form-control,
     .passport-card .form-select { font-size: 0.9rem; }
+    .form-control.auto-resize-input {
+      width: auto;
+      display: inline-block;
+      max-width: 100%;
+      min-width: 0;
+    }
     .searchable-select.dropdown { width: 100%; }
     .searchable-select .dropdown-toggle { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
     .searchable-select .dropdown-toggle .searchable-select-label { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -155,6 +161,7 @@
       .passport-overview .card-body { padding: 1.25rem; }
       .passport-card .card-header { padding: 0.75rem 1rem; }
       .passport-card .card-body { padding: 1rem; }
+      .form-control.auto-resize-input { width: 100% !important; }
     }
   </style>
 </head>
@@ -382,7 +389,7 @@
             <div class="col-12 col-lg-6 d-none" id="statusTaskContainer">
               <label class="form-label">Связанная задача<span class="text-danger">*</span></label>
               <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusTaskSelect" id="statusTaskSearchInput" placeholder="Поиск по номеру или названию" autocomplete="off" />
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusTaskSelect" id="statusTaskSearchInput" placeholder="Поиск по номеру или названию" autocomplete="off" data-no-auto-resize="true" />
                 <select class="form-select form-select-sm" id="statusTaskSelect">
                   <option value="">Не выбрано</option>
                 </select>
@@ -760,6 +767,44 @@
         if (textarea.dataset.noAutoExpand === 'true') return;
         setupAutoExpandTextarea(textarea);
       });
+    }
+
+    function setupAutoResizeInput(input) {
+      if (!input) return;
+      const minChars = Number(input.dataset.autoResizeMinChars) || 20;
+      const maxChars = Number(input.dataset.autoResizeMaxChars) || 50;
+      const extraChars = Number(input.dataset.autoResizeExtraChars) || 2;
+      const applyWidth = () => {
+        const valueLength = input.value ? input.value.length : 0;
+        const targetChars = Math.min(maxChars, Math.max(minChars, valueLength));
+        const widthChars = targetChars + extraChars;
+        input.style.width = `calc(${widthChars}ch)`;
+      };
+      if (input.dataset.autoResizeInitialized === 'true') {
+        applyWidth();
+        return;
+      }
+      input.dataset.autoResizeInitialized = 'true';
+      input.dataset.autoResizeMinChars = String(minChars);
+      input.dataset.autoResizeMaxChars = String(maxChars);
+      input.dataset.autoResizeExtraChars = String(extraChars);
+      input.classList.add('auto-resize-input');
+      input.addEventListener('input', applyWidth);
+      input.addEventListener('change', applyWidth);
+      applyWidth();
+    }
+
+    function initializeAutoResizeInputs(root = document) {
+      const scope = root instanceof Element ? root : document;
+      scope
+        .querySelectorAll('input.form-control.form-control-sm[type="text"]')
+        .forEach((input) => {
+          if (input.dataset.noAutoResize === 'true') return;
+          const context = input.closest('.passport-card, .equipment-card');
+          if (!context) return;
+          if (input.closest('.dropdown-menu')) return;
+          setupAutoResizeInput(input);
+        });
     }
 
     const parameterValuesInitial = {{ parameter_values | tojson }};
@@ -1247,6 +1292,7 @@
       const headerIpValue = card.querySelector('[data-role="equipment-header-ip"]');
       const headerStatusValue = card.querySelector('[data-role="equipment-header-status"]');
       if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      initializeAutoResizeInputs(card);
       const headerToggle = card.querySelector('.equipment-header-toggle');
       const detailsActionToggle = card.querySelector('.equipment-details-toggle');
       const cardHeader = card.querySelector('.card-header');
@@ -1454,6 +1500,7 @@
     const equipmentDisabledHint = document.getElementById('equipmentDisabledHint');
     const addEquipmentBtn = document.getElementById('addEquipmentBtn');
     initializeAutoExpandTextareas();
+    initializeAutoResizeInputs();
     const casesTableBody = document.getElementById('casesTableBody');
     const casesEmptyText = document.getElementById('casesEmptyText');
     const refreshCasesBtn = document.getElementById('refreshCasesBtn');
@@ -1965,6 +2012,7 @@
       Object.entries(networkProfileFieldMapping).forEach(([key, input]) => {
         if (!input) return;
         input.value = profile[key] || '';
+        setupAutoResizeInput(input);
       });
       suppressNetworkProfileSync = false;
     }
@@ -2108,6 +2156,7 @@
         totalMinutes: typeof data.case_time_minutes === 'number' ? data.case_time_minutes : undefined,
         totalDisplay: data.case_time_display,
       });
+      initializeAutoResizeInputs();
       toggleSectionsAvailability();
       updateStatusTaskRequirement();
     }
@@ -2604,6 +2653,9 @@
         `;
         photosContainer.appendChild(col);
       });
+      if (photosContainer) {
+        initializeAutoResizeInputs(photosContainer);
+      }
     }
 
     function updatePhotoPreviewMeta(activeIndex) {
@@ -2825,7 +2877,10 @@
         if (currentPhoto) {
           const captionInput = form.querySelector('.photo-caption');
           const categorySelect = form.querySelector('.photo-category');
-          if (captionInput) captionInput.value = currentPhoto.caption || '';
+          if (captionInput) {
+            captionInput.value = currentPhoto.caption || '';
+            setupAutoResizeInput(captionInput);
+          }
           if (categorySelect) categorySelect.value = currentPhoto.category || 'archive';
         }
         form.classList.remove('d-none');
@@ -2879,6 +2934,7 @@
           throw new Error(data.error || 'Ошибка при загрузке фото');
         }
         photoUploadForm.reset();
+        initializeAutoResizeInputs(photoUploadForm);
         renderPhotos(data.photos || []);
         showSaveMessage('success', 'Фото добавлено.');
       } catch (error) {
@@ -3144,6 +3200,7 @@
         `;
         container.appendChild(col);
       });
+      initializeAutoResizeInputs(container);
     }
 
     equipmentContainer.addEventListener('click', async (event) => {
