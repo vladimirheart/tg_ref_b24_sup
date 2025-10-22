@@ -275,7 +275,7 @@ BUSINESS_OPTIONS = list(LOCATIONS.keys())
 SETTINGS = load_settings()
 
 
-def load_bot_settings_config():
+def load_bot_settings_config(channel_id: int | None = None):
     try:
         settings_payload = load_settings()
     except Exception:
@@ -292,10 +292,96 @@ def load_bot_settings_config():
     )
 
     if isinstance(settings_payload, dict):
-        return sanitize_bot_settings(
+        config = sanitize_bot_settings(
             settings_payload.get("bot_settings"), definitions=definitions
         )
-    return default_bot_settings(definitions)
+    else:
+        config = default_bot_settings(definitions)
+
+    if channel_id is None:
+        return config
+
+    question_template_id = None
+    rating_template_id = None
+    raw_cfg = None
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT question_template_id, rating_template_id, questions_cfg FROM channels WHERE id = ?",
+                (channel_id,),
+            ).fetchone()
+        if row:
+            question_template_id = (row["question_template_id"] or "").strip()
+            rating_template_id = (row["rating_template_id"] or "").strip()
+            raw_cfg = row["questions_cfg"]
+    except Exception:
+        row = None
+
+    if raw_cfg and (not question_template_id or not rating_template_id):
+        try:
+            parsed_cfg = json.loads(raw_cfg)
+        except Exception:
+            parsed_cfg = {}
+        if not question_template_id:
+            question_template_id = (
+                parsed_cfg.get("question_template_id")
+                or parsed_cfg.get("questionTemplateId")
+                or ""
+            ).strip()
+        if not rating_template_id:
+            rating_template_id = (
+                parsed_cfg.get("rating_template_id")
+                or parsed_cfg.get("ratingTemplateId")
+                or ""
+            ).strip()
+
+    question_templates = config.get("question_templates") or []
+    question_ids = [
+        tpl.get("id")
+        for tpl in question_templates
+        if isinstance(tpl, dict) and tpl.get("id")
+    ]
+    if question_template_id not in question_ids:
+        fallback_q = config.get("active_template_id")
+        if fallback_q not in question_ids:
+            fallback_q = question_ids[0] if question_ids else None
+        question_template_id = fallback_q
+    if question_template_id:
+        config["active_template_id"] = question_template_id
+        template = next(
+            (tpl for tpl in question_templates if tpl.get("id") == question_template_id),
+            None,
+        )
+        if template:
+            config["question_flow"] = template.get("question_flow", [])
+
+    rating_templates = config.get("rating_templates") or []
+    rating_ids = [
+        tpl.get("id")
+        for tpl in rating_templates
+        if isinstance(tpl, dict) and tpl.get("id")
+    ]
+    if rating_template_id not in rating_ids:
+        fallback_r = config.get("active_rating_template_id")
+        if fallback_r not in rating_ids:
+            fallback_r = rating_ids[0] if rating_ids else None
+        rating_template_id = fallback_r
+    if rating_template_id:
+        config["active_rating_template_id"] = rating_template_id
+        rating_template = next(
+            (tpl for tpl in rating_templates if tpl.get("id") == rating_template_id),
+            None,
+        )
+        if rating_template:
+            config["rating_system"] = {
+                "prompt_text": rating_template.get("prompt_text", ""),
+                "scale_size": rating_template.get("scale_size", 1),
+                "responses": rating_template.get("responses", []),
+            }
+
+    return config
 
 # --- вспомогательная клавиатура ---
 def get_keyboard_with_back(options, has_back=True, has_cancel=True):
@@ -1328,7 +1414,8 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.chat_data.get("awaiting_rating"):
         return
     txt = (update.message.text or "").strip()
-    bot_config = load_bot_settings_config()
+    channel_id = context.chat_data.get("channel_id") or get_channel_id_by_token(context.bot.token)
+    bot_config = load_bot_settings_config(channel_id)
     allowed_values = rating_allowed_values(bot_config)
     if txt not in allowed_values:
         scale = rating_scale(bot_config)
@@ -1408,7 +1495,7 @@ def set_setting(channel_id: int, key: str, value: str):
 def get_rating_prompt_text(channel_id: int, ticket_id: str | None = None) -> str:
     """Шаблон запроса оценки. Поддерживает {ticket_id} в тексте."""
     # Значение можно редактировать на settings.html -> пишет в app_settings
-    bot_config = load_bot_settings_config()
+    bot_config = load_bot_settings_config(channel_id)
     scale = max(1, rating_scale(bot_config))
     base_prompt = rating_prompt(
         bot_config,
@@ -1477,35 +1564,80 @@ def auto_close_inactive():
 def get_questions_cfg(channel_id: int) -> dict:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    row = conn.execute("SELECT questions_cfg, max_questions FROM channels WHERE id = ?", (channel_id,)).fetchone()
+    row = conn.execute(
+        "SELECT questions_cfg, max_questions FROM channels WHERE id = ?",
+        (channel_id,),
+    ).fetchone()
     conn.close()
-    if not row:
-        return {"per_dialog_limit": 0, "questions": []}
+
     try:
-        cfg = json.loads(row["questions_cfg"] or "{}")
-    except:
-        cfg = {}
-    cfg.setdefault("per_dialog_limit", row["max_questions"] or 0)
-    questions = cfg.setdefault("questions", [])
-    try:
-        questions.sort(key=lambda item: int(item.get("order") or 0))
+        stored_cfg = json.loads(row["questions_cfg"] or "{}") if row else {}
     except Exception:
-        pass
-    for idx, item in enumerate(questions, start=1):
-        item.setdefault("order", idx)
-        item.setdefault("label", item.get("label") or item.get("question") or "")
-    cfg.setdefault("feedback", {})
-    fb = cfg["feedback"]
-    bot_config = load_bot_settings_config()
+        stored_cfg = {}
+
+    per_limit = 0
+    if isinstance(stored_cfg, dict):
+        raw_limit = stored_cfg.get("per_dialog_limit")
+        try:
+            per_limit = int(raw_limit)
+        except (TypeError, ValueError):
+            per_limit = 0
+    if not per_limit and row:
+        per_limit = row["max_questions"] or 0
+
+    bot_config = load_bot_settings_config(channel_id)
+    question_flow = bot_config.get("question_flow") or []
+    questions: list[dict] = []
+    for index, question in enumerate(question_flow, start=1):
+        if not isinstance(question, dict):
+            continue
+        try:
+            order = int(question.get("order") or index)
+        except (TypeError, ValueError):
+            order = index
+        text = str(question.get("text") or "").strip()
+        if not text:
+            continue
+        entry = {
+            "order": order,
+            "label": text,
+        }
+        if question.get("type"):
+            entry["type"] = question.get("type")
+        if isinstance(question.get("preset"), dict):
+            entry["preset"] = question.get("preset")
+        if isinstance(question.get("excluded_options"), list):
+            entry["excluded_options"] = question.get("excluded_options")
+        questions.append(entry)
+
+    questions.sort(key=lambda item: item.get("order", 0))
+
+    feedback_cfg = {}
+    if isinstance(stored_cfg, dict) and isinstance(stored_cfg.get("feedback"), dict):
+        feedback_cfg = dict(stored_cfg.get("feedback"))
+
+    prompts = {}
+    if isinstance(feedback_cfg.get("prompts"), dict):
+        prompts.update({k: str(v) for k, v in feedback_cfg["prompts"].items() if isinstance(v, str)})
+
     scale = max(1, rating_scale(bot_config))
     scale_hint = f"1–{scale}" if scale > 1 else "1"
-    fb.setdefault("prompts", {
-        "on_close": f"🌟 Пожалуйста, оцените нашу поддержку: отправьте цифру {scale_hint}.",
-        "on_auto_close": f"Диалог закрыт по неактивности. Пожалуйста, оцените нашу поддержку: {scale_hint}."
-    })
-    fb.setdefault("auto_close_extra_text", "")
-    cfg.setdefault("feedback", {})
-    return cfg
+    prompts.setdefault("on_close", f"🌟 Пожалуйста, оцените нашу поддержку: отправьте цифру {scale_hint}.")
+    prompts.setdefault(
+        "on_auto_close",
+        f"Диалог закрыт по неактивности. Пожалуйста, оцените нашу поддержку: {scale_hint}.",
+    )
+
+    feedback_cfg["prompts"] = prompts
+    feedback_cfg["auto_close_extra_text"] = str(feedback_cfg.get("auto_close_extra_text") or "")
+    feedback_cfg["rating_template_id"] = bot_config.get("active_rating_template_id")
+
+    return {
+        "per_dialog_limit": max(0, per_limit),
+        "questions": questions,
+        "question_template_id": bot_config.get("active_template_id"),
+        "feedback": feedback_cfg,
+    }
 
 def with_channel(handler):
     @wraps(handler)
@@ -1640,7 +1772,8 @@ async def run_all_bots():
             try:
                 user_id = update.effective_user.id
                 raw = (update.message.text or "").strip()
-                bot_config = load_bot_settings_config()
+                channel_id = context.chat_data.get("channel_id") or get_channel_id_by_token(context.bot.token)
+                bot_config = load_bot_settings_config(channel_id)
                 allowed_values = rating_allowed_values(bot_config)
                 if raw not in allowed_values:
                     scale = rating_scale(bot_config)
@@ -1653,7 +1786,6 @@ async def run_all_bots():
 
                 # Проверяем, есть ли активный запрос на оценку (для этого канала и пользователя)
                 now_iso = datetime.now().isoformat()
-                channel_id = get_channel_id_by_token(context.bot.token)
                 with sqlite3.connect(DB_PATH) as conn:
                     conn.row_factory = sqlite3.Row
                     row = conn.execute("""
