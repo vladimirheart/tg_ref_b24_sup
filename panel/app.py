@@ -1976,7 +1976,8 @@ def ensure_channels_schema():
         conn = get_db()
         cur = conn.cursor()
         cols = {r['name'] for r in cur.execute("PRAGMA table_info(channels)").fetchall()}
-        # ожидаемые поля: id, token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active
+        # ожидаемые поля: id, token, bot_name, bot_username, channel_name,
+        # questions_cfg, max_questions, is_active, question_template_id, rating_template_id
         if 'bot_name' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN bot_name TEXT")
         if 'bot_username' not in cols:
@@ -1989,6 +1990,10 @@ def ensure_channels_schema():
             cur.execute("ALTER TABLE channels ADD COLUMN max_questions INTEGER DEFAULT 0")
         if 'is_active' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN is_active INTEGER DEFAULT 1")
+        if 'question_template_id' not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN question_template_id TEXT")
+        if 'rating_template_id' not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN rating_template_id TEXT")
         try:
             cur.execute(
                 "UPDATE channels SET bot_username = COALESCE(bot_username, bot_name) WHERE bot_username IS NULL OR bot_username = ''"
@@ -2002,6 +2007,20 @@ def ensure_channels_schema():
         try: conn.close()
         except: pass
 ensure_channels_schema()
+
+def _load_sanitized_bot_settings_payload():
+    settings_payload = load_settings()
+    locations_payload = load_locations()
+    location_tree = (
+        locations_payload.get("tree", {})
+        if isinstance(locations_payload, dict)
+        else {}
+    )
+    definitions = build_location_presets(
+        location_tree, base_definitions=DEFAULT_BOT_PRESET_DEFINITIONS
+    )
+    source = settings_payload.get("bot_settings") if isinstance(settings_payload, dict) else None
+    return sanitize_bot_settings(source, definitions=definitions)
 
 def _fetch_bot_identity(token: str) -> tuple[str, str]:
     if not token:
@@ -5097,9 +5116,11 @@ def api_channels_create():
     data = request.get_json(force=True)
     token = (data.get("token") or "").strip()
     channel_name = (data.get("channel_name") or "").strip()
-    questions_cfg = data.get("questions_cfg") or {}
+    raw_questions_cfg = data.get("questions_cfg") or {}
     max_questions = int(data.get("max_questions") or 0)
     is_active = 1 if data.get("is_active", True) else 0
+    question_template_id = (data.get("question_template_id") or "").strip()
+    rating_template_id = (data.get("rating_template_id") or "").strip()
 
     if not token or not channel_name:
         return jsonify({"success": False, "error": "token и channel_name обязательны"}), 400
@@ -5109,12 +5130,60 @@ def api_channels_create():
     except Exception as e:
         return jsonify({"success": False, "error": f"Ошибка проверки токена: {e}"}), 400
 
+    bot_settings = _load_sanitized_bot_settings_payload()
+    question_templates = bot_settings.get("question_templates") or []
+    question_ids = {tpl.get("id") for tpl in question_templates if isinstance(tpl, dict) and tpl.get("id")}
+    default_question_template_id = (
+        bot_settings.get("active_template_id")
+        if isinstance(bot_settings.get("active_template_id"), str)
+        else None
+    ) or (next(iter(question_ids)) if question_ids else None)
+
+    rating_templates = bot_settings.get("rating_templates") or []
+    rating_ids = {tpl.get("id") for tpl in rating_templates if isinstance(tpl, dict) and tpl.get("id")}
+    default_rating_template_id = (
+        bot_settings.get("active_rating_template_id")
+        if isinstance(bot_settings.get("active_rating_template_id"), str)
+        else None
+    ) or (next(iter(rating_ids)) if rating_ids else None)
+
+    if isinstance(raw_questions_cfg, str):
+        try:
+            questions_cfg = json.loads(raw_questions_cfg)
+        except Exception:
+            questions_cfg = {}
+    elif isinstance(raw_questions_cfg, dict):
+        questions_cfg = dict(raw_questions_cfg)
+    else:
+        questions_cfg = {}
+
+    q_from_cfg = (questions_cfg.get("question_template_id")
+        or questions_cfg.get("questionTemplateId")
+        or "").strip()
+    r_from_cfg = (questions_cfg.get("rating_template_id")
+        or questions_cfg.get("ratingTemplateId")
+        or "").strip()
+    if q_from_cfg:
+        question_template_id = q_from_cfg
+    if r_from_cfg:
+        rating_template_id = r_from_cfg
+
+    if question_template_id not in question_ids:
+        question_template_id = default_question_template_id
+    if rating_template_id not in rating_ids:
+        rating_template_id = default_rating_template_id
+
+    if question_template_id:
+        questions_cfg["question_template_id"] = question_template_id
+    if rating_template_id:
+        questions_cfg["rating_template_id"] = rating_template_id
+
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
         """
-        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active)
-        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active)
+        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id)
+        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id)
         """,
         {
             "token": token,
@@ -5124,6 +5193,8 @@ def api_channels_create():
             "questions_cfg": json.dumps(questions_cfg, ensure_ascii=False),
             "max_questions": max_questions,
             "is_active": is_active,
+            "question_template_id": question_template_id,
+            "rating_template_id": rating_template_id,
         },
     )
     conn.commit()
@@ -5134,8 +5205,14 @@ def api_channels_create():
 @login_required
 def api_channels_update(channel_id):
     data = request.get_json(force=True)
+    if "question_template_id" in data:
+        value = data.get("question_template_id")
+        data["question_template_id"] = value.strip() if isinstance(value, str) else value
+    if "rating_template_id" in data:
+        value = data.get("rating_template_id")
+        data["rating_template_id"] = value.strip() if isinstance(value, str) else value
     fields, params = [], {"id": channel_id}
-    for k in ("channel_name", "questions_cfg", "max_questions", "is_active"):
+    for k in ("channel_name", "questions_cfg", "max_questions", "is_active", "question_template_id", "rating_template_id"):
         if k in data:
             fields.append(f"{k} = :{k}")
             params[k] = json.dumps(data[k], ensure_ascii=False) if k == "questions_cfg" else data[k]
