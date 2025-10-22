@@ -98,12 +98,14 @@ DEFAULT_IT_CONNECTION_CATEGORIES = {
     "equipment_type": "Тип оборудования",
     "equipment_vendor": "Производитель оборудования",
     "equipment_model": "Модель оборудования",
+    "equipment_status": "Статус оборудования",
 }
 
 DEFAULT_IT_CONNECTION_CATEGORY_FIELDS = {
     "equipment_type": "equipment_type",
     "equipment_vendor": "equipment_vendor",
     "equipment_model": "equipment_model",
+    "equipment_status": "equipment_status",
 }
 
 
@@ -1343,7 +1345,7 @@ def _parameter_values_for_passports():
 
 
 def _collect_it_equipment_options():
-    options = {"types": [], "vendors": [], "models": [], "serials": []}
+    options = {"types": [], "vendors": [], "models": [], "serials": [], "statuses": []}
     catalog_items = []
     try:
         with get_db() as conn:
@@ -1366,6 +1368,9 @@ def _collect_it_equipment_options():
             elif category == "equipment_model":
                 if value not in options["models"]:
                     options["models"].append(value)
+            elif category == "equipment_status":
+                if value not in options["statuses"]:
+                    options["statuses"].append(value)
         for catalog_item in catalog_items:
             equipment_type = (catalog_item.get("equipment_type") or "").strip()
             vendor = (catalog_item.get("equipment_vendor") or "").strip()
@@ -4050,164 +4055,168 @@ def api_notifications_mark():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-# === Аналитика по клиентам (ДЕТАЛЬНАЯ ГРУППИРОВКА) ===
+# === Аналитика (заявки и клиенты) ===
+
+def _prepare_ticket_analytics(conn):
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT business, location_type, city, location_name, category, status, COUNT(*) as cnt
+        FROM messages JOIN tickets USING(ticket_id)
+        GROUP BY business, location_type, city, location_name, category, status
+        """
+    )
+    rows = cur.fetchall()
+    total_tickets = sum(row["cnt"] for row in rows)
+
+    cur.execute("SELECT DISTINCT business FROM messages WHERE business IS NOT NULL")
+    businesses = [row["business"] for row in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT location_type FROM messages WHERE location_type IS NOT NULL")
+    location_types = [row["location_type"] for row in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT city FROM messages WHERE city IS NOT NULL")
+    cities = [row["city"] for row in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT location_name FROM messages WHERE location_name IS NOT NULL")
+    locations = [row["location_name"] for row in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT category FROM messages WHERE category IS NOT NULL")
+    categories = [row["category"] for row in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT status FROM tickets WHERE status IS NOT NULL")
+    statuses = [row["status"] for row in cur.fetchall()]
+
+    filters = {
+        "businesses": businesses,
+        "location_types": location_types,
+        "cities": cities,
+        "locations": locations,
+        "categories": categories,
+        "statuses": statuses,
+    }
+    return rows, total_tickets, filters
+
+
+def _prepare_client_analytics(conn):
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT
+            m.user_id,
+            COALESCE(
+                (
+                    SELECT client_name
+                    FROM messages
+                    WHERE user_id = m.user_id
+                      AND client_name IS NOT NULL
+                      AND client_name != ''
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ),
+                m.client_name
+            ) AS client_name,
+            m.username,
+            m.business,
+            m.location_type,
+            m.city,
+            m.location_name,
+            m.category,
+            t.status,
+            COUNT(*) AS tickets
+        FROM messages m
+        JOIN tickets t ON m.ticket_id = t.ticket_id
+        GROUP BY
+            m.user_id,
+            client_name,
+            m.username,
+            m.business,
+            m.location_type,
+            m.city,
+            m.location_name,
+            m.category,
+            t.status
+        ORDER BY tickets DESC
+        """
+    )
+    rows = cur.fetchall()
+
+    expanded_rows = []
+    for row in rows:
+        categories_raw = row["category"] or ""
+        parts = [part.strip() for part in categories_raw.split(",") if part.strip()]
+        if not parts:
+            parts = ["без категории"]
+        for part in parts:
+            new_row = dict(row)
+            new_row["category"] = part
+            expanded_rows.append(new_row)
+
+    total_tickets = sum(r["tickets"] for r in expanded_rows)
+
+    cur.execute(
+        """
+        SELECT DISTINCT
+            business,
+            location_type,
+            city,
+            location_name,
+            category
+        FROM messages
+        WHERE business IS NOT NULL
+        """
+    )
+    filter_rows = cur.fetchall()
+    businesses = sorted({row["business"] for row in filter_rows if row["business"]})
+    location_types = sorted({row["location_type"] for row in filter_rows if row["location_type"]})
+    cities = sorted({row["city"] for row in filter_rows if row["city"]})
+    locations = sorted({row["location_name"] for row in filter_rows if row["location_name"]})
+    categories = sorted({row["category"] for row in filter_rows if row["category"]})
+
+    cur.execute("SELECT DISTINCT status FROM tickets WHERE status IS NOT NULL")
+    statuses = [row["status"] for row in cur.fetchall()]
+
+    filters = {
+        "businesses": businesses,
+        "location_types": location_types,
+        "cities": cities,
+        "locations": locations,
+        "categories": categories,
+        "statuses": statuses,
+    }
+    return expanded_rows, total_tickets, filters
+
+
 @app.route("/analytics/clients")
 @login_required
 def analytics_clients():
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        # Берём разрез по клиентам, чтобы строки были «про клиента», а не агрегаты без user_id
-        cur.execute("""
-            SELECT 
-                m.user_id,
-                COALESCE(
-                    (SELECT client_name
-                     FROM messages
-                     WHERE user_id = m.user_id
-                       AND client_name IS NOT NULL AND client_name != ''
-                     ORDER BY created_at DESC LIMIT 1),
-                    m.client_name
-                ) AS client_name,
-                m.username,
-                m.business,
-                m.location_type,
-                m.city,
-                m.location_name,
-                m.category,
-                t.status,
-                COUNT(*) AS tickets
-            FROM messages m
-            JOIN tickets t ON m.ticket_id = t.ticket_id
-            GROUP BY 
-                m.user_id,
-                client_name,
-                m.username,
-                m.business,
-                m.location_type,
-                m.city,
-                m.location_name,
-                m.category,
-                t.status
-            ORDER BY tickets DESC
-        """)
-        rows = cur.fetchall()
+    tab = request.args.get("tab") or "clients"
+    return redirect(url_for("analytics", tab=tab))
 
-        # Разбиваем мультикатегории "кат1, кат2, кат3" на отдельные строки
-        expanded_rows = []
-        for row in rows:
-            cats = (row['category'] or '').split(',') if row['category'] else ['без категории']
-            for cat in cats:
-                new_row = dict(row)
-                new_row['category'] = cat.strip()
-                expanded_rows.append(new_row)
-
-        rows = expanded_rows
-
-        # Итоговое количество «заявок» в таблице (сумма tickets по всем строкам)
-        total_entries = sum(r['tickets'] for r in rows)
-
-        # Данные для фильтров (как и раньше)
-        cur.execute("""
-            SELECT DISTINCT 
-                business,
-                location_type,
-                city,
-                location_name,
-                category
-            FROM messages
-            WHERE business IS NOT NULL
-        """)
-        filter_data_rows = cur.fetchall()
-        businesses = sorted({r['business'] for r in filter_data_rows if r['business']})
-        location_types = sorted({r['location_type'] for r in filter_data_rows if r['location_type']})
-        cities = sorted({r['city'] for r in filter_data_rows if r['city']})
-        locations = sorted({r['location_name'] for r in filter_data_rows if r['location_name']})
-        categories = sorted({r['category'] for r in filter_data_rows if r['category']})
-
-        cur.execute("SELECT DISTINCT status FROM tickets WHERE status IS NOT NULL")
-        statuses = [r['status'] for r in cur.fetchall()]
-
-        conn.close()
-
-        return render_template(
-            "analytics_clients.html",
-            clients=rows,
-            total_tickets=total_entries,
-            businesses=businesses,
-            location_types=location_types,
-            cities=cities,
-            locations=locations,
-            categories=categories,
-            statuses=statuses
-        )
-
-    except Exception as e:
-        print(f"❌ Ошибка в аналитике клиентов: {e}")
-        import traceback; traceback.print_exc()
-        conn.close()
-        return render_template(
-            "analytics_clients.html",
-            clients=[],
-            total_tickets=0,
-            businesses=[],
-            location_types=[],
-            cities=[],
-            locations=[],
-            categories=[],
-            statuses=[]
-        )
 
 @app.route("/analytics")
 @login_required
 def analytics():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT business, location_type, city, location_name, category, status, COUNT(*) as cnt
-        FROM messages JOIN tickets USING(ticket_id)
-        GROUP BY business, location_type, city, location_name, category, status
-    """)
-    rows = cur.fetchall()
-    print(f"DEBUG: Found {len(rows)} analytics rows")
-    print(f"DEBUG: Sample row: {rows[0] if rows else 'None'}")
-    
-    # Рассчитываем общее количество заявок
-    total_tickets = 0
-    for row in rows:
-        total_tickets += row['cnt']
-    
-    # Получаем уникальные значения для фильтров
-    cur.execute("SELECT DISTINCT business FROM messages WHERE business IS NOT NULL")
-    businesses = [row['business'] for row in cur.fetchall()]
-    
-    cur.execute("SELECT DISTINCT location_type FROM messages WHERE location_type IS NOT NULL")
-    location_types = [row['location_type'] for row in cur.fetchall()]
-    
-    cur.execute("SELECT DISTINCT city FROM messages WHERE city IS NOT NULL")
-    cities = [row['city'] for row in cur.fetchall()]
-    
-    cur.execute("SELECT DISTINCT location_name FROM messages WHERE location_name IS NOT NULL")
-    locations = [row['location_name'] for row in cur.fetchall()]
-    
-    cur.execute("SELECT DISTINCT category FROM messages WHERE category IS NOT NULL")
-    categories = [row['category'] for row in cur.fetchall()]
-    
-    cur.execute("SELECT DISTINCT status FROM tickets WHERE status IS NOT NULL")
-    statuses = [row['status'] for row in cur.fetchall()]
-    
-    conn.close()
-    
-    return render_template("analytics.html", 
-                         stats=rows,
-                         total_tickets=total_tickets,  # ✅ Добавляем общее количество заявок
-                         businesses=businesses,
-                         location_types=location_types,
-                         cities=cities,
-                         locations=locations,
-                         categories=categories,
-                         statuses=statuses)
-                         
+    try:
+        ticket_rows, ticket_total, ticket_filters = _prepare_ticket_analytics(conn)
+        client_rows, client_total, client_filters = _prepare_client_analytics(conn)
+    finally:
+        conn.close()
+
+    selected_tab = request.args.get("tab") or "tickets"
+
+    return render_template(
+        "analytics.html",
+        ticket_stats=ticket_rows,
+        ticket_total=ticket_total,
+        ticket_filters=ticket_filters,
+        client_stats=client_rows,
+        client_total=client_total,
+        client_filters=client_filters,
+        active_tab=selected_tab,
+    )
+
 
 # === Детали клиента для аналитики ===
 @app.route("/analytics/clients/<int:user_id>/details")
@@ -5569,7 +5578,8 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             equipment_type = (extra_payload.get("equipment_type") or "").strip()
             equipment_vendor = (extra_payload.get("equipment_vendor") or "").strip()
             equipment_model = (extra_payload.get("equipment_model") or "").strip()
-            if not any((equipment_type, equipment_vendor, equipment_model)):
+            equipment_status = (extra_payload.get("equipment_status") or "").strip()
+            if not any((equipment_type, equipment_vendor, equipment_model, equipment_status)):
                 parts = [part.strip() for part in (value or "").split("/") if part.strip()]
                 if parts:
                     equipment_type = parts[0]
@@ -5588,6 +5598,8 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     category_raw = "equipment_vendor"
                 elif equipment_model:
                     category_raw = "equipment_model"
+                elif equipment_status:
+                    category_raw = "equipment_status"
                 else:
                     category_raw = "equipment_type"
             if category_raw not in it_connection_categories:
@@ -5598,6 +5610,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                 "equipment_type": equipment_type,
                 "equipment_vendor": equipment_vendor,
                 "equipment_model": equipment_model,
+                "equipment_status": equipment_status,
             }
             if category_field:
                 effective_value = (value_by_category.get(category_field) or value or "").strip()
@@ -5615,6 +5628,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     "equipment_type": equipment_type,
                     "equipment_vendor": equipment_vendor,
                     "equipment_model": equipment_model,
+                    "equipment_status": equipment_status,
                 }
             )
             entry.update(
@@ -5625,6 +5639,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     "equipment_type": equipment_type,
                     "equipment_vendor": equipment_vendor,
                     "equipment_model": equipment_model,
+                    "equipment_status": equipment_status,
                     "extra": extra_payload,
                     "usage_count": usage.get(slug, {}).get(effective_value, 0)
                     if category_raw == "equipment_type" and effective_value
@@ -5765,6 +5780,7 @@ def api_create_parameter():
             "equipment_type": (payload.get("equipment_type") or "").strip(),
             "equipment_vendor": (payload.get("equipment_vendor") or "").strip(),
             "equipment_model": (payload.get("equipment_model") or "").strip(),
+            "equipment_status": (payload.get("equipment_status") or "").strip(),
         }
         category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(category)
         if category_field:
@@ -5776,6 +5792,7 @@ def api_create_parameter():
                     "equipment_type": "",
                     "equipment_vendor": "",
                     "equipment_model": "",
+                    "equipment_status": "",
                 }
             )
         extra_payload = sanitized
@@ -5882,6 +5899,7 @@ def api_update_parameter(param_id):
                 "equipment_type": (extra_payload.get("equipment_type") or "").strip(),
                 "equipment_vendor": (extra_payload.get("equipment_vendor") or "").strip(),
                 "equipment_model": (extra_payload.get("equipment_model") or "").strip(),
+                "equipment_status": (extra_payload.get("equipment_status") or "").strip(),
             }
             current_category = sanitized["category"]
             if not current_category:
@@ -5891,6 +5909,8 @@ def api_update_parameter(param_id):
                     current_category = "equipment_vendor"
                 elif sanitized["equipment_model"]:
                     current_category = "equipment_model"
+                elif sanitized["equipment_status"]:
+                    current_category = "equipment_status"
                 else:
                     current_category = "equipment_type"
             if current_category not in categories and sanitized.get("category_label"):
@@ -5912,7 +5932,7 @@ def api_update_parameter(param_id):
                     current_category, current_category
                 )
 
-            for field in ("equipment_type", "equipment_vendor", "equipment_model"):
+            for field in ("equipment_type", "equipment_vendor", "equipment_model", "equipment_status"):
                 if field in payload:
                     sanitized[field] = (payload.get(field) or "").strip()
 
@@ -5926,6 +5946,7 @@ def api_update_parameter(param_id):
                         "equipment_type": "",
                         "equipment_vendor": "",
                         "equipment_model": "",
+                        "equipment_status": "",
                     }
                 )
 
