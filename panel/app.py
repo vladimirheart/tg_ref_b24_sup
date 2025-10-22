@@ -5508,7 +5508,16 @@ def update_settings():
         return jsonify({"success": False, "error": str(e)})
 
 def _parameter_usage_counts():
-    usage: dict[str, dict[str, int]] = {key: {} for key in PARAMETER_TYPES.keys()}
+    usage: dict[str, dict] = {key: {} for key in PARAMETER_TYPES.keys()}
+    it_usage = usage.setdefault(
+        "it_connection",
+        {
+            "equipment_type": {},
+            "equipment_vendor": {},
+            "equipment_model": {},
+            "equipment_status": {},
+        },
+    )
     try:
         with get_passport_db() as conn:
             for slug, column in PARAMETER_USAGE_MAPPING.items():
@@ -5523,11 +5532,38 @@ def _parameter_usage_counts():
                     ).fetchall()
                 except sqlite3.OperationalError:
                     continue
-                bucket = usage.setdefault(slug, {})
+                if slug == "it_connection":
+                    bucket = it_usage.setdefault("equipment_type", {})
+                else:
+                    bucket = usage.setdefault(slug, {})
                 for row in rows:
                     value = (row["value"] or "").strip()
                     if value:
                         bucket[value] = row["total"]
+
+            equipment_columns = [
+                ("equipment_type", "equipment_type"),
+                ("equipment_vendor", "vendor"),
+                ("equipment_model", "model"),
+                ("equipment_status", "status"),
+            ]
+            for category, column in equipment_columns:
+                try:
+                    rows = conn.execute(
+                        f"""
+                        SELECT TRIM(COALESCE({column}, '')) AS value, COUNT(*) AS total
+                        FROM object_passport_equipment
+                        WHERE TRIM(COALESCE({column}, '')) != ''
+                        GROUP BY TRIM(COALESCE({column}, ''))
+                        """
+                    ).fetchall()
+                except sqlite3.OperationalError:
+                    continue
+                bucket = it_usage.setdefault(category, {})
+                for row in rows:
+                    value = (row["value"] or "").strip()
+                    if value:
+                        bucket[value] = bucket.get(value, 0) + row["total"]
     except Exception:
         return usage
     return usage
@@ -5550,6 +5586,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             return {key: [] for key in PARAMETER_TYPES.keys()}
         raise
     usage = _parameter_usage_counts()
+    it_usage = usage.get("it_connection") if isinstance(usage.get("it_connection"), dict) else {}
     grouped = {key: [] for key in PARAMETER_TYPES.keys()}
     it_connection_categories = get_it_connection_categories()
     for row in rows:
@@ -5565,13 +5602,19 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                 extra_payload = json.loads(raw_extra)
             except Exception:
                 extra_payload = {}
+        if slug == "it_connection":
+            usage_count = 0
+        else:
+            bucket = usage.get(slug, {})
+            usage_count = bucket.get(normalized, 0) if isinstance(bucket, dict) else 0
+
         entry = {
             "id": row["id"],
             "value": value,
             "state": row["state"] or "Активен",
             "is_deleted": bool(row["is_deleted"]),
             "deleted_at": row["deleted_at"],
-            "usage_count": usage.get(slug, {}).get(normalized, 0),
+            "usage_count": usage_count,
             "extra": extra_payload,
         }
         if slug == "it_connection":
@@ -5631,6 +5674,11 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     "equipment_status": equipment_status,
                 }
             )
+            category_usage = 0
+            if isinstance(it_usage, dict):
+                bucket = it_usage.get(category_raw)
+                if isinstance(bucket, dict):
+                    category_usage = bucket.get(effective_value, 0)
             entry.update(
                 {
                     "value": effective_value,
@@ -5641,9 +5689,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     "equipment_model": equipment_model,
                     "equipment_status": equipment_status,
                     "extra": extra_payload,
-                    "usage_count": usage.get(slug, {}).get(effective_value, 0)
-                    if category_raw == "equipment_type" and effective_value
-                    else 0,
+                    "usage_count": category_usage,
                 }
             )
         elif slug == "iiko_server":
