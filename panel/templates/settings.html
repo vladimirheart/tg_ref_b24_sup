@@ -24,6 +24,12 @@
       box-shadow: 0 0.25rem 0.75rem rgba(13, 110, 253, 0.15);
     }
 
+    .settings-tiles .settings-tile.is-active {
+      border-color: rgba(13, 110, 253, 0.45);
+      box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.2);
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.18), #ffffff);
+    }
+
     .settings-tiles .settings-tile:hover {
       transform: translateY(-4px);
       box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.12);
@@ -597,6 +603,47 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div
+              class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4 settings-tiles"
+              data-it-section-tiles
+            >
+              <div class="col">
+                <div class="card settings-tile h-100" data-it-section-target="#itConnectionsSection" tabindex="0">
+                  <div class="card-body text-center">
+                    <div class="tile-icon">🔌</div>
+                    <h6 class="card-title mb-1">Оборудование</h6>
+                    <p class="card-text text-muted small mb-0">Настройте типы и категории подключений.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="card settings-tile h-100" data-it-section-target="#remoteAccessSection" tabindex="0">
+                  <div class="card-body text-center">
+                    <div class="tile-icon">🌐</div>
+                    <h6 class="card-title mb-1">Удалённый доступ</h6>
+                    <p class="card-text text-muted small mb-0">Справочник инструментов для инженеров.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="card settings-tile h-100" data-it-section-target="#itEquipmentSection" tabindex="0">
+                  <div class="card-body text-center">
+                    <div class="tile-icon">🗃️</div>
+                    <h6 class="card-title mb-1">Каталог оборудования</h6>
+                    <p class="card-text text-muted small mb-0">Карточки моделей и сопутствующие материалы.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="card settings-tile h-100" data-it-section-target="#networkProfilesSection" tabindex="0">
+                  <div class="card-body text-center">
+                    <div class="tile-icon">📡</div>
+                    <h6 class="card-title mb-1">Профили провайдеров</h6>
+                    <p class="card-text text-muted small mb-0">Контакты и договоры подключений.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="accordion" id="itSettingsAccordion">
               <div class="accordion-item">
                 <h2 class="accordion-header" id="itConnectionsSectionHeading">
@@ -1880,17 +1927,23 @@
       return '<span class="text-muted">—</span>';
     }
     const category = normalizeItConnectionCategory(item.category);
-    if (category !== 'equipment_type') {
-      return '<span class="text-muted">—</span>';
-    }
-    const filterKey = PARAMETER_FILTER_KEYS.it_connection;
     const value = item && item.value ? String(item.value).trim() : '';
-    if (!filterKey || !value) {
+    const usage = Number.isFinite(Number(item && item.usage_count)) ? Number(item.usage_count) : 0;
+    if (!value) {
       return '<span class="text-muted">—</span>';
     }
-    const usage = Number.isFinite(Number(item && item.usage_count)) ? Number(item.usage_count) : 0;
-    const url = `/object_passports?${filterKey}=${encodeURIComponent(value)}`;
-    return `<a href="${url}" class="btn btn-link btn-sm p-0">${usage}</a>`;
+    if (category === 'equipment_type') {
+      const filterKey = PARAMETER_FILTER_KEYS.it_connection;
+      if (!filterKey) {
+        const className = usage > 0 ? 'fw-semibold text-dark' : 'text-muted';
+        return `<span class="${className}">${usage}</span>`;
+      }
+      const url = `/object_passports?${filterKey}=${encodeURIComponent(value)}`;
+      const className = 'btn btn-link btn-sm p-0' + (usage > 0 ? '' : ' text-muted');
+      return `<a href="${url}" class="${className}">${usage}</a>`;
+    }
+    const className = usage > 0 ? 'fw-semibold text-dark' : 'text-muted';
+    return `<span class="${className}">${usage}</span>`;
   }
 
   function buildItConnectionsRows() {
@@ -2854,6 +2907,73 @@
   renderNetworkProfiles();
   renderItConnectionsTable();
   loadItEquipment();
+
+  const itSectionTilesContainer = document.querySelector('[data-it-section-tiles]');
+
+  function activateItSectionTile(targetSelector) {
+    if (!itSectionTilesContainer) return;
+    const tiles = Array.from(
+      itSectionTilesContainer.querySelectorAll('[data-it-section-target]')
+    );
+    tiles.forEach((tile) => {
+      const matches = tile.dataset.itSectionTarget === targetSelector;
+      tile.classList.toggle('is-active', matches);
+      tile.setAttribute('aria-pressed', matches ? 'true' : 'false');
+    });
+  }
+
+  if (itSectionTilesContainer) {
+    const tiles = Array.from(
+      itSectionTilesContainer.querySelectorAll('[data-it-section-target]')
+    );
+    tiles.forEach((tile) => {
+      if (!tile.hasAttribute('role')) {
+        tile.setAttribute('role', 'button');
+      }
+      if (!tile.hasAttribute('tabindex')) {
+        tile.setAttribute('tabindex', '0');
+      }
+      tile.setAttribute('aria-pressed', 'false');
+    });
+
+    const collapses = Array.from(
+      document.querySelectorAll('#itSettingsAccordion .accordion-collapse')
+    );
+
+    itSectionTilesContainer.addEventListener('click', (event) => {
+      const tile = event.target.closest('[data-it-section-target]');
+      if (!tile) return;
+      const targetSelector = tile.dataset.itSectionTarget;
+      if (!targetSelector) return;
+      const target = document.querySelector(targetSelector);
+      if (!target) return;
+      const collapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
+      collapse.show();
+      activateItSectionTile(targetSelector);
+      setTimeout(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    });
+
+    itSectionTilesContainer.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const tile = event.target.closest('[data-it-section-target]');
+      if (!tile) return;
+      event.preventDefault();
+      tile.click();
+    });
+
+    collapses.forEach((collapseEl) => {
+      collapseEl.addEventListener('shown.bs.collapse', () => {
+        activateItSectionTile(`#${collapseEl.id}`);
+      });
+    });
+
+    const initiallyShown = collapses.find((collapseEl) => collapseEl.classList.contains('show'));
+    if (initiallyShown) {
+      activateItSectionTile(`#${initiallyShown.id}`);
+    }
+  }
 
   async function loadParameters() {
     try {
