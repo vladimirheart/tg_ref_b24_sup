@@ -337,18 +337,32 @@
 
     <!-- Автоматическое закрытие -->
     <div class="modal fade" id="autoCloseModal" tabindex="-1" aria-labelledby="autoCloseModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="autoCloseModalLabel">⏱️ Автоматическое закрытие диалогов</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div class="mb-3">
-              <label for="autoCloseHours" class="form-label">Закрывать заявку при неактивности (часы)</label>
-              <input type="number" class="form-control" id="autoCloseHours" value="{{ settings.auto_close_hours }}" min="1" max="168">
+            <section class="mb-4">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                  <h6 class="mb-1">Шаблоны автозакрытия</h6>
+                  <p class="small text-muted mb-0">
+                    Создайте несколько сценариев автозакрытия и выберите основной. Каждый шаблон можно настроить отдельно.
+                  </p>
+                </div>
+                <button class="btn btn-sm btn-outline-success" type="button" onclick="addAutoCloseTemplate()">+ Шаблон</button>
+              </div>
+              <div class="d-flex flex-column gap-3" data-auto-close-templates></div>
+            </section>
+            <div class="alert alert-light border small mb-0" role="alert">
+              Активный шаблон будет применяться по умолчанию. Позже вы сможете выбирать подходящий сценарий для каждого бота.
             </div>
-            <p class="text-muted small">После сохранения параметр будет применён ко всем новым диалогам.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+            <button type="button" class="btn btn-primary" onclick="saveSettings()">Сохранить изменения</button>
           </div>
         </div>
       </div>
@@ -1063,6 +1077,9 @@
   <script>
   const RAW_DIALOG_CONFIG = {{ settings.dialog_config | tojson | safe }};
   const DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
+  const RAW_AUTO_CLOSE_CONFIG = {{ (settings.auto_close_config or {}) | tojson | safe }};
+  const AUTO_CLOSE_CONFIG = RAW_AUTO_CLOSE_CONFIG && typeof RAW_AUTO_CLOSE_CONFIG === 'object' ? RAW_AUTO_CLOSE_CONFIG : {};
+  const AUTO_CLOSE_FALLBACK_HOURS = Number({{ settings.auto_close_hours | tojson }}) || 24;
   const FALLBACK_DIALOG_CATEGORIES = {{ settings.categories | tojson | safe }};
 
   const BOT_SETTINGS_INITIAL = {{ settings.bot_settings | tojson | safe }};
@@ -4572,11 +4589,11 @@
 
   function findDialogTemplateCard(source) {
     if (!(source instanceof HTMLElement)) return null;
-    return source.closest('[data-category-template], [data-question-template], [data-completion-template]');
+    return source.closest('[data-category-template], [data-question-template], [data-completion-template], [data-auto-close-template]');
   }
 
   function toggleDialogTemplateEditor(source, forceState) {
-    const card = source instanceof HTMLElement && source.matches('[data-category-template], [data-question-template], [data-completion-template]')
+    const card = source instanceof HTMLElement && source.matches('[data-category-template], [data-question-template], [data-completion-template], [data-auto-close-template]')
       ? source
       : findDialogTemplateCard(source);
     if (!card) return;
@@ -5019,6 +5036,249 @@
     updateCompletionTemplateSummary(card);
   }
 
+  function buildAutoCloseTemplateCard(template) {
+    const list = document.querySelector('[data-auto-close-templates]');
+    if (!list) return null;
+    const data = template && typeof template === 'object' ? template : {};
+    const templateId = data.id || generateDialogTemplateId('auto');
+    const name = typeof data.name === 'string' ? data.name : '';
+    const description = typeof data.description === 'string' ? data.description : '';
+    let hoursCandidate = null;
+    ['hours', 'timeout_hours', 'auto_close_hours'].some((key) => {
+      const value = data && typeof data === 'object' ? Number(data[key]) : NaN;
+      if (Number.isFinite(value) && value > 0) {
+        hoursCandidate = value;
+        return true;
+      }
+      return false;
+    });
+    const rawHours = Number.isFinite(hoursCandidate) && hoursCandidate > 0 ? hoursCandidate : AUTO_CLOSE_FALLBACK_HOURS;
+    const hours = Math.min(Math.max(Math.round(rawHours || AUTO_CLOSE_FALLBACK_HOURS), 1), 720);
+    const safeIdAttr = escapeHtml(templateId);
+    const safeName = escapeHtml(name);
+    const safeDescription = escapeHtml(description);
+
+    const card = document.createElement('div');
+    card.className = 'card shadow-sm dialog-template-card';
+    card.dataset.autoCloseTemplate = 'true';
+    card.dataset.templateId = templateId;
+
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+          <div class="d-flex align-items-start gap-3 w-100">
+            <div class="form-check mt-1">
+              <input class="form-check-input" type="radio" name="autoCloseActive" value="${safeIdAttr}" data-auto-close-active>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="mb-1" data-auto-close-title>Шаблон автозакрытия</h6>
+              <div class="small text-muted dialog-template-summary" data-auto-close-summary>Настройте параметры автозакрытия.</div>
+            </div>
+          </div>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary" type="button" data-dialog-template-toggle onclick="toggleDialogTemplateEditor(this)">Настроить</button>
+            <button class="btn btn-outline-danger" type="button" onclick="removeAutoCloseTemplate(this)">Удалить</button>
+          </div>
+        </div>
+        <div class="dialog-template-editor bg-light mt-3" data-dialog-template-editor>
+          <div class="mb-3">
+            <label class="form-label" for="auto-template-name-${safeIdAttr}">Название шаблона</label>
+            <input type="text" class="form-control form-control-sm auto-close-template-name" id="auto-template-name-${safeIdAttr}" placeholder="Например, 24 часа" value="${safeName}">
+          </div>
+          <div class="row g-2">
+            <div class="col-lg-4">
+              <label class="form-label" for="auto-template-hours-${safeIdAttr}">Через сколько закрывать (часы)</label>
+              <input type="number" class="form-control form-control-sm auto-close-template-hours" id="auto-template-hours-${safeIdAttr}" min="1" max="720" step="1" value="${hours}">
+              <div class="form-text">Минимум 1 час, максимум 720 часов.</div>
+            </div>
+            <div class="col-lg-8">
+              <label class="form-label" for="auto-template-description-${safeIdAttr}">Описание (необязательно)</label>
+              <textarea class="form-control form-control-sm auto-close-template-description" id="auto-template-description-${safeIdAttr}" rows="2" placeholder="Добавьте комментарий или условия срабатывания.">${safeDescription}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    list.appendChild(card);
+
+    const nameInput = card.querySelector('.auto-close-template-name');
+    const hoursInput = card.querySelector('.auto-close-template-hours');
+    const descriptionInput = card.querySelector('.auto-close-template-description');
+    const activeInput = card.querySelector('[data-auto-close-active]');
+
+    const updateSummary = () => updateAutoCloseTemplateSummary(card);
+
+    nameInput?.addEventListener('input', updateSummary);
+    descriptionInput?.addEventListener('input', updateSummary);
+    hoursInput?.addEventListener('input', () => {
+      if (!hoursInput) return;
+      const value = Math.round(Number(hoursInput.value));
+      if (!Number.isFinite(value) || value <= 0) {
+        hoursInput.classList.add('is-invalid');
+      } else {
+        hoursInput.classList.remove('is-invalid');
+      }
+      updateSummary();
+    });
+
+    activeInput?.addEventListener('change', () => {
+      document.querySelectorAll('[data-auto-close-template]').forEach((otherCard) => {
+        if (!(otherCard instanceof HTMLElement)) return;
+        otherCard.classList.toggle('border-primary', otherCard === card && activeInput.checked);
+      });
+    });
+
+    const hasCustomHours = data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'hours');
+    const hasInitialData = Boolean(name) || Boolean(description) || hasCustomHours;
+    toggleDialogTemplateEditor(card, !hasInitialData);
+    updateAutoCloseTemplateSummary(card);
+    return card;
+  }
+
+  function updateAutoCloseTemplateSummary(card) {
+    if (!(card instanceof HTMLElement)) return;
+    const nameInput = card.querySelector('.auto-close-template-name');
+    const hoursInput = card.querySelector('.auto-close-template-hours');
+    const descriptionInput = card.querySelector('.auto-close-template-description');
+    const titleEl = card.querySelector('[data-auto-close-title]');
+    const summaryEl = card.querySelector('[data-auto-close-summary]');
+    const name = (nameInput?.value || '').trim();
+    const description = (descriptionInput?.value || '').trim();
+    const hoursValue = Math.round(Number(hoursInput?.value));
+
+    if (titleEl) {
+      titleEl.textContent = name || 'Шаблон автозакрытия';
+    }
+
+    if (summaryEl) {
+      if (!Number.isFinite(hoursValue) || hoursValue <= 0) {
+        summaryEl.textContent = 'Укажите время автозакрытия и при необходимости описание.';
+      } else {
+        const normalized = Math.min(Math.max(hoursValue, 1), 720);
+        const hoursText = `${normalized} ${pluralizeRussian(normalized, ['час', 'часа', 'часов'])}`;
+        if (description) {
+          summaryEl.textContent = `Закрытие через ${hoursText}. ${description}`;
+        } else {
+          summaryEl.textContent = `Закрытие через ${hoursText}.`;
+        }
+      }
+    }
+  }
+
+  function addAutoCloseTemplate(template) {
+    const card = buildAutoCloseTemplateCard(template);
+    if (!card) return;
+    const activeInput = card.querySelector('[data-auto-close-active]');
+    if (activeInput) {
+      const shouldActivate = template?.isActive === true;
+      activeInput.checked = shouldActivate;
+      if (shouldActivate) {
+        activeInput.dispatchEvent(new Event('change'));
+      }
+    }
+  }
+
+  function removeAutoCloseTemplate(trigger) {
+    const card = trigger?.closest('[data-auto-close-template]');
+    const list = document.querySelector('[data-auto-close-templates]');
+    if (!card || !list) return;
+    const wasActive = card.querySelector('[data-auto-close-active]')?.checked;
+    card.remove();
+    if (!list.querySelector('[data-auto-close-template]')) {
+      addAutoCloseTemplate({ hours: AUTO_CLOSE_FALLBACK_HOURS, isActive: true });
+    }
+    if (wasActive) {
+      const firstRadio = list.querySelector('[data-auto-close-template] [data-auto-close-active]');
+      if (firstRadio instanceof HTMLInputElement) {
+        firstRadio.checked = true;
+        firstRadio.dispatchEvent(new Event('change'));
+      }
+    }
+  }
+
+  function collectAutoCloseConfig() {
+    const cards = Array.from(document.querySelectorAll('[data-auto-close-template]'));
+    const templates = [];
+    let hasInvalidHours = false;
+    cards.forEach((card, index) => {
+      if (!(card instanceof HTMLElement)) return;
+      let templateId = card.dataset.templateId || generateDialogTemplateId('auto');
+      card.dataset.templateId = templateId;
+      const nameInput = card.querySelector('.auto-close-template-name');
+      const hoursInput = card.querySelector('.auto-close-template-hours');
+      const descriptionInput = card.querySelector('.auto-close-template-description');
+      const name = (nameInput?.value || '').trim();
+      const description = (descriptionInput?.value || '').trim();
+      const rawHours = Math.round(Number(hoursInput?.value));
+      if (!Number.isFinite(rawHours) || rawHours <= 0) {
+        hasInvalidHours = true;
+        hoursInput?.classList.add('is-invalid');
+        return;
+      }
+      const normalizedHours = Math.min(Math.max(rawHours, 1), 720);
+      if (hoursInput) {
+        hoursInput.classList.remove('is-invalid');
+        hoursInput.value = normalizedHours;
+      }
+      if (!templateId) {
+        templateId = generateDialogTemplateId('auto');
+        card.dataset.templateId = templateId;
+      }
+      templates.push({
+        id: templateId,
+        name: name || `Шаблон автозакрытия ${index + 1}`,
+        hours: normalizedHours,
+        description,
+      });
+    });
+    const activeInput = document.querySelector('input[name="autoCloseActive"]:checked');
+    const activeId = activeInput?.value && templates.some((tpl) => tpl.id === activeInput.value)
+      ? activeInput.value
+      : (templates[0]?.id || null);
+    const errors = hasInvalidHours ? ['Укажите корректное количество часов для всех шаблонов автозакрытия.'] : [];
+    return { templates, active_template_id: activeId, errors };
+  }
+
+  function initAutoCloseTemplates() {
+    const list = document.querySelector('[data-auto-close-templates]');
+    if (!list) return;
+    list.innerHTML = '';
+    const rawTemplates = Array.isArray(AUTO_CLOSE_CONFIG.templates) ? AUTO_CLOSE_CONFIG.templates : [];
+    const activeId = typeof AUTO_CLOSE_CONFIG.active_template_id === 'string' ? AUTO_CLOSE_CONFIG.active_template_id : null;
+    if (rawTemplates.length) {
+      rawTemplates.forEach((template) => {
+        const card = buildAutoCloseTemplateCard(template);
+        if (!card) return;
+        const radio = card.querySelector('[data-auto-close-active]');
+        if (radio instanceof HTMLInputElement) {
+          const isActive = typeof template?.id === 'string' && template.id === activeId;
+          radio.checked = isActive;
+          radio.dispatchEvent(new Event('change'));
+          card.dataset.templateId = template.id || card.dataset.templateId;
+        }
+        updateAutoCloseTemplateSummary(card);
+      });
+    } else {
+      const card = buildAutoCloseTemplateCard({ hours: AUTO_CLOSE_FALLBACK_HOURS });
+      if (card) {
+        const radio = card.querySelector('[data-auto-close-active]');
+        if (radio instanceof HTMLInputElement) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change'));
+        }
+      }
+    }
+
+    if (!document.querySelector('input[name="autoCloseActive"]:checked')) {
+      const firstRadio = list.querySelector('[data-auto-close-template] [data-auto-close-active]');
+      if (firstRadio instanceof HTMLInputElement) {
+        firstRadio.checked = true;
+        firstRadio.dispatchEvent(new Event('change'));
+      }
+    }
+  }
+
   function initDialogTemplates() {
     const categoryTemplates = Array.isArray(DIALOG_CONFIG.category_templates)
       ? DIALOG_CONFIG.category_templates
@@ -5054,8 +5314,23 @@
   // === Сохранение всех настроек ===
   async function saveSettings() {
     try {
-      const hours = document.getElementById('autoCloseHours').value;
-      
+      const autoCloseState = collectAutoCloseConfig();
+      if (autoCloseState.errors && autoCloseState.errors.length) {
+        alert(autoCloseState.errors.join('\n'));
+        return;
+      }
+      if (!autoCloseState.templates.length) {
+        alert('Добавьте хотя бы один шаблон автозакрытия.');
+        return;
+      }
+      const activeTemplate = autoCloseState.templates.find((tpl) => tpl.id === autoCloseState.active_template_id)
+        || autoCloseState.templates[0];
+      const autoCloseHours = activeTemplate?.hours || AUTO_CLOSE_FALLBACK_HOURS;
+      const autoClosePayload = {
+        templates: autoCloseState.templates,
+        active_template_id: autoCloseState.active_template_id,
+      };
+
       // Собираем шаблоны категорий
       const categoryTemplates = Array.from(document.querySelectorAll('[data-category-template]')).map((card, index) => {
         if (!(card instanceof HTMLElement)) return null;
@@ -5131,6 +5406,8 @@
           dialog_category_templates: categoryTemplates,
           dialog_question_templates: questionTemplates,
           dialog_completion_templates: completionTemplates,
+          auto_close_config: autoClosePayload,
+          auto_close_hours: autoCloseHours,
         })
       });
       
@@ -5147,6 +5424,7 @@
 
   // === Запуск при загрузке страницы ===
   document.addEventListener('DOMContentLoaded', () => {
+    initAutoCloseTemplates();
     initDialogTemplates();
     initLocationWizard();
     buildLocationsTree();
