@@ -451,7 +451,7 @@
                     <input type="text" class="form-control form-control-sm" id="networkTunnelInput" placeholder="Например, VPN-01" />
                   </div>
                   <div class="col-12">
-                    <label class="form-label">Оборудование (наименование · IP)</label>
+                    <label class="form-label">Оборудование (наименование и IP)</label>
                     <div class="network-equipment-summary" id="networkEquipmentSummary">
                       <div class="network-equipment-empty text-muted">Оборудование ещё не добавлено.</div>
                     </div>
@@ -1892,7 +1892,7 @@
           if (!name && !ip) return null;
           const nameHtml = escapeHtml(name || '—');
           const ipHtml = escapeHtml(ip || '—');
-          return `<li class="network-equipment-entry"><span class="network-equipment-name">${nameHtml}</span><span class="network-equipment-separator">·</span><span class="network-equipment-ip">${ipHtml}</span></li>`;
+          return `<li class="network-equipment-entry"><span class="network-equipment-name">${nameHtml}</span><span class="network-equipment-separator"></span><span class="network-equipment-ip">${ipHtml}</span></li>`;
         })
         .filter(Boolean);
       if (!items.length) {
