@@ -2,184 +2,193 @@
   "auto_close_hours": 12,
   "categories": [
     "Консультация",
+    "Не работает акция",
+    "Ошибка отдела обращения",
+    "Техническая проблема",
+    "Другое",
     "Обучение",
-    "Не работает касса",
-    "Проблемы с акцией"
+    "цук"
   ],
   "client_statuses": [
-    "Новый",
-    "Постоянный",
-    "VIP"
+    "Сотрудник локации",
+    "Менеджер",
+    "ТУ",
+    "Сотрудник офиса",
+    "VIP",
+    "Постоянный клиент",
+    "Новый клиент",
+    "Проблемный клиент"
   ],
-  "network_profiles": [],
-  "it_connection_categories": {},
   "dialog_config": {
     "category_templates": [
       {
-        "id": "cat_0840c476",
-        "name": "Шаблон категорий для ресторанов",
+        "id": "cat-default",
+        "name": "Основной шаблон",
         "categories": [
           "Консультация",
+          "Не работает акция",
+          "Ошибка отдела обращения",
+          "Техническая проблема",
+          "Другое",
           "Обучение",
-          "Не работает касса",
-          "Проблемы с акцией"
+          "цук"
         ]
       },
       {
-        "id": "cat-ci0548-mh0mntpa",
-        "name": "Тестовый шаблон",
+        "id": "cat-it",
+        "name": "Техническая поддержка",
         "categories": [
-          "Тест1",
-          "тест2",
-          "3тест"
+          "Сбой оборудования",
+          "Проблема с интернетом",
+          "Инцидент безопасности"
         ]
       }
     ],
     "question_templates": [
       {
-        "id": "q-qdj6wf-mh05zw89",
-        "name": "Шаблон вопросов 1",
+        "id": "q-start",
+        "name": "Базовые вопросы",
         "questions": [
-          "ещё остались не отвеченные вопросы?",
-          "опять?",
-          "И зачем?",
-          "С подобным запросом необходимо обратиться к вашему ТУ."
-        ]
-      },
-      {
-        "id": "q-75gmh6-mh0mspiz",
-        "name": "Тестовый шаблон сохранённых ответов",
-        "questions": [
-          "Опять ты?",
-          "Ну ты заходи, если что)©",
-          "Наташа, ты всё проспала)))",
-          "Вставай, нигер",
-          "И кто этого придурка из психушки выпустил?©",
-          "Сказочный клоун"
+          "Подскажите, в какой локации возникла проблема?",
+          "Сколько времени длится ситуация?",
+          "Есть ли сопроводительные материалы (фото, скриншоты)?"
         ]
       }
     ],
     "completion_templates": [
       {
-        "id": "act-fcbapg-mh05zw89",
-        "name": "Шаблон действий 1",
+        "id": "act-standard",
+        "name": "Стандартные действия",
         "items": [
           {
-            "question": "Закрыть?",
-            "action": "Да"
+            "question": "Клиент подтвердил решение?",
+            "action": "Получить подтверждение и зафиксировать результат в заявке."
+          },
+          {
+            "question": "Нужно ли сопровождение после закрытия?",
+            "action": "Сообщить ответственному и создать напоминание при необходимости."
           }
         ]
       }
     ]
   },
+  "network_profiles": [
+    {
+      "provider": "Ростелеком",
+      "contract_number": "33333",
+      "support_phone": "+7-999-999-99-99",
+      "legal_entity": "Крепвиль"
+    },
+    {
+      "provider": "ДомРу",
+      "contract_number": "ДР555",
+      "support_phone": "+7-955-555-55-55",
+      "legal_entity": "Сашим"
+    },
+    {
+      "provider": "ДомРу",
+      "contract_number": "ДР5555",
+      "support_phone": "+7-955-555-55-59",
+      "legal_entity": "Сашим"
+    }
+  ],
+  "it_connection_categories": {},
   "bot_settings": {
     "question_templates": [
       {
-        "id": "tpl_mh1ljy4cnsp9",
-        "name": "Базовый шаблон вопросов",
+        "id": "template-default",
+        "name": "Основной шаблон вопросов",
         "question_flow": [
           {
             "id": "business",
             "type": "preset",
-            "order": 1,
+            "text": "Бизнес",
             "preset": {
               "group": "locations",
               "field": "business"
             },
-            "text": "Бизнес"
+            "order": 1
           },
           {
             "id": "location_type",
             "type": "preset",
-            "order": 2,
+            "text": "Тип бизнеса",
             "preset": {
               "group": "locations",
               "field": "location_type"
             },
-            "text": "Тип бизнеса"
+            "order": 2
           },
           {
             "id": "city",
             "type": "preset",
-            "order": 3,
+            "text": "Город",
             "preset": {
               "group": "locations",
               "field": "city"
             },
-            "text": "Город"
+            "order": 3
           },
           {
             "id": "location_name",
             "type": "preset",
-            "order": 4,
+            "text": "Локация",
             "preset": {
               "group": "locations",
               "field": "location_name"
             },
-            "text": "Локация"
-          },
-          {
-            "id": "q_mh0d2nc0bcg6a9",
-            "type": "custom",
-            "order": 5,
-            "text": "Суть вопроса?"
+            "order": 4
           }
         ]
       }
     ],
-    "active_template_id": "tpl_mh1ljy4cnsp9",
+    "active_template_id": "template-default",
     "question_flow": [
       {
         "id": "business",
         "type": "preset",
-        "order": 1,
+        "text": "Бизнес",
         "preset": {
           "group": "locations",
           "field": "business"
         },
-        "text": "Бизнес"
+        "order": 1
       },
       {
         "id": "location_type",
         "type": "preset",
-        "order": 2,
+        "text": "Тип бизнеса",
         "preset": {
           "group": "locations",
           "field": "location_type"
         },
-        "text": "Тип бизнеса"
+        "order": 2
       },
       {
         "id": "city",
         "type": "preset",
-        "order": 3,
+        "text": "Город",
         "preset": {
           "group": "locations",
           "field": "city"
         },
-        "text": "Город"
+        "order": 3
       },
       {
         "id": "location_name",
         "type": "preset",
-        "order": 4,
+        "text": "Локация",
         "preset": {
           "group": "locations",
           "field": "location_name"
         },
-        "text": "Локация"
-      },
-      {
-        "id": "q_mh0d2nc0bcg6a9",
-        "type": "custom",
-        "order": 5,
-        "text": "Суть вопроса?"
+        "order": 4
       }
     ],
     "rating_templates": [
       {
-        "id": "1aa5bbbbbf804acdb0fa304c88163389",
-        "name": "Шаблон оценок",
+        "id": "rating-template-default",
+        "name": "Базовый сценарий оценок",
         "prompt_text": "Пожалуйста, оцените качество ответа от 1 до 5.",
         "scale_size": 5,
         "responses": [
@@ -204,25 +213,9 @@
             "text": "Спасибо за вашу оценку 5! Нам важно ваше мнение."
           }
         ]
-      },
-      {
-        "id": "rtpl_mh1ll1f3ceh5",
-        "name": "Тестовый шаблон оценок",
-        "prompt_text": "Выберете оценку: 1 - решено, 2 - не решено.",
-        "scale_size": 2,
-        "responses": [
-          {
-            "value": 1,
-            "text": "Спасибо за вашу оценку 1!"
-          },
-          {
-            "value": 2,
-            "text": "Спасибо за вашу оценку 2!"
-          }
-        ]
       }
     ],
-    "active_rating_template_id": "1aa5bbbbbf804acdb0fa304c88163389",
+    "active_rating_template_id": "rating-template-default",
     "rating_system": {
       "prompt_text": "Пожалуйста, оцените качество ответа от 1 до 5.",
       "scale_size": 5,
@@ -253,18 +246,12 @@
   "auto_close_config": {
     "templates": [
       {
-        "id": "auto_6e26209e",
+        "id": "auto_6a575a6c",
         "name": "Стандартный сценарий",
         "description": "",
         "hours": 12
-      },
-      {
-        "id": "auto-nyik8u-mh219tgc",
-        "name": "Тест 9",
-        "description": "",
-        "hours": 9
       }
     ],
-    "active_template_id": "auto_6e26209e"
+    "active_template_id": "auto_6a575a6c"
   }
 }
