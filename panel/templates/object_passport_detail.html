@@ -139,6 +139,17 @@
     .equipment-photo img { cursor: zoom-in; }
     .equipment-photos-toggle::after { content: '▼'; margin-left: 0.35rem; transition: transform 0.2s ease; font-size: 0.75rem; }
     .equipment-photos-toggle.collapsed::after { transform: rotate(-90deg); }
+    #saveStatus {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1080;
+      min-width: min(24rem, calc(100% - 2rem));
+      max-width: min(32rem, calc(100% - 2rem));
+      pointer-events: none;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+    }
     @media (max-width: 576px) {
       .title-photo-preview { width: 140px; height: 90px; }
       .passport-overview .card-body { padding: 1.25rem; }
@@ -1428,6 +1439,7 @@
     const statusHistoryToggle = document.getElementById('statusHistoryToggle');
     const statusHistoryEmpty = document.getElementById('statusHistoryEmpty');
     const saveStatusAlert = document.getElementById('saveStatus');
+    let saveStatusTimeoutId = null;
     const statusBadge = document.getElementById('statusBadge');
     const networkBadge = document.getElementById('networkBadge');
     const objectTitle = document.getElementById('objectTitle');
@@ -1708,9 +1720,13 @@
       saveStatusAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
       saveStatusAlert.classList.add(type === 'error' ? 'alert-danger' : 'alert-success');
       saveStatusAlert.textContent = text;
-      if (type !== 'error') {
-        setTimeout(() => saveStatusAlert.classList.add('d-none'), 4000);
+      if (saveStatusTimeoutId) {
+        clearTimeout(saveStatusTimeoutId);
       }
+      saveStatusTimeoutId = window.setTimeout(() => {
+        saveStatusAlert.classList.add('d-none');
+        saveStatusTimeoutId = null;
+      }, 5000);
     }
 
     function updateStatusBadge() {
