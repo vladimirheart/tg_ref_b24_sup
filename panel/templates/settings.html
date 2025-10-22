@@ -143,6 +143,24 @@
     }
     .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
     .channel-questions-list .question-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
+    .dialog-template-card .btn-group .btn { white-space: nowrap; }
+    .dialog-template-summary { font-size: 0.9rem; }
+    .dialog-template-editor {
+      border: 1px dashed #ced4da;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      background-color: #f8f9fa;
+    }
+    .dialog-template-editor .form-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6c757d;
+    }
+    .dialog-template-editor .input-group > .btn,
+    .dialog-template-editor .btn-sm {
+      min-width: 2.5rem;
+    }
     .modal-dialog {
       width: auto;
       max-width: min(90vw, var(--bs-modal-width, 500px));
@@ -344,6 +362,11 @@
               <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
               <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
             </section>
+          </div>
+          <div class="modal-footer">
+            <div class="small text-muted me-auto">Изменения вступят в силу после сохранения.</div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+            <button type="button" class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
           </div>
         </div>
       </div>
@@ -4491,6 +4514,130 @@
     return `${prefix}-${randomPart}-${timePart}`;
   }
 
+  function pluralizeRussian(number, forms) {
+    const abs = Math.abs(number);
+    const mod10 = abs % 10;
+    const mod100 = abs % 100;
+    if (mod10 === 1 && mod100 !== 11) {
+      return forms[0];
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+      return forms[1];
+    }
+    return forms[2];
+  }
+
+  function buildPreview(values, limit = 3) {
+    if (!Array.isArray(values) || !values.length) {
+      return '';
+    }
+    const slice = values.slice(0, limit);
+    const preview = slice.join(', ');
+    if (values.length > limit) {
+      return `${preview}…`;
+    }
+    return preview;
+  }
+
+  function findDialogTemplateCard(source) {
+    if (!(source instanceof HTMLElement)) return null;
+    return source.closest('[data-category-template], [data-question-template], [data-completion-template]');
+  }
+
+  function toggleDialogTemplateEditor(source, forceState) {
+    const card = source instanceof HTMLElement && source.matches('[data-category-template], [data-question-template], [data-completion-template]')
+      ? source
+      : findDialogTemplateCard(source);
+    if (!card) return;
+    const editor = card.querySelector('[data-dialog-template-editor]');
+    const toggleBtn = card.querySelector('[data-dialog-template-toggle]');
+    if (!editor || !toggleBtn) return;
+    let shouldShow;
+    if (typeof forceState === 'boolean') {
+      shouldShow = forceState;
+    } else {
+      shouldShow = editor.classList.contains('d-none');
+    }
+    editor.classList.toggle('d-none', !shouldShow);
+    toggleBtn.textContent = shouldShow ? 'Свернуть' : 'Настроить';
+    toggleBtn.dataset.expanded = shouldShow ? 'true' : 'false';
+    toggleBtn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
+    editor.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+  }
+
+  function updateCategoryTemplateSummary(card) {
+    if (!(card instanceof HTMLElement)) return;
+    const nameInput = card.querySelector('.category-template-name');
+    const titleEl = card.querySelector('[data-dialog-template-title]');
+    const summaryEl = card.querySelector('[data-dialog-template-summary]');
+    const name = (nameInput?.value || '').trim();
+    if (titleEl) {
+      titleEl.textContent = name || 'Шаблон категорий';
+    }
+    if (summaryEl) {
+      const categories = Array.from(card.querySelectorAll('.category-item-input'))
+        .map((input) => (input.value || '').trim())
+        .filter((value) => value);
+      if (!categories.length) {
+        summaryEl.textContent = 'Нет категорий. Добавьте элементы в шаблон.';
+      } else {
+        const countText = `${categories.length} ${pluralizeRussian(categories.length, ['категория', 'категории', 'категорий'])}`;
+        const preview = buildPreview(categories);
+        summaryEl.textContent = preview ? `${countText} · ${preview}` : countText;
+      }
+    }
+  }
+
+  function updateQuestionTemplateSummary(card) {
+    if (!(card instanceof HTMLElement)) return;
+    const nameInput = card.querySelector('.question-template-name');
+    const titleEl = card.querySelector('[data-dialog-template-title]');
+    const summaryEl = card.querySelector('[data-dialog-template-summary]');
+    const name = (nameInput?.value || '').trim();
+    if (titleEl) {
+      titleEl.textContent = name || 'Шаблон вопросов';
+    }
+    if (summaryEl) {
+      const questions = Array.from(card.querySelectorAll('.question-item-input'))
+        .map((input) => (input.value || '').trim())
+        .filter((value) => value);
+      if (!questions.length) {
+        summaryEl.textContent = 'Нет вопросов. Добавьте их в редактор ниже.';
+      } else {
+        const countText = `${questions.length} ${pluralizeRussian(questions.length, ['вопрос', 'вопроса', 'вопросов'])}`;
+        const preview = buildPreview(questions);
+        summaryEl.textContent = preview ? `${countText} · ${preview}` : countText;
+      }
+    }
+  }
+
+  function updateCompletionTemplateSummary(card) {
+    if (!(card instanceof HTMLElement)) return;
+    const nameInput = card.querySelector('.completion-template-name');
+    const titleEl = card.querySelector('[data-dialog-template-title]');
+    const summaryEl = card.querySelector('[data-dialog-template-summary]');
+    const name = (nameInput?.value || '').trim();
+    if (titleEl) {
+      titleEl.textContent = name || 'Шаблон действий';
+    }
+    if (summaryEl) {
+      const items = Array.from(card.querySelectorAll('[data-completion-item]')).map((row) => {
+        if (!(row instanceof HTMLElement)) return null;
+        const question = (row.querySelector('.completion-question-input')?.value || '').trim();
+        const action = (row.querySelector('.completion-action-input')?.value || '').trim();
+        if (!question && !action) return null;
+        return question || action;
+      }).filter(Boolean);
+      if (!items.length) {
+        summaryEl.textContent = 'Нет действий. Добавьте контрольные вопросы и шаги.';
+      } else {
+        const countText = `${items.length} ${pluralizeRussian(items.length, ['шаг', 'шага', 'шагов'])}`;
+        const preview = buildPreview(items);
+        summaryEl.textContent = preview ? `${countText} · ${preview}` : countText;
+      }
+    }
+  }
+
   function addCategoryTemplate(template) {
     const list = document.getElementById('categoryTemplatesList');
     if (!list) return;
@@ -4500,18 +4647,32 @@
     const categories = Array.isArray(data.categories) ? data.categories : [];
 
     const card = document.createElement('div');
-    card.className = 'card shadow-sm';
+    card.className = 'card shadow-sm dialog-template-card';
     card.dataset.categoryTemplate = 'true';
     card.dataset.templateId = templateId;
 
     card.innerHTML = `
       <div class="card-body">
-        <div class="d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center mb-3">
-          <input type="text" class="form-control form-control-sm category-template-name" placeholder="Название шаблона" value="${''}">
-          <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeCategoryTemplate(this)">Удалить шаблон</button>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+          <div>
+            <h6 class="mb-1" data-dialog-template-title>Шаблон категорий</h6>
+            <div class="small text-muted dialog-template-summary" data-dialog-template-summary>Нет категорий. Добавьте элементы в шаблон.</div>
+          </div>
+          <div class="d-flex flex-column align-items-lg-end gap-2 w-100 w-lg-auto">
+            <div class="btn-group btn-group-sm align-self-start align-self-lg-end">
+              <button class="btn btn-outline-primary" type="button" data-dialog-template-toggle onclick="toggleDialogTemplateEditor(this)">Настроить</button>
+              <button class="btn btn-outline-danger" type="button" onclick="removeCategoryTemplate(this)">Удалить</button>
+            </div>
+          </div>
         </div>
-        <div class="d-flex flex-column gap-2" data-category-items></div>
-        <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addCategoryRow(this)">+ Категория</button>
+        <div class="dialog-template-editor bg-light mt-3" data-dialog-template-editor aria-hidden="false">
+          <div class="mb-3">
+            <label class="form-label" for="category-template-${templateId}">Название шаблона</label>
+            <input type="text" class="form-control form-control-sm category-template-name" id="category-template-${templateId}" placeholder="Название шаблона" value="${''}">
+          </div>
+          <div class="d-flex flex-column gap-2" data-category-items></div>
+          <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addCategoryRow(this)">+ Категория</button>
+        </div>
       </div>
     `;
 
@@ -4519,6 +4680,7 @@
     const nameInput = card.querySelector('.category-template-name');
     if (nameInput) {
       nameInput.value = name;
+      nameInput.addEventListener('input', () => updateCategoryTemplateSummary(card));
     }
 
     const itemsContainer = card.querySelector('[data-category-items]');
@@ -4529,6 +4691,10 @@
         addCategoryRow(itemsContainer);
       }
     }
+
+    updateCategoryTemplateSummary(card);
+    const hasInitialData = Boolean(name || categories.length);
+    toggleDialogTemplateEditor(card, !hasInitialData);
 
     return card;
   }
@@ -4553,7 +4719,13 @@
     const input = row.querySelector('input');
     if (input) {
       input.value = value || '';
+      input.addEventListener('input', () => {
+        const card = container.closest('[data-category-template]');
+        updateCategoryTemplateSummary(card);
+      });
     }
+    const card = container.closest('[data-category-template]');
+    updateCategoryTemplateSummary(card);
   }
 
   function removeCategoryTemplate(trigger) {
@@ -4574,6 +4746,8 @@
     if (container && !container.querySelector('.input-group')) {
       addCategoryRow(container);
     }
+    const card = container?.closest('[data-category-template]');
+    updateCategoryTemplateSummary(card);
   }
 
   function addQuestionTemplate(template) {
@@ -4585,17 +4759,31 @@
     const questions = Array.isArray(data.questions) ? data.questions : [];
 
     const card = document.createElement('div');
-    card.className = 'card shadow-sm';
+    card.className = 'card shadow-sm dialog-template-card';
     card.dataset.questionTemplate = 'true';
     card.dataset.templateId = templateId;
     card.innerHTML = `
       <div class="card-body">
-        <div class="d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center mb-3">
-          <input type="text" class="form-control form-control-sm question-template-name" placeholder="Название шаблона" value="${''}">
-          <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeQuestionTemplate(this)">Удалить шаблон</button>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+          <div>
+            <h6 class="mb-1" data-dialog-template-title>Шаблон вопросов</h6>
+            <div class="small text-muted dialog-template-summary" data-dialog-template-summary>Нет вопросов. Добавьте их в редактор ниже.</div>
+          </div>
+          <div class="d-flex flex-column align-items-lg-end gap-2 w-100 w-lg-auto">
+            <div class="btn-group btn-group-sm align-self-start align-self-lg-end">
+              <button class="btn btn-outline-primary" type="button" data-dialog-template-toggle onclick="toggleDialogTemplateEditor(this)">Настроить</button>
+              <button class="btn btn-outline-danger" type="button" onclick="removeQuestionTemplate(this)">Удалить</button>
+            </div>
+          </div>
         </div>
-        <div class="d-flex flex-column gap-2" data-question-items></div>
-        <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addQuestionRow(this)">+ Вопрос</button>
+        <div class="dialog-template-editor bg-light mt-3" data-dialog-template-editor aria-hidden="false">
+          <div class="mb-3">
+            <label class="form-label" for="question-template-${templateId}">Название шаблона</label>
+            <input type="text" class="form-control form-control-sm question-template-name" id="question-template-${templateId}" placeholder="Название шаблона" value="${''}">
+          </div>
+          <div class="d-flex flex-column gap-2" data-question-items></div>
+          <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addQuestionRow(this)">+ Вопрос</button>
+        </div>
       </div>
     `;
     list.appendChild(card);
@@ -4603,6 +4791,7 @@
     const nameInput = card.querySelector('.question-template-name');
     if (nameInput) {
       nameInput.value = name;
+      nameInput.addEventListener('input', () => updateQuestionTemplateSummary(card));
     }
 
     const itemsContainer = card.querySelector('[data-question-items]');
@@ -4613,6 +4802,10 @@
         addQuestionRow(itemsContainer);
       }
     }
+
+    updateQuestionTemplateSummary(card);
+    const hasInitialData = Boolean(name || questions.length);
+    toggleDialogTemplateEditor(card, !hasInitialData);
 
     return card;
   }
@@ -4637,7 +4830,13 @@
     const input = row.querySelector('input');
     if (input) {
       input.value = value || '';
+      input.addEventListener('input', () => {
+        const card = container.closest('[data-question-template]');
+        updateQuestionTemplateSummary(card);
+      });
     }
+    const card = container.closest('[data-question-template]');
+    updateQuestionTemplateSummary(card);
   }
 
   function removeQuestionTemplate(trigger) {
@@ -4658,6 +4857,8 @@
     if (container && !container.querySelector('.input-group')) {
       addQuestionRow(container);
     }
+    const card = container?.closest('[data-question-template]');
+    updateQuestionTemplateSummary(card);
   }
 
   function addCompletionTemplate(template) {
@@ -4669,17 +4870,31 @@
     const items = Array.isArray(data.items) ? data.items : [];
 
     const card = document.createElement('div');
-    card.className = 'card shadow-sm';
+    card.className = 'card shadow-sm dialog-template-card';
     card.dataset.completionTemplate = 'true';
     card.dataset.templateId = templateId;
     card.innerHTML = `
       <div class="card-body">
-        <div class="d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center mb-3">
-          <input type="text" class="form-control form-control-sm completion-template-name" placeholder="Название шаблона" value="${''}">
-          <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeCompletionTemplate(this)">Удалить шаблон</button>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+          <div>
+            <h6 class="mb-1" data-dialog-template-title>Шаблон действий</h6>
+            <div class="small text-muted dialog-template-summary" data-dialog-template-summary>Нет действий. Добавьте контрольные вопросы и шаги.</div>
+          </div>
+          <div class="d-flex flex-column align-items-lg-end gap-2 w-100 w-lg-auto">
+            <div class="btn-group btn-group-sm align-self-start align-self-lg-end">
+              <button class="btn btn-outline-primary" type="button" data-dialog-template-toggle onclick="toggleDialogTemplateEditor(this)">Настроить</button>
+              <button class="btn btn-outline-danger" type="button" onclick="removeCompletionTemplate(this)">Удалить</button>
+            </div>
+          </div>
         </div>
-        <div class="d-flex flex-column gap-3" data-completion-items></div>
-        <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addCompletionRow(this)">+ Действие</button>
+        <div class="dialog-template-editor bg-light mt-3" data-dialog-template-editor aria-hidden="false">
+          <div class="mb-3">
+            <label class="form-label" for="completion-template-${templateId}">Название шаблона</label>
+            <input type="text" class="form-control form-control-sm completion-template-name" id="completion-template-${templateId}" placeholder="Название шаблона" value="${''}">
+          </div>
+          <div class="d-flex flex-column gap-3" data-completion-items></div>
+          <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addCompletionRow(this)">+ Действие</button>
+        </div>
       </div>
     `;
     list.appendChild(card);
@@ -4687,6 +4902,7 @@
     const nameInput = card.querySelector('.completion-template-name');
     if (nameInput) {
       nameInput.value = name;
+      nameInput.addEventListener('input', () => updateCompletionTemplateSummary(card));
     }
 
     const itemsContainer = card.querySelector('[data-completion-items]');
@@ -4701,6 +4917,10 @@
         addCompletionRow(itemsContainer);
       }
     }
+
+    updateCompletionTemplateSummary(card);
+    const hasInitialData = Boolean(name || items.length);
+    toggleDialogTemplateEditor(card, !hasInitialData);
 
     return card;
   }
@@ -4734,6 +4954,16 @@
     const actionInput = row.querySelector('.completion-action-input');
     if (questionInput) questionInput.value = questionValue || '';
     if (actionInput) actionInput.value = actionValue || '';
+    [questionInput, actionInput].forEach((input) => {
+      if (input) {
+        input.addEventListener('input', () => {
+          const card = container.closest('[data-completion-template]');
+          updateCompletionTemplateSummary(card);
+        });
+      }
+    });
+    const card = container.closest('[data-completion-template]');
+    updateCompletionTemplateSummary(card);
   }
 
   function removeCompletionTemplate(trigger) {
@@ -4754,6 +4984,8 @@
     if (container && !container.querySelector('[data-completion-item]')) {
       addCompletionRow(container);
     }
+    const card = container?.closest('[data-completion-template]');
+    updateCompletionTemplateSummary(card);
   }
 
   function initDialogTemplates() {
