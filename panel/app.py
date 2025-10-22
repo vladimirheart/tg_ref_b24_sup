@@ -7397,17 +7397,9 @@ def close_ticket():
             with get_db() as conn2:
                 row_ch = conn2.execute("SELECT channel_id FROM tickets WHERE ticket_id=?", (ticket_id,)).fetchone()
                 channel_id = row_ch["channel_id"] if row_ch else None
-                row_cfg = conn2.execute("SELECT questions_cfg FROM channels WHERE id=?", (channel_id,)).fetchone()
-                cfg = json.loads(row_cfg["questions_cfg"] or "{}") if row_cfg else {}
-            fb = (cfg.get("feedback") or {})
-            prompts = (fb.get("prompts") or {})
-            on_close = prompts.get("on_close") or (
-                "🌟 Пожалуйста, оцените качество поддержки: отправьте цифру 1–5."
-            )
 
             close_msg = f"Ваше обращение #{ticket_id} закрыто. Для запуска нового диалога нажмите /start"
             send_telegram_message(chat_id=user_id, text=close_msg, parse_mode='HTML')
-            send_telegram_message(chat_id=user_id, text=on_close, parse_mode='HTML')
 
             # 5.1. ставим «ожидание оценки» на 24 часа
             try:
