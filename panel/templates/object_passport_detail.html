@@ -1236,43 +1236,64 @@
       const headerStatusValue = card.querySelector('[data-role="equipment-header-status"]');
       if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
       const headerToggle = card.querySelector('.equipment-header-toggle');
-      const collapseTargetSelector = headerToggle ? headerToggle.getAttribute('data-bs-target') : null;
+      const detailsActionToggle = card.querySelector('.equipment-details-toggle');
+      const collapseTargetSelector =
+        (headerToggle && headerToggle.getAttribute('data-bs-target')) ||
+        (detailsActionToggle && detailsActionToggle.getAttribute('data-bs-target'));
       const collapseElement = collapseTargetSelector
         ? (card.querySelector(collapseTargetSelector) || document.querySelector(collapseTargetSelector))
         : null;
-      const syncHeaderCollapseState = (expanded) => {
-        if (!headerToggle) return;
-        headerToggle.classList.toggle('collapsed', !expanded);
-        headerToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      const syncDetailsCollapseState = (expanded) => {
+        if (headerToggle) {
+          headerToggle.classList.toggle('collapsed', !expanded);
+          headerToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+        if (detailsActionToggle) {
+          detailsActionToggle.classList.toggle('collapsed', !expanded);
+          detailsActionToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+          detailsActionToggle.textContent = expanded ? 'Свернуть карточку' : 'Развернуть карточку';
+        }
       };
-      if (headerToggle && collapseElement && headerToggle.dataset.collapseInitialized !== 'true') {
+      if (collapseElement) {
         const initialExpanded = collapseElement.classList.contains('show');
-        syncHeaderCollapseState(initialExpanded);
-        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-          const collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapseElement, {
-            toggle: false,
-          });
-          collapseElement.addEventListener('shown.bs.collapse', () => syncHeaderCollapseState(true));
-          collapseElement.addEventListener('hidden.bs.collapse', () => syncHeaderCollapseState(false));
-          headerToggle.addEventListener('click', (event) => {
+        syncDetailsCollapseState(initialExpanded);
+        const useBootstrapCollapse = typeof bootstrap !== 'undefined' && bootstrap.Collapse;
+        let collapseInstance = null;
+        const getCollapseInstance = () => {
+          if (!useBootstrapCollapse) return null;
+          if (!collapseInstance) {
+            collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapseElement, { toggle: false });
+          }
+          return collapseInstance;
+        };
+        if (useBootstrapCollapse && collapseElement.dataset.collapseEventsBound !== 'true') {
+          collapseElement.addEventListener('shown.bs.collapse', () => syncDetailsCollapseState(true));
+          collapseElement.addEventListener('hidden.bs.collapse', () => syncDetailsCollapseState(false));
+          collapseElement.dataset.collapseEventsBound = 'true';
+        }
+        const attachToggleHandler = (button) => {
+          if (!button || button.dataset.collapseInitialized === 'true') return;
+          button.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (collapseElement.classList.contains('show')) {
-              collapseInstance.hide();
+            if (useBootstrapCollapse) {
+              const instance = getCollapseInstance();
+              if (!instance) return;
+              if (collapseElement.classList.contains('show')) {
+                instance.hide();
+              } else {
+                instance.show();
+              }
             } else {
-              collapseInstance.show();
+              const willShow = !collapseElement.classList.contains('show');
+              collapseElement.classList.toggle('show', willShow);
+              syncDetailsCollapseState(willShow);
             }
           });
-        } else {
-          headerToggle.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const willShow = !collapseElement.classList.contains('show');
-            collapseElement.classList.toggle('show', willShow);
-            syncHeaderCollapseState(willShow);
-          });
-        }
-        headerToggle.dataset.collapseInitialized = 'true';
+          button.dataset.collapseInitialized = 'true';
+        };
+        attachToggleHandler(headerToggle);
+        attachToggleHandler(detailsActionToggle);
       }
       const updateHeaderSummary = () => {
         if (headerTitle && nameInput) {
@@ -2921,6 +2942,8 @@
         const detailsShowClass = isNew ? ' show' : '';
         const detailsToggleClass = isNew ? '' : ' collapsed';
         const detailsExpanded = isNew ? 'true' : 'false';
+        const detailsActionToggleClass = isNew ? '' : ' collapsed';
+        const detailsActionToggleLabel = isNew ? 'Свернуть карточку' : 'Развернуть карточку';
         const headerName = escapeHtml(item.name || 'Оборудование');
         const headerModel = escapeHtml(item.model || '—');
         const headerIp = escapeHtml(item.ip_address || '—');
@@ -2941,6 +2964,7 @@
               <span class="equipment-header-icon">▼</span>
             </button>
             <div class="equipment-actions">
+              <button class="btn btn-sm btn-outline-secondary equipment-details-toggle${detailsActionToggleClass}" type="button" data-bs-target="#${detailsCollapseId}" aria-expanded="${detailsExpanded}">${detailsActionToggleLabel}</button>
               <button class="btn btn-sm btn-success" data-action="save-equipment">💾 Сохранить</button>
               ${isNew ? '<button class="btn btn-sm btn-outline-secondary" data-action="cancel-equipment">Отменить</button>' : '<button class="btn btn-sm btn-outline-danger" data-action="delete-equipment">Удалить</button>'}
             </div>
