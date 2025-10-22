@@ -769,6 +769,9 @@
       serials: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.serials)
         ? equipmentOptionSetsRaw.serials
         : [],
+      statuses: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.statuses)
+        ? equipmentOptionSetsRaw.statuses
+        : [],
     };
     const itEquipmentCatalogRaw = {{ it_equipment_catalog | tojson }};
     const equipmentCatalog = Array.isArray(itEquipmentCatalogRaw)
@@ -901,6 +904,7 @@
         addUniqueOption(equipmentOptionSets.vendors, item.vendor);
         addUniqueOption(equipmentOptionSets.models, item.model);
         addUniqueOption(equipmentOptionSets.serials, item.serial_number);
+        addUniqueOption(equipmentOptionSets.statuses, item.status);
       });
     }
 
@@ -1225,9 +1229,11 @@
       const serialInput = card.querySelector('.equipment-serial');
       const nameInput = card.querySelector('.equipment-name');
       const ipInput = card.querySelector('.equipment-ip');
+      const statusSelect = card.querySelector('.equipment-status')
       const headerTitle = card.querySelector('.equipment-header-title');
       const headerModelValue = card.querySelector('[data-role="equipment-header-model"]');
       const headerIpValue = card.querySelector('[data-role="equipment-header-ip"]');
+      const headerStatusValue = card.querySelector('[data-role="equipment-header-status"]');
       if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
       const updateHeaderSummary = () => {
         if (headerTitle && nameInput) {
@@ -1242,6 +1248,11 @@
         if (headerIpValue && ipInput) {
           const value = ipInput.value.trim();
           headerIpValue.textContent = value || '—';
+        }
+        if (headerStatusValue && statusSelect) {
+          const option = statusSelect.options[statusSelect.selectedIndex];
+          const text = option ? option.text : statusSelect.value;
+          headerStatusValue.textContent = (text || statusSelect.value || '—').trim() || '—';
         }
       };
       typeSelect.addEventListener('change', () => {
@@ -1275,6 +1286,12 @@
       if (ipInput) {
         ipInput.addEventListener('input', updateHeaderSummary);
         ipInput.addEventListener('change', updateHeaderSummary);
+      }
+      if (statusSelect) {
+        statusSelect.addEventListener('change', () => {
+          addUniqueOption(equipmentOptionSets.statuses, statusSelect.value);
+          updateHeaderSummary();
+        });
       }
       updateEquipmentCardOptions(card);
       applyCatalogMatchToCard(card);
@@ -2854,6 +2871,7 @@
         const typeOptions = buildSelectOptions(typeValues, item.equipment_type || '');
         const vendorOptions = buildSelectOptions(vendorValues, item.vendor || '');
         const modelOptions = buildSelectOptions(modelValues, item.model || '');
+        const statusOptions = buildSelectOptions(equipmentOptionSets.statuses, item.status || '');
         const connectionOptions = buildSelectOptions(itConnectionChoices, item.connection_type || '');
         const collapseId = `equipmentPhotos-${isNew ? `new-${index}` : item.id}`;
         const detailsCollapseId = `equipmentDetails-${isNew ? `new-${index}` : item.id}`;
@@ -2867,6 +2885,7 @@
         const headerName = escapeHtml(item.name || 'Оборудование');
         const headerModel = escapeHtml(item.model || '—');
         const headerIp = escapeHtml(item.ip_address || '—');
+        const headerStatus = escapeHtml(item.status || '—');
         const serialOptionsId = `equipmentSerialOptions-${isNew ? `new-${index}` : item.id}`;
         const serialOptions = buildDatalistOptions(equipmentOptionSets.serials, item.serial_number || '');
         card.innerHTML = `
@@ -2877,6 +2896,7 @@
                 <div class="equipment-header-meta">
                   <span><strong>Модель:</strong> <span data-role="equipment-header-model">${headerModel}</span></span>
                   <span><strong>IP-адрес:</strong> <span data-role="equipment-header-ip">${headerIp}</span></span>
+                  <span><strong>Статус:</strong> <span data-role="equipment-header-status">${headerStatus}</span></span>
                 </div>
               </div>
               <span class="equipment-header-icon">▼</span>
@@ -2912,7 +2932,7 @@
               </div>
               <div class="col-md-3">
                 <label class="form-label">Статус</label>
-                <input type="text" class="form-control form-control-sm equipment-status" value="${escapeHtml(item.status || '')}" />
+                <select class="form-select form-select-sm equipment-status">${statusOptions}</select>
               </div>
               <div class="col-md-3">
                 <label class="form-label">IP-адрес</label>
