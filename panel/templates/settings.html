@@ -1144,6 +1144,12 @@
     it_connection: 'it_connection_type',
     iiko_server: 'it_iiko_server',
   };
+  const IT_CONNECTION_USAGE_FILTER_PARAMS = {
+    equipment_type: 'it_connection_type',
+    equipment_vendor: 'equipment_vendor',
+    equipment_model: 'equipment_model',
+    equipment_status: 'equipment_status',
+  };
   const CITY_PARAMETER_TYPE = 'city';
   const CITY_PARAMETER_LABEL = 'Город';
 
@@ -1932,15 +1938,14 @@
     if (!value) {
       return '<span class="text-muted">—</span>';
     }
-    if (category === 'equipment_type') {
-      const filterKey = PARAMETER_FILTER_KEYS.it_connection;
-      if (!filterKey) {
-        const className = usage > 0 ? 'fw-semibold text-dark' : 'text-muted';
-        return `<span class="${className}">${usage}</span>`;
+    const filterKey = IT_CONNECTION_USAGE_FILTER_PARAMS[category];
+    if (!filterKey) {
+      const className = usage > 0 ? 'fw-semibold text-dark' : 'text-muted';
+      return `<span class="${className}">${usage}</span>`;
       }
-      const url = `/object_passports?${filterKey}=${encodeURIComponent(value)}`;
-      const className = 'btn btn-link btn-sm p-0' + (usage > 0 ? '' : ' text-muted');
-      return `<a href="${url}" class="${className}">${usage}</a>`;
+    const url = `/object_passports?${filterKey}=${encodeURIComponent(value)}`;
+    const className = 'btn btn-link btn-sm p-0' + (usage > 0 ? '' : ' text-muted');
+    return `<a href="${url}" class="${className}" title="Открыть паспорта с этим значением">${usage}</a>`;
     }
     const className = usage > 0 ? 'fw-semibold text-dark' : 'text-muted';
     return `<span class="${className}">${usage}</span>`;
