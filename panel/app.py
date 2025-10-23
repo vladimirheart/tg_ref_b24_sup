@@ -221,6 +221,41 @@ PARAMETER_USAGE_MAPPING = {
     "iiko_server": "it_iiko_server",
 }
 
+LEGACY_PARAMETER_KEY_CANDIDATES = {
+    "business": ["business", "businesses", "business_list"],
+    "partner_type": ["partner_type", "partner_types", "partnerType"],
+    "country": ["country", "countries"],
+    "legal_entity": ["legal_entity", "legal_entities", "legalEntities"],
+    "department": ["department", "departments", "department_list"],
+    "network": ["network", "networks", "network_list"],
+    "it_connection": [
+        "it_connection",
+        "it_connections",
+        "itConnection",
+        "it_connections_list",
+    ],
+    "remote_access": ["remote_access", "remote_accesses", "remoteAccess"],
+    "iiko_server": ["iiko_server", "iiko_servers", "iikoServers"],
+}
+
+LEGACY_PARAMETER_CONTAINER_KEYS = (
+    "parameters",
+    "parameter_values",
+    "parameterValues",
+    "parameter_options",
+    "parameterOptions",
+    "parameter_values_map",
+)
+
+LEGACY_IT_CATEGORY_ALIASES = {
+    "type": "equipment_type",
+    "equipment": "equipment_type",
+    "vendor": "equipment_vendor",
+    "brand": "equipment_vendor",
+    "model": "equipment_model",
+    "status": "equipment_status",
+}
+
 def _is_missing_table_error(error: Exception, table: str) -> bool:
     """Return True if the sqlite error corresponds to a missing table."""
 
@@ -1885,6 +1920,308 @@ def ensure_it_equipment_catalog_schema():
 
 ensure_settings_parameters_schema()
 ensure_it_equipment_catalog_schema()
+
+
+def _load_legacy_settings_payload() -> dict:
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        return {}
+    except Exception as exc:
+        logging.warning("Не удалось прочитать legacy-настройки: %s", exc)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _iter_legacy_parameter_items(raw):
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            if isinstance(value, dict):
+                item = dict(value)
+                if "value" not in item or not str(item.get("value", "")).strip():
+                    if isinstance(key, str) and key.strip():
+                        item.setdefault("value", key)
+                yield item
+            elif isinstance(value, (list, tuple)):
+                sequence = list(value)
+                if not sequence:
+                    continue
+                payload = {"value": sequence[0]}
+                if len(sequence) > 1:
+                    payload["state"] = sequence[1]
+                yield payload
+            else:
+                if isinstance(key, str) and key.strip():
+                    payload = {"value": key}
+                    if isinstance(value, str) and value.strip():
+                        payload["state"] = value
+                    yield payload
+                elif isinstance(value, (str, int, float)):
+                    yield {"value": value}
+    elif isinstance(raw, (list, tuple, set)):
+        for value in raw:
+            if isinstance(value, dict):
+                yield value
+            elif isinstance(value, (list, tuple)):
+                sequence = list(value)
+                if not sequence:
+                    continue
+                payload = {"value": sequence[0]}
+                if len(sequence) > 1:
+                    payload["state"] = sequence[1]
+                yield payload
+            else:
+                yield value
+    else:
+        yield raw
+
+
+def _normalize_legacy_parameter_item(slug: str, item, *, it_categories: dict[str, str]):
+    if isinstance(item, str) or isinstance(item, (int, float)):
+        value = str(item).strip()
+        if not value:
+            return None
+        state = _normalize_parameter_state(slug, None)
+        entry: dict[str, Any] = {"value": value, "state": state}
+        if slug == "iiko_server":
+            entry["extra"] = {"server_name": value}
+        elif slug == "it_connection":
+            default_label = DEFAULT_IT_CONNECTION_CATEGORIES.get("equipment_type", "Тип оборудования")
+            entry["extra"] = {
+                "category": "equipment_type",
+                "category_label": it_categories.get("equipment_type", default_label),
+                "equipment_type": value,
+                "equipment_vendor": "",
+                "equipment_model": "",
+                "equipment_status": "",
+            }
+        return entry
+
+    if isinstance(item, (list, tuple)):
+        sequence = list(item)
+        if not sequence:
+            return None
+        payload = {"value": sequence[0]}
+        if len(sequence) > 1:
+            payload["state"] = sequence[1]
+        return _normalize_legacy_parameter_item(slug, payload, it_categories=it_categories)
+
+    if not isinstance(item, dict):
+        return None
+
+    raw_value_candidates = [
+        item.get("value"),
+        item.get("address"),
+        item.get("url"),
+        item.get("server"),
+        item.get("host"),
+        item.get("ip"),
+        item.get("name"),
+        item.get("title"),
+        item.get("label"),
+        item.get("login"),
+        item.get("text"),
+    ]
+    if slug == "it_connection":
+        raw_value_candidates.extend(
+            [
+                item.get("equipment_type"),
+                item.get("equipment_vendor"),
+                item.get("equipment_model"),
+                item.get("equipment_status"),
+            ]
+        )
+    value = ""
+    for candidate in raw_value_candidates:
+        if isinstance(candidate, (str, int, float)):
+            value = str(candidate).strip()
+            if value:
+                break
+    if not value:
+        return None
+
+    raw_state = None
+    for key in ("state", "status", "condition"):
+        if key in item:
+            raw_state = item.get(key)
+            break
+    state = _normalize_parameter_state(slug, raw_state)
+    entry: dict[str, Any] = {"value": value, "state": state}
+
+    if slug == "iiko_server":
+        server_name_candidates = [
+            item.get("server_name"),
+            item.get("name"),
+            item.get("title"),
+            item.get("label"),
+        ]
+        server_name = ""
+        for candidate in server_name_candidates:
+            if isinstance(candidate, (str, int, float)):
+                server_name = str(candidate).strip()
+                if server_name:
+                    break
+        if not server_name:
+            server_name = value
+        entry["extra"] = {"server_name": server_name}
+    elif slug == "it_connection":
+        extra_payload: dict[str, str] = {}
+        category_raw = item.get("category") or item.get("type")
+        if isinstance(category_raw, str):
+            category_key = category_raw.strip().lower()
+            category = LEGACY_IT_CATEGORY_ALIASES.get(category_key, category_key)
+        else:
+            category = ""
+        for field, aliases in (
+            ("equipment_type", ("equipment_type", "type", "equipment")),
+            ("equipment_vendor", ("equipment_vendor", "vendor", "brand")),
+            ("equipment_model", ("equipment_model", "model")),
+            ("equipment_status", ("equipment_status", "status_text")),
+        ):
+            value_candidate = ""
+            for alias in aliases:
+                candidate = item.get(alias)
+                if isinstance(candidate, (str, int, float)):
+                    value_candidate = str(candidate).strip()
+                    if value_candidate:
+                        break
+            extra_payload[field] = value_candidate
+        if not category:
+            for field in ("equipment_type", "equipment_vendor", "equipment_model", "equipment_status"):
+                if extra_payload.get(field):
+                    category = field
+                    break
+        if not category:
+            category = "equipment_type"
+        category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(category)
+        if category_field and not extra_payload.get(category_field):
+            extra_payload[category_field] = value
+        category_label = item.get("category_label")
+        if isinstance(category_label, str):
+            category_label = category_label.strip()
+        else:
+            category_label = ""
+        if not category_label:
+            category_label = it_categories.get(category) or DEFAULT_IT_CONNECTION_CATEGORIES.get(category) or category
+        extra_payload.update(
+            {
+                "category": category,
+                "category_label": category_label,
+            }
+        )
+        entry["extra"] = extra_payload
+    return entry
+
+
+def _extract_legacy_parameter_entries(payload: dict) -> dict[str, list[dict[str, Any]]]:
+    if not payload:
+        return {}
+    candidates = [payload]
+    for container_key in LEGACY_PARAMETER_CONTAINER_KEYS:
+        container = payload.get(container_key)
+        if isinstance(container, dict):
+            candidates.append(container)
+    it_categories = normalize_it_connection_categories(payload.get("it_connection_categories"))
+    extracted: dict[str, list[dict[str, Any]]] = {}
+    for slug, keys in LEGACY_PARAMETER_KEY_CANDIDATES.items():
+        raw_entries = None
+        for container in candidates:
+            for key in keys:
+                if key in container:
+                    raw_entries = container[key]
+                    break
+            if raw_entries is not None:
+                break
+        if raw_entries is None:
+            continue
+        normalized_items: list[dict[str, Any]] = []
+        for raw_item in _iter_legacy_parameter_items(raw_entries):
+            normalized = _normalize_legacy_parameter_item(slug, raw_item, it_categories=it_categories)
+            if not normalized:
+                continue
+            normalized_items.append(normalized)
+        if normalized_items:
+            extracted[slug] = normalized_items
+    return extracted
+
+
+def maybe_migrate_legacy_settings_parameters() -> None:
+    try:
+        with get_db() as conn:
+            try:
+                count_row = conn.execute("SELECT COUNT(*) FROM settings_parameters").fetchone()
+            except sqlite3.OperationalError as exc:
+                if _is_missing_table_error(exc, "settings_parameters"):
+                    ensure_settings_parameters_schema()
+                    count_row = conn.execute("SELECT COUNT(*) FROM settings_parameters").fetchone()
+                else:
+                    raise
+            if count_row and count_row[0]:
+                return
+    except Exception:
+        return
+
+    payload = _load_legacy_settings_payload()
+    legacy_entries = _extract_legacy_parameter_entries(payload)
+    if not legacy_entries:
+        return
+
+    try:
+        with get_db() as conn:
+            for slug, entries in legacy_entries.items():
+                seen: set[tuple] = set()
+                for entry in entries:
+                    value = str(entry.get("value") or "").strip()
+                    if not value:
+                        continue
+                    state = _normalize_parameter_state(slug, entry.get("state"))
+                    extra_payload = entry.get("extra") if isinstance(entry.get("extra"), dict) else {}
+                    if slug == "it_connection":
+                        extra_payload = dict(extra_payload)
+                        category = (extra_payload.get("category") or "equipment_type").strip() or "equipment_type"
+                        category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(category)
+                        if category_field and not (extra_payload.get(category_field) or "").strip():
+                            extra_payload[category_field] = value
+                        extra_payload.setdefault(
+                            "category_label",
+                            DEFAULT_IT_CONNECTION_CATEGORIES.get(category, category),
+                        )
+                        extra_payload.setdefault("equipment_type", "")
+                        extra_payload.setdefault("equipment_vendor", "")
+                        extra_payload.setdefault("equipment_model", "")
+                        extra_payload.setdefault("equipment_status", "")
+                        dedup_key = (slug, category, value.lower())
+                    else:
+                        dedup_key = (slug, value.lower())
+                    if dedup_key in seen:
+                        continue
+                    seen.add(dedup_key)
+                    extra_json = (
+                        json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
+                    )
+                    try:
+                        conn.execute(
+                            """
+                            INSERT OR IGNORE INTO settings_parameters
+                                (param_type, value, state, is_deleted, extra_json)
+                            VALUES (?, ?, ?, 0, ?)
+                            """,
+                            (slug, value, state, extra_json),
+                        )
+                    except sqlite3.Error as exc:
+                        logging.warning(
+                            "Не удалось мигрировать значение настройки %s=%s: %s",
+                            slug,
+                            value,
+                            exc,
+                        )
+            conn.commit()
+    except Exception as exc:
+        logging.warning("Ошибка миграции legacy-настроек: %s", exc)
+
+
+maybe_migrate_legacy_settings_parameters()
 
 def _collect_departments_from_locations() -> tuple[list[str], set[str]]:
     """
