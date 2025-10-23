@@ -5748,6 +5748,30 @@ def settings_page():
     except Exception:
         contract_usage = {}
 
+    status_usage = {}
+    status_conn = None
+    try:
+        status_conn = get_db()
+        cur = status_conn.cursor()
+        cur.execute(
+            """
+            SELECT status, COUNT(*) as total
+            FROM client_statuses
+            WHERE status IS NOT NULL AND TRIM(status) != ''
+            GROUP BY status
+            """
+        )
+        status_usage = {
+            row["status"]: row["total"]
+            for row in cur.fetchall()
+            if row["status"]
+        }
+    except Exception:
+        status_usage = {}
+    finally:
+        if status_conn is not None:
+            status_conn.close()
+
     bot_question_presets = build_location_presets(
         location_tree, base_definitions=DEFAULT_BOT_PRESET_DEFINITIONS
     )
@@ -5761,6 +5785,7 @@ def settings_page():
         it_connection_categories=get_it_connection_categories(settings),
         it_connection_category_fields=DEFAULT_IT_CONNECTION_CATEGORY_FIELDS,
         contract_usage=contract_usage,
+        status_usage=status_usage,
         bot_question_presets=bot_question_presets,
     )
 
