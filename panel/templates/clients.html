@@ -33,8 +33,15 @@
   <div class="container-fluid mt-4">
     <h2>👥 Список клиентов</h2>
 
+    {% if status_filter %}
+    <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert">
+      <span>Показаны клиенты со статусом «{{ status_filter }}».</span>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('clients_list') }}">Сбросить фильтр</a>
+    </div>
+    {% endif %}
+
     <div class="mb-3">
-      <input type="text" id="searchClients" class="form-control" placeholder="Поиск по ID, юзернейму, имени или каналу">
+      <input type="text" id="searchClients" class="form-control" placeholder="Поиск по ID, юзернейму, имени, каналу или статусу">
     </div>
 	<div class="mb-2">
 	  <label class="form-label me-2">Blacklist:</label>
@@ -57,20 +64,21 @@
           <th class="sortable" onclick="sortTable(5)">Затрачено времени</th>
           <th class="sortable" onclick="sortTable(6)">Первый контакт</th>
           <th class="sortable" onclick="sortTable(7)">Последний контакт</th>
+          <th class="sortable" onclick="sortTable(8)">Статус</th>
           <th>Blacklist</th>
-		  <th>Действия</th>
+                  <th>Действия</th>
         </tr>
       </thead>
       <tbody>
         {% for c in clients %}
-        <tr data-search="{{ c.user_id }} {{ c.username }} {{ c.client_name }} {{ c.channel_name }} {{ c.formatted_time }}">
+        <tr data-search="{{ c.user_id }} {{ c.username }} {{ c.client_name }} {{ c.channel_name }} {{ c.formatted_time }} {{ c.client_status }}">
           <td>
-			  <div class="d-flex align-items-center gap-2">
-				<img src="/avatar/{{ c.user_id }}" width="24" height="24" class="rounded-circle" style="object-fit:cover;border:1px solid rgba(0,0,0,.08)" alt="">
-				<code>{{ c.user_id }}</code>
-			  </div>
-		  </td>
-		  <td>{{ c.username or '—' }}</td>
+                          <div class="d-flex align-items-center gap-2">
+                                <img src="/avatar/{{ c.user_id }}" width="24" height="24" class="rounded-circle" style="object-fit:cover;border:1px solid rgba(0,0,0,.08)" alt="">
+                                <code>{{ c.user_id }}</code>
+                          </div>
+                  </td>
+                  <td>{{ c.username or '—' }}</td>
           <td>{{ c.client_name if c.client_name and c.client_name != 'None' else '—' }}</td>
           <td>{{ c.channel_name or '—' }}</td>
           <td>{{ c.ticket_count }}</td>
@@ -85,10 +93,11 @@
               {{ c.last_contact.split('.')[0]|replace('T', ' ') }}
             {% else %} — {% endif %}
           </td>
-			<td>
-			  {% if c.blacklist %}
-				<span class="badge text-bg-danger">Да</span>
-				{% if c.unblock_requested %}
+          <td>{{ c.client_status or '—' }}</td>
+                        <td>
+                          {% if c.blacklist %}
+                                <span class="badge text-bg-danger">Да</span>
+                                {% if c.unblock_requested %}
 				  <span class="badge text-bg-warning ms-1">Запрос на снятие</span>
 				{% endif %}
 			  {% else %}
@@ -157,7 +166,7 @@
       rows.forEach(r => tbody.appendChild(r));
     }
 
-    // Поиск (ID, юзернейм, имя, канал, время)
+    // Поиск (ID, юзернейм, имя, канал, время, статус)
     document.getElementById('searchClients').addEventListener('input', function(){
       const q = this.value.toLowerCase();
       document.querySelectorAll('#clientsTable tbody tr').forEach(tr=>{
