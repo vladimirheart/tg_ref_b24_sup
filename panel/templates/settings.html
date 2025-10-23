@@ -316,6 +316,16 @@
       </div>
 
       <div class="col">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#legalEntitiesModal">
+          <div class="card-body">
+            <div class="tile-icon">🏢</div>
+            <h5 class="card-title">Юридические лица</h5>
+            <p class="card-text text-muted">Управляйте реквизитами и контактами партнёров.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
         <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#parametersModal">
           <div class="card-body">
             <div class="tile-icon">🧩</div>
@@ -572,7 +582,7 @@
           <div class="modal-body">
             <div class="row g-3">
               {% for slug, title in parameter_types.items() %}
-              {% if slug not in ['it_connection', 'remote_access'] %}
+              {% if slug not in ['it_connection', 'remote_access', 'legal_entity'] %}
               <div class="col-md-6 col-xl-4">
                 <div class="card shadow-sm parameter-card" data-param-type="{{ slug }}">
                   <div class="card-header d-flex justify-content-between align-items-center">
@@ -636,6 +646,37 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body" data-param-modal-body></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="legalEntitiesModalLabel">🏢 Юридические лица</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+              <div>
+                <h6 class="mb-1">Справочник юридических лиц</h6>
+                <p class="small text-muted mb-0">Храните реквизиты и контакты менеджеров для партнёров.</p>
+              </div>
+              <button class="btn btn-sm btn-success" type="button" data-legal-entity-add>+ Добавить ЮЛ</button>
+            </div>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-legal-entities-list></div>
+            <div class="card border-0 bg-light text-center py-5 d-none" data-legal-entities-empty>
+              <div class="card-body">
+                <div class="fw-semibold mb-1">Пока нет юридических лиц</div>
+                <div class="text-muted small">Используйте кнопку «Добавить ЮЛ», чтобы создать первую запись.</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div class="small text-muted me-auto">Изменения сохраняются кнопками на карточках.</div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1199,6 +1240,12 @@
   const CITY_PARAMETER_TYPE = 'city';
   const CITY_PARAMETER_LABEL = 'Город';
 
+  const legalEntitiesContainer = document.querySelector('[data-legal-entities-list]');
+  const legalEntitiesEmptyPlaceholder = document.querySelector('[data-legal-entities-empty]');
+  const legalEntitiesModalEl = document.getElementById('legalEntitiesModal');
+  let legalEntityDrafts = [];
+  let legalEntityDraftCounter = 0;
+
   const IT_CONNECTION_FALLBACK_LABELS = {{ it_connection_categories | tojson }} || {};
   const IT_CONNECTION_CATEGORY_FIELDS = {{ it_connection_category_fields | tojson }} || {};
   let IT_CONNECTION_CATEGORY_LABELS = {};
@@ -1509,6 +1556,271 @@
     remoteAccessContainer.innerHTML = buildParameterContent('remote_access', items, 'it');
   }
 
+  function buildLegalEntityStateSelect(state, disabled, { isDraft = false } = {}) {
+    const effective = PARAMETER_STATES.includes(state) ? state : PARAMETER_STATES[0];
+    const options = PARAMETER_STATES.map((item) => {
+      const isSelected = item === effective;
+      return `<option value="${escapeHtml(item)}"${isSelected ? ' selected' : ''}>${escapeHtml(item)}</option>`;
+    }).join('');
+    const disabledAttr = disabled ? ' disabled' : '';
+    if (isDraft) {
+      return `<select class="form-select form-select-sm" data-legal-entity-field="state"${disabledAttr}>${options}</select>`;
+    }
+    return `
+      <select
+        class="form-select form-select-sm"
+        data-legal-entity-field="state"
+        data-param-field="state"
+        data-param-type="legal_entity"
+        data-param-current-state="${escapeHtml(effective)}"
+        ${disabledAttr}
+      >
+        ${options}
+      </select>
+    `;
+  }
+
+  function getLegalEntityRenderItems() {
+    const existing = Array.isArray(parameterData.legal_entity) ? parameterData.legal_entity : [];
+    const mappedExisting = existing.map((item) => {
+      const extra = item && typeof item.extra === 'object' ? item.extra : {};
+      const inn = typeof extra.inn === 'string' ? extra.inn : '';
+      const contacts = typeof extra.manager_contacts === 'string' ? extra.manager_contacts : '';
+      const usage = Number.isFinite(Number(item && item.usage_count)) ? Number(item.usage_count) : 0;
+      return {
+        id: item.id,
+        value: item && typeof item.value === 'string' ? item.value : '',
+        state: item && typeof item.state === 'string' ? item.state : PARAMETER_STATES[0],
+        is_deleted: Boolean(item && item.is_deleted),
+        usage_count: usage,
+        inn,
+        manager_contacts: contacts,
+        isDraft: false,
+      };
+    });
+    const mappedDrafts = legalEntityDrafts.map((draft) => ({
+      draftId: draft.draftId,
+      value: typeof draft.value === 'string' ? draft.value : '',
+      state: typeof draft.state === 'string' ? draft.state : PARAMETER_STATES[0],
+      is_deleted: false,
+      usage_count: 0,
+      inn: typeof draft.inn === 'string' ? draft.inn : '',
+      manager_contacts: typeof draft.manager_contacts === 'string' ? draft.manager_contacts : '',
+      isDraft: true,
+    }));
+    return mappedExisting.concat(mappedDrafts);
+  }
+
+  function renderLegalEntityCard(item) {
+    const isDraft = Boolean(item && item.isDraft);
+    const nameValue = typeof item.value === 'string' ? item.value : '';
+    const trimmedName = nameValue.trim();
+    const innValue = typeof item.inn === 'string' ? item.inn : '';
+    const contactsValue = typeof item.manager_contacts === 'string' ? item.manager_contacts : '';
+    const stateValue = typeof item.state === 'string' ? item.state : PARAMETER_STATES[0];
+    const isDeleted = Boolean(item && item.is_deleted);
+    const usageCount = Number.isFinite(Number(item && item.usage_count)) ? Number(item.usage_count) : 0;
+    const usageLabel = `Используется: ${usageCount}`;
+    const usageControl = !isDraft && trimmedName
+      ? `<a href="/object_passports?legal_entity=${encodeURIComponent(trimmedName)}" class="btn btn-link btn-sm p-0${usageCount ? '' : ' text-muted'}">${usageLabel}</a>`
+      : `<span class="text-muted small">${usageLabel}</span>`;
+    const disabledAttr = isDeleted ? ' disabled' : '';
+    const stateSelectHtml = buildLegalEntityStateSelect(stateValue, isDeleted, { isDraft });
+    const contactsField = `<textarea class="form-control" rows="3" data-legal-entity-field="manager_contacts"${disabledAttr} placeholder="Телефон, почта, Telegram">${escapeHtml(contactsValue)}</textarea>`;
+    const primaryLabel = isDraft ? 'Создать' : 'Сохранить';
+    const primaryClass = isDraft ? 'btn-success' : 'btn-primary';
+    const primaryDisabled = isDeleted ? ' disabled' : '';
+    let secondaryButton = '';
+    if (isDraft) {
+      secondaryButton = '<button class="btn btn-outline-secondary btn-sm" type="button" data-legal-entity-action="cancel">Отмена</button>';
+    } else if (isDeleted) {
+      secondaryButton = '<button class="btn btn-outline-success btn-sm" type="button" data-legal-entity-action="restore">Восстановить</button>';
+    } else {
+      secondaryButton = '<button class="btn btn-outline-danger btn-sm" type="button" data-legal-entity-action="delete">Удалить</button>';
+    }
+    const deletedHint = isDeleted
+      ? '<div class="alert alert-warning small mt-3 mb-0">Запись помечена как удалённая. Восстановите её, чтобы вносить изменения.</div>'
+      : '';
+    const idBadge = !isDraft ? `<span class="badge bg-secondary ms-auto">ID: ${item.id}</span>` : '';
+    const cardClasses = ['card', 'shadow-sm', 'h-100', 'legal-entity-card'];
+    if (isDeleted) {
+      cardClasses.push('border-danger', 'opacity-75');
+    }
+    const datasetAttrs = isDraft
+      ? `data-legal-entity-card="true" data-legal-entity-draft="true" data-legal-entity-draft-id="${escapeHtml(item.draftId)}"`
+      : `data-legal-entity-card="true" data-legal-entity-draft="false" data-param-id="${item.id}" data-param-type="legal_entity"${isDeleted ? ' data-legal-entity-deleted="true"' : ''}`;
+    return `
+      <div class="col">
+        <div class="${cardClasses.join(' ')}" ${datasetAttrs}>
+          <div class="card-header d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <div class="fw-semibold" data-legal-entity-title>${escapeHtml(trimmedName || 'Без названия')}</div>
+              <div class="small text-muted" data-legal-entity-state-label>${escapeHtml(stateValue)}</div>
+            </div>
+            <div>${usageControl}</div>
+          </div>
+          <div class="card-body d-flex flex-column gap-3">
+            <div>
+              <label class="form-label">Название ЮЛ</label>
+              <input type="text" class="form-control" data-legal-entity-field="value"${disabledAttr} value="${escapeHtml(nameValue)}" placeholder="Например, ООО «Партнёр»">
+            </div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="form-label">ИНН</label>
+                <input type="text" class="form-control" data-legal-entity-field="inn"${disabledAttr} value="${escapeHtml(innValue)}" placeholder="12 цифр">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Статус</label>
+                ${stateSelectHtml}
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Контакты менеджеров</label>
+              ${contactsField}
+              <div class="form-text">Укажите телефоны, почту или мессенджеры ответственных менеджеров.</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <button class="btn ${primaryClass} btn-sm" type="button" data-legal-entity-action="save"${primaryDisabled}>${primaryLabel}</button>
+              ${secondaryButton}
+              ${idBadge}
+            </div>
+            ${deletedHint}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLegalEntities() {
+    if (!legalEntitiesContainer) return;
+    const items = getLegalEntityRenderItems();
+    if (!items.length) {
+      legalEntitiesContainer.innerHTML = '';
+      if (legalEntitiesEmptyPlaceholder) {
+        legalEntitiesEmptyPlaceholder.classList.remove('d-none');
+      }
+      return;
+    }
+    legalEntitiesContainer.innerHTML = items.map((item) => renderLegalEntityCard(item)).join('');
+    if (legalEntitiesEmptyPlaceholder) {
+      legalEntitiesEmptyPlaceholder.classList.add('d-none');
+    }
+  }
+
+  function addLegalEntityDraft(initial = {}) {
+    legalEntityDraftCounter += 1;
+    const defaults = {
+      draftId: `draft-${legalEntityDraftCounter}`,
+      value: '',
+      inn: '',
+      manager_contacts: '',
+      state: PARAMETER_STATES[0],
+    };
+    const draft = Object.assign({}, defaults, initial || {});
+    legalEntityDrafts.push(draft);
+    renderLegalEntities();
+  }
+
+  function removeLegalEntityDraft(draftId) {
+    const index = legalEntityDrafts.findIndex((item) => item.draftId === draftId);
+    if (index === -1) return;
+    legalEntityDrafts.splice(index, 1);
+    renderLegalEntities();
+  }
+
+  function updateLegalEntityDraftValue(draftId, field, value) {
+    const draft = legalEntityDrafts.find((item) => item.draftId === draftId);
+    if (!draft) return;
+    if (field === 'value') {
+      draft.value = value;
+    } else if (field === 'inn') {
+      draft.inn = value;
+    } else if (field === 'manager_contacts') {
+      draft.manager_contacts = value;
+    } else if (field === 'state') {
+      draft.state = value;
+    }
+  }
+
+  function updateLegalEntityStateLabel(card, value) {
+    const label = card.querySelector('[data-legal-entity-state-label]');
+    if (label) {
+      label.textContent = value || '—';
+    }
+  }
+
+  async function handleLegalEntitySave(card, trigger) {
+    const isDraft = card.dataset.legalEntityDraft === 'true';
+    const valueInput = card.querySelector('[data-legal-entity-field="value"]');
+    const innInput = card.querySelector('[data-legal-entity-field="inn"]');
+    const contactsInput = card.querySelector('[data-legal-entity-field="manager_contacts"]');
+    const stateSelect = card.querySelector('[data-legal-entity-field="state"]');
+    const name = valueInput ? valueInput.value.trim() : '';
+    if (!name) {
+      alert('Название ЮЛ не может быть пустым');
+      if (valueInput) {
+        valueInput.focus();
+      }
+      return;
+    }
+    const payload = {
+      value: name,
+      inn: innInput ? innInput.value.trim() : '',
+      manager_contacts: contactsInput ? contactsInput.value.trim() : '',
+    };
+    if (stateSelect && !stateSelect.disabled) {
+      payload.state = stateSelect.value;
+    }
+
+    const originalText = trigger.textContent;
+    trigger.disabled = true;
+    trigger.textContent = '...';
+
+    try {
+      let response;
+      if (isDraft) {
+        payload.param_type = 'legal_entity';
+        response = await fetch('/api/settings/parameters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        const id = Number.parseInt(card.dataset.paramId, 10);
+        if (!Number.isFinite(id)) {
+          throw new Error('Не удалось определить идентификатор записи');
+        }
+        response = await fetch(`/api/settings/parameters/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Ошибка сохранения записи');
+      }
+      if (isDraft) {
+        const draftId = card.dataset.legalEntityDraftId;
+        if (draftId) {
+          const index = legalEntityDrafts.findIndex((item) => item.draftId === draftId);
+          if (index !== -1) {
+            legalEntityDrafts.splice(index, 1);
+          }
+        }
+      }
+      syncParameterData((data && data.data) || parameterData);
+      renderParameters({ forceBodies: true });
+      renderItConnectionsTable();
+    } catch (error) {
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
+    } finally {
+      trigger.disabled = false;
+      trigger.textContent = originalText;
+    }
+  }
+
   function renderParameterCard(type, { forceBody = false } = {}) {
     const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
     if (!card) return;
@@ -1547,6 +1859,7 @@
       renderParameterCard(type, { forceBody: forceBodies });
     });
     renderRemoteAccessSection();
+    renderLegalEntities();
   }
 
   function buildCityModalContent() {
@@ -1623,11 +1936,52 @@
     });
   }
 
+  if (legalEntitiesModalEl) {
+    legalEntitiesModalEl.addEventListener('show.bs.modal', () => {
+      renderLegalEntities();
+    });
+    legalEntitiesModalEl.addEventListener('hidden.bs.modal', () => {
+      legalEntityDrafts = [];
+      legalEntityDraftCounter = 0;
+      renderLegalEntities();
+    });
+  }
+
   function findParameterContainer(element) {
     return element ? element.closest('[data-param-container]') : null;
   }
 
   document.addEventListener('click', (event) => {
+    const legalEntityAddBtn = event.target.closest('[data-legal-entity-add]');
+    if (legalEntityAddBtn) {
+      addLegalEntityDraft();
+      return;
+    }
+    const legalEntityAction = event.target.closest('[data-legal-entity-action]');
+    if (legalEntityAction) {
+      const card = legalEntityAction.closest('[data-legal-entity-card]');
+      if (!card) return;
+      const action = legalEntityAction.dataset.legalEntityAction;
+      if (action === 'save') {
+        handleLegalEntitySave(card, legalEntityAction);
+      } else if (action === 'delete') {
+        const id = Number.parseInt(card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          deleteParameter(id, 'legal_entity', legalEntityAction);
+        }
+      } else if (action === 'restore') {
+        const id = Number.parseInt(card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          restoreParameter(id, 'legal_entity', legalEntityAction);
+        }
+      } else if (action === 'cancel') {
+        const draftId = card.dataset.legalEntityDraftId;
+        if (draftId) {
+          removeLegalEntityDraft(draftId);
+        }
+      }
+      return;
+    }
     const cityToggle = event.target.closest('[data-city-toggle]');
     if (cityToggle) {
       if (Array.isArray(CITY_OPTIONS) && CITY_OPTIONS.length > 10) {
@@ -1682,6 +2036,43 @@
     if (!Number.isFinite(id) || !type) return;
     updateParameterState(id, type, stateSelect);
   });
+
+  if (legalEntitiesContainer) {
+    legalEntitiesContainer.addEventListener('input', (event) => {
+      const field = event.target.dataset.legalEntityField;
+      if (!field) return;
+      const card = event.target.closest('[data-legal-entity-card]');
+      if (!card) return;
+      if (field === 'value') {
+        const title = card.querySelector('[data-legal-entity-title]');
+        if (title) {
+          const text = event.target.value.trim();
+          title.textContent = text || 'Без названия';
+        }
+      }
+      if (card.dataset.legalEntityDraft === 'true') {
+        const draftId = card.dataset.legalEntityDraftId;
+        if (draftId) {
+          updateLegalEntityDraftValue(draftId, field, event.target.value);
+        }
+      }
+    });
+    legalEntitiesContainer.addEventListener('change', (event) => {
+      const field = event.target.dataset.legalEntityField;
+      if (!field) return;
+      const card = event.target.closest('[data-legal-entity-card]');
+      if (!card) return;
+      if (field === 'state') {
+        updateLegalEntityStateLabel(card, event.target.value);
+      }
+      if (card.dataset.legalEntityDraft === 'true') {
+        const draftId = card.dataset.legalEntityDraftId;
+        if (draftId) {
+          updateLegalEntityDraftValue(draftId, field, event.target.value);
+        }
+      }
+    });
+  }
   const CITY_OPTIONS = (() => {
     const values = {{ cities | tojson }};
     if (!Array.isArray(values)) {
