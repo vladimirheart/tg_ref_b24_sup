@@ -124,6 +124,11 @@ body.with-sidebar {
   padding: 8px;
   gap: 4px;
 }
+.sidebar-nav.editing-order {
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 12px;
+  padding-bottom: 12px;
+}
 .sidebar-nav .nav-link.draggable {
   cursor: grab;
 }
@@ -163,6 +168,41 @@ body.with-sidebar {
 }
 .sidebar.collapsed .nav-link .label {
   display: none !important; /* в свёрнутом показываем только иконки */
+}
+
+.sidebar-order-controls {
+  margin-top: 8px;
+  padding: 8px 4px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sidebar-order-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px dashed #93c5fd;
+  background: #f8fafc;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.sidebar-order-btn:hover,
+.sidebar-order-btn:focus-visible {
+  background: #e0f2fe;
+  border-color: #60a5fa;
+}
+
+.sidebar-order-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.sidebar.collapsed:not(.hovering) .sidebar-order-controls {
+  display: none;
 }
 
 .notify-dropdown {
