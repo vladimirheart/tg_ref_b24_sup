@@ -56,7 +56,11 @@
   const nav = sidebar.querySelector('.sidebar-nav');
   const ORDER_STORAGE_KEY = 'sidebarNavOrder';
   const DEFAULT_ORDER = ['dialogs', 'tasks', 'clients', 'object_passports', 'dashboard', 'analytics', 'settings'];
+  const NAV_TITLE_DEFAULT = 'Нажмите «Редактировать порядок», чтобы изменить расположение страниц';
+  const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
   const resetOrderBtn = document.getElementById('resetSidebarOrderBtn');
+  const editOrderBtn = document.getElementById('editSidebarOrderBtn');
+  let isEditingOrder = false;
 
   function getNavLinks() {
     if (!nav) return [];
@@ -147,28 +151,49 @@
     return closest.element;
   }
 
-  function enableDragAndDrop() {
+  function applyDraggableState(enabled) {
     if (!nav) return;
     getNavLinks().forEach((link) => {
-      link.setAttribute('draggable', 'true');
-      link.classList.add('draggable');
+      if (enabled) {
+        link.setAttribute('draggable', 'true');
+        link.classList.add('draggable');
+      } else {
+        link.removeAttribute('draggable');
+        link.classList.remove('draggable', 'dragging');
+      }
     });
+    nav.classList.toggle('editing-order', Boolean(enabled));
+  }
+
+  let dragEventsAttached = false;
+
+  function setupDragAndDrop() {
+    if (!nav || dragEventsAttached) return;
+    dragEventsAttached = true;
 
     nav.addEventListener('dragstart', (event) => {
+      if (!isEditingOrder) {
+        event.preventDefault();
+        return;
+      }
       const link = event.target.closest('.nav-link[data-page-key]');
       if (!link) return;
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', link.dataset.pageKey || '');
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', link.dataset.pageKey || '');
+      }
       link.classList.add('dragging');
     });
 
     nav.addEventListener('dragend', () => {
+      if (!isEditingOrder) return;
       const dragging = nav.querySelector('.nav-link.dragging');
       if (dragging) dragging.classList.remove('dragging');
       persistCurrentOrder();
     });
 
     nav.addEventListener('dragover', (event) => {
+      if (!isEditingOrder) return;
       const dragging = nav.querySelector('.nav-link.dragging');
       if (!dragging) return;
       event.preventDefault();
@@ -181,6 +206,7 @@
     });
 
     nav.addEventListener('drop', (event) => {
+      if (!isEditingOrder) return;
       const dragging = nav.querySelector('.nav-link.dragging');
       if (!dragging) return;
       event.preventDefault();
@@ -194,6 +220,30 @@
     });
   }
 
+  function updateEditOrderButton() {
+    if (editOrderBtn) {
+      editOrderBtn.textContent = isEditingOrder ? 'Готово' : 'Редактировать порядок';
+      editOrderBtn.classList.toggle('active', isEditingOrder);
+      editOrderBtn.setAttribute('aria-pressed', isEditingOrder ? 'true' : 'false');
+    }
+    if (nav) {
+      nav.setAttribute('title', isEditingOrder ? NAV_TITLE_EDITING : NAV_TITLE_DEFAULT);
+    }
+  }
+
+  function setEditingOrder(enabled) {
+    const nextState = Boolean(enabled);
+    if (isEditingOrder === nextState) return;
+    isEditingOrder = nextState;
+    applyDraggableState(isEditingOrder);
+    updateEditOrderButton();
+    if (!isEditingOrder) {
+      const dragging = nav ? nav.querySelector('.nav-link.dragging') : null;
+      if (dragging) dragging.classList.remove('dragging');
+      persistCurrentOrder();
+    }
+  }
+
   if (nav) {
     const savedOrder = loadSavedOrder();
     if (savedOrder && savedOrder.length) {
@@ -201,13 +251,22 @@
     } else {
       applyOrder(DEFAULT_ORDER);
     }
-    enableDragAndDrop();
+    setupDragAndDrop();
+    applyDraggableState(false);
+    updateEditOrderButton();
     if (resetOrderBtn) {
       resetOrderBtn.addEventListener('click', () => {
         applyOrder(DEFAULT_ORDER);
         localStorage.removeItem(ORDER_STORAGE_KEY);
+        setEditingOrder(false);
       });
     }
+  }
+
+  if (editOrderBtn) {
+    editOrderBtn.addEventListener('click', () => {
+      setEditingOrder(!isEditingOrder);
+    });
   }
 
   // hover раскрытие, если не pinned
