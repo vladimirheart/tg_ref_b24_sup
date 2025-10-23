@@ -81,6 +81,7 @@ PARAMETER_TYPES = {
     "partner_type": "Тип партнёра",
     "country": "Страна",
     "legal_entity": "ЮЛ",
+    "partner_contact": "Контакты партнёров и КА",
     "department": "Департамент",
     "network": "Внутренняя сеть",
     "it_connection": "Подключения IT-блока",
@@ -201,7 +202,7 @@ def save_it_connection_categories(
     save_settings(settings)
     return settings
 
-PARAMETER_STATE_TYPES = {"partner_type", "country", "legal_entity"}
+PARAMETER_STATE_TYPES = {"partner_type", "country", "legal_entity", "partner_contact"}
 PARAMETER_ALLOWED_STATES = (
     "Активен",
     "Подписание",
@@ -209,6 +210,25 @@ PARAMETER_ALLOWED_STATES = (
     "Black_List",
     "Закрыт",
 )
+
+PARTNER_CONTACT_TYPES = {
+    "partner": "Партнёр",
+    "ka": "КА",
+}
+
+PARTNER_CONTACT_PHONE_TYPES = {
+    "work": "Рабочий",
+    "personal": "Личный",
+    "fax": "Факс",
+    "support": "Саппорт",
+}
+
+PARTNER_CONTACT_EMAIL_TYPES = {
+    "work": "Рабочий",
+    "personal": "Личный",
+    "common": "Общий",
+    "support": "Саппорт",
+}
 
 PARAMETER_USAGE_MAPPING = {
     "business": "business",
@@ -220,6 +240,86 @@ PARAMETER_USAGE_MAPPING = {
     "it_connection": "it_connection_type",
     "iiko_server": "it_iiko_server",
 }
+
+def _normalize_partner_contact_channel_list(raw_list, allowed_types: dict[str, str], default_key: str):
+    allowed_keys = list(allowed_types.keys())
+    fallback = default_key if default_key in allowed_types else (allowed_keys[0] if allowed_keys else "")
+    result: list[dict[str, str]] = []
+    if not isinstance(raw_list, (list, tuple)):
+        return result
+    for item in raw_list:
+        if isinstance(item, dict):
+            raw_type = (item.get("type") or "").strip()
+            value = (item.get("value") or "").strip()
+        else:
+            raw_type = ""
+            value = str(item or "").strip()
+        if not value:
+            continue
+        normalized_type = raw_type if raw_type in allowed_types else fallback
+        result.append({"type": normalized_type, "value": value})
+    return result
+
+
+def sanitize_partner_contact_extra(payload, *, existing: dict | None = None, value: str | None = None) -> dict:
+    base: dict[str, object] = {}
+    if isinstance(existing, dict):
+        base.update(existing)
+
+    if value is not None:
+        base["legal_entity"] = (value or "").strip()
+    else:
+        base["legal_entity"] = (base.get("legal_entity") or "").strip()
+
+    if "contact_type" in payload or "contact_type" not in base:
+        raw_type = (payload.get("contact_type") if isinstance(payload, dict) else None) or base.get("contact_type") or ""
+        raw_type = str(raw_type or "").strip()
+        contact_type = raw_type if raw_type in PARTNER_CONTACT_TYPES else "partner"
+        base["contact_type"] = contact_type
+
+    if "phones" in payload or "phones" not in base:
+        phones_raw = payload.get("phones") if isinstance(payload, dict) else None
+        if phones_raw is None:
+            phones_raw = base.get("phones")
+        base["phones"] = _normalize_partner_contact_channel_list(
+            phones_raw, PARTNER_CONTACT_PHONE_TYPES, "work"
+        )
+
+    if "emails" in payload or "emails" not in base:
+        emails_raw = payload.get("emails") if isinstance(payload, dict) else None
+        if emails_raw is None:
+            emails_raw = base.get("emails")
+        base["emails"] = _normalize_partner_contact_channel_list(
+            emails_raw, PARTNER_CONTACT_EMAIL_TYPES, "work"
+        )
+
+    served_id = base.get("served_legal_entity_id") if isinstance(base, dict) else None
+    if isinstance(payload, dict) and "served_legal_entity_id" in payload:
+        raw_id = payload.get("served_legal_entity_id")
+        try:
+            parsed = int(raw_id)
+            served_id = parsed if parsed > 0 else None
+        except (TypeError, ValueError):
+            served_id = None
+    else:
+        if served_id is not None:
+            try:
+                served_id = int(served_id)
+            except (TypeError, ValueError):
+                served_id = None
+    base["served_legal_entity_id"] = served_id
+
+    if isinstance(payload, dict) and "served_legal_entity_name" in payload:
+        served_name = str(payload.get("served_legal_entity_name") or "").strip()
+    else:
+        served_name = str(base.get("served_legal_entity_name") or "").strip()
+    base["served_legal_entity_name"] = served_name
+
+    return base
+
+
+def normalize_partner_contact_extra(extra: dict | None, value: str | None = None) -> dict:
+    return sanitize_partner_contact_extra({}, existing=extra, value=value)
 
 LEGACY_PARAMETER_KEY_CANDIDATES = {
     "business": ["business", "businesses", "business_list"],
@@ -6117,6 +6217,23 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     "extra": extra_payload,
                 }
             )
+        elif slug == "partner_contact":
+            normalized_extra = normalize_partner_contact_extra(extra_payload, value)
+            contact_type = normalized_extra.get("contact_type", "partner")
+            phones = normalized_extra.get("phones", [])
+            emails = normalized_extra.get("emails", [])
+            served_id = normalized_extra.get("served_legal_entity_id")
+            served_name = normalized_extra.get("served_legal_entity_name") or ""
+            entry.update(
+                {
+                    "contact_type": contact_type,
+                    "phones": phones,
+                    "emails": emails,
+                    "served_legal_entity_id": served_id,
+                    "served_legal_entity_name": served_name,
+                    "extra": normalized_extra,
+                }
+            )
         grouped[slug].append(entry)
     return grouped
 
@@ -6269,6 +6386,8 @@ def api_create_parameter():
             "inn": (payload.get("inn") or "").strip(),
             "manager_contacts": (payload.get("manager_contacts") or "").strip(),
         }
+    elif param_type == "partner_contact":
+        extra_payload = sanitize_partner_contact_extra(payload, value=value)
 
     extra_json = json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
 
@@ -6349,6 +6468,17 @@ def api_update_parameter(param_id):
                 extra_payload["manager_contacts"] = contacts_value
                 updates.append("extra_json = ?")
                 params.append(json.dumps(extra_payload, ensure_ascii=False))
+
+        if param_type == "partner_contact":
+            fields = {"contact_type", "phones", "emails", "served_legal_entity_id", "served_legal_entity_name"}
+            should_update_extra = bool(fields.intersection(payload.keys())) if isinstance(payload, dict) else False
+            if new_value is not None or should_update_extra or not extra_payload:
+                effective_value = new_value if new_value is not None else row["value"]
+                sanitized = sanitize_partner_contact_extra(
+                    payload if should_update_extra else {}, existing=extra_payload, value=effective_value
+                )
+                updates.append("extra_json = ?")
+                params.append(json.dumps(sanitized, ensure_ascii=False))
 
         if param_type == "iiko_server":
             existing_name = (extra_payload.get("server_name") or "").strip()
