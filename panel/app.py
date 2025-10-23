@@ -3736,16 +3736,17 @@ def get_ticket_category(ticket_id):
 def clients_list():
     # фильтр по блэклисту: '1' (только в блэклисте), '0' (только не в блэклисте), '' или None (все)
     bl_filter = (request.args.get("blacklist") or "").strip()
+    status_filter = (request.args.get("client_status") or "").strip()
 
     conn = get_db()
     cur = conn.cursor()
 
     # Базовый список клиентов
     cur.execute("""
-        SELECT 
+        SELECT
             m.user_id,
             m.username,
-            (SELECT client_name FROM messages 
+            (SELECT client_name FROM messages
              WHERE user_id = m.user_id AND client_name IS NOT NULL AND client_name != ''
              ORDER BY created_at DESC LIMIT 1) as client_name,
             COUNT(*) as ticket_count,
@@ -3760,6 +3761,14 @@ def clients_list():
     # Подтянем статусы блэклиста разом в словарь
     cur.execute("SELECT user_id, is_blacklisted, unblock_requested FROM client_blacklist")
     blmap = {r["user_id"]: (int(r["is_blacklisted"]), int(r["unblock_requested"])) for r in cur.fetchall()}
+
+    # Подтянем статусы клиентов
+    cur.execute("SELECT user_id, status FROM client_statuses")
+    status_map = {}
+    for row in cur.fetchall():
+        status_value = (row["status"] or "").strip()
+        if status_value:
+            status_map[row["user_id"]] = status_value
 
     clients_with_time = []
     for client in clients:
@@ -3798,6 +3807,7 @@ def clients_list():
         client_dict = dict(client)
         client_dict['total_minutes'] = total_minutes
         client_dict['formatted_time'] = format_time_duration(total_minutes)
+        client_dict['client_status'] = status_map.get(user_id, "")
 
         # статусы блэклиста
         is_bl, unb = blmap.get(user_id, (0, 0))
@@ -3811,8 +3821,15 @@ def clients_list():
     # применим фильтр
     if bl_filter in ("0", "1"):
         clients_with_time = [c for c in clients_with_time if str(c["blacklist"]) == bl_filter]
+    if status_filter:
+        clients_with_time = [c for c in clients_with_time if (c.get("client_status") or "") == status_filter]
 
-    return render_template("clients.html", clients=clients_with_time, blacklist_filter=bl_filter)
+    return render_template(
+        "clients.html",
+        clients=clients_with_time,
+        blacklist_filter=bl_filter,
+        status_filter=status_filter
+    )
 
 # === Карточка клиента ===
 @app.route("/client/<int:user_id>")
