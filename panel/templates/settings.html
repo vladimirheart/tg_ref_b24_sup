@@ -326,6 +326,16 @@
       </div>
 
       <div class="col">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#partnerContactsModal">
+          <div class="card-body">
+            <div class="tile-icon">📇</div>
+            <h5 class="card-title">Контакты партнёров и КА</h5>
+            <p class="card-text text-muted">Храните телефоны и почту партнёров и консалтинговых агентств.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
         <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#parametersModal">
           <div class="card-body">
             <div class="tile-icon">🧩</div>
@@ -675,6 +685,37 @@
           </div>
           <div class="modal-footer">
             <div class="small text-muted me-auto">Изменения сохраняются кнопками на карточках.</div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="partnerContactsModal" tabindex="-1" aria-labelledby="partnerContactsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="partnerContactsModalLabel">📇 Контакты партнёров и КА</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+              <div>
+                <h6 class="mb-1">Контактные данные</h6>
+                <p class="small text-muted mb-0">Фиксируйте телефоны, e-mail и связь с юридическими лицами.</p>
+              </div>
+              <button class="btn btn-sm btn-success" type="button" data-partner-contact-add>+ Добавить контакт</button>
+            </div>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
+            <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
+              <div class="card-body">
+                <div class="fw-semibold mb-1">Пока нет контактов</div>
+                <div class="text-muted small">Нажмите «Добавить контакт», чтобы сохранить информацию о партнёрах или КА.</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div class="small text-muted me-auto">Используйте кнопки на карточке для сохранения изменений.</div>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
           </div>
         </div>
@@ -1237,6 +1278,22 @@
     equipment_model: 'equipment_model',
     equipment_status: 'equipment_status',
   };
+  const PARTNER_CONTACT_TYPES = {
+    partner: 'Партнёр',
+    ka: 'КА',
+  };
+  const PARTNER_CONTACT_PHONE_TYPES = {
+    work: 'Рабочий',
+    personal: 'Личный',
+    fax: 'Факс',
+    support: 'Саппорт',
+  };
+  const PARTNER_CONTACT_EMAIL_TYPES = {
+    work: 'Рабочий',
+    personal: 'Личный',
+    common: 'Общий',
+    support: 'Саппорт',
+  };
   const CITY_PARAMETER_TYPE = 'city';
   const CITY_PARAMETER_LABEL = 'Город';
 
@@ -1245,6 +1302,15 @@
   const legalEntitiesModalEl = document.getElementById('legalEntitiesModal');
   let legalEntityDrafts = [];
   let legalEntityDraftCounter = 0;
+
+  const partnerContactsContainer = document.querySelector('[data-partner-contacts-list]');
+  const partnerContactsEmptyPlaceholder = document.querySelector('[data-partner-contacts-empty]');
+  const partnerContactsModalEl = document.getElementById('partnerContactsModal');
+  let partnerContactDrafts = [];
+  let partnerContactDraftCounter = 0;
+  const partnerContactEdits = new Map();
+  let partnerContactPhoneCounter = 0;
+  let partnerContactEmailCounter = 0;
 
   const IT_CONNECTION_FALLBACK_LABELS = {{ it_connection_categories | tojson }} || {};
   const IT_CONNECTION_CATEGORY_FIELDS = {{ it_connection_category_fields | tojson }} || {};
@@ -1261,6 +1327,127 @@
       return keys[0];
     }
     return 'equipment_type';
+  }
+
+  function generatePartnerContactCommKey(prefix) {
+    if (prefix === 'phone') {
+      partnerContactPhoneCounter += 1;
+      return `${prefix}-${partnerContactPhoneCounter}`;
+    }
+    partnerContactEmailCounter += 1;
+    return `${prefix}-${partnerContactEmailCounter}`;
+  }
+
+  function normalizePartnerContactCommList(rawList, kind) {
+    const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
+    const allowedKeys = Object.keys(allowed);
+    const defaultType = allowedKeys.includes('work') ? 'work' : allowedKeys[0] || '';
+    if (!Array.isArray(rawList)) {
+      return [];
+    }
+    return rawList
+      .map((item) => {
+        let value = '';
+        let type = defaultType;
+        let key = '';
+        if (item && typeof item === 'object') {
+          const rawType = typeof item.type === 'string' ? item.type.trim() : '';
+          if (rawType && Object.prototype.hasOwnProperty.call(allowed, rawType)) {
+            type = rawType;
+          }
+          if (typeof item.value === 'string' || typeof item.value === 'number') {
+            value = String(item.value).trim();
+          }
+          if (typeof item.key === 'string' && item.key.trim()) {
+            key = item.key.trim();
+          }
+        } else if (typeof item === 'string' || typeof item === 'number') {
+          value = String(item).trim();
+        }
+        if (!value) {
+          return null;
+        }
+        if (!Object.prototype.hasOwnProperty.call(allowed, type)) {
+          type = defaultType;
+        }
+        if (!key) {
+          key = generatePartnerContactCommKey(kind);
+        }
+        return { key, type, value };
+      })
+      .filter((entry) => entry);
+  }
+
+  function normalizePartnerContactExtra(rawExtra, { value } = {}) {
+    const extra = rawExtra && typeof rawExtra === 'object' ? rawExtra : {};
+    const rawType = typeof extra.contact_type === 'string' ? extra.contact_type.trim() : '';
+    const contactType = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, rawType)
+      ? rawType
+      : 'partner';
+    const phones = normalizePartnerContactCommList(Array.isArray(extra.phones) ? extra.phones : [], 'phone');
+    const emails = normalizePartnerContactCommList(Array.isArray(extra.emails) ? extra.emails : [], 'email');
+    const legalEntityValue = typeof extra.legal_entity === 'string' && extra.legal_entity.trim()
+      ? extra.legal_entity.trim()
+      : typeof value === 'string'
+        ? value.trim()
+        : '';
+    let servedId = null;
+    if (Object.prototype.hasOwnProperty.call(extra, 'served_legal_entity_id')) {
+      const rawId = extra.served_legal_entity_id;
+      const parsed = Number.parseInt(rawId, 10);
+      servedId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+    const servedName = typeof extra.served_legal_entity_name === 'string'
+      ? extra.served_legal_entity_name.trim()
+      : '';
+    return {
+      contact_type: contactType,
+      phones,
+      emails,
+      served_legal_entity_id: servedId,
+      served_legal_entity_name: servedName,
+      legal_entity: legalEntityValue,
+    };
+  }
+
+  function createBlankPartnerContactCommEntry(kind) {
+    const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
+    const allowedKeys = Object.keys(allowed);
+    const defaultType = allowedKeys.includes('work') ? 'work' : allowedKeys[0] || '';
+    return { key: generatePartnerContactCommKey(kind), type: defaultType, value: '' };
+  }
+
+  function clonePartnerContactCommList(list) {
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.map((item) => ({ key: item.key, type: item.type, value: item.value }));
+  }
+
+  function clonePartnerContactItem(item) {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+    return {
+      id: item.id,
+      draftId: item.draftId,
+      isDraft: Boolean(item.isDraft),
+      value: typeof item.value === 'string' ? item.value : '',
+      state: typeof item.state === 'string' ? item.state : PARAMETER_STATES[0],
+      contact_type: Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, item.contact_type)
+        ? item.contact_type
+        : 'partner',
+      phones: clonePartnerContactCommList(item.phones),
+      emails: clonePartnerContactCommList(item.emails),
+      served_legal_entity_id: Number.isFinite(item.served_legal_entity_id)
+        ? item.served_legal_entity_id
+        : null,
+      served_legal_entity_name:
+        typeof item.served_legal_entity_name === 'string' ? item.served_legal_entity_name : '',
+      legal_entity: typeof item.legal_entity === 'string' ? item.legal_entity : '',
+      is_deleted: Boolean(item.is_deleted),
+      usage_count: Number.isFinite(item.usage_count) ? item.usage_count : 0,
+    };
   }
 
   function sanitizeItConnectionCategoryMap(source) {
@@ -1438,6 +1625,15 @@
           const serverName = typeof serverNameSource === 'string' ? serverNameSource.trim() : '';
           entry.server_name = serverName;
           entry.extra = Object.assign({}, extraData, { server_name: serverName });
+        } else if (type === 'partner_contact') {
+          const normalizedExtra = normalizePartnerContactExtra(extra, { value });
+          entry.contact_type = normalizedExtra.contact_type;
+          entry.phones = normalizedExtra.phones;
+          entry.emails = normalizedExtra.emails;
+          entry.served_legal_entity_id = normalizedExtra.served_legal_entity_id;
+          entry.served_legal_entity_name = normalizedExtra.served_legal_entity_name;
+          entry.legal_entity = normalizedExtra.legal_entity;
+          entry.extra = normalizedExtra;
         } else if (extra && Object.keys(extra).length) {
           entry.extra = extra;
         }
@@ -1449,6 +1645,7 @@
     }
     parameterData = result;
     parameterStatusCache.clear();
+    partnerContactEdits.clear();
   }
 
   function buildStateSelect(type, selected, disabled, { forInput = false } = {}) {
@@ -1821,6 +2018,547 @@
     }
   }
 
+  function getPartnerContactLegalEntityOptions() {
+    const items = Array.isArray(parameterData.legal_entity) ? parameterData.legal_entity : [];
+    const options = [];
+    items.forEach((item) => {
+      if (!item) return;
+      if (item.is_deleted) return;
+      const label = typeof item.value === 'string' ? item.value.trim() : '';
+      if (!label) return;
+      const id = Number.isFinite(item.id) ? item.id : Number.parseInt(item.id, 10);
+      if (!Number.isFinite(id)) return;
+      options.push({ id, label });
+    });
+    return options;
+  }
+
+  function getPartnerContactBaseItems() {
+    const items = Array.isArray(parameterData.partner_contact) ? parameterData.partner_contact : [];
+    return items
+      .map((item) => {
+        if (!item) return null;
+        return clonePartnerContactItem({
+          id: Number.isFinite(item.id) ? item.id : Number.parseInt(item.id, 10),
+          value: typeof item.value === 'string' ? item.value : '',
+          state: typeof item.state === 'string' ? item.state : PARAMETER_STATES[0],
+          contact_type: item.contact_type,
+          phones: item.phones,
+          emails: item.emails,
+          served_legal_entity_id: item.served_legal_entity_id,
+          served_legal_entity_name: item.served_legal_entity_name,
+          legal_entity: typeof item.legal_entity === 'string' ? item.legal_entity : '',
+          is_deleted: Boolean(item.is_deleted),
+          usage_count: Number.isFinite(Number(item.usage_count)) ? Number(item.usage_count) : 0,
+        });
+      })
+      .filter((entry) => entry && Number.isFinite(entry.id));
+  }
+
+  function ensurePartnerContactEdit(id) {
+    if (!Number.isFinite(id)) return null;
+    if (!partnerContactEdits.has(id)) {
+      const baseItems = getPartnerContactBaseItems();
+      const base = baseItems.find((item) => item && item.id === id);
+      partnerContactEdits.set(id, base ? clonePartnerContactItem(base) : null);
+    }
+    const current = partnerContactEdits.get(id);
+    if (!current) {
+      return null;
+    }
+    if (!Array.isArray(current.phones)) {
+      current.phones = [];
+    }
+    if (!Array.isArray(current.emails)) {
+      current.emails = [];
+    }
+    return current;
+  }
+
+  function getPartnerContactRenderItems() {
+    const baseItems = getPartnerContactBaseItems();
+    const rendered = baseItems.map((item) => {
+      const id = item.id;
+      const edit = ensurePartnerContactEdit(id);
+      if (edit) {
+        const clone = clonePartnerContactItem(edit);
+        clone.id = id;
+        clone.isDraft = false;
+        clone.is_deleted = item.is_deleted;
+        clone.usage_count = item.usage_count;
+        return clone;
+      }
+      item.isDraft = false;
+      return item;
+    });
+    partnerContactDrafts.forEach((draft) => {
+      const clone = clonePartnerContactItem(draft);
+      if (!clone) return;
+      clone.isDraft = true;
+      clone.draftId = draft.draftId;
+      rendered.push(clone);
+    });
+    return rendered;
+  }
+
+  function buildPartnerContactTypeSelect(selected, disabled) {
+    const effective = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, selected)
+      ? selected
+      : 'partner';
+    const disabledAttr = disabled ? ' disabled' : '';
+    const options = Object.keys(PARTNER_CONTACT_TYPES)
+      .map((key) => {
+        const label = PARTNER_CONTACT_TYPES[key];
+        const isSelected = key === effective;
+        return `<option value="${key}"${isSelected ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+      })
+      .join('');
+    return `<select class="form-select form-select-sm" data-partner-contact-field="contact_type"${disabledAttr}>${options}</select>`;
+  }
+
+  function buildPartnerContactStateControl(item, disabled) {
+    if (item.isDraft) {
+      const effective = PARAMETER_STATES.includes(item.state) ? item.state : PARAMETER_STATES[0];
+      const options = PARAMETER_STATES.map((state) => {
+        const isSelected = state === effective;
+        return `<option value="${escapeHtml(state)}"${isSelected ? ' selected' : ''}>${escapeHtml(state)}</option>`;
+      }).join('');
+      const disabledAttr = disabled ? ' disabled' : '';
+      return `<select class="form-select form-select-sm" data-partner-contact-field="state"${disabledAttr}>${options}</select>`;
+    }
+    return buildStateSelect('partner_contact', item.state, disabled, { forInput: false });
+  }
+
+  function buildPartnerContactServedSelect(item, disabled) {
+    const disabledAttr = disabled ? ' disabled' : '';
+    const options = getPartnerContactLegalEntityOptions();
+    const selectedId = Number.isFinite(item.served_legal_entity_id)
+      ? item.served_legal_entity_id
+      : Number.parseInt(item.served_legal_entity_id, 10);
+    let hasSelected = false;
+    const entries = ['<option value="">Не выбрано</option>'];
+    options.forEach(({ id, label }) => {
+      const isSelected = Number.isFinite(selectedId) && selectedId === id;
+      if (isSelected) {
+        hasSelected = true;
+      }
+      entries.push(
+        `<option value="${id}" data-label="${escapeHtml(label)}"${isSelected ? ' selected' : ''}>${escapeHtml(label)}</option>`
+      );
+    });
+    if (Number.isFinite(selectedId) && !hasSelected) {
+      const fallbackLabel = item.served_legal_entity_name
+        ? item.served_legal_entity_name
+        : `ID ${selectedId}`;
+      entries.push(
+        `<option value="${selectedId}" data-label="${escapeHtml(fallbackLabel)}" selected>${escapeHtml(fallbackLabel)} • не найдено</option>`
+      );
+    }
+    return `<select class="form-select form-select-sm" data-partner-contact-field="served_legal_entity_id"${disabledAttr}>${entries.join('')}</select>`;
+  }
+
+  function buildPartnerContactCommRows(entries, kind, disabled) {
+    if (!Array.isArray(entries) || !entries.length) {
+      return '<div class="text-muted small" data-partner-contact-empty>Нет данных</div>';
+    }
+    const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
+    return entries
+      .map((entry) => {
+        const value = typeof entry.value === 'string' ? entry.value : '';
+        const type = Object.prototype.hasOwnProperty.call(allowed, entry.type) ? entry.type : Object.keys(allowed)[0];
+        const disabledAttr = disabled ? ' disabled' : '';
+        const options = Object.keys(allowed)
+          .map((key) => {
+            const label = allowed[key];
+            const isSelected = key === type;
+            return `<option value="${key}"${isSelected ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+          })
+          .join('');
+        const removeBtn = disabled
+          ? ''
+          : `<button class="btn btn-outline-danger" type="button" data-partner-contact-remove-comm data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}" title="Удалить">🗑</button>`;
+        return `
+          <div class="input-group input-group-sm mb-2" data-partner-contact-comm-row data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}">
+            <select class="form-select form-select-sm" data-partner-contact-comm-field="type" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}"${disabledAttr}>${options}</select>
+            <input type="text" class="form-control" data-partner-contact-comm-field="value" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}" value="${escapeHtml(value)}" placeholder="${kind === 'phone' ? 'Номер' : 'E-mail'}"${disabledAttr}>
+            ${removeBtn}
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  function renderPartnerContactCard(item) {
+    if (!item) return '';
+    const isDraft = Boolean(item.isDraft);
+    const isDeleted = Boolean(item.is_deleted);
+    const disabled = !isDraft && isDeleted;
+    const cardClasses = ['card', 'shadow-sm', 'h-100', 'partner-contact-card'];
+    if (isDeleted) {
+      cardClasses.push('border-danger', 'opacity-75');
+    }
+    const titleValue = typeof item.value === 'string' ? item.value.trim() : '';
+    const typeLabel = PARTNER_CONTACT_TYPES[item.contact_type] || PARTNER_CONTACT_TYPES.partner;
+    const stateLabel = typeof item.state === 'string' ? item.state : PARAMETER_STATES[0];
+    const datasetAttrs = isDraft
+      ? `data-partner-contact-card="true" data-partner-contact-draft="true" data-partner-contact-draft-id="${escapeHtml(item.draftId)}"`
+      : `data-partner-contact-card="true" data-partner-contact-draft="false" data-partner-contact-id="${item.id}" data-param-id="${item.id}" data-param-type="partner_contact"${isDeleted ? ' data-partner-contact-deleted="true"' : ''}`;
+    const typeSelect = buildPartnerContactTypeSelect(item.contact_type, disabled);
+    const stateControl = buildPartnerContactStateControl(item, disabled);
+    const servedSelect = buildPartnerContactServedSelect(item, disabled);
+    const phonesSection = buildPartnerContactCommRows(item.phones, 'phone', disabled);
+    const emailsSection = buildPartnerContactCommRows(item.emails, 'email', disabled);
+    const primaryLabel = isDraft ? 'Создать' : 'Сохранить';
+    const primaryClass = isDraft ? 'btn-success' : 'btn-primary';
+    const primaryDisabled = disabled ? ' disabled' : '';
+    let secondaryButton = '';
+    if (isDraft) {
+      secondaryButton = '<button class="btn btn-outline-secondary btn-sm" type="button" data-partner-contact-action="cancel">Отмена</button>';
+    } else if (isDeleted) {
+      secondaryButton = '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-action="restore">Восстановить</button>';
+    } else {
+      secondaryButton = '<button class="btn btn-outline-danger btn-sm" type="button" data-partner-contact-action="delete">Удалить</button>';
+    }
+    const idBadge = !isDraft ? `<span class="badge bg-secondary ms-auto">ID: ${item.id}</span>` : '';
+    const addPhoneBtn = disabled
+      ? ''
+      : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-comm data-comm-type="phone">+ Телефон</button>';
+    const addEmailBtn = disabled
+      ? ''
+      : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-comm data-comm-type="email">+ E-mail</button>';
+    const servedWrapperClass = item.contact_type === 'ka' ? '' : ' d-none';
+    const deletedHint = isDeleted
+      ? '<div class="alert alert-warning small mt-3 mb-0">Контакт помечен как удалённый. Восстановите запись, чтобы редактировать её.</div>'
+      : '';
+    return `
+      <div class="col">
+        <div class="${cardClasses.join(' ')}" ${datasetAttrs}>
+          <div class="card-header d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <div class="fw-semibold" data-partner-contact-title>${escapeHtml(titleValue || 'Без названия')}</div>
+              <div class="small text-muted" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateLabel)}</div>
+            </div>
+            ${idBadge}
+          </div>
+          <div class="card-body d-flex flex-column gap-3">
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="form-label">Тип</label>
+                ${typeSelect}
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Статус</label>
+                ${stateControl}
+              </div>
+            </div>
+            <div>
+              <label class="form-label">ЮЛ</label>
+              <input type="text" class="form-control" data-partner-contact-field="value" value="${escapeHtml(item.value || '')}" placeholder="Например, ООО «Партнёр»"${disabled ? ' disabled' : ''}>
+              <div class="form-text">Название юридического лица контакта.</div>
+            </div>
+            <div class="${servedWrapperClass}" data-partner-contact-served-wrapper>
+              <label class="form-label">Какое ЮЛ обслуживает</label>
+              ${servedSelect}
+            </div>
+            <div>
+              <label class="form-label">Телефоны</label>
+              <div data-partner-contact-comm-list="phone">${phonesSection}</div>
+              <div class="mt-2">${addPhoneBtn}</div>
+            </div>
+            <div>
+              <label class="form-label">E-mail</label>
+              <div data-partner-contact-comm-list="email">${emailsSection}</div>
+              <div class="mt-2">${addEmailBtn}</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <button class="btn ${primaryClass} btn-sm" type="button" data-partner-contact-action="save"${primaryDisabled}>${primaryLabel}</button>
+              ${secondaryButton}
+            </div>
+            ${deletedHint}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPartnerContacts() {
+    if (!partnerContactsContainer) return;
+    const items = getPartnerContactRenderItems();
+    if (!items.length) {
+      partnerContactsContainer.innerHTML = '';
+      if (partnerContactsEmptyPlaceholder) {
+        partnerContactsEmptyPlaceholder.classList.remove('d-none');
+      }
+      return;
+    }
+    partnerContactsContainer.innerHTML = items.map((item) => renderPartnerContactCard(item)).join('');
+    if (partnerContactsEmptyPlaceholder) {
+      partnerContactsEmptyPlaceholder.classList.add('d-none');
+    }
+  }
+
+  function addPartnerContactDraft(initial = {}) {
+    partnerContactDraftCounter += 1;
+    const draft = {
+      draftId: `draft-${partnerContactDraftCounter}`,
+      isDraft: true,
+      value: typeof initial.value === 'string' ? initial.value : '',
+      state: PARAMETER_STATES[0],
+      contact_type: initial.contact_type && Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, initial.contact_type)
+        ? initial.contact_type
+        : 'partner',
+      phones: Array.isArray(initial.phones) && initial.phones.length
+        ? clonePartnerContactCommList(initial.phones)
+        : [createBlankPartnerContactCommEntry('phone')],
+      emails: Array.isArray(initial.emails) && initial.emails.length
+        ? clonePartnerContactCommList(initial.emails)
+        : [createBlankPartnerContactCommEntry('email')],
+      served_legal_entity_id: Number.isFinite(initial.served_legal_entity_id)
+        ? initial.served_legal_entity_id
+        : null,
+      served_legal_entity_name: typeof initial.served_legal_entity_name === 'string'
+        ? initial.served_legal_entity_name
+        : '',
+      legal_entity: typeof initial.legal_entity === 'string' ? initial.legal_entity : '',
+      is_deleted: false,
+      usage_count: 0,
+    };
+    partnerContactDrafts.push(draft);
+    renderPartnerContacts();
+  }
+
+  function removePartnerContactDraft(draftId) {
+    const index = partnerContactDrafts.findIndex((draft) => draft.draftId === draftId);
+    if (index === -1) return;
+    partnerContactDrafts.splice(index, 1);
+    renderPartnerContacts();
+  }
+
+  function updatePartnerContactDraftValue(draftId, field, value) {
+    const draft = partnerContactDrafts.find((item) => item.draftId === draftId);
+    if (!draft) return;
+    if (field === 'value') {
+      draft.value = value;
+      draft.legal_entity = value;
+    } else if (field === 'state') {
+      draft.state = value;
+    } else if (field === 'contact_type') {
+      draft.contact_type = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, value) ? value : 'partner';
+      if (draft.contact_type !== 'ka') {
+        draft.served_legal_entity_id = null;
+        draft.served_legal_entity_name = '';
+      }
+    } else if (field === 'served_legal_entity_id') {
+      draft.served_legal_entity_id = value;
+    } else if (field === 'served_legal_entity_name') {
+      draft.served_legal_entity_name = value;
+    }
+  }
+
+  function updatePartnerContactDraftComm(draftId, kind, entryKey, field, value) {
+    const draft = partnerContactDrafts.find((item) => item.draftId === draftId);
+    if (!draft) return;
+    const list = kind === 'phone' ? draft.phones : draft.emails;
+    if (!Array.isArray(list)) return;
+    const entry = list.find((item) => item.key === entryKey);
+    if (!entry) return;
+    if (field === 'type') {
+      const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
+      entry.type = Object.prototype.hasOwnProperty.call(allowed, value) ? value : entry.type;
+    } else if (field === 'value') {
+      entry.value = value;
+    }
+  }
+
+  function modifyPartnerContactDraftComm(draftId, kind, action, entryKey) {
+    const draft = partnerContactDrafts.find((item) => item.draftId === draftId);
+    if (!draft) return;
+    const list = kind === 'phone' ? draft.phones : draft.emails;
+    if (!Array.isArray(list)) return;
+    if (action === 'add') {
+      list.push(createBlankPartnerContactCommEntry(kind));
+    } else if (action === 'remove') {
+      const index = list.findIndex((item) => item.key === entryKey);
+      if (index !== -1) {
+        list.splice(index, 1);
+      }
+    }
+  }
+
+  function updatePartnerContactEditField(id, field, value) {
+    const edit = ensurePartnerContactEdit(id);
+    if (!edit) return;
+    if (field === 'value') {
+      edit.value = value;
+      edit.legal_entity = value;
+    } else if (field === 'contact_type') {
+      edit.contact_type = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, value) ? value : edit.contact_type;
+      if (edit.contact_type !== 'ka') {
+        edit.served_legal_entity_id = null;
+        edit.served_legal_entity_name = '';
+      }
+    } else if (field === 'served_legal_entity_id') {
+      edit.served_legal_entity_id = value;
+    } else if (field === 'served_legal_entity_name') {
+      edit.served_legal_entity_name = value;
+    }
+  }
+
+  function updatePartnerContactEditComm(id, kind, entryKey, field, value) {
+    const edit = ensurePartnerContactEdit(id);
+    if (!edit) return;
+    const list = kind === 'phone' ? edit.phones : edit.emails;
+    if (!Array.isArray(list)) return;
+    const entry = list.find((item) => item.key === entryKey);
+    if (!entry) return;
+    if (field === 'type') {
+      const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
+      entry.type = Object.prototype.hasOwnProperty.call(allowed, value) ? value : entry.type;
+    } else if (field === 'value') {
+      entry.value = value;
+    }
+  }
+
+  function modifyPartnerContactEditComm(id, kind, action, entryKey) {
+    const edit = ensurePartnerContactEdit(id);
+    if (!edit) return;
+    const list = kind === 'phone' ? edit.phones : edit.emails;
+    if (!Array.isArray(list)) return;
+    if (action === 'add') {
+      list.push(createBlankPartnerContactCommEntry(kind));
+    } else if (action === 'remove') {
+      const index = list.findIndex((item) => item.key === entryKey);
+      if (index !== -1) {
+        list.splice(index, 1);
+      }
+    }
+  }
+
+  function getPartnerContactCardData(card) {
+    if (!card || !card.dataset.partnerContactCard) return null;
+    if (card.dataset.partnerContactDraft === 'true') {
+      const draftId = card.dataset.partnerContactDraftId;
+      const draft = partnerContactDrafts.find((item) => item.draftId === draftId);
+      return draft ? clonePartnerContactItem(draft) : null;
+    }
+    const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+    if (!Number.isFinite(id)) return null;
+    const edit = ensurePartnerContactEdit(id);
+    return edit ? clonePartnerContactItem(edit) : null;
+  }
+
+  function sanitizePartnerContactPayload(data) {
+    const result = { contact_type: data.contact_type };
+    result.value = typeof data.value === 'string' ? data.value.trim() : '';
+    result.state = typeof data.state === 'string' ? data.state : PARAMETER_STATES[0];
+    result.phones = Array.isArray(data.phones)
+      ? data.phones
+          .map((item) => ({
+            type: item.type,
+            value: typeof item.value === 'string' ? item.value.trim() : '',
+          }))
+          .filter((item) => item.value)
+      : [];
+    result.emails = Array.isArray(data.emails)
+      ? data.emails
+          .map((item) => ({
+            type: item.type,
+            value: typeof item.value === 'string' ? item.value.trim() : '',
+          }))
+          .filter((item) => item.value)
+      : [];
+    const servedId = Number.isFinite(data.served_legal_entity_id)
+      ? data.served_legal_entity_id
+      : Number.parseInt(data.served_legal_entity_id, 10);
+    result.served_legal_entity_id = Number.isFinite(servedId) ? servedId : null;
+    result.served_legal_entity_name = typeof data.served_legal_entity_name === 'string'
+      ? data.served_legal_entity_name
+      : '';
+    return result;
+  }
+
+  async function handlePartnerContactSave(card, trigger) {
+    const isDraft = card && card.dataset.partnerContactDraft === 'true';
+    const data = getPartnerContactCardData(card);
+    if (!data) {
+      alert('Не удалось получить данные контакта');
+      return;
+    }
+    const payload = sanitizePartnerContactPayload(data);
+    if (!payload.value) {
+      alert('Поле «ЮЛ» не может быть пустым');
+      return;
+    }
+    if (payload.contact_type === 'ka' && !payload.served_legal_entity_id) {
+      alert('Для типа «КА» необходимо выбрать обслуживаемое ЮЛ');
+      return;
+    }
+
+    const originalText = trigger.textContent;
+    trigger.disabled = true;
+    trigger.textContent = '...';
+
+    try {
+      let response;
+      if (isDraft) {
+        const requestPayload = Object.assign({
+          param_type: 'partner_contact',
+          value: payload.value,
+          state: payload.state,
+        }, payload);
+        response = await fetch('/api/settings/parameters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload),
+        });
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (!Number.isFinite(id)) {
+          throw new Error('Не удалось определить идентификатор контакта');
+        }
+        const requestPayload = {
+          value: payload.value,
+          contact_type: payload.contact_type,
+          phones: payload.phones,
+          emails: payload.emails,
+          served_legal_entity_id: payload.served_legal_entity_id,
+          served_legal_entity_name: payload.served_legal_entity_name,
+        };
+        response = await fetch(`/api/settings/parameters/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload),
+        });
+      }
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.error || 'Ошибка сохранения контакта');
+      }
+      if (isDraft) {
+        const draftId = card.dataset.partnerContactDraftId;
+        if (draftId) {
+          const index = partnerContactDrafts.findIndex((item) => item.draftId === draftId);
+          if (index !== -1) {
+            partnerContactDrafts.splice(index, 1);
+          }
+        }
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          partnerContactEdits.delete(id);
+        }
+      }
+      syncParameterData((result && result.data) || parameterData);
+      renderParameters({ forceBodies: true });
+    } catch (error) {
+      const message = error && error.message ? error.message : error;
+      alert('❌ ' + message);
+    } finally {
+      trigger.disabled = false;
+      trigger.textContent = originalText;
+    }
+  }
+
   function renderParameterCard(type, { forceBody = false } = {}) {
     const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
     if (!card) return;
@@ -1859,6 +2597,7 @@
       renderParameterCard(type, { forceBody: forceBodies });
     });
     renderRemoteAccessSection();
+    renderPartnerContacts();
     renderLegalEntities();
   }
 
@@ -1947,11 +2686,88 @@
     });
   }
 
+  if (partnerContactsModalEl) {
+    partnerContactsModalEl.addEventListener('show.bs.modal', () => {
+      renderPartnerContacts();
+    });
+    partnerContactsModalEl.addEventListener('hidden.bs.modal', () => {
+      partnerContactDrafts = [];
+      partnerContactDraftCounter = 0;
+      partnerContactEdits.clear();
+      renderPartnerContacts();
+    });
+  }
+
   function findParameterContainer(element) {
     return element ? element.closest('[data-param-container]') : null;
   }
 
   document.addEventListener('click', (event) => {
+    const partnerContactAddBtn = event.target.closest('[data-partner-contact-add]');
+    if (partnerContactAddBtn) {
+      addPartnerContactDraft();
+      return;
+    }
+    const partnerContactActionBtn = event.target.closest('[data-partner-contact-action]');
+    if (partnerContactActionBtn) {
+      const card = partnerContactActionBtn.closest('[data-partner-contact-card]');
+      if (!card) return;
+      const action = partnerContactActionBtn.dataset.partnerContactAction;
+      if (action === 'save') {
+        handlePartnerContactSave(card, partnerContactActionBtn);
+      } else if (action === 'cancel') {
+        const draftId = card.dataset.partnerContactDraftId;
+        if (draftId) {
+          removePartnerContactDraft(draftId);
+        }
+      } else if (action === 'delete') {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          deleteParameter(id, 'partner_contact', partnerContactActionBtn);
+        }
+      } else if (action === 'restore') {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          restoreParameter(id, 'partner_contact', partnerContactActionBtn);
+        }
+      }
+      return;
+    }
+    const partnerContactAddCommBtn = event.target.closest('[data-partner-contact-add-comm]');
+    if (partnerContactAddCommBtn) {
+      const card = partnerContactAddCommBtn.closest('[data-partner-contact-card]');
+      if (!card) return;
+      const kind = partnerContactAddCommBtn.dataset.commType;
+      if (!kind) return;
+      if (card.dataset.partnerContactDraft === 'true') {
+        modifyPartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, 'add');
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          modifyPartnerContactEditComm(id, kind, 'add');
+        }
+      }
+      renderPartnerContacts();
+      return;
+    }
+    const partnerContactRemoveCommBtn = event.target.closest('[data-partner-contact-remove-comm]');
+    if (partnerContactRemoveCommBtn) {
+      const card = partnerContactRemoveCommBtn.closest('[data-partner-contact-card]');
+      if (!card) return;
+      const kind = partnerContactRemoveCommBtn.dataset.commType;
+      const entryKey = partnerContactRemoveCommBtn.dataset.entryKey;
+      if (!kind || !entryKey) return;
+      if (card.dataset.partnerContactDraft === 'true') {
+        modifyPartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, 'remove', entryKey);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          modifyPartnerContactEditComm(id, kind, 'remove', entryKey);
+        }
+      }
+      renderPartnerContacts();
+      return;
+    }
     const legalEntityAddBtn = event.target.closest('[data-legal-entity-add]');
     if (legalEntityAddBtn) {
       addLegalEntityDraft();
@@ -2069,6 +2885,122 @@
         const draftId = card.dataset.legalEntityDraftId;
         if (draftId) {
           updateLegalEntityDraftValue(draftId, field, event.target.value);
+        }
+      }
+    });
+  }
+
+  if (partnerContactsContainer) {
+    partnerContactsContainer.addEventListener('input', (event) => {
+      const card = event.target.closest('[data-partner-contact-card]');
+      if (!card) return;
+      const field = event.target.dataset.partnerContactField;
+      if (field === 'value') {
+        const value = event.target.value;
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, value);
+        } else {
+          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+          if (Number.isFinite(id)) {
+            updatePartnerContactEditField(id, field, value);
+          }
+        }
+        const title = card.querySelector('[data-partner-contact-title]');
+        if (title) {
+          title.textContent = value.trim() || 'Без названия';
+        }
+      }
+      const commField = event.target.dataset.partnerContactCommField;
+      if (commField === 'value') {
+        const kind = event.target.dataset.commType;
+        const entryKey = event.target.dataset.entryKey;
+        if (!kind || !entryKey) return;
+        const value = event.target.value;
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, entryKey, commField, value);
+        } else {
+          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+          if (Number.isFinite(id)) {
+            updatePartnerContactEditComm(id, kind, entryKey, commField, value);
+          }
+        }
+      }
+    });
+
+    partnerContactsContainer.addEventListener('change', (event) => {
+      const card = event.target.closest('[data-partner-contact-card]');
+      if (!card) return;
+      const field = event.target.dataset.partnerContactField;
+      if (field === 'contact_type') {
+        const value = event.target.value;
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, value);
+        } else {
+          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+          if (Number.isFinite(id)) {
+            updatePartnerContactEditField(id, field, value);
+          }
+        }
+        const wrapper = card.querySelector('[data-partner-contact-served-wrapper]');
+        if (wrapper) {
+          wrapper.classList.toggle('d-none', value !== 'ka');
+          if (value !== 'ka') {
+            const select = wrapper.querySelector('[data-partner-contact-field="served_legal_entity_id"]');
+            if (select) {
+              select.value = '';
+            }
+          }
+        }
+        const data = getPartnerContactCardData(card);
+        const subtitle = card.querySelector('[data-partner-contact-subtitle]');
+        if (subtitle && data) {
+          const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
+          subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
+        }
+        return;
+      }
+      if (field === 'state') {
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, event.target.value);
+          const data = getPartnerContactCardData(card);
+          const subtitle = card.querySelector('[data-partner-contact-subtitle]');
+          if (subtitle && data) {
+            const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
+            subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
+          }
+        }
+        return;
+      }
+      if (field === 'served_legal_entity_id') {
+        const select = event.target;
+        const option = select.options[select.selectedIndex];
+        const label = option ? option.dataset.label || option.textContent : '';
+        const idValue = select.value ? Number.parseInt(select.value, 10) : null;
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, Number.isFinite(idValue) ? idValue : null);
+          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, 'served_legal_entity_name', label || '');
+        } else {
+          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+          if (Number.isFinite(id)) {
+            updatePartnerContactEditField(id, field, Number.isFinite(idValue) ? idValue : null);
+            updatePartnerContactEditField(id, 'served_legal_entity_name', label || '');
+          }
+        }
+        return;
+      }
+      const commField = event.target.dataset.partnerContactCommField;
+      if (commField === 'type') {
+        const kind = event.target.dataset.commType;
+        const entryKey = event.target.dataset.entryKey;
+        if (!kind || !entryKey) return;
+        const value = event.target.value;
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, entryKey, commField, value);
+        } else {
+          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+          if (Number.isFinite(id)) {
+            updatePartnerContactEditComm(id, kind, entryKey, commField, value);
+          }
         }
       }
     });
