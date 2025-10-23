@@ -536,6 +536,10 @@
                     <input type="text" class="form-control form-control-sm" id="networkContractInput" list="networkContractOptions" placeholder="№ договора" />
                   </div>
                   <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">ID ресторана</label>
+                    <input type="text" class="form-control form-control-sm" id="networkRestaurantIdInput" list="networkRestaurantOptions" placeholder="ID ресторана" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
                     <label class="form-label">ЮЛ</label>
                     <input type="text" class="form-control form-control-sm" id="networkLegalEntityInput" list="networkLegalEntityOptions" placeholder="Юридическое лицо" />
                   </div>
@@ -583,6 +587,13 @@
             </datalist>
             <datalist id="networkContractOptions">
               {% for value in network_contract_options %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+            <datalist id="networkRestaurantOptions">
+              {% for value in network_restaurant_id_options %}
               {% if value %}
               <option value="{{ value }}"></option>
               {% endif %}
@@ -1603,6 +1614,7 @@
     const networkTunnelInput = document.getElementById('networkTunnelInput');
     const networkProviderInput = document.getElementById('networkProviderInput');
     const networkContractInput = document.getElementById('networkContractInput');
+    const networkRestaurantIdInput = document.getElementById('networkRestaurantIdInput');
     const networkLegalEntityInput = document.getElementById('networkLegalEntityInput');
     const networkSupportPhoneInput = document.getElementById('networkSupportPhoneInput');
     const networkSpeedInput = document.getElementById('networkSpeedInput');
@@ -2142,6 +2154,7 @@
 
     const networkProfileFieldMapping = {
       provider: networkProviderInput,
+      restaurant_id: networkRestaurantIdInput,
       contract_number: networkContractInput,
       support_phone: networkSupportPhoneInput,
       legal_entity: networkLegalEntityInput,
@@ -2271,6 +2284,7 @@
       internalNetworkInput.value = data.network || '';
       networkTunnelInput.value = data.network_tunnel || '';
       networkProviderInput.value = data.network_provider || '';
+      networkRestaurantIdInput.value = data.network_restaurant_id || '';
       networkContractInput.value = data.network_contract_number || '';
       networkLegalEntityInput.value = data.network_legal_entity || '';
       networkSupportPhoneInput.value = data.network_support_phone || '';
@@ -2330,6 +2344,7 @@
         status: statusSelect.value.trim(),
         network: internalNetworkInput.value.trim(),
         network_provider: networkProviderInput.value.trim(),
+        network_restaurant_id: networkRestaurantIdInput.value.trim(),
         network_contract_number: networkContractInput.value.trim(),
         network_legal_entity: networkLegalEntityInput.value.trim(),
         network_support_phone: networkSupportPhoneInput.value.trim(),
@@ -3635,6 +3650,7 @@
     internalNetworkInput.addEventListener('change', handleInternalNetworkChange);
     networkProviderInput.addEventListener('change', () => handleNetworkProfileSelection('provider', networkProviderInput.value));
     networkContractInput.addEventListener('change', () => handleNetworkProfileSelection('contract_number', networkContractInput.value));
+    networkRestaurantIdInput.addEventListener('change', () => handleNetworkProfileSelection('restaurant_id', networkRestaurantIdInput.value));
     networkSupportPhoneInput.addEventListener('change', () => handleNetworkProfileSelection('support_phone', networkSupportPhoneInput.value));
     networkSpeedInput.addEventListener('change', handleSpeedFormatting);
     networkSpeedInput.addEventListener('blur', handleSpeedFormatting);
