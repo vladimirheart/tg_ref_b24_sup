@@ -4389,7 +4389,7 @@ def api_dashboard_data():
 @app.get('/api/notifications')
 @login_required_api
 def api_notifications():
-    user = session.get('user') or session.get('username') or session.get('user_email') or ''
+    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
     since = request.args.get('since')
     params = [user,]
     where_since = ''
@@ -5513,7 +5513,7 @@ def api_ticket_set_active(ticket_id):
 @app.route('/api/notifications/unread_count')
 @login_required_api
 def api_notify_count():
-    user = session.get('user_email') or 'all'
+    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
     with get_db() as conn:
         row = conn.execute(
             "SELECT COUNT(*) AS c FROM notifications WHERE (user=? OR user='all') AND is_read=0",
@@ -5527,7 +5527,7 @@ def api_notify_count():
 @app.route('/api/notifications')
 @login_required_api
 def api_notify_list():
-    user = session.get('user_email') or 'all'
+    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
     with get_db() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute("""
@@ -5553,7 +5553,7 @@ def api_notify_list():
 @app.route('/api/notifications/<int:nid>/read', methods=['POST'])
 @login_required_api
 def api_notify_read(nid):
-    user = session.get('user_email') or 'all'
+    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
     with get_db() as conn:
         conn.execute(
             "UPDATE notifications SET is_read=1 WHERE id=? AND (user=? OR user='all')",
