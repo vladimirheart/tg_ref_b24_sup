@@ -1523,9 +1523,12 @@ function markTicketReopenedLocally() {
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
   <script>
         const savedPage = parseInt(localStorage.getItem('ticketsCurrentPage') || '1', 10);
-	let currentPage = Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1;
-	let totalPages = 1;
-	let allTickets = [];
+        let currentPage = Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1;
+        let totalPages = 1;
+        let allTickets = [];
+        const pageParams = new URLSearchParams(window.location.search || '');
+        window.initialClientStatusFilter = pageParams.get('client_status');
+        window.initialClientStatusFilterApplied = false;
     let currentUserId = null;
     let currentTicketId = null;
     let historyPolling = null;
@@ -2777,8 +2780,25 @@ function initColumnResize() {
       });
     });
 
-	// === Автообновление таблица ===
-	async function autoRefreshTickets() {
+        function applyInitialClientStatusFilter() {
+                if (!window.initialClientStatusFilter || window.initialClientStatusFilterApplied) {
+                        return;
+                }
+                const value = window.initialClientStatusFilter;
+                const modalInput = document.getElementById('filterClientStatusModal');
+                if (modalInput) {
+                        modalInput.value = value;
+                }
+                const inlineInput = document.getElementById('filterClientStatus');
+                if (inlineInput) {
+                        inlineInput.value = value;
+                }
+                applyFiltersModal();
+                window.initialClientStatusFilterApplied = true;
+        }
+
+        // === Автообновление таблица ===
+        async function autoRefreshTickets() {
 		try {
 			const responseStats = await fetch('/stats_data');
 			const data = await responseStats.json();
@@ -2807,8 +2827,9 @@ function initColumnResize() {
                         // Сохраняем все заявки для пагинации
                         allTickets = tickets;
 
-                        // Если есть активные фильтры - применяем их ко всем данным
-                        if (window.filteredTickets) {
+                        if (window.initialClientStatusFilter && !window.initialClientStatusFilterApplied) {
+                                applyInitialClientStatusFilter();
+                        } else if (window.filteredTickets) {
                                 applyFilters(); // Переприменяем фильтры к новым данным
                         } else {
                                 // Иначе отображаем все заявки как обычно
@@ -5981,23 +6002,23 @@ document.addEventListener('click', async (e)=>{
 	  activeContainer.style.display = hasActiveFilters ? 'block' : 'none';
 	}
 
-	function removeFilterModal(filterId) {
+        function removeFilterModal(filterId) {
   // Сбрасываем конкретный фильтр в модальном окне
-	  const modalElement = document.getElementById(filterId);
-	  if (modalElement) {
-		modalElement.value = '';
-	  }
+          const modalElement = document.getElementById(filterId);
+          if (modalElement) {
+                modalElement.value = '';
+          }
 	  
 	  // Если модальное окно открыто, обновляем отображение
 	  if (document.getElementById('filtersModal').classList.contains('show')) {
 		showActiveFiltersModal();
 	  } else {
 		// Если модальное окно закрыто, применяем изменения
-		applyFiltersModal();
-	  }
-	}
+                applyFiltersModal();
+          }
+        }
 
-	// Инициализация при загрузке страницы
+        // Инициализация при загрузке страницы
 		document.addEventListener('DOMContentLoaded', function() {
 		  // Показываем активные фильтры при открытии модального окна
 		  document.getElementById('filtersModal').addEventListener('show.bs.modal', function() {
