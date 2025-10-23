@@ -261,6 +261,57 @@ def _normalize_partner_contact_channel_list(raw_list, allowed_types: dict[str, s
     return result
 
 
+def _normalize_partner_contact_served_entities(raw_value):
+    """Normalize served legal entity entries into a list of {id, name}."""
+
+    items: list = []
+    if isinstance(raw_value, (list, tuple)):
+        items = list(raw_value)
+    elif raw_value is None:
+        items = []
+    else:
+        items = [raw_value]
+
+    result: list[dict[str, object]] = []
+    seen: set[int] = set()
+
+    for item in items:
+        raw_id = None
+        raw_name = ""
+        if isinstance(item, dict):
+            raw_id = item.get("id")
+            if raw_id is None:
+                raw_id = item.get("value")
+            if isinstance(item.get("name"), str):
+                raw_name = item.get("name") or ""
+            elif isinstance(item.get("label"), str):
+                raw_name = item.get("label") or ""
+            elif isinstance(item.get("title"), str):
+                raw_name = item.get("title") or ""
+            elif isinstance(item.get("served_legal_entity_name"), str):
+                raw_name = item.get("served_legal_entity_name") or ""
+        elif isinstance(item, (list, tuple)) and item:
+            raw_id = item[0]
+            if len(item) > 1:
+                raw_name = item[1]
+        else:
+            raw_id = item
+
+        try:
+            parsed_id = int(raw_id)
+        except (TypeError, ValueError):
+            parsed_id = None
+        if not parsed_id or parsed_id <= 0:
+            continue
+        if parsed_id in seen:
+            continue
+        seen.add(parsed_id)
+        name = str(raw_name or "").strip()
+        result.append({"id": parsed_id, "name": name})
+
+    return result
+
+
 def sanitize_partner_contact_extra(payload, *, existing: dict | None = None, value: str | None = None) -> dict:
     base: dict[str, object] = {}
     if isinstance(existing, dict):
@@ -293,27 +344,53 @@ def sanitize_partner_contact_extra(payload, *, existing: dict | None = None, val
             emails_raw, PARTNER_CONTACT_EMAIL_TYPES, "work"
         )
 
-    served_id = base.get("served_legal_entity_id") if isinstance(base, dict) else None
-    if isinstance(payload, dict) and "served_legal_entity_id" in payload:
-        raw_id = payload.get("served_legal_entity_id")
-        try:
-            parsed = int(raw_id)
-            served_id = parsed if parsed > 0 else None
-        except (TypeError, ValueError):
-            served_id = None
+    if isinstance(payload, dict) and "internal_name" in payload:
+        internal_name = str(payload.get("internal_name") or "").strip()
     else:
-        if served_id is not None:
-            try:
-                served_id = int(served_id)
-            except (TypeError, ValueError):
-                served_id = None
-    base["served_legal_entity_id"] = served_id
+        internal_name = str(base.get("internal_name") or "").strip()
+    base["internal_name"] = internal_name
 
-    if isinstance(payload, dict) and "served_legal_entity_name" in payload:
-        served_name = str(payload.get("served_legal_entity_name") or "").strip()
-    else:
-        served_name = str(base.get("served_legal_entity_name") or "").strip()
-    base["served_legal_entity_name"] = served_name
+    base_entities = _normalize_partner_contact_served_entities(base.get("served_legal_entities"))
+    if not base_entities:
+        single_fallback = {
+            "id": base.get("served_legal_entity_id"),
+            "name": base.get("served_legal_entity_name"),
+        }
+        base_entities = _normalize_partner_contact_served_entities(
+            [] if single_fallback["id"] is None else [single_fallback]
+        )
+
+    if isinstance(payload, dict):
+        if "served_legal_entities" in payload:
+            base_entities = _normalize_partner_contact_served_entities(payload.get("served_legal_entities"))
+        elif "served_legal_entity_ids" in payload:
+            raw_ids = payload.get("served_legal_entity_ids")
+            base_entities = _normalize_partner_contact_served_entities(raw_ids)
+            if base_entities:
+                existing_lookup = {
+                    entry["id"]: entry.get("name", "")
+                    for entry in _normalize_partner_contact_served_entities(base.get("served_legal_entities"))
+                }
+                for entry in base_entities:
+                    if not entry["name"]:
+                        entry["name"] = existing_lookup.get(entry["id"], "")
+        elif "served_legal_entity_id" in payload or "served_legal_entity_name" in payload:
+            base_entities = _normalize_partner_contact_served_entities(
+                [
+                    {
+                        "id": payload.get("served_legal_entity_id"),
+                        "name": payload.get("served_legal_entity_name"),
+                    }
+                ]
+            )
+
+    base_entities = _normalize_partner_contact_served_entities(base_entities)
+    base["served_legal_entities"] = base_entities
+    base["served_legal_entity_ids"] = [entry["id"] for entry in base_entities]
+    base["served_legal_entity_names"] = [entry["name"] for entry in base_entities if entry["name"]]
+    first_entry = base_entities[0] if base_entities else None
+    base["served_legal_entity_id"] = first_entry["id"] if first_entry else None
+    base["served_legal_entity_name"] = first_entry["name"] if first_entry else ""
 
     return base
 
@@ -6239,6 +6316,10 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             emails = normalized_extra.get("emails", [])
             served_id = normalized_extra.get("served_legal_entity_id")
             served_name = normalized_extra.get("served_legal_entity_name") or ""
+            internal_name = normalized_extra.get("internal_name", "")
+            served_entities = normalized_extra.get("served_legal_entities", [])
+            served_ids = normalized_extra.get("served_legal_entity_ids", [])
+            served_names = normalized_extra.get("served_legal_entity_names", [])
             entry.update(
                 {
                     "contact_type": contact_type,
@@ -6246,6 +6327,10 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                     "emails": emails,
                     "served_legal_entity_id": served_id,
                     "served_legal_entity_name": served_name,
+                    "internal_name": internal_name,
+                    "served_legal_entities": served_entities,
+                    "served_legal_entity_ids": served_ids,
+                    "served_legal_entity_names": served_names,
                     "extra": normalized_extra,
                 }
             )
@@ -6485,7 +6570,17 @@ def api_update_parameter(param_id):
                 params.append(json.dumps(extra_payload, ensure_ascii=False))
 
         if param_type == "partner_contact":
-            fields = {"contact_type", "phones", "emails", "served_legal_entity_id", "served_legal_entity_name"}
+            fields = {
+                "contact_type",
+                "phones",
+                "emails",
+                "internal_name",
+                "served_legal_entities",
+                "served_legal_entity_ids",
+                "served_legal_entity_names",
+                "served_legal_entity_id",
+                "served_legal_entity_name",
+            }
             should_update_extra = bool(fields.intersection(payload.keys())) if isinstance(payload, dict) else False
             if new_value is not None or should_update_extra or not extra_payload:
                 effective_value = new_value if new_value is not None else row["value"]
