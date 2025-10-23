@@ -3591,8 +3591,8 @@ def client_profile(user_id):
     conn.close()
 
     settings = {"categories": ["Консультация", "Другое"]}
-    if os.path.exists("./settings.json"):
-        with open("./settings.json", "r", encoding="utf-8") as f:
+    if os.path.exists(SETTINGS_PATH):
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
             settings = json.load(f)
 
     return render_template(
