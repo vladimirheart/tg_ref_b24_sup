@@ -914,6 +914,7 @@
                           <tr>
                             <th>Провайдер</th>
                             <th>Номер договора</th>
+                            <th>ID ресторана</th>
                             <th>Телефон ТП</th>
                             <th>ЮЛ</th>
                             <th>Объектов</th>
@@ -3022,6 +3023,7 @@
     ? networkProfilesInitial.map((item) => ({
         provider: (item && item.provider) || '',
         contract_number: (item && item.contract_number) || '',
+        restaurant_id: (item && item.restaurant_id) || '',
         support_phone: (item && item.support_phone) || '',
         legal_entity: (item && item.legal_entity) || '',
       }))
@@ -3034,6 +3036,7 @@
       .map((item) => ({
         provider: (item.provider || '').trim(),
         contract_number: (item.contract_number || '').trim(),
+        restaurant_id: (item.restaurant_id || '').trim(),
         support_phone: (item.support_phone || '').trim(),
         legal_entity: (item.legal_entity || '').trim(),
       }))
@@ -3091,7 +3094,7 @@
     networkProfilesBody.innerHTML = '';
     if (!networkProfilesData.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет профилей</td>';
+      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет профилей</td>';
       networkProfilesBody.appendChild(emptyRow);
       return;
     }
@@ -3101,6 +3104,7 @@
       row.innerHTML = `
         <td><input type="text" class="form-control form-control-sm" data-field="provider" value="${escapeHtml(profile.provider || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="contract_number" value="${escapeHtml(profile.contract_number || '')}"></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="restaurant_id" value="${escapeHtml(profile.restaurant_id || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="support_phone" value="${escapeHtml(profile.support_phone || '')}"></td>
         <td><input type="text" class="form-control form-control-sm" data-field="legal_entity" value="${escapeHtml(profile.legal_entity || '')}"></td>
         <td data-usage-cell></td>
@@ -3117,7 +3121,7 @@
   }
 
   function addNetworkProfileRow(profile) {
-    const defaults = { provider: '', contract_number: '', support_phone: '', legal_entity: '' };
+    const defaults = { provider: '', contract_number: '', restaurant_id: '', support_phone: '', legal_entity: '' };
     const data = Object.assign({}, defaults, profile || {});
     networkProfilesData.push(data);
     renderNetworkProfiles();
