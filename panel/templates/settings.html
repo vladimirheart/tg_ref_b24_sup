@@ -97,6 +97,65 @@
     .parameter-card .param-items .form-select {
       max-width: 10rem;
     }
+    .partner-contact-details {
+      border: 1px solid #e9ecef;
+      border-radius: 0.75rem;
+      background-color: #fdfdfd;
+    }
+    .partner-contact-details__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+    }
+    .partner-contact-details__toggle {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      color: #0d6efd;
+      text-align: left;
+    }
+    .partner-contact-details__toggle:focus {
+      outline: none;
+      box-shadow: none;
+    }
+    .partner-contact-details__title {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .partner-contact-details__body {
+      padding: 0.75rem;
+      border-top: 1px solid #e9ecef;
+    }
+    .partner-contact-details__chevron {
+      transition: transform 0.2s ease;
+    }
+    .partner-contact-details.is-collapsed .partner-contact-details__body {
+      display: none;
+    }
+    .partner-contact-details.is-collapsed .partner-contact-details__chevron {
+      transform: rotate(-90deg);
+    }
+    .partner-contact-details.is-expanded .partner-contact-details__chevron {
+      transform: rotate(0deg);
+    }
+    .partner-contact-served-summary {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+    .partner-contact-served-summary:empty {
+      display: none;
+    }
+    .partner-contact-served-select {
+      min-height: 6.5rem;
+    }
     .client-status-toolbar {
       display: flex;
       justify-content: space-between;
@@ -1312,6 +1371,85 @@
   const partnerContactEdits = new Map();
   let partnerContactPhoneCounter = 0;
   let partnerContactEmailCounter = 0;
+  const partnerContactDetailsState = new Map();
+
+  function getPartnerContactItemKey(item) {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+    if (item.isDraft) {
+      if (item.draftId) {
+        return `draft:${item.draftId}`;
+      }
+      return null;
+    }
+    if (Number.isFinite(item.id)) {
+      return `item:${item.id}`;
+    }
+    if (item.id) {
+      return `item:${item.id}`;
+    }
+    return null;
+  }
+
+  function getPartnerContactCardKey(card) {
+    if (!card || !card.dataset.partnerContactCard) return null;
+    if (card.dataset.partnerContactDraft === 'true') {
+      const draftId = card.dataset.partnerContactDraftId;
+      return draftId ? `draft:${draftId}` : null;
+    }
+    const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+    if (Number.isFinite(id)) {
+      return `item:${id}`;
+    }
+    return null;
+  }
+
+  function getPartnerContactDisplayName(item) {
+    if (!item || typeof item !== 'object') return '';
+    const internalName = typeof item.internal_name === 'string' ? item.internal_name.trim() : '';
+    if (internalName) {
+      return internalName;
+    }
+    const value = typeof item.value === 'string' ? item.value.trim() : '';
+    return value;
+  }
+
+  function refreshPartnerContactCardTitle(card) {
+    if (!card) return;
+    const title = card.querySelector('[data-partner-contact-title]');
+    if (!title) return;
+    const data = getPartnerContactCardData(card);
+    const displayName = getPartnerContactDisplayName(data);
+    title.textContent = displayName || 'Без названия';
+  }
+
+  function updatePartnerContactServedSummary(card, data) {
+    if (!card) return;
+    const summary = card.querySelector('[data-partner-contact-served-summary]');
+    if (!summary) return;
+    const source = data || getPartnerContactCardData(card);
+    if (!source) {
+      summary.textContent = '';
+      return;
+    }
+    const served = Array.isArray(source.served_legal_entities) ? source.served_legal_entities : [];
+    if (!served.length) {
+      summary.textContent = '';
+      return;
+    }
+    const labels = served
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return '';
+        const id = Number.isFinite(entry.id) ? entry.id : Number.parseInt(entry.id, 10);
+        const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+        if (name) return name;
+        if (Number.isFinite(id)) return `ID ${id}`;
+        return '';
+      })
+      .filter((label) => label);
+    summary.textContent = labels.length ? `Выбрано: ${labels.join(', ')}` : '';
+  }
 
   const IT_CONNECTION_FALLBACK_LABELS = {{ it_connection_categories | tojson }} || {};
   const IT_CONNECTION_CATEGORY_FIELDS = {{ it_connection_category_fields | tojson }} || {};
@@ -1379,6 +1517,43 @@
       .filter((entry) => entry);
   }
 
+  function normalizePartnerContactServedEntities(rawExtra) {
+    const extra = rawExtra && typeof rawExtra === 'object' ? rawExtra : {};
+    const result = [];
+    const seen = new Set();
+
+    const addEntry = (rawId, rawName) => {
+      const parsed = Number.parseInt(rawId, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0 || seen.has(parsed)) {
+        return;
+      }
+      seen.add(parsed);
+      const name = typeof rawName === 'string' ? rawName.trim() : '';
+      result.push({ id: parsed, name });
+    };
+
+    if (Array.isArray(extra.served_legal_entities)) {
+      extra.served_legal_entities.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        addEntry(entry.id, entry.name || entry.label || entry.title || entry.served_legal_entity_name);
+      });
+    }
+
+    if (Array.isArray(extra.served_legal_entity_ids)) {
+      const names = Array.isArray(extra.served_legal_entity_names) ? extra.served_legal_entity_names : [];
+      extra.served_legal_entity_ids.forEach((id, index) => {
+        const name = names[index];
+        addEntry(id, name);
+      });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(extra, 'served_legal_entity_id')) {
+      addEntry(extra.served_legal_entity_id, extra.served_legal_entity_name);
+    }
+
+    return result;
+  }
+
   function normalizePartnerContactExtra(rawExtra, { value } = {}) {
     const extra = rawExtra && typeof rawExtra === 'object' ? rawExtra : {};
     const rawType = typeof extra.contact_type === 'string' ? extra.contact_type.trim() : '';
@@ -1392,22 +1567,20 @@
       : typeof value === 'string'
         ? value.trim()
         : '';
-    let servedId = null;
-    if (Object.prototype.hasOwnProperty.call(extra, 'served_legal_entity_id')) {
-      const rawId = extra.served_legal_entity_id;
-      const parsed = Number.parseInt(rawId, 10);
-      servedId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-    }
-    const servedName = typeof extra.served_legal_entity_name === 'string'
-      ? extra.served_legal_entity_name.trim()
-      : '';
+    const servedEntities = normalizePartnerContactServedEntities(extra);
+    const firstServed = servedEntities.length ? servedEntities[0] : null;
+    const internalName = typeof extra.internal_name === 'string' ? extra.internal_name.trim() : '';
     return {
       contact_type: contactType,
       phones,
       emails,
-      served_legal_entity_id: servedId,
-      served_legal_entity_name: servedName,
+      served_legal_entities: servedEntities,
+      served_legal_entity_id: firstServed ? firstServed.id : null,
+      served_legal_entity_name: firstServed ? firstServed.name : '',
+      served_legal_entity_ids: servedEntities.map((entry) => entry.id),
+      served_legal_entity_names: servedEntities.map((entry) => entry.name).filter((name) => name),
       legal_entity: legalEntityValue,
+      internal_name: internalName,
     };
   }
 
@@ -1425,9 +1598,46 @@
     return list.map((item) => ({ key: item.key, type: item.type, value: item.value }));
   }
 
+  function clonePartnerContactServedEntities(list) {
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const id = Number.isFinite(item.id) ? item.id : Number.parseInt(item.id, 10);
+        if (!Number.isFinite(id) || id <= 0) return null;
+        return {
+          id,
+          name: typeof item.name === 'string' ? item.name : '',
+        };
+      })
+      .filter((entry) => entry);
+  }
+
   function clonePartnerContactItem(item) {
     if (!item || typeof item !== 'object') {
       return null;
+    }
+    const servedEntities = clonePartnerContactServedEntities(item.served_legal_entities);
+    let servedId = Number.isFinite(item.served_legal_entity_id)
+      ? item.served_legal_entity_id
+      : Number.parseInt(item.served_legal_entity_id, 10);
+    servedId = Number.isFinite(servedId) && servedId > 0 ? servedId : null;
+    let servedName = typeof item.served_legal_entity_name === 'string' ? item.served_legal_entity_name : '';
+    if (!servedEntities.length && Number.isFinite(servedId)) {
+      servedEntities.push({ id: servedId, name: servedName });
+    }
+    if (servedEntities.length) {
+      const first = servedEntities[0];
+      if (first) {
+        if (!Number.isFinite(servedId)) {
+          servedId = first.id;
+        }
+        if (!servedName) {
+          servedName = first.name;
+        }
+      }
     }
     return {
       id: item.id,
@@ -1440,12 +1650,11 @@
         : 'partner',
       phones: clonePartnerContactCommList(item.phones),
       emails: clonePartnerContactCommList(item.emails),
-      served_legal_entity_id: Number.isFinite(item.served_legal_entity_id)
-        ? item.served_legal_entity_id
-        : null,
-      served_legal_entity_name:
-        typeof item.served_legal_entity_name === 'string' ? item.served_legal_entity_name : '',
+      served_legal_entities: servedEntities,
+      served_legal_entity_id: Number.isFinite(servedId) ? servedId : null,
+      served_legal_entity_name: typeof servedName === 'string' ? servedName : '',
       legal_entity: typeof item.legal_entity === 'string' ? item.legal_entity : '',
+      internal_name: typeof item.internal_name === 'string' ? item.internal_name : '',
       is_deleted: Boolean(item.is_deleted),
       usage_count: Number.isFinite(item.usage_count) ? item.usage_count : 0,
     };
@@ -2046,9 +2255,13 @@
           contact_type: item.contact_type,
           phones: item.phones,
           emails: item.emails,
+          served_legal_entities: item.served_legal_entities,
           served_legal_entity_id: item.served_legal_entity_id,
           served_legal_entity_name: item.served_legal_entity_name,
+          served_legal_entity_ids: item.served_legal_entity_ids,
+          served_legal_entity_names: item.served_legal_entity_names,
           legal_entity: typeof item.legal_entity === 'string' ? item.legal_entity : '',
+          internal_name: typeof item.internal_name === 'string' ? item.internal_name : '',
           is_deleted: Boolean(item.is_deleted),
           usage_count: Number.isFinite(Number(item.usage_count)) ? Number(item.usage_count) : 0,
         });
@@ -2072,6 +2285,9 @@
     }
     if (!Array.isArray(current.emails)) {
       current.emails = [];
+    }
+    if (!Array.isArray(current.served_legal_entities)) {
+      current.served_legal_entities = [];
     }
     return current;
   }
@@ -2133,29 +2349,55 @@
   function buildPartnerContactServedSelect(item, disabled) {
     const disabledAttr = disabled ? ' disabled' : '';
     const options = getPartnerContactLegalEntityOptions();
-    const selectedId = Number.isFinite(item.served_legal_entity_id)
+    const servedEntities = Array.isArray(item.served_legal_entities) ? item.served_legal_entities : [];
+    const selectedIds = new Set();
+    const labelById = new Map();
+
+    servedEntities.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') return;
+      const parsed = Number.isFinite(entry.id) ? entry.id : Number.parseInt(entry.id, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) return;
+      selectedIds.add(parsed);
+      const label = typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim() : `ID ${parsed}`;
+      labelById.set(parsed, label);
+    });
+
+    const fallbackId = Number.isFinite(item.served_legal_entity_id)
       ? item.served_legal_entity_id
       : Number.parseInt(item.served_legal_entity_id, 10);
-    let hasSelected = false;
-    const entries = ['<option value="">Не выбрано</option>'];
+    if (Number.isFinite(fallbackId) && fallbackId > 0 && !selectedIds.has(fallbackId)) {
+      selectedIds.add(fallbackId);
+      const fallbackName = typeof item.served_legal_entity_name === 'string' && item.served_legal_entity_name.trim()
+        ? item.served_legal_entity_name.trim()
+        : `ID ${fallbackId}`;
+      labelById.set(fallbackId, fallbackName);
+    }
+
+    const entries = [];
     options.forEach(({ id, label }) => {
-      const isSelected = Number.isFinite(selectedId) && selectedId === id;
+      const isSelected = selectedIds.has(id);
       if (isSelected) {
-        hasSelected = true;
+        selectedIds.delete(id);
       }
+      labelById.set(id, label);
       entries.push(
         `<option value="${id}" data-label="${escapeHtml(label)}"${isSelected ? ' selected' : ''}>${escapeHtml(label)}</option>`
       );
     });
-    if (Number.isFinite(selectedId) && !hasSelected) {
-      const fallbackLabel = item.served_legal_entity_name
-        ? item.served_legal_entity_name
-        : `ID ${selectedId}`;
+
+    selectedIds.forEach((id) => {
+      const fallbackLabel = labelById.get(id) || `ID ${id}`;
       entries.push(
-        `<option value="${selectedId}" data-label="${escapeHtml(fallbackLabel)}" selected>${escapeHtml(fallbackLabel)} • не найдено</option>`
+        `<option value="${id}" data-label="${escapeHtml(fallbackLabel)}" selected>${escapeHtml(fallbackLabel)} • не найдено</option>`
       );
+    });
+
+    if (!entries.length) {
+      return '<div class="text-muted small">Нет доступных ЮЛ</div>';
     }
-    return `<select class="form-select form-select-sm" data-partner-contact-field="served_legal_entity_id"${disabledAttr}>${entries.join('')}</select>`;
+
+    const size = Math.min(Math.max(entries.length, 4), 10);
+    return `<select class="form-select form-select-sm partner-contact-served-select" data-partner-contact-field="served_legal_entities" multiple size="${size}"${disabledAttr}>${entries.join('')}</select>`;
   }
 
   function buildPartnerContactCommRows(entries, kind, disabled) {
@@ -2228,6 +2470,27 @@
       ? ''
       : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-comm data-comm-type="email">+ E-mail</button>';
     const servedWrapperClass = item.contact_type === 'ka' ? '' : ' d-none';
+    const servedEntities = Array.isArray(item.served_legal_entities) ? item.served_legal_entities : [];
+    const servedSummaryNames = servedEntities
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return '';
+        const id = Number.isFinite(entry.id) ? entry.id : Number.parseInt(entry.id, 10);
+        const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+        if (name) return name;
+        if (Number.isFinite(id)) return `ID ${id}`;
+        return '';
+      })
+      .filter((label) => label);
+    const servedSummaryText = servedSummaryNames.join(', ');
+    const displayName = getPartnerContactDisplayName(item);
+    const internalNameValue = typeof item.internal_name === 'string' ? item.internal_name : '';
+    const detailsKey = getPartnerContactItemKey(item) || (isDraft && item.draftId ? `draft:${item.draftId}` : Number.isFinite(item.id) ? `item:${item.id}` : null);
+    if (detailsKey && !partnerContactDetailsState.has(detailsKey)) {
+      partnerContactDetailsState.set(detailsKey, 'expanded');
+    }
+    const isDetailsCollapsed = detailsKey ? partnerContactDetailsState.get(detailsKey) === 'collapsed' : false;
+    const detailsClasses = ['partner-contact-details', isDetailsCollapsed ? 'is-collapsed' : 'is-expanded'];
+    const detailsAria = isDetailsCollapsed ? 'false' : 'true';
     const deletedHint = isDeleted
       ? '<div class="alert alert-warning small mt-3 mb-0">Контакт помечен как удалённый. Восстановите запись, чтобы редактировать её.</div>'
       : '';
@@ -2236,7 +2499,7 @@
         <div class="${cardClasses.join(' ')}" ${datasetAttrs}>
           <div class="card-header d-flex justify-content-between align-items-start gap-2">
             <div>
-              <div class="fw-semibold" data-partner-contact-title>${escapeHtml(titleValue || 'Без названия')}</div>
+              <div class="fw-semibold" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
               <div class="small text-muted" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateLabel)}</div>
             </div>
             ${idBadge}
@@ -2253,23 +2516,40 @@
               </div>
             </div>
             <div>
+              <label class="form-label">Внутреннее название</label>
+              <input type="text" class="form-control" data-partner-contact-field="internal_name" value="${escapeHtml((internalNameValue || '').trim())}" placeholder="Например, Ключевой партнёр"${disabled ? ' disabled' : ''}>
+              <div class="form-text">Отображается в панели и отчётах.</div>
+            </div>
+            <div>
               <label class="form-label">ЮЛ</label>
               <input type="text" class="form-control" data-partner-contact-field="value" value="${escapeHtml(item.value || '')}" placeholder="Например, ООО «Партнёр»"${disabled ? ' disabled' : ''}>
               <div class="form-text">Название юридического лица контакта.</div>
             </div>
             <div class="${servedWrapperClass}" data-partner-contact-served-wrapper>
-              <label class="form-label">Какое ЮЛ обслуживает</label>
+              <label class="form-label mb-1">Какое ЮЛ обслуживает</label>
               ${servedSelect}
+              <div class="form-text">Можно выбрать несколько ЮЛ.</div>
+              <div class="partner-contact-served-summary" data-partner-contact-served-summary>${escapeHtml(servedSummaryText)}</div>
             </div>
-            <div>
-              <label class="form-label">Телефоны</label>
-              <div data-partner-contact-comm-list="phone">${phonesSection}</div>
-              <div class="mt-2">${addPhoneBtn}</div>
-            </div>
-            <div>
-              <label class="form-label">E-mail</label>
-              <div data-partner-contact-comm-list="email">${emailsSection}</div>
-              <div class="mt-2">${addEmailBtn}</div>
+            <div class="${detailsClasses.join(' ')}" data-partner-contact-details${detailsKey ? ` data-details-key="${escapeHtml(detailsKey)}"` : ''}>
+              <div class="partner-contact-details__header">
+                <button class="partner-contact-details__toggle" type="button" data-partner-contact-details-toggle aria-expanded="${detailsAria}">
+                  <span class="partner-contact-details__title">Контакты и должности</span>
+                  <i class="bi bi-chevron-down partner-contact-details__chevron"></i>
+                </button>
+              </div>
+              <div class="partner-contact-details__body">
+                <div class="mb-3">
+                  <label class="form-label">Телефоны</label>
+                  <div data-partner-contact-comm-list="phone">${phonesSection}</div>
+                  <div class="mt-2">${addPhoneBtn}</div>
+                </div>
+                <div>
+                  <label class="form-label">E-mail</label>
+                  <div data-partner-contact-comm-list="email">${emailsSection}</div>
+                  <div class="mt-2">${addEmailBtn}</div>
+                </div>
+              </div>
             </div>
             <div class="d-flex flex-wrap gap-2 align-items-center">
               <button class="btn ${primaryClass} btn-sm" type="button" data-partner-contact-action="save"${primaryDisabled}>${primaryLabel}</button>
@@ -2292,6 +2572,21 @@
       }
       return;
     }
+    const activeKeys = new Set();
+    items.forEach((item) => {
+      const key = getPartnerContactItemKey(item);
+      if (key) {
+        activeKeys.add(key);
+        if (!partnerContactDetailsState.has(key)) {
+          partnerContactDetailsState.set(key, 'expanded');
+        }
+      }
+    });
+    Array.from(partnerContactDetailsState.keys()).forEach((key) => {
+      if (!activeKeys.has(key)) {
+        partnerContactDetailsState.delete(key);
+      }
+    });
     partnerContactsContainer.innerHTML = items.map((item) => renderPartnerContactCard(item)).join('');
     if (partnerContactsEmptyPlaceholder) {
       partnerContactsEmptyPlaceholder.classList.add('d-none');
@@ -2300,6 +2595,28 @@
 
   function addPartnerContactDraft(initial = {}) {
     partnerContactDraftCounter += 1;
+    const servedEntities = Array.isArray(initial.served_legal_entities) && initial.served_legal_entities.length
+      ? clonePartnerContactServedEntities(initial.served_legal_entities)
+      : [];
+    let servedId = Number.isFinite(initial.served_legal_entity_id)
+      ? initial.served_legal_entity_id
+      : Number.parseInt(initial.served_legal_entity_id, 10);
+    servedId = Number.isFinite(servedId) && servedId > 0 ? servedId : null;
+    let servedName = typeof initial.served_legal_entity_name === 'string' ? initial.served_legal_entity_name : '';
+    if (!servedEntities.length && Number.isFinite(servedId)) {
+      servedEntities.push({ id: servedId, name: servedName });
+    }
+    if (servedEntities.length) {
+      const first = servedEntities[0];
+      if (first) {
+        if (!Number.isFinite(servedId) || servedId <= 0) {
+          servedId = Number.isFinite(first.id) ? first.id : servedId;
+        }
+        if (!servedName && first && typeof first.name === 'string') {
+          servedName = first.name;
+        }
+      }
+    }
     const draft = {
       draftId: `draft-${partnerContactDraftCounter}`,
       isDraft: true,
@@ -2314,13 +2631,11 @@
       emails: Array.isArray(initial.emails) && initial.emails.length
         ? clonePartnerContactCommList(initial.emails)
         : [createBlankPartnerContactCommEntry('email')],
-      served_legal_entity_id: Number.isFinite(initial.served_legal_entity_id)
-        ? initial.served_legal_entity_id
-        : null,
-      served_legal_entity_name: typeof initial.served_legal_entity_name === 'string'
-        ? initial.served_legal_entity_name
-        : '',
+      served_legal_entities: servedEntities,
+      served_legal_entity_id: Number.isFinite(servedId) ? servedId : null,
+      served_legal_entity_name: typeof servedName === 'string' ? servedName : '',
       legal_entity: typeof initial.legal_entity === 'string' ? initial.legal_entity : '',
+      internal_name: typeof initial.internal_name === 'string' ? initial.internal_name : '',
       is_deleted: false,
       usage_count: 0,
     };
@@ -2331,7 +2646,13 @@
   function removePartnerContactDraft(draftId) {
     const index = partnerContactDrafts.findIndex((draft) => draft.draftId === draftId);
     if (index === -1) return;
-    partnerContactDrafts.splice(index, 1);
+    const [removed] = partnerContactDrafts.splice(index, 1);
+    if (removed) {
+      const key = getPartnerContactItemKey(removed);
+      if (key) {
+        partnerContactDetailsState.delete(key);
+      }
+    }
     renderPartnerContacts();
   }
 
@@ -2341,6 +2662,8 @@
     if (field === 'value') {
       draft.value = value;
       draft.legal_entity = value;
+    } else if (field === 'internal_name') {
+      draft.internal_name = value;
     } else if (field === 'state') {
       draft.state = value;
     } else if (field === 'contact_type') {
@@ -2348,7 +2671,15 @@
       if (draft.contact_type !== 'ka') {
         draft.served_legal_entity_id = null;
         draft.served_legal_entity_name = '';
+        draft.served_legal_entities = [];
       }
+    } else if (field === 'served_legal_entities') {
+      const list = Array.isArray(value) ? value : [];
+      const normalized = clonePartnerContactServedEntities(list);
+      draft.served_legal_entities = normalized;
+      const first = normalized[0];
+      draft.served_legal_entity_id = first ? first.id : null;
+      draft.served_legal_entity_name = first ? first.name : '';
     } else if (field === 'served_legal_entity_id') {
       draft.served_legal_entity_id = value;
     } else if (field === 'served_legal_entity_name') {
@@ -2392,12 +2723,22 @@
     if (field === 'value') {
       edit.value = value;
       edit.legal_entity = value;
+    } else if (field === 'internal_name') {
+      edit.internal_name = value;
     } else if (field === 'contact_type') {
       edit.contact_type = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, value) ? value : edit.contact_type;
       if (edit.contact_type !== 'ka') {
         edit.served_legal_entity_id = null;
         edit.served_legal_entity_name = '';
+        edit.served_legal_entities = [];
       }
+    } else if (field === 'served_legal_entities') {
+      const list = Array.isArray(value) ? value : [];
+      const normalized = clonePartnerContactServedEntities(list);
+      edit.served_legal_entities = normalized;
+      const first = normalized[0];
+      edit.served_legal_entity_id = first ? first.id : null;
+      edit.served_legal_entity_name = first ? first.name : '';
     } else if (field === 'served_legal_entity_id') {
       edit.served_legal_entity_id = value;
     } else if (field === 'served_legal_entity_name') {
@@ -2468,13 +2809,34 @@
           }))
           .filter((item) => item.value)
       : [];
-    const servedId = Number.isFinite(data.served_legal_entity_id)
+    result.internal_name = typeof data.internal_name === 'string' ? data.internal_name.trim() : '';
+    const servedEntities = Array.isArray(data.served_legal_entities)
+      ? data.served_legal_entities
+          .map((entry) => {
+            if (!entry || typeof entry !== 'object') return null;
+            const id = Number.isFinite(entry.id) ? entry.id : Number.parseInt(entry.id, 10);
+            if (!Number.isFinite(id) || id <= 0) return null;
+            const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+            return { id, name };
+          })
+          .filter((entry) => entry)
+      : [];
+    result.served_legal_entities = servedEntities;
+    result.served_legal_entity_ids = servedEntities.map((entry) => entry.id);
+    result.served_legal_entity_names = servedEntities.map((entry) => entry.name).filter((name) => name);
+    const explicitServedId = Number.isFinite(data.served_legal_entity_id)
       ? data.served_legal_entity_id
       : Number.parseInt(data.served_legal_entity_id, 10);
-    result.served_legal_entity_id = Number.isFinite(servedId) ? servedId : null;
-    result.served_legal_entity_name = typeof data.served_legal_entity_name === 'string'
-      ? data.served_legal_entity_name
-      : '';
+    const fallbackServed = servedEntities[0];
+    const normalizedServedId = Number.isFinite(explicitServedId) && explicitServedId > 0
+      ? explicitServedId
+      : fallbackServed
+        ? fallbackServed.id
+        : null;
+    const explicitServedName = typeof data.served_legal_entity_name === 'string' ? data.served_legal_entity_name : '';
+    const normalizedServedName = fallbackServed ? fallbackServed.name : explicitServedName;
+    result.served_legal_entity_id = Number.isFinite(normalizedServedId) ? normalizedServedId : null;
+    result.served_legal_entity_name = normalizedServedName || '';
     return result;
   }
 
@@ -2490,8 +2852,9 @@
       alert('Поле «ЮЛ» не может быть пустым');
       return;
     }
-    if (payload.contact_type === 'ka' && !payload.served_legal_entity_id) {
-      alert('Для типа «КА» необходимо выбрать обслуживаемое ЮЛ');
+    const servedIds = Array.isArray(payload.served_legal_entity_ids) ? payload.served_legal_entity_ids : [];
+    if (payload.contact_type === 'ka' && !servedIds.length) {
+      alert('Для типа «КА» необходимо выбрать одно или несколько обслуживаемых ЮЛ');
       return;
     }
 
@@ -2522,6 +2885,10 @@
           contact_type: payload.contact_type,
           phones: payload.phones,
           emails: payload.emails,
+          internal_name: payload.internal_name,
+          served_legal_entities: payload.served_legal_entities,
+          served_legal_entity_ids: payload.served_legal_entity_ids,
+          served_legal_entity_names: payload.served_legal_entity_names,
           served_legal_entity_id: payload.served_legal_entity_id,
           served_legal_entity_name: payload.served_legal_entity_name,
         };
@@ -2695,6 +3062,7 @@
       partnerContactDrafts = [];
       partnerContactDraftCounter = 0;
       partnerContactEdits.clear();
+      partnerContactDetailsState.clear();
       renderPartnerContacts();
     });
   }
@@ -2704,6 +3072,34 @@
   }
 
   document.addEventListener('click', (event) => {
+    const detailsToggleBtn = event.target.closest('[data-partner-contact-details-toggle]');
+    if (detailsToggleBtn) {
+      const container = detailsToggleBtn.closest('[data-partner-contact-details]');
+      if (!container) return;
+      let key = container.dataset.detailsKey;
+      if (!key) {
+        const card = container.closest('[data-partner-contact-card]');
+        key = getPartnerContactCardKey(card);
+      }
+      const isCollapsed = container.classList.contains('is-collapsed');
+      if (isCollapsed) {
+        container.classList.remove('is-collapsed');
+        container.classList.add('is-expanded');
+        detailsToggleBtn.setAttribute('aria-expanded', 'true');
+        if (key) {
+          partnerContactDetailsState.set(key, 'expanded');
+        }
+      } else {
+        container.classList.add('is-collapsed');
+        container.classList.remove('is-expanded');
+        detailsToggleBtn.setAttribute('aria-expanded', 'false');
+        if (key) {
+          partnerContactDetailsState.set(key, 'collapsed');
+        }
+      }
+      event.preventDefault();
+      return;
+    }
     const partnerContactAddBtn = event.target.closest('[data-partner-contact-add]');
     if (partnerContactAddBtn) {
       addPartnerContactDraft();
@@ -2896,7 +3292,7 @@
       const card = event.target.closest('[data-partner-contact-card]');
       if (!card) return;
       const field = event.target.dataset.partnerContactField;
-      if (field === 'value') {
+      if (field === 'value' || field === 'internal_name') {
         const value = event.target.value;
         if (card.dataset.partnerContactDraft === 'true') {
           updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, value);
@@ -2906,10 +3302,8 @@
             updatePartnerContactEditField(id, field, value);
           }
         }
-        const title = card.querySelector('[data-partner-contact-title]');
-        if (title) {
-          title.textContent = value.trim() || 'Без названия';
-        }
+        refreshPartnerContactCardTitle(card);
+        return;
       }
       const commField = event.target.dataset.partnerContactCommField;
       if (commField === 'value') {
@@ -2945,13 +3339,14 @@
         const wrapper = card.querySelector('[data-partner-contact-served-wrapper]');
         if (wrapper) {
           wrapper.classList.toggle('d-none', value !== 'ka');
-          if (value !== 'ka') {
-            const select = wrapper.querySelector('[data-partner-contact-field="served_legal_entity_id"]');
-            if (select) {
-              select.value = '';
-            }
+          const select = wrapper.querySelector('[data-partner-contact-field="served_legal_entities"]');
+          if (select && value !== 'ka') {
+            Array.from(select.options).forEach((option) => {
+              option.selected = false;
+            });
           }
         }
+        updatePartnerContactServedSummary(card);
         const data = getPartnerContactCardData(card);
         const subtitle = card.querySelector('[data-partner-contact-subtitle]');
         if (subtitle && data) {
@@ -2972,6 +3367,27 @@
         }
         return;
       }
+      if (field === 'served_legal_entities') {
+        const select = event.target;
+        const selections = Array.from(select.selectedOptions)
+          .map((option) => {
+            const id = Number.parseInt(option.value, 10);
+            if (!Number.isFinite(id) || id <= 0) return null;
+            const label = option.dataset.label || option.textContent || '';
+            return { id, name: label.trim() };
+          })
+          .filter((entry) => entry);
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, selections);
+        } else {
+          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+          if (Number.isFinite(id)) {
+            updatePartnerContactEditField(id, field, selections);
+          }
+        }
+        updatePartnerContactServedSummary(card);
+        return;
+      }
       if (field === 'served_legal_entity_id') {
         const select = event.target;
         const option = select.options[select.selectedIndex];
@@ -2987,6 +3403,7 @@
             updatePartnerContactEditField(id, 'served_legal_entity_name', label || '');
           }
         }
+        updatePartnerContactServedSummary(card);
         return;
       }
       const commField = event.target.dataset.partnerContactCommField;
