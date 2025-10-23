@@ -55,6 +55,9 @@
     .equipment-card textarea { min-height: 80px; }
     .equipment-card .card-header { flex-wrap: wrap; gap: 0.75rem; }
     .equipment-card .equipment-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .equipment-card .card-header {
+      gap: 1rem;
+    }
     .equipment-card .equipment-header-toggle {
       border: 0;
       background: transparent;
@@ -85,6 +88,19 @@
     .equipment-card .equipment-header-meta span span { white-space: normal; word-break: break-word; }
     .equipment-card .equipment-header-icon { font-size: 0.65rem; transition: transform 0.2s ease; }
     .equipment-card .equipment-header-toggle.collapsed .equipment-header-icon { transform: rotate(-90deg); }
+    .equipment-card .equipment-header-toggle[tabindex="0"]:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+      border-radius: 0.5rem;
+    }
+    .equipment-card .equipment-fields-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .equipment-card .equipment-field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .equipment-card .equipment-field-placeholder { visibility: hidden; }
+    .equipment-card .equipment-field-span-3 { grid-column: span 3; }
     .equipment-photo img { object-fit: cover; height: 150px; }
     .equipment-photo .card-body { font-size: 0.85rem; }
     .form-control-plaintext { padding-left: 0; }
@@ -197,7 +213,14 @@
       pointer-events: none;
       box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
     }
+    @media (max-width: 992px) {
+      .equipment-card .equipment-fields-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .equipment-card .equipment-field-placeholder { display: none; }
+    }
     @media (max-width: 576px) {
+      .equipment-card .equipment-fields-grid { grid-template-columns: 1fr; }
       .title-photo-preview { width: 140px; height: 90px; }
       .passport-overview .card-body { padding: 1.25rem; }
       .passport-card .card-header { padding: 0.75rem 1rem; }
@@ -1375,6 +1398,29 @@
       rebuildEquipmentSerialOptions(serialDatalist, serialOptions, serialValue);
     }
 
+    function getEquipmentIpPreviewValue() {
+      if (internalNetworkInput) {
+        const blocks = (internalNetworkInput.value || '').match(/\d{1,3}/g);
+        if (blocks && blocks.length >= 3) {
+          return `${blocks.slice(0, 3).join('.')}.xxx`;
+        }
+      }
+      return '192.168.0.1';
+    }
+
+    function applyEquipmentIpPreview(card, previewValue) {
+      if (!card) return;
+      const ipInput = card.querySelector('.equipment-ip');
+      const headerIpValue = card.querySelector('[data-role="equipment-header-ip"]');
+      const preview = typeof previewValue === 'string' ? previewValue : getEquipmentIpPreviewValue();
+      if (ipInput) {
+        ipInput.placeholder = preview;
+      }
+      if (headerIpValue && ipInput && !ipInput.value.trim()) {
+        headerIpValue.textContent = preview;
+      }
+    }
+
     function initializeEquipmentCard(card) {
       if (!card) return;
       const typeSelect = card.querySelector('.equipment-type');
@@ -1393,7 +1439,8 @@
       const headerToggle = card.querySelector('.equipment-header-toggle');
       const cardHeader = card.querySelector('.card-header');
       const collapseTargetSelector =
-        headerToggle && headerToggle.getAttribute('data-bs-target');
+        (headerToggle && headerToggle.dataset.collapseTarget) ||
+        (card.dataset.detailsTarget ? `#${card.dataset.detailsTarget}` : null);
       const collapseElement = collapseTargetSelector
         ? (card.querySelector(collapseTargetSelector) || document.querySelector(collapseTargetSelector))
         : null;
@@ -1401,6 +1448,9 @@
         if (headerToggle) {
           headerToggle.classList.toggle('collapsed', !expanded);
           headerToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+        if (cardHeader) {
+          cardHeader.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         }
       };
       if (collapseElement) {
@@ -1447,20 +1497,26 @@
             syncDetailsCollapseState(targetState);
           }
         };
-        const attachToggleHandler = (button) => {
-          if (!button || button.dataset.collapseInitialized === 'true') return;
-          button.addEventListener('click', (event) => {
+        const attachToggleHandler = (element) => {
+          if (!element || element.dataset.collapseInitialized === 'true') return;
+          element.addEventListener('click', (event) => {
+            if (event.target.closest('.equipment-actions')) return;
             event.preventDefault();
             event.stopPropagation();
             applyCollapseState();
           });
-          button.dataset.collapseInitialized = 'true';
+          element.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              applyCollapseState();
+            }
+          });
+          element.dataset.collapseInitialized = 'true';
         };
         attachToggleHandler(headerToggle);
         if (cardHeader && cardHeader.dataset.collapseHeaderInitialized !== 'true') {
           cardHeader.addEventListener('click', (event) => {
             if (!headerToggle) return;
-            if (event.target.closest('.equipment-header-toggle')) return;
             if (event.target.closest('.equipment-actions')) return;
             applyCollapseState();
           });
@@ -1477,9 +1533,13 @@
           const text = option ? option.text : modelSelect.value;
           headerModelValue.textContent = (text || modelSelect.value || '—').trim() || '—';
         }
-        if (headerIpValue && ipInput) {
+        if (ipInput) {
           const value = ipInput.value.trim();
-          headerIpValue.textContent = value || '—';
+          const previewValue = getEquipmentIpPreviewValue();
+          ipInput.placeholder = previewValue;
+          if (headerIpValue) {
+            headerIpValue.textContent = value || previewValue;
+          }
         }
         if (headerStatusValue && statusSelect) {
           const option = statusSelect.options[statusSelect.selectedIndex];
@@ -3095,6 +3155,14 @@
       });
     }
 
+    function refreshEquipmentIpPreviews() {
+      if (!equipmentContainer) return;
+      const previewValue = getEquipmentIpPreviewValue();
+      equipmentContainer.querySelectorAll('.equipment-card').forEach((card) => {
+        applyEquipmentIpPreview(card, previewValue);
+      });
+    }
+
     function renderEquipment(equipmentList) {
       const list = Array.isArray(equipmentList) ? equipmentList : [];
       passportData.equipment = list;
@@ -3144,13 +3212,14 @@
         const detailsExpanded = isNew ? 'true' : 'false';
         const headerName = escapeHtml(item.name || 'Оборудование');
         const headerModel = escapeHtml(item.model || '—');
-        const headerIp = escapeHtml(item.ip_address || '—');
+        const ipPreview = getEquipmentIpPreviewValue();
+        const headerIp = escapeHtml(item.ip_address || ipPreview);
         const headerStatus = escapeHtml(item.status || '—');
         const serialOptionsId = `equipmentSerialOptions-${equipmentKey}`;
         const serialOptions = buildDatalistOptions(equipmentOptionSets.serials, item.serial_number || '');
         card.innerHTML = `
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <button class="equipment-header-toggle${detailsToggleClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${detailsCollapseId}" aria-expanded="${detailsExpanded}" aria-controls="${detailsCollapseId}">
+          <div class="card-header d-flex justify-content-between align-items-center" data-collapse-target="#${detailsCollapseId}">
+            <div class="equipment-header-toggle${detailsToggleClass}" role="button" tabindex="0" data-collapse-target="#${detailsCollapseId}" aria-expanded="${detailsExpanded}" aria-controls="${detailsCollapseId}">
               <div class="equipment-header-summary">
                 <div class="equipment-header-title">${headerName}</div>
                 <div class="equipment-header-meta">
@@ -3160,7 +3229,7 @@
                 </div>
               </div>
               <span class="equipment-header-icon">▼</span>
-            </button>
+            </div>
             <div class="equipment-actions">
               <button class="btn btn-sm btn-success" data-action="save-equipment">💾 Сохранить</button>
               ${isNew ? '<button class="btn btn-sm btn-outline-secondary" data-action="cancel-equipment">Отменить</button>' : '<button class="btn btn-sm btn-outline-danger" data-action="delete-equipment">Удалить</button>'}
@@ -3168,56 +3237,54 @@
           </div>
           <div class="collapse${detailsShowClass}" id="${detailsCollapseId}">
             <div class="card-body">
-            <div class="row g-3">
-              <div class="col-md-4">
+            <div class="equipment-fields-grid">
+              <div class="equipment-field">
                 <label class="form-label">Тип</label>
                 <select class="form-select form-select-sm equipment-type">${typeOptions}</select>
               </div>
-              <div class="col-md-4">
+              <div class="equipment-field">
                 <label class="form-label">Производитель</label>
                 <select class="form-select form-select-sm equipment-vendor">${vendorOptions}</select>
               </div>
-              <div class="col-md-4">
+              <div class="equipment-field">
                 <label class="form-label">Наименование</label>
                 <input type="text" class="form-control form-control-sm equipment-name" value="${escapeHtml(item.name || '')}" />
               </div>
-              <div class="col-md-3">
+              <div class="equipment-field">
                 <label class="form-label">Модель</label>
                 <select class="form-select form-select-sm equipment-model">${modelOptions}</select>
               </div>
-              <div class="col-md-3">
+              <div class="equipment-field">
                 <label class="form-label">Серийный номер</label>
                 <input type="text" class="form-control form-control-sm equipment-serial" value="${escapeHtml(item.serial_number || '')}" list="${serialOptionsId}" placeholder="SN..." />
                 <datalist id="${serialOptionsId}" class="equipment-serial-options">${serialOptions}</datalist>
               </div>
-              <div class="col-md-3">
+              <div class="equipment-field">
                 <label class="form-label">Статус</label>
                 <select class="form-select form-select-sm equipment-status">${statusOptions}</select>
               </div>
-              <div class="col-md-3">
+              <div class="equipment-field">
                 <label class="form-label">IP-адрес</label>
-                <input type="text" class="form-control form-control-sm equipment-ip" value="${escapeHtml(item.ip_address || '')}" />
+                <input type="text" class="form-control form-control-sm equipment-ip" value="${escapeHtml(item.ip_address || '')}" placeholder="${escapeHtml(ipPreview)}" />
               </div>
-              <div class="col-12">
-                <div class="row g-2">
-                  <div class="col-md-4">
-                    <label class="form-label">Подключение</label>
-                    <select class="form-select form-select-sm equipment-connection-type">${connectionOptions}</select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label">ID подключения</label>
-                    <input type="text" class="form-control form-control-sm equipment-connection-id" value="${escapeHtml(item.connection_id || '')}" placeholder="введите id" />
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label">Пароль подключения</label>
-                    <input type="text" class="form-control form-control-sm equipment-connection-password" value="${escapeHtml(item.connection_password || '')}" placeholder="введите пароль" />
-                  </div>
-                </div>
+              <div class="equipment-field">
+                <label class="form-label">Подключение</label>
+                <select class="form-select form-select-sm equipment-connection-type">${connectionOptions}</select>
               </div>
-              <div class="col-12">
-                <label class="form-label">Описание</label>
-                <textarea class="form-control form-control-sm equipment-description">${escapeHtml(item.description || '')}</textarea>
+              <div class="equipment-field">
+                <label class="form-label">ID подключения</label>
+                <input type="text" class="form-control form-control-sm equipment-connection-id" value="${escapeHtml(item.connection_id || '')}" placeholder="введите id" />
               </div>
+              <div class="equipment-field">
+                <label class="form-label">Пароль подключения</label>
+                <input type="text" class="form-control form-control-sm equipment-connection-password" value="${escapeHtml(item.connection_password || '')}" placeholder="введите пароль" />
+              </div>
+              <div class="equipment-field equipment-field-placeholder" aria-hidden="true"></div>
+              <div class="equipment-field equipment-field-placeholder" aria-hidden="true"></div>
+            </div>
+            <div class="mt-3">
+              <label class="form-label">Описание</label>
+              <textarea class="form-control form-control-sm equipment-description">${escapeHtml(item.description || '')}</textarea>
             </div>
             ${isNew
               ? '<div class="alert alert-info mt-3 mb-0">Сохраните запись, чтобы добавить фотографии оборудования.</div>'
@@ -3253,11 +3320,13 @@
         card.id = `equipment-card-${equipmentKey}`;
         initializeAutoExpandTextareas(card);
         initializeEquipmentCard(card);
+        applyEquipmentIpPreview(card);
         if (!isNew) {
           renderEquipmentPhotos(item.id, item.photos || []);
         }
       });
       updateNetworkEquipmentSummary(list);
+      refreshEquipmentIpPreviews();
     }
 
     function renderEquipmentPhotos(equipmentId, photos) {
@@ -3558,8 +3627,12 @@
       updateStatusBadge();
       updateStatusTaskRequirement();
     });
-    internalNetworkInput.addEventListener('input', updateNetworkBadge);
-    internalNetworkInput.addEventListener('change', updateNetworkBadge);
+    const handleInternalNetworkChange = () => {
+      updateNetworkBadge();
+      refreshEquipmentIpPreviews();
+    };
+    internalNetworkInput.addEventListener('input', handleInternalNetworkChange);
+    internalNetworkInput.addEventListener('change', handleInternalNetworkChange);
     networkProviderInput.addEventListener('change', () => handleNetworkProfileSelection('provider', networkProviderInput.value));
     networkContractInput.addEventListener('change', () => handleNetworkProfileSelection('contract_number', networkContractInput.value));
     networkSupportPhoneInput.addEventListener('change', () => handleNetworkProfileSelection('support_phone', networkSupportPhoneInput.value));
