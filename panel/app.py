@@ -1268,6 +1268,22 @@ def _fetch_passport_rows(filters):
     if iiko_alias and not (filters_local.get("it_iiko_server") or "").strip():
         filters_local["it_iiko_server"] = iiko_alias
 
+    equipment_aliases = {
+        "equipment_type": ["equipment_type", "equipmentType"],
+        "equipment_vendor": ["equipment_vendor", "equipmentVendor", "vendor"],
+        "equipment_model": ["equipment_model", "equipmentModel", "model"],
+        "equipment_status": ["equipment_status", "equipmentStatus", "status_equipment"],
+    }
+    for canonical, aliases in equipment_aliases.items():
+        current = (filters_local.get(canonical) or "").strip()
+        if current:
+            continue
+        for alias in aliases[1:]:
+            alias_value = (filters_local.get(alias) or "").strip()
+            if alias_value:
+                filters_local[canonical] = alias_value
+                break
+
     conn = get_passport_db()
     try:
         query = "SELECT * FROM object_passports"
@@ -1309,6 +1325,24 @@ def _fetch_passport_rows(filters):
             value = (filters_local.get(field) or "").strip()
             if value:
                 conditions.append(f"LOWER(COALESCE({field}, '')) = LOWER(?)")
+                params.append(value)
+
+        equipment_filters = {
+            "equipment_type": "equipment_type",
+            "equipment_vendor": "vendor",
+            "equipment_model": "model",
+            "equipment_status": "status",
+        }
+        for field, column in equipment_filters.items():
+            value = (filters_local.get(field) or "").strip()
+            if value:
+                conditions.append(
+                    "EXISTS ("
+                    "SELECT 1 FROM object_passport_equipment eq "
+                    "WHERE eq.passport_id = object_passports.id "
+                    f"AND LOWER(TRIM(COALESCE(eq.{column}, ''))) = LOWER(?)"
+                    ")"
+                )
                 params.append(value)
 
         if conditions:
