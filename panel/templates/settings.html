@@ -3653,7 +3653,7 @@
   }
 
   // === Управление статусами клиентов ===
-  const STATUS_FILTER_BASE_URL = "{{ url_for('index') }}";
+  const STATUS_FILTER_BASE_URL = "{{ url_for('clients_list') }}";
   let CLIENT_STATUS_USAGE = {{ status_usage | tojson }} || {};
   const INITIAL_CLIENT_STATUSES = {{ settings.client_statuses | tojson }} || [];
   let statusEditMode = false;
