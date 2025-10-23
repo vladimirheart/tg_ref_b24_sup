@@ -97,6 +97,31 @@
     .parameter-card .param-items .form-select {
       max-width: 10rem;
     }
+    .partner-contact-card {
+      transition: box-shadow 0.2s ease;
+    }
+    .partner-contact-card__toggle {
+      border: 0;
+      background: transparent;
+      color: #0d6efd;
+      padding: 0.25rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .partner-contact-card__toggle:focus {
+      outline: none;
+      box-shadow: none;
+    }
+    .partner-contact-card__chevron {
+      transition: transform 0.2s ease;
+    }
+    .partner-contact-card.is-collapsed .partner-contact-card__chevron {
+      transform: rotate(-90deg);
+    }
+    .partner-contact-card.is-collapsed .card-body {
+      display: none;
+    }
     .partner-contact-details {
       border: 1px solid #e9ecef;
       border-radius: 0.75rem;
@@ -144,6 +169,18 @@
     }
     .partner-contact-details.is-expanded .partner-contact-details__chevron {
       transform: rotate(0deg);
+    }
+    .partner-contact-person {
+      border: 1px solid #dee2e6;
+      border-radius: 0.75rem;
+      background-color: #ffffff;
+      padding: 0.75rem;
+    }
+    .partner-contact-person + .partner-contact-person {
+      margin-top: 0.75rem;
+    }
+    .partner-contact-person__actions {
+      text-align: right;
     }
     .partner-contact-served-summary {
       font-size: 0.85rem;
@@ -1371,7 +1408,9 @@
   const partnerContactEdits = new Map();
   let partnerContactPhoneCounter = 0;
   let partnerContactEmailCounter = 0;
+  let partnerContactPersonCounter = 0;
   const partnerContactDetailsState = new Map();
+  const partnerContactCardState = new Map();
 
   function getPartnerContactItemKey(item) {
     if (!item || typeof item !== 'object') {
@@ -1477,6 +1516,31 @@
     return `${prefix}-${partnerContactEmailCounter}`;
   }
 
+  function updatePartnerContactPersonCounterFromKey(key) {
+    if (typeof key !== 'string') return;
+    const match = key.match(/^person-(\d+)$/);
+    if (!match) return;
+    const value = Number.parseInt(match[1], 10);
+    if (Number.isFinite(value) && value > partnerContactPersonCounter) {
+      partnerContactPersonCounter = value;
+    }
+  }
+
+  function generatePartnerContactPersonKey() {
+    partnerContactPersonCounter += 1;
+    return `person-${partnerContactPersonCounter}`;
+  }
+
+  function createBlankPartnerContactPersonEntry() {
+    return {
+      key: generatePartnerContactPersonKey(),
+      full_name: '',
+      position: '',
+      phone: '',
+      email: '',
+    };
+  }
+
   function normalizePartnerContactCommList(rawList, kind) {
     const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
     const allowedKeys = Object.keys(allowed);
@@ -1513,6 +1577,68 @@
           key = generatePartnerContactCommKey(kind);
         }
         return { key, type, value };
+      })
+      .filter((entry) => entry);
+  }
+
+  function normalizePartnerContactPeople(rawExtra) {
+    const extra = rawExtra && typeof rawExtra === 'object' ? rawExtra : {};
+    const list = Array.isArray(extra.contacts) ? extra.contacts : [];
+    const seen = new Set();
+    return list
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') {
+          return null;
+        }
+        const fullName = typeof entry.full_name === 'string' ? entry.full_name.trim() : '';
+        const position = typeof entry.position === 'string' ? entry.position.trim() : '';
+        const phone = typeof entry.phone === 'string' ? entry.phone.trim() : '';
+        const email = typeof entry.email === 'string' ? entry.email.trim() : '';
+        let key = typeof entry.key === 'string' ? entry.key.trim() : '';
+        if (key) {
+          if (seen.has(key)) {
+            key = '';
+          } else {
+            updatePartnerContactPersonCounterFromKey(key);
+          }
+        }
+        if (!key) {
+          key = generatePartnerContactPersonKey();
+        }
+        seen.add(key);
+        return {
+          key,
+          full_name: fullName,
+          position,
+          phone,
+          email,
+        };
+      })
+      .filter((entry) => entry);
+  }
+
+  function clonePartnerContactPeople(list) {
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+        let key = typeof item.key === 'string' ? item.key : '';
+        if (key) {
+          updatePartnerContactPersonCounterFromKey(key);
+        } else {
+          key = generatePartnerContactPersonKey();
+        }
+        return {
+          key,
+          full_name: typeof item.full_name === 'string' ? item.full_name : '',
+          position: typeof item.position === 'string' ? item.position : '',
+          phone: typeof item.phone === 'string' ? item.phone : '',
+          email: typeof item.email === 'string' ? item.email : '',
+        };
       })
       .filter((entry) => entry);
   }
@@ -1562,6 +1688,7 @@
       : 'partner';
     const phones = normalizePartnerContactCommList(Array.isArray(extra.phones) ? extra.phones : [], 'phone');
     const emails = normalizePartnerContactCommList(Array.isArray(extra.emails) ? extra.emails : [], 'email');
+    const contacts = normalizePartnerContactPeople(extra);
     const legalEntityValue = typeof extra.legal_entity === 'string' && extra.legal_entity.trim()
       ? extra.legal_entity.trim()
       : typeof value === 'string'
@@ -1581,6 +1708,7 @@
       served_legal_entity_names: servedEntities.map((entry) => entry.name).filter((name) => name),
       legal_entity: legalEntityValue,
       internal_name: internalName,
+      contacts,
     };
   }
 
@@ -1650,6 +1778,7 @@
         : 'partner',
       phones: clonePartnerContactCommList(item.phones),
       emails: clonePartnerContactCommList(item.emails),
+      contacts: clonePartnerContactPeople(item.contacts),
       served_legal_entities: servedEntities,
       served_legal_entity_id: Number.isFinite(servedId) ? servedId : null,
       served_legal_entity_name: typeof servedName === 'string' ? servedName : '',
@@ -1840,6 +1969,7 @@
           entry.contact_type = normalizedExtra.contact_type;
           entry.phones = normalizedExtra.phones;
           entry.emails = normalizedExtra.emails;
+          entry.contacts = normalizedExtra.contacts;
           entry.served_legal_entity_id = normalizedExtra.served_legal_entity_id;
           entry.served_legal_entity_name = normalizedExtra.served_legal_entity_name;
           entry.legal_entity = normalizedExtra.legal_entity;
@@ -2255,6 +2385,7 @@
           contact_type: item.contact_type,
           phones: item.phones,
           emails: item.emails,
+          contacts: item.contacts,
           served_legal_entities: item.served_legal_entities,
           served_legal_entity_id: item.served_legal_entity_id,
           served_legal_entity_name: item.served_legal_entity_name,
@@ -2288,6 +2419,9 @@
     }
     if (!Array.isArray(current.served_legal_entities)) {
       current.served_legal_entities = [];
+    }
+    if (!Array.isArray(current.contacts)) {
+      current.contacts = [];
     }
     return current;
   }
@@ -2431,6 +2565,51 @@
       .join('');
   }
 
+  function buildPartnerContactPeople(entries, disabled) {
+    if (!Array.isArray(entries) || !entries.length) {
+      return '<div class="text-muted small" data-partner-contact-person-empty>Контакты не добавлены</div>';
+    }
+    return entries
+      .map((person) => {
+        if (!person || typeof person !== 'object') {
+          return '';
+        }
+        const key = typeof person.key === 'string' ? person.key : '';
+        const fullName = typeof person.full_name === 'string' ? person.full_name : '';
+        const position = typeof person.position === 'string' ? person.position : '';
+        const phone = typeof person.phone === 'string' ? person.phone : '';
+        const email = typeof person.email === 'string' ? person.email : '';
+        const disabledAttr = disabled ? ' disabled' : '';
+        const removeBtn = disabled
+          ? ''
+          : `<button class="btn btn-outline-danger btn-sm" type="button" data-partner-contact-remove-person data-person-key="${escapeHtml(key)}">Удалить</button>`;
+        return `
+          <div class="partner-contact-person" data-partner-contact-person="${escapeHtml(key)}">
+            <div class="row g-3">
+              <div class="col-12 col-lg-6">
+                <label class="form-label">ФИО</label>
+                <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="full_name" value="${escapeHtml(fullName)}" placeholder="Иванов Иван Иванович"${disabledAttr}>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Должность</label>
+                <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="position" value="${escapeHtml(position)}" placeholder="Например, менеджер"${disabledAttr}>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Телефон</label>
+                <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="phone" value="${escapeHtml(phone)}" placeholder="+7 (999) 000-00-00"${disabledAttr}>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">E-mail</label>
+                <input type="email" class="form-control form-control-sm" data-partner-contact-person-field="email" value="${escapeHtml(email)}" placeholder="example@company.ru"${disabledAttr}>
+              </div>
+            </div>
+            <div class="partner-contact-person__actions mt-2">${removeBtn}</div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
   function renderPartnerContactCard(item) {
     if (!item) return '';
     const isDraft = Boolean(item.isDraft);
@@ -2451,6 +2630,7 @@
     const servedSelect = buildPartnerContactServedSelect(item, disabled);
     const phonesSection = buildPartnerContactCommRows(item.phones, 'phone', disabled);
     const emailsSection = buildPartnerContactCommRows(item.emails, 'email', disabled);
+    const contactsSection = buildPartnerContactPeople(item.contacts, disabled);
     const primaryLabel = isDraft ? 'Создать' : 'Сохранить';
     const primaryClass = isDraft ? 'btn-success' : 'btn-primary';
     const primaryDisabled = disabled ? ' disabled' : '';
@@ -2469,6 +2649,9 @@
     const addEmailBtn = disabled
       ? ''
       : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-comm data-comm-type="email">+ E-mail</button>';
+    const addPersonBtn = disabled
+      ? ''
+      : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-person>+ Контакт</button>';
     const servedWrapperClass = item.contact_type === 'ka' ? '' : ' d-none';
     const servedEntities = Array.isArray(item.served_legal_entities) ? item.served_legal_entities : [];
     const servedSummaryNames = servedEntities
@@ -2484,13 +2667,21 @@
     const servedSummaryText = servedSummaryNames.join(', ');
     const displayName = getPartnerContactDisplayName(item);
     const internalNameValue = typeof item.internal_name === 'string' ? item.internal_name : '';
-    const detailsKey = getPartnerContactItemKey(item) || (isDraft && item.draftId ? `draft:${item.draftId}` : Number.isFinite(item.id) ? `item:${item.id}` : null);
-    if (detailsKey && !partnerContactDetailsState.has(detailsKey)) {
-      partnerContactDetailsState.set(detailsKey, 'expanded');
+    const baseKey = getPartnerContactItemKey(item) || (isDraft && item.draftId ? `draft:${item.draftId}` : Number.isFinite(item.id) ? `item:${item.id}` : null);
+    if (baseKey && !partnerContactDetailsState.has(baseKey)) {
+      partnerContactDetailsState.set(baseKey, 'expanded');
     }
-    const isDetailsCollapsed = detailsKey ? partnerContactDetailsState.get(detailsKey) === 'collapsed' : false;
+    if (baseKey && !partnerContactCardState.has(baseKey)) {
+      partnerContactCardState.set(baseKey, 'expanded');
+    }
+    const isDetailsCollapsed = baseKey ? partnerContactDetailsState.get(baseKey) === 'collapsed' : false;
     const detailsClasses = ['partner-contact-details', isDetailsCollapsed ? 'is-collapsed' : 'is-expanded'];
     const detailsAria = isDetailsCollapsed ? 'false' : 'true';
+    const isCardCollapsed = baseKey ? partnerContactCardState.get(baseKey) === 'collapsed' : false;
+    if (isCardCollapsed) {
+      cardClasses.push('is-collapsed');
+    }
+    const cardToggleAria = isCardCollapsed ? 'false' : 'true';
     const deletedHint = isDeleted
       ? '<div class="alert alert-warning small mt-3 mb-0">Контакт помечен как удалённый. Восстановите запись, чтобы редактировать её.</div>'
       : '';
@@ -2502,7 +2693,12 @@
               <div class="fw-semibold" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
               <div class="small text-muted" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateLabel)}</div>
             </div>
-            ${idBadge}
+            <div class="d-flex align-items-start gap-2">
+              ${idBadge}
+              <button class="partner-contact-card__toggle" type="button" data-partner-contact-card-toggle aria-expanded="${cardToggleAria}" title="Свернуть или развернуть карточку">
+                <i class="bi bi-chevron-down partner-contact-card__chevron"></i>
+              </button>
+            </div>
           </div>
           <div class="card-body d-flex flex-column gap-3">
             <div class="row g-3">
@@ -2531,7 +2727,7 @@
               <div class="form-text">Можно выбрать несколько ЮЛ.</div>
               <div class="partner-contact-served-summary" data-partner-contact-served-summary>${escapeHtml(servedSummaryText)}</div>
             </div>
-            <div class="${detailsClasses.join(' ')}" data-partner-contact-details${detailsKey ? ` data-details-key="${escapeHtml(detailsKey)}"` : ''}>
+            <div class="${detailsClasses.join(' ')}" data-partner-contact-details${baseKey ? ` data-details-key="${escapeHtml(baseKey)}"` : ''}>
               <div class="partner-contact-details__header">
                 <button class="partner-contact-details__toggle" type="button" data-partner-contact-details-toggle aria-expanded="${detailsAria}">
                   <span class="partner-contact-details__title">Контакты и должности</span>
@@ -2539,6 +2735,13 @@
                 </button>
               </div>
               <div class="partner-contact-details__body">
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <label class="form-label mb-0">Контактные лица</label>
+                    ${addPersonBtn}
+                  </div>
+                  <div data-partner-contact-people>${contactsSection}</div>
+                </div>
                 <div class="mb-3">
                   <label class="form-label">Телефоны</label>
                   <div data-partner-contact-comm-list="phone">${phonesSection}</div>
@@ -2580,11 +2783,19 @@
         if (!partnerContactDetailsState.has(key)) {
           partnerContactDetailsState.set(key, 'expanded');
         }
+        if (!partnerContactCardState.has(key)) {
+          partnerContactCardState.set(key, 'expanded');
+        }
       }
     });
     Array.from(partnerContactDetailsState.keys()).forEach((key) => {
       if (!activeKeys.has(key)) {
         partnerContactDetailsState.delete(key);
+      }
+    });
+    Array.from(partnerContactCardState.keys()).forEach((key) => {
+      if (!activeKeys.has(key)) {
+        partnerContactCardState.delete(key);
       }
     });
     partnerContactsContainer.innerHTML = items.map((item) => renderPartnerContactCard(item)).join('');
@@ -2631,6 +2842,9 @@
       emails: Array.isArray(initial.emails) && initial.emails.length
         ? clonePartnerContactCommList(initial.emails)
         : [createBlankPartnerContactCommEntry('email')],
+      contacts: Array.isArray(initial.contacts) && initial.contacts.length
+        ? clonePartnerContactPeople(initial.contacts)
+        : [createBlankPartnerContactPersonEntry()],
       served_legal_entities: servedEntities,
       served_legal_entity_id: Number.isFinite(servedId) ? servedId : null,
       served_legal_entity_name: typeof servedName === 'string' ? servedName : '',
@@ -2651,6 +2865,7 @@
       const key = getPartnerContactItemKey(removed);
       if (key) {
         partnerContactDetailsState.delete(key);
+        partnerContactCardState.delete(key);
       }
     }
     renderPartnerContacts();
@@ -2776,6 +2991,58 @@
     }
   }
 
+  function updatePartnerContactDraftPerson(draftId, personKey, field, value) {
+    const draft = partnerContactDrafts.find((item) => item.draftId === draftId);
+    if (!draft || !Array.isArray(draft.contacts)) return;
+    const person = draft.contacts.find((entry) => entry.key === personKey);
+    if (!person) return;
+    if (['full_name', 'position', 'phone', 'email'].includes(field)) {
+      person[field] = value;
+    }
+  }
+
+  function updatePartnerContactEditPerson(id, personKey, field, value) {
+    const edit = ensurePartnerContactEdit(id);
+    if (!edit || !Array.isArray(edit.contacts)) return;
+    const person = edit.contacts.find((entry) => entry.key === personKey);
+    if (!person) return;
+    if (['full_name', 'position', 'phone', 'email'].includes(field)) {
+      person[field] = value;
+    }
+  }
+
+  function modifyPartnerContactDraftPerson(draftId, action, personKey) {
+    const draft = partnerContactDrafts.find((item) => item.draftId === draftId);
+    if (!draft) return;
+    if (!Array.isArray(draft.contacts)) {
+      draft.contacts = [];
+    }
+    if (action === 'add') {
+      draft.contacts.push(createBlankPartnerContactPersonEntry());
+    } else if (action === 'remove') {
+      const index = draft.contacts.findIndex((entry) => entry.key === personKey);
+      if (index !== -1) {
+        draft.contacts.splice(index, 1);
+      }
+    }
+  }
+
+  function modifyPartnerContactEditPerson(id, action, personKey) {
+    const edit = ensurePartnerContactEdit(id);
+    if (!edit) return;
+    if (!Array.isArray(edit.contacts)) {
+      edit.contacts = [];
+    }
+    if (action === 'add') {
+      edit.contacts.push(createBlankPartnerContactPersonEntry());
+    } else if (action === 'remove') {
+      const index = edit.contacts.findIndex((entry) => entry.key === personKey);
+      if (index !== -1) {
+        edit.contacts.splice(index, 1);
+      }
+    }
+  }
+
   function getPartnerContactCardData(card) {
     if (!card || !card.dataset.partnerContactCard) return null;
     if (card.dataset.partnerContactDraft === 'true') {
@@ -2808,6 +3075,16 @@
             value: typeof item.value === 'string' ? item.value.trim() : '',
           }))
           .filter((item) => item.value)
+      : [];
+    result.contacts = Array.isArray(data.contacts)
+      ? data.contacts
+          .map((person) => ({
+            full_name: typeof person.full_name === 'string' ? person.full_name.trim() : '',
+            position: typeof person.position === 'string' ? person.position.trim() : '',
+            phone: typeof person.phone === 'string' ? person.phone.trim() : '',
+            email: typeof person.email === 'string' ? person.email.trim() : '',
+          }))
+          .filter((person) => person.full_name || person.position || person.phone || person.email)
       : [];
     result.internal_name = typeof data.internal_name === 'string' ? data.internal_name.trim() : '';
     const servedEntities = Array.isArray(data.served_legal_entities)
@@ -2885,6 +3162,7 @@
           contact_type: payload.contact_type,
           phones: payload.phones,
           emails: payload.emails,
+          contacts: payload.contacts,
           internal_name: payload.internal_name,
           served_legal_entities: payload.served_legal_entities,
           served_legal_entity_ids: payload.served_legal_entity_ids,
@@ -3063,6 +3341,7 @@
       partnerContactDraftCounter = 0;
       partnerContactEdits.clear();
       partnerContactDetailsState.clear();
+      partnerContactCardState.clear();
       renderPartnerContacts();
     });
   }
@@ -3072,6 +3351,25 @@
   }
 
   document.addEventListener('click', (event) => {
+    const cardToggleBtn = event.target.closest('[data-partner-contact-card-toggle]');
+    if (cardToggleBtn) {
+      const card = cardToggleBtn.closest('[data-partner-contact-card]');
+      if (!card) return;
+      const isCurrentlyCollapsed = card.classList.contains('is-collapsed');
+      if (isCurrentlyCollapsed) {
+        card.classList.remove('is-collapsed');
+        cardToggleBtn.setAttribute('aria-expanded', 'true');
+      } else {
+        card.classList.add('is-collapsed');
+        cardToggleBtn.setAttribute('aria-expanded', 'false');
+      }
+      const key = getPartnerContactCardKey(card);
+      if (key) {
+        partnerContactCardState.set(key, isCurrentlyCollapsed ? 'expanded' : 'collapsed');
+      }
+      event.preventDefault();
+      return;
+    }
     const detailsToggleBtn = event.target.closest('[data-partner-contact-details-toggle]');
     if (detailsToggleBtn) {
       const container = detailsToggleBtn.closest('[data-partner-contact-details]');
@@ -3142,6 +3440,38 @@
         const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
         if (Number.isFinite(id)) {
           modifyPartnerContactEditComm(id, kind, 'add');
+        }
+      }
+      renderPartnerContacts();
+      return;
+    }
+    const partnerContactAddPersonBtn = event.target.closest('[data-partner-contact-add-person]');
+    if (partnerContactAddPersonBtn) {
+      const card = partnerContactAddPersonBtn.closest('[data-partner-contact-card]');
+      if (!card) return;
+      if (card.dataset.partnerContactDraft === 'true') {
+        modifyPartnerContactDraftPerson(card.dataset.partnerContactDraftId, 'add');
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          modifyPartnerContactEditPerson(id, 'add');
+        }
+      }
+      renderPartnerContacts();
+      return;
+    }
+    const partnerContactRemovePersonBtn = event.target.closest('[data-partner-contact-remove-person]');
+    if (partnerContactRemovePersonBtn) {
+      const card = partnerContactRemovePersonBtn.closest('[data-partner-contact-card]');
+      if (!card) return;
+      const personKey = partnerContactRemovePersonBtn.dataset.personKey;
+      if (!personKey) return;
+      if (card.dataset.partnerContactDraft === 'true') {
+        modifyPartnerContactDraftPerson(card.dataset.partnerContactDraftId, 'remove', personKey);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          modifyPartnerContactEditPerson(id, 'remove', personKey);
         }
       }
       renderPartnerContacts();
@@ -3291,6 +3621,23 @@
     partnerContactsContainer.addEventListener('input', (event) => {
       const card = event.target.closest('[data-partner-contact-card]');
       if (!card) return;
+      const personField = event.target.dataset.partnerContactPersonField;
+      if (personField) {
+        const row = event.target.closest('[data-partner-contact-person]');
+        if (!row) return;
+        const personKey = row.dataset.partnerContactPerson;
+        if (!personKey) return;
+        const value = event.target.value;
+        if (card.dataset.partnerContactDraft === 'true') {
+          updatePartnerContactDraftPerson(card.dataset.partnerContactDraftId, personKey, personField, value);
+        } else {
+          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+          if (Number.isFinite(id)) {
+            updatePartnerContactEditPerson(id, personKey, personField, value);
+          }
+        }
+        return;
+      }
       const field = event.target.dataset.partnerContactField;
       if (field === 'value' || field === 'internal_name') {
         const value = event.target.value;
