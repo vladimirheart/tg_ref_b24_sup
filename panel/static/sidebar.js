@@ -53,6 +53,163 @@
   }
   applyState();
 
+  const nav = sidebar.querySelector('.sidebar-nav');
+  const ORDER_STORAGE_KEY = 'sidebarNavOrder';
+  const DEFAULT_ORDER = ['dialogs', 'tasks', 'clients', 'object_passports', 'dashboard', 'analytics', 'settings'];
+  const resetOrderBtn = document.getElementById('resetSidebarOrderBtn');
+
+  function getNavLinks() {
+    if (!nav) return [];
+    return Array.from(nav.querySelectorAll('.nav-link[data-page-key]'));
+  }
+
+  function sanitizeOrder(order) {
+    if (!nav) return [];
+    const availableKeys = new Set(getNavLinks().map((link) => link.dataset.pageKey));
+    const seen = new Set();
+    const result = [];
+    (Array.isArray(order) ? order : []).forEach((key) => {
+      if (!key || seen.has(key) || !availableKeys.has(key)) return;
+      seen.add(key);
+      result.push(key);
+    });
+    DEFAULT_ORDER.forEach((key) => {
+      if (availableKeys.has(key) && !seen.has(key)) {
+        seen.add(key);
+        result.push(key);
+      }
+    });
+    getNavLinks().forEach((link) => {
+      const key = link.dataset.pageKey;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        result.push(key);
+      }
+    });
+    return result;
+  }
+
+  function applyOrder(order) {
+    if (!nav) return;
+    const byKey = new Map();
+    getNavLinks().forEach((link) => {
+      byKey.set(link.dataset.pageKey, link);
+    });
+    const fragment = document.createDocumentFragment();
+    sanitizeOrder(order).forEach((key) => {
+      const el = byKey.get(key);
+      if (el) {
+        fragment.appendChild(el);
+        byKey.delete(key);
+      }
+    });
+    byKey.forEach((el) => fragment.appendChild(el));
+    nav.appendChild(fragment);
+  }
+
+  function normalizedDefaultOrder() {
+    return sanitizeOrder(DEFAULT_ORDER);
+  }
+
+  function persistCurrentOrder() {
+    if (!nav) return;
+    const current = sanitizeOrder(getNavLinks().map((link) => link.dataset.pageKey));
+    const def = normalizedDefaultOrder();
+    if (JSON.stringify(current) === JSON.stringify(def)) {
+      localStorage.removeItem(ORDER_STORAGE_KEY);
+    } else {
+      localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(current));
+    }
+  }
+
+  function loadSavedOrder() {
+    try {
+      const raw = localStorage.getItem(ORDER_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return null;
+      return sanitizeOrder(parsed);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getDragAfterElement(container, y) {
+    const items = Array.from(container.querySelectorAll('.nav-link[data-page-key]:not(.dragging)'));
+    let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+    for (const child of items) {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        closest = { offset, element: child };
+      }
+    }
+    return closest.element;
+  }
+
+  function enableDragAndDrop() {
+    if (!nav) return;
+    getNavLinks().forEach((link) => {
+      link.setAttribute('draggable', 'true');
+      link.classList.add('draggable');
+    });
+
+    nav.addEventListener('dragstart', (event) => {
+      const link = event.target.closest('.nav-link[data-page-key]');
+      if (!link) return;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', link.dataset.pageKey || '');
+      link.classList.add('dragging');
+    });
+
+    nav.addEventListener('dragend', () => {
+      const dragging = nav.querySelector('.nav-link.dragging');
+      if (dragging) dragging.classList.remove('dragging');
+      persistCurrentOrder();
+    });
+
+    nav.addEventListener('dragover', (event) => {
+      const dragging = nav.querySelector('.nav-link.dragging');
+      if (!dragging) return;
+      event.preventDefault();
+      const after = getDragAfterElement(nav, event.clientY);
+      if (!after) {
+        nav.appendChild(dragging);
+      } else if (after !== dragging) {
+        nav.insertBefore(dragging, after);
+      }
+    });
+
+    nav.addEventListener('drop', (event) => {
+      const dragging = nav.querySelector('.nav-link.dragging');
+      if (!dragging) return;
+      event.preventDefault();
+      const after = getDragAfterElement(nav, event.clientY);
+      if (!after) {
+        nav.appendChild(dragging);
+      } else if (after !== dragging) {
+        nav.insertBefore(dragging, after);
+      }
+      persistCurrentOrder();
+    });
+  }
+
+  if (nav) {
+    const savedOrder = loadSavedOrder();
+    if (savedOrder && savedOrder.length) {
+      applyOrder(savedOrder);
+    } else {
+      applyOrder(DEFAULT_ORDER);
+    }
+    enableDragAndDrop();
+    if (resetOrderBtn) {
+      resetOrderBtn.addEventListener('click', () => {
+        applyOrder(DEFAULT_ORDER);
+        localStorage.removeItem(ORDER_STORAGE_KEY);
+      });
+    }
+  }
+
   // hover раскрытие, если не pinned
   sidebar.addEventListener('mouseenter', () => {
     if (!pinned) sidebar.classList.add('hovering');
