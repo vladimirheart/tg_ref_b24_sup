@@ -54,7 +54,6 @@ from typing import Any
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
 ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
 TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
 USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
@@ -2554,9 +2553,9 @@ def ensure_auto_close_config(settings):
 # Функция для загрузки настроек
 def load_settings():
     settings = {"auto_close_hours": 24, "categories": ["Консультация"], "client_statuses": ["Новый", "Постоянный", "VIP"]}
-    if os.path.exists(SETTINGS_PATH):
+    if os.path.exists("../settings.json"):
         try:
-            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            with open("../settings.json", "r", encoding="utf-8") as f:
                 settings.update(json.load(f))
         except:
             pass
@@ -2610,7 +2609,7 @@ def resize_image(image_path, max_size=600):
 
 # Функция для сохранения настроек
 def save_settings(settings):
-    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+    with open("../settings.json", "w", encoding="utf-8") as f:
         json.dump(settings, f, ensure_ascii=False, indent=2)
 
 # Функция для загрузки локаций
@@ -2824,8 +2823,8 @@ from datetime import datetime as dt, timedelta, timezone
 @login_required
 def index():
     settings = {"categories": ["Консультация", "Другое"]}
-    if os.path.exists(SETTINGS_PATH):
-        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+    if os.path.exists("../settings.json"):
+        with open("../settings.json", "r", encoding="utf-8") as f:
             settings = json.load(f)
 
     conn = get_db()
@@ -3591,8 +3590,8 @@ def client_profile(user_id):
     conn.close()
 
     settings = {"categories": ["Консультация", "Другое"]}
-    if os.path.exists(SETTINGS_PATH):
-        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+    if os.path.exists("./settings.json"):
+        with open("./settings.json", "r", encoding="utf-8") as f:
             settings = json.load(f)
 
     return render_template(
