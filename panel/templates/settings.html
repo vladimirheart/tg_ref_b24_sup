@@ -97,6 +97,39 @@
     .parameter-card .param-items .form-select {
       max-width: 10rem;
     }
+    .client-status-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .status-count-link {
+      text-decoration: none;
+      min-width: 3rem;
+      text-align: center;
+      font-weight: 600;
+      border: 1px solid #ced4da;
+      padding: 0.35rem 0.65rem;
+      border-radius: 2rem;
+      background-color: #f8f9fa;
+      color: #0d6efd;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .status-count-link:hover {
+      background-color: #0d6efd;
+      color: #fff;
+    }
+    .status-count-link.disabled {
+      pointer-events: none;
+      opacity: 0.65;
+      color: #6c757d;
+      background-color: #f1f3f5;
+      border-color: #dee2e6;
+    }
+    .status-row .status-input[disabled] {
+      background-color: #f8f9fa;
+    }
     .location-tree-business .card-body { background: #fdfdfd; }
     .location-type-header { background: #f1f3f5; border-radius: 0.75rem; padding: 0.5rem 0.75rem; }
     .location-type-header .btn[data-bs-toggle="collapse"] { min-width: 7rem; }
@@ -501,15 +534,28 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div id="statusesList">
-              {% for status in settings.client_statuses %}
-              <div class="input-group mb-2">
-                <input type="text" class="form-control status-input" value="{{ status }}">
-                <button class="btn btn-outline-danger" onclick="removeStatus(this)">Удалить</button>
+            <div class="client-status-toolbar mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <h6 class="mb-0">Список статусов</h6>
+                <span class="text-muted small">Изменения можно вносить в режиме редактирования.</span>
               </div>
-              {% endfor %}
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="editStatusesBtn" onclick="startStatusesEdit()">
+                  <i class="bi bi-pencil-square me-1"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-success btn-sm d-none" id="saveStatusesBtn" onclick="saveClientStatuses()">
+                  <i class="bi bi-check-lg me-1"></i> Сохранить
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelStatusesBtn" onclick="cancelStatusesEdit()">
+                  Отмена
+                </button>
+              </div>
             </div>
-            <button class="btn btn-sm btn-success mt-2" onclick="addStatus()">+ Добавить статус</button>
+            <div id="statusesList" class="list-group"></div>
+            <div id="statusesEmptyPlaceholder" class="text-muted fst-italic small d-none">
+              Пока нет статусов. Нажмите «Редактировать», чтобы добавить первый статус.
+            </div>
+            <button class="btn btn-sm btn-success mt-3 d-none" id="addStatusBtn" type="button" onclick="addStatus()">+ Добавить статус</button>
           </div>
         </div>
       </div>
@@ -1942,13 +1988,10 @@
     if (!filterKey) {
       const className = usage > 0 ? 'fw-semibold text-dark' : 'text-muted';
       return `<span class="${className}">${usage}</span>`;
-      }
+    }
     const url = `/object_passports?${filterKey}=${encodeURIComponent(value)}`;
     const className = 'btn btn-link btn-sm p-0' + (usage > 0 ? '' : ' text-muted');
     return `<a href="${url}" class="${className}" title="Открыть паспорта с этим значением">${usage}</a>`;
-    }
-    const className = usage > 0 ? 'fw-semibold text-dark' : 'text-muted';
-    return `<span class="${className}">${usage}</span>`;
   }
 
   function buildItConnectionsRows() {
@@ -3219,19 +3262,235 @@
   }
 
   // === Управление статусами клиентов ===
-  function addStatus() {
-    const container = document.getElementById('statusesList');
-    const div = document.createElement('div');
-    div.className = 'input-group mb-2';
-    div.innerHTML = `
-      <input type="text" class="form-control status-input" placeholder="Новый статус">
-      <button class="btn btn-outline-danger" onclick="removeStatus(this)">Удалить</button>
-    `;
-    container.appendChild(div);
+  const STATUS_FILTER_BASE_URL = "{{ url_for('index') }}";
+  let CLIENT_STATUS_USAGE = {{ status_usage | tojson }} || {};
+  const INITIAL_CLIENT_STATUSES = {{ settings.client_statuses | tojson }} || [];
+  let statusEditMode = false;
+  let initialStatusesSnapshot = [];
+
+  function buildStatusFilterLink(status) {
+    const value = typeof status === 'string' ? status.trim() : '';
+    if (!value) return '#';
+    const params = new URLSearchParams({ client_status: value });
+    return `${STATUS_FILTER_BASE_URL}?${params.toString()}`;
   }
 
-  function removeStatus(btn) {
-    btn.parentElement.remove();
+  function handleStatusInputChange(row) {
+    if (!(row instanceof HTMLElement)) return;
+    const input = row.querySelector('.status-input');
+    const link = row.querySelector('.status-count-link');
+    if (!(input instanceof HTMLInputElement) || !(link instanceof HTMLAnchorElement)) return;
+
+    const value = input.value.trim();
+    const original = row.dataset.originalValue || '';
+    const baseCount = Number(row.dataset.count || 0);
+    let displayCount = baseCount;
+
+    if (!value) {
+      link.textContent = '0';
+      link.href = '#';
+      link.classList.add('disabled');
+      return;
+    }
+
+    if (value !== original) {
+      displayCount = 0;
+    }
+
+    link.textContent = String(displayCount);
+    link.href = buildStatusFilterLink(value);
+    link.classList.toggle('disabled', statusEditMode);
+  }
+
+  function buildStatusRow(status) {
+    const container = document.createElement('div');
+    container.className = 'list-group-item d-flex align-items-center gap-2 status-row';
+    const value = typeof status === 'string' ? status : '';
+    const count = Number((CLIENT_STATUS_USAGE && CLIENT_STATUS_USAGE[value]) || 0);
+    container.dataset.originalValue = value;
+    container.dataset.count = String(count);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control status-input';
+    input.value = value;
+    input.disabled = !statusEditMode;
+    input.placeholder = 'Новый статус';
+    input.addEventListener('input', () => handleStatusInputChange(container));
+    container.appendChild(input);
+
+    const badge = document.createElement('a');
+    badge.className = 'status-count-link';
+    badge.dataset.statusCount = 'true';
+    badge.title = value ? `Клиентов со статусом «${value}»` : 'Клиентов с этим статусом';
+    badge.href = buildStatusFilterLink(value);
+    badge.textContent = String(count);
+    if (!value || statusEditMode) {
+      badge.classList.add('disabled');
+    }
+    container.appendChild(badge);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-outline-danger btn-sm';
+    removeBtn.textContent = 'Удалить';
+    if (!statusEditMode) {
+      removeBtn.classList.add('d-none');
+    }
+    removeBtn.dataset.statusRemove = 'true';
+    removeBtn.addEventListener('click', () => removeStatus(removeBtn));
+    container.appendChild(removeBtn);
+
+    handleStatusInputChange(container);
+    return container;
+  }
+
+  function renderStatusesList(statuses) {
+    const list = document.getElementById('statusesList');
+    const placeholder = document.getElementById('statusesEmptyPlaceholder');
+    if (!list) return;
+    list.innerHTML = '';
+    const items = Array.isArray(statuses) ? statuses : [];
+    if (!items.length) {
+      if (placeholder) placeholder.classList.remove('d-none');
+      return;
+    }
+    if (placeholder) placeholder.classList.add('d-none');
+    items.forEach((status) => {
+      const row = buildStatusRow(status);
+      list.appendChild(row);
+    });
+  }
+
+  function updateStatusesEmptyState() {
+    const list = document.getElementById('statusesList');
+    const placeholder = document.getElementById('statusesEmptyPlaceholder');
+    if (!list || !placeholder) return;
+    const hasRows = Boolean(list.querySelector('.status-row'));
+    placeholder.classList.toggle('d-none', hasRows);
+  }
+
+  function collectStatuses() {
+    return Array.from(document.querySelectorAll('#statusesList .status-input'))
+      .map((input) => input.value.trim())
+      .filter((value) => Boolean(value));
+  }
+
+  function setStatusesEditMode(enable, { restoreSnapshot = false } = {}) {
+    statusEditMode = Boolean(enable);
+    const editBtn = document.getElementById('editStatusesBtn');
+    const saveBtn = document.getElementById('saveStatusesBtn');
+    const cancelBtn = document.getElementById('cancelStatusesBtn');
+    const addBtn = document.getElementById('addStatusBtn');
+
+    if (editBtn) editBtn.classList.toggle('d-none', statusEditMode);
+    if (saveBtn) saveBtn.classList.toggle('d-none', !statusEditMode);
+    if (cancelBtn) cancelBtn.classList.toggle('d-none', !statusEditMode);
+    if (addBtn) addBtn.classList.toggle('d-none', !statusEditMode);
+
+    if (!statusEditMode && restoreSnapshot) {
+      renderStatusesList(initialStatusesSnapshot);
+    }
+
+    document.querySelectorAll('#statusesList .status-row').forEach((row) => {
+      const input = row.querySelector('.status-input');
+      const removeBtn = row.querySelector('[data-status-remove]');
+      const badge = row.querySelector('.status-count-link');
+      if (input instanceof HTMLInputElement) {
+        input.disabled = !statusEditMode;
+      }
+      if (removeBtn instanceof HTMLElement) {
+        removeBtn.classList.toggle('d-none', !statusEditMode);
+      }
+      if (badge instanceof HTMLElement) {
+        badge.classList.toggle('disabled', statusEditMode || !(input?.value.trim()));
+      }
+      handleStatusInputChange(row);
+    });
+  }
+
+  function startStatusesEdit() {
+    initialStatusesSnapshot = collectStatuses();
+    setStatusesEditMode(true);
+  }
+
+  function cancelStatusesEdit() {
+    setStatusesEditMode(false, { restoreSnapshot: true });
+  }
+
+  function addStatus() {
+    if (!statusEditMode) return;
+    const list = document.getElementById('statusesList');
+    if (!list) return;
+    const row = buildStatusRow('');
+    row.dataset.originalValue = '';
+    row.dataset.count = '0';
+    list.appendChild(row);
+    updateStatusesEmptyState();
+    const input = row.querySelector('.status-input');
+    if (input instanceof HTMLInputElement) {
+      setTimeout(() => input.focus(), 0);
+    }
+  }
+
+  function removeStatus(trigger) {
+    const row = trigger?.closest('.status-row');
+    if (row) {
+      row.remove();
+      updateStatusesEmptyState();
+    }
+  }
+
+  function syncStatusUsage(statuses) {
+    const usage = {};
+    const currentUsage = CLIENT_STATUS_USAGE || {};
+    statuses.forEach((status) => {
+      if (Object.prototype.hasOwnProperty.call(currentUsage, status)) {
+        usage[status] = currentUsage[status];
+      } else {
+        usage[status] = 0;
+      }
+    });
+    CLIENT_STATUS_USAGE = usage;
+  }
+
+  async function saveClientStatuses() {
+    const saveBtn = document.getElementById('saveStatusesBtn');
+    const statuses = collectStatuses();
+    if (!statuses.length) {
+      if (confirm('Список статусов пуст. Сохранить и удалить все статусы?')) {
+        // proceed
+      } else {
+        return;
+      }
+    }
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_statuses: statuses })
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Не удалось сохранить статусы');
+      }
+      syncStatusUsage(statuses);
+      renderStatusesList(statuses);
+      setStatusesEditMode(false);
+      alert('✅ Статусы клиентов сохранены');
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      alert('❌ Ошибка: ' + message);
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+
+  function initClientStatuses() {
+    renderStatusesList(Array.isArray(INITIAL_CLIENT_STATUSES) ? INITIAL_CLIENT_STATUSES : []);
+    updateStatusesEmptyState();
+    setStatusesEditMode(false);
   }
 
   // === JavaScript для управления пользователями ===
@@ -5560,6 +5819,7 @@
 
   // === Запуск при загрузке страницы ===
   document.addEventListener('DOMContentLoaded', () => {
+    initClientStatuses();
     initAutoCloseTemplates();
     initDialogTemplates();
     initLocationWizard();
