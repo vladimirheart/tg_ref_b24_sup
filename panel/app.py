@@ -422,6 +422,7 @@ def ensure_object_passport_schema():
                 schedule_json TEXT,
                 network TEXT,
                 network_provider TEXT,
+                network_restaurant_id TEXT,
                 network_contract_number TEXT,
                 network_legal_entity TEXT,
                 network_support_phone TEXT,
@@ -517,6 +518,7 @@ def _ensure_object_passport_columns():
         "location_address": "TEXT",
         "network": "TEXT",
         "network_provider": "TEXT",
+        "network_restaurant_id": "TEXT",
         "network_contract_number": "TEXT",
         "network_legal_entity": "TEXT",
         "network_support_phone": "TEXT",
@@ -1262,6 +1264,7 @@ def _serialize_passport_row(row):
         "status": row["status"] or "",
         "network": row["network"] or "",
         "network_provider": row["network_provider"] or "",
+        "network_restaurant_id": row["network_restaurant_id"] or "",
         "network_contract_number": row["network_contract_number"] or "",
         "network_legal_entity": row["network_legal_entity"] or "",
         "network_tunnel": row["network_tunnel"] or "",
@@ -1309,6 +1312,7 @@ def _serialize_passport_detail(conn, row):
         "status": row["status"] or PASSPORT_STATUSES[0],
         "network": row["network"] or "",
         "network_provider": row["network_provider"] or "",
+        "network_restaurant_id": row["network_restaurant_id"] or "",
         "network_contract_number": row["network_contract_number"] or "",
         "network_legal_entity": row["network_legal_entity"] or "",
         "network_support_phone": row["network_support_phone"] or "",
@@ -1438,6 +1442,8 @@ def _fetch_passport_rows(filters):
                 "department",
                 "status",
                 "network",
+                "network_provider",
+                "network_restaurant_id",
                 "network_contract_number",
             ]
             conditions.append(
@@ -1454,6 +1460,8 @@ def _fetch_passport_rows(filters):
             "department",
             "status",
             "network_contract_number",
+            "network_restaurant_id",
+            "network_provider",
             "network",
             "it_connection_type",
             "it_iiko_server",
@@ -1658,6 +1666,7 @@ def _blank_passport_detail():
         "status": PASSPORT_STATUSES[0],
         "network": "",
         "network_provider": "",
+        "network_restaurant_id": "",
         "network_contract_number": "",
         "network_legal_entity": "",
         "network_support_phone": "",
@@ -1726,6 +1735,7 @@ def _render_passport_template(passport_detail, is_new):
     support_phone_options = []
     speed_options = []
     legal_entity_options = []
+    restaurant_id_options = []
     it_connection_options = []
     iiko_server_options = []
 
@@ -1737,6 +1747,7 @@ def _render_passport_template(passport_detail, is_new):
         _append_unique(support_phone_options, (profile.get("support_phone") or "").strip())
         _append_unique(speed_options, (profile.get("speed") or "").strip())
         _append_unique(legal_entity_options, (profile.get("legal_entity") or "").strip())
+        _append_unique(restaurant_id_options, (profile.get("restaurant_id") or "").strip())
 
     for option in _collect_remote_connection_options(settings):
         _append_unique(it_connection_options, (option or "").strip())
@@ -1761,6 +1772,7 @@ def _render_passport_template(passport_detail, is_new):
         network_support_phone_options=support_phone_options,
         network_speed_options=speed_options,
         network_legal_entity_options=legal_entity_options,
+        network_restaurant_id_options=restaurant_id_options,
         it_connection_options=it_connection_options,
         iiko_server_options=iiko_server_options,
         it_equipment_options=it_equipment_options,
@@ -1817,6 +1829,7 @@ def _prepare_passport_record(payload):
         "status": status,
         "network": clean("network"),
         "network_provider": clean("network_provider"),
+        "network_restaurant_id": clean("network_restaurant_id"),
         "network_contract_number": clean("network_contract_number"),
         "network_legal_entity": clean("network_legal_entity"),
         "network_support_phone": clean("network_support_phone"),
@@ -5950,7 +5963,8 @@ def update_settings():
                 contract_number = (item.get("contract_number") or "").strip()
                 support_phone = (item.get("support_phone") or "").strip()
                 legal_entity = (item.get("legal_entity") or "").strip()
-                if not any([provider, contract_number, support_phone, legal_entity]):
+                restaurant_id = (item.get("restaurant_id") or "").strip()
+                if not any([provider, contract_number, support_phone, legal_entity, restaurant_id]):
                     continue
                 profiles.append(
                     {
@@ -5958,6 +5972,7 @@ def update_settings():
                         "contract_number": contract_number,
                         "support_phone": support_phone,
                         "legal_entity": legal_entity,
+                        "restaurant_id": restaurant_id,
                     }
                 )
             settings["network_profiles"] = profiles
@@ -6838,7 +6853,7 @@ def api_object_passports_create():
                 department, business, partner_type, country, legal_entity,
                 city, location_address, status, start_date, end_date, suspension_date,
                 resume_date, schedule_json,
-                network, network_provider, network_contract_number,
+                network, network_provider, network_restaurant_id, network_contract_number,
                 network_legal_entity, network_support_phone, network_speed,
                 network_tunnel,
                 network_connection_params,
@@ -6851,7 +6866,7 @@ def api_object_passports_create():
                 :department, :business, :partner_type, :country, :legal_entity,
                 :city, :location_address, :status, :start_date, :end_date, :suspension_date,
                 :resume_date, :schedule_json,
-                :network, :network_provider, :network_contract_number,
+                :network, :network_provider, :network_restaurant_id, :network_contract_number,
                 :network_legal_entity, :network_support_phone, :network_speed,
                 :network_tunnel,
                 :network_connection_params,
@@ -6921,6 +6936,7 @@ def api_object_passports_update(passport_id):
                 schedule_json = :schedule_json,
                 network = :network,
                 network_provider = :network_provider,
+                network_restaurant_id = :network_restaurant_id,
                 network_contract_number = :network_contract_number,
                 network_legal_entity = :network_legal_entity,
                 network_support_phone = :network_support_phone,
@@ -7068,6 +7084,7 @@ def object_passports_export():
                 "Статус": row["status"] or "",
                 "Сеть": row["network"] or "",
                 "Провайдер": row["network_provider"] or "",
+                "ID ресторана": row["network_restaurant_id"] or "",
                 "Номер договора": row["network_contract_number"] or "",
                 "ЮЛ (сеть)": row["network_legal_entity"] or "",
                 "Телефон ТП провайдера": row["network_support_phone"] or "",
