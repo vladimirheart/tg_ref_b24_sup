@@ -9,30 +9,31 @@
       </button>
       <div id="notify-dropdown" class="notify-dropdown" hidden role="listbox" aria-label="Оповещения"></div>
       <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
+      <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Вернуть порядок по умолчанию">↺</button>
     </div>
   </div>
 
-  <nav class="sidebar-nav">
-    <a href="/" class="nav-link">
+  <nav class="sidebar-nav" aria-label="Основная навигация" title="Перетащите пункты, чтобы изменить порядок">
+    <a href="/" class="nav-link" data-page-key="dialogs">
       <span class="icon">💬</span><span class="label">Диалоги</span>
     </a>
-    <a href="/dashboard" class="nav-link">
-      <span class="icon">📊</span><span class="label">Дашборд</span>
+    <a href="/tasks" class="nav-link" data-page-key="tasks">
+      <span class="icon">✅</span><span class="label">Задачи</span>
     </a>
-    <a href="/clients" class="nav-link">
+    <a href="/clients" class="nav-link" data-page-key="clients">
       <span class="icon">👥</span><span class="label">Клиенты</span>
     </a>
-    <a href="/analytics" class="nav-link">
-      <span class="icon">📈</span><span class="label">Аналитика</span>
-    </a>
-    <a href="/settings" class="nav-link">
-      <span class="icon">⚙️</span><span class="label">Настройки</span>
-    </a>
-    <a href="/object_passports" class="nav-link">
+    <a href="/object_passports" class="nav-link" data-page-key="object_passports">
       <span class="icon">🗃️</span><span class="label">Паспорт объектов</span>
     </a>
-    <a href="/tasks" class="nav-link">
-      <span class="icon">✅</span><span class="label">Задачи</span>
+    <a href="/dashboard" class="nav-link" data-page-key="dashboard">
+      <span class="icon">📊</span><span class="label">Дашборд</span>
+    </a>
+    <a href="/analytics" class="nav-link" data-page-key="analytics">
+      <span class="icon">📈</span><span class="label">Аналитика</span>
+    </a>
+    <a href="/settings" class="nav-link" data-page-key="settings">
+      <span class="icon">⚙️</span><span class="label">Настройки</span>
     </a>
   </nav>
 </div>
