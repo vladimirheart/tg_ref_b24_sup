@@ -232,6 +232,10 @@
       network: '',
       it_connection_type: '',
       iiko_server: '',
+      equipment_type: '',
+      equipment_vendor: '',
+      equipment_model: '',
+      equipment_status: '',
     };
 
     const resultsCountEl = document.getElementById('resultsCount');
@@ -470,6 +474,10 @@
       network: ['network'],
       it_connection_type: ['it_connection_type', 'it_connection'],
       iiko_server: ['iiko_server', 'it_iiko_server'],
+      equipment_type: ['equipment_type', 'equipmentType'],
+      equipment_vendor: ['equipment_vendor', 'equipmentVendor', 'vendor'],
+      equipment_model: ['equipment_model', 'equipmentModel', 'model'],
+      equipment_status: ['equipment_status', 'equipmentStatus', 'status_equipment'],
     };
 
     Object.entries(extraFilterParamMapping).forEach(([key, paramNames]) => {
