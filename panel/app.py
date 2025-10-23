@@ -6247,6 +6247,11 @@ def api_create_parameter():
                 400,
             )
         extra_payload = {"server_name": server_name}
+    elif param_type == "legal_entity":
+        extra_payload = {
+            "inn": (payload.get("inn") or "").strip(),
+            "manager_contacts": (payload.get("manager_contacts") or "").strip(),
+        }
 
     extra_json = json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
 
@@ -6311,6 +6316,22 @@ def api_update_parameter(param_id):
             normalized_state = _normalize_parameter_state(param_type, payload.get("state"))
             updates.append("state = ?")
             params.append(normalized_state)
+
+        if param_type == "legal_entity":
+            inn_value = (extra_payload.get("inn") or "").strip()
+            contacts_value = (extra_payload.get("manager_contacts") or "").strip()
+            updated = False
+            if "inn" in payload:
+                inn_value = (payload.get("inn") or "").strip()
+                updated = True
+            if "manager_contacts" in payload:
+                contacts_value = (payload.get("manager_contacts") or "").strip()
+                updated = True
+            if updated or not extra_payload:
+                extra_payload["inn"] = inn_value
+                extra_payload["manager_contacts"] = contacts_value
+                updates.append("extra_json = ?")
+                params.append(json.dumps(extra_payload, ensure_ascii=False))
 
         if param_type == "iiko_server":
             existing_name = (extra_payload.get("server_name") or "").strip()
