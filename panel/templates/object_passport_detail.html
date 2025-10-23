@@ -1391,11 +1391,9 @@
       if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
       initializeAutoResizeInputs(card);
       const headerToggle = card.querySelector('.equipment-header-toggle');
-      const detailsActionToggle = card.querySelector('.equipment-details-toggle');
       const cardHeader = card.querySelector('.card-header');
       const collapseTargetSelector =
-        (headerToggle && headerToggle.getAttribute('data-bs-target')) ||
-        (detailsActionToggle && detailsActionToggle.getAttribute('data-bs-target'));
+        headerToggle && headerToggle.getAttribute('data-bs-target');
       const collapseElement = collapseTargetSelector
         ? (card.querySelector(collapseTargetSelector) || document.querySelector(collapseTargetSelector))
         : null;
@@ -1403,11 +1401,6 @@
         if (headerToggle) {
           headerToggle.classList.toggle('collapsed', !expanded);
           headerToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        }
-        if (detailsActionToggle) {
-          detailsActionToggle.classList.toggle('collapsed', !expanded);
-          detailsActionToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-          detailsActionToggle.textContent = expanded ? 'Свернуть карточку' : 'Развернуть карточку';
         }
       };
       if (collapseElement) {
@@ -1430,9 +1423,6 @@
         const getCurrentExpandedState = () => {
           if (headerToggle && headerToggle.hasAttribute('aria-expanded')) {
             return headerToggle.getAttribute('aria-expanded') === 'true';
-          }
-          if (detailsActionToggle && detailsActionToggle.hasAttribute('aria-expanded')) {
-            return detailsActionToggle.getAttribute('aria-expanded') === 'true';
           }
           return collapseElement.classList.contains('show');
         };
@@ -1467,7 +1457,6 @@
           button.dataset.collapseInitialized = 'true';
         };
         attachToggleHandler(headerToggle);
-        attachToggleHandler(detailsActionToggle);
         if (cardHeader && cardHeader.dataset.collapseHeaderInitialized !== 'true') {
           cardHeader.addEventListener('click', (event) => {
             if (!headerToggle) return;
@@ -2000,7 +1989,7 @@
           const keyAttr = escapeHtml(String(key));
           const nameHtml = escapeHtml(name || '—');
           const ipHtml = escapeHtml(ip || '—');
-          return `<li><button type="button" class="network-equipment-entry" data-equipment-key="${keyAttr}"><span class="network-equipment-name">${nameHtml}</span><span class="network-equipment-separator">•</span><span class="network-equipment-ip">${ipHtml}</span></button></li>`;
+          return `<li><button type="button" class="network-equipment-entry" data-equipment-key="${keyAttr}"><span class="network-equipment-name">${nameHtml}</span><span class="network-equipment-separator"></span><span class="network-equipment-ip">${ipHtml}</span></button></li>`;
         })
         .filter(Boolean);
       if (!items.length) {
@@ -3153,8 +3142,6 @@
         const detailsShowClass = isNew ? ' show' : '';
         const detailsToggleClass = isNew ? '' : ' collapsed';
         const detailsExpanded = isNew ? 'true' : 'false';
-        const detailsActionToggleClass = isNew ? '' : ' collapsed';
-        const detailsActionToggleLabel = isNew ? 'Свернуть карточку' : 'Развернуть карточку';
         const headerName = escapeHtml(item.name || 'Оборудование');
         const headerModel = escapeHtml(item.model || '—');
         const headerIp = escapeHtml(item.ip_address || '—');
@@ -3175,7 +3162,6 @@
               <span class="equipment-header-icon">▼</span>
             </button>
             <div class="equipment-actions">
-              <button class="btn btn-sm btn-outline-secondary equipment-details-toggle${detailsActionToggleClass}" type="button" data-bs-target="#${detailsCollapseId}" aria-expanded="${detailsExpanded}">${detailsActionToggleLabel}</button>
               <button class="btn btn-sm btn-success" data-action="save-equipment">💾 Сохранить</button>
               ${isNew ? '<button class="btn btn-sm btn-outline-secondary" data-action="cancel-equipment">Отменить</button>' : '<button class="btn btn-sm btn-outline-danger" data-action="delete-equipment">Удалить</button>'}
             </div>
