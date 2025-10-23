@@ -173,7 +173,7 @@
     .partner-contact-person {
       border: 1px solid #dee2e6;
       border-radius: 0.75rem;
-      background-color: #ffffff;
+      background: linear-gradient(135deg, #ffffff, #f8f9fa);
       padding: 0.75rem;
     }
     .partner-contact-person + .partner-contact-person {
@@ -181,6 +181,23 @@
     }
     .partner-contact-person__actions {
       text-align: right;
+    }
+    .partner-contact-person-card__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .partner-contact-person-card__title {
+      font-weight: 600;
+    }
+    .partner-contact-person-card__subtitle {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+    .partner-contact-person-card__body .form-label {
+      font-weight: 500;
     }
     .partner-contact-served-summary {
       font-size: 0.85rem;
@@ -192,6 +209,19 @@
     }
     .partner-contact-served-select {
       min-height: 6.5rem;
+    }
+    .partner-contact-card--modal {
+      border: 0;
+      box-shadow: none;
+      height: auto !important;
+      background: transparent;
+    }
+    .partner-contact-card--modal .card-header {
+      border-bottom: 1px solid #e9ecef;
+    }
+    .partner-contact-card--modal .card-body {
+      max-height: 65vh;
+      overflow-y: auto;
     }
     .client-status-toolbar {
       display: flex;
@@ -814,6 +844,23 @@
             <div class="small text-muted me-auto">Используйте кнопки на карточке для сохранения изменений.</div>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
           </div>
+    </div>
+  </div>
+</div>
+
+    <div class="modal fade" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" data-partner-contact-editor-title>Карточка контакта</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body" data-partner-contact-editor-body>
+            <div class="text-center text-muted py-5">Выберите контакт из списка для редактирования.</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1411,6 +1458,177 @@
   let partnerContactPersonCounter = 0;
   const partnerContactDetailsState = new Map();
   const partnerContactCardState = new Map();
+  const partnerContactEditorModalEl = document.getElementById('partnerContactEditorModal');
+  const partnerContactEditorBody = partnerContactEditorModalEl
+    ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-body]')
+    : null;
+  const partnerContactEditorTitle = partnerContactEditorModalEl
+    ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-title]')
+    : null;
+  const partnerContactEditorModal = partnerContactEditorModalEl
+    ? new bootstrap.Modal(partnerContactEditorModalEl)
+    : null;
+  let partnerContactEditorState = null;
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(String(value));
+    }
+    return String(value).replace(/["\\]/g, '\\$&');
+  }
+
+  function findPartnerContactCardByKey(key) {
+    if (!partnerContactsContainer || !key) return null;
+    let selector = '';
+    if (key.startsWith('draft:')) {
+      const draftId = key.slice('draft:'.length);
+      selector = `[data-partner-contact-card][data-partner-contact-draft="true"][data-partner-contact-draft-id="${cssEscape(
+        draftId
+      )}"]`;
+    } else if (key.startsWith('item:')) {
+      const id = key.slice('item:'.length);
+      selector = `[data-partner-contact-card][data-partner-contact-draft="false"][data-partner-contact-id="${cssEscape(id)}"]`;
+    }
+    if (!selector) return null;
+    return partnerContactsContainer.querySelector(selector);
+  }
+
+  function setPartnerContactCardVisibility(key, visible) {
+    const card = findPartnerContactCardByKey(key);
+    if (!card) return;
+    const col = card.closest('.col');
+    const target = col || card;
+    if (visible) {
+      target.classList.remove('d-none');
+      target.removeAttribute('data-partner-contact-hidden');
+    } else {
+      target.classList.add('d-none');
+      target.setAttribute('data-partner-contact-hidden', 'true');
+    }
+  }
+
+  function updatePartnerContactEditorTitleByKey(key) {
+    if (!partnerContactEditorTitle) return;
+    if (!key) {
+      partnerContactEditorTitle.textContent = 'Карточка контакта';
+      return;
+    }
+    const items = getPartnerContactRenderItems();
+    const item = items.find((entry) => getPartnerContactItemKey(entry) === key);
+    const displayName = getPartnerContactDisplayName(item);
+    partnerContactEditorTitle.textContent = displayName
+      ? `Карточка контакта • ${displayName}`
+      : 'Карточка контакта';
+  }
+
+  function renderPartnerContactModalContentByKey(key) {
+    if (!partnerContactEditorBody || !key) return false;
+    const items = getPartnerContactRenderItems();
+    const item = items.find((entry) => getPartnerContactItemKey(entry) === key);
+    if (!item) {
+      partnerContactEditorBody.innerHTML =
+        '<div class="alert alert-warning mb-0">Контакт не найден или был удалён.</div>';
+      return false;
+    }
+    const html = renderPartnerContactCard(item);
+    const temp = document.createElement('div');
+    temp.innerHTML = html.trim();
+    const col = temp.firstElementChild;
+    let card = col ? col.querySelector('[data-partner-contact-card]') : temp.querySelector('[data-partner-contact-card]');
+    if (!card) {
+      partnerContactEditorBody.innerHTML =
+        '<div class="alert alert-warning mb-0">Не удалось отобразить карточку контакта.</div>';
+      return false;
+    }
+    card = card.cloneNode(true);
+    card.classList.add('partner-contact-card--modal');
+    card.classList.remove('h-100');
+    card.classList.remove('is-collapsed');
+    const keyValue = getPartnerContactItemKey(item);
+    if (keyValue) {
+      partnerContactCardState.set(keyValue, 'expanded');
+      partnerContactDetailsState.set(keyValue, 'expanded');
+    }
+    card.querySelectorAll('[data-partner-contact-details]').forEach((section) => {
+      section.classList.remove('is-collapsed');
+      section.classList.add('is-expanded');
+      const toggle = section.querySelector('[data-partner-contact-details-toggle]');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+    });
+    const cardToggleBtn = card.querySelector('[data-partner-contact-card-toggle]');
+    if (cardToggleBtn) {
+      cardToggleBtn.setAttribute('aria-expanded', 'true');
+    }
+    const modalOpenBtn = card.querySelector('[data-partner-contact-open-modal]');
+    if (modalOpenBtn) {
+      modalOpenBtn.setAttribute('disabled', 'true');
+      modalOpenBtn.classList.add('disabled');
+    }
+    partnerContactEditorBody.innerHTML = '';
+    partnerContactEditorBody.appendChild(card);
+    return true;
+  }
+
+  function openPartnerContactEditor(card) {
+    if (!partnerContactEditorModal || !card) return;
+    const key = getPartnerContactCardKey(card);
+    if (!key) return;
+    partnerContactEditorState = { key };
+    setPartnerContactCardVisibility(key, false);
+    const rendered = renderPartnerContactModalContentByKey(key);
+    if (!rendered) {
+      partnerContactEditorState = null;
+      setPartnerContactCardVisibility(key, true);
+      return;
+    }
+    updatePartnerContactEditorTitleByKey(key);
+    partnerContactEditorModal.show();
+  }
+
+  function refreshPartnerContactPersonRow(row) {
+    if (!row) return;
+    const titleEl = row.querySelector('[data-partner-contact-person-title]');
+    const subtitleEl = row.querySelector('[data-partner-contact-person-subtitle]');
+    const fullNameInput = row.querySelector('[data-partner-contact-person-field="full_name"]');
+    const positionInput = row.querySelector('[data-partner-contact-person-field="position"]');
+    if (titleEl && fullNameInput) {
+      const fullName = fullNameInput.value.trim();
+      titleEl.textContent = fullName || 'Без имени';
+    }
+    if (subtitleEl && positionInput) {
+      const position = positionInput.value.trim();
+      subtitleEl.textContent = position;
+      subtitleEl.classList.toggle('d-none', !position);
+    }
+  }
+
+  function togglePartnerContactCardState(card, { force } = {}) {
+    if (!card) return;
+    const isCollapsed = card.classList.contains('is-collapsed');
+    let shouldCollapse;
+    if (force === 'collapsed') {
+      shouldCollapse = true;
+    } else if (force === 'expanded') {
+      shouldCollapse = false;
+    } else {
+      shouldCollapse = !isCollapsed;
+    }
+    if (shouldCollapse) {
+      card.classList.add('is-collapsed');
+    } else {
+      card.classList.remove('is-collapsed');
+    }
+    const toggleBtn = card.querySelector('[data-partner-contact-card-toggle]');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-expanded', shouldCollapse ? 'false' : 'true');
+    }
+    const key = getPartnerContactCardKey(card);
+    if (key) {
+      partnerContactCardState.set(key, shouldCollapse ? 'collapsed' : 'expanded');
+    }
+  }
 
   function getPartnerContactItemKey(item) {
     if (!item || typeof item !== 'object') {
@@ -1461,6 +1679,10 @@
     const data = getPartnerContactCardData(card);
     const displayName = getPartnerContactDisplayName(data);
     title.textContent = displayName || 'Без названия';
+    const key = getPartnerContactCardKey(card);
+    if (partnerContactEditorState && partnerContactEditorState.key === key) {
+      updatePartnerContactEditorTitleByKey(key);
+    }
   }
 
   function updatePartnerContactServedSummary(card, data) {
@@ -2570,7 +2792,7 @@
       return '<div class="text-muted small" data-partner-contact-person-empty>Контакты не добавлены</div>';
     }
     return entries
-      .map((person) => {
+      .map((person, index) => {
         if (!person || typeof person !== 'object') {
           return '';
         }
@@ -2582,28 +2804,49 @@
         const disabledAttr = disabled ? ' disabled' : '';
         const removeBtn = disabled
           ? ''
-          : `<button class="btn btn-outline-danger btn-sm" type="button" data-partner-contact-remove-person data-person-key="${escapeHtml(key)}">Удалить</button>`;
+          : `<button class="btn btn-outline-danger btn-sm" type="button" data-partner-contact-remove-person data-person-key="${escapeHtml(
+              key
+            )}">Удалить</button>`;
+        const titleText = escapeHtml(fullName || `Контакт ${index + 1}`);
+        const subtitleClass = position ? 'partner-contact-person-card__subtitle' : 'partner-contact-person-card__subtitle d-none';
+        const subtitleText = escapeHtml(position || '');
         return `
-          <div class="partner-contact-person" data-partner-contact-person="${escapeHtml(key)}">
-            <div class="row g-3">
-              <div class="col-12 col-lg-6">
-                <label class="form-label">ФИО</label>
-                <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="full_name" value="${escapeHtml(fullName)}" placeholder="Иванов Иван Иванович"${disabledAttr}>
+          <div class="partner-contact-person partner-contact-person-card" data-partner-contact-person="${escapeHtml(key)}">
+            <div class="partner-contact-person-card__header">
+              <div>
+                <div class="partner-contact-person-card__title" data-partner-contact-person-title>${titleText}</div>
+                <div class="${subtitleClass}" data-partner-contact-person-subtitle>${subtitleText}</div>
               </div>
-              <div class="col-12 col-lg-6">
-                <label class="form-label">Должность</label>
-                <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="position" value="${escapeHtml(position)}" placeholder="Например, менеджер"${disabledAttr}>
-              </div>
-              <div class="col-12 col-lg-6">
-                <label class="form-label">Телефон</label>
-                <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="phone" value="${escapeHtml(phone)}" placeholder="+7 (999) 000-00-00"${disabledAttr}>
-              </div>
-              <div class="col-12 col-lg-6">
-                <label class="form-label">E-mail</label>
-                <input type="email" class="form-control form-control-sm" data-partner-contact-person-field="email" value="${escapeHtml(email)}" placeholder="example@company.ru"${disabledAttr}>
+              <div class="partner-contact-person__actions">${removeBtn}</div>
+            </div>
+            <div class="partner-contact-person-card__body">
+              <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                  <label class="form-label">ФИО</label>
+                  <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="full_name" value="${escapeHtml(
+                    fullName
+                  )}" placeholder="Иванов Иван Иванович"${disabledAttr}>
+                </div>
+                <div class="col-12 col-lg-6">
+                  <label class="form-label">Должность</label>
+                  <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="position" value="${escapeHtml(
+                    position
+                  )}" placeholder="Например, менеджер"${disabledAttr}>
+                </div>
+                <div class="col-12 col-lg-6">
+                  <label class="form-label">Телефон</label>
+                  <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="phone" value="${escapeHtml(
+                    phone
+                  )}" placeholder="+7 (999) 000-00-00"${disabledAttr}>
+                </div>
+                <div class="col-12 col-lg-6">
+                  <label class="form-label">E-mail</label>
+                  <input type="email" class="form-control form-control-sm" data-partner-contact-person-field="email" value="${escapeHtml(
+                    email
+                  )}" placeholder="example@company.ru"${disabledAttr}>
+                </div>
               </div>
             </div>
-            <div class="partner-contact-person__actions mt-2">${removeBtn}</div>
           </div>
         `;
       })
@@ -2688,13 +2931,16 @@
     return `
       <div class="col">
         <div class="${cardClasses.join(' ')}" ${datasetAttrs}>
-          <div class="card-header d-flex justify-content-between align-items-start gap-2">
+          <div class="card-header d-flex justify-content-between align-items-start gap-2" data-partner-contact-card-header>
             <div>
               <div class="fw-semibold" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
               <div class="small text-muted" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateLabel)}</div>
             </div>
             <div class="d-flex align-items-start gap-2">
               ${idBadge}
+              <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal title="Открыть в модальном окне">
+                <i class="bi bi-arrows-fullscreen"></i>
+              </button>
               <button class="partner-contact-card__toggle" type="button" data-partner-contact-card-toggle aria-expanded="${cardToggleAria}" title="Свернуть или развернуть карточку">
                 <i class="bi bi-chevron-down partner-contact-card__chevron"></i>
               </button>
@@ -2737,7 +2983,7 @@
               <div class="partner-contact-details__body">
                 <div class="mb-3">
                   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                    <label class="form-label mb-0">Контактные лица</label>
+                    <label class="form-label mb-0">Контакты</label>
                     ${addPersonBtn}
                   </div>
                   <div data-partner-contact-people>${contactsSection}</div>
@@ -2802,6 +3048,16 @@
     if (partnerContactsEmptyPlaceholder) {
       partnerContactsEmptyPlaceholder.classList.add('d-none');
     }
+    if (partnerContactEditorState && partnerContactEditorState.key) {
+      const key = partnerContactEditorState.key;
+      setPartnerContactCardVisibility(key, false);
+      const rendered = renderPartnerContactModalContentByKey(key);
+      if (!rendered && partnerContactEditorModal) {
+        partnerContactEditorModal.hide();
+      } else {
+        updatePartnerContactEditorTitleByKey(key);
+      }
+    }
   }
 
   function addPartnerContactDraft(initial = {}) {
@@ -2855,6 +3111,15 @@
     };
     partnerContactDrafts.push(draft);
     renderPartnerContacts();
+    const key = getPartnerContactItemKey(draft);
+    if (partnerContactEditorModal && key) {
+      setTimeout(() => {
+        const card = findPartnerContactCardByKey(key);
+        if (card) {
+          openPartnerContactEditor(card);
+        }
+      }, 0);
+    }
   }
 
   function removePartnerContactDraft(draftId) {
@@ -3196,6 +3461,9 @@
       }
       syncParameterData((result && result.data) || parameterData);
       renderParameters({ forceBodies: true });
+      if (partnerContactEditorModal && partnerContactEditorModalEl && partnerContactEditorModalEl.contains(card)) {
+        partnerContactEditorModal.hide();
+      }
     } catch (error) {
       const message = error && error.message ? error.message : error;
       alert('❌ ' + message);
@@ -3346,27 +3614,50 @@
     });
   }
 
+  if (partnerContactEditorModalEl) {
+    partnerContactEditorModalEl.addEventListener('hidden.bs.modal', () => {
+      if (partnerContactEditorState && partnerContactEditorState.key) {
+        setPartnerContactCardVisibility(partnerContactEditorState.key, true);
+      }
+      if (partnerContactEditorBody) {
+        partnerContactEditorBody.innerHTML =
+          '<div class="text-center text-muted py-5">Выберите контакт из списка для редактирования.</div>';
+      }
+      partnerContactEditorState = null;
+      renderPartnerContacts();
+    });
+  }
+
   function findParameterContainer(element) {
     return element ? element.closest('[data-param-container]') : null;
   }
 
   document.addEventListener('click', (event) => {
+    const partnerContactOpenModalBtn = event.target.closest('[data-partner-contact-open-modal]');
+    if (partnerContactOpenModalBtn) {
+      const card = partnerContactOpenModalBtn.closest('[data-partner-contact-card]');
+      if (!card) return;
+      openPartnerContactEditor(card);
+      event.preventDefault();
+      return;
+    }
+    const cardHeader = event.target.closest('[data-partner-contact-card-header]');
+    if (cardHeader) {
+      if (event.target.closest('button, a, input, select, textarea')) {
+        // интерактивные элементы обрабатываются отдельно
+      } else {
+        const card = cardHeader.closest('[data-partner-contact-card]');
+        if (!card) return;
+        togglePartnerContactCardState(card);
+        event.preventDefault();
+        return;
+      }
+    }
     const cardToggleBtn = event.target.closest('[data-partner-contact-card-toggle]');
     if (cardToggleBtn) {
       const card = cardToggleBtn.closest('[data-partner-contact-card]');
       if (!card) return;
-      const isCurrentlyCollapsed = card.classList.contains('is-collapsed');
-      if (isCurrentlyCollapsed) {
-        card.classList.remove('is-collapsed');
-        cardToggleBtn.setAttribute('aria-expanded', 'true');
-      } else {
-        card.classList.add('is-collapsed');
-        cardToggleBtn.setAttribute('aria-expanded', 'false');
-      }
-      const key = getPartnerContactCardKey(card);
-      if (key) {
-        partnerContactCardState.set(key, isCurrentlyCollapsed ? 'expanded' : 'collapsed');
-      }
+      togglePartnerContactCardState(card);
       event.preventDefault();
       return;
     }
@@ -3617,159 +3908,160 @@
     });
   }
 
-  if (partnerContactsContainer) {
-    partnerContactsContainer.addEventListener('input', (event) => {
-      const card = event.target.closest('[data-partner-contact-card]');
-      if (!card) return;
-      const personField = event.target.dataset.partnerContactPersonField;
-      if (personField) {
-        const row = event.target.closest('[data-partner-contact-person]');
-        if (!row) return;
-        const personKey = row.dataset.partnerContactPerson;
-        if (!personKey) return;
-        const value = event.target.value;
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftPerson(card.dataset.partnerContactDraftId, personKey, personField, value);
-        } else {
-          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
-          if (Number.isFinite(id)) {
-            updatePartnerContactEditPerson(id, personKey, personField, value);
-          }
-        }
-        return;
-      }
-      const field = event.target.dataset.partnerContactField;
-      if (field === 'value' || field === 'internal_name') {
-        const value = event.target.value;
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, value);
-        } else {
-          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
-          if (Number.isFinite(id)) {
-            updatePartnerContactEditField(id, field, value);
-          }
-        }
-        refreshPartnerContactCardTitle(card);
-        return;
-      }
-      const commField = event.target.dataset.partnerContactCommField;
-      if (commField === 'value') {
-        const kind = event.target.dataset.commType;
-        const entryKey = event.target.dataset.entryKey;
-        if (!kind || !entryKey) return;
-        const value = event.target.value;
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, entryKey, commField, value);
-        } else {
-          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
-          if (Number.isFinite(id)) {
-            updatePartnerContactEditComm(id, kind, entryKey, commField, value);
-          }
+  document.addEventListener('input', (event) => {
+    const card = event.target.closest('[data-partner-contact-card]');
+    if (!card) return;
+    const personField = event.target.dataset.partnerContactPersonField;
+    if (personField) {
+      const row = event.target.closest('[data-partner-contact-person]');
+      if (!row) return;
+      const personKey = row.dataset.partnerContactPerson;
+      if (!personKey) return;
+      const value = event.target.value;
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftPerson(card.dataset.partnerContactDraftId, personKey, personField, value);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditPerson(id, personKey, personField, value);
         }
       }
-    });
+      refreshPartnerContactPersonRow(row);
+      return;
+    }
+    const field = event.target.dataset.partnerContactField;
+    if (field === 'value' || field === 'internal_name') {
+      const value = event.target.value;
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, value);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditField(id, field, value);
+        }
+      }
+      refreshPartnerContactCardTitle(card);
+      return;
+    }
+    const commField = event.target.dataset.partnerContactCommField;
+    if (commField === 'value') {
+      const kind = event.target.dataset.commType;
+      const entryKey = event.target.dataset.entryKey;
+      if (!kind || !entryKey) return;
+      const value = event.target.value;
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, entryKey, commField, value);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditComm(id, kind, entryKey, commField, value);
+        }
+      }
+    }
+  });
 
-    partnerContactsContainer.addEventListener('change', (event) => {
-      const card = event.target.closest('[data-partner-contact-card]');
-      if (!card) return;
-      const field = event.target.dataset.partnerContactField;
-      if (field === 'contact_type') {
-        const value = event.target.value;
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, value);
-        } else {
-          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
-          if (Number.isFinite(id)) {
-            updatePartnerContactEditField(id, field, value);
-          }
+  document.addEventListener('change', (event) => {
+    const card = event.target.closest('[data-partner-contact-card]');
+    if (!card) return;
+    const field = event.target.dataset.partnerContactField;
+    if (field === 'contact_type') {
+      const value = event.target.value;
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, value);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditField(id, field, value);
         }
-        const wrapper = card.querySelector('[data-partner-contact-served-wrapper]');
-        if (wrapper) {
-          wrapper.classList.toggle('d-none', value !== 'ka');
-          const select = wrapper.querySelector('[data-partner-contact-field="served_legal_entities"]');
-          if (select && value !== 'ka') {
-            Array.from(select.options).forEach((option) => {
-              option.selected = false;
-            });
-          }
+      }
+      const wrapper = card.querySelector('[data-partner-contact-served-wrapper]');
+      if (wrapper) {
+        wrapper.classList.toggle('d-none', value !== 'ka');
+        const select = wrapper.querySelector('[data-partner-contact-field="served_legal_entities"]');
+        if (select && value !== 'ka') {
+          Array.from(select.options).forEach((option) => {
+            option.selected = false;
+          });
         }
-        updatePartnerContactServedSummary(card);
+      }
+      updatePartnerContactServedSummary(card);
+      const data = getPartnerContactCardData(card);
+      const subtitle = card.querySelector('[data-partner-contact-subtitle]');
+      if (subtitle && data) {
+        const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
+        subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
+      }
+      return;
+    }
+    if (field === 'state') {
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, event.target.value);
         const data = getPartnerContactCardData(card);
         const subtitle = card.querySelector('[data-partner-contact-subtitle]');
         if (subtitle && data) {
           const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
           subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
         }
-        return;
       }
-      if (field === 'state') {
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, event.target.value);
-          const data = getPartnerContactCardData(card);
-          const subtitle = card.querySelector('[data-partner-contact-subtitle]');
-          if (subtitle && data) {
-            const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
-            subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
-          }
-        }
-        return;
-      }
-      if (field === 'served_legal_entities') {
-        const select = event.target;
-        const selections = Array.from(select.selectedOptions)
-          .map((option) => {
-            const id = Number.parseInt(option.value, 10);
-            if (!Number.isFinite(id) || id <= 0) return null;
-            const label = option.dataset.label || option.textContent || '';
-            return { id, name: label.trim() };
-          })
-          .filter((entry) => entry);
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, selections);
-        } else {
-          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
-          if (Number.isFinite(id)) {
-            updatePartnerContactEditField(id, field, selections);
-          }
-        }
-        updatePartnerContactServedSummary(card);
-        return;
-      }
-      if (field === 'served_legal_entity_id') {
-        const select = event.target;
-        const option = select.options[select.selectedIndex];
-        const label = option ? option.dataset.label || option.textContent : '';
-        const idValue = select.value ? Number.parseInt(select.value, 10) : null;
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, Number.isFinite(idValue) ? idValue : null);
-          updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, 'served_legal_entity_name', label || '');
-        } else {
-          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
-          if (Number.isFinite(id)) {
-            updatePartnerContactEditField(id, field, Number.isFinite(idValue) ? idValue : null);
-            updatePartnerContactEditField(id, 'served_legal_entity_name', label || '');
-          }
-        }
-        updatePartnerContactServedSummary(card);
-        return;
-      }
-      const commField = event.target.dataset.partnerContactCommField;
-      if (commField === 'type') {
-        const kind = event.target.dataset.commType;
-        const entryKey = event.target.dataset.entryKey;
-        if (!kind || !entryKey) return;
-        const value = event.target.value;
-        if (card.dataset.partnerContactDraft === 'true') {
-          updatePartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, entryKey, commField, value);
-        } else {
-          const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
-          if (Number.isFinite(id)) {
-            updatePartnerContactEditComm(id, kind, entryKey, commField, value);
-          }
+      return;
+    }
+    if (field === 'served_legal_entities') {
+      const select = event.target;
+      const selections = Array.from(select.selectedOptions)
+        .map((option) => {
+          const id = Number.parseInt(option.value, 10);
+          if (!Number.isFinite(id) || id <= 0) return null;
+          const label = option.dataset.label || option.textContent || '';
+          return { id, name: label };
+        })
+        .filter((entry) => entry);
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, 'served_legal_entities', selections);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditField(id, 'served_legal_entities', selections);
         }
       }
-    });
-  }
+      updatePartnerContactServedSummary(card, { served_legal_entities: selections });
+      return;
+    }
+    if (field === 'served_legal_entity_id') {
+      const select = event.target;
+      const option = select.options[select.selectedIndex];
+      const label = option ? option.dataset.label || option.textContent : '';
+      const idValue = select.value ? Number.parseInt(select.value, 10) : null;
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, Number.isFinite(idValue) ? idValue : null);
+        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, 'served_legal_entity_name', label || '');
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditField(id, field, Number.isFinite(idValue) ? idValue : null);
+          updatePartnerContactEditField(id, 'served_legal_entity_name', label || '');
+        }
+      }
+      updatePartnerContactServedSummary(card);
+      return;
+    }
+    const commField = event.target.dataset.partnerContactCommField;
+    if (commField === 'type') {
+      const kind = event.target.dataset.commType;
+      const entryKey = event.target.dataset.entryKey;
+      if (!kind || !entryKey) return;
+      const value = event.target.value;
+      if (card.dataset.partnerContactDraft === 'true') {
+        updatePartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, entryKey, commField, value);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditComm(id, kind, entryKey, commField, value);
+        }
+      }
+    }
+  });
+
+
   const CITY_OPTIONS = (() => {
     const values = {{ cities | tojson }};
     if (!Array.isArray(values)) {
