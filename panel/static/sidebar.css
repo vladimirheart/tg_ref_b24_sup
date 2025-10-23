@@ -34,6 +34,15 @@ body.with-sidebar {
   flex-basis: var(--sidebar-w-collapsed);
   opacity: .7; /* 70% прозрачности, когда свёрнут */
 }
+.sidebar.collapsed:not(.hovering) .sidebar-header {
+  display: none;
+}
+.sidebar.collapsed.hovering .sidebar-header {
+  display: flex;
+}
+.sidebar.collapsed:not(.hovering) .sidebar-nav {
+  padding-top: 16px;
+}
 .sidebar:not(.pinned).hovering {
   opacity: .7; /* 70% при неразвёрнутом состоянии */
 }
@@ -114,6 +123,13 @@ body.with-sidebar {
   flex-direction: column;
   padding: 8px;
   gap: 4px;
+}
+.sidebar-nav .nav-link.draggable {
+  cursor: grab;
+}
+.sidebar-nav .nav-link.dragging {
+  opacity: 0.65;
+  cursor: grabbing;
 }
 .sidebar-nav .nav-link {
   display: grid;
