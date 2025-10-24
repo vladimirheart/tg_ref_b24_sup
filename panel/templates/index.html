@@ -1299,6 +1299,15 @@ function markTicketReopenedLocally() {
                   <div class="small text-muted mt-2">Фото клиента</div>
                 </div>
 
+                <!-- Дополнительные данные клиента -->
+                <div class="p-3 sidebar-info text-start" id="historyClientMeta">
+                  <div><strong>Бизнес:</strong> <span id="historyBusiness">—</span></div>
+                  <div class="mt-1">
+                    <strong>Локация:</strong>
+                    <a href="#" id="historyLocationLink" class="link-primary text-decoration-none disabled" role="button" aria-disabled="true" tabindex="-1">—</a>
+                  </div>
+                </div>
+
                 <!-- Таймер/счётчик времени -->
                 <div class="time-counter p-3 sidebar-info mt-auto">
                   <label class="form-label">Время обращения:</label>
@@ -1532,6 +1541,7 @@ function markTicketReopenedLocally() {
     let currentUserId = null;
     let currentTicketId = null;
     let historyPolling = null;
+    window.currentTicketDetails = window.currentTicketDetails || {};
 	window.lastReadAtByTicket = JSON.parse(localStorage.getItem('lastReadAtByTicket') || '{}');
     let currentPageSize = 20;
 	        function persistCurrentPageIfUnfiltered() {
@@ -3615,10 +3625,17 @@ function displayTicketsForCurrentPage() {
 			const resp = await fetch(`/history?${qs.toString()}`, { cache: 'no-store' });
 			const data = await resp.json();
 
-			const container = document.getElementById('historyContent');
-			const clientData = window.currentClientData || allTickets.find(
-				t => t.user_id == currentUserId && t.ticket_id == currentTicketId
-			);
+                        const container = document.getElementById('historyContent');
+                        const clientData = window.currentClientData || allTickets.find(
+                                t => t.user_id == currentUserId && t.ticket_id == currentTicketId
+                        );
+
+                        if (clientData) {
+                                window.currentClientData = clientData;
+                                updateHistoryClientMeta(clientData, window.currentTicketDetails || {});
+                        } else {
+                                updateHistoryClientMeta({}, window.currentTicketDetails || {});
+                        }
 
 			// 1) берем массив из ответа
 			const msgs = (data.messages || []).slice();
@@ -3664,11 +3681,75 @@ function displayTicketsForCurrentPage() {
 	}
 
 	
-	// Делаем доступной глобально
-	window.updateHistory = updateHistory;
+        // Делаем доступной глобально
+        window.updateHistory = updateHistory;
 
-	// === Загрузить историю ===
-		async function loadHistory(user_id, ticket_id) {
+        function updateHistoryClientMeta(clientData = {}, ticketDetails = {}) {
+                const businessEl = document.getElementById('historyBusiness');
+                if (businessEl) {
+                        const businessValue = clientData?.business || ticketDetails?.business || '—';
+                        businessEl.textContent = businessValue || '—';
+                }
+
+                const locationLink = document.getElementById('historyLocationLink');
+                if (locationLink) {
+                        const locationValue =
+                                clientData?.location_name ||
+                                clientData?.location ||
+                                ticketDetails?.location_name ||
+                                '';
+
+                        if (locationValue) {
+                                locationLink.textContent = locationValue;
+                                locationLink.classList.remove('disabled');
+                                locationLink.setAttribute('aria-disabled', 'false');
+                                locationLink.dataset.location = locationValue;
+                                locationLink.setAttribute('tabindex', '0');
+                        } else {
+                                locationLink.textContent = '—';
+                                locationLink.classList.add('disabled');
+                                locationLink.setAttribute('aria-disabled', 'true');
+                                delete locationLink.dataset.location;
+                                locationLink.setAttribute('tabindex', '-1');
+                        }
+                }
+        }
+
+        async function openPassportForLocation(locationName) {
+                const normalized = (locationName || '').trim();
+                if (!normalized) {
+                        return;
+                }
+
+                try {
+                        const response = await fetch(`/api/object_passports?department=${encodeURIComponent(normalized)}`, {
+                                cache: 'no-store'
+                        });
+
+                        if (!response.ok) {
+                                throw new Error(`Failed to fetch passport: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        const items = Array.isArray(data?.items) ? data.items : [];
+
+                        const match = items.find(item =>
+                                String(item?.department || '').trim().toLowerCase() === normalized.toLowerCase()
+                        ) || items[0];
+
+                        if (match?.id) {
+                                window.location.href = `/object_passports/${match.id}#networkCard`;
+                        } else {
+                                alert('Паспорт для этой локации не найден');
+                        }
+                } catch (error) {
+                        console.error('Не удалось открыть паспорт для локации', error);
+                        alert('Не удалось открыть паспорт. Попробуйте позже.');
+                }
+        }
+
+        // === Загрузить историю ===
+                async function loadHistory(user_id, ticket_id) {
 			try { 
 				await fetch(`/api/tickets/${ticket_id}/active`, {method:'POST', credentials:'same-origin'}); 
 			} catch(e){}
@@ -3709,8 +3790,11 @@ function displayTicketsForCurrentPage() {
 						if (!clientData.client_name && ticketFull.client_name) clientData.client_name = ticketFull.client_name;
 						if (!clientData.username && ticketFull.username) clientData.username = ticketFull.username;
 				}
-				window.currentClientData = clientData || {};
-				window.currentChannelId = clientData?.channel_id ?? null;
+                                window.currentClientData = clientData || {};
+                                window.currentTicketDetails = ticketFull || {};
+                                window.currentChannelId = clientData?.channel_id ?? null;
+
+                                updateHistoryClientMeta(window.currentClientData, window.currentTicketDetails);
 
 				const avaEl = document.getElementById('clientAvatarInHistory');
 				if (avaEl) {
@@ -3913,7 +3997,9 @@ function displayTicketsForCurrentPage() {
 				document.getElementById('clientStatusDisplay').textContent = clientData?.client_status || '—';
 
 				// Отображаем проблему (ещё раз — вдруг обновилась)
-				document.getElementById('problemText').textContent = clientData?.problem || 'Не указана';
+                                document.getElementById('problemText').textContent = clientData?.problem || 'Не указана';
+
+                                updateHistoryClientMeta(window.currentClientData, window.currentTicketDetails);
 
 				// Клик по карандашу → редактирование имени
 				document.getElementById('editClientBtn').onclick = function () {
@@ -5799,6 +5885,18 @@ function findTicketEverywhere(ticketId) {
 })();
 
 document.addEventListener('click', async (e)=>{
+  const locationLink = e.target.closest('#historyLocationLink');
+  if (locationLink) {
+    e.preventDefault();
+    if (!locationLink.classList.contains('disabled')) {
+      const locationName = (locationLink.dataset.location || locationLink.textContent || '').trim();
+      if (locationName) {
+        await openPassportForLocation(locationName);
+      }
+    }
+    return;
+  }
+
   // открыть задачу по кнопке №DL_id
   const btnOpen = e.target.closest('.open-task-btn');
   if (btnOpen) {
