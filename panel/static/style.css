@@ -1,7 +1,31 @@
 /* panel/static/style.css */
+:root {
+  --page-min-width: 1920px;
+}
+
+html {
+  background-color: #f8f9fa;
+  min-width: var(--page-min-width);
+  overflow-x: auto;
+}
+
 body {
   background-color: #f8f9fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  min-width: var(--page-min-width);
+  overflow-x: auto;
+}
+
+@media (max-width: 1919.98px) {
+  .container,
+  .container-fluid,
+  .sidebar-layout,
+  .main-content,
+  .with-sidebar {
+    min-width: var(--page-min-width);
+    width: var(--page-min-width);
+    max-width: none;
+  }
 }
 
 .navbar-brand {
