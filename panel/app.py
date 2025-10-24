@@ -312,6 +312,50 @@ def _normalize_partner_contact_served_entities(raw_value):
     return result
 
 
+def _normalize_partner_contact_people(raw_value) -> list[dict]:
+    """Normalize a list of contact persons."""
+
+    if isinstance(raw_value, dict) and "contacts" in raw_value:
+        raw_value = raw_value.get("contacts")
+
+    if not isinstance(raw_value, (list, tuple)):
+        return []
+
+    result: list[dict] = []
+    seen_keys: set[str] = set()
+
+    for item in raw_value:
+        if not isinstance(item, dict):
+            continue
+
+        key = str(item.get("key") or "").strip()
+        if key and key in seen_keys:
+            key = ""
+        if key:
+            seen_keys.add(key)
+
+        full_name = str(item.get("full_name") or "").strip()
+        position = str(item.get("position") or "").strip()
+        phone = re.sub(r"\D+", "", str(item.get("phone") or ""))
+        email = str(item.get("email") or "").strip()
+
+        if not (full_name or position or phone or email):
+            continue
+
+        entry = {
+            "full_name": full_name,
+            "position": position,
+            "phone": phone,
+            "email": email,
+        }
+        if key:
+            entry["key"] = key
+
+        result.append(entry)
+
+    return result
+
+
 def sanitize_partner_contact_extra(payload, *, existing: dict | None = None, value: str | None = None) -> dict:
     base: dict[str, object] = {}
     if isinstance(existing, dict):
@@ -343,6 +387,8 @@ def sanitize_partner_contact_extra(payload, *, existing: dict | None = None, val
         base["emails"] = _normalize_partner_contact_channel_list(
             emails_raw, PARTNER_CONTACT_EMAIL_TYPES, "work"
         )
+
+    base["contacts"] = _normalize_partner_contact_people(base.get("contacts"))
 
     if isinstance(payload, dict) and "internal_name" in payload:
         internal_name = str(payload.get("internal_name") or "").strip()
@@ -383,6 +429,9 @@ def sanitize_partner_contact_extra(payload, *, existing: dict | None = None, val
                     }
                 ]
             )
+
+    if isinstance(payload, dict) and "contacts" in payload:
+        base["contacts"] = _normalize_partner_contact_people(payload.get("contacts"))
 
     base_entities = _normalize_partner_contact_served_entities(base_entities)
     base["served_legal_entities"] = base_entities
@@ -6574,6 +6623,7 @@ def api_update_parameter(param_id):
                 "contact_type",
                 "phones",
                 "emails",
+                "contacts",
                 "internal_name",
                 "served_legal_entities",
                 "served_legal_entity_ids",
