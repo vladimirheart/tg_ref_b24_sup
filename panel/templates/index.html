@@ -616,7 +616,7 @@
 #historyModal .chat-bubble .msg-time {
   /* моноширинный — лучше читаются цифры времени */
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 0.80rem;          /* фиксированный размер, не зависит от .chat-bubble {font-size} */
+  font-size: calc(0.80rem * var(--history-font-scale, 1)); /* фиксированный размер от масштаба истории */
   line-height: 1.2;
   color: #6c757d !important;
   letter-spacing: .01em;
@@ -628,7 +628,7 @@
   /* плотный санс-сериф для имени */
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: calc(0.95rem * var(--history-font-scale, 1));
   line-height: 1.25;
   display: inline-block;
   margin-bottom: .15rem;
@@ -637,16 +637,16 @@
 #historyModal .chat-bubble .msg-text {
   /* нейтральный читабельный санс-сериф для тела сообщения */
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
-  font-size: 1.50rem;
+  font-size: calc(1.50rem * var(--history-font-scale, 1));
   line-height: 1.45;
   color: #000 !important;
 }
 
 /* На очень узких экранах — чутка ужмём */
 @media (max-width: 768px) {
-  #historyModal .chat-bubble .msg-time   { font-size: .75rem; }
-  #historyModal .chat-bubble .msg-author { font-size: .90rem; }
-  #historyModal .chat-bubble .msg-text   { font-size: .95rem; }
+  #historyModal .chat-bubble .msg-time   { font-size: calc(.75rem * var(--history-font-scale, 1)); }
+  #historyModal .chat-bubble .msg-author { font-size: calc(.90rem * var(--history-font-scale, 1)); }
+  #historyModal .chat-bubble .msg-text   { font-size: calc(.95rem * var(--history-font-scale, 1)); }
 }
 /* Стек: время сверху, ниже — имя с зазором 3px */
 #historyModal .chat-bubble .msg-time {
@@ -692,7 +692,7 @@
 /* Подпись типа медиа: моноширинный, мелкий, «системный» */
 #historyModal .chat-bubble .media-type {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: .78rem;
+  font-size: calc(.78rem * var(--history-font-scale, 1));
   line-height: 1.2;
   letter-spacing: .03em;
   text-transform: uppercase;
@@ -701,7 +701,7 @@
 
 /* Подпись к медиа (если была) — обычный текст */
 #historyModal .chat-bubble .media-caption {
-  font-size: .95rem;
+  font-size: calc(.95rem * var(--history-font-scale, 1));
   line-height: 1.35;
 }
 /* === Twemoji: нормальный размер и выравнивание === */
@@ -850,9 +850,13 @@
 #historyHeaderMeta .form-select {
   min-width: 140px;
 }
-#historyContent.font-size-small { font-size: 0.9rem; }
-#historyContent.font-size-medium { font-size: 1rem; }
-#historyContent.font-size-large { font-size: 1.2rem; }
+#historyContent {
+  --history-font-scale: 1;
+  font-size: calc(1rem * var(--history-font-scale));
+}
+#historyContent.font-size-small { --history-font-scale: 0.9; }
+#historyContent.font-size-medium { --history-font-scale: 1; }
+#historyContent.font-size-large { --history-font-scale: 1.2; }
 #activeDialogsBlock { display: none; }
 #activeDialogsBlock.show { display: block; }
 #activeDialogList .list-group-item {
