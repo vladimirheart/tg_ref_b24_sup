@@ -1615,6 +1615,23 @@
     const networkProviderInput = document.getElementById('networkProviderInput');
     const networkContractInput = document.getElementById('networkContractInput');
     const networkRestaurantIdInput = document.getElementById('networkRestaurantIdInput');
+    const networkRestaurantOptionsList = document.getElementById('networkRestaurantOptions');
+    const defaultNetworkRestaurantOptionValues = (() => {
+      if (!networkRestaurantOptionsList) {
+        return [];
+      }
+      const seen = new Set();
+      const values = [];
+      networkRestaurantOptionsList.querySelectorAll('option').forEach((option) => {
+        const value = (option && option.value != null ? String(option.value) : '').trim();
+        if (value && !seen.has(value)) {
+          seen.add(value);
+          values.push(value);
+        }
+      });
+      return values;
+    })();
+    let currentNetworkRestaurantOptionsSignature = defaultNetworkRestaurantOptionValues.join('|');
     const networkLegalEntityInput = document.getElementById('networkLegalEntityInput');
     const networkSupportPhoneInput = document.getElementById('networkSupportPhoneInput');
     const networkSpeedInput = document.getElementById('networkSpeedInput');
@@ -2164,6 +2181,87 @@
       return (value == null ? '' : String(value)).trim().toLowerCase();
     }
 
+    function isRostelecomProviderName(name) {
+      if (!name) return false;
+      const upper = String(name).toUpperCase();
+      if (upper.includes('РОСТЕЛЕКОМ')) {
+        return true;
+      }
+      if (/(?:^|[^A-ZА-Я0-9])РТ/.test(upper)) {
+        return true;
+      }
+      if (/(?:^|[^A-ZА-Я0-9])RT/.test(upper)) {
+        return true;
+      }
+      return false;
+    }
+
+    const rostelecomRestaurantIdOptionsByProvider = (() => {
+      const map = new Map();
+      const pushValue = (targetSet, raw) => {
+        const value = raw == null ? '' : String(raw).trim();
+        if (!value) return;
+        targetSet.add(value);
+      };
+      networkProfiles.forEach((profile) => {
+        if (!profile || !isRostelecomProviderName(profile.provider)) {
+          return;
+        }
+        const key = normalizeNetworkProfileValue(profile.provider);
+        if (!key) return;
+        const set = map.get(key) || new Set();
+        if (Array.isArray(profile.restaurant_ids)) {
+          profile.restaurant_ids.forEach((item) => pushValue(set, item));
+        }
+        pushValue(set, profile.restaurant_id);
+        if (set.size) {
+          map.set(key, set);
+        }
+      });
+      return map;
+    })();
+
+    function rebuildNetworkRestaurantIdDatalist(values) {
+      if (!networkRestaurantOptionsList) {
+        return;
+      }
+      const unique = [];
+      const seen = new Set();
+      (values || []).forEach((raw) => {
+        const value = raw == null ? '' : String(raw).trim();
+        if (!value || seen.has(value)) return;
+        seen.add(value);
+        unique.push(value);
+      });
+      const signature = unique.join('|');
+      if (signature === currentNetworkRestaurantOptionsSignature) {
+        return;
+      }
+      currentNetworkRestaurantOptionsSignature = signature;
+      networkRestaurantOptionsList.innerHTML = '';
+      unique.forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        networkRestaurantOptionsList.appendChild(option);
+      });
+    }
+
+    function updateNetworkRestaurantIdOptionsForProvider(providerValue) {
+      if (!networkRestaurantOptionsList) {
+        return;
+      }
+      const providerKey = normalizeNetworkProfileValue(providerValue);
+      const providerOptions = providerKey
+        ? rostelecomRestaurantIdOptionsByProvider.get(providerKey)
+        : null;
+      if (providerOptions && providerOptions.size) {
+        const combined = Array.from(providerOptions).concat(defaultNetworkRestaurantOptionValues);
+        rebuildNetworkRestaurantIdDatalist(combined);
+      } else {
+        rebuildNetworkRestaurantIdDatalist(defaultNetworkRestaurantOptionValues);
+      }
+    }
+
     let suppressNetworkProfileSync = false;
 
     function findNetworkProfileByField(field, value) {
@@ -2214,6 +2312,7 @@
         }
         setupAutoResizeInput(input);
       });
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput ? networkProviderInput.value : profile.provider);
       suppressNetworkProfileSync = false;
     }
 
@@ -2226,7 +2325,9 @@
           overrides.restaurant_id = typeof value === 'string' ? value.trim() : value;
         }
         fillNetworkProfileFields(profile, overrides);
+        return;
       }
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput ? networkProviderInput.value : '');
     }
 
     function toggleScheduleInputs(row, is24) {
@@ -2325,6 +2426,7 @@
       networkSpeedInput.value = formatNetworkSpeedValue(data.network_speed || '');
       networkParamsInput.value = data.network_connection_params || '';
       setupAutoExpandTextarea(networkParamsInput);
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput ? networkProviderInput.value : '');
       startDateInput.value = data.start_date || '';
       endDateInput.value = data.end_date || '';
       suspensionDateInput.value = data.suspension_date || '';
@@ -3682,6 +3784,9 @@
     };
     internalNetworkInput.addEventListener('input', handleInternalNetworkChange);
     internalNetworkInput.addEventListener('change', handleInternalNetworkChange);
+    networkProviderInput.addEventListener('input', () => {
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput.value);
+    });
     networkProviderInput.addEventListener('change', () => handleNetworkProfileSelection('provider', networkProviderInput.value));
     networkContractInput.addEventListener('change', () => handleNetworkProfileSelection('contract_number', networkContractInput.value));
     networkRestaurantIdInput.addEventListener('change', () => handleNetworkProfileSelection('restaurant_id', networkRestaurantIdInput.value));
