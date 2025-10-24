@@ -5775,6 +5775,57 @@ def api_ticket_set_active(ticket_id):
         """, (ticket_id, user))
     return jsonify({'ok': True})
 
+@app.route('/api/admin/users', methods=['GET'])
+@login_required_api
+def api_admin_users():
+    try:
+        with get_users_db() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT username FROM users ORDER BY username").fetchall()
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+    users = [row['username'] for row in rows if row['username']]
+    return jsonify({'users': users})
+
+@app.route('/api/tickets/<ticket_id>/invite', methods=['POST'])
+@login_required_api
+def api_ticket_invite(ticket_id):
+    ticket_id = str(ticket_id or '').strip()
+    if not ticket_id:
+        return jsonify({'success': False, 'error': 'Некорректный идентификатор заявки'}), 400
+
+    data = request.get_json(force=True, silent=True) or {}
+    invitee = (data.get('invitee') or '').strip()
+    if not invitee:
+        return jsonify({'success': False, 'error': 'Не указан пользователь'}), 400
+
+    try:
+        with get_users_db() as conn:
+            conn.row_factory = sqlite3.Row
+            user_row = conn.execute("SELECT username FROM users WHERE username = ?", (invitee,)).fetchone()
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+    if not user_row:
+        return jsonify({'success': False, 'error': 'Пользователь не найден'}), 404
+
+    with get_db() as conn:
+        ticket_row = conn.execute("SELECT 1 FROM tickets WHERE ticket_id = ?", (ticket_id,)).fetchone()
+    if not ticket_row:
+        return jsonify({'success': False, 'error': 'Заявка не найдена'}), 404
+
+    inviter = session.get('user_email') or session.get('username') or session.get('user') or 'оператор'
+    text = f"{inviter} приглашает вас в диалог №{ticket_id}"
+    url = url_for('index', ticket_id=ticket_id)
+
+    try:
+        _notify_many([invitee], text, url)
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+    return jsonify({'success': True})
+
 @app.route('/api/notifications/unread_count')
 @login_required_api
 def api_notify_count():
