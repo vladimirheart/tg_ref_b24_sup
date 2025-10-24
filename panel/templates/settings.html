@@ -540,16 +540,6 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#partnerContactsModal">
-          <div class="card-body">
-            <div class="tile-icon">📇</div>
-            <h5 class="card-title">Контакты партнёров и КА</h5>
-            <p class="card-text text-muted">Храните телефоны и почту партнёров и консалтинговых агентств.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="col">
         <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#parametersModal">
           <div class="card-body">
             <div class="tile-icon">🧩</div>
@@ -804,58 +794,155 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div class="row g-3">
-              {% for slug, title in parameter_types.items() %}
-              {% if slug not in ['it_connection', 'remote_access', 'legal_entity'] %}
-              <div class="col-md-6 col-xl-4">
-                <div class="card shadow-sm parameter-card" data-param-type="{{ slug }}">
-                  <div class="card-header d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle>
-                      {{ title }}
-                    </button>
-                    <span class="badge bg-secondary" data-param-count>0</span>
+            <ul class="nav nav-tabs mb-3" id="partnerParametersTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link active"
+                  id="partnerParametersTabContragentsTab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#partnerParametersTabContragents"
+                  type="button"
+                  role="tab"
+                  aria-controls="partnerParametersTabContragents"
+                  aria-selected="true"
+                >
+                  Контрагенты
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="partnerParametersTabFranchiseTab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#partnerParametersTabFranchise"
+                  type="button"
+                  role="tab"
+                  aria-controls="partnerParametersTabFranchise"
+                  aria-selected="false"
+                >
+                  Франчайзи
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="partnerParametersTabBasicsTab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#partnerParametersTabBasics"
+                  type="button"
+                  role="tab"
+                  aria-controls="partnerParametersTabBasics"
+                  aria-selected="false"
+                >
+                  Основные настройки
+                </button>
+              </li>
+            </ul>
+            <div class="tab-content" id="partnerParametersTabsContent">
+              <div
+                class="tab-pane fade show active"
+                id="partnerParametersTabContragents"
+                role="tabpanel"
+                aria-labelledby="partnerParametersTabContragentsTab"
+                data-partner-contacts-section="partner"
+              >
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                  <div>
+                    <h6 class="mb-1">Контактные данные контрагентов</h6>
+                    <p class="small text-muted mb-0">Фиксируйте телефоны, e-mail и связь с юридическими лицами контрагентов.</p>
                   </div>
-                  <div class="card-body d-none" data-param-body></div>
-                  <div class="px-3 py-2 small text-muted d-none" data-param-hint>
-                    Список содержит более 10 записей. Нажмите, чтобы открыть значения в модальном окне.
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner">+ Добавить контакт</button>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
+                <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
+                  <div class="card-body">
+                    <div class="fw-semibold mb-1">Пока нет контактов</div>
+                    <div class="text-muted small">Нажмите «Добавить контакт», чтобы сохранить информацию о контрагентах.</div>
                   </div>
                 </div>
               </div>
-              {% endif %}
-              {% endfor %}
-              <div class="col-md-6 col-xl-4">
-                <div
-                  class="card shadow-sm parameter-card"
-                  data-city-card
-                  data-city-count="{{ cities | length }}"
-                >
-                  <div class="card-header d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle>
-                      Город
-                    </button>
-                    <span class="badge bg-secondary">{{ cities | length }}</span>
+              <div
+                class="tab-pane fade"
+                id="partnerParametersTabFranchise"
+                role="tabpanel"
+                aria-labelledby="partnerParametersTabFranchiseTab"
+                data-partner-contacts-section="ka"
+              >
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                  <div>
+                    <h6 class="mb-1">Контакты франчайзи</h6>
+                    <p class="small text-muted mb-0">Храните данные о франчайзи: телефоны, почту и ответственных лиц.</p>
                   </div>
-                 <div class="card-body" data-city-body>
-                    <div class="param-items" data-city-list>
-                      {% if cities %}
-                      <ul class="list-group list-group-flush">
-                        {% for city in cities %}
-                        <li class="list-group-item py-1 px-2">{{ city }}</li>
-                        {% endfor %}
-                      </ul>
-                      {% else %}
-                      <div class="empty-placeholder">Пока нет значений</div>
-                      {% endif %}
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka">+ Добавить контакт</button>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
+                <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
+                  <div class="card-body">
+                    <div class="fw-semibold mb-1">Пока нет контактов</div>
+                    <div class="text-muted small">Добавьте первую запись, чтобы начать вести базу франчайзи.</div>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="tab-pane fade"
+                id="partnerParametersTabBasics"
+                role="tabpanel"
+                aria-labelledby="partnerParametersTabBasicsTab"
+              >
+                <div class="row g-3">
+                  {% for slug, title in parameter_types.items() %}
+                  {% if slug not in ['it_connection', 'remote_access', 'legal_entity'] %}
+                  <div class="col-md-6 col-xl-4">
+                    <div class="card shadow-sm parameter-card" data-param-type="{{ slug }}">
+                      <div class="card-header d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle>
+                          {{ title }}
+                        </button>
+                        <span class="badge bg-secondary" data-param-count>0</span>
+                      </div>
+                      <div class="card-body d-none" data-param-body></div>
+                      <div class="px-3 py-2 small text-muted d-none" data-param-hint>
+                        Список содержит более 10 записей. Нажмите, чтобы открыть значения в модальном окне.
+                      </div>
                     </div>
                   </div>
-                  <div class="px-3 py-2 small text-muted d-none" data-city-hint>
-                    Список содержит более 10 записей. Нажмите, чтобы открыть значения в модальном окне.
+                  {% endif %}
+                  {% endfor %}
+                  <div class="col-md-6 col-xl-4">
+                    <div
+                      class="card shadow-sm parameter-card"
+                      data-city-card
+                      data-city-count="{{ cities | length }}"
+                    >
+                      <div class="card-header d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle>
+                          Город
+                        </button>
+                        <span class="badge bg-secondary">{{ cities | length }}</span>
+                      </div>
+                      <div class="card-body" data-city-body>
+                        <div class="param-items" data-city-list>
+                          {% if cities %}
+                          <ul class="list-group list-group-flush">
+                            {% for city in cities %}
+                            <li class="list-group-item py-1 px-2">{{ city }}</li>
+                            {% endfor %}
+                          </ul>
+                          {% else %}
+                          <div class="empty-placeholder">Пока нет значений</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div class="px-3 py-2 small text-muted d-none" data-city-hint>
+                        Список содержит более 10 записей. Нажмите, чтобы открыть значения в модальном окне.
+                      </div>
+                    </div>
                   </div>
                 </div>
+                <div class="form-text text-muted mt-3">
+                  Эти значения будут использоваться в формах создания клиентов, задач и других разделов.
+                </div>
               </div>
-            </div>
-            <div class="form-text text-muted mt-3">
-              Эти значения будут использоваться в формах создания клиентов, задач и других разделов.
             </div>
           </div>
     </div>
@@ -904,37 +991,6 @@
         </div>
       </div>
     </div>
-
-    <div class="modal fade" id="partnerContactsModal" tabindex="-1" aria-labelledby="partnerContactsModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="partnerContactsModalLabel">📇 Контакты партнёров и КА</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-          </div>
-          <div class="modal-body">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-              <div>
-                <h6 class="mb-1">Контактные данные</h6>
-                <p class="small text-muted mb-0">Фиксируйте телефоны, e-mail и связь с юридическими лицами.</p>
-              </div>
-              <button class="btn btn-sm btn-success" type="button" data-partner-contact-add>+ Добавить контакт</button>
-            </div>
-            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
-            <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
-              <div class="card-body">
-                <div class="fw-semibold mb-1">Пока нет контактов</div>
-                <div class="text-muted small">Нажмите «Добавить контакт», чтобы сохранить информацию о партнёрах или КА.</div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <div class="small text-muted me-auto">Используйте кнопки на карточке для сохранения изменений.</div>
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
-          </div>
-    </div>
-  </div>
-</div>
 
     <div class="modal fade" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -1543,9 +1599,20 @@
   let legalEntityDrafts = [];
   let legalEntityDraftCounter = 0;
 
-  const partnerContactsContainer = document.querySelector('[data-partner-contacts-list]');
-  const partnerContactsEmptyPlaceholder = document.querySelector('[data-partner-contacts-empty]');
-  const partnerContactsModalEl = document.getElementById('partnerContactsModal');
+  const parametersModalEl = document.getElementById('parametersModal');
+  const partnerContactSections = new Map();
+  document.querySelectorAll('[data-partner-contacts-section]').forEach((section) => {
+    if (!section || !(section instanceof HTMLElement)) return;
+    const scope = section.dataset.partnerContactsSection;
+    if (!scope) return;
+    const container = section.querySelector('[data-partner-contacts-list]');
+    const emptyPlaceholder = section.querySelector('[data-partner-contacts-empty]');
+    partnerContactSections.set(scope, {
+      section,
+      container,
+      emptyPlaceholder,
+    });
+  });
   let partnerContactDrafts = [];
   let partnerContactDraftCounter = 0;
   const partnerContactEdits = new Map();
@@ -1573,7 +1640,7 @@
   }
 
   function findPartnerContactCardByKey(key) {
-    if (!partnerContactsContainer || !key) return null;
+    if (!key) return null;
     let selector = '';
     if (key.startsWith('draft:')) {
       const draftId = key.slice('draft:'.length);
@@ -1585,7 +1652,7 @@
       selector = `[data-partner-contact-card][data-partner-contact-draft="false"][data-partner-contact-id="${cssEscape(id)}"]`;
     }
     if (!selector) return null;
-    return partnerContactsContainer.querySelector(selector);
+    return document.querySelector(selector);
   }
 
   function setPartnerContactCardVisibility(key, visible) {
@@ -3410,16 +3477,22 @@
     `;
   }
 
-  function renderPartnerContacts() {
-    if (!partnerContactsContainer) return;
-    const items = getPartnerContactRenderItems();
-    if (!items.length) {
-      partnerContactsContainer.innerHTML = '';
-      if (partnerContactsEmptyPlaceholder) {
-        partnerContactsEmptyPlaceholder.classList.remove('d-none');
-      }
-      return;
+  function getPartnerContactScopeKey(item) {
+    const type = item && typeof item.contact_type === 'string' ? item.contact_type : '';
+    if (type && partnerContactSections.has(type)) {
+      return type;
     }
+    if (partnerContactSections.has('partner')) {
+      return 'partner';
+    }
+    const iterator = partnerContactSections.keys();
+    const first = iterator.next();
+    return first && !first.done ? first.value : null;
+  }
+
+  function renderPartnerContacts() {
+    if (!partnerContactSections.size) return;
+    const items = getPartnerContactRenderItems();
     const activeKeys = new Set();
     items.forEach((item) => {
       const key = getPartnerContactItemKey(item);
@@ -3435,24 +3508,44 @@
         partnerContactDetailsState.delete(key);
       }
     });
-    partnerContactsContainer.innerHTML = items
-      .map((item) => renderPartnerContactCard(item, { mode: 'summary' }))
-      .join('');
-    partnerContactsContainer
-      .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="phone"]')
-      .forEach((input) => updatePhoneInputFormatting(input));
-    partnerContactsContainer
-      .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="email"]')
-      .forEach((input) => validateEmailInput(input));
-    partnerContactsContainer
-      .querySelectorAll('[data-partner-contact-person-field="phone"]')
-      .forEach((input) => updatePhoneInputFormatting(input));
-    partnerContactsContainer
-      .querySelectorAll('[data-partner-contact-person-field="email"]')
-      .forEach((input) => validateEmailInput(input));
-    if (partnerContactsEmptyPlaceholder) {
-      partnerContactsEmptyPlaceholder.classList.add('d-none');
-    }
+    const grouped = new Map();
+    items.forEach((item) => {
+      const scope = getPartnerContactScopeKey(item);
+      if (!scope) return;
+      if (!grouped.has(scope)) {
+        grouped.set(scope, []);
+      }
+      grouped.get(scope).push(item);
+    });
+    partnerContactSections.forEach(({ container, emptyPlaceholder }, scope) => {
+      if (!container) return;
+      const scopedItems = grouped.get(scope) || [];
+      if (!scopedItems.length) {
+        container.innerHTML = '';
+        if (emptyPlaceholder) {
+          emptyPlaceholder.classList.remove('d-none');
+        }
+        return;
+      }
+      container.innerHTML = scopedItems
+        .map((item) => renderPartnerContactCard(item, { mode: 'summary' }))
+        .join('');
+      container
+        .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="phone"]')
+        .forEach((input) => updatePhoneInputFormatting(input));
+      container
+        .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="email"]')
+        .forEach((input) => validateEmailInput(input));
+      container
+        .querySelectorAll('[data-partner-contact-person-field="phone"]')
+        .forEach((input) => updatePhoneInputFormatting(input));
+      container
+        .querySelectorAll('[data-partner-contact-person-field="email"]')
+        .forEach((input) => validateEmailInput(input));
+      if (emptyPlaceholder) {
+        emptyPlaceholder.classList.add('d-none');
+      }
+    });
     if (partnerContactEditorState && partnerContactEditorState.key) {
       const key = partnerContactEditorState.key;
       setPartnerContactCardVisibility(key, false);
@@ -4058,11 +4151,11 @@
     });
   }
 
-  if (partnerContactsModalEl) {
-    partnerContactsModalEl.addEventListener('show.bs.modal', () => {
+  if (parametersModalEl) {
+    parametersModalEl.addEventListener('show.bs.modal', () => {
       renderPartnerContacts();
     });
-    partnerContactsModalEl.addEventListener('hidden.bs.modal', () => {
+    parametersModalEl.addEventListener('hidden.bs.modal', () => {
       partnerContactDrafts = [];
       partnerContactDraftCounter = 0;
       partnerContactEdits.clear();
@@ -4128,7 +4221,12 @@
     }
     const partnerContactAddBtn = event.target.closest('[data-partner-contact-add]');
     if (partnerContactAddBtn) {
-      addPartnerContactDraft();
+      const scope = partnerContactAddBtn.dataset.partnerContactAdd;
+      const initial = {};
+      if (scope) {
+        initial.contact_type = scope;
+      }
+      addPartnerContactDraft(initial);
       return;
     }
     const partnerContactActionBtn = event.target.closest('[data-partner-contact-action]');
