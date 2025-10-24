@@ -1466,7 +1466,7 @@
   const BOT_PRESET_DEFINITIONS = {{ bot_question_presets | tojson | safe }};
 
   const PARAMETER_TITLES = {{ parameter_types | tojson }};
-  const PARAMETER_STATE_TYPES = new Set(['partner_type', 'country', 'legal_entity']);
+  const PARAMETER_STATE_TYPES = new Set(['partner_type', 'country', 'legal_entity', 'partner_contact']);
   const PARAMETER_STATES = ['Активен', 'Подписание', 'Заблокирован', 'Black_List', 'Закрыт'];
   const PARAMETER_FILTER_KEYS = {
     business: 'business',
@@ -1629,6 +1629,12 @@
     }
     partnerContactEditorBody.innerHTML = '';
     partnerContactEditorBody.appendChild(card);
+    card
+      .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="phone"]')
+      .forEach((input) => updatePhoneInputFormatting(input));
+    card
+      .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="email"]')
+      .forEach((input) => validateEmailInput(input));
     return true;
   }
 
@@ -1814,6 +1820,91 @@
     return `person-${partnerContactPersonCounter}`;
   }
 
+  function extractDigits(value) {
+    if (typeof value === 'string' || typeof value === 'number') {
+      return String(value).replace(/\D+/g, '');
+    }
+    return '';
+  }
+
+  const PHONE_COUNTRY_FORMATS = [
+    { code: '375', prefix: '+375', mask: ' (##) ###-##-##' },
+    { code: '380', prefix: '+380', mask: ' (##) ###-##-##' },
+    { code: '7', prefix: '+7', mask: ' (###) ###-##-##' },
+    { code: '1', prefix: '+1', mask: ' (###) ###-####' },
+  ];
+  const EMAIL_VALIDATION_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function applyPhoneMask(mask, digits) {
+    if (!digits) {
+      return '';
+    }
+    let result = '';
+    let index = 0;
+    for (const char of mask) {
+      if (char === '#') {
+        if (index < digits.length) {
+          result += digits[index];
+          index += 1;
+        } else {
+          break;
+        }
+      } else if (index > 0 || digits.length > 0) {
+        result += char;
+      }
+    }
+    if (index < digits.length) {
+      const remainder = digits.slice(index);
+      if (remainder) {
+        result += (result && !result.endsWith(' ') ? ' ' : '') + remainder;
+      }
+    }
+    return result;
+  }
+
+  function formatPhoneValue(value) {
+    const digits = extractDigits(value);
+    if (!digits) {
+      return '';
+    }
+    for (const format of PHONE_COUNTRY_FORMATS) {
+      if (digits.startsWith(format.code)) {
+        const rest = digits.slice(format.code.length);
+        const maskedRest = rest ? applyPhoneMask(format.mask, rest) : '';
+        return (format.prefix + maskedRest).trim();
+      }
+    }
+    const prefix = `+${digits[0]}`;
+    const rest = digits.slice(1);
+    const maskedRest = rest ? applyPhoneMask(' (###) ###-##-##', rest) : '';
+    return (prefix + maskedRest).trim();
+  }
+
+  function updatePhoneInputFormatting(input) {
+    if (!input) return;
+    const digits = extractDigits(input.value || input.dataset.phoneDigits || '');
+    input.dataset.phoneDigits = digits;
+    input.value = formatPhoneValue(digits);
+  }
+
+  function enforceExtensionDigits(input) {
+    if (!input) return;
+    const digits = extractDigits(input.value);
+    input.value = digits;
+  }
+
+  function validateEmailInput(input) {
+    if (!input) return;
+    const value = typeof input.value === 'string' ? input.value.trim() : '';
+    const isValid = !value || EMAIL_VALIDATION_REGEX.test(value);
+    input.classList.toggle('is-invalid', !isValid);
+    if (typeof input.setCustomValidity === 'function') {
+      input.setCustomValidity(
+        isValid ? '' : 'Введите корректный e-mail: необходим символ @ и доменное имя.'
+      );
+    }
+  }
+
   function createBlankPartnerContactPersonEntry() {
     return {
       key: generatePartnerContactPersonKey(),
@@ -1836,6 +1927,7 @@
         let value = '';
         let type = defaultType;
         let key = '';
+        let extension = '';
         if (item && typeof item === 'object') {
           const rawType = typeof item.type === 'string' ? item.type.trim() : '';
           if (rawType && Object.prototype.hasOwnProperty.call(allowed, rawType)) {
@@ -1843,6 +1935,9 @@
           }
           if (typeof item.value === 'string' || typeof item.value === 'number') {
             value = String(item.value).trim();
+          }
+          if (kind === 'phone' && (typeof item.extension === 'string' || typeof item.extension === 'number')) {
+            extension = String(item.extension).trim();
           }
           if (typeof item.key === 'string' && item.key.trim()) {
             key = item.key.trim();
@@ -1858,6 +1953,11 @@
         }
         if (!key) {
           key = generatePartnerContactCommKey(kind);
+        }
+        if (kind === 'phone') {
+          value = value.replace(/\D+/g, '');
+          extension = extension.replace(/\D+/g, '');
+          return { key, type, value, extension };
         }
         return { key, type, value };
       })
@@ -1999,14 +2099,23 @@
     const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
     const allowedKeys = Object.keys(allowed);
     const defaultType = allowedKeys.includes('work') ? 'work' : allowedKeys[0] || '';
-    return { key: generatePartnerContactCommKey(kind), type: defaultType, value: '' };
+    const entry = { key: generatePartnerContactCommKey(kind), type: defaultType, value: '' };
+    if (kind === 'phone') {
+      entry.extension = '';
+    }
+    return entry;
   }
 
   function clonePartnerContactCommList(list) {
     if (!Array.isArray(list)) {
       return [];
     }
-    return list.map((item) => ({ key: item.key, type: item.type, value: item.value }));
+    return list.map((item) => ({
+      key: item.key,
+      type: item.type,
+      value: item.value,
+      extension: typeof item.extension === 'string' ? item.extension : '',
+    }));
   }
 
   function clonePartnerContactServedEntities(list) {
@@ -2558,7 +2667,7 @@
     } else if (field === 'manager_contacts') {
       draft.manager_contacts = value;
     } else if (field === 'state') {
-      draft.state = value;
+      draft.state = PARAMETER_STATES.includes(value) ? value : draft.state;
     }
   }
 
@@ -2751,16 +2860,13 @@
   }
 
   function buildPartnerContactStateControl(item, disabled) {
-    if (item.isDraft) {
-      const effective = PARAMETER_STATES.includes(item.state) ? item.state : PARAMETER_STATES[0];
-      const options = PARAMETER_STATES.map((state) => {
-        const isSelected = state === effective;
-        return `<option value="${escapeHtml(state)}"${isSelected ? ' selected' : ''}>${escapeHtml(state)}</option>`;
-      }).join('');
-      const disabledAttr = disabled ? ' disabled' : '';
-      return `<select class="form-select form-select-sm" data-partner-contact-field="state"${disabledAttr}>${options}</select>`;
-    }
-    return buildStateSelect('partner_contact', item.state, disabled, { forInput: false });
+    const effective = PARAMETER_STATES.includes(item.state) ? item.state : PARAMETER_STATES[0];
+    const options = PARAMETER_STATES.map((state) => {
+      const isSelected = state === effective;
+      return `<option value="${escapeHtml(state)}"${isSelected ? ' selected' : ''}>${escapeHtml(state)}</option>`;
+    }).join('');
+    const disabledAttr = disabled ? ' disabled' : '';
+    return `<select class="form-select form-select-sm" data-partner-contact-field="state"${disabledAttr}>${options}</select>`;
   }
 
   function buildPartnerContactServedSelect(item, disabled) {
@@ -2824,7 +2930,10 @@
     const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
     return entries
       .map((entry) => {
-        const value = typeof entry.value === 'string' ? entry.value : '';
+        const rawValue = typeof entry.value === 'string' ? entry.value : '';
+        const digitsValue = kind === 'phone' ? extractDigits(rawValue) : rawValue;
+        const value = kind === 'phone' ? formatPhoneValue(digitsValue) : rawValue;
+        const extensionValue = kind === 'phone' && typeof entry.extension === 'string' ? extractDigits(entry.extension) : '';
         const type = Object.prototype.hasOwnProperty.call(allowed, entry.type) ? entry.type : Object.keys(allowed)[0];
         const disabledAttr = disabled ? ' disabled' : '';
         const options = Object.keys(allowed)
@@ -2837,10 +2946,21 @@
         const removeBtn = disabled
           ? ''
           : `<button class="btn btn-outline-danger" type="button" data-partner-contact-remove-comm data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}" title="Удалить">🗑</button>`;
+        if (kind === 'phone') {
+          return `
+            <div class="input-group input-group-sm mb-2" data-partner-contact-comm-row data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}">
+              <select class="form-select form-select-sm" data-partner-contact-comm-field="type" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}"${disabledAttr}>${options}</select>
+              <input type="text" class="form-control" data-partner-contact-comm-field="value" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}" data-phone-digits="${escapeHtml(digitsValue)}" value="${escapeHtml(value)}" placeholder="Номер" inputmode="numeric"${disabledAttr}>
+              <span class="input-group-text">доб.</span>
+              <input type="text" class="form-control" data-partner-contact-comm-field="extension" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}" value="${escapeHtml(extensionValue)}" placeholder="Доб. номер" inputmode="numeric"${disabledAttr}>
+              ${removeBtn}
+            </div>
+          `;
+        }
         return `
           <div class="input-group input-group-sm mb-2" data-partner-contact-comm-row data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}">
             <select class="form-select form-select-sm" data-partner-contact-comm-field="type" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}"${disabledAttr}>${options}</select>
-            <input type="text" class="form-control" data-partner-contact-comm-field="value" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}" value="${escapeHtml(value)}" placeholder="${kind === 'phone' ? 'Номер' : 'E-mail'}"${disabledAttr}>
+            <input type="email" class="form-control" data-partner-contact-comm-field="value" data-comm-type="${kind}" data-entry-key="${escapeHtml(entry.key)}" value="${escapeHtml(value)}" placeholder="E-mail"${disabledAttr}>
             ${removeBtn}
           </div>
         `;
@@ -2860,8 +2980,6 @@
         const key = typeof person.key === 'string' ? person.key : '';
         const fullName = typeof person.full_name === 'string' ? person.full_name : '';
         const position = typeof person.position === 'string' ? person.position : '';
-        const phone = typeof person.phone === 'string' ? person.phone : '';
-        const email = typeof person.email === 'string' ? person.email : '';
         const disabledAttr = disabled ? ' disabled' : '';
         const removeBtn = disabled
           ? ''
@@ -2893,18 +3011,6 @@
                   <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="position" value="${escapeHtml(
                     position
                   )}" placeholder="Например, менеджер"${disabledAttr}>
-                </div>
-                <div class="col-12 col-lg-6">
-                  <label class="form-label">Телефон</label>
-                  <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="phone" value="${escapeHtml(
-                    phone
-                  )}" placeholder="+7 (999) 000-00-00"${disabledAttr}>
-                </div>
-                <div class="col-12 col-lg-6">
-                  <label class="form-label">E-mail</label>
-                  <input type="email" class="form-control form-control-sm" data-partner-contact-person-field="email" value="${escapeHtml(
-                    email
-                  )}" placeholder="example@company.ru"${disabledAttr}>
                 </div>
               </div>
             </div>
@@ -2967,12 +3073,13 @@
         const fullName = typeof person.full_name === 'string' ? person.full_name.trim() : '';
         const position = typeof person.position === 'string' ? person.position.trim() : '';
         const phone = typeof person.phone === 'string' ? person.phone.trim() : '';
+        const formattedPhone = formatPhoneValue(phone);
         const email = typeof person.email === 'string' ? person.email.trim() : '';
         if (!fullName && !position && !phone && !email) return null;
         return {
           title: fullName || `Контакт ${index + 1}`,
           position,
-          phone,
+          phone: formattedPhone,
           email,
         };
       })
@@ -3015,9 +3122,10 @@
     const phones = Array.isArray(item.phones) ? item.phones : [];
     phones.forEach((entry) => {
       if (!entry || typeof entry !== 'object') return;
-      const value = typeof entry.value === 'string' ? entry.value.trim() : '';
+      const value = typeof entry.value === 'string' ? extractDigits(entry.value) : '';
       if (!value) return;
-      fallbackEntries.push({ kind: 'phone', value });
+      const extension = typeof entry.extension === 'string' ? extractDigits(entry.extension) : '';
+      fallbackEntries.push({ kind: 'phone', value, extension });
     });
     const emails = Array.isArray(item.emails) ? item.emails : [];
     emails.forEach((entry) => {
@@ -3034,6 +3142,21 @@
             ? '<i class="bi bi-telephone-fill me-1"></i>'
             : '<i class="bi bi-envelope-fill me-1"></i>';
           const label = entry.kind === 'phone' ? 'Телефон' : 'E-mail';
+          if (entry.kind === 'phone') {
+            const formatted = formatPhoneValue(entry.value);
+            if (!formatted) {
+              return '';
+            }
+            const extensionPart = entry.extension
+              ? `<span class="text-muted">•</span><span> доб. ${escapeHtml(entry.extension)}</span>`
+              : '';
+            return `
+              <li class="partner-contact-summary-contact">
+                <div class="partner-contact-summary-contact-title">${label}</div>
+                <div class="partner-contact-summary-contact-meta">${icon}${escapeHtml(formatted)}${extensionPart}</div>
+              </li>
+            `;
+          }
           return `
             <li class="partner-contact-summary-contact">
               <div class="partner-contact-summary-contact-title">${label}</div>
@@ -3314,6 +3437,12 @@
     partnerContactsContainer.innerHTML = items
       .map((item) => renderPartnerContactCard(item, { mode: 'summary' }))
       .join('');
+    partnerContactsContainer
+      .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="phone"]')
+      .forEach((input) => updatePhoneInputFormatting(input));
+    partnerContactsContainer
+      .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="email"]')
+      .forEach((input) => validateEmailInput(input));
     if (partnerContactsEmptyPlaceholder) {
       partnerContactsEmptyPlaceholder.classList.add('d-none');
     }
@@ -3414,7 +3543,7 @@
     } else if (field === 'internal_name') {
       draft.internal_name = value;
     } else if (field === 'state') {
-      draft.state = value;
+      draft.state = PARAMETER_STATES.includes(value) ? value : draft.state;
     } else if (field === 'contact_type') {
       draft.contact_type = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, value) ? value : 'partner';
       if (draft.contact_type !== 'ka') {
@@ -3447,7 +3576,9 @@
       const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
       entry.type = Object.prototype.hasOwnProperty.call(allowed, value) ? value : entry.type;
     } else if (field === 'value') {
-      entry.value = value;
+      entry.value = kind === 'phone' ? extractDigits(value) : value;
+    } else if (field === 'extension' && kind === 'phone') {
+      entry.extension = extractDigits(value);
     }
   }
 
@@ -3474,6 +3605,8 @@
       edit.legal_entity = value;
     } else if (field === 'internal_name') {
       edit.internal_name = value;
+    } else if (field === 'state') {
+      edit.state = PARAMETER_STATES.includes(value) ? value : edit.state;
     } else if (field === 'contact_type') {
       edit.contact_type = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_TYPES, value) ? value : edit.contact_type;
       if (edit.contact_type !== 'ka') {
@@ -3506,7 +3639,9 @@
       const allowed = kind === 'phone' ? PARTNER_CONTACT_PHONE_TYPES : PARTNER_CONTACT_EMAIL_TYPES;
       entry.type = Object.prototype.hasOwnProperty.call(allowed, value) ? value : entry.type;
     } else if (field === 'value') {
-      entry.value = value;
+      entry.value = kind === 'phone' ? extractDigits(value) : value;
+    } else if (field === 'extension' && kind === 'phone') {
+      entry.extension = extractDigits(value);
     }
   }
 
@@ -3530,7 +3665,7 @@
     if (!draft || !Array.isArray(draft.contacts)) return;
     const person = draft.contacts.find((entry) => entry.key === personKey);
     if (!person) return;
-    if (['full_name', 'position', 'phone', 'email'].includes(field)) {
+    if (['full_name', 'position'].includes(field)) {
       person[field] = value;
     }
   }
@@ -3540,7 +3675,7 @@
     if (!edit || !Array.isArray(edit.contacts)) return;
     const person = edit.contacts.find((entry) => entry.key === personKey);
     if (!person) return;
-    if (['full_name', 'position', 'phone', 'email'].includes(field)) {
+    if (['full_name', 'position'].includes(field)) {
       person[field] = value;
     }
   }
@@ -3594,20 +3729,37 @@
     const result = { contact_type: data.contact_type };
     result.value = typeof data.value === 'string' ? data.value.trim() : '';
     result.state = typeof data.state === 'string' ? data.state : PARAMETER_STATES[0];
+    const fallbackPhoneType = Object.keys(PARTNER_CONTACT_PHONE_TYPES)[0] || 'work';
     result.phones = Array.isArray(data.phones)
       ? data.phones
-          .map((item) => ({
-            type: item.type,
-            value: typeof item.value === 'string' ? item.value.trim() : '',
-          }))
+          .map((item) => {
+            const valueDigits = extractDigits(item && item.value);
+            const extensionDigits = extractDigits(item && item.extension);
+            const typeKey = item && item.type;
+            const type = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_PHONE_TYPES, typeKey)
+              ? typeKey
+              : fallbackPhoneType;
+            return {
+              type,
+              value: valueDigits,
+              extension: extensionDigits,
+            };
+          })
           .filter((item) => item.value)
       : [];
+    const fallbackEmailType = Object.keys(PARTNER_CONTACT_EMAIL_TYPES)[0] || 'work';
     result.emails = Array.isArray(data.emails)
       ? data.emails
-          .map((item) => ({
-            type: item.type,
-            value: typeof item.value === 'string' ? item.value.trim() : '',
-          }))
+          .map((item) => {
+            const typeKey = item && item.type;
+            const type = Object.prototype.hasOwnProperty.call(PARTNER_CONTACT_EMAIL_TYPES, typeKey)
+              ? typeKey
+              : fallbackEmailType;
+            return {
+              type,
+              value: typeof item.value === 'string' ? item.value.trim() : '',
+            };
+          })
           .filter((item) => item.value)
       : [];
     result.contacts = Array.isArray(data.contacts)
@@ -3668,6 +3820,13 @@
       alert('Для типа «КА» необходимо выбрать одно или несколько обслуживаемых ЮЛ');
       return;
     }
+    const invalidEmail = Array.isArray(payload.emails)
+      ? payload.emails.find((item) => item && item.value && !EMAIL_VALIDATION_REGEX.test(item.value))
+      : null;
+    if (invalidEmail) {
+      alert('Проверьте e-mail: необходимо указать символ @ и доменное имя.');
+      return;
+    }
 
     const originalText = trigger.textContent;
     trigger.disabled = true;
@@ -3703,6 +3862,7 @@
           served_legal_entity_names: payload.served_legal_entity_names,
           served_legal_entity_id: payload.served_legal_entity_id,
           served_legal_entity_name: payload.served_legal_entity_name,
+          state: payload.state,
         };
         response = await fetch(`/api/settings/parameters/${id}`, {
           method: 'PATCH',
@@ -4224,11 +4384,22 @@
       return;
     }
     const commField = event.target.dataset.partnerContactCommField;
-    if (commField === 'value') {
+    if (commField === 'value' || commField === 'extension') {
       const kind = event.target.dataset.commType;
       const entryKey = event.target.dataset.entryKey;
       if (!kind || !entryKey) return;
-      const value = event.target.value;
+      let value = event.target.value;
+      if (kind === 'phone') {
+        if (commField === 'value') {
+          updatePhoneInputFormatting(event.target);
+          value = event.target.dataset.phoneDigits || extractDigits(event.target.value);
+        } else {
+          enforceExtensionDigits(event.target);
+          value = event.target.value;
+        }
+      } else if (kind === 'email' && commField === 'value') {
+        validateEmailInput(event.target);
+      }
       if (card.dataset.partnerContactDraft === 'true') {
         updatePartnerContactDraftComm(card.dataset.partnerContactDraftId, kind, entryKey, commField, value);
       } else {
@@ -4237,6 +4408,7 @@
           updatePartnerContactEditComm(id, kind, entryKey, commField, value);
         }
       }
+      return;
     }
   });
 
@@ -4274,14 +4446,20 @@
       return;
     }
     if (field === 'state') {
+      const stateValue = event.target.value;
       if (card.dataset.partnerContactDraft === 'true') {
-        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, event.target.value);
-        const data = getPartnerContactCardData(card);
-        const subtitle = card.querySelector('[data-partner-contact-subtitle]');
-        if (subtitle && data) {
-          const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
-          subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
+        updatePartnerContactDraftValue(card.dataset.partnerContactDraftId, field, stateValue);
+      } else {
+        const id = Number.parseInt(card.dataset.partnerContactId || card.dataset.paramId, 10);
+        if (Number.isFinite(id)) {
+          updatePartnerContactEditField(id, field, stateValue);
         }
+      }
+      const data = getPartnerContactCardData(card);
+      const subtitle = card.querySelector('[data-partner-contact-subtitle]');
+      if (subtitle && data) {
+        const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
+        subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
       }
       return;
     }
