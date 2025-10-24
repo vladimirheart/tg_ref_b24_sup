@@ -1201,7 +1201,7 @@
                       </table>
                     </div>
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3">
-                      <button class="btn btn-sm btn-success" type="button" onclick="addNetworkProfileRow()">+ Добавить профиль</button>
+                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add>+ Добавить профиль</button>
                       <button class="btn btn-sm btn-primary" type="button" data-network-profiles-save>
                         💾 Сохранить изменения
                       </button>
@@ -1240,6 +1240,78 @@
             </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <form data-network-profile-form>
+            <div class="modal-header">
+              <h5 class="modal-title" data-network-profile-title>Профиль провайдера</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label" for="networkProfileProviderInput">Провайдер</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="networkProfileProviderInput"
+                    data-network-profile-provider
+                    placeholder="Например, Ростелеком"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="networkProfileContractInput">Номер договора</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="networkProfileContractInput"
+                    data-network-profile-contract
+                    placeholder="Номер договора"
+                  />
+                </div>
+                <div class="col-12">
+                  <label class="form-label">ID ресторана</label>
+                  <div class="d-flex flex-column gap-2" data-network-profile-restaurant-ids></div>
+                  <button type="button" class="btn btn-sm btn-outline-primary mt-2" data-network-profile-add-restaurant-id>
+                    + Добавить ID ресторана
+                  </button>
+                  <div class="form-text text-muted">Можно указать несколько идентификаторов для одного профиля.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="networkProfileSupportPhoneInput">Телефон ТП</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="networkProfileSupportPhoneInput"
+                    data-network-profile-support-phone
+                    placeholder="Телефон технической поддержки"
+                  />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="networkProfileLegalEntityInput">Юридическое лицо</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="networkProfileLegalEntityInput"
+                    data-network-profile-legal-entity
+                    placeholder="Название ЮЛ"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer justify-content-between flex-wrap gap-2">
+              <button type="button" class="btn btn-outline-danger d-none" data-network-profile-delete>Удалить профиль</button>
+              <div class="d-flex gap-2 ms-auto">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -5008,29 +5080,82 @@
   renderCityCard();
   const contractUsageData = {{ contract_usage | tojson }};
   const networkProfilesInitial = {{ settings.network_profiles | tojson }};
+
+  function sanitizeRestaurantIds(value) {
+    const unique = [];
+    const pushUnique = (candidate) => {
+      const trimmed = typeof candidate === 'string' ? candidate.trim() : candidate != null ? String(candidate).trim() : '';
+      if (!trimmed) return;
+      if (!unique.includes(trimmed)) {
+        unique.push(trimmed);
+      }
+    };
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        if (typeof entry === 'string' || typeof entry === 'number') {
+          String(entry)
+            .split(/[,;\n]/)
+            .forEach((part) => pushUnique(part));
+        }
+      });
+    } else if (typeof value === 'string' || typeof value === 'number') {
+      String(value)
+        .split(/[,;\n]/)
+        .forEach((part) => pushUnique(part));
+    }
+    return unique;
+  }
+
+  function prepareNetworkProfile(item) {
+    const source = item || {};
+    const provider = source.provider != null ? String(source.provider).trim() : '';
+    const contractNumber = source.contract_number != null ? String(source.contract_number).trim() : '';
+    const supportPhone = source.support_phone != null ? String(source.support_phone).trim() : '';
+    const legalEntity = source.legal_entity != null ? String(source.legal_entity).trim() : '';
+    const fallbackSingle = source.restaurant_id != null ? String(source.restaurant_id).trim() : '';
+    const idsSource = source.restaurant_ids !== undefined ? source.restaurant_ids : fallbackSingle;
+    let restaurantIds = sanitizeRestaurantIds(idsSource);
+    if (!restaurantIds.length && fallbackSingle) {
+      restaurantIds = [fallbackSingle];
+    }
+    const primaryRestaurantId = restaurantIds[0] || '';
+    return {
+      provider,
+      contract_number: contractNumber,
+      support_phone: supportPhone,
+      legal_entity: legalEntity,
+      restaurant_ids: restaurantIds,
+      restaurant_id: primaryRestaurantId,
+    };
+  }
+
+  function createEmptyNetworkProfile() {
+    return prepareNetworkProfile({});
+  }
+
   let networkProfilesData = Array.isArray(networkProfilesInitial)
-    ? networkProfilesInitial.map((item) => ({
-        provider: (item && item.provider) || '',
-        contract_number: (item && item.contract_number) || '',
-        restaurant_id: (item && item.restaurant_id) || '',
-        support_phone: (item && item.support_phone) || '',
-        legal_entity: (item && item.legal_entity) || '',
-      }))
+    ? networkProfilesInitial.map((item) => prepareNetworkProfile(item))
     : [];
+
   const networkProfilesBody = document.getElementById('networkProfilesBody');
   const networkProfilesSaveButton = document.querySelector('[data-network-profiles-save]');
-
-  function collectNetworkProfilesPayload() {
-    return networkProfilesData
-      .map((item) => ({
-        provider: (item.provider || '').trim(),
-        contract_number: (item.contract_number || '').trim(),
-        restaurant_id: (item.restaurant_id || '').trim(),
-        support_phone: (item.support_phone || '').trim(),
-        legal_entity: (item.legal_entity || '').trim(),
-      }))
-      .filter((profile) => Object.values(profile).some((value) => value));
-  }
+  const networkProfilesAddButton = document.querySelector('[data-network-profiles-add]');
+  const networkProfileModalEl = document.getElementById('networkProfileEditorModal');
+  const networkProfileModal = networkProfileModalEl ? new bootstrap.Modal(networkProfileModalEl) : null;
+  const networkProfileForm = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-form]') : null;
+  const networkProfileTitle = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-title]') : null;
+  const networkProfileDeleteButton = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-delete]') : null;
+  const networkProfileProviderInput = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-provider]') : null;
+  const networkProfileContractInput = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-contract]') : null;
+  const networkProfileSupportPhoneInput = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-support-phone]') : null;
+  const networkProfileLegalEntityInput = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-legal-entity]') : null;
+  const networkProfileRestaurantIdsContainer = networkProfileModalEl
+    ? networkProfileModalEl.querySelector('[data-network-profile-restaurant-ids]')
+    : null;
+  const networkProfileAddRestaurantIdButton = networkProfileModalEl
+    ? networkProfileModalEl.querySelector('[data-network-profile-add-restaurant-id]')
+    : null;
+  let networkProfileEditingIndex = null;
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -5041,6 +5166,339 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
+  function getProfileRestaurantIds(profile) {
+    const data = profile || {};
+    const ids = sanitizeRestaurantIds(data.restaurant_ids);
+    if (!ids.length) {
+      sanitizeRestaurantIds(data.restaurant_id).forEach((value) => {
+        if (!ids.includes(value)) {
+          ids.push(value);
+        }
+      });
+    }
+    return ids;
+  }
+
+  function renderText(value) {
+    const trimmed = (value || '').trim();
+    return trimmed ? escapeHtml(trimmed) : '<span class="text-muted">—</span>';
+  }
+
+  function renderRestaurantIdsCell(profile) {
+    const ids = getProfileRestaurantIds(profile);
+    if (!ids.length) {
+      return '<span class="text-muted">—</span>';
+    }
+    const badges = ids
+      .map((id) => `<span class="badge bg-light text-dark border">${escapeHtml(id)}</span>`)
+      .join('');
+    return `<div class="d-flex flex-wrap gap-1">${badges}</div>`;
+  }
+
+  function renderContractUsageLink(contractNumber) {
+    const trimmed = (contractNumber || '').trim();
+    if (!trimmed) {
+      return '<span class="text-muted">—</span>';
+    }
+    const count = contractUsageData && typeof contractUsageData === 'object'
+      ? (contractUsageData[trimmed] || 0)
+      : 0;
+    const url = `/object_passports?network_contract_number=${encodeURIComponent(trimmed)}`;
+    return `<a href="${url}" class="btn btn-link btn-sm p-0">${count}</a>`;
+  }
+
+  function updateRestaurantIdRemoveButtonsState() {
+    if (!networkProfileRestaurantIdsContainer) return;
+    const entries = networkProfileRestaurantIdsContainer.querySelectorAll('[data-restaurant-id-entry]');
+    const allowRemoval = entries.length > 1;
+    entries.forEach((entry) => {
+      const removeButton = entry.querySelector('[data-remove-restaurant-id]');
+      if (removeButton) {
+        removeButton.disabled = !allowRemoval;
+      }
+    });
+  }
+
+  function createRestaurantIdEntry(value) {
+    const group = document.createElement('div');
+    group.className = 'input-group input-group-sm';
+    group.dataset.restaurantIdEntry = 'true';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control';
+    input.placeholder = 'ID ресторана';
+    input.value = value || '';
+    input.setAttribute('data-restaurant-id-input', 'true');
+    group.appendChild(input);
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'btn btn-outline-danger';
+    removeButton.setAttribute('data-remove-restaurant-id', 'true');
+    removeButton.innerHTML = '&times;';
+    removeButton.title = 'Удалить';
+    group.appendChild(removeButton);
+
+    return group;
+  }
+
+  function renderRestaurantIdInputs(values) {
+    if (!networkProfileRestaurantIdsContainer) return;
+    const list = Array.isArray(values) && values.length ? values : [''];
+    networkProfileRestaurantIdsContainer.innerHTML = '';
+    list.forEach((value) => {
+      const entry = createRestaurantIdEntry(value);
+      networkProfileRestaurantIdsContainer.appendChild(entry);
+    });
+    updateRestaurantIdRemoveButtonsState();
+  }
+
+  function addRestaurantIdInput(value = '') {
+    if (!networkProfileRestaurantIdsContainer) return;
+    const entry = createRestaurantIdEntry(value);
+    networkProfileRestaurantIdsContainer.appendChild(entry);
+    updateRestaurantIdRemoveButtonsState();
+    const input = entry.querySelector('[data-restaurant-id-input]');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  function collectRestaurantIdsFromForm() {
+    if (!networkProfileRestaurantIdsContainer) return [];
+    const inputs = networkProfileRestaurantIdsContainer.querySelectorAll('[data-restaurant-id-input]');
+    const values = [];
+    inputs.forEach((input) => {
+      const trimmed = (input.value || '').trim();
+      if (trimmed && !values.includes(trimmed)) {
+        values.push(trimmed);
+      }
+    });
+    return values;
+  }
+
+  function fillNetworkProfileForm(profile) {
+    const data = prepareNetworkProfile(profile);
+    if (networkProfileProviderInput) {
+      networkProfileProviderInput.value = data.provider || '';
+    }
+    if (networkProfileContractInput) {
+      networkProfileContractInput.value = data.contract_number || '';
+    }
+    if (networkProfileSupportPhoneInput) {
+      networkProfileSupportPhoneInput.value = data.support_phone || '';
+    }
+    if (networkProfileLegalEntityInput) {
+      networkProfileLegalEntityInput.value = data.legal_entity || '';
+    }
+    const ids = getProfileRestaurantIds(data);
+    renderRestaurantIdInputs(ids.length ? ids : ['']);
+  }
+
+  function openNetworkProfileModal(index) {
+    const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
+    const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < networkProfilesData.length;
+    networkProfileEditingIndex = isEdit ? numericIndex : null;
+    const profile = isEdit ? networkProfilesData[numericIndex] : createEmptyNetworkProfile();
+    fillNetworkProfileForm(profile);
+    if (networkProfileTitle) {
+      networkProfileTitle.textContent = isEdit ? 'Редактирование профиля' : 'Новый профиль провайдера';
+    }
+    if (networkProfileDeleteButton) {
+      networkProfileDeleteButton.classList.toggle('d-none', !isEdit);
+    }
+    if (networkProfileModal) {
+      networkProfileModal.show();
+    }
+  }
+
+  function renderNetworkProfiles() {
+    if (!networkProfilesBody) return;
+    networkProfilesBody.innerHTML = '';
+    if (!networkProfilesData.length) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет профилей</td>';
+      networkProfilesBody.appendChild(emptyRow);
+      return;
+    }
+    networkProfilesData.forEach((profile, index) => {
+      const prepared = prepareNetworkProfile(profile);
+      networkProfilesData[index] = prepared;
+      const row = document.createElement('tr');
+      row.dataset.index = index;
+      row.innerHTML = `
+        <td>${renderText(prepared.provider)}</td>
+        <td>${renderText(prepared.contract_number)}</td>
+        <td>${renderRestaurantIdsCell(prepared)}</td>
+        <td>${renderText(prepared.support_phone)}</td>
+        <td>${renderText(prepared.legal_entity)}</td>
+        <td data-usage-cell></td>
+        <td class="text-nowrap">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary" type="button" data-action="edit-profile">Открыть</button>
+            <button class="btn btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
+          </div>
+        </td>
+      `;
+      const usageCell = row.querySelector('[data-usage-cell]');
+      if (usageCell) {
+        usageCell.innerHTML = renderContractUsageLink(prepared.contract_number);
+      }
+      networkProfilesBody.appendChild(row);
+    });
+  }
+
+  function removeNetworkProfileRow(index) {
+    if (index < 0 || index >= networkProfilesData.length) return;
+    networkProfilesData.splice(index, 1);
+    renderNetworkProfiles();
+  }
+
+  function collectNetworkProfilesPayload() {
+    return networkProfilesData
+      .map((item) => {
+        const prepared = prepareNetworkProfile(item);
+        return {
+          provider: prepared.provider,
+          contract_number: prepared.contract_number,
+          support_phone: prepared.support_phone,
+          legal_entity: prepared.legal_entity,
+          restaurant_id: prepared.restaurant_id,
+          restaurant_ids: prepared.restaurant_ids,
+        };
+      })
+      .filter((profile) => {
+        return (
+          profile.provider ||
+          profile.contract_number ||
+          profile.support_phone ||
+          profile.legal_entity ||
+          profile.restaurant_id ||
+          (Array.isArray(profile.restaurant_ids) && profile.restaurant_ids.length)
+        );
+      });
+  }
+
+  function handleNetworkProfileFormSubmit(event) {
+    event.preventDefault();
+    const data = {
+      provider: networkProfileProviderInput ? networkProfileProviderInput.value : '',
+      contract_number: networkProfileContractInput ? networkProfileContractInput.value : '',
+      support_phone: networkProfileSupportPhoneInput ? networkProfileSupportPhoneInput.value : '',
+      legal_entity: networkProfileLegalEntityInput ? networkProfileLegalEntityInput.value : '',
+      restaurant_ids: collectRestaurantIdsFromForm(),
+    };
+    const prepared = prepareNetworkProfile(data);
+    const isEdit =
+      Number.isInteger(networkProfileEditingIndex) &&
+      networkProfileEditingIndex >= 0 &&
+      networkProfileEditingIndex < networkProfilesData.length;
+    if (isEdit) {
+      networkProfilesData[networkProfileEditingIndex] = prepared;
+    } else {
+      networkProfilesData.push(prepared);
+    }
+    renderNetworkProfiles();
+    if (networkProfileModal) {
+      networkProfileModal.hide();
+    }
+  }
+
+  function handleNetworkProfileDelete() {
+    if (
+      !Number.isInteger(networkProfileEditingIndex) ||
+      networkProfileEditingIndex < 0 ||
+      networkProfileEditingIndex >= networkProfilesData.length
+    ) {
+      return;
+    }
+    if (!confirm('Удалить профиль провайдера?')) {
+      return;
+    }
+    removeNetworkProfileRow(networkProfileEditingIndex);
+    if (networkProfileModal) {
+      networkProfileModal.hide();
+    }
+  }
+
+  if (networkProfilesAddButton) {
+    networkProfilesAddButton.addEventListener('click', () => openNetworkProfileModal(null));
+  }
+
+  if (networkProfilesBody) {
+    networkProfilesBody.addEventListener('click', (event) => {
+      const actionButton = event.target.closest('[data-action]');
+      if (!actionButton) return;
+      const row = actionButton.closest('tr[data-index]');
+      if (!row) return;
+      const index = Number.parseInt(row.dataset.index, 10);
+      if (Number.isNaN(index)) return;
+      const action = actionButton.dataset.action;
+      if (action === 'edit-profile') {
+        openNetworkProfileModal(index);
+      } else if (action === 'remove-profile') {
+        if (confirm('Удалить профиль провайдера?')) {
+          removeNetworkProfileRow(index);
+        }
+      }
+    });
+  }
+
+  if (networkProfileAddRestaurantIdButton) {
+    networkProfileAddRestaurantIdButton.addEventListener('click', () => addRestaurantIdInput(''));
+  }
+
+  if (networkProfileRestaurantIdsContainer) {
+    networkProfileRestaurantIdsContainer.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-remove-restaurant-id]');
+      if (!button) return;
+      const entry = button.closest('[data-restaurant-id-entry]');
+      if (!entry) return;
+      const entries = networkProfileRestaurantIdsContainer.querySelectorAll('[data-restaurant-id-entry]');
+      if (entries.length <= 1) {
+        const input = entry.querySelector('[data-restaurant-id-input]');
+        if (input) {
+          input.value = '';
+          input.focus();
+          input.select();
+        }
+        return;
+      }
+      entry.remove();
+      updateRestaurantIdRemoveButtonsState();
+    });
+  }
+
+  if (networkProfileForm) {
+    networkProfileForm.addEventListener('submit', handleNetworkProfileFormSubmit);
+  }
+
+  if (networkProfileDeleteButton) {
+    networkProfileDeleteButton.addEventListener('click', handleNetworkProfileDelete);
+  }
+
+  if (networkProfileModalEl) {
+    networkProfileModalEl.addEventListener('hidden.bs.modal', () => {
+      networkProfileEditingIndex = null;
+      if (networkProfileForm) {
+        networkProfileForm.reset();
+      }
+      if (networkProfileRestaurantIdsContainer) {
+        renderRestaurantIdInputs(['']);
+      }
+    });
+    networkProfileModalEl.addEventListener('shown.bs.modal', () => {
+      if (networkProfileProviderInput) {
+        networkProfileProviderInput.focus();
+        networkProfileProviderInput.select();
+      }
+    });
+  }
+
+  renderNetworkProfiles();
 
   function normalizeItConnectionCategory(value) {
     if (typeof value !== 'string') {
@@ -5076,80 +5534,6 @@
       : 0;
     const url = `/object_passports?network_contract_number=${encodeURIComponent(trimmed)}`;
     return `<a href="${url}" class="btn btn-link btn-sm p-0">${count}</a>`;
-  }
-
-  function renderNetworkProfiles() {
-    if (!networkProfilesBody) return;
-    networkProfilesBody.innerHTML = '';
-    if (!networkProfilesData.length) {
-      const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет профилей</td>';
-      networkProfilesBody.appendChild(emptyRow);
-      return;
-    }
-    networkProfilesData.forEach((profile, index) => {
-      const row = document.createElement('tr');
-      row.dataset.index = index;
-      row.innerHTML = `
-        <td><input type="text" class="form-control form-control-sm" data-field="provider" value="${escapeHtml(profile.provider || '')}"></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="contract_number" value="${escapeHtml(profile.contract_number || '')}"></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="restaurant_id" value="${escapeHtml(profile.restaurant_id || '')}"></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="support_phone" value="${escapeHtml(profile.support_phone || '')}"></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="legal_entity" value="${escapeHtml(profile.legal_entity || '')}"></td>
-        <td data-usage-cell></td>
-        <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
-        </td>
-      `;
-      const usageCell = row.querySelector('[data-usage-cell]');
-      if (usageCell) {
-        usageCell.innerHTML = renderContractUsageLink(profile.contract_number);
-      }
-      networkProfilesBody.appendChild(row);
-    });
-  }
-
-  function addNetworkProfileRow(profile) {
-    const defaults = { provider: '', contract_number: '', restaurant_id: '', support_phone: '', legal_entity: '' };
-    const data = Object.assign({}, defaults, profile || {});
-    networkProfilesData.push(data);
-    renderNetworkProfiles();
-  }
-
-  function removeNetworkProfileRow(index) {
-    if (index < 0 || index >= networkProfilesData.length) return;
-    networkProfilesData.splice(index, 1);
-    renderNetworkProfiles();
-  }
-
-  window.addNetworkProfileRow = addNetworkProfileRow;
-  window.removeNetworkProfileRow = removeNetworkProfileRow;
-
-  if (networkProfilesBody) {
-    networkProfilesBody.addEventListener('input', (event) => {
-      const row = event.target.closest('tr[data-index]');
-      if (!row) return;
-      const index = parseInt(row.dataset.index, 10);
-      const field = event.target.dataset.field;
-      if (Number.isNaN(index) || !field) return;
-      networkProfilesData[index][field] = event.target.value;
-      if (field === 'contract_number') {
-        const usageCell = row.querySelector('[data-usage-cell]');
-        if (usageCell) {
-          usageCell.innerHTML = renderContractUsageLink(networkProfilesData[index][field]);
-        }
-      }
-    });
-
-    networkProfilesBody.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-action="remove-profile"]');
-      if (!button) return;
-      const row = button.closest('tr[data-index]');
-      if (!row) return;
-      const index = parseInt(row.dataset.index, 10);
-      if (Number.isNaN(index)) return;
-      removeNetworkProfileRow(index);
-    });
   }
 
   async function saveNetworkProfilesSection() {
