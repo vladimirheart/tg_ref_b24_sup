@@ -100,27 +100,54 @@
     .partner-contact-card {
       transition: box-shadow 0.2s ease;
     }
-    .partner-contact-card__toggle {
-      border: 0;
-      background: transparent;
+    .partner-contact-card__title {
       color: #0d6efd;
-      padding: 0.25rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
     }
-    .partner-contact-card__toggle:focus {
-      outline: none;
-      box-shadow: none;
+    .partner-contact-card__subtitle {
+      color: #6c757d;
     }
-    .partner-contact-card__chevron {
-      transition: transform 0.2s ease;
+    .partner-contact-card__header--state-active {
+      background-color: #e8f5e9;
+      border-bottom-color: #c7e8ce;
     }
-    .partner-contact-card.is-collapsed .partner-contact-card__chevron {
-      transform: rotate(-90deg);
+    .partner-contact-card__header--state-active .partner-contact-card__title {
+      color: #1b5e20;
     }
-    .partner-contact-card.is-collapsed .card-body {
-      display: none;
+    .partner-contact-card__header--state-active .partner-contact-card__subtitle {
+      color: #2e7d32;
+    }
+    .partner-contact-card__header--state-pending {
+      background-color: #fff4d6;
+      border-bottom-color: #ffe09f;
+    }
+    .partner-contact-card__header--state-pending .partner-contact-card__title {
+      color: #9a6700;
+    }
+    .partner-contact-card__header--state-pending .partner-contact-card__subtitle {
+      color: #b8860b;
+    }
+    .partner-contact-card__header--state-blocked,
+    .partner-contact-card__header--state-blacklist {
+      background-color: #fde2e4;
+      border-bottom-color: #f5b5bb;
+    }
+    .partner-contact-card__header--state-blocked .partner-contact-card__title,
+    .partner-contact-card__header--state-blacklist .partner-contact-card__title {
+      color: #a4133c;
+    }
+    .partner-contact-card__header--state-blocked .partner-contact-card__subtitle,
+    .partner-contact-card__header--state-blacklist .partner-contact-card__subtitle {
+      color: #c9184a;
+    }
+    .partner-contact-card__header--state-closed {
+      background-color: #f1f3f5;
+      border-bottom-color: #d0d5db;
+    }
+    .partner-contact-card__header--state-closed .partner-contact-card__title {
+      color: #495057;
+    }
+    .partner-contact-card__header--state-closed .partner-contact-card__subtitle {
+      color: #6c757d;
     }
     .partner-contact-details {
       border: 1px solid #e9ecef;
@@ -1499,6 +1526,14 @@
     common: 'Общий',
     support: 'Саппорт',
   };
+  const PARTNER_CONTACT_STATE_CLASS_MAP = {
+    Активен: 'partner-contact-card__header--state-active',
+    Подписание: 'partner-contact-card__header--state-pending',
+    Заблокирован: 'partner-contact-card__header--state-blocked',
+    Black_List: 'partner-contact-card__header--state-blacklist',
+    Закрыт: 'partner-contact-card__header--state-closed',
+  };
+  const PARTNER_CONTACT_STATE_CLASSES = Object.values(PARTNER_CONTACT_STATE_CLASS_MAP);
   const CITY_PARAMETER_TYPE = 'city';
   const CITY_PARAMETER_LABEL = 'Город';
 
@@ -1518,7 +1553,6 @@
   let partnerContactEmailCounter = 0;
   let partnerContactPersonCounter = 0;
   const partnerContactDetailsState = new Map();
-  const partnerContactCardState = new Map();
   const partnerContactEditorModalEl = document.getElementById('partnerContactEditorModal');
   const partnerContactEditorBody = partnerContactEditorModalEl
     ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-body]')
@@ -1604,10 +1638,8 @@
     card = card.cloneNode(true);
     card.classList.add('partner-contact-card--modal');
     card.classList.remove('h-100');
-    card.classList.remove('is-collapsed');
     const keyValue = getPartnerContactItemKey(item);
     if (keyValue) {
-      partnerContactCardState.set(keyValue, 'expanded');
       partnerContactDetailsState.set(keyValue, 'expanded');
     }
     card.querySelectorAll('[data-partner-contact-details]').forEach((section) => {
@@ -1618,10 +1650,6 @@
         toggle.setAttribute('aria-expanded', 'true');
       }
     });
-    const cardToggleBtn = card.querySelector('[data-partner-contact-card-toggle]');
-    if (cardToggleBtn) {
-      cardToggleBtn.setAttribute('aria-expanded', 'true');
-    }
     const modalOpenBtn = card.querySelector('[data-partner-contact-open-modal]');
     if (modalOpenBtn) {
       modalOpenBtn.setAttribute('disabled', 'true');
@@ -1634,6 +1662,12 @@
       .forEach((input) => updatePhoneInputFormatting(input));
     card
       .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="email"]')
+      .forEach((input) => validateEmailInput(input));
+    card
+      .querySelectorAll('[data-partner-contact-person-field="phone"]')
+      .forEach((input) => updatePhoneInputFormatting(input));
+    card
+      .querySelectorAll('[data-partner-contact-person-field="email"]')
       .forEach((input) => validateEmailInput(input));
     return true;
   }
@@ -1668,32 +1702,6 @@
       const position = positionInput.value.trim();
       subtitleEl.textContent = position;
       subtitleEl.classList.toggle('d-none', !position);
-    }
-  }
-
-  function togglePartnerContactCardState(card, { force } = {}) {
-    if (!card) return;
-    const isCollapsed = card.classList.contains('is-collapsed');
-    let shouldCollapse;
-    if (force === 'collapsed') {
-      shouldCollapse = true;
-    } else if (force === 'expanded') {
-      shouldCollapse = false;
-    } else {
-      shouldCollapse = !isCollapsed;
-    }
-    if (shouldCollapse) {
-      card.classList.add('is-collapsed');
-    } else {
-      card.classList.remove('is-collapsed');
-    }
-    const toggleBtn = card.querySelector('[data-partner-contact-card-toggle]');
-    if (toggleBtn) {
-      toggleBtn.setAttribute('aria-expanded', shouldCollapse ? 'false' : 'true');
-    }
-    const key = getPartnerContactCardKey(card);
-    if (key) {
-      partnerContactCardState.set(key, shouldCollapse ? 'collapsed' : 'expanded');
     }
   }
 
@@ -1749,6 +1757,19 @@
     const key = getPartnerContactCardKey(card);
     if (partnerContactEditorState && partnerContactEditorState.key === key) {
       updatePartnerContactEditorTitleByKey(key);
+    }
+  }
+
+  function updatePartnerContactCardHeaderState(card, stateValue) {
+    if (!card) return;
+    const header = card.querySelector('[data-partner-contact-card-header]');
+    if (!header) return;
+    if (PARTNER_CONTACT_STATE_CLASSES.length) {
+      header.classList.remove(...PARTNER_CONTACT_STATE_CLASSES);
+    }
+    const className = PARTNER_CONTACT_STATE_CLASS_MAP[stateValue] || '';
+    if (className) {
+      header.classList.add(className);
     }
   }
 
@@ -2980,6 +3001,10 @@
         const key = typeof person.key === 'string' ? person.key : '';
         const fullName = typeof person.full_name === 'string' ? person.full_name : '';
         const position = typeof person.position === 'string' ? person.position : '';
+        const phone = typeof person.phone === 'string' ? person.phone : '';
+        const email = typeof person.email === 'string' ? person.email : '';
+        const phoneDigits = extractDigits(phone);
+        const formattedPhone = formatPhoneValue(phone);
         const disabledAttr = disabled ? ' disabled' : '';
         const removeBtn = disabled
           ? ''
@@ -2990,31 +3015,45 @@
         const subtitleClass = position ? 'partner-contact-person-card__subtitle' : 'partner-contact-person-card__subtitle d-none';
         const subtitleText = escapeHtml(position || '');
         return `
-          <div class="partner-contact-person partner-contact-person-card" data-partner-contact-person="${escapeHtml(key)}">
-            <div class="partner-contact-person-card__header">
-              <div>
-                <div class="partner-contact-person-card__title" data-partner-contact-person-title>${titleText}</div>
-                <div class="${subtitleClass}" data-partner-contact-person-subtitle>${subtitleText}</div>
-              </div>
-              <div class="partner-contact-person__actions">${removeBtn}</div>
-            </div>
-            <div class="partner-contact-person-card__body">
-              <div class="row g-3">
-                <div class="col-12 col-lg-6">
-                  <label class="form-label">ФИО</label>
-                  <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="full_name" value="${escapeHtml(
-                    fullName
-                  )}" placeholder="Иванов Иван Иванович"${disabledAttr}>
+            <div class="partner-contact-person partner-contact-person-card" data-partner-contact-person="${escapeHtml(key)}">
+              <div class="partner-contact-person-card__header">
+                <div>
+                  <div class="partner-contact-person-card__title" data-partner-contact-person-title>${titleText}</div>
+                  <div class="${subtitleClass}" data-partner-contact-person-subtitle>${subtitleText}</div>
                 </div>
-                <div class="col-12 col-lg-6">
-                  <label class="form-label">Должность</label>
-                  <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="position" value="${escapeHtml(
-                    position
-                  )}" placeholder="Например, менеджер"${disabledAttr}>
+                <div class="partner-contact-person__actions">${removeBtn}</div>
+              </div>
+              <div class="partner-contact-person-card__body">
+                <div class="row g-3">
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label">ФИО</label>
+                    <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="full_name" value="${escapeHtml(
+                      fullName
+                    )}" placeholder="Иванов Иван Иванович"${disabledAttr}>
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label">Должность</label>
+                    <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="position" value="${escapeHtml(
+                      position
+                    )}" placeholder="Например, менеджер"${disabledAttr}>
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label">Телефон</label>
+                    <input type="text" class="form-control form-control-sm" data-partner-contact-person-field="phone" value="${escapeHtml(
+                      formattedPhone
+                    )}" placeholder="Например, +7 999 123-45-67" inputmode="tel" data-phone-digits="${escapeHtml(
+                      phoneDigits
+                    )}"${disabledAttr}>
+                  </div>
+                  <div class="col-12 col-lg-6">
+                    <label class="form-label">E-mail</label>
+                    <input type="email" class="form-control form-control-sm" data-partner-contact-person-field="email" value="${escapeHtml(
+                      email
+                    )}" placeholder="example@company.com"${disabledAttr}>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
         `;
       })
       .join('');
@@ -3268,8 +3307,6 @@
     const typeSelect = buildPartnerContactTypeSelect(item.contact_type, disabled);
     const stateControl = buildPartnerContactStateControl(item, disabled);
     const servedSelect = buildPartnerContactServedSelect(item, disabled);
-    const phonesSection = buildPartnerContactCommRows(item.phones, 'phone', disabled);
-    const emailsSection = buildPartnerContactCommRows(item.emails, 'email', disabled);
     const contactsSection = buildPartnerContactPeople(item.contacts, disabled);
     const primaryLabel = isDraft ? 'Создать' : 'Сохранить';
     const primaryClass = isDraft ? 'btn-success' : 'btn-primary';
@@ -3283,12 +3320,6 @@
       secondaryButton = '<button class="btn btn-outline-danger btn-sm" type="button" data-partner-contact-action="delete">Удалить</button>';
     }
     const idBadge = !isDraft && idValue ? `<span class="badge bg-secondary ms-auto">ID: ${escapeHtml(idValue)}</span>` : '';
-    const addPhoneBtn = disabled
-      ? ''
-      : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-comm data-comm-type="phone">+ Телефон</button>';
-    const addEmailBtn = disabled
-      ? ''
-      : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-comm data-comm-type="email">+ E-mail</button>';
     const addPersonBtn = disabled
       ? ''
       : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-person>+ Контакт</button>';
@@ -3304,35 +3335,25 @@
     if (baseKey && !partnerContactDetailsState.has(baseKey)) {
       partnerContactDetailsState.set(baseKey, 'expanded');
     }
-    if (baseKey && !partnerContactCardState.has(baseKey)) {
-      partnerContactCardState.set(baseKey, 'expanded');
-    }
     const isDetailsCollapsed = baseKey ? partnerContactDetailsState.get(baseKey) === 'collapsed' : false;
     const detailsClasses = ['partner-contact-details', isDetailsCollapsed ? 'is-collapsed' : 'is-expanded'];
     const detailsAria = isDetailsCollapsed ? 'false' : 'true';
-    const isCardCollapsed = baseKey ? partnerContactCardState.get(baseKey) === 'collapsed' : false;
-    if (isCardCollapsed) {
-      cardClasses.push('is-collapsed');
-    }
-    const cardToggleAria = isCardCollapsed ? 'false' : 'true';
     const deletedHint = isDeleted
       ? '<div class="alert alert-warning small mt-3 mb-0">Контакт помечен как удалённый. Восстановите запись, чтобы редактировать её.</div>'
       : '';
+    const headerStateClass = PARTNER_CONTACT_STATE_CLASS_MAP[stateValue] || '';
     return `
       <div class="col">
         <div class="${cardClasses.join(' ')}" ${datasetAttrs}>
-          <div class="card-header d-flex justify-content-between align-items-start gap-2" data-partner-contact-card-header>
+          <div class="card-header d-flex justify-content-between align-items-start gap-2 ${headerStateClass}" data-partner-contact-card-header>
             <div>
-              <div class="fw-semibold" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
-              <div class="small text-muted" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateValue)}</div>
+              <div class="fw-semibold partner-contact-card__title" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
+              <div class="small partner-contact-card__subtitle" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateValue)}</div>
             </div>
             <div class="d-flex align-items-start gap-2">
               ${idBadge}
               <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal title="Открыть в модальном окне">
                 <i class="bi bi-arrows-fullscreen"></i>
-              </button>
-              <button class="partner-contact-card__toggle" type="button" data-partner-contact-card-toggle aria-expanded="${cardToggleAria}" title="Свернуть или развернуть карточку">
-                <i class="bi bi-chevron-down partner-contact-card__chevron"></i>
               </button>
             </div>
           </div>
@@ -3371,23 +3392,11 @@
                 </button>
               </div>
               <div class="partner-contact-details__body">
-                <div class="mb-3">
-                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                    <label class="form-label mb-0">Контакты</label>
-                    ${addPersonBtn}
-                  </div>
-                  <div data-partner-contact-people>${contactsSection}</div>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                  <label class="form-label mb-0">Контакты</label>
+                  ${addPersonBtn}
                 </div>
-                <div class="mb-3">
-                  <label class="form-label">Телефоны</label>
-                  <div data-partner-contact-comm-list="phone">${phonesSection}</div>
-                  <div class="mt-2">${addPhoneBtn}</div>
-                </div>
-                <div>
-                  <label class="form-label">E-mail</label>
-                  <div data-partner-contact-comm-list="email">${emailsSection}</div>
-                  <div class="mt-2">${addEmailBtn}</div>
-                </div>
+                <div data-partner-contact-people>${contactsSection}</div>
               </div>
             </div>
             <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -3419,19 +3428,11 @@
         if (!partnerContactDetailsState.has(key)) {
           partnerContactDetailsState.set(key, 'expanded');
         }
-        if (!partnerContactCardState.has(key)) {
-          partnerContactCardState.set(key, 'expanded');
-        }
       }
     });
     Array.from(partnerContactDetailsState.keys()).forEach((key) => {
       if (!activeKeys.has(key)) {
         partnerContactDetailsState.delete(key);
-      }
-    });
-    Array.from(partnerContactCardState.keys()).forEach((key) => {
-      if (!activeKeys.has(key)) {
-        partnerContactCardState.delete(key);
       }
     });
     partnerContactsContainer.innerHTML = items
@@ -3442,6 +3443,12 @@
       .forEach((input) => updatePhoneInputFormatting(input));
     partnerContactsContainer
       .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="email"]')
+      .forEach((input) => validateEmailInput(input));
+    partnerContactsContainer
+      .querySelectorAll('[data-partner-contact-person-field="phone"]')
+      .forEach((input) => updatePhoneInputFormatting(input));
+    partnerContactsContainer
+      .querySelectorAll('[data-partner-contact-person-field="email"]')
       .forEach((input) => validateEmailInput(input));
     if (partnerContactsEmptyPlaceholder) {
       partnerContactsEmptyPlaceholder.classList.add('d-none');
@@ -3492,10 +3499,10 @@
         : 'partner',
       phones: Array.isArray(initial.phones) && initial.phones.length
         ? clonePartnerContactCommList(initial.phones)
-        : [createBlankPartnerContactCommEntry('phone')],
+        : [],
       emails: Array.isArray(initial.emails) && initial.emails.length
         ? clonePartnerContactCommList(initial.emails)
-        : [createBlankPartnerContactCommEntry('email')],
+        : [],
       contacts: Array.isArray(initial.contacts) && initial.contacts.length
         ? clonePartnerContactPeople(initial.contacts)
         : [createBlankPartnerContactPersonEntry()],
@@ -3528,7 +3535,6 @@
       const key = getPartnerContactItemKey(removed);
       if (key) {
         partnerContactDetailsState.delete(key);
-        partnerContactCardState.delete(key);
       }
     }
     renderPartnerContacts();
@@ -3665,8 +3671,12 @@
     if (!draft || !Array.isArray(draft.contacts)) return;
     const person = draft.contacts.find((entry) => entry.key === personKey);
     if (!person) return;
-    if (['full_name', 'position'].includes(field)) {
+    if (field === 'full_name' || field === 'position') {
       person[field] = value;
+    } else if (field === 'phone') {
+      person.phone = value;
+    } else if (field === 'email') {
+      person.email = value;
     }
   }
 
@@ -3675,8 +3685,12 @@
     if (!edit || !Array.isArray(edit.contacts)) return;
     const person = edit.contacts.find((entry) => entry.key === personKey);
     if (!person) return;
-    if (['full_name', 'position'].includes(field)) {
+    if (field === 'full_name' || field === 'position') {
       person[field] = value;
+    } else if (field === 'phone') {
+      person.phone = value;
+    } else if (field === 'email') {
+      person.email = value;
     }
   }
 
@@ -3772,6 +3786,21 @@
           }))
           .filter((person) => person.full_name || person.position || person.phone || person.email)
       : [];
+    if (!result.phones.length && Array.isArray(result.contacts)) {
+      result.contacts.forEach((person) => {
+        const digits = extractDigits(person.phone);
+        if (digits) {
+          result.phones.push({ type: fallbackPhoneType, value: digits, extension: '' });
+        }
+      });
+    }
+    if (!result.emails.length && Array.isArray(result.contacts)) {
+      result.contacts.forEach((person) => {
+        if (person.email) {
+          result.emails.push({ type: fallbackEmailType, value: person.email });
+        }
+      });
+    }
     result.internal_name = typeof data.internal_name === 'string' ? data.internal_name.trim() : '';
     const servedEntities = Array.isArray(data.served_legal_entities)
       ? data.served_legal_entities
@@ -4038,7 +4067,6 @@
       partnerContactDraftCounter = 0;
       partnerContactEdits.clear();
       partnerContactDetailsState.clear();
-      partnerContactCardState.clear();
       renderPartnerContacts();
     });
   }
@@ -4067,26 +4095,6 @@
       const card = partnerContactOpenModalBtn.closest('[data-partner-contact-card]');
       if (!card) return;
       openPartnerContactEditor(card);
-      event.preventDefault();
-      return;
-    }
-    const cardHeader = event.target.closest('[data-partner-contact-card-header]');
-    if (cardHeader) {
-      if (event.target.closest('button, a, input, select, textarea')) {
-        // интерактивные элементы обрабатываются отдельно
-      } else {
-        const card = cardHeader.closest('[data-partner-contact-card]');
-        if (!card) return;
-        togglePartnerContactCardState(card);
-        event.preventDefault();
-        return;
-      }
-    }
-    const cardToggleBtn = event.target.closest('[data-partner-contact-card-toggle]');
-    if (cardToggleBtn) {
-      const card = cardToggleBtn.closest('[data-partner-contact-card]');
-      if (!card) return;
-      togglePartnerContactCardState(card);
       event.preventDefault();
       return;
     }
@@ -4357,7 +4365,14 @@
       if (!row) return;
       const personKey = row.dataset.partnerContactPerson;
       if (!personKey) return;
-      const value = event.target.value;
+      let value = event.target.value;
+      if (personField === 'phone') {
+        updatePhoneInputFormatting(event.target);
+        value = event.target.dataset.phoneDigits || extractDigits(event.target.value);
+      } else if (personField === 'email') {
+        validateEmailInput(event.target);
+        value = typeof event.target.value === 'string' ? event.target.value.trim() : '';
+      }
       if (card.dataset.partnerContactDraft === 'true') {
         updatePartnerContactDraftPerson(card.dataset.partnerContactDraftId, personKey, personField, value);
       } else {
@@ -4443,6 +4458,7 @@
         const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
         subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
       }
+      updatePartnerContactCardHeaderState(card, data ? data.state || PARAMETER_STATES[0] : PARAMETER_STATES[0]);
       return;
     }
     if (field === 'state') {
@@ -4461,6 +4477,7 @@
         const typeLabel = PARTNER_CONTACT_TYPES[data.contact_type] || PARTNER_CONTACT_TYPES.partner;
         subtitle.textContent = `${typeLabel} • ${data.state || PARAMETER_STATES[0]}`;
       }
+      updatePartnerContactCardHeaderState(card, data ? data.state || stateValue : stateValue);
       return;
     }
     if (field === 'served_legal_entities') {
