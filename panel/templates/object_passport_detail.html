@@ -2161,7 +2161,7 @@
     };
 
     function normalizeNetworkProfileValue(value) {
-      return (value || '').trim().toLowerCase();
+      return (value == null ? '' : String(value)).trim().toLowerCase();
     }
 
     let suppressNetworkProfileSync = false;
@@ -2169,19 +2169,49 @@
     function findNetworkProfileByField(field, value) {
       const normalized = normalizeNetworkProfileValue(value);
       if (!normalized) return null;
-      return networkProfiles.find((profile) => {
-        if (!profile) return false;
-        const candidate = profile[field];
-        return normalizeNetworkProfileValue(candidate) === normalized;
-      }) || null;
+      return (
+        networkProfiles.find((profile) => {
+          if (!profile) return false;
+          if (field === 'restaurant_id') {
+            const candidates = [];
+            if (Array.isArray(profile.restaurant_ids)) {
+              profile.restaurant_ids.forEach((entry) => {
+                const trimmed = normalizeNetworkProfileValue(entry);
+                if (trimmed) {
+                  candidates.push(trimmed);
+                }
+              });
+            }
+            const fallback = normalizeNetworkProfileValue(profile.restaurant_id);
+            if (fallback) {
+              candidates.push(fallback);
+            }
+            return candidates.includes(normalized);
+          }
+          const candidate = profile[field];
+          return normalizeNetworkProfileValue(candidate) === normalized;
+        }) || null
+      );
     }
 
-    function fillNetworkProfileFields(profile) {
+    function fillNetworkProfileFields(profile, overrides) {
       if (!profile) return;
       suppressNetworkProfileSync = true;
       Object.entries(networkProfileFieldMapping).forEach(([key, input]) => {
         if (!input) return;
-        input.value = profile[key] || '';
+        if (key === 'restaurant_id') {
+          const ids = Array.isArray(profile.restaurant_ids) ? profile.restaurant_ids.filter((id) => id) : [];
+          const overrideValue = overrides && Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : undefined;
+          const value = overrideValue != null
+            ? overrideValue
+            : ids.length
+              ? ids[0]
+              : profile[key] || '';
+          input.value = value || '';
+        } else {
+          const overrideValue = overrides && Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : undefined;
+          input.value = overrideValue != null ? overrideValue : profile[key] || '';
+        }
         setupAutoResizeInput(input);
       });
       suppressNetworkProfileSync = false;
@@ -2191,7 +2221,11 @@
       if (suppressNetworkProfileSync) return;
       const profile = findNetworkProfileByField(field, value);
       if (profile) {
-        fillNetworkProfileFields(profile);
+        const overrides = {};
+        if (field === 'restaurant_id') {
+          overrides.restaurant_id = typeof value === 'string' ? value.trim() : value;
+        }
+        fillNetworkProfileFields(profile, overrides);
       }
     }
 
