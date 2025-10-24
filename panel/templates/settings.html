@@ -199,6 +199,67 @@
     .partner-contact-person-card__body .form-label {
       font-weight: 500;
     }
+    .partner-contact-card--summary {
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      border: 1px solid #e9ecef;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    }
+    .partner-contact-card--summary:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.15);
+    }
+    .partner-contact-card--summary .card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      height: 100%;
+    }
+    .partner-contact-card--summary .partner-contact-summary-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .partner-contact-card--summary .partner-contact-summary-title {
+      font-weight: 600;
+      color: #0d6efd;
+    }
+    .partner-contact-card--summary .partner-contact-summary-meta {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+    .partner-contact-card--summary .partner-contact-summary-label {
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+    .partner-contact-card--summary .partner-contact-summary-value {
+      font-size: 1rem;
+    }
+    .partner-contact-summary-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .partner-contact-summary-contact-title {
+      font-weight: 600;
+    }
+    .partner-contact-summary-contact-meta {
+      font-size: 0.85rem;
+      color: #6c757d;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .partner-contact-summary-empty {
+      font-size: 0.9rem;
+      color: #adb5bd;
+    }
     .partner-contact-served-summary {
       font-size: 0.85rem;
       color: #6c757d;
@@ -1530,7 +1591,7 @@
         '<div class="alert alert-warning mb-0">Контакт не найден или был удалён.</div>';
       return false;
     }
-    const html = renderPartnerContactCard(item);
+    const html = renderPartnerContactCard(item, { mode: 'editor' });
     const temp = document.createElement('div');
     temp.innerHTML = html.trim();
     const col = temp.firstElementChild;
@@ -2853,21 +2914,234 @@
       .join('');
   }
 
-  function renderPartnerContactCard(item) {
+  function formatPartnerContactCount(count) {
+    const value = Number.parseInt(count, 10);
+    if (!Number.isFinite(value) || value <= 0) {
+      return '0 контактов';
+    }
+    const abs = Math.abs(value);
+    const mod10 = abs % 10;
+    const mod100 = abs % 100;
+    if (mod10 === 1 && mod100 !== 11) {
+      return `${abs} контакт`;
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+      return `${abs} контакта`;
+    }
+    return `${abs} контактов`;
+  }
+
+  function getPartnerContactServedSummaryText(item) {
+    if (!item || typeof item !== 'object') return '';
+    const names = [];
+    const servedEntities = Array.isArray(item.served_legal_entities) ? item.served_legal_entities : [];
+    servedEntities.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') return;
+      const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+      const id = Number.isFinite(entry.id) ? entry.id : Number.parseInt(entry.id, 10);
+      if (name) {
+        names.push(name);
+      } else if (Number.isFinite(id) && id > 0) {
+        names.push(`ID ${id}`);
+      }
+    });
+    if (!names.length) {
+      const fallbackName = typeof item.served_legal_entity_name === 'string' ? item.served_legal_entity_name.trim() : '';
+      const fallbackId = Number.isFinite(item.served_legal_entity_id)
+        ? item.served_legal_entity_id
+        : Number.parseInt(item.served_legal_entity_id, 10);
+      if (fallbackName) {
+        names.push(fallbackName);
+      } else if (Number.isFinite(fallbackId) && fallbackId > 0) {
+        names.push(`ID ${fallbackId}`);
+      }
+    }
+    return names.join(', ');
+  }
+
+  function buildPartnerContactSummaryContacts(item) {
+    const contacts = Array.isArray(item.contacts) ? item.contacts : [];
+    const normalized = contacts
+      .map((person, index) => {
+        if (!person || typeof person !== 'object') return null;
+        const fullName = typeof person.full_name === 'string' ? person.full_name.trim() : '';
+        const position = typeof person.position === 'string' ? person.position.trim() : '';
+        const phone = typeof person.phone === 'string' ? person.phone.trim() : '';
+        const email = typeof person.email === 'string' ? person.email.trim() : '';
+        if (!fullName && !position && !phone && !email) return null;
+        return {
+          title: fullName || `Контакт ${index + 1}`,
+          position,
+          phone,
+          email,
+        };
+      })
+      .filter((entry) => entry);
+    const limited = normalized.slice(0, 2);
+    const items = limited.map((person) => {
+      const metaLines = [];
+      if (person.position) {
+        metaLines.push(`<div class="partner-contact-summary-contact-meta">${escapeHtml(person.position)}</div>`);
+      }
+      const detailParts = [];
+      if (person.phone) {
+        detailParts.push(`<span><i class="bi bi-telephone-fill me-1"></i>${escapeHtml(person.phone)}</span>`);
+      }
+      if (person.email) {
+        detailParts.push(`<span><i class="bi bi-envelope-fill me-1"></i>${escapeHtml(person.email)}</span>`);
+      }
+      if (detailParts.length) {
+        metaLines.push(
+          `<div class="partner-contact-summary-contact-meta">${detailParts.join('<span class="text-muted">•</span>')}</div>`
+        );
+      }
+      return `
+        <li class="partner-contact-summary-contact">
+          <div class="partner-contact-summary-contact-title">${escapeHtml(person.title)}</div>
+          ${metaLines.join('')}
+        </li>
+      `;
+    });
+    if (normalized.length > limited.length) {
+      const remainder = normalized.length - limited.length;
+      items.push(
+        `<li class="partner-contact-summary-contact-meta text-muted">Ещё ${formatPartnerContactCount(remainder)}</li>`
+      );
+    }
+    if (items.length) {
+      return items.join('');
+    }
+    const fallbackEntries = [];
+    const phones = Array.isArray(item.phones) ? item.phones : [];
+    phones.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') return;
+      const value = typeof entry.value === 'string' ? entry.value.trim() : '';
+      if (!value) return;
+      fallbackEntries.push({ kind: 'phone', value });
+    });
+    const emails = Array.isArray(item.emails) ? item.emails : [];
+    emails.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') return;
+      const value = typeof entry.value === 'string' ? entry.value.trim() : '';
+      if (!value) return;
+      fallbackEntries.push({ kind: 'email', value });
+    });
+    const limitedFallback = fallbackEntries.slice(0, 2);
+    if (limitedFallback.length) {
+      const rendered = limitedFallback
+        .map((entry) => {
+          const icon = entry.kind === 'phone'
+            ? '<i class="bi bi-telephone-fill me-1"></i>'
+            : '<i class="bi bi-envelope-fill me-1"></i>';
+          const label = entry.kind === 'phone' ? 'Телефон' : 'E-mail';
+          return `
+            <li class="partner-contact-summary-contact">
+              <div class="partner-contact-summary-contact-title">${label}</div>
+              <div class="partner-contact-summary-contact-meta">${icon}${escapeHtml(entry.value)}</div>
+            </li>
+          `;
+        })
+        .join('');
+      if (fallbackEntries.length > limitedFallback.length) {
+        const remainder = fallbackEntries.length - limitedFallback.length;
+        return (
+          rendered +
+          `<li class="partner-contact-summary-contact-meta text-muted">Ещё ${formatPartnerContactCount(remainder)}</li>`
+        );
+      }
+      return rendered;
+    }
+    return '<li class="partner-contact-summary-empty">Контактные данные не указаны</li>';
+  }
+
+  function renderPartnerContactCard(item, options = {}) {
     if (!item) return '';
+    const mode = options.mode === 'editor' ? 'editor' : 'summary';
     const isDraft = Boolean(item.isDraft);
     const isDeleted = Boolean(item.is_deleted);
     const disabled = !isDraft && isDeleted;
-    const cardClasses = ['card', 'shadow-sm', 'h-100', 'partner-contact-card'];
+    const idValue = item && item.id != null ? String(item.id) : '';
+    const cardClasses = ['card', 'shadow-sm', 'partner-contact-card', 'h-100'];
+    if (mode === 'summary') {
+      cardClasses.push('partner-contact-card--summary');
+    }
     if (isDeleted) {
       cardClasses.push('border-danger', 'opacity-75');
     }
-    const titleValue = typeof item.value === 'string' ? item.value.trim() : '';
+    let datasetAttrs;
+    if (isDraft) {
+      const draftId = typeof item.draftId === 'string' ? item.draftId : '';
+      const attrs = ['data-partner-contact-card="true"', 'data-partner-contact-draft="true"'];
+      if (draftId) {
+        attrs.push(`data-partner-contact-draft-id="${escapeHtml(draftId)}"`);
+      }
+      datasetAttrs = attrs.join(' ');
+    } else {
+      const attrs = ['data-partner-contact-card="true"', 'data-partner-contact-draft="false"', 'data-param-type="partner_contact"'];
+      if (idValue) {
+        attrs.push(`data-partner-contact-id="${escapeHtml(idValue)}"`, `data-param-id="${escapeHtml(idValue)}"`);
+      }
+      if (isDeleted) {
+        attrs.push('data-partner-contact-deleted="true"');
+      }
+      datasetAttrs = attrs.join(' ');
+    }
     const typeLabel = PARTNER_CONTACT_TYPES[item.contact_type] || PARTNER_CONTACT_TYPES.partner;
-    const stateLabel = typeof item.state === 'string' ? item.state : PARAMETER_STATES[0];
-    const datasetAttrs = isDraft
-      ? `data-partner-contact-card="true" data-partner-contact-draft="true" data-partner-contact-draft-id="${escapeHtml(item.draftId)}"`
-      : `data-partner-contact-card="true" data-partner-contact-draft="false" data-partner-contact-id="${item.id}" data-param-id="${item.id}" data-param-type="partner_contact"${isDeleted ? ' data-partner-contact-deleted="true"' : ''}`;
+    const stateValue = typeof item.state === 'string' ? item.state : PARAMETER_STATES[0];
+    const titleValue = typeof item.value === 'string' ? item.value.trim() : '';
+    const displayName = getPartnerContactDisplayName(item);
+    const servedSummaryText = getPartnerContactServedSummaryText(item);
+
+    if (mode === 'summary') {
+      const contactsSummary = buildPartnerContactSummaryContacts(item);
+      const ariaLabel = displayName
+        ? `Открыть карточку контакта «${displayName}»`
+        : 'Открыть карточку контакта';
+      const idBadge = !isDraft && idValue ? `<span class="badge bg-secondary">ID: ${escapeHtml(idValue)}</span>` : '';
+      const draftBadge = isDraft ? '<span class="badge bg-success">Черновик</span>' : '';
+      const deletedBadge = isDeleted ? '<span class="badge text-bg-warning">Удалено</span>' : '';
+      return `
+        <div class="col">
+          <div class="${cardClasses.join(' ')}" ${datasetAttrs} data-partner-contact-open-modal role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+            <div class="card-body">
+              <div class="partner-contact-summary-head">
+                <div>
+                  <div class="partner-contact-summary-title" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
+                  <div class="partner-contact-summary-meta" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateValue)}</div>
+                </div>
+                <div class="d-flex flex-column align-items-end gap-1">
+                  ${draftBadge}
+                  ${idBadge}
+                  ${deletedBadge}
+                </div>
+              </div>
+              <div>
+                <div class="partner-contact-summary-label small text-muted text-uppercase">Юридическое лицо</div>
+                <div class="partner-contact-summary-value">${escapeHtml(titleValue || '—')}</div>
+              </div>
+              <div>
+                <div class="partner-contact-summary-label small text-muted text-uppercase">Контакты</div>
+                <ul class="partner-contact-summary-list mb-0">
+                  ${contactsSummary}
+                </ul>
+              </div>
+              ${servedSummaryText ? `
+              <div>
+                <div class="partner-contact-summary-label small text-muted text-uppercase">Обслуживает</div>
+                <div class="partner-contact-summary-value">${escapeHtml(servedSummaryText)}</div>
+              </div>` : ''}
+              <div class="mt-auto text-end">
+                <span class="text-primary small d-inline-flex align-items-center gap-1">
+                  Подробнее
+                  <i class="bi bi-arrow-right-short fs-5 mb-0"></i>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     const typeSelect = buildPartnerContactTypeSelect(item.contact_type, disabled);
     const stateControl = buildPartnerContactStateControl(item, disabled);
     const servedSelect = buildPartnerContactServedSelect(item, disabled);
@@ -2885,7 +3159,7 @@
     } else {
       secondaryButton = '<button class="btn btn-outline-danger btn-sm" type="button" data-partner-contact-action="delete">Удалить</button>';
     }
-    const idBadge = !isDraft ? `<span class="badge bg-secondary ms-auto">ID: ${item.id}</span>` : '';
+    const idBadge = !isDraft && idValue ? `<span class="badge bg-secondary ms-auto">ID: ${escapeHtml(idValue)}</span>` : '';
     const addPhoneBtn = disabled
       ? ''
       : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-comm data-comm-type="phone">+ Телефон</button>';
@@ -2896,21 +3170,14 @@
       ? ''
       : '<button class="btn btn-outline-success btn-sm" type="button" data-partner-contact-add-person>+ Контакт</button>';
     const servedWrapperClass = item.contact_type === 'ka' ? '' : ' d-none';
-    const servedEntities = Array.isArray(item.served_legal_entities) ? item.served_legal_entities : [];
-    const servedSummaryNames = servedEntities
-      .map((entry) => {
-        if (!entry || typeof entry !== 'object') return '';
-        const id = Number.isFinite(entry.id) ? entry.id : Number.parseInt(entry.id, 10);
-        const name = typeof entry.name === 'string' ? entry.name.trim() : '';
-        if (name) return name;
-        if (Number.isFinite(id)) return `ID ${id}`;
-        return '';
-      })
-      .filter((label) => label);
-    const servedSummaryText = servedSummaryNames.join(', ');
-    const displayName = getPartnerContactDisplayName(item);
     const internalNameValue = typeof item.internal_name === 'string' ? item.internal_name : '';
-    const baseKey = getPartnerContactItemKey(item) || (isDraft && item.draftId ? `draft:${item.draftId}` : Number.isFinite(item.id) ? `item:${item.id}` : null);
+    const baseKey =
+      getPartnerContactItemKey(item) ||
+      (isDraft && item.draftId
+        ? `draft:${item.draftId}`
+        : Number.isFinite(item.id)
+        ? `item:${item.id}`
+        : null);
     if (baseKey && !partnerContactDetailsState.has(baseKey)) {
       partnerContactDetailsState.set(baseKey, 'expanded');
     }
@@ -2934,7 +3201,7 @@
           <div class="card-header d-flex justify-content-between align-items-start gap-2" data-partner-contact-card-header>
             <div>
               <div class="fw-semibold" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
-              <div class="small text-muted" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateLabel)}</div>
+              <div class="small text-muted" data-partner-contact-subtitle>${escapeHtml(typeLabel)} • ${escapeHtml(stateValue)}</div>
             </div>
             <div class="d-flex align-items-start gap-2">
               ${idBadge}
@@ -3044,7 +3311,9 @@
         partnerContactCardState.delete(key);
       }
     });
-    partnerContactsContainer.innerHTML = items.map((item) => renderPartnerContactCard(item)).join('');
+    partnerContactsContainer.innerHTML = items
+      .map((item) => renderPartnerContactCard(item, { mode: 'summary' }))
+      .join('');
     if (partnerContactsEmptyPlaceholder) {
       partnerContactsEmptyPlaceholder.classList.add('d-none');
     }
@@ -3858,6 +4127,17 @@
     } else if (action === 'restore') {
       restoreParameter(id, type, actionEl);
     }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const openTarget = event.target.closest('[data-partner-contact-open-modal]');
+    if (!openTarget) return;
+    if (openTarget.getAttribute('role') !== 'button') return;
+    const card = openTarget.closest('[data-partner-contact-card]');
+    if (!card) return;
+    event.preventDefault();
+    openPartnerContactEditor(card);
   });
 
   document.addEventListener('change', (event) => {
