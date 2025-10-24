@@ -721,7 +721,7 @@ const id = ensureQuestionId(source.id);
     }
     state.templates.forEach((template) => {
       const card = document.createElement('div');
-      card.className = 'card shadow-sm';
+      card.className = 'card shadow-sm template-card';
       card.dataset.templateId = template.id;
       const questionsCount = template.questionFlow.length;
       const descriptionHtml = template.description
@@ -729,18 +729,18 @@ const id = ensureQuestionId(source.id);
         : '';
       const summary = questionsCount === 1 ? '1 вопрос' : `${questionsCount} вопросов`;
       card.innerHTML = `
-        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
-          <div>
+        <div class="card-body">
+          <div class="template-card-header">
             <h6 class="mb-1">${html(template.name || 'Шаблон вопросов')}</h6>
             ${descriptionHtml}
             <div class="small text-muted">${html(summary)}</div>
           </div>
-          <div class="d-flex flex-column align-items-lg-end gap-2 w-100 w-lg-auto">
-            <div class="form-check form-switch align-self-start align-self-lg-end">
+          <div class="d-flex flex-column flex-lg-row align-items-center justify-content-between gap-3 mt-3">
+            <div class="form-check form-switch">
               <input class="form-check-input" type="radio" name="bot-template-default" value="${html(template.id)}" ${template.id === state.activeTemplateId ? 'checked' : ''} data-bot-template-select>
               <label class="form-check-label small">Использовать по умолчанию</label>
             </div>
-            <div class="btn-group btn-group-sm">
+            <div class="btn-group btn-group-sm template-card-actions">
               <button class="btn btn-outline-primary" type="button" data-bot-template-edit>Редактировать</button>
               <button class="btn btn-outline-secondary" type="button" data-bot-template-duplicate>Дублировать</button>
               <button class="btn btn-outline-danger" type="button" data-bot-template-delete ${state.templates.length === 1 ? 'disabled' : ''}>Удалить</button>
@@ -818,7 +818,7 @@ const id = ensureQuestionId(source.id);
     }
     state.ratingTemplates.forEach((template) => {
       const card = document.createElement('div');
-      card.className = 'card shadow-sm';
+      card.className = 'card shadow-sm template-card';
       card.dataset.ratingTemplateId = template.id;
       const descriptionHtml = template.description
         ? `<p class="small text-muted mb-1">${html(template.description)}</p>`
@@ -834,18 +834,18 @@ const id = ensureQuestionId(source.id);
       }
       const summaryText = summaryParts.join(' • ');
       card.innerHTML = `
-        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
-          <div>
+        <div class="card-body">
+          <div class="template-card-header">
             <h6 class="mb-1">${html(template.name || 'Шаблон оценок')}</h6>
             ${descriptionHtml}
             <div class="small text-muted">${html(summaryText)}</div>
           </div>
-          <div class="d-flex flex-column align-items-lg-end gap-2 w-100 w-lg-auto">
-            <div class="form-check form-switch align-self-start align-self-lg-end">
+          <div class="d-flex flex-column flex-lg-row align-items-center justify-content-between gap-3 mt-3">
+            <div class="form-check form-switch">
               <input class="form-check-input" type="radio" name="bot-rating-template-default" value="${html(template.id)}" ${template.id === state.activeRatingTemplateId ? 'checked' : ''} data-bot-rating-template-select>
               <label class="form-check-label small">Использовать по умолчанию</label>
             </div>
-            <div class="btn-group btn-group-sm">
+            <div class="btn-group btn-group-sm template-card-actions">
               <button class="btn btn-outline-primary" type="button" data-bot-rating-template-edit>Редактировать</button>
               <button class="btn btn-outline-secondary" type="button" data-bot-rating-template-duplicate>Дублировать</button>
               <button class="btn btn-outline-danger" type="button" data-bot-rating-template-delete ${state.ratingTemplates.length === 1 ? 'disabled' : ''}>Удалить</button>
