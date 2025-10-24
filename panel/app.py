@@ -1873,7 +1873,16 @@ def _render_passport_template(passport_detail, is_new):
         _append_unique(support_phone_options, (profile.get("support_phone") or "").strip())
         _append_unique(speed_options, (profile.get("speed") or "").strip())
         _append_unique(legal_entity_options, (profile.get("legal_entity") or "").strip())
-        _append_unique(restaurant_id_options, (profile.get("restaurant_id") or "").strip())
+        restaurant_ids = profile.get("restaurant_ids")
+        appended = False
+        if isinstance(restaurant_ids, (list, tuple)):
+            for raw_value in restaurant_ids:
+                value = (raw_value or "").strip()
+                if value:
+                    _append_unique(restaurant_id_options, value)
+                    appended = True
+        if not appended:
+            _append_unique(restaurant_id_options, (profile.get("restaurant_id") or "").strip())
 
     for option in _collect_remote_connection_options(settings):
         _append_unique(it_connection_options, (option or "").strip())
@@ -6089,18 +6098,35 @@ def update_settings():
                 contract_number = (item.get("contract_number") or "").strip()
                 support_phone = (item.get("support_phone") or "").strip()
                 legal_entity = (item.get("legal_entity") or "").strip()
+                raw_restaurant_ids = item.get("restaurant_ids")
+                restaurant_ids = []
+                if isinstance(raw_restaurant_ids, (list, tuple)):
+                    for entry in raw_restaurant_ids:
+                        for chunk in re.split(r"[,;\n]", str(entry or "")):
+                            value = chunk.strip()
+                            if value and value not in restaurant_ids:
+                                restaurant_ids.append(value)
+                elif isinstance(raw_restaurant_ids, str):
+                    for entry in re.split(r"[,;\n]", raw_restaurant_ids):
+                        value = entry.strip()
+                        if value and value not in restaurant_ids:
+                            restaurant_ids.append(value)
                 restaurant_id = (item.get("restaurant_id") or "").strip()
-                if not any([provider, contract_number, support_phone, legal_entity, restaurant_id]):
+                if restaurant_id and restaurant_id not in restaurant_ids:
+                    restaurant_ids.insert(0, restaurant_id)
+                primary_restaurant_id = restaurant_ids[0] if restaurant_ids else restaurant_id
+                if not any([provider, contract_number, support_phone, legal_entity, primary_restaurant_id]):
                     continue
-                profiles.append(
-                    {
-                        "provider": provider,
-                        "contract_number": contract_number,
-                        "support_phone": support_phone,
-                        "legal_entity": legal_entity,
-                        "restaurant_id": restaurant_id,
-                    }
-                )
+                profile_payload = {
+                    "provider": provider,
+                    "contract_number": contract_number,
+                    "support_phone": support_phone,
+                    "legal_entity": legal_entity,
+                    "restaurant_id": primary_restaurant_id,
+                }
+                if restaurant_ids:
+                    profile_payload["restaurant_ids"] = restaurant_ids
+                profiles.append(profile_payload)
             settings["network_profiles"] = profiles
             settings_modified = True
 
