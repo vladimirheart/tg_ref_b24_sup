@@ -1003,7 +1003,8 @@
             <div class="text-center text-muted py-5">Выберите контакт из списка для редактирования.</div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          <div class="modal-footer justify-content-between flex-wrap gap-2">
+            <div class="d-flex flex-wrap gap-2 d-none" data-partner-contact-editor-actions></div>
           </div>
         </div>
       </div>
@@ -1627,6 +1628,9 @@
   const partnerContactEditorTitle = partnerContactEditorModalEl
     ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-title]')
     : null;
+  const partnerContactEditorActions = partnerContactEditorModalEl
+    ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-actions]')
+    : null;
   const partnerContactEditorModal = partnerContactEditorModalEl
     ? new bootstrap.Modal(partnerContactEditorModalEl)
     : null;
@@ -1669,6 +1673,43 @@
     }
   }
 
+  function clearPartnerContactEditorActions() {
+    if (!partnerContactEditorActions) return;
+    partnerContactEditorActions.innerHTML = '';
+    partnerContactEditorActions.classList.add('d-none');
+  }
+
+  function syncPartnerContactEditorActions(card) {
+    if (!partnerContactEditorActions) return;
+    partnerContactEditorActions.innerHTML = '';
+    if (!card) {
+      partnerContactEditorActions.classList.add('d-none');
+      return;
+    }
+    const actionsContainer = card.querySelector('[data-partner-contact-actions]');
+    if (!actionsContainer) {
+      partnerContactEditorActions.classList.add('d-none');
+      return;
+    }
+    const key = card.dataset.partnerContactKey || actionsContainer.dataset.partnerContactActionsOwner || '';
+    const buttons = Array.from(actionsContainer.children || []);
+    if (!buttons.length) {
+      partnerContactEditorActions.classList.add('d-none');
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    buttons.forEach((button) => {
+      const clone = button.cloneNode(true);
+      if (key) {
+        clone.dataset.partnerContactActionTarget = key;
+      }
+      fragment.appendChild(clone);
+    });
+    partnerContactEditorActions.appendChild(fragment);
+    partnerContactEditorActions.classList.remove('d-none');
+    actionsContainer.classList.add('d-none');
+  }
+
   function updatePartnerContactEditorTitleByKey(key) {
     if (!partnerContactEditorTitle) return;
     if (!key) {
@@ -1690,6 +1731,7 @@
     if (!item) {
       partnerContactEditorBody.innerHTML =
         '<div class="alert alert-warning mb-0">Контакт не найден или был удалён.</div>';
+      clearPartnerContactEditorActions();
       return false;
     }
     const html = renderPartnerContactCard(item, { mode: 'editor' });
@@ -1700,6 +1742,7 @@
     if (!card) {
       partnerContactEditorBody.innerHTML =
         '<div class="alert alert-warning mb-0">Не удалось отобразить карточку контакта.</div>';
+      clearPartnerContactEditorActions();
       return false;
     }
     card = card.cloneNode(true);
@@ -1724,6 +1767,7 @@
     }
     partnerContactEditorBody.innerHTML = '';
     partnerContactEditorBody.appendChild(card);
+    syncPartnerContactEditorActions(card);
     card
       .querySelectorAll('[data-partner-contact-comm-field="value"][data-comm-type="phone"]')
       .forEach((input) => updatePhoneInputFormatting(input));
@@ -3086,12 +3130,37 @@
       .join('');
   }
 
+  function getSortedPartnerContactPeople(entries) {
+    if (!Array.isArray(entries) || !entries.length) {
+      return [];
+    }
+    return entries
+      .map((person, index) => ({
+        person,
+        index,
+        isTop: normalizeBooleanValue(person && person.is_top),
+        name: person && typeof person.full_name === 'string' ? person.full_name.trim() : '',
+      }))
+      .sort((a, b) => {
+        if (a.isTop !== b.isTop) {
+          return a.isTop ? -1 : 1;
+        }
+        const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        if (nameCompare !== 0) {
+          return nameCompare;
+        }
+        return a.index - b.index;
+      })
+      .map(({ person }) => person);
+  }
+
   function buildPartnerContactPeople(entries, disabled) {
     if (!Array.isArray(entries) || !entries.length) {
       return '<div class="text-muted small" data-partner-contact-person-empty>Контакты не добавлены</div>';
     }
+    const sortedEntries = getSortedPartnerContactPeople(entries);
     const maxVisible = 2;
-    const peopleCards = entries
+    const peopleCards = sortedEntries
       .map((person, index) => {
         if (!person || typeof person !== 'object') {
           return '';
@@ -3178,7 +3247,7 @@
     if (!hiddenCards) {
       return visibleCards;
     }
-    const extraCount = entries.length - maxVisible;
+    const extraCount = sortedEntries.length - maxVisible;
     const collapsedText = `Показать ещё ${formatPartnerContactCount(extraCount)}`;
     const expandedText = 'Скрыть дополнительные контакты';
     return `
@@ -3240,7 +3309,7 @@
   }
 
   function buildPartnerContactSummaryContacts(item) {
-    const contacts = Array.isArray(item.contacts) ? item.contacts : [];
+    const contacts = getSortedPartnerContactPeople(Array.isArray(item.contacts) ? item.contacts : []);
     const normalized = contacts
       .map((person, index) => {
         if (!person || typeof person !== 'object') return null;
@@ -3495,9 +3564,17 @@
       ? '<div class="alert alert-warning small mt-3 mb-0">Контакт помечен как удалённый. Восстановите запись, чтобы редактировать её.</div>'
       : '';
     const headerStateClass = PARTNER_CONTACT_STATE_CLASS_MAP[stateValue] || '';
+    const cardDatasetAttrs = baseKey
+      ? `${datasetAttrs} data-partner-contact-key="${escapeHtml(baseKey)}"`
+      : datasetAttrs;
+    const actionsAttributes = ['data-partner-contact-actions'];
+    if (baseKey) {
+      actionsAttributes.push(`data-partner-contact-actions-owner="${escapeHtml(baseKey)}"`);
+    }
+    const actionsAttrString = actionsAttributes.join(' ');
     return `
       <div class="col">
-        <div class="${cardClasses.join(' ')}" ${datasetAttrs}>
+        <div class="${cardClasses.join(' ')}" ${cardDatasetAttrs}>
           <div class="card-header d-flex justify-content-between align-items-start gap-2 ${headerStateClass}" data-partner-contact-card-header>
             <div>
               <div class="fw-semibold partner-contact-card__title" data-partner-contact-title>${escapeHtml((displayName || titleValue || '').trim() || 'Без названия')}</div>
@@ -3561,7 +3638,7 @@
                 <div data-partner-contact-people>${contactsSection}</div>
               </div>
             </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="d-flex flex-wrap gap-2 align-items-center" ${actionsAttrString}>
               ${actionButtons.join('\n')}
             </div>
             ${deletedHint}
@@ -3900,7 +3977,7 @@
       draft.contacts = [];
     }
     if (action === 'add') {
-      draft.contacts.push(createBlankPartnerContactPersonEntry());
+      draft.contacts.unshift(createBlankPartnerContactPersonEntry());
     } else if (action === 'remove') {
       const index = draft.contacts.findIndex((entry) => entry.key === personKey);
       if (index !== -1) {
@@ -3916,7 +3993,7 @@
       edit.contacts = [];
     }
     if (action === 'add') {
-      edit.contacts.push(createBlankPartnerContactPersonEntry());
+      edit.contacts.unshift(createBlankPartnerContactPersonEntry());
     } else if (action === 'remove') {
       const index = edit.contacts.findIndex((entry) => entry.key === personKey);
       if (index !== -1) {
@@ -4298,6 +4375,7 @@
         partnerContactEditorBody.innerHTML =
           '<div class="text-center text-muted py-5">Выберите контакт из списка для редактирования.</div>';
       }
+      clearPartnerContactEditorActions();
       partnerContactEditorState = null;
       renderPartnerContacts();
     });
@@ -4380,7 +4458,19 @@
     }
     const partnerContactActionBtn = event.target.closest('[data-partner-contact-action]');
     if (partnerContactActionBtn) {
-      const card = partnerContactActionBtn.closest('[data-partner-contact-card]');
+      let card = partnerContactActionBtn.closest('[data-partner-contact-card]');
+      if (!card) {
+        const targetKey = partnerContactActionBtn.dataset.partnerContactActionTarget;
+        if (targetKey) {
+          if (partnerContactEditorBody) {
+            const selector = `[data-partner-contact-card][data-partner-contact-key="${cssEscape(targetKey)}"]`;
+            card = partnerContactEditorBody.querySelector(selector);
+          }
+          if (!card) {
+            card = findPartnerContactCardByKey(targetKey);
+          }
+        }
+      }
       if (!card) return;
       const action = partnerContactActionBtn.dataset.partnerContactAction;
       if (action === 'save') {
