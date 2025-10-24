@@ -62,6 +62,49 @@
       color: #495057;
     }
 
+    .it-section-accordion .accordion-button {
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.04));
+      color: #0d6efd;
+      font-weight: 600;
+    }
+
+    .it-section-accordion .accordion-button.collapsed {
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.05), #ffffff);
+      color: #0d6efd;
+    }
+
+    .it-section-accordion .accordion-button:focus {
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .it-section-accordion .accordion-body {
+      background-color: #fdfdfd;
+    }
+
+    .it-section-accordion .table thead th {
+      background: rgba(13, 110, 253, 0.1);
+      color: #0d6efd;
+      border-bottom: 0;
+    }
+
+    .it-section-accordion--nested .accordion-item {
+      border: 1px solid rgba(13, 110, 253, 0.15);
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+
+    .it-section-accordion--nested .accordion-item + .accordion-item {
+      margin-top: 0.75rem;
+    }
+
+    .it-section-accordion--nested .accordion-button {
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.15), rgba(13, 110, 253, 0.05));
+    }
+
+    .it-section-accordion--nested .accordion-button.collapsed {
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), rgba(13, 110, 253, 0.02));
+    }
+
     .modal .card-header {
       background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.05));
       color: #0d6efd;
@@ -1033,7 +1076,7 @@
                 </div>
               </div>
             </div>
-            <div class="accordion" id="itSettingsAccordion">
+            <div class="accordion it-section-accordion" id="itSettingsAccordion">
               <div class="accordion-item">
                 <h2 class="accordion-header" id="itEquipmentSectionHeading">
                   <button
@@ -1061,7 +1104,6 @@
                             <th>Тип оборудования</th>
                             <th>Производитель</th>
                             <th>Модель</th>
-                            <th>Серийный номер</th>
                             <th>Ссылки</th>
                             <th></th>
                           </tr>
@@ -1104,7 +1146,7 @@
                 >
                   <div class="accordion-body">
                     <div
-                      class="accordion"
+                      class="accordion it-section-accordion it-section-accordion--nested"
                       id="itConnectionsCategoryAccordion"
                       data-it-connections-container
                     ></div>
@@ -1275,10 +1317,6 @@
                 <label class="form-label" for="itEquipmentModelSelect">Модель оборудования</label>
                 <select class="form-select" id="itEquipmentModelSelect" data-it-equipment-field="equipment_model" required></select>
                 <div class="invalid-feedback">Укажите модель оборудования.</div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label" for="itEquipmentSerialInput">Серийный номер <span class="text-muted">(необязательно)</span></label>
-                <input type="text" class="form-control" id="itEquipmentSerialInput" data-it-equipment-field="serial_number" placeholder="Например, SN123456" />
               </div>
               <div class="mb-3">
                 <label class="form-label">Ссылки <span class="text-muted">(необязательно)</span></label>
@@ -5474,7 +5512,7 @@
     itEquipmentBody.innerHTML = '';
     if (!list.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="6" class="text-muted text-center">Пока нет оборудования</td>';
+      emptyRow.innerHTML = '<td colspan="5" class="text-muted text-center">Пока нет оборудования</td>';
       itEquipmentBody.appendChild(emptyRow);
       return;
     }
@@ -5488,13 +5526,11 @@
       const equipmentType = typeof (item && item.equipment_type) === 'string' ? item.equipment_type : '';
       const equipmentVendor = typeof (item && item.equipment_vendor) === 'string' ? item.equipment_vendor : '';
       const equipmentModel = typeof (item && item.equipment_model) === 'string' ? item.equipment_model : '';
-      const serialNumber = typeof (item && item.serial_number) === 'string' ? item.serial_number : '';
       const links = parseEquipmentLinks(item && item.photo_url);
       row.innerHTML = `
         <td><select class="form-select form-select-sm" data-field="equipment_type">${buildEquipmentSelectOptions(optionSets.types, equipmentType)}</select></td>
         <td><select class="form-select form-select-sm" data-field="equipment_vendor">${buildEquipmentSelectOptions(optionSets.vendors, equipmentVendor)}</select></td>
         <td><select class="form-select form-select-sm" data-field="equipment_model">${buildEquipmentSelectOptions(optionSets.models, equipmentModel)}</select></td>
-        <td><input type="text" class="form-control form-control-sm" data-field="serial_number" value="${escapeHtml(serialNumber)}" placeholder="SN..."></td>
         <td>
           <div class="d-flex flex-column gap-2" data-links-container></div>
           <button class="btn btn-sm btn-outline-secondary align-self-start" type="button" data-it-equipment-link-action="add-link">+ Ссылка</button>
@@ -5520,7 +5556,6 @@
       equipment_type: selectValue('[data-field="equipment_type"]'),
       equipment_vendor: selectValue('[data-field="equipment_vendor"]'),
       equipment_model: selectValue('[data-field="equipment_model"]'),
-      serial_number: selectValue('[data-field="serial_number"]'),
       photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(row.querySelector('[data-links-container]'))),
     };
   }
@@ -5891,9 +5926,6 @@
   const itEquipmentModelSelect = itEquipmentAddModalEl
     ? itEquipmentAddModalEl.querySelector('#itEquipmentModelSelect')
     : null;
-  const itEquipmentSerialInput = itEquipmentAddModalEl
-    ? itEquipmentAddModalEl.querySelector('#itEquipmentSerialInput')
-    : null;
   const itEquipmentAddLinksContainer = itEquipmentAddModalEl
     ? itEquipmentAddModalEl.querySelector('[data-it-equipment-add-links]')
     : null;
@@ -5947,9 +5979,6 @@
   if (itEquipmentAddModalEl) {
     itEquipmentAddModalEl.addEventListener('show.bs.modal', () => {
       const hasOptions = populateItEquipmentAddOptions();
-      if (itEquipmentSerialInput) {
-        itEquipmentSerialInput.value = '';
-      }
       if (itEquipmentAddLinksContainer) {
         renderEquipmentLinks(itEquipmentAddLinksContainer, []);
       }
@@ -6012,7 +6041,6 @@
           itEquipmentModelSelect && !itEquipmentModelSelect.disabled
             ? itEquipmentModelSelect.value.trim()
             : '',
-        serial_number: itEquipmentSerialInput ? itEquipmentSerialInput.value.trim() : '',
         photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(itEquipmentAddLinksContainer)),
       };
 
