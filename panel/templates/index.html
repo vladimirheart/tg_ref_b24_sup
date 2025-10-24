@@ -480,10 +480,55 @@
   min-height: 0;
   min-width: 300px;
   max-width: 70%;
-  width: 400px; /* начальная ширина */
+  width: var(--sidebar-expanded-width, 400px);
   background: #f8f9fa;
   border-right: 1px solid #dee2e6;
   overflow-y: auto;
+  transition: width .25s ease;
+}
+#historySidebar .sidebar-content {
+  transition: opacity .2s ease;
+}
+#historySidebar.collapsed {
+  width: var(--sidebar-collapsed-width, 56px) !important;
+  min-width: var(--sidebar-collapsed-width, 56px) !important;
+}
+#historySidebar.collapsed .sidebar-content {
+  opacity: 0;
+  pointer-events: none;
+}
+#historySidebar.collapsed:hover {
+  width: var(--sidebar-hover-width, 360px) !important;
+}
+#historySidebar.collapsed:hover .sidebar-content {
+  opacity: .6;
+  pointer-events: auto;
+}
+#historySidebar .sidebar-collapse-toggle {
+  position: absolute;
+  top: 12px;
+  right: -14px;
+  z-index: 20;
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#historySidebar .sidebar-collapse-toggle .toggle-icon {
+  transition: transform .2s ease;
+}
+#historySidebar.collapsed .sidebar-collapse-toggle .toggle-icon {
+  transform: rotate(180deg);
+}
+#historySidebar.collapsed .sidebar-collapse-toggle {
+  right: -14px;
+}
+.history-pane-resizer.invisible {
+  opacity: 0;
+  pointer-events: none;
 }
 
 #historyModal .history-avatar-wrapper {
@@ -795,6 +840,56 @@
   top: 5px;
   right: 5px;
   padding: 4px;
+}
+.header-meta-item {
+  white-space: nowrap;
+}
+#historyHeaderMeta {
+  gap: 1rem;
+}
+#historyHeaderMeta .form-select {
+  min-width: 140px;
+}
+#historyContent.font-size-small { font-size: 0.9rem; }
+#historyContent.font-size-medium { font-size: 1rem; }
+#historyContent.font-size-large { font-size: 1.2rem; }
+#activeDialogsBlock { display: none; }
+#activeDialogsBlock.show { display: block; }
+#activeDialogList .list-group-item {
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,.05);
+  margin-bottom: 6px;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+#activeDialogList .list-group-item:last-child { margin-bottom: 0; }
+#activeDialogList .list-group-item.active {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: #fff;
+  box-shadow: 0 6px 12px rgba(13,110,253,.35);
+}
+#activeDialogList .dialog-remove-btn {
+  opacity: .6;
+}
+#activeDialogList .dialog-remove-btn:hover {
+  opacity: 1;
+}
+#mediaViewerBody {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#mediaViewerBody img,
+#mediaViewerBody video {
+  max-width: 100%;
+  max-height: 70vh;
+}
+#mediaViewerBody iframe {
+  width: 100%;
+  height: 70vh;
+  border: 0;
 }
 * === Редактирование / удаление === *
 .chat-bubble.is-editing { outline: 2px dashed #6c757d; outline-offset: 2px; }
@@ -1253,22 +1348,56 @@ function markTicketReopenedLocally() {
 <div class="modal fade resizable-modal" id="historyModal" tabindex="-1">
   <div class="modal-dialog modal-xl" style="max-width: 60vw; height: 95vh; resize: both;">
     <div class="modal-content">
-		<div class="modal-header flex-wrap">
-		  <h5 class="modal-title d-flex align-items-center flex-wrap" id="historyModalTitle">
-			💬 История переписки — ID заявки: &nbsp;<span id="ticketIdDisplay"></span>&nbsp;&nbsp;
-			<span id="clientDisplayName">—</span>
-			<span class="badge bg-info ms-2" id="clientStatusDisplay"></span>
-			<span id="unreadBadge" class="badge bg-danger ms-2 d-none">0</span>
-			<button type="button" class="btn btn-sm btn-outline-primary ms-2" id="editClientBtn" title="Редактировать имя">✏️</button>
-		  </h5>
-		  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-		</div>
+                <div class="modal-header flex-wrap align-items-center gap-3">
+                  <div class="d-flex align-items-center flex-wrap gap-2">
+                    <h5 class="modal-title mb-0 d-flex align-items-center flex-wrap gap-2" id="historyModalTitle">
+                      <span class="me-1">💬 Диалог №</span>
+                      <span id="ticketIdDisplay"></span>
+                      <span class="d-inline-flex align-items-center gap-2">
+                        <span id="clientDisplayName">—</span>
+                        <span class="badge bg-info" id="clientStatusDisplay"></span>
+                      </span>
+                      <span id="unreadBadge" class="badge bg-danger ms-2 d-none">0</span>
+                    </h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="editClientBtn" title="Редактировать имя">✏️</button>
+                  </div>
+                  <div class="d-flex align-items-center flex-wrap ms-auto" id="historyHeaderMeta">
+                    <div class="header-meta-item text-muted small">
+                      <span class="fw-semibold me-1">Бизнес:</span><span id="headerBusiness">—</span>
+                    </div>
+                    <div class="header-meta-item text-muted small">
+                      <span class="fw-semibold me-1">Локация:</span><span id="headerLocation">—</span>
+                    </div>
+                    <div class="header-meta-item d-flex align-items-center gap-2">
+                      <label for="historyFontSizeControl" class="form-label mb-0 small text-muted">Размер текста</label>
+                      <select id="historyFontSizeControl" class="form-select form-select-sm w-auto">
+                        <option value="small">Мелкий</option>
+                        <option value="medium" selected>Обычный</option>
+                        <option value="large">Крупный</option>
+                      </select>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item" id="inviteToDialogBtn" disabled>
+                      Пригласить коллегу
+                    </button>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
       <div class="modal-body p-0 flex-grow-1">
         <div class="container-fluid p-0 d-flex flex-column flex-fill min-height-0">
           <div class="row g-0 flex-fill min-height-0">
             <!-- Левая часть - информация о проблеме и категории -->
-            <div class="col-md-4 sidebar-pane border-end">
-              <div class="d-flex flex-column flex-fill min-height-0">
+            <div class="col-md-4 sidebar-pane border-end" id="historySidebar">
+              <button type="button" class="btn btn-light btn-sm sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-expanded="true" title="Свернуть панель">
+                <span class="toggle-icon">❮</span>
+              </button>
+              <div class="d-flex flex-column flex-fill min-height-0 sidebar-content">
+                <div class="p-3 sidebar-info" id="activeDialogsBlock">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <strong class="me-2">Активные диалоги</strong>
+                    <button type="button" class="btn btn-link btn-sm text-decoration-none px-1" id="clearActiveDialogsBtn">Очистить</button>
+                  </div>
+                  <div class="list-group mt-2" id="activeDialogList"></div>
+                </div>
                 <!-- Проблема -->
                 <div class="problem-info p-3 sidebar-info">
                   <strong>Проблема:</strong>
@@ -1327,7 +1456,7 @@ function markTicketReopenedLocally() {
             <div class="col-md-8 history-pane">
               <div class="d-flex flex-column flex-fill min-height-0">
                 <!-- Блок переписки -->
-                <div class="chat-container flex-grow-1 min-height-0" id="historyContent"></div>
+                <div class="chat-container flex-grow-1 min-height-0 font-size-medium" id="historyContent"></div>
 
                 <!-- Поле ввода сообщения и кнопка отправки -->
                 <div class="input-group-send border-top bg-light w-100 px-3 pt-3 pb-0">
@@ -1569,7 +1698,10 @@ function markTicketReopenedLocally() {
 			b.classList.add('d-none');
 		  }
 		}
-	let renderedMsgIds = new Set();
+let renderedMsgIds = new Set();
+
+const activeDialogs = new Map();
+let cachedAdminUsers = null;
 
 	function safeId(msg) {
 	  // Берём любой доступный «телеграмный»/сквозной идентификатор
@@ -2474,6 +2606,250 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
 }
 
 function escapeHtml(s=''){return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));}
+
+function persistActiveDialogs() {
+  try {
+    const data = Array.from(activeDialogs.values());
+    localStorage.setItem('historyActiveDialogs', JSON.stringify(data));
+  } catch (e) {
+    console.error('Не удалось сохранить список активных диалогов', e);
+  }
+}
+
+function renderActiveDialogs() {
+  const list = document.getElementById('activeDialogList');
+  const block = document.getElementById('activeDialogsBlock');
+  const clearBtn = document.getElementById('clearActiveDialogsBtn');
+  if (!list || !block) return;
+
+  list.innerHTML = '';
+  const dialogs = Array.from(activeDialogs.values()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  if (!dialogs.length) {
+    block.classList.remove('show');
+    if (clearBtn) clearBtn.disabled = true;
+    return;
+  }
+
+  block.classList.add('show');
+  if (clearBtn) clearBtn.disabled = false;
+
+  const currentId = currentTicketId != null ? String(currentTicketId) : null;
+
+  dialogs.forEach(dialog => {
+    const ticketId = String(dialog.ticketId || '');
+    if (!ticketId) return;
+    const isActive = currentId === ticketId;
+    const item = document.createElement('div');
+    item.className = `list-group-item list-group-item-action${isActive ? ' active' : ''}`;
+    item.dataset.ticketId = ticketId;
+    item.dataset.userId = String(dialog.userId || '');
+
+    const business = escapeHtml(dialog.business || '—');
+    const location = escapeHtml(dialog.location || '—');
+    const clientName = escapeHtml(dialog.clientName || '—');
+    const ticketLabel = escapeHtml(ticketId);
+
+    item.innerHTML = `
+      <div class="d-flex w-100 align-items-start">
+        <div class="flex-grow-1">
+          <div class="fw-semibold">${clientName} <span class="${isActive ? 'text-light' : 'text-muted'}">#${ticketLabel}</span></div>
+          <div class="small ${isActive ? 'text-light' : 'text-muted'}">${business} • ${location}</div>
+        </div>
+        <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted dialog-remove-btn" data-ticket-id="${ticketLabel}" aria-label="Убрать диалог">✕</button>
+      </div>`;
+
+    list.appendChild(item);
+  });
+}
+
+function registerActiveDialog(info = {}) {
+  const ticketId = info.ticketId != null ? String(info.ticketId) : null;
+  const userId = info.userId != null ? String(info.userId) : null;
+  if (!ticketId || !userId) return;
+
+  const existing = activeDialogs.get(ticketId) || {};
+  const entry = {
+    ticketId,
+    userId,
+    clientName: info.clientName || existing.clientName || '—',
+    business: info.business || existing.business || '—',
+    location: info.location || existing.location || '—',
+    updatedAt: Date.now()
+  };
+
+  activeDialogs.set(ticketId, entry);
+  persistActiveDialogs();
+  renderActiveDialogs();
+}
+
+function removeActiveDialog(ticketId) {
+  if (ticketId == null) return;
+  activeDialogs.delete(String(ticketId));
+  persistActiveDialogs();
+  renderActiveDialogs();
+}
+
+function restoreActiveDialogs() {
+  try {
+    const raw = localStorage.getItem('historyActiveDialogs');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      activeDialogs.clear();
+      if (Array.isArray(parsed)) {
+        parsed.forEach(item => {
+          if (!item || item.ticketId == null || item.userId == null) return;
+          const ticketId = String(item.ticketId);
+          activeDialogs.set(ticketId, {
+            ticketId,
+            userId: String(item.userId),
+            clientName: item.clientName || '—',
+            business: item.business || '—',
+            location: item.location || '—',
+            updatedAt: item.updatedAt || Date.now()
+          });
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Не удалось восстановить список активных диалогов', e);
+    activeDialogs.clear();
+  }
+  renderActiveDialogs();
+}
+
+function parseMediaPayload(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(decodeURIComponent(raw));
+  } catch (e) {
+    console.error('Не удалось распарсить данные медиа', e);
+    return null;
+  }
+}
+
+function openMediaViewer(payload) {
+  if (!payload || !payload.url) return;
+  const modalEl = document.getElementById('mediaViewerModal');
+  const body = document.getElementById('mediaViewerBody');
+  const titleEl = document.getElementById('mediaViewerTitle');
+  const downloadLink = document.getElementById('mediaViewerDownload');
+  if (!modalEl || !body || !titleEl || !downloadLink) return;
+
+  body.innerHTML = '';
+  const url = payload.url;
+  const filename = String(payload.filename || '');
+  const caption = String(payload.caption || '');
+  const type = String(payload.type || '').toLowerCase();
+  const lowerName = filename.toLowerCase();
+
+  titleEl.textContent = filename ? `Медиа: ${filename}` : 'Просмотр медиа';
+  downloadLink.href = url;
+  if (filename) {
+    downloadLink.download = filename;
+  } else {
+    downloadLink.removeAttribute('download');
+  }
+
+  let element = null;
+  if (['photo', 'image'].includes(type) || /\.(png|jpe?g|gif|webp)$/i.test(lowerName)) {
+    element = document.createElement('img');
+    element.src = url;
+    element.alt = filename || 'Медиа';
+  } else if (['video', 'animation'].includes(type) || /\.(mp4|webm|mov|m4v)$/i.test(lowerName)) {
+    const video = document.createElement('video');
+    video.controls = true;
+    video.style.maxWidth = '100%';
+    video.style.maxHeight = '70vh';
+    const source = document.createElement('source');
+    source.src = url;
+    video.appendChild(source);
+    video.textContent = 'Ваш браузер не поддерживает видео.';
+    element = video;
+  } else if (type === 'document' || /\.(pdf)$/i.test(lowerName)) {
+    const frame = document.createElement('iframe');
+    frame.src = url;
+    frame.title = filename || 'Документ';
+    frame.style.width = '100%';
+    frame.style.height = '70vh';
+    frame.setAttribute('loading', 'lazy');
+    element = frame;
+  } else {
+    const fallback = document.createElement('div');
+    fallback.className = 'text-center w-100';
+    const message = document.createElement('p');
+    message.className = 'mb-2';
+    message.textContent = 'Предпросмотр недоступен. Скачайте файл, чтобы открыть его.';
+    fallback.appendChild(message);
+    if (caption) {
+      const captionEl = document.createElement('p');
+      captionEl.className = 'text-muted small mb-0';
+      captionEl.textContent = caption;
+      fallback.appendChild(captionEl);
+    }
+    element = fallback;
+  }
+
+  body.appendChild(element);
+
+  if (caption && element.tagName !== 'DIV') {
+    const captionEl = document.createElement('p');
+    captionEl.className = 'text-muted small mt-3 mb-0 text-center w-100';
+    captionEl.textContent = caption;
+    body.appendChild(captionEl);
+  }
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+function applyHistoryFontSize(size) {
+  const container = document.getElementById('historyContent');
+  if (!container) return;
+  container.classList.remove('font-size-small', 'font-size-medium', 'font-size-large');
+  const classes = { small: 'font-size-small', medium: 'font-size-medium', large: 'font-size-large' };
+  container.classList.add(classes[size] || classes.medium);
+}
+
+async function fetchAdminUsersList() {
+  if (Array.isArray(cachedAdminUsers)) return cachedAdminUsers;
+  try {
+    const resp = await fetch('/api/admin/users', { credentials: 'same-origin' });
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    const users = Array.isArray(data?.users)
+      ? data.users.map(u => String(u || '').trim()).filter(Boolean)
+      : [];
+    cachedAdminUsers = users;
+    return users;
+  } catch (e) {
+    cachedAdminUsers = null;
+    throw e;
+  }
+}
+
+async function inviteUserToDialog(ticketId, invitee) {
+  const cleanTicket = ticketId != null ? String(ticketId) : '';
+  const cleanInvitee = (invitee || '').trim();
+  if (!cleanTicket || !cleanInvitee) {
+    throw new Error('Не указан пользователь или диалог');
+  }
+
+  const resp = await fetch(`/api/tickets/${encodeURIComponent(cleanTicket)}/invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ invitee: cleanInvitee })
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || data.success === false) {
+    throw new Error(data.error || `HTTP ${resp.status}`);
+  }
+  return data;
+}
 
 // Восстановление ширины столбцов
 function restoreColumnWidths() {
@@ -3680,25 +4056,30 @@ function displayTicketsForCurrentPage() {
 		}
 	}
 
-	
+
         // Делаем доступной глобально
         window.updateHistory = updateHistory;
 
         function updateHistoryClientMeta(clientData = {}, ticketDetails = {}) {
+                const businessValue = clientData?.business || ticketDetails?.business || '—';
+                const locationValue =
+                        clientData?.location_name ||
+                        clientData?.location ||
+                        ticketDetails?.location_name ||
+                        '';
+
                 const businessEl = document.getElementById('historyBusiness');
                 if (businessEl) {
-                        const businessValue = clientData?.business || ticketDetails?.business || '—';
                         businessEl.textContent = businessValue || '—';
+                }
+
+                const headerBusiness = document.getElementById('headerBusiness');
+                if (headerBusiness) {
+                        headerBusiness.textContent = businessValue || '—';
                 }
 
                 const locationLink = document.getElementById('historyLocationLink');
                 if (locationLink) {
-                        const locationValue =
-                                clientData?.location_name ||
-                                clientData?.location ||
-                                ticketDetails?.location_name ||
-                                '';
-
                         if (locationValue) {
                                 locationLink.textContent = locationValue;
                                 locationLink.classList.remove('disabled');
@@ -3712,6 +4093,11 @@ function displayTicketsForCurrentPage() {
                                 delete locationLink.dataset.location;
                                 locationLink.setAttribute('tabindex', '-1');
                         }
+                }
+
+                const headerLocation = document.getElementById('headerLocation');
+                if (headerLocation) {
+                        headerLocation.textContent = locationValue || '—';
                 }
         }
 
@@ -3992,14 +4378,36 @@ function displayTicketsForCurrentPage() {
 				document.getElementById('ticketIdDisplay').textContent = ticket_id;
 
 				// Отображение имени клиента и статуса
-				const displayName = clientData?.client_name || clientData?.username || 'Клиент';
-				document.getElementById('clientDisplayName').textContent = displayName;
-				document.getElementById('clientStatusDisplay').textContent = clientData?.client_status || '—';
+                                const displayName = clientData?.client_name || clientData?.username || 'Клиент';
+                                document.getElementById('clientDisplayName').textContent = displayName;
+                                document.getElementById('clientStatusDisplay').textContent = clientData?.client_status || '—';
+
+                                const businessForDialog = clientData?.business || ticketFull?.business || '—';
+                                const locationForDialog =
+                                        clientData?.location_name ||
+                                        clientData?.location ||
+                                        ticketFull?.location_name ||
+                                        '—';
 
 				// Отображаем проблему (ещё раз — вдруг обновилась)
                                 document.getElementById('problemText').textContent = clientData?.problem || 'Не указана';
 
                                 updateHistoryClientMeta(window.currentClientData, window.currentTicketDetails);
+
+                                registerActiveDialog({
+                                        ticketId: ticket_id,
+                                        userId: user_id,
+                                        clientName: displayName,
+                                        business: businessForDialog || '—',
+                                        location: locationForDialog || '—'
+                                });
+
+                                const inviteBtn = document.getElementById('inviteToDialogBtn');
+                                if (inviteBtn) {
+                                        inviteBtn.disabled = false;
+                                        inviteBtn.dataset.ticketId = String(ticket_id);
+                                        inviteBtn.dataset.userId = String(user_id);
+                                }
 
 				// Клик по карандашу → редактирование имени
 				document.getElementById('editClientBtn').onclick = function () {
@@ -4039,16 +4447,25 @@ function displayTicketsForCurrentPage() {
 
                                 document.getElementById('historyModal').addEventListener('hidden.bs.modal', () => {
                                   historyModalIsOpen = false;
+                                  currentTicketId = null;
+                                  currentUserId = null;
+                                  renderActiveDialogs();
+                                  const inviteBtnEl = document.getElementById('inviteToDialogBtn');
+                                  if (inviteBtnEl) {
+                                        inviteBtnEl.disabled = true;
+                                        delete inviteBtnEl.dataset.ticketId;
+                                        delete inviteBtnEl.dataset.userId;
+                                  }
                                   // НЕ сбрасываем счётчики — только останавливаем поллинг
                                   if (window.timeUpdateInterval) {
                                         clearInterval(window.timeUpdateInterval);
-					window.timeUpdateInterval = null;
-				  }
-				  if (historyPolling) {
-					clearInterval(historyPolling);
-					historyPolling = null;
-				  }
-				});
+                                        window.timeUpdateInterval = null;
+                                  }
+                                  if (historyPolling) {
+                                        clearInterval(historyPolling);
+                                        historyPolling = null;
+                                  }
+                                });
 
 				// === Автообновление истории (инкрементально) ===
 				if (historyPolling) clearInterval(historyPolling);
@@ -4108,13 +4525,25 @@ function displayTicketsForCurrentPage() {
                   _sizeHistoryHeights();
                   // пересчитываем при ресайзе и изменении высоты футера (textarea растёт)
                   new ResizeObserver(_sizeHistoryHeights).observe(document.getElementById('historyModal'));
-		  window.addEventListener('resize', _sizeHistoryHeights, { passive: true });
-		});
+                  window.addEventListener('resize', _sizeHistoryHeights, { passive: true });
+                });
 
-		// Открытие превью изображения по клику на миниатюру .js-preview
-		  document.addEventListener('click', function (e) {
-			const img = e.target.closest('.js-preview');
-			if (!img) return;
+                document.addEventListener('click', function (e) {
+                  const downloadLink = e.target.closest('.media-download');
+                  if (downloadLink) return;
+                  const wrap = e.target.closest('.media-wrap[data-media-interactive]');
+                  if (!wrap) return;
+                  const payload = parseMediaPayload(wrap.dataset.mediaPayload || '');
+                  if (!payload) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openMediaViewer(payload);
+                });
+
+                // Открытие превью изображения по клику на миниатюру .js-preview
+                  document.addEventListener('click', function (e) {
+                        const img = e.target.closest('.js-preview');
+                        if (!img) return;
 
 			const full = img.getAttribute('data-fullsrc') || img.src;
 			const modalEl = document.getElementById('imagePreviewModal');
@@ -4127,15 +4556,24 @@ function displayTicketsForCurrentPage() {
 			// Обработчик события скрытия модального окна
                                 document.getElementById('historyModal').addEventListener('hidden.bs.modal', function () {
                                         historyModalIsOpen = false;
+                                        currentTicketId = null;
+                                        currentUserId = null;
+                                        renderActiveDialogs();
+                                        const inviteBtnEl = document.getElementById('inviteToDialogBtn');
+                                        if (inviteBtnEl) {
+                                                inviteBtnEl.disabled = true;
+                                                delete inviteBtnEl.dataset.ticketId;
+                                                delete inviteBtnEl.dataset.userId;
+                                        }
                                         if (window.timeUpdateInterval) {
                                                 clearInterval(window.timeUpdateInterval);
                                                 window.timeUpdateInterval = null;
-					}
-					if (historyPolling) {
-						clearInterval(historyPolling);
-						historyPolling = null;
-					}
-				});
+                                        }
+                                        if (historyPolling) {
+                                                clearInterval(historyPolling);
+                                                historyPolling = null;
+                                        }
+                                });
 
 		// === Обновление счетчика времени ===
 			function updateTimeCounter(ticketData) {
@@ -4188,102 +4626,123 @@ function displayTicketsForCurrentPage() {
 	}
 
 	// Функция для создания HTML медиафайла с улучшенным отображением (добавлены animation и sticker)
-		function createMediaHtml(ticket_id, mediaInfo) {
-			  const { message_type, attachment, text } = mediaInfo;
-			  const filename = (attachment || '').split('/').pop();
-			  const mediaUrl = getMediaUrl(ticket_id, filename);
-			  const ext = (filename.split('.').pop() || '').toLowerCase();
+        function createMediaHtml(ticket_id, mediaInfo) {
+          const { message_type, attachment, text } = mediaInfo;
+          const filename = (attachment || '').split('/').pop();
+          const mediaUrl = getMediaUrl(ticket_id, filename);
+          const ext = (filename?.split('.').pop() || '').toLowerCase();
+          const safeFilename = filename ? escapeHtml(String(filename)) : '';
+          const typeLabel = {
+            photo: '🖼 ФОТО',
+            video: '🎥 ВИДЕО',
+            animation: '🎞 АНИМАЦИЯ',
+            sticker: '🧩 СТИКЕР',
+            document: '📄 ДОКУМЕНТ',
+            voice: '🎤 ГОЛОСОВОЕ'
+          }[message_type] || '📎 МЕДИА';
+          const safeCaption = text ? escapeHtml(String(text)) : '';
+          const basePayload = {
+            url: mediaUrl,
+            type: message_type,
+            caption: text || '',
+            filename: filename || '',
+            extension: ext
+          };
 
-			  // Иконка + лейбл типа медиа
-			  const typeLabel = {
-				photo:     '🖼 ФОТО',
-				video:     '🎥 ВИДЕО',
-				animation: '🎞 АНИМАЦИЯ',
-				sticker:   '🧩 СТИКЕР',
-				document:  '📄 ДОКУМЕНТ',
-				voice:     '🎤 ГОЛОСОВОЕ'
-			  }[message_type] || '📎 МЕДИА';
+          const wrap = (inner, options = {}) => {
+            const payloadObj = { ...basePayload, ...(options.payload || {}) };
+            const encodedPayload = encodeURIComponent(JSON.stringify(payloadObj));
+            const interactiveAttr = options.interactive ? ' data-media-interactive="1"' : '';
+            return `
+              <div class="mt-2 media-wrap"${interactiveAttr} data-media-payload="${encodedPayload}">
+                <a class="media-download" href="${mediaUrl}" download title="Скачать оригинал">⤓</a>
+                ${inner}
+                <div class="media-type mt-1">${typeLabel}</div>
+                ${safeCaption ? `<div class="media-caption mt-1">${safeCaption}</div>` : ''}
+              </div>
+            `;
+          };
 
-			  // Вспомогательная обёртка: иконка скачивания в правом верхнем углу
-			  const wrap = (inner) => `
-				<div class="mt-2 media-wrap">
-				  <a class="media-download" href="${mediaUrl}" download title="Скачать оригинал">⤓</a>
-				  ${inner}
-				  <div class="media-type mt-1">${typeLabel}</div>
-				  ${text ? `<div class="media-caption mt-1">${text}</div>` : ''}
-				</div>
-			  `;
+          if (message_type === 'photo') {
+            return wrap(`
+              <img src="${mediaUrl}"
+                   data-fullsrc="${mediaUrl}"
+                   loading="lazy" decoding="async"
+                   class="img-thumbnail js-preview"
+                   style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: zoom-in;"
+                   alt="Фото">
+            `);
+          }
 
-			  if (message_type === 'photo') {
-				return wrap(`
-				  <img src="${mediaUrl}"
-					   data-fullsrc="${mediaUrl}"
-					   loading="lazy" decoding="async"
-					   class="img-thumbnail js-preview"
-					   style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: zoom-in;"
-					   alt="Фото">
-				`);
-			  }
+          if (message_type === 'video') {
+            return wrap(`
+              <video controls
+                     class="img-thumbnail"
+                     style="max-width: 100%; max-height: 300px; border-radius: 8px;">
+                <source src="${mediaUrl}">
+                Ваш браузер не поддерживает видео.
+              </video>
+            `);
+          }
 
-			  if (message_type === 'video') {
-				return wrap(`
-				  <video controls
-						 class="img-thumbnail"
-						 style="max-width: 100%; max-height: 300px; border-radius: 8px;">
-					<source src="${mediaUrl}">
-					Ваш браузер не поддерживает видео.
-				  </video>
-				`);
-			  }
+          if (message_type === 'animation') {
+            return wrap(`
+              <video autoplay loop muted playsinline controls
+                     class="img-thumbnail"
+                     style="max-width: 100%; max-height: 320px; border-radius: 8px;">
+                <source src="${mediaUrl}">
+                Ваш браузер не поддерживает видео.
+              </video>
+            `);
+          }
 
-			  if (message_type === 'animation') {
-				return wrap(`
-				  <video autoplay loop muted playsinline controls
-						 class="img-thumbnail"
-						 style="max-width: 100%; max-height: 320px; border-radius: 8px;">
-					<source src="${mediaUrl}">
-					Ваш браузер не поддерживает видео.
-				  </video>
-				`);
-			  }
+          if (message_type === 'sticker') {
+            if (ext === 'webp') {
+              return wrap(`<img src="${mediaUrl}" alt="Стикер" style="max-width:160px; height:auto;">`);
+            }
+            if (ext === 'webm') {
+              return wrap(`
+                <video autoplay loop muted playsinline style="max-width:160px; border-radius:8px;">
+                  <source src="${mediaUrl}">
+                </video>
+              `);
+            }
+            return wrap(`
+              <div class="d-flex align-items-center gap-2">
+                <span class="fs-5">🧩</span>
+                <span class="small text-muted">${safeFilename || 'Стикер'}</span>
+              </div>
+            `, { interactive: true, payload: { type: 'sticker' } });
+          }
 
-			  if (message_type === 'sticker') {
-				if (ext === 'webp') {
-				  return wrap(`<img src="${mediaUrl}" alt="Стикер" style="max-width:160px; height:auto;">`);
-				} else if (ext === 'webm') {
-				  return wrap(`
-					<video autoplay loop muted playsinline style="max-width:160px; border-radius:8px;">
-					  <source src="${mediaUrl}">
-					</video>
-				  `);
-				} else {
-				  return wrap(`<a href="${mediaUrl}" target="_blank">Стикер</a>`);
-				}
-			  }
+          if (message_type === 'document') {
+            return wrap(`
+              <div class="d-flex align-items-center gap-2">
+                <span class="fs-5">📄</span>
+                <span class="small text-muted">${safeFilename || 'Документ'}</span>
+              </div>
+            `, { interactive: true, payload: { type: 'document' } });
+          }
 
-			  if (message_type === 'document') {
-				return wrap(`
-				  <div class="d-flex align-items-center gap-2">
-					<span class="small text-muted">${filename}</span>
-				  </div>
-				`);
-			  }
+          if (message_type === 'voice') {
+            return wrap(`
+              <audio controls style="width: 100%;" class="mb-1">
+                <source src="${mediaUrl}">
+                Ваш браузер не поддерживает аудио.
+              </audio>
+            `);
+          }
 
-			  if (message_type === 'voice') {
-				return wrap(`
-				  <audio controls style="width: 100%;" class="mb-1">
-					<source src="${mediaUrl}">
-					Ваш браузер не поддерживает аудио.
-				  </audio>
-				`);
-			  }
-
-			  // по умолчанию — ссылка
-			  if (attachment) {
-				return wrap(`<a href="${mediaUrl}" target="_blank" class="text-muted">[медиа]</a>`);
-			  }
-			  return '';
-		}
+          if (attachment) {
+            return wrap(`
+              <div class="d-flex align-items-center gap-2">
+                <span class="fs-5">📎</span>
+                <span class="small text-muted">${safeFilename || '[медиа]'}</span>
+              </div>
+            `, { interactive: true, payload: { type: message_type || 'attachment' } });
+          }
+          return '';
+        }
 
 
         // === ХЕЛПЕРЫ ДЛЯ ФОРМАТИРОВАНИЯ ДАТ И РАЗНИЦ ===
@@ -5654,7 +6113,22 @@ function findTicketEverywhere(ticketId) {
     // обработчик изменения
     sel.addEventListener('change', (e) => setOperatorTZ(e.target.value));
   })();
-        </script>
+</script>
+<div class="modal fade" id="mediaViewerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="mediaViewerTitle">Просмотр медиа</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body" id="mediaViewerBody"></div>
+      <div class="modal-footer">
+        <a id="mediaViewerDownload" class="btn btn-outline-secondary" href="#" download>Скачать</a>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal fade" id="imageModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content bg-dark">
@@ -5683,6 +6157,29 @@ function findTicketEverywhere(ticketId) {
       <div class="modal-footer py-2">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
         <a id="imageDownloadLink" class="btn btn-primary btn-sm" href="#" download>Скачать</a>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="inviteUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Пригласить коллегу</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="inviteUserSelect" class="form-label">Выберите пользователя</label>
+          <select id="inviteUserSelect" class="form-select">
+            <option value="">—</option>
+          </select>
+        </div>
+        <p class="text-muted small mb-0">Выбранный пользователь получит уведомление со ссылкой на текущий диалог.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-primary" id="sendInviteBtn" disabled>Отправить приглашение</button>
       </div>
     </div>
   </div>
@@ -6141,91 +6638,140 @@ document.addEventListener('click', async (e)=>{
 		});
 
 
-// === Ресайзер левой панели в истории ===
+// === Ресайзер и состояние левой панели истории ===
+function rememberSidebarWidth(width) {
+  const sidebar = document.getElementById('historySidebar');
+  if (!sidebar || !Number.isFinite(width)) return;
+  const clamped = Math.max(300, Math.min(width, window.innerWidth * 0.7));
+  sidebar.style.width = clamped + 'px';
+  sidebar.style.flex = '0 0 auto';
+  sidebar.dataset.expandedWidth = String(clamped);
+  sidebar.style.setProperty('--sidebar-expanded-width', clamped + 'px');
+  sidebar.style.setProperty('--sidebar-hover-width', clamped + 'px');
+  localStorage.setItem('historySidebarWidth', clamped);
+}
+
+function setSidebarCollapsed(collapsed) {
+  const sidebar = document.getElementById('historySidebar');
+  const toggle = document.getElementById('sidebarCollapseToggle');
+  const resizer = document.getElementById('historyPaneResizer');
+  if (!sidebar || !toggle) return;
+
+  const storedWidth = parseFloat(
+    sidebar.dataset.expandedWidth ||
+    localStorage.getItem('historySidebarWidth') ||
+    sidebar.getBoundingClientRect().width ||
+    400
+  );
+
+  if (Number.isFinite(storedWidth)) {
+    sidebar.style.setProperty('--sidebar-hover-width', storedWidth + 'px');
+  }
+
+  if (collapsed) {
+    sidebar.classList.add('collapsed');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.title = 'Развернуть панель';
+    if (!sidebar.dataset.expandedWidth && Number.isFinite(storedWidth)) {
+      sidebar.dataset.expandedWidth = String(storedWidth);
+    }
+    if (resizer) resizer.classList.add('invisible');
+  } else {
+    sidebar.classList.remove('collapsed');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.title = 'Свернуть панель';
+    if (Number.isFinite(storedWidth)) {
+      sidebar.style.width = storedWidth + 'px';
+      sidebar.style.flex = '0 0 auto';
+      sidebar.style.setProperty('--sidebar-expanded-width', storedWidth + 'px');
+    }
+    if (resizer) resizer.classList.remove('invisible');
+  }
+
+  localStorage.setItem('historySidebarCollapsed', collapsed ? '1' : '0');
+}
+
 function initHistoryPaneResizer() {
   const resizer = document.getElementById('historyPaneResizer');
-  const sidebarPane = document.querySelector('.sidebar-pane');
+  const sidebarPane = document.getElementById('historySidebar');
   const historyPane = document.querySelector('.history-pane');
-  
+
   if (!resizer || !sidebarPane || !historyPane) return;
 
   let isResizing = false;
   let startX, startWidth;
 
   resizer.addEventListener('mousedown', function(e) {
+    if (sidebarPane.classList.contains('collapsed')) {
+      setSidebarCollapsed(false);
+    }
     isResizing = true;
     startX = e.clientX;
     startWidth = sidebarPane.getBoundingClientRect().width;
-    
+
     document.documentElement.classList.add('resizing');
     resizer.classList.add('resizing');
-    
-    // Добавляем overlay для предотвращения выделения текста
+
     const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      z-index: 9999;
-      cursor: col-resize;
-    `;
+    overlay.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:transparent;z-index:9999;cursor:col-resize;`;
     overlay.id = 'resizeOverlay';
     document.body.appendChild(overlay);
-    
+
     e.preventDefault();
   });
 
   function onMouseMove(e) {
     if (!isResizing) return;
-    
+
     const width = startWidth + (e.clientX - startX);
     const minWidth = 300;
     const maxWidth = window.innerWidth * 0.7;
-    
-    if (width >= minWidth && width <= maxWidth) {
-      sidebarPane.style.width = width + 'px';
-      sidebarPane.style.flex = '0 0 auto';
-      
-      // Принудительный reflow для обновления layout
-      sidebarPane.offsetHeight;
-    }
+    const clamped = Math.min(Math.max(width, minWidth), maxWidth);
+
+    sidebarPane.style.width = clamped + 'px';
+    sidebarPane.style.flex = '0 0 auto';
+    sidebarPane.style.setProperty('--sidebar-expanded-width', clamped + 'px');
+    sidebarPane.style.setProperty('--sidebar-hover-width', clamped + 'px');
+    sidebarPane.offsetHeight;
   }
 
   function onMouseUp() {
     if (!isResizing) return;
-    
+
     isResizing = false;
     document.documentElement.classList.remove('resizing');
     resizer.classList.remove('resizing');
-    
-    // Удаляем overlay
+
     const overlay = document.getElementById('resizeOverlay');
     if (overlay) overlay.remove();
-    
+
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
-    
-    // Сохраняем ширину в localStorage
-    const width = sidebarPane.getBoundingClientRect().width;
-    localStorage.setItem('historySidebarWidth', width);
+
+    const finalWidth = sidebarPane.getBoundingClientRect().width;
+    rememberSidebarWidth(finalWidth);
   }
 
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
 }
 
-// Восстановление сохраненной ширины
 function restoreSidebarWidth() {
-  const savedWidth = localStorage.getItem('historySidebarWidth');
-  const sidebarPane = document.querySelector('.sidebar-pane');
-  
-  if (savedWidth && sidebarPane) {
-    sidebarPane.style.width = savedWidth + 'px';
-    sidebarPane.style.flex = '0 0 auto';
+  const sidebarPane = document.getElementById('historySidebar');
+  if (!sidebarPane) return;
+
+  const savedWidth = parseFloat(localStorage.getItem('historySidebarWidth') || '');
+  if (Number.isFinite(savedWidth)) {
+    rememberSidebarWidth(savedWidth);
+  } else {
+    const currentWidth = sidebarPane.getBoundingClientRect().width;
+    sidebarPane.dataset.expandedWidth = String(currentWidth);
+    sidebarPane.style.setProperty('--sidebar-expanded-width', currentWidth + 'px');
+    sidebarPane.style.setProperty('--sidebar-hover-width', currentWidth + 'px');
   }
+
+  const shouldCollapse = localStorage.getItem('historySidebarCollapsed') === '1';
+  setSidebarCollapsed(shouldCollapse);
 }
 
 // Инициализация при загрузке модального окна
@@ -6244,26 +6790,149 @@ if (ticketClosedModalEl) {
 
 // Обработчик изменения размера окна
 window.addEventListener('resize', function() {
-  const sidebarPane = document.querySelector('.sidebar-pane');
-  if (sidebarPane) {
-    const currentWidth = sidebarPane.getBoundingClientRect().width;
-    const maxWidth = window.innerWidth * 0.7;
-    
-    if (currentWidth > maxWidth) {
-      sidebarPane.style.width = maxWidth + 'px';
-    }
+  const sidebarPane = document.getElementById('historySidebar');
+  if (!sidebarPane || sidebarPane.classList.contains('collapsed')) return;
+  const currentWidth = sidebarPane.getBoundingClientRect().width;
+  const maxWidth = window.innerWidth * 0.7;
+
+  if (currentWidth > maxWidth) {
+    rememberSidebarWidth(maxWidth);
   }
 });
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
-  // Восстановление счётчиков непрочитанных
   const savedUnread = localStorage.getItem('unreadCountByTicket');
   if (savedUnread) {
     unreadCountByTicket = JSON.parse(savedUnread);
   }
 
-  // Принудительное обновление счётчиков в таблице
+  const savedFont = localStorage.getItem('historyFontSize') || 'medium';
+  applyHistoryFontSize(savedFont);
+
+  const fontSelect = document.getElementById('historyFontSizeControl');
+  if (fontSelect) {
+    if (['small','medium','large'].includes(savedFont)) {
+      fontSelect.value = savedFont;
+    }
+    fontSelect.addEventListener('change', (event) => {
+      const value = event.target.value;
+      applyHistoryFontSize(value);
+      localStorage.setItem('historyFontSize', value);
+    });
+  }
+
+  restoreActiveDialogs();
+
+  const listEl = document.getElementById('activeDialogList');
+  if (listEl) {
+    listEl.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.dialog-remove-btn');
+      if (removeBtn) {
+        const ticketId = removeBtn.dataset.ticketId;
+        removeActiveDialog(ticketId);
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      const item = event.target.closest('.list-group-item');
+      if (!item) return;
+      const ticketId = item.dataset.ticketId;
+      const userId = item.dataset.userId;
+      if (!ticketId || !userId) return;
+      if (String(currentTicketId) === ticketId) return;
+      loadHistory(userId, ticketId);
+    });
+  }
+
+  const clearBtn = document.getElementById('clearActiveDialogsBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      activeDialogs.clear();
+      persistActiveDialogs();
+      renderActiveDialogs();
+    });
+  }
+
+  const toggleBtn = document.getElementById('sidebarCollapseToggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      const sidebar = document.getElementById('historySidebar');
+      if (!sidebar) return;
+      const collapsed = sidebar.classList.contains('collapsed');
+      setSidebarCollapsed(!collapsed);
+      if (collapsed) {
+        const storedWidth = parseFloat(sidebar.dataset.expandedWidth || sidebar.getBoundingClientRect().width || 400);
+        if (Number.isFinite(storedWidth)) {
+          rememberSidebarWidth(storedWidth);
+        }
+      }
+    });
+  }
+
+  const inviteBtn = document.getElementById('inviteToDialogBtn');
+  const inviteModal = document.getElementById('inviteUserModal');
+  const inviteSelect = document.getElementById('inviteUserSelect');
+  const sendInviteBtn = document.getElementById('sendInviteBtn');
+
+  if (inviteModal && inviteSelect && sendInviteBtn) {
+    inviteModal.addEventListener('show.bs.modal', async () => {
+      sendInviteBtn.disabled = true;
+      inviteSelect.innerHTML = '<option value="">—</option>';
+      try {
+        const users = await fetchAdminUsersList();
+        const currentName = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
+        users.filter(user => user && user !== currentName).forEach(user => {
+          const option = document.createElement('option');
+          option.value = user;
+          option.textContent = user;
+          inviteSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Не удалось загрузить пользователей', error);
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Ошибка загрузки пользователей';
+        inviteSelect.appendChild(option);
+      }
+    });
+
+    inviteModal.addEventListener('hidden.bs.modal', () => {
+      inviteSelect.value = '';
+      sendInviteBtn.disabled = true;
+    });
+
+    inviteSelect.addEventListener('change', () => {
+      sendInviteBtn.disabled = !inviteSelect.value;
+    });
+
+    sendInviteBtn.addEventListener('click', async () => {
+      const ticketId = inviteBtn?.dataset.ticketId;
+      const invitee = inviteSelect.value;
+      if (!ticketId || !invitee) return;
+
+      sendInviteBtn.disabled = true;
+      try {
+        await inviteUserToDialog(ticketId, invitee);
+        bootstrap.Modal.getInstance(inviteModal)?.hide();
+        alert(`Приглашение отправлено пользователю ${invitee}.`);
+      } catch (error) {
+        console.error(error);
+        alert(error.message || 'Не удалось отправить приглашение');
+      } finally {
+        sendInviteBtn.disabled = false;
+      }
+    });
+  }
+
+  if (inviteBtn && inviteModal) {
+    inviteBtn.addEventListener('click', () => {
+      if (inviteBtn.disabled) return;
+      bootstrap.Modal.getOrCreateInstance(inviteModal).show();
+    });
+  }
+
   setTimeout(() => {
     refreshUnreadIndicators();
   }, 1000);
