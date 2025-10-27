@@ -18,9 +18,10 @@ body.with-sidebar {
   width: 100%;
 }
 .sidebar {
-  position: static;
-  align-self: stretch;
-  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
   background: #ffffff;
