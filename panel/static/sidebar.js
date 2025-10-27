@@ -55,7 +55,7 @@
 
   const nav = sidebar.querySelector('.sidebar-nav');
   const ORDER_STORAGE_KEY = 'sidebarNavOrder';
-  const DEFAULT_ORDER = ['dialogs', 'tasks', 'clients', 'object_passports', 'dashboard', 'analytics', 'settings'];
+  const DEFAULT_ORDER = ['dialogs', 'tasks', 'clients', 'object_passports', 'knowledge_base', 'dashboard', 'analytics', 'settings'];
   const NAV_TITLE_DEFAULT = 'Нажмите «Редактировать порядок», чтобы изменить расположение страниц';
   const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
   const resetOrderBtn = document.getElementById('resetSidebarOrderBtn');
