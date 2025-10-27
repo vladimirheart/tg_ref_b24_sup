@@ -527,8 +527,18 @@
   transition: opacity .2s ease;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+}
+
+#historySidebar .sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding-bottom: 1rem;
+}
+
+#historySidebar .sidebar-scroll > *:last-child {
+  margin-bottom: 1rem;
 }
 #historySidebar.collapsed {
   width: var(--sidebar-collapsed-width, 56px) !important;
@@ -1161,6 +1171,7 @@ img.emoji {
 }
 
 </style>
+<script src="{{ url_for('static', filename='common.js') }}"></script>
 <script>
 const CURRENT_OPERATOR = {{ (session.get('user_email') or session.get('username') or session.get('user') or '') | tojson }};
 
@@ -1463,7 +1474,8 @@ function markTicketReopenedLocally() {
                 <span class="toggle-icon">❮</span>
               </button>
               <div class="d-flex flex-column flex-fill min-height-0 sidebar-content">
-                <div class="p-3 sidebar-info" id="activeDialogsBlock">
+                <div class="sidebar-scroll d-flex flex-column gap-3">
+                  <div class="p-3 sidebar-info" id="activeDialogsBlock">
                   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-2">
                       <strong class="me-1 mb-0">Активные диалоги</strong>
@@ -1472,15 +1484,15 @@ function markTicketReopenedLocally() {
                     <button type="button" class="btn btn-link btn-sm text-decoration-none px-1" id="clearActiveDialogsBtn">Очистить</button>
                   </div>
                   <div class="list-group mt-2" id="activeDialogList"></div>
-                </div>
-                <!-- Проблема -->
-                <div class="problem-info p-3 sidebar-info">
+                  </div>
+                  <!-- Проблема -->
+                  <div class="problem-info p-3 sidebar-info">
                   <strong>Проблема:</strong>
                   <span id="problemText" class="ellipsis-100ch" title=""></span>
                 </div>
-                
+
                 <!-- Категория обращения -->
-                <div class="category-selector p-3 sidebar-info">
+                  <div class="category-selector p-3 sidebar-info">
                   <label class="form-label" for="categoryTemplateSelect">Категория обращения:</label>
                   <select id="categoryTemplateSelect" class="form-select form-select-sm mb-2"></select>
                   <div class="selected-categories mt-2 ellipsis-100ch" id="selectedCategories" style="font-size: 0.9rem;" title=""></div>
@@ -1495,25 +1507,26 @@ function markTicketReopenedLocally() {
                   <button type="button" class="btn btn-outline-primary mt-2 w-100" onclick="saveTicketCategory()">
                     💾 Сохранить категорию
                   </button>
-                </div>
-				
-                <!-- Фото клиента -->
-                <div class="p-3 text-center history-avatar-wrapper">
+                  </div>
+
+                  <!-- Фото клиента -->
+                  <div class="p-3 text-center history-avatar-wrapper">
                   <img id="clientAvatarInHistory" src="" alt="Аватар" class="rounded-circle history-avatar">
                   <div class="small text-muted mt-2">Фото клиента</div>
                 </div>
 
                 <!-- Дополнительные данные клиента -->
-                <div class="p-3 sidebar-info text-start" id="historyClientMeta">
+                  <div class="p-3 sidebar-info text-start" id="historyClientMeta">
                   <div><strong>Бизнес:</strong> <span id="historyBusiness">—</span></div>
                   <div class="mt-1">
                     <strong>Локация:</strong>
                     <a href="#" id="historyLocationLink" class="link-primary text-decoration-none disabled" role="button" aria-disabled="true" tabindex="-1">—</a>
                   </div>
                 </div>
+                </div>
 
                 <!-- Таймер/счётчик времени -->
-                <div class="time-counter p-3 sidebar-info mt-auto">
+                <div class="time-counter p-3 sidebar-info mt-3">
                   <label class="form-label">Время обращения:</label>
                   <div class="time-info bg-light p-3 rounded" id="timeInfo" title="">
                     <div id="timeCounter">Загрузка...</div>
@@ -2997,7 +3010,7 @@ function openMediaViewer(payload) {
   } else if (['video', 'animation'].includes(type) || /\.(mp4|webm|mov|m4v)$/i.test(lowerName)) {
     const video = document.createElement('video');
     video.controls = true;
-    video.preload = 'metadata';
+    video.preload = 'auto';
     video.playsInline = true;
     video.style.width = '100%';
     video.style.height = 'auto';
@@ -3011,7 +3024,6 @@ function openMediaViewer(payload) {
     }
     video.appendChild(source);
     video.textContent = 'Ваш браузер не поддерживает видео.';
-    video.load();
 
     const desiredWidth = Number(payload.video_width || payload.width || 0);
     const desiredHeight = Number(payload.video_height || payload.height || 0);
@@ -3050,6 +3062,16 @@ function openMediaViewer(payload) {
   }
 
   body.appendChild(element);
+
+  if (element?.tagName === 'VIDEO') {
+    requestAnimationFrame(() => {
+      try {
+        element.load();
+      } catch (error) {
+        console.warn('Не удалось подготовить видео перед воспроизведением', error);
+      }
+    });
+  }
 
   if (caption && element.tagName !== 'DIV') {
     const captionEl = document.createElement('p');
@@ -4901,18 +4923,26 @@ function displayTicketsForCurrentPage() {
           const mediaUrl = getMediaUrl(ticket_id, filename);
           const ext = (filename?.split('.').pop() || '').toLowerCase();
           const safeFilename = filename ? escapeHtml(String(filename)) : '';
-          const typeLabel = {
+          const normalizedType = (message_type || '').toLowerCase();
+          const videoExtensions = new Set(['mp4', 'm4v', 'mov', 'webm', 'mkv', 'avi']);
+          const isVideoExtension = videoExtensions.has(ext);
+          const effectiveType = normalizedType === 'document' && isVideoExtension
+            ? 'video'
+            : (normalizedType || (isVideoExtension ? 'video' : ''));
+          const isVideo = effectiveType === 'video' || isVideoExtension;
+          const typeLabelMap = {
             photo: '🖼 ФОТО',
             video: '🎥 ВИДЕО',
             animation: '🎞 АНИМАЦИЯ',
             sticker: '🧩 СТИКЕР',
             document: '📄 ДОКУМЕНТ',
             voice: '🎤 ГОЛОСОВОЕ'
-          }[message_type] || '📎 МЕДИА';
+          };
+          const typeLabel = typeLabelMap[isVideo ? 'video' : effectiveType] || '📎 МЕДИА';
           const safeCaption = text ? escapeHtml(String(text)) : '';
           const basePayload = {
             url: mediaUrl,
-            type: message_type,
+            type: isVideo ? 'video' : (effectiveType || message_type || 'attachment'),
             caption: text || '',
             filename: filename || '',
             extension: ext
@@ -4932,7 +4962,7 @@ function displayTicketsForCurrentPage() {
             `;
           };
 
-          if (message_type === 'photo') {
+          if (effectiveType === 'photo') {
             return wrap(`
               <img src="${mediaUrl}"
                    data-fullsrc="${mediaUrl}"
@@ -4943,7 +4973,7 @@ function displayTicketsForCurrentPage() {
             `);
           }
 
-          if (message_type === 'video') {
+          if (isVideo) {
             return wrap(`
               <video controls
                      class="img-thumbnail"
@@ -4951,10 +4981,10 @@ function displayTicketsForCurrentPage() {
                 <source src="${mediaUrl}">
                 Ваш браузер не поддерживает видео.
               </video>
-            `);
+            `, { interactive: true, payload: { type: 'video' } });
           }
 
-          if (message_type === 'animation') {
+          if (effectiveType === 'animation') {
             return wrap(`
               <video autoplay loop muted playsinline controls
                      class="img-thumbnail"
@@ -4965,7 +4995,7 @@ function displayTicketsForCurrentPage() {
             `);
           }
 
-          if (message_type === 'sticker') {
+          if (effectiveType === 'sticker') {
             if (ext === 'webp') {
               return wrap(`<img src="${mediaUrl}" alt="Стикер" style="max-width:160px; height:auto;">`);
             }
@@ -4984,7 +5014,7 @@ function displayTicketsForCurrentPage() {
             `, { interactive: true, payload: { type: 'sticker' } });
           }
 
-          if (message_type === 'document') {
+          if (effectiveType === 'document') {
             return wrap(`
               <div class="d-flex align-items-center gap-2">
                 <span class="fs-5">📄</span>
