@@ -400,6 +400,29 @@
   display: flex;
 }
 
+#historyModal.fullscreen {
+  align-items: stretch;
+}
+
+#historyModal.fullscreen .modal-dialog {
+  width: calc(100vw - var(--history-sidebar-offset, 0px)) !important;
+  height: 100vh !important;
+  max-width: none;
+  max-height: 100vh;
+  margin: 0;
+  margin-left: var(--history-sidebar-offset, 0px);
+  border-radius: 0;
+}
+
+#historyModal.fullscreen .modal-content {
+  height: 100vh;
+  border-radius: 0;
+}
+
+#historyModal.fullscreen .modal-body {
+  flex: 1 1 auto;
+}
+
 #historyModal .modal-content {
   height: 100%;
   display: flex !important;
@@ -507,15 +530,16 @@
 #historySidebar .sidebar-collapse-toggle {
   position: absolute;
   top: 12px;
-  right: -14px;
+  right: -28px;
   z-index: 20;
   border-radius: 999px;
-  width: 30px;
-  height: 30px;
+  width: 60px;
+  height: 60px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.5rem;
 }
 #historySidebar .sidebar-collapse-toggle .toggle-icon {
   transition: transform .2s ease;
@@ -524,7 +548,7 @@
   transform: rotate(180deg);
 }
 #historySidebar.collapsed .sidebar-collapse-toggle {
-  right: -14px;
+  right: -28px;
 }
 .history-pane-resizer.invisible {
   opacity: 0;
@@ -859,6 +883,19 @@
 #historyContent.font-size-large { --history-font-scale: 1.2; }
 #activeDialogsBlock { display: none; }
 #activeDialogsBlock.show { display: block; }
+#activeDialogList .status-heading {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6c757d;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.75rem 0 0.35rem;
+}
+#activeDialogList .status-heading:first-child { margin-top: 0; }
+#activeDialogList .status-heading .badge { font-size: 0.65rem; }
 #activeDialogList .list-group-item {
   cursor: pointer;
   border-radius: 6px;
@@ -866,7 +903,7 @@
   margin-bottom: 6px;
   transition: background-color .15s ease, box-shadow .15s ease;
 }
-#activeDialogList .list-group-item:last-child { margin-bottom: 0; }
+#activeDialogList .list-group-item:last-of-type { margin-bottom: 0; }
 #activeDialogList .list-group-item.active {
   background-color: var(--bs-primary);
   border-color: var(--bs-primary);
@@ -879,20 +916,32 @@
 #activeDialogList .dialog-remove-btn:hover {
   opacity: 1;
 }
+#mediaViewerModal {
+  --media-viewer-width: 720px;
+  --media-viewer-height: 405px;
+}
+#mediaViewerModal .modal-dialog {
+  max-width: min(95vw, calc(var(--media-viewer-width, 720px) + 3rem));
+}
 #mediaViewerBody {
-  min-height: 300px;
+  min-height: min(90vh, max(var(--media-viewer-height, 405px), 360px));
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: min(95vw, max(var(--media-viewer-width, 480px), 320px));
 }
 #mediaViewerBody img,
 #mediaViewerBody video {
   max-width: 100%;
-  max-height: 70vh;
+  height: auto;
+}
+#mediaViewerBody video {
+  width: min(100%, var(--media-viewer-width, 720px));
+  max-height: min(var(--media-viewer-height, 405px), 90vh);
 }
 #mediaViewerBody iframe {
   width: 100%;
-  height: 70vh;
+  height: min(90vh, max(var(--media-viewer-height, 405px), 360px));
   border: 0;
 }
 * === Редактирование / удаление === *
@@ -1380,6 +1429,7 @@ function markTicketReopenedLocally() {
                         <option value="large">Крупный</option>
                       </select>
                     </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item" id="toggleHistoryFullscreenBtn" aria-pressed="false" title="Развернуть окно истории">⛶</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item" id="inviteToDialogBtn" disabled>
                       Пригласить коллегу
                     </button>
@@ -1396,8 +1446,11 @@ function markTicketReopenedLocally() {
               </button>
               <div class="d-flex flex-column flex-fill min-height-0 sidebar-content">
                 <div class="p-3 sidebar-info" id="activeDialogsBlock">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <strong class="me-2">Активные диалоги</strong>
+                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <strong class="me-1 mb-0">Активные диалоги</strong>
+                      <span class="badge bg-secondary" id="activeDialogCount">0</span>
+                    </div>
                     <button type="button" class="btn btn-link btn-sm text-decoration-none px-1" id="clearActiveDialogsBtn">Очистить</button>
                   </div>
                   <div class="list-group mt-2" id="activeDialogList"></div>
@@ -1705,6 +1758,7 @@ function markTicketReopenedLocally() {
 let renderedMsgIds = new Set();
 
 const activeDialogs = new Map();
+const ACTIVE_DIALOG_ALLOWED_STATUSES = new Set(['Ожидает реакции', 'Ожидает клиента']);
 let cachedAdminUsers = null;
 
 	function safeId(msg) {
@@ -2611,6 +2665,45 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
 
 function escapeHtml(s=''){return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));}
 
+function normalizeActiveDialogStatus(value) {
+  if (value == null) return '';
+  const trimmed = String(value).trim();
+  return ACTIVE_DIALOG_ALLOWED_STATUSES.has(trimmed) ? trimmed : '';
+}
+
+function getSidebarCurrentWidth() {
+  const sidebar = document.getElementById('app-sidebar');
+  if (!sidebar) return 0;
+  const rect = sidebar.getBoundingClientRect();
+  return Math.max(0, Math.round(rect.width || 0));
+}
+
+function updateHistoryModalSidebarOffset() {
+  const modal = document.getElementById('historyModal');
+  if (!modal || !modal.classList.contains('fullscreen')) return;
+  modal.style.setProperty('--history-sidebar-offset', `${getSidebarCurrentWidth()}px`);
+}
+
+function setHistoryModalFullscreen(expanded) {
+  const modal = document.getElementById('historyModal');
+  const toggleBtn = document.getElementById('toggleHistoryFullscreenBtn');
+  const nextState = Boolean(expanded);
+  if (!modal) return;
+
+  modal.classList.toggle('fullscreen', nextState);
+  if (nextState) {
+    updateHistoryModalSidebarOffset();
+  } else {
+    modal.style.removeProperty('--history-sidebar-offset');
+  }
+
+  if (toggleBtn) {
+    toggleBtn.setAttribute('aria-pressed', nextState ? 'true' : 'false');
+    toggleBtn.title = nextState ? 'Свернуть окно истории' : 'Развернуть окно истории';
+    toggleBtn.textContent = nextState ? '🗗' : '⛶';
+  }
+}
+
 function persistActiveDialogs() {
   try {
     const data = Array.from(activeDialogs.values());
@@ -2624,12 +2717,29 @@ function renderActiveDialogs() {
   const list = document.getElementById('activeDialogList');
   const block = document.getElementById('activeDialogsBlock');
   const clearBtn = document.getElementById('clearActiveDialogsBtn');
+  const counter = document.getElementById('activeDialogCount');
   if (!list || !block) return;
 
   list.innerHTML = '';
-  const dialogs = Array.from(activeDialogs.values()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const dialogs = Array.from(activeDialogs.values())
+    .map(dialog => {
+      const status = normalizeActiveDialogStatus(dialog.status);
+      if (!status) return null;
+      if (dialog.status !== status) dialog.status = status;
+      return dialog;
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-  if (!dialogs.length) {
+  const total = dialogs.length;
+  if (counter) {
+    counter.textContent = String(total);
+    counter.classList.toggle('bg-secondary', total > 0);
+    counter.classList.toggle('bg-light', total === 0);
+    counter.classList.toggle('text-muted', total === 0);
+  }
+
+  if (!total) {
     block.classList.remove('show');
     if (clearBtn) clearBtn.disabled = true;
     return;
@@ -2639,31 +2749,52 @@ function renderActiveDialogs() {
   if (clearBtn) clearBtn.disabled = false;
 
   const currentId = currentTicketId != null ? String(currentTicketId) : null;
+  const orderedStatuses = Array.from(ACTIVE_DIALOG_ALLOWED_STATUSES);
 
-  dialogs.forEach(dialog => {
-    const ticketId = String(dialog.ticketId || '');
-    if (!ticketId) return;
-    const isActive = currentId === ticketId;
-    const item = document.createElement('div');
-    item.className = `list-group-item list-group-item-action${isActive ? ' active' : ''}`;
-    item.dataset.ticketId = ticketId;
-    item.dataset.userId = String(dialog.userId || '');
+  orderedStatuses.forEach(status => {
+    const groupItems = dialogs.filter(dialog => dialog.status === status);
+    if (!groupItems.length) return;
 
-    const business = escapeHtml(dialog.business || '—');
-    const location = escapeHtml(dialog.location || '—');
-    const clientName = escapeHtml(dialog.clientName || '—');
-    const ticketLabel = escapeHtml(ticketId);
+    const heading = document.createElement('div');
+    heading.className = 'status-heading';
+    heading.innerHTML = `
+      <span>${escapeHtml(status)}</span>
+      <span class="badge bg-light text-muted">${groupItems.length}</span>
+    `;
+    list.appendChild(heading);
 
-    item.innerHTML = `
-      <div class="d-flex w-100 align-items-start">
-        <div class="flex-grow-1">
-          <div class="fw-semibold">${clientName} <span class="${isActive ? 'text-light' : 'text-muted'}">#${ticketLabel}</span></div>
-          <div class="small ${isActive ? 'text-light' : 'text-muted'}">${business} • ${location}</div>
-        </div>
-        <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted dialog-remove-btn" data-ticket-id="${ticketLabel}" aria-label="Убрать диалог">✕</button>
-      </div>`;
+    groupItems.forEach(dialog => {
+      const ticketId = String(dialog.ticketId || '');
+      if (!ticketId) return;
+      const isActive = currentId === ticketId;
+      const item = document.createElement('div');
+      item.className = `list-group-item list-group-item-action${isActive ? ' active' : ''}`;
+      item.dataset.ticketId = ticketId;
+      item.dataset.userId = String(dialog.userId || '');
+      item.dataset.status = dialog.status;
 
-    list.appendChild(item);
+      const business = escapeHtml(dialog.business || '—');
+      const location = escapeHtml(dialog.location || '—');
+      const clientName = escapeHtml(dialog.clientName || '—');
+      const ticketLabel = escapeHtml(ticketId);
+      const badgeClass = dialog.status === 'Ожидает реакции'
+        ? 'badge bg-danger'
+        : 'badge bg-info text-dark';
+
+      item.innerHTML = `
+        <div class="d-flex w-100 align-items-start">
+          <div class="flex-grow-1">
+            <div class="fw-semibold d-flex align-items-center justify-content-between gap-2">
+              <span>${clientName} <span class="${isActive ? 'text-light' : 'text-muted'}">#${ticketLabel}</span></span>
+              <span class="${badgeClass}">${escapeHtml(dialog.status)}</span>
+            </div>
+            <div class="small ${isActive ? 'text-light' : 'text-muted'}">${business} • ${location}</div>
+          </div>
+          <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted dialog-remove-btn" data-ticket-id="${ticketLabel}" aria-label="Убрать диалог">✕</button>
+        </div>`;
+
+      list.appendChild(item);
+    });
   });
 }
 
@@ -2672,6 +2803,13 @@ function registerActiveDialog(info = {}) {
   const userId = info.userId != null ? String(info.userId) : null;
   if (!ticketId || !userId) return;
 
+  const status = normalizeActiveDialogStatus(info.status);
+  const hasSupport = info.hasSupport === true;
+  if (!status || !hasSupport) {
+    removeActiveDialog(ticketId);
+    return;
+  }
+
   const existing = activeDialogs.get(ticketId) || {};
   const entry = {
     ticketId,
@@ -2679,6 +2817,8 @@ function registerActiveDialog(info = {}) {
     clientName: info.clientName || existing.clientName || '—',
     business: info.business || existing.business || '—',
     location: info.location || existing.location || '—',
+    status,
+    hasSupport: true,
     updatedAt: Date.now()
   };
 
@@ -2703,6 +2843,8 @@ function restoreActiveDialogs() {
       if (Array.isArray(parsed)) {
         parsed.forEach(item => {
           if (!item || item.ticketId == null || item.userId == null) return;
+          const status = normalizeActiveDialogStatus(item.status);
+          if (!status || item.hasSupport !== true) return;
           const ticketId = String(item.ticketId);
           activeDialogs.set(ticketId, {
             ticketId,
@@ -2710,6 +2852,8 @@ function restoreActiveDialogs() {
             clientName: item.clientName || '—',
             business: item.business || '—',
             location: item.location || '—',
+            status,
+            hasSupport: true,
             updatedAt: item.updatedAt || Date.now()
           });
         });
@@ -2730,6 +2874,65 @@ function parseMediaPayload(raw) {
     console.error('Не удалось распарсить данные медиа', e);
     return null;
   }
+}
+
+const MEDIA_VIEWER_MIN_WIDTH = 480;
+const MEDIA_VIEWER_MIN_HEIGHT = 360;
+const MEDIA_VIEWER_MAX_WIDTH = 1280;
+const MEDIA_VIEWER_MAX_HEIGHT = 1024;
+const VIDEO_MIME_TYPES = {
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  mkv: 'video/x-matroska'
+};
+
+function clampMediaDimensions(width, height) {
+  let w = Number(width) || 0;
+  let h = Number(height) || 0;
+
+  if (w <= 0 || h <= 0) {
+    w = MEDIA_VIEWER_MIN_WIDTH;
+    h = MEDIA_VIEWER_MIN_HEIGHT;
+  }
+
+  const minScale = Math.max(
+    MEDIA_VIEWER_MIN_WIDTH / w,
+    MEDIA_VIEWER_MIN_HEIGHT / h,
+    1
+  );
+  w *= minScale;
+  h *= minScale;
+
+  const maxScale = Math.min(
+    MEDIA_VIEWER_MAX_WIDTH / w,
+    MEDIA_VIEWER_MAX_HEIGHT / h,
+    1
+  );
+  w *= maxScale;
+  h *= maxScale;
+
+  const viewportWidth = Math.max(320, window.innerWidth - 64);
+  const viewportHeight = Math.max(240, window.innerHeight - 180);
+  const viewportScale = Math.min(1, viewportWidth / w, viewportHeight / h);
+  if (viewportScale < 1) {
+    w *= viewportScale;
+    h *= viewportScale;
+  }
+
+  return {
+    width: Math.round(Math.min(MEDIA_VIEWER_MAX_WIDTH, Math.max(w, MEDIA_VIEWER_MIN_WIDTH))),
+    height: Math.round(Math.min(MEDIA_VIEWER_MAX_HEIGHT, Math.max(h, MEDIA_VIEWER_MIN_HEIGHT)))
+  };
+}
+
+function applyMediaViewerSize(modalEl, width, height) {
+  if (!modalEl) return { width: MEDIA_VIEWER_MIN_WIDTH, height: MEDIA_VIEWER_MIN_HEIGHT };
+  const size = clampMediaDimensions(width, height);
+  modalEl.style.setProperty('--media-viewer-width', `${size.width}px`);
+  modalEl.style.setProperty('--media-viewer-height', `${size.height}px`);
+  return size;
 }
 
 function openMediaViewer(payload) {
@@ -2755,6 +2958,8 @@ function openMediaViewer(payload) {
     downloadLink.removeAttribute('download');
   }
 
+  applyMediaViewerSize(modalEl, payload.width || payload.video_width || MEDIA_VIEWER_MIN_WIDTH, payload.height || payload.video_height || MEDIA_VIEWER_MIN_HEIGHT);
+
   let element = null;
   if (['photo', 'image'].includes(type) || /\.(png|jpe?g|gif|webp)$/i.test(lowerName)) {
     element = document.createElement('img');
@@ -2763,12 +2968,32 @@ function openMediaViewer(payload) {
   } else if (['video', 'animation'].includes(type) || /\.(mp4|webm|mov|m4v)$/i.test(lowerName)) {
     const video = document.createElement('video');
     video.controls = true;
-    video.style.maxWidth = '100%';
-    video.style.maxHeight = '70vh';
+    video.preload = 'metadata';
+    video.playsInline = true;
+    video.style.width = '100%';
+    video.style.height = 'auto';
+    video.style.display = 'block';
+
     const source = document.createElement('source');
     source.src = url;
+    const extension = (payload.extension || lowerName.split('.').pop() || '').toLowerCase();
+    if (VIDEO_MIME_TYPES[extension]) {
+      source.type = VIDEO_MIME_TYPES[extension];
+    }
     video.appendChild(source);
     video.textContent = 'Ваш браузер не поддерживает видео.';
+
+    const desiredWidth = Number(payload.video_width || payload.width || 0);
+    const desiredHeight = Number(payload.video_height || payload.height || 0);
+    let appliedSize = applyMediaViewerSize(modalEl, desiredWidth, desiredHeight);
+
+    video.addEventListener('loadedmetadata', () => {
+      if (!modalEl.isConnected) return;
+      const metadataWidth = Number(video.videoWidth || appliedSize.width);
+      const metadataHeight = Number(video.videoHeight || appliedSize.height);
+      appliedSize = applyMediaViewerSize(modalEl, metadataWidth, metadataHeight);
+    }, { once: true });
+
     element = video;
   } else if (type === 'document' || /\.(pdf)$/i.test(lowerName)) {
     const frame = document.createElement('iframe');
@@ -4398,12 +4623,22 @@ function displayTicketsForCurrentPage() {
 
                                 updateHistoryClientMeta(window.currentClientData, window.currentTicketDetails);
 
+                                const normalizedTicketState = ticketFull ? normalizeSingleTicket(ticketFull) : null;
+                                const dialogStatusForPool = normalizedTicketState?.status
+                                        || clientData?.status
+                                        || clientData?.client_status
+                                        || ticketFull?.status
+                                        || '';
+                                const hasSupportParticipant = (historyData.messages || []).some(isSupportMsg);
+
                                 registerActiveDialog({
                                         ticketId: ticket_id,
                                         userId: user_id,
                                         clientName: displayName,
                                         business: businessForDialog || '—',
-                                        location: locationForDialog || '—'
+                                        location: locationForDialog || '—',
+                                        status: dialogStatusForPool,
+                                        hasSupport: hasSupportParticipant
                                 });
 
                                 const inviteBtn = document.getElementById('inviteToDialogBtn');
@@ -6693,6 +6928,7 @@ function setSidebarCollapsed(collapsed) {
   }
 
   localStorage.setItem('historySidebarCollapsed', collapsed ? '1' : '0');
+  updateHistoryModalSidebarOffset();
 }
 
 function initHistoryPaneResizer() {
@@ -6827,6 +7063,58 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   restoreActiveDialogs();
+
+  const historyModalEl = document.getElementById('historyModal');
+  const fullscreenToggleBtn = document.getElementById('toggleHistoryFullscreenBtn');
+  if (fullscreenToggleBtn && historyModalEl) {
+    fullscreenToggleBtn.addEventListener('click', () => {
+      const shouldExpand = !historyModalEl.classList.contains('fullscreen');
+      setHistoryModalFullscreen(shouldExpand);
+      if (shouldExpand) {
+        updateHistoryModalSidebarOffset();
+      }
+    });
+
+    historyModalEl.addEventListener('hidden.bs.modal', () => {
+      setHistoryModalFullscreen(false);
+    });
+
+    historyModalEl.addEventListener('shown.bs.modal', () => {
+      if (historyModalEl.classList.contains('fullscreen')) {
+        updateHistoryModalSidebarOffset();
+      }
+    });
+  }
+
+  const appSidebar = document.getElementById('app-sidebar');
+  if (appSidebar) {
+    const scheduleSidebarOffsetUpdate = () => {
+      if (historyModalEl?.classList.contains('fullscreen')) {
+        requestAnimationFrame(updateHistoryModalSidebarOffset);
+      }
+    };
+    appSidebar.addEventListener('transitionend', (event) => {
+      if (event.propertyName === 'width') {
+        scheduleSidebarOffsetUpdate();
+      }
+    });
+    const sidebarObserver = new MutationObserver(scheduleSidebarOffsetUpdate);
+    sidebarObserver.observe(appSidebar, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  window.addEventListener('resize', () => {
+    if (historyModalEl?.classList.contains('fullscreen')) {
+      updateHistoryModalSidebarOffset();
+    }
+  }, { passive: true });
+
+  const mediaViewerModal = document.getElementById('mediaViewerModal');
+  if (mediaViewerModal) {
+    mediaViewerModal.addEventListener('hidden.bs.modal', () => {
+      mediaViewerModal.style.removeProperty('--media-viewer-width');
+      mediaViewerModal.style.removeProperty('--media-viewer-height');
+    });
+  }
 
   const listEl = document.getElementById('activeDialogList');
   if (listEl) {
