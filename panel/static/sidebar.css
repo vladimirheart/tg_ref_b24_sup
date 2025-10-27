@@ -74,8 +74,19 @@ body.with-sidebar.sidebar-hovering {
   background: linear-gradient(90deg, rgba(59,130,246,0.08), rgba(59,130,246,0));
 }
 .sidebar .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 700;
   font-size: 1rem;
+  color: #0f172a;
+}
+
+.sidebar .brand-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
 }
 
 .sidebar-actions {
