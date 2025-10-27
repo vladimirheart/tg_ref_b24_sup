@@ -92,6 +92,7 @@
     </div>
     <div id="public-form-root"
          data-channel-id="{{ channel_id }}"
+         data-channel-ref="{{ channel_ref | e }}"
          data-channel-name="{{ channel.name if channel else '' }}"
          data-initial-token="{{ initial_token }}"
          class="mb-5"></div>
@@ -99,6 +100,7 @@
   <script>
     window.PUBLIC_FORM_INITIAL = {
       channelId: {{ channel_id }},
+      channelRef: {{ channel_ref | tojson }},
       channelName: {{ (channel.name if channel else '') | tojson }},
       initialToken: {{ initial_token | tojson }}
     };
