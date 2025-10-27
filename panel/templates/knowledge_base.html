@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>База знаний — Панель поддержки</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <style>
+    .knowledge-base-page {
+      padding-bottom: 3rem;
+    }
+
+    .knowledge-filters .form-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .knowledge-table-wrapper {
+      max-height: 70vh;
+      overflow: auto;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 0.75rem;
+      background: #fff;
+      box-shadow: 0 0.75rem 1.5rem rgba(18, 38, 63, 0.03);
+    }
+
+    .knowledge-table {
+      margin-bottom: 0;
+      min-width: 960px;
+    }
+
+    .knowledge-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8f9fb;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .knowledge-table tbody tr.article-row td:first-child {
+      font-weight: 600;
+    }
+
+    .knowledge-table tbody tr.article-row td {
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .knowledge-table tbody tr.article-row td:nth-child(1) {
+      white-space: normal;
+    }
+
+    .knowledge-table tbody tr.article-row td:nth-child(1) .article-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .knowledge-table tbody tr.article-row td span.badge-status {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .knowledge-table tbody tr.direction-group-row td,
+    .knowledge-table tbody tr.subdirection-row td {
+      background: linear-gradient(90deg, rgba(118, 93, 255, 0.08), rgba(118, 93, 255, 0));
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .knowledge-table tbody tr.subdirection-row td {
+      background: linear-gradient(90deg, rgba(48, 164, 255, 0.12), rgba(48, 164, 255, 0));
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .knowledge-table tbody tr.group-empty td {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: #6c757d;
+      font-size: 0.95rem;
+    }
+
+    .group-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+    }
+
+    .group-label {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .group-toggle-btn {
+      border: none;
+      background: transparent;
+      color: #3b5bdb;
+      padding: 0.25rem 0.35rem;
+      border-radius: 0.35rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      transition: background-color 0.2s ease;
+    }
+
+    .group-toggle-btn:hover,
+    .group-toggle-btn:focus {
+      background: rgba(59, 91, 219, 0.12);
+      outline: none;
+    }
+
+    .group-toggle-btn[data-state="collapsed"]::before {
+      content: "▶";
+    }
+
+    .group-toggle-btn[data-state="expanded"]::before {
+      content: "▼";
+    }
+
+    .group-toggle-btn span {
+      margin-left: 0.4rem;
+    }
+
+    .knowledge-summary {
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: #fff;
+    }
+
+    @media (max-width: 992px) {
+      .knowledge-table {
+        min-width: 720px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .knowledge-table-wrapper {
+        border-radius: 0.5rem;
+      }
+
+      .group-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+
+      .knowledge-table tbody tr.article-row td {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+    <div class="container-fluid mt-4 knowledge-base-page">
+      <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+        <div>
+          <h2 class="mb-1">📚 База знаний</h2>
+          <p class="text-muted mb-0">Статьи сгруппированы по направлению и подтипу. Используйте фильтры и поиск, чтобы быстрее находить нужные материалы.</p>
+        </div>
+        <div class="knowledge-summary text-muted small">
+          <div>Всего статей: <span class="fw-semibold" id="knowledgeTotalCount">{{ articles|length }}</span></div>
+          <div>Отображается: <span class="fw-semibold" id="knowledgeResultsCount">{{ articles|length }}</span></div>
+        </div>
+      </div>
+
+      <div class="row g-3 knowledge-filters">
+        <div class="col-12 col-xl-4">
+          <label for="knowledgeSearch" class="form-label">Поиск по названию и атрибутам</label>
+          <input type="search" id="knowledgeSearch" class="form-control" placeholder="Например: CRM, инструкция, департамент..." />
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 col-xl-2">
+          <label for="filterDirection" class="form-label">Направление</label>
+          <select id="filterDirection" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 col-xl-2">
+          <label for="filterSubDirection" class="form-label">Подтип направления</label>
+          <select id="filterSubDirection" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 col-xl-2">
+          <label for="filterDepartment" class="form-label">Отдел</label>
+          <select id="filterDepartment" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 col-xl-2">
+          <label for="filterType" class="form-label">Тип</label>
+          <select id="filterType" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 col-xl-2">
+          <label for="filterStatus" class="form-label">Статус</label>
+          <select id="filterStatus" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3 col-xl-2">
+          <label for="filterAuthor" class="form-label">Автор</label>
+          <select id="filterAuthor" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-12 d-flex flex-wrap align-items-center gap-2 justify-content-between">
+          <div class="text-muted small">Настройте фильтры или используйте поиск. Доступна иерархия направлений с возможностью свернуть разделы.</div>
+          <button id="knowledgeResetFilters" type="button" class="btn btn-outline-secondary btn-sm">Сбросить фильтры</button>
+        </div>
+      </div>
+
+      <div class="knowledge-table-wrapper mt-4">
+        <table class="table table-hover align-middle knowledge-table" id="knowledgeTable">
+          <thead>
+            <tr>
+              <th scope="col">Название</th>
+              <th scope="col">Отдел</th>
+              <th scope="col">Тип</th>
+              <th scope="col">Статус</th>
+              <th scope="col">Автор</th>
+              <th scope="col">Направление</th>
+              <th scope="col">Подтип направления</th>
+            </tr>
+          </thead>
+          <tbody id="knowledgeTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
+  <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
+  <script>
+    (function () {
+      const articles = ({{ articles | tojson | safe }} || []).map((item) => ({
+        id: item.id,
+        title: (item.title || '').trim(),
+        department: (item.department || '').trim(),
+        article_type: (item.article_type || '').trim(),
+        status: (item.status || '').trim(),
+        author: (item.author || '').trim(),
+        direction: (item.direction || '').trim(),
+        direction_subtype: (item.direction_subtype || '').trim(),
+      }));
+
+      const EMPTY_TOKEN = '__EMPTY__';
+      const localeOptions = { sensitivity: 'base', numeric: true };
+      const tableBody = document.getElementById('knowledgeTableBody');
+      const searchInput = document.getElementById('knowledgeSearch');
+      const directionSelect = document.getElementById('filterDirection');
+      const subDirectionSelect = document.getElementById('filterSubDirection');
+      const departmentSelect = document.getElementById('filterDepartment');
+      const typeSelect = document.getElementById('filterType');
+      const statusSelect = document.getElementById('filterStatus');
+      const authorSelect = document.getElementById('filterAuthor');
+      const resultsCountEl = document.getElementById('knowledgeResultsCount');
+      const totalCountEl = document.getElementById('knowledgeTotalCount');
+      const resetButton = document.getElementById('knowledgeResetFilters');
+      const COLUMN_COUNT = 7;
+
+      if (totalCountEl) {
+        totalCountEl.textContent = String(articles.length);
+      }
+
+      const collapsedDirections = new Set();
+      const collapsedSubDirections = new Set();
+
+      function normalize(value) {
+        return (value || '').trim();
+      }
+
+      function displayValue(value, fallback) {
+        const normalized = normalize(value);
+        return normalized ? normalized : fallback;
+      }
+
+      function matchesSingle(articleValue, filterValue) {
+        if (!filterValue || filterValue === 'all') {
+          return true;
+        }
+        const normalized = normalize(articleValue);
+        if (filterValue === EMPTY_TOKEN) {
+          return !normalized;
+        }
+        return normalized.toLowerCase() === filterValue.toLowerCase();
+      }
+
+      function buildValueOptions(field, emptyLabel) {
+        const values = new Map();
+        articles.forEach((article) => {
+          const raw = normalize(article[field]);
+          if (!raw) {
+            if (!values.has(EMPTY_TOKEN)) {
+              values.set(EMPTY_TOKEN, { value: EMPTY_TOKEN, label: emptyLabel });
+            }
+            return;
+          }
+          const key = raw.toLowerCase();
+          if (!values.has(key)) {
+            values.set(key, { value: article[field], label: article[field] });
+          }
+        });
+        const sorted = Array.from(values.entries())
+          .filter(([key]) => key !== EMPTY_TOKEN)
+          .sort((a, b) => a[1].label.localeCompare(b[1].label, 'ru', localeOptions))
+          .map(([, value]) => value);
+        if (values.has(EMPTY_TOKEN)) {
+          sorted.push(values.get(EMPTY_TOKEN));
+        }
+        return sorted;
+      }
+
+      function populateSelect(select, options, placeholder) {
+        const previous = select.value;
+        select.innerHTML = '';
+        const allOption = document.createElement('option');
+        allOption.value = 'all';
+        allOption.textContent = placeholder;
+        select.appendChild(allOption);
+        options.forEach((option) => {
+          const opt = document.createElement('option');
+          opt.value = option.value;
+          opt.textContent = option.label;
+          select.appendChild(opt);
+        });
+        const hasPrevious = Array.from(select.options).some((opt) => opt.value === previous);
+        select.value = hasPrevious ? previous : 'all';
+      }
+
+      function updateSubDirectionOptions() {
+        const directionValue = directionSelect.value;
+        const source = directionValue === 'all'
+          ? articles
+          : articles.filter((article) => matchesSingle(article.direction, directionValue));
+        const values = new Map();
+        source.forEach((article) => {
+          const raw = normalize(article.direction_subtype);
+          if (!raw) {
+            if (!values.has(EMPTY_TOKEN)) {
+              values.set(EMPTY_TOKEN, { value: EMPTY_TOKEN, label: 'Без подтипа направления' });
+            }
+            return;
+          }
+          const key = raw.toLowerCase();
+          if (!values.has(key)) {
+            values.set(key, { value: article.direction_subtype, label: article.direction_subtype });
+          }
+        });
+        const sorted = Array.from(values.entries())
+          .filter(([key]) => key !== EMPTY_TOKEN)
+          .sort((a, b) => a[1].label.localeCompare(b[1].label, 'ru', localeOptions))
+          .map(([, value]) => value);
+        if (values.has(EMPTY_TOKEN)) {
+          sorted.push(values.get(EMPTY_TOKEN));
+        }
+        populateSelect(subDirectionSelect, sorted, 'Все подтипы');
+      }
+
+      function getFilteredArticles() {
+        const searchValue = searchInput.value.trim().toLowerCase();
+        const directionValue = directionSelect.value;
+        const subDirectionValue = subDirectionSelect.value;
+        const departmentValue = departmentSelect.value;
+        const typeValue = typeSelect.value;
+        const statusValue = statusSelect.value;
+        const authorValue = authorSelect.value;
+
+        return articles.filter((article) => {
+          if (!matchesSingle(article.direction, directionValue)) {
+            return false;
+          }
+          if (!matchesSingle(article.direction_subtype, subDirectionValue)) {
+            return false;
+          }
+          if (!matchesSingle(article.department, departmentValue)) {
+            return false;
+          }
+          if (!matchesSingle(article.article_type, typeValue)) {
+            return false;
+          }
+          if (!matchesSingle(article.status, statusValue)) {
+            return false;
+          }
+          if (!matchesSingle(article.author, authorValue)) {
+            return false;
+          }
+          if (searchValue) {
+            const haystack = [
+              article.title,
+              article.department,
+              article.article_type,
+              article.status,
+              article.author,
+              article.direction,
+              article.direction_subtype,
+            ]
+              .join(' ')
+              .toLowerCase();
+            if (!haystack.includes(searchValue)) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      function groupArticles(data) {
+        const grouped = new Map();
+        data.forEach((article) => {
+          const directionKey = normalize(article.direction) || EMPTY_TOKEN;
+          const directionLabel = displayValue(article.direction, 'Без направления');
+          if (!grouped.has(directionKey)) {
+            grouped.set(directionKey, {
+              label: directionLabel,
+              subgroups: new Map(),
+            });
+          }
+          const entry = grouped.get(directionKey);
+          const subKey = normalize(article.direction_subtype) || EMPTY_TOKEN;
+          const subLabel = displayValue(article.direction_subtype, 'Без подтипа направления');
+          if (!entry.subgroups.has(subKey)) {
+            entry.subgroups.set(subKey, { label: subLabel, items: [] });
+          }
+          entry.subgroups.get(subKey).items.push(article);
+        });
+        return Array.from(grouped.entries()).sort((a, b) =>
+          a[1].label.localeCompare(b[1].label, 'ru', localeOptions)
+        );
+      }
+
+      function renderTable() {
+        const filtered = getFilteredArticles();
+        const grouped = groupArticles(filtered);
+        tableBody.innerHTML = '';
+
+        if (resultsCountEl) {
+          resultsCountEl.textContent = String(filtered.length);
+        }
+
+        if (!filtered.length) {
+          const emptyRow = document.createElement('tr');
+          emptyRow.className = 'group-empty';
+          const cell = document.createElement('td');
+          cell.colSpan = COLUMN_COUNT;
+          cell.textContent = 'Нет статей, соответствующих выбранным условиям.';
+          emptyRow.appendChild(cell);
+          tableBody.appendChild(emptyRow);
+          return;
+        }
+
+        grouped.forEach(([directionKey, directionEntry]) => {
+          const directionRow = document.createElement('tr');
+          directionRow.className = 'direction-group-row';
+          const dirCell = document.createElement('td');
+          dirCell.colSpan = COLUMN_COUNT;
+          dirCell.classList.add('group-cell', 'direction-cell');
+          const dirToggle = document.createElement('button');
+          dirToggle.type = 'button';
+          dirToggle.className = 'group-toggle-btn';
+          dirToggle.dataset.state = collapsedDirections.has(directionKey) ? 'collapsed' : 'expanded';
+          dirToggle.setAttribute('aria-label', collapsedDirections.has(directionKey) ? 'Развернуть направление' : 'Свернуть направление');
+          dirToggle.addEventListener('click', () => {
+            if (collapsedDirections.has(directionKey)) {
+              collapsedDirections.delete(directionKey);
+            } else {
+              collapsedDirections.add(directionKey);
+            }
+            renderTable();
+          });
+          dirCell.appendChild(dirToggle);
+
+          const dirLabel = document.createElement('span');
+          dirLabel.className = 'group-label';
+          dirLabel.textContent = directionEntry.label;
+          dirCell.appendChild(dirLabel);
+
+          const dirCount = Array.from(directionEntry.subgroups.values()).reduce(
+            (acc, subgroup) => acc + subgroup.items.length,
+            0
+          );
+          const dirBadge = document.createElement('span');
+          dirBadge.className = 'badge text-bg-secondary';
+          dirBadge.textContent = dirCount;
+          dirCell.appendChild(dirBadge);
+
+          directionRow.appendChild(dirCell);
+          tableBody.appendChild(directionRow);
+
+          if (collapsedDirections.has(directionKey)) {
+            return;
+          }
+
+          const subgroups = Array.from(directionEntry.subgroups.entries()).sort((a, b) =>
+            a[1].label.localeCompare(b[1].label, 'ru', localeOptions)
+          );
+
+          subgroups.forEach(([subKey, subEntry]) => {
+            const combinedKey = `${directionKey}__${subKey}`;
+            const subRow = document.createElement('tr');
+            subRow.className = 'subdirection-row';
+            const subCell = document.createElement('td');
+            subCell.colSpan = COLUMN_COUNT;
+            subCell.classList.add('group-cell', 'subdirection-cell');
+
+            const subToggle = document.createElement('button');
+            subToggle.type = 'button';
+            subToggle.className = 'group-toggle-btn';
+            subToggle.dataset.state = collapsedSubDirections.has(combinedKey) ? 'collapsed' : 'expanded';
+            subToggle.setAttribute('aria-label', collapsedSubDirections.has(combinedKey) ? 'Развернуть подтип' : 'Свернуть подтип');
+            subToggle.addEventListener('click', () => {
+              if (collapsedSubDirections.has(combinedKey)) {
+                collapsedSubDirections.delete(combinedKey);
+              } else {
+                collapsedSubDirections.add(combinedKey);
+              }
+              renderTable();
+            });
+            subCell.appendChild(subToggle);
+
+            const subLabel = document.createElement('span');
+            subLabel.className = 'group-label';
+            subLabel.textContent = subEntry.label;
+            subCell.appendChild(subLabel);
+
+            const subBadge = document.createElement('span');
+            subBadge.className = 'badge text-bg-light border';
+            subBadge.textContent = subEntry.items.length;
+            subCell.appendChild(subBadge);
+
+            subRow.appendChild(subCell);
+            tableBody.appendChild(subRow);
+
+            if (collapsedSubDirections.has(combinedKey)) {
+              return;
+            }
+
+            const sortedItems = subEntry.items.slice().sort((a, b) =>
+              a.title.localeCompare(b.title, 'ru', localeOptions)
+            );
+
+            sortedItems.forEach((article) => {
+              const row = document.createElement('tr');
+              row.className = 'article-row';
+
+              const cells = [
+                displayValue(article.title, 'Без названия'),
+                displayValue(article.department, '—'),
+                displayValue(article.article_type, '—'),
+                displayValue(article.status, '—'),
+                displayValue(article.author, '—'),
+                displayValue(article.direction, 'Без направления'),
+                displayValue(article.direction_subtype, 'Без подтипа направления'),
+              ];
+
+              cells.forEach((text, index) => {
+                const td = document.createElement('td');
+                td.textContent = text;
+                if (index === 0) {
+                  td.classList.add('text-break');
+                }
+                row.appendChild(td);
+              });
+
+              tableBody.appendChild(row);
+            });
+          });
+        });
+      }
+
+      function resetFilters() {
+        searchInput.value = '';
+        directionSelect.value = 'all';
+        updateSubDirectionOptions();
+        subDirectionSelect.value = 'all';
+        departmentSelect.value = 'all';
+        typeSelect.value = 'all';
+        statusSelect.value = 'all';
+        authorSelect.value = 'all';
+        collapsedDirections.clear();
+        collapsedSubDirections.clear();
+        renderTable();
+      }
+
+      function initFilters() {
+        populateSelect(directionSelect, buildValueOptions('direction', 'Без направления'), 'Все направления');
+        populateSelect(departmentSelect, buildValueOptions('department', 'Без отдела'), 'Все отделы');
+        populateSelect(typeSelect, buildValueOptions('article_type', 'Без типа'), 'Все типы');
+        populateSelect(statusSelect, buildValueOptions('status', 'Без статуса'), 'Все статусы');
+        populateSelect(authorSelect, buildValueOptions('author', 'Без автора'), 'Все авторы');
+        updateSubDirectionOptions();
+        subDirectionSelect.value = 'all';
+      }
+
+      directionSelect.addEventListener('change', () => {
+        const prevSubValue = subDirectionSelect.value;
+        updateSubDirectionOptions();
+        if (!Array.from(subDirectionSelect.options).some((opt) => opt.value === prevSubValue)) {
+          subDirectionSelect.value = 'all';
+        } else {
+          subDirectionSelect.value = prevSubValue;
+        }
+        collapsedDirections.clear();
+        collapsedSubDirections.clear();
+        renderTable();
+      });
+
+      [subDirectionSelect, departmentSelect, typeSelect, statusSelect, authorSelect].forEach((select) => {
+        select.addEventListener('change', () => {
+          collapsedDirections.clear();
+          collapsedSubDirections.clear();
+          renderTable();
+        });
+      });
+
+      searchInput.addEventListener('input', () => {
+        collapsedDirections.clear();
+        collapsedSubDirections.clear();
+        renderTable();
+      });
+
+      resetButton.addEventListener('click', resetFilters);
+
+      initFilters();
+      renderTable();
+    })();
+  </script>
+</body>
+</html>
