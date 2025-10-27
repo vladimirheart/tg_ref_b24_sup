@@ -7,22 +7,88 @@ function showNotification(message, type = 'info', containerId = 'notification-co
     if (!container) {
         container = document.createElement('div');
         container.id = containerId;
-        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1050;';
         document.body.appendChild(container);
     }
+
+    container.style.position = 'fixed';
+    container.style.inset = '0';
+    container.style.zIndex = '1050';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    container.style.gap = '0.75rem';
+    container.style.pointerEvents = 'none';
+    container.style.padding = '1rem';
 
     const alertClass = type === 'error' ? 'alert-danger' :
                        type === 'success' ? 'alert-success' :
                        type === 'warning' ? 'alert-warning' : 'alert-info';
 
-    const alertHtml = `
-        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    `;
+    const alertEl = document.createElement('div');
+    alertEl.className = `alert ${alertClass} alert-dismissible fade show shadow`;
+    alertEl.setAttribute('role', 'alert');
+    alertEl.style.pointerEvents = 'auto';
+    alertEl.style.minWidth = 'min(90vw, 320px)';
+    alertEl.style.maxWidth = 'min(90vw, 480px)';
+    alertEl.style.margin = '0 auto';
+    alertEl.style.textAlign = 'center';
 
-    container.insertAdjacentHTML('beforeend', alertHtml);
+    const messageWrap = document.createElement('div');
+    messageWrap.className = 'notification-message';
+    if (message instanceof Node) {
+        messageWrap.appendChild(message);
+    } else {
+        messageWrap.innerHTML = message;
+    }
+    alertEl.appendChild(messageWrap);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    alertEl.appendChild(closeBtn);
+
+    container.appendChild(alertEl);
+
+    let dismissed = false;
+    const removeAlert = () => {
+        if (dismissed) return;
+        clearTimeout(autoHideTimer);
+        dismissed = true;
+        alertEl.classList.remove('show');
+        const cleanup = () => {
+            alertEl.remove();
+            if (!container.hasChildNodes()) {
+                container.remove();
+            }
+        };
+
+        if (alertEl.classList.contains('fade')) {
+            alertEl.addEventListener('transitionend', cleanup, { once: true });
+        } else {
+            cleanup();
+        }
+    };
+
+    const autoHideTimer = setTimeout(removeAlert, 2000);
+
+    closeBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        removeAlert();
+    });
+
+    alertEl.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        removeAlert();
+    });
+
+    alertEl.addEventListener('pointerdown', (event) => {
+        if (event.button === 2) {
+            event.preventDefault();
+            removeAlert();
+        }
+    });
 }
 
 // Функция для экспорта данных (универсальная)
