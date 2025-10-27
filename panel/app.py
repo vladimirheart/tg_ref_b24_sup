@@ -2671,6 +2671,25 @@ def _display_no(source, seq):
 def _touch_activity(conn, task_id):
     conn.execute("UPDATE tasks SET last_activity_at = datetime('now') WHERE id=?", (task_id,))
 
+def _generate_unique_channel_public_id(cur: sqlite3.Cursor, used: set[str] | None = None) -> str:
+    """Возвращает уникальный идентификатор для канала (hex UUID)."""
+    used_ids = set(used or set())
+    while True:
+        candidate = uuid4().hex.lower()
+        if candidate in used_ids:
+            continue
+        try:
+            row = cur.execute(
+                "SELECT 1 FROM channels WHERE public_id = ?",
+                (candidate,),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            row = None
+        if row:
+            continue
+        return candidate
+
+
 def ensure_channels_schema():
     """Добавляет недостающие колонки в channels, если база старая."""
     try:
@@ -2695,6 +2714,33 @@ def ensure_channels_schema():
             cur.execute("ALTER TABLE channels ADD COLUMN question_template_id TEXT")
         if 'rating_template_id' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN rating_template_id TEXT")
+        if 'public_id' not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN public_id TEXT")
+        existing_ids = set()
+        try:
+            rows = cur.execute("SELECT id, public_id FROM channels").fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        for row in rows:
+            cid = row[0]
+            raw_value = row[1] or ''
+            current = raw_value.strip().lower()
+            if current:
+                if raw_value != current:
+                    cur.execute(
+                        "UPDATE channels SET public_id = ? WHERE id = ?",
+                        (current, cid),
+                    )
+                if current not in existing_ids:
+                    existing_ids.add(current)
+                continue
+            new_id = _generate_unique_channel_public_id(cur, existing_ids)
+            cur.execute("UPDATE channels SET public_id = ? WHERE id = ?", (new_id, cid))
+            existing_ids.add(new_id)
+        try:
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_public_id ON channels(public_id)")
+        except sqlite3.OperationalError:
+            pass
         try:
             cur.execute(
                 "UPDATE channels SET bot_username = COALESCE(bot_username, bot_name) WHERE bot_username IS NULL OR bot_username = ''"
@@ -3362,7 +3408,7 @@ def _prepare_public_form_config(channel_id: int) -> dict | None:
     with get_db() as conn:
         channel_row = exec_with_retry(
             lambda: conn.execute(
-                "SELECT id, channel_name, is_active FROM channels WHERE id = ?",
+                "SELECT id, channel_name, is_active, public_id FROM channels WHERE id = ?",
                 (channel_id,),
             )
         ).fetchone()
@@ -3452,15 +3498,54 @@ def _prepare_public_form_config(channel_id: int) -> dict | None:
 
     channel_name = channel_row["channel_name"] or f"Канал #{channel_row['id']}"
 
+    public_id = (channel_row["public_id"] or "").strip().lower()
+    if not public_id:
+        with get_db() as ensure_conn:
+            ensure_cur = ensure_conn.cursor()
+            public_id = _generate_unique_channel_public_id(ensure_cur)
+            ensure_cur.execute(
+                "UPDATE channels SET public_id = ? WHERE id = ?",
+                (public_id, channel_row["id"]),
+            )
+            ensure_conn.commit()
+
     return {
         "channel": {
             "id": channel_row["id"],
+            "public_id": public_id,
             "name": channel_name,
         },
         "questions": prepared_questions,
         "question_lookup": lookup,
         "answer_order": [item["id"] for item in prepared_questions],
     }
+
+
+def _resolve_channel_id(channel_ref: str | int | None) -> int | None:
+    """Возвращает внутренний numeric id канала по внешнему идентификатору."""
+    if channel_ref is None:
+        return None
+    if isinstance(channel_ref, int):
+        return channel_ref
+    ref = str(channel_ref).strip()
+    if not ref:
+        return None
+    if ref.isdigit():
+        try:
+            return int(ref)
+        except ValueError:
+            return None
+    lookup = ref.lower()
+    with get_db() as conn:
+        row = exec_with_retry(
+            lambda: conn.execute(
+                "SELECT id FROM channels WHERE LOWER(public_id) = ?",
+                (lookup,),
+            )
+        ).fetchone()
+    if row:
+        return int(row["id"])
+    return None
 
 
 def _serialize_public_form_config(config: dict) -> dict:
@@ -3907,23 +3992,32 @@ def login_required(f):
 
 # === Публичные эндпоинты веб-формы ===
 
-@app.route("/public/forms/<int:channel_id>")
-def public_form(channel_id: int):
-    config = _prepare_public_form_config(channel_id)
+@app.route("/public/forms/<string:channel_id>")
+def public_form(channel_id: str):
+    resolved_id = _resolve_channel_id(channel_id)
+    if resolved_id is None:
+        abort(404)
+    config = _prepare_public_form_config(resolved_id)
     if not config:
         abort(404)
     token = (request.args.get("dialog") or request.args.get("token") or "").strip()
+    channel_payload = config.get("channel", {})
+    channel_ref = (channel_payload.get("public_id") or str(resolved_id)).strip()
     return render_template(
         "public_form.html",
-        channel=config.get("channel", {}),
-        channel_id=channel_id,
+        channel=channel_payload,
+        channel_id=resolved_id,
+        channel_ref=channel_ref,
         initial_token=token,
     )
 
 
-@app.route("/api/public/forms/<int:channel_id>/config", methods=["GET"])
-def api_public_form_config(channel_id: int):
-    config = _prepare_public_form_config(channel_id)
+@app.route("/api/public/forms/<string:channel_id>/config", methods=["GET"])
+def api_public_form_config(channel_id: str):
+    resolved_id = _resolve_channel_id(channel_id)
+    if resolved_id is None:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+    config = _prepare_public_form_config(resolved_id)
     if not config:
         return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
     return jsonify(_serialize_public_form_config(config))
@@ -3942,9 +4036,12 @@ def _parse_public_answers(payload: dict) -> dict:
     return {}
 
 
-@app.route("/api/public/forms/<int:channel_id>/sessions", methods=["POST"])
-def api_public_form_create_session(channel_id: int):
-    config = _prepare_public_form_config(channel_id)
+@app.route("/api/public/forms/<string:channel_id>/sessions", methods=["POST"])
+def api_public_form_create_session(channel_id: str):
+    resolved_id = _resolve_channel_id(channel_id)
+    if resolved_id is None:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+    config = _prepare_public_form_config(resolved_id)
     if not config:
         return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
 
@@ -3963,7 +4060,7 @@ def api_public_form_create_session(channel_id: int):
 
     try:
         result = _create_web_form_session(
-            channel_id,
+            resolved_id,
             config,
             answers,
             message_text,
@@ -3985,15 +4082,18 @@ def api_public_form_create_session(channel_id: int):
 
 
 @app.route(
-    "/api/public/forms/<int:channel_id>/sessions/<string:token>",
+    "/api/public/forms/<string:channel_id>/sessions/<string:token>",
     methods=["GET"],
 )
-def api_public_form_session(channel_id: int, token: str):
-    config = _prepare_public_form_config(channel_id)
+def api_public_form_session(channel_id: str, token: str):
+    resolved_id = _resolve_channel_id(channel_id)
+    if resolved_id is None:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+    config = _prepare_public_form_config(resolved_id)
     if not config:
         return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
 
-    loaded = _load_public_form_session(channel_id, token)
+    loaded = _load_public_form_session(resolved_id, token)
     if not loaded:
         return jsonify({"success": False, "error": "Диалог не найден"}), 404
 
@@ -4037,11 +4137,14 @@ def api_public_form_session(channel_id: int, token: str):
 
 
 @app.route(
-    "/api/public/forms/<int:channel_id>/sessions/<string:token>/messages",
+    "/api/public/forms/<string:channel_id>/sessions/<string:token>/messages",
     methods=["POST"],
 )
-def api_public_form_send_message(channel_id: int, token: str):
-    config = _prepare_public_form_config(channel_id)
+def api_public_form_send_message(channel_id: str, token: str):
+    resolved_id = _resolve_channel_id(channel_id)
+    if resolved_id is None:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+    config = _prepare_public_form_config(resolved_id)
     if not config:
         return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
 
@@ -4064,7 +4167,7 @@ def api_public_form_send_message(channel_id: int, token: str):
                       FROM {WEB_FORM_SESSIONS_TABLE}
                      WHERE channel_id = ? AND token = ?
                     """,
-                    (channel_id, token),
+                    (resolved_id, token),
                 )
             ).fetchone()
 
@@ -4127,7 +4230,7 @@ def api_public_form_send_message(channel_id: int, token: str):
                 client_status=field_values.get("client_status"),
                 updated_at=created_at,
                 updated_by="web_form",
-                channel_id=channel_id,
+                channel_id=resolved_id,
             )
 
             _add_chat_history_entry(
@@ -4138,7 +4241,7 @@ def api_public_form_send_message(channel_id: int, token: str):
                 timestamp=now_utc,
                 message_type="text",
                 attachment=None,
-                channel_id=channel_id,
+                channel_id=resolved_id,
                 user_id=user_id,
             )
 
@@ -4146,7 +4249,7 @@ def api_public_form_send_message(channel_id: int, token: str):
                 lambda: conn.execute(
                     "UPDATE tickets SET status='pending', resolved_at=NULL, resolved_by=NULL"
                     " WHERE ticket_id=? AND channel_id=?",
-                    (ticket_id, channel_id),
+                    (ticket_id, resolved_id),
                 )
             )
 
@@ -7357,10 +7460,11 @@ def api_channels_create():
 
     conn = get_db()
     cur = conn.cursor()
+    public_id = _generate_unique_channel_public_id(cur)
     cur.execute(
         """
-        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id)
-        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id)
+        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id, public_id)
+        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id, :public_id)
         """,
         {
             "token": token,
@@ -7372,11 +7476,12 @@ def api_channels_create():
             "is_active": is_active,
             "question_template_id": question_template_id,
             "rating_template_id": rating_template_id,
+            "public_id": public_id,
         },
     )
     conn.commit()
     conn.close()
-    return jsonify({"success": True})
+    return jsonify({"success": True, "public_id": public_id})
 
 @app.route("/api/channels/<int:channel_id>", methods=["PATCH"])
 @login_required
