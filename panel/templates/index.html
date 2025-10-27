@@ -1211,7 +1211,7 @@ const CURRENT_OPERATOR = {{ (session.get('user_email') or session.get('username'
 
 function getOperatorName() {
   const name = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
-  return name || 'Поддержка';
+  return name || 'Bender';
 }
 
 function markTicketReopenedLocally() {
@@ -2075,7 +2075,7 @@ let cachedAdminUsers = null;
 	  const tmp = document.createElement('div');
 	  tmp.className = 'chat-bubble from-support opacity-75';
 	  tmp.dataset.temp = '1';
-	  tmp.innerHTML = '<small>Отправка…</small><br><strong>🛠 Поддержка</strong>';
+    tmp.innerHTML = '<small>Отправка…</small><br><strong>🤖 Bender</strong>';
 	  historyContent.appendChild(tmp);
 	  scrollToBottom(historyContent);
 	  const resp = await fetch('/reply_file', { method: 'POST', body: fd });
@@ -2743,7 +2743,7 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
       msg.sender === 'support';
 
     const cls  = isSupport ? 'from-support' : 'from-user';
-    let name   = isSupport ? '🛠 Поддержка' : '👤 Клиент';
+    let name   = isSupport ? '🤖 Bender' : '👤 Клиент';
 
 	const tsRaw = (msg.timestamp ?? msg.date ?? msg.created_at ?? msg.createdAt ?? null);
 	const isMedia = !!(msg.message_type && msg.message_type !== 'text' && msg.attachment);
@@ -2761,7 +2761,7 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
       else if (username) name = '👤 @' + username;
       else name = '👤 Клиент';
     } else {
-      name = msg.sender_name || '🛠 Поддержка';
+      name = msg.sender_name || '🤖 Bender';
     }
 
     let mediaHtml = '';
