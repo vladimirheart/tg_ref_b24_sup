@@ -55,7 +55,14 @@ from typing import Any
 from werkzeug.utils import secure_filename
 from panel.html_docx_adapter import build_html_to_docx_converter
 from xhtml2pdf import pisa
-import docx
+
+try:
+    import docx  # type: ignore[import-not-found]
+except ModuleNotFoundError:  # pragma: no cover - environment dependent optional dependency
+    docx = None  # type: ignore[assignment]
+    logging.getLogger(__name__).warning(
+        "Optional dependency 'python-docx' is not installed; DOCX export endpoint will be disabled."
+    )
 from markupsafe import escape
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -4728,6 +4735,13 @@ def knowledge_base_export_docx(article_id: int):
     article = _fetch_kb_article(article_id)
     if not article:
         abort(404)
+
+    if docx is None:
+        return Response(
+            "DOCX export is unavailable because the optional dependency 'python-docx' is not installed.",
+            status=503,
+            mimetype="text/plain",
+        )
 
     document = docx.Document()
     document.add_heading(article.get("title") or "Без названия", level=1)
