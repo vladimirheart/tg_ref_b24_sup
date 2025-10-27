@@ -53,7 +53,7 @@ import io
 import mimetypes
 from typing import Any
 from werkzeug.utils import secure_filename
-from html2docx import Html2Docx
+from panel.html_docx_adapter import build_html_to_docx_converter
 from xhtml2pdf import pisa
 import docx
 from markupsafe import escape
@@ -4750,7 +4750,7 @@ def knowledge_base_export_docx(article_id: int):
     if summary:
         document.add_paragraph(summary, style="Intense Quote")
 
-    html_converter = Html2Docx()
+    html_converter = build_html_to_docx_converter()
     html_converter.add_html_to_document(article.get("content") or "", document)
 
     attachments = article.get("files") or []
