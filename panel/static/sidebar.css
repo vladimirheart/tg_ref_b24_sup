@@ -6,32 +6,44 @@
 }
 
 body.with-sidebar {
-  display: flex;
+  display: block;
   min-height: 100vh;
   margin: 0;
   background: #f8f9fa;
+  padding-left: var(--sidebar-w);
+  transition: padding-left .2s ease;
+}
+
+body.with-sidebar.sidebar-collapsed {
+  padding-left: var(--sidebar-w-collapsed);
+}
+
+body.with-sidebar.sidebar-hovering {
+  padding-left: var(--sidebar-w);
 }
 
 /* Макет: сайдбар слева, контент занимает всё остальное, НИКАКИХ пустот справа */
 .sidebar-layout {
-  display: flex;
+  display: block;
   width: 100%;
+  min-height: 100vh;
 }
+
 .sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  align-self: flex-start;
+  left: 0;
   height: 100vh;
   width: var(--sidebar-w);
-  flex: 0 0 var(--sidebar-w);
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   transition: width .2s ease, opacity .2s ease;
   z-index: var(--sidebar-z);
+  overflow-y: auto;
 }
+
 .sidebar.collapsed {
   width: var(--sidebar-w-collapsed);
-  flex-basis: var(--sidebar-w-collapsed);
   opacity: .7; /* 70% прозрачности, когда свёрнут */
 }
 .sidebar.collapsed:not(.hovering) .sidebar-header {
@@ -47,8 +59,8 @@ body.with-sidebar {
   opacity: .7; /* 70% при неразвёрнутом состоянии */
 }
 .main-content {
-  flex: 1 1 auto;
   min-width: 0;
+  min-height: 100vh;
 }
 
 /* Заголовок сайдбара */
