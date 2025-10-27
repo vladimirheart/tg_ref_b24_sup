@@ -6,6 +6,7 @@
   const pinBtn = document.getElementById('pinSidebarBtn');
   const bellBtn = document.getElementById('bellBtn');
   const bellBadge = document.getElementById('notify-count');
+  const root = document.body;
 
   const LS_KEY_PIN = 'sidebarPinned';
   let pinned = localStorage.getItem(LS_KEY_PIN) === '1';
@@ -42,13 +43,27 @@
   }
   ensureLayoutWrap();
 
+  function setBodyCollapsedState(collapsed) {
+    if (!root) return;
+    if (collapsed) {
+      root.classList.add('sidebar-collapsed');
+      root.classList.remove('sidebar-hovering');
+    } else {
+      root.classList.remove('sidebar-collapsed');
+      root.classList.remove('sidebar-hovering');
+    }
+  }
+
   function applyState() {
     if (pinned) {
       sidebar.classList.add('pinned');
       sidebar.classList.remove('collapsed', 'hovering');
+      setBodyCollapsedState(false);
     } else {
       sidebar.classList.remove('pinned');
       sidebar.classList.add('collapsed');
+      sidebar.classList.remove('hovering');
+      setBodyCollapsedState(true);
     }
   }
   applyState();
@@ -271,10 +286,16 @@
 
   // hover раскрытие, если не pinned
   sidebar.addEventListener('mouseenter', () => {
-    if (!pinned) sidebar.classList.add('hovering');
+    if (!pinned) {
+      sidebar.classList.add('hovering');
+      if (root) root.classList.add('sidebar-hovering');
+    }
   });
   sidebar.addEventListener('mouseleave', () => {
-    if (!pinned) sidebar.classList.remove('hovering');
+    if (!pinned) {
+      sidebar.classList.remove('hovering');
+      if (root) root.classList.remove('sidebar-hovering');
+    }
   });
 
   // клик по "📌"
