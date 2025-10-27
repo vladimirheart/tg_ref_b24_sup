@@ -803,6 +803,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='edit-guard.js') }}"></script>
   <script id="passportData" type="application/json">{{ passport_payload | safe }}</script>
   <script>
     function escapeHtml(value) {
@@ -2507,17 +2508,18 @@
       const payload = collectFormData();
       if (!payload.department) {
         showSaveMessage('error', 'Поле «Департамент» обязательно для заполнения.');
-        return;
+      return false;
       }
       if (statusesRequiringTask.has(payload.status) && !payload.status_task_id) {
         showSaveMessage('error', 'Для выбранного статуса необходимо выбрать задачу.');
-        return;
+      return false;
       }
       const isNew = Boolean(passportData.is_new);
       const url = isNew ? '/api/object_passports' : `/api/object_passports/${passportData.id}`;
       const method = isNew ? 'POST' : 'PUT';
       savePassportBtn.disabled = true;
       savePassportBtn.innerText = 'Сохранение...';
+      let saved = false;
       try {
         const response = await fetch(url, {
           method,
@@ -2530,7 +2532,7 @@
         }
         if (isNew && data.id) {
           window.location.href = `/object_passports/${data.id}`;
-          return;
+          return true;
         }
         passportData = data.passport || passportData;
         passportData.is_new = false;
@@ -2540,13 +2542,19 @@
           passportData.resume_date = '';
         }
         showSaveMessage('success', 'Изменения сохранены.');
+        saved = true;
+        if (window.EditGuard) {
+          window.EditGuard.markAllSaved();
+        }
       } catch (error) {
         console.error(error);
         showSaveMessage('error', error.message || 'Произошла ошибка при сохранении.');
+        return false;
       } finally {
         savePassportBtn.disabled = false;
         savePassportBtn.innerText = '💾 Сохранить';
       }
+      return saved;
     }
 
     async function addParameter(paramType, selectId) {
@@ -3829,7 +3837,9 @@
       statusTaskSearchInput.addEventListener('input', () => filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value));
       statusTaskSearchInput.addEventListener('focus', () => filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value));
     }
-    savePassportBtn.addEventListener('click', savePassport);
+    savePassportBtn.addEventListener('click', async () => {
+      await savePassport();
+    });
 
     document.querySelectorAll('[data-section-toggle]').forEach((button) => {
       const targetSelector = button.dataset.target;
@@ -3885,6 +3895,21 @@
       });
       renderEquipment(passportData.equipment);
     });
+
+    if (window.EditGuard) {
+      const passportBlocks = [
+        'basicInfoCard',
+        'networkCard',
+        'scheduleCard'
+      ];
+      passportBlocks.forEach((blockId) => {
+        const blockEl = document.getElementById(blockId);
+        if (!blockEl) return;
+        window.EditGuard.registerBlock(blockEl, {
+          onSave: () => savePassport()
+        });
+      });
+    }
 
     ensurePassportDataLoaded();
   </script>
