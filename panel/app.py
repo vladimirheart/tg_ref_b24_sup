@@ -4898,7 +4898,7 @@ def tickets_list():
                 ORDER BY timestamp ASC LIMIT 1
             """, (t['ticket_id'], t['channel_id']))
             first_reply = cur.fetchone()
-            admin_name = "Поддержка"
+            admin_name = "Bender"
             if first_reply:
                 import re
                 m = re.search(r"от поддержки \(([^)]+)\)", first_reply['message'] or "")
@@ -9713,7 +9713,7 @@ def reply():
         if not ticket_id:
             return jsonify(success=False, error="ticket_id is required"), 400
 
-        admin    = (data.get('admin') or 'Поддержка').strip()
+        admin    = (data.get('admin') or 'Bender').strip()
         text     = _fix_surrogates((data.get('text') or '').strip())
         reply_to = data.get('reply_to_tg_id')  # может быть None
         if not text:
@@ -9776,7 +9776,7 @@ def reply():
             """, (
                 user_id,
                 ticket_id,
-                admin if admin else 'Поддержка',
+                admin if admin else 'Bender',
                 text,
                 now_utc,
                 tg_msg_id,
@@ -9811,7 +9811,7 @@ def reply_file():
     try:
         user_id   = int(request.form.get('user_id', 0))
         ticket_id = (request.form.get('ticket_id') or '').strip()
-        admin     = (request.form.get('admin') or 'Поддержка').strip()
+        admin     = (request.form.get('admin') or 'Bender').strip()
         reply_to  = request.form.get('reply_to_tg_id')  # может быть None
 
         f = request.files.get('file')
@@ -9939,7 +9939,7 @@ def close_ticket():
     data = request.json
     user_id   = int(data["user_id"])
     ticket_id = data["ticket_id"]
-    admin_name = (data.get("admin") or "Поддержка").strip()
+    admin_name = (data.get("admin") or "Bender").strip()
     category   = data.get("category", "Без категории")
 
     try:
