@@ -4554,26 +4554,45 @@ function displayTicketsForCurrentPage() {
                 }
         }
 
+        const HISTORY_ERROR_SNIPPET_LIMIT = 200;
+
+        async function fetchJsonWithAuth(url, options = {}) {
+                const fetchOptions = { ...options };
+                if (!("credentials" in fetchOptions)) {
+                        fetchOptions.credentials = 'same-origin';
+                }
+                const response = await fetch(url, fetchOptions);
+                const rawText = await response.text();
+                if (!response.ok) {
+                        const snippet = rawText ? `: ${rawText.slice(0, HISTORY_ERROR_SNIPPET_LIMIT)}` : '';
+                        throw new Error(`Запрос ${url} завершился с ошибкой ${response.status}${snippet}`);
+                }
+                if (!rawText.trim()) {
+                        return null;
+                }
+                try {
+                        return JSON.parse(rawText);
+                } catch (parseError) {
+                        const snippet = rawText.slice(0, HISTORY_ERROR_SNIPPET_LIMIT);
+                        throw new Error(`Ответ ${url} не является валидным JSON: ${parseError.message}. Фрагмент: ${snippet}`);
+                }
+        }
+
         // === Загрузить историю ===
-                async function loadHistory(user_id, ticket_id) {
-			try { 
-				await fetch(`/api/tickets/${ticket_id}/active`, {method:'POST', credentials:'same-origin'}); 
-			} catch(e){}
+        async function loadHistory(user_id, ticket_id) {
+                try {
+                        await fetch(`/api/tickets/${ticket_id}/active`, {method:'POST', credentials:'same-origin'});
+                } catch (e) {}
 
-			try {
-				// Загружаем данные КОНКРЕТНОЙ заявки
-				const [ticketsResp, ticketResp] = await Promise.all([
-					fetch('/tickets_list'),
-					fetch(`/tickets/${ticket_id}`)
-				]);
+                try {
+                        // Загружаем данные КОНКРЕТНОЙ заявки
+                        const [ticketsRaw, ticketFull] = await Promise.all([
+                                fetchJsonWithAuth('/tickets_list', { cache: 'no-store' }),
+                                fetchJsonWithAuth(`/tickets/${ticket_id}`, { cache: 'no-store' })
+                        ]);
 
-                                  const [ticketsRaw, ticketFull] = await Promise.all([
-                                          ticketsResp.json(),
-                                          ticketResp.json()
-                                  ]);
-
-                                  const ticketsFromServer = normalizeTicketsFromServer(ticketsRaw);
-                                  allTickets = ticketsFromServer;
+                        const ticketsFromServer = normalizeTicketsFromServer(Array.isArray(ticketsRaw) ? ticketsRaw : []);
+                        allTickets = ticketsFromServer;
 
                                 const qs = new URLSearchParams({
                                         user_id: String(user_id),
@@ -4585,8 +4604,7 @@ function displayTicketsForCurrentPage() {
 					qs.set('channel_id', Number(window.currentChannelId));
 				}
 
-				const historyResp = await fetch(`/history?${qs.toString()}`, { cache: 'no-store' });
-				const historyData = await historyResp.json();
+                        const historyData = await fetchJsonWithAuth(`/history?${qs.toString()}`, { cache: 'no-store' }) || {};
 
                                 currentUserId = user_id;
                                 currentTicketId = ticket_id;
@@ -4950,11 +4968,12 @@ function displayTicketsForCurrentPage() {
 					  }
 					}, 3000);
 
-			} catch (error) {
-				console.error("Ошибка при загрузке истории:", error);
-				alert("Не удалось загрузить историю заявки");
-			}
-		}
+                } catch (error) {
+                        console.error("Ошибка при загрузке истории:", error);
+                        const reason = error && error.message ? `: ${error.message}` : '';
+                        alert(`Не удалось загрузить историю заявки${reason}`);
+                }
+        }
 	function _sizeHistoryHeights() {
 		  const modal = document.getElementById('historyModal');
 		  if (!modal) return;
