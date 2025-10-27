@@ -698,6 +698,52 @@ def _ensure_object_passport_equipment_columns():
 
 _ensure_object_passport_equipment_columns()
 
+
+def ensure_knowledge_base_schema():
+    with get_db() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_articles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                department TEXT,
+                article_type TEXT,
+                status TEXT,
+                author TEXT,
+                direction TEXT,
+                direction_subtype TEXT,
+                summary TEXT,
+                content TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+            """
+        )
+        existing_columns = {
+            row["name"]: row["type"].upper()
+            for row in conn.execute("PRAGMA table_info(knowledge_articles)").fetchall()
+        }
+        expected_columns = {
+            "department": "TEXT",
+            "article_type": "TEXT",
+            "status": "TEXT",
+            "author": "TEXT",
+            "direction": "TEXT",
+            "direction_subtype": "TEXT",
+            "summary": "TEXT",
+            "content": "TEXT",
+            "created_at": "TEXT DEFAULT (datetime('now'))",
+            "updated_at": "TEXT DEFAULT (datetime('now'))",
+        }
+        for column, column_type in expected_columns.items():
+            if column not in existing_columns:
+                conn.execute(
+                    f"ALTER TABLE knowledge_articles ADD COLUMN {column} {column_type}"
+                )
+
+
+ensure_knowledge_base_schema()
+
 PASSPORT_STATUSES = (
     "Стройка",
     "Открыт",
@@ -4078,6 +4124,58 @@ def clients_list():
         blacklist_filter=bl_filter,
         status_filter=status_filter
     )
+
+
+def _clean_kb_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    return str(value)
+
+
+def _serialize_kb_row(row: sqlite3.Row) -> dict[str, str | int]:
+    return {
+        "id": row["id"],
+        "title": _clean_kb_value(row["title"]),
+        "department": _clean_kb_value(row["department"]),
+        "article_type": _clean_kb_value(row["article_type"]),
+        "status": _clean_kb_value(row["status"]),
+        "author": _clean_kb_value(row["author"]),
+        "direction": _clean_kb_value(row["direction"]),
+        "direction_subtype": _clean_kb_value(row["direction_subtype"]),
+    }
+
+
+def _fetch_knowledge_articles() -> list[dict[str, str | int]]:
+    ensure_knowledge_base_schema()
+    with get_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, title, department, article_type, status, author, direction, direction_subtype
+            FROM knowledge_articles
+            ORDER BY
+                COALESCE(direction, '') COLLATE NOCASE,
+                COALESCE(direction_subtype, '') COLLATE NOCASE,
+                COALESCE(title, '') COLLATE NOCASE
+            """
+        ).fetchall()
+    return [_serialize_kb_row(row) for row in rows]
+
+
+@app.route("/knowledge_base")
+@login_required
+def knowledge_base_page():
+    articles = _fetch_knowledge_articles()
+    return render_template("knowledge_base.html", articles=articles)
+
+
+@app.route("/api/knowledge_base/articles", methods=["GET"])
+@login_required_api
+def api_knowledge_base_articles():
+    articles = _fetch_knowledge_articles()
+    return jsonify({"items": articles, "count": len(articles)})
+
 
 # === Карточка клиента ===
 @app.route("/client/<int:user_id>")
