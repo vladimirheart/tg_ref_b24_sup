@@ -5,14 +5,19 @@
   }
 
   const initial = window.PUBLIC_FORM_INITIAL || {};
-  const channelId = Number(root.dataset.channelId || initial.channelId || 0);
-  if (!channelId) {
+  const rawChannelRef = root.dataset.channelRef
+    || initial.channelRef
+    || root.dataset.channelId
+    || (initial.channelId != null ? String(initial.channelId) : '');
+  const channelRef = (rawChannelRef || '').trim();
+  if (!channelRef) {
     console.error('Не указан идентификатор канала для веб-формы.');
     return;
   }
 
   const state = {
-    channelId,
+    channelRef,
+    channelId: Number(root.dataset.channelId || initial.channelId || 0) || null,
     channelName: root.dataset.channelName || initial.channelName || '',
     initialToken: root.dataset.initialToken || initial.initialToken || '',
     config: null,
@@ -48,7 +53,7 @@
   async function fetchConfig() {
     try {
       showStatus('Загружаем форму...', false);
-      const response = await fetch(`/api/public/forms/${state.channelId}/config`);
+      const response = await fetch(`/api/public/forms/${encodeURIComponent(state.channelRef)}/config`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -239,7 +244,7 @@
         state.isSubmitting = true;
         submitBtn.disabled = true;
         showStatus('Отправляем обращение...', false);
-        const response = await fetch(`/api/public/forms/${state.channelId}/sessions`, {
+        const response = await fetch(`/api/public/forms/${encodeURIComponent(state.channelRef)}/sessions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -545,7 +550,7 @@
       chatInputEl.disabled = true;
       sendBtn.disabled = true;
       try {
-        const response = await fetch(`/api/public/forms/${state.channelId}/sessions/${encodeURIComponent(state.currentToken)}/messages`, {
+        const response = await fetch(`/api/public/forms/${encodeURIComponent(state.channelRef)}/sessions/${encodeURIComponent(state.currentToken)}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message }),
@@ -570,7 +575,7 @@
 
   async function loadSession(token) {
     try {
-      const response = await fetch(`/api/public/forms/${state.channelId}/sessions/${encodeURIComponent(token)}`);
+      const response = await fetch(`/api/public/forms/${encodeURIComponent(state.channelRef)}/sessions/${encodeURIComponent(token)}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -601,7 +606,7 @@
       return;
     }
     try {
-      const response = await fetch(`/api/public/forms/${state.channelId}/sessions/${encodeURIComponent(state.currentToken)}`);
+      const response = await fetch(`/api/public/forms/${encodeURIComponent(state.channelRef)}/sessions/${encodeURIComponent(state.currentToken)}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
