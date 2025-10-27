@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Статья базы знаний</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
+  <style>
+    .article-meta-card label {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .article-meta-card input,
+    .article-meta-card select,
+    .article-meta-card textarea {
+      font-size: 0.95rem;
+    }
+
+    .kb-editor-wrapper {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: 0 0.75rem 1.5rem rgba(18, 38, 63, 0.05);
+    }
+
+    .kb-dropzone {
+      border: 2px dashed #cfd4da;
+      border-radius: 0.75rem;
+      padding: 1.75rem;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+
+    .kb-dropzone.dragover {
+      border-color: #3b5bdb;
+      background: rgba(59, 91, 219, 0.08);
+    }
+
+    .kb-attachment-actions .btn {
+      font-size: 0.8rem;
+    }
+
+    .kb-status-message {
+      min-height: 1.5rem;
+    }
+
+    .kb-status-message .alert {
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0;
+    }
+
+    .toastui-editor-defaultUI {
+      border: none;
+    }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+    <div class="container-fluid mt-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <a href="{{ url_for('knowledge_base_page') }}" class="text-decoration-none small">← К списку статей</a>
+          <h2 class="mb-0 mt-2">{{ 'Редактирование статьи' if article.id else 'Новая статья' }}</h2>
+          <div class="text-muted small" id="kbArticleIdBadge" {% if not article.id %}style="display: none;"{% endif %}>
+            ID статьи: <span id="kbArticleIdValue">{{ article.id }}</span>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <div class="kb-status-message" id="kbStatusMessage"></div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="kbSaveButton" type="button">💾 Сохранить</button>
+            <button class="btn btn-outline-secondary" type="button" id="kbExportDocx" {% if not article.id %}disabled{% endif %}>DOCX</button>
+            <button class="btn btn-outline-secondary" type="button" id="kbExportPdf" {% if not article.id %}disabled{% endif %}>PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0 mb-4 article-meta-card">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="kbTitle" class="form-label">Название *</label>
+              <input type="text" id="kbTitle" class="form-control" placeholder="Введите название статьи" />
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <label for="kbDirection" class="form-label">Направление</label>
+              <input type="text" id="kbDirection" class="form-control" placeholder="Направление" />
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <label for="kbSubDirection" class="form-label">Подтип направления</label>
+              <input type="text" id="kbSubDirection" class="form-control" placeholder="Подтип" />
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <label for="kbDepartment" class="form-label">Отдел</label>
+              <input type="text" id="kbDepartment" class="form-control" placeholder="Отдел" />
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <label for="kbType" class="form-label">Тип</label>
+              <input type="text" id="kbType" class="form-control" placeholder="Тип статьи" />
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <label for="kbStatus" class="form-label">Статус</label>
+              <input type="text" id="kbStatus" class="form-control" placeholder="Статус" />
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <label for="kbAuthor" class="form-label">Автор</label>
+              <input type="text" id="kbAuthor" class="form-control" placeholder="Автор" />
+            </div>
+            <div class="col-12">
+              <label for="kbSummary" class="form-label">Краткое описание</label>
+              <textarea id="kbSummary" class="form-control" rows="3" placeholder="Опишите основную мысль статьи"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Файлы и вложения</span>
+          <button class="btn btn-outline-primary btn-sm" type="button" id="kbUploadButton">📎 Прикрепить файлы</button>
+        </div>
+        <div class="card-body">
+          <div id="kbAttachmentDropzone" class="kb-dropzone text-center">
+            <div class="fw-semibold">Перетащите файлы сюда или используйте кнопку «Прикрепить»</div>
+            <div class="text-muted small">Поддерживаются drag&amp;drop, вставка из буфера обмена и загрузка через диалог выбора</div>
+          </div>
+          <input type="file" id="kbAttachmentInput" class="d-none" multiple />
+          <ul class="list-group list-group-flush mt-3" id="kbAttachmentList"></ul>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Содержимое статьи</div>
+        <div class="card-body">
+          <div id="kbEditor" class="kb-editor-wrapper"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <input type="hidden" id="kbDraftToken" value="{{ draft_token }}" />
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+  <script>
+    (function () {
+      const articleData = {{ article | tojson | safe }} || {};
+      const draftToken = document.getElementById('kbDraftToken').value;
+      let currentArticleId = articleData.id || null;
+      let attachments = Array.isArray(articleData.files) ? articleData.files.slice() : [];
+
+      const titleInput = document.getElementById('kbTitle');
+      const directionInput = document.getElementById('kbDirection');
+      const subDirectionInput = document.getElementById('kbSubDirection');
+      const departmentInput = document.getElementById('kbDepartment');
+      const typeInput = document.getElementById('kbType');
+      const statusInput = document.getElementById('kbStatus');
+      const authorInput = document.getElementById('kbAuthor');
+      const summaryInput = document.getElementById('kbSummary');
+      const saveButton = document.getElementById('kbSaveButton');
+      const exportDocxBtn = document.getElementById('kbExportDocx');
+      const exportPdfBtn = document.getElementById('kbExportPdf');
+      const statusBox = document.getElementById('kbStatusMessage');
+      const attachmentInput = document.getElementById('kbAttachmentInput');
+      const attachmentDropzone = document.getElementById('kbAttachmentDropzone');
+      const attachmentList = document.getElementById('kbAttachmentList');
+      const uploadButton = document.getElementById('kbUploadButton');
+      const articleIdBadge = document.getElementById('kbArticleIdBadge');
+      const articleIdValue = document.getElementById('kbArticleIdValue');
+
+      function setStatus(message, type = 'success', timeout = 4000) {
+        if (!message) {
+          statusBox.innerHTML = '';
+          return;
+        }
+        statusBox.innerHTML = `<div class="alert alert-${type} mb-0">${message}</div>`;
+        if (timeout) {
+          setTimeout(() => {
+            statusBox.innerHTML = '';
+          }, timeout);
+        }
+      }
+
+      function populateForm() {
+        titleInput.value = articleData.title || '';
+        directionInput.value = articleData.direction || '';
+        subDirectionInput.value = articleData.direction_subtype || '';
+        departmentInput.value = articleData.department || '';
+        typeInput.value = articleData.article_type || '';
+        statusInput.value = articleData.status || '';
+        authorInput.value = articleData.author || '';
+        summaryInput.value = articleData.summary || '';
+        if (currentArticleId) {
+          articleIdBadge.style.display = '';
+          articleIdValue.textContent = currentArticleId;
+          exportDocxBtn.disabled = false;
+          exportPdfBtn.disabled = false;
+          exportDocxBtn.dataset.href = `/knowledge_base/${currentArticleId}/export/docx`;
+          exportPdfBtn.dataset.href = `/knowledge_base/${currentArticleId}/export/pdf`;
+        }
+      }
+
+      function formatSize(bytes) {
+        if (!bytes && bytes !== 0) return '';
+        const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+        let index = 0;
+        let size = bytes;
+        while (size >= 1024 && index < sizes.length - 1) {
+          size /= 1024;
+          index++;
+        }
+        return `${size.toFixed(size >= 10 || index === 0 ? 0 : 1)} ${sizes[index]}`;
+      }
+
+      function renderAttachments() {
+        attachmentList.innerHTML = '';
+        if (!attachments.length) {
+          const empty = document.createElement('li');
+          empty.className = 'list-group-item text-muted small text-center';
+          empty.textContent = 'Пока нет вложений';
+          attachmentList.appendChild(empty);
+          return;
+        }
+        attachments.forEach((file) => {
+          const item = document.createElement('li');
+          item.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2';
+          const info = document.createElement('div');
+          info.className = 'me-2';
+          info.innerHTML = `<div class="fw-semibold">${file.name}</div><div class="text-muted small">${formatSize(file.size)}</div>`;
+          const actions = document.createElement('div');
+          actions.className = 'kb-attachment-actions btn-group';
+          if (file.download_url) {
+            const downloadBtn = document.createElement('a');
+            downloadBtn.className = 'btn btn-outline-secondary btn-sm';
+            downloadBtn.href = file.download_url;
+            downloadBtn.target = '_blank';
+            downloadBtn.rel = 'noopener';
+            downloadBtn.textContent = 'Скачать';
+            actions.appendChild(downloadBtn);
+          }
+          if (file.download_url) {
+            const insertBtn = document.createElement('button');
+            insertBtn.type = 'button';
+            insertBtn.className = 'btn btn-outline-secondary btn-sm';
+            insertBtn.textContent = 'Вставить ссылку';
+            insertBtn.addEventListener('click', () => {
+              const linkText = file.name || 'Файл';
+              editor.insertText(`[${linkText}](${file.download_url})`);
+            });
+            actions.appendChild(insertBtn);
+          }
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'btn btn-outline-danger btn-sm';
+          removeBtn.textContent = 'Удалить';
+          removeBtn.addEventListener('click', async () => {
+            await deleteAttachment(file.id);
+          });
+          actions.appendChild(removeBtn);
+          item.appendChild(info);
+          item.appendChild(actions);
+          attachmentList.appendChild(item);
+        });
+      }
+
+      async function deleteAttachment(id) {
+        if (!id) return;
+        try {
+          await fetch(`/api/knowledge_base/uploads/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+        } catch (error) {
+          console.error(error);
+        }
+        attachments = attachments.filter((item) => item.id !== id);
+        renderAttachments();
+      }
+
+      async function uploadAttachment(file) {
+        const formData = new FormData();
+        formData.append('file', file, file.name || `file-${Date.now()}`);
+        if (currentArticleId) {
+          formData.append('article_id', currentArticleId);
+        } else if (draftToken) {
+          formData.append('draft_token', draftToken);
+        }
+        const response = await fetch('/api/knowledge_base/uploads', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Не удалось загрузить файл');
+        }
+        const data = await response.json();
+        if (!data.success || !data.file) {
+          throw new Error('Не удалось загрузить файл');
+        }
+        attachments.push(data.file);
+        renderAttachments();
+        return data.file;
+      }
+
+      attachmentInput.addEventListener('change', async (event) => {
+        const files = Array.from(event.target.files || []);
+        if (!files.length) return;
+        setStatus('Загрузка файлов...', 'info', 0);
+        for (const file of files) {
+          try {
+            await uploadAttachment(file);
+          } catch (error) {
+            console.error(error);
+            setStatus(error.message, 'danger', 6000);
+          }
+        }
+        attachmentInput.value = '';
+        setStatus('Файлы загружены', 'success');
+      });
+
+      uploadButton.addEventListener('click', () => attachmentInput.click());
+
+      ['dragenter', 'dragover'].forEach((eventName) => {
+        attachmentDropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          attachmentDropzone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach((eventName) => {
+        attachmentDropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (eventName === 'drop') {
+            const files = Array.from(event.dataTransfer.files || []);
+            if (files.length) {
+              setStatus('Загрузка файлов...', 'info', 0);
+              files.reduce((promise, file) => {
+                return promise.then(() => uploadAttachment(file).catch((error) => {
+                  console.error(error);
+                  setStatus(error.message, 'danger', 6000);
+                }));
+              }, Promise.resolve()).then(() => setStatus('Файлы загружены', 'success'));
+            }
+          }
+          attachmentDropzone.classList.remove('dragover');
+        });
+      });
+
+      document.addEventListener('paste', (event) => {
+        const items = event.clipboardData && event.clipboardData.files;
+        if (!items || !items.length) return;
+        setStatus('Загрузка файлов...', 'info', 0);
+        Array.from(items).reduce((promise, file) => {
+          return promise.then(() => uploadAttachment(file).catch((error) => {
+            console.error(error);
+            setStatus(error.message, 'danger', 6000);
+          }));
+        }, Promise.resolve()).then(() => setStatus('Файлы загружены', 'success'));
+      });
+
+      const editor = new toastui.Editor({
+        el: document.getElementById('kbEditor'),
+        height: '600px',
+        initialEditType: 'wysiwyg',
+        previewStyle: 'vertical',
+        usageStatistics: false,
+        language: 'ru',
+        toolbarItems: [
+          ['heading', 'bold', 'italic', 'strike'],
+          ['hr', 'quote', 'code', 'codeblock'],
+          ['ul', 'ol', 'task'],
+          ['table', 'link'],
+          ['image'],
+        ],
+        hooks: {
+          addImageBlobHook: async (blob, callback) => {
+            try {
+              const file = new File([blob], blob.name || `image-${Date.now()}.png`, { type: blob.type || 'image/png' });
+              const uploaded = await uploadAttachment(file);
+              callback(uploaded.inline_url || uploaded.download_url, uploaded.name);
+            } catch (error) {
+              console.error(error);
+              setStatus(error.message, 'danger', 6000);
+            }
+          },
+        },
+      });
+
+      if (articleData.content) {
+        editor.setHTML(articleData.content);
+      }
+
+      populateForm();
+      renderAttachments();
+
+      exportDocxBtn.addEventListener('click', () => {
+        if (!currentArticleId) return;
+        window.open(`/knowledge_base/${currentArticleId}/export/docx`, '_blank');
+      });
+      exportPdfBtn.addEventListener('click', () => {
+        if (!currentArticleId) return;
+        window.open(`/knowledge_base/${currentArticleId}/export/pdf`, '_blank');
+      });
+
+      async function saveArticle() {
+        const payload = {
+          title: titleInput.value.trim(),
+          direction: directionInput.value.trim(),
+          direction_subtype: subDirectionInput.value.trim(),
+          department: departmentInput.value.trim(),
+          article_type: typeInput.value.trim(),
+          status: statusInput.value.trim(),
+          author: authorInput.value.trim(),
+          summary: summaryInput.value.trim(),
+          content: editor.getHTML(),
+          attachments: attachments.map((file) => file.id),
+        };
+        if (!payload.title) {
+          setStatus('Заполните название статьи', 'danger', 5000);
+          titleInput.focus();
+          return;
+        }
+        saveButton.disabled = true;
+        setStatus('Сохранение...', 'info', 0);
+        const url = currentArticleId ? `/api/knowledge_base/articles/${currentArticleId}` : '/api/knowledge_base/articles';
+        const method = currentArticleId ? 'PUT' : 'POST';
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Не удалось сохранить статью');
+          }
+          currentArticleId = data.item.id;
+          attachments = Array.isArray(data.item.files) ? data.item.files.slice() : [];
+          renderAttachments();
+          articleIdBadge.style.display = '';
+          articleIdValue.textContent = currentArticleId;
+          exportDocxBtn.disabled = false;
+          exportPdfBtn.disabled = false;
+          setStatus('Изменения сохранены', 'success');
+          if (!articleData.id) {
+            history.replaceState({}, '', `/knowledge_base/${currentArticleId}`);
+          }
+          articleData.id = currentArticleId;
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'danger', 6000);
+        } finally {
+          saveButton.disabled = false;
+        }
+      }
+
+      saveButton.addEventListener('click', saveArticle);
+    })();
+  </script>
+</body>
+</html>
