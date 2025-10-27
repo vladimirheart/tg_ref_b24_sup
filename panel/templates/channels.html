@@ -209,6 +209,7 @@
                 Бот: ${escapeHtml(row.bot_name || '—')}${row.bot_username ? ` (@${escapeHtml(row.bot_username)})` : ''}
               </div>
               <div class="text-muted small">Токен: ${escapeHtml(maskToken(row.token))}</div>
+              <div class="text-muted small">ID для форм: <span class="font-monospace">${escapeHtml(row.public_id || '—')}</span></div>
             </td>
             <td>
               <input class="form-control form-control-sm" data-field="channel_name" value="${escapeHtml(row.channel_name || '')}">
