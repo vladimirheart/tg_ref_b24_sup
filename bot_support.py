@@ -79,6 +79,66 @@ os.makedirs(os.path.join(ATTACHMENTS_DIR, "temp"), exist_ok=True)
 # --- Кеш channel_id по токену ---
 _channel_id_cache = {}
 
+
+def _generate_channel_public_id(cur: sqlite3.Cursor, used: set[str] | None = None) -> str:
+    used_ids = set(used or set())
+    while True:
+        candidate = uuid.uuid4().hex.lower()
+        if candidate in used_ids:
+            continue
+        try:
+            row = cur.execute(
+                "SELECT 1 FROM channels WHERE public_id = ?",
+                (candidate,),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            row = None
+        if row:
+            continue
+        return candidate
+
+
+def ensure_channel_public_ids():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cols = {r[1] for r in cur.execute("PRAGMA table_info(channels)").fetchall()}
+        if "public_id" not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN public_id TEXT")
+        used_ids = set()
+        try:
+            rows = cur.execute("SELECT id, public_id FROM channels").fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        for row in rows:
+            cid = row[0]
+            raw_value = row[1] or ""
+            current = raw_value.strip().lower()
+            if current:
+                if raw_value != current:
+                    cur.execute("UPDATE channels SET public_id = ? WHERE id = ?", (current, cid))
+                if current not in used_ids:
+                    used_ids.add(current)
+                continue
+            new_id = _generate_channel_public_id(cur, used_ids)
+            cur.execute("UPDATE channels SET public_id = ? WHERE id = ?", (new_id, cid))
+            used_ids.add(new_id)
+        try:
+            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_public_id ON channels(public_id)")
+        except sqlite3.OperationalError:
+            pass
+        conn.commit()
+    except Exception as exc:
+        logging.warning("ensure_channel_public_ids failed: %s", exc)
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+ensure_channel_public_ids()
+
 # === channels & db helpers ===
 import sqlite3, json
 from functools import wraps
