@@ -8,11 +8,17 @@ import logging
 import re
 from functools import lru_cache
 from html import unescape
-from typing import Protocol
-
-from docx import Document
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
+
+try:
+    from docx import Document
+except ModuleNotFoundError:  # pragma: no cover - environment dependent optional dependency
+    Document = Any  # type: ignore[assignment]
+    logger.warning(
+        "Optional dependency 'python-docx' is not installed. DOCX export will be disabled."
+    )
 
 
 class SupportsHtmlToDocx(Protocol):
