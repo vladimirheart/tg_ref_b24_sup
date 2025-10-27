@@ -683,7 +683,7 @@
   font-size: calc(0.95rem * var(--history-font-scale, 1));
   line-height: 1.25;
   display: inline-block;
-  margin-bottom: .15rem;
+  margin-bottom: .05rem;
 }
 
 #historyModal .chat-bubble .msg-text {
@@ -700,14 +700,14 @@
   #historyModal .chat-bubble .msg-author { font-size: calc(.90rem * var(--history-font-scale, 1)); }
   #historyModal .chat-bubble .msg-text   { font-size: calc(.95rem * var(--history-font-scale, 1)); }
 }
-/* Стек: время сверху, ниже — имя с зазором 3px */
+/* Стек: время сверху, ниже — имя с минимальным зазором */
 #historyModal .chat-bubble .msg-time {
   display: block;
   margin: 0;                 /* без лишних отступов */
 }
 #historyModal .chat-bubble .msg-author {
   display: block;
-  margin: 3px 0 6px 0;       /* 3px между временем и именем */
+  margin: 1px 0 2px 0;       /* компактный отступ между временем и именем */
 }
 
 /* Обёртка каждого превью для позиционирования иконки */
@@ -860,7 +860,7 @@
 /* Экшен-бар внутри пузыря */
 #historyModal .chat-bubble {
   position: relative;
-  padding: 12px 14px 10px;
+  padding: 0 14px;
   overflow: visible;
 }
 
@@ -897,7 +897,7 @@
 
 /* Текст и отступы — чтобы ничего не перекрывалось */
 #historyModal .chat-bubble .msg-time   { margin-bottom: .15rem; }
-#historyModal .chat-bubble .msg-author { margin: 3px 0 6px 0; }
+#historyModal .chat-bubble .msg-author { margin: 1px 0 2px 0; }
 #historyModal .chat-bubble .msg-text   { margin-bottom: 0 !important; }
 
 /* Мобильный фоллбек */
@@ -907,7 +907,7 @@
     row-gap: 0.25rem;
   }
   #historyModal .chat-bubble {
-    padding: 12px;
+    padding: 0 12px;
   }
   #historyModal .chat-bubble .bubble-actions{
     width: 100%;
