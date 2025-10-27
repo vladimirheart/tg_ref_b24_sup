@@ -4917,17 +4917,139 @@ def tickets_list():
         print(f"❌ Ошибка в /tickets_list: {e}")
         return jsonify([]), 500
 
+def _coerce_to_iso(value):
+    if value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        try:
+            # timestamps in seconds vs milliseconds
+            seconds = float(value)
+            if seconds > 1e12:
+                seconds = seconds / 1000.0
+            dt_value = dt.fromtimestamp(seconds, tz=timezone.utc)
+            return dt_value.isoformat().replace("+00:00", "Z")
+        except (OSError, OverflowError, ValueError):
+            return None
+
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        if raw.isdigit():
+            return _coerce_to_iso(int(raw))
+        try:
+            candidate = raw.replace("Z", "+00:00") if raw.endswith("Z") else raw
+            dt_value = dt.fromisoformat(candidate)
+            if dt_value.tzinfo is None:
+                dt_value = dt_value.replace(tzinfo=timezone.utc)
+            else:
+                dt_value = dt_value.astimezone(timezone.utc)
+            return dt_value.isoformat().replace("+00:00", "Z")
+        except ValueError:
+            try:
+                return _coerce_to_iso(float(raw))
+            except ValueError:
+                return None
+
+    return None
+
+
 @app.route("/tickets/<ticket_id>")
 @login_required
 def get_ticket(ticket_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT status, resolved_by, resolved_at FROM tickets WHERE ticket_id = ?", (ticket_id,))
+
+    cur.execute(
+        "SELECT status, resolved_by, resolved_at, channel_id FROM tickets WHERE ticket_id = ?",
+        (ticket_id,),
+    )
     row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({})
+
+    ticket = dict(row)
+    ticket["resolved_at"] = _coerce_to_iso(ticket.get("resolved_at"))
+
+    # Latest metadata about the client/location
+    cur.execute(
+        """
+        SELECT business, location_name, client_name, username, channel_id
+        FROM messages
+        WHERE ticket_id = ?
+        ORDER BY rowid DESC
+        LIMIT 1
+        """,
+        (ticket_id,),
+    )
+    meta_row = cur.fetchone()
+    if meta_row:
+        for key in ("business", "location_name", "client_name", "username", "channel_id"):
+            value = meta_row.get(key)
+            if value and not ticket.get(key):
+                ticket[key] = value
+
+    # Determine creation time from earliest message / ticket span
+    created_at_raw = None
+    cur.execute(
+        """
+        SELECT created_at, created_date, created_time
+        FROM messages
+        WHERE ticket_id = ?
+        ORDER BY rowid ASC
+        LIMIT 1
+        """,
+        (ticket_id,),
+    )
+    created_row = cur.fetchone()
+    if created_row:
+        created_at_raw = created_row.get("created_at")
+        if not created_at_raw:
+            date_part = (created_row.get("created_date") or "").strip()
+            time_part = (created_row.get("created_time") or "").strip()
+            if date_part and time_part:
+                created_at_raw = f"{date_part} {time_part}"
+
+    cur.execute(
+        """
+        SELECT
+            MIN(timestamp) AS first_message_at,
+            MIN(CASE WHEN LOWER(COALESCE(sender,'')) = 'user' THEN timestamp END) AS first_user_message_at,
+            MIN(CASE WHEN sender IS NOT NULL AND sender != '' AND LOWER(sender) != 'user' THEN timestamp END)
+                AS first_support_message_at
+        FROM chat_history
+        WHERE ticket_id = ?
+        """,
+        (ticket_id,),
+    )
+    timeline = cur.fetchone() or {}
+
+    if not created_at_raw:
+        created_at_raw = timeline.get("first_user_message_at") or timeline.get("first_message_at")
+
+    if not created_at_raw:
+        cur.execute(
+            """
+            SELECT started_at
+            FROM ticket_spans
+            WHERE ticket_id = ?
+            ORDER BY span_no ASC
+            LIMIT 1
+            """,
+            (ticket_id,),
+        )
+        span_row = cur.fetchone()
+        if span_row:
+            created_at_raw = span_row.get("started_at")
+
+    ticket["created_at"] = _coerce_to_iso(created_at_raw)
+    ticket["first_user_message_at"] = _coerce_to_iso(timeline.get("first_user_message_at"))
+    ticket["first_support_reply_at"] = _coerce_to_iso(timeline.get("first_support_message_at"))
+
     conn.close()
-    if row:
-        return jsonify(dict(row))
-    return jsonify({})
+    return jsonify(ticket)
 
 @app.route("/tickets/<ticket_id>/category")
 @login_required
