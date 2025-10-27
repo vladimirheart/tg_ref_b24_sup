@@ -1,6 +1,7 @@
 /* panel/static/style.css */
 :root {
   --page-min-width: 1920px;
+  font-size: 80%;
 }
 
 html {
