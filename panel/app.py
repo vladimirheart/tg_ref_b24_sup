@@ -4164,6 +4164,7 @@ def _fetch_knowledge_articles() -> list[dict[str, str | int]]:
 
 
 @app.route("/knowledge_base")
+@app.route("/knowledge-base")
 @login_required
 def knowledge_base_page():
     articles = _fetch_knowledge_articles()
@@ -4171,6 +4172,7 @@ def knowledge_base_page():
 
 
 @app.route("/api/knowledge_base/articles", methods=["GET"])
+@app.route("/api/knowledge-base/articles", methods=["GET"])
 @login_required_api
 def api_knowledge_base_articles():
     articles = _fetch_knowledge_articles()
