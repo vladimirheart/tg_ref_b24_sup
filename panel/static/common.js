@@ -307,6 +307,26 @@ function updateAnalyticsStatsCards(originalRecords, filteredRecords) {
     }
 }
 
+if (typeof window !== 'undefined' && !window.__customAlertPatched) {
+    const nativeAlert = window.alert ? window.alert.bind(window) : null;
+    window.alert = function(message) {
+        if (typeof showNotification !== 'function') {
+            return nativeAlert ? nativeAlert(message) : void 0;
+        }
+        const text = message instanceof Node ? message.textContent : String(message ?? '');
+        let type = 'info';
+        if (/❌|ошиб/i.test(text)) {
+            type = 'error';
+        } else if (/✅|успех/i.test(text)) {
+            type = 'success';
+        } else if (/⚠️|предупрежд/i.test(text)) {
+            type = 'warning';
+        }
+        showNotification(message, type);
+    };
+    window.__customAlertPatched = true;
+}
+
 // Экспортируем функции в глобальную область видимости
 window.CommonUtils = {
     showNotification,
