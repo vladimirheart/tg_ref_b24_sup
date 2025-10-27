@@ -1,7 +1,10 @@
 <!-- panel/templates/_sidebar.html -->
 <div class="sidebar" id="app-sidebar">
   <div class="sidebar-header">
-    <span class="brand">Поддержка</span>
+    <span class="brand">
+      <img src="{{ url_for('static', filename='bender-icon.svg') }}" alt="Логотип Bender" class="brand-icon" />
+      Bender
+    </span>
     <div class="sidebar-actions" id="notify-bell-wrapper">
       <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
         <span class="icon">🔔</span>
