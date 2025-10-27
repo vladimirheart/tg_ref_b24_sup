@@ -446,6 +446,18 @@
   min-height: 300px;
 }
 
+#historyModal,
+#historyModal .modal-dialog,
+#historyModal .modal-content {
+  overscroll-behavior: contain;
+}
+
+#historyModal .sidebar-pane,
+#historyModal .sidebar-content,
+#historyModal .chat-container {
+  overscroll-behavior: contain;
+}
+
 #historyModal .modal-header{ flex: 0 0 auto; }
 
 /* Тело модалки — вертикальный flex-контейнер, занимают 1fr строки грида */
@@ -506,11 +518,17 @@
   width: var(--sidebar-expanded-width, 400px);
   background: #f8f9fa;
   border-right: 1px solid #dee2e6;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  height: 100%;
+  overflow: hidden;
   transition: width .25s ease;
 }
 #historySidebar .sidebar-content {
   transition: opacity .2s ease;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 1rem;
 }
 #historySidebar.collapsed {
   width: var(--sidebar-collapsed-width, 56px) !important;
@@ -1399,7 +1417,7 @@ function markTicketReopenedLocally() {
 
 <!-- Модальное окно: история -->
 <div class="modal fade resizable-modal" id="historyModal" tabindex="-1">
-  <div class="modal-dialog modal-xl" style="max-width: 60vw; height: 95vh; resize: both;">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
                 <div class="modal-header flex-wrap align-items-center gap-3">
                   <div class="d-flex align-items-center flex-wrap gap-2">
@@ -2935,6 +2953,14 @@ function applyMediaViewerSize(modalEl, width, height) {
   return size;
 }
 
+function getDisplayFilename(rawValue) {
+  if (!rawValue) return '';
+  const normalized = String(rawValue).trim();
+  if (!normalized) return '';
+  const parts = normalized.split(/[\\/]+/);
+  return parts.pop() || '';
+}
+
 function openMediaViewer(payload) {
   if (!payload || !payload.url) return;
   const modalEl = document.getElementById('mediaViewerModal');
@@ -2946,13 +2972,16 @@ function openMediaViewer(payload) {
   body.innerHTML = '';
   const url = payload.url;
   const filename = String(payload.filename || '');
+  const displayName = getDisplayFilename(filename);
   const caption = String(payload.caption || '');
   const type = String(payload.type || '').toLowerCase();
-  const lowerName = filename.toLowerCase();
+  const lowerName = (displayName || filename).toLowerCase();
 
-  titleEl.textContent = filename ? `Медиа: ${filename}` : 'Просмотр медиа';
+  titleEl.textContent = displayName ? `Медиа: ${displayName}` : 'Просмотр медиа';
   downloadLink.href = url;
-  if (filename) {
+  if (displayName) {
+    downloadLink.download = displayName;
+  } else if (filename) {
     downloadLink.download = filename;
   } else {
     downloadLink.removeAttribute('download');
@@ -2982,6 +3011,7 @@ function openMediaViewer(payload) {
     }
     video.appendChild(source);
     video.textContent = 'Ваш браузер не поддерживает видео.';
+    video.load();
 
     const desiredWidth = Number(payload.video_width || payload.width || 0);
     const desiredHeight = Number(payload.video_height || payload.height || 0);
@@ -7113,6 +7143,21 @@ document.addEventListener('DOMContentLoaded', function() {
     mediaViewerModal.addEventListener('hidden.bs.modal', () => {
       mediaViewerModal.style.removeProperty('--media-viewer-width');
       mediaViewerModal.style.removeProperty('--media-viewer-height');
+      const bodyEl = document.getElementById('mediaViewerBody');
+      if (bodyEl) {
+        bodyEl.querySelectorAll('video').forEach(videoEl => {
+          try { videoEl.pause(); } catch (error) { /* noop */ }
+        });
+        bodyEl.innerHTML = '';
+      }
+      const titleEl = document.getElementById('mediaViewerTitle');
+      if (titleEl) {
+        titleEl.textContent = 'Просмотр медиа';
+      }
+      const downloadEl = document.getElementById('mediaViewerDownload');
+      if (downloadEl) {
+        downloadEl.removeAttribute('download');
+      }
     });
   }
 
