@@ -614,13 +614,45 @@ function createMediaHtml(ticket_id, mediaInfo) {
 }
 
 
+    const HISTORY_ERROR_SNIPPET_LIMIT = 200;
+
+    async function fetchJsonWithAuth(url, options = {}) {
+      const fetchOptions = { ...options };
+      if (!('credentials' in fetchOptions)) {
+        fetchOptions.credentials = 'same-origin';
+      }
+      const response = await fetch(url, fetchOptions);
+      const rawText = await response.text();
+      if (!response.ok) {
+        const snippet = rawText ? `: ${rawText.slice(0, HISTORY_ERROR_SNIPPET_LIMIT)}` : '';
+        throw new Error(`Запрос ${url} завершился с ошибкой ${response.status}${snippet}`);
+      }
+      if (!rawText.trim()) {
+        return null;
+      }
+      try {
+        return JSON.parse(rawText);
+      } catch (parseError) {
+        const snippet = rawText.slice(0, HISTORY_ERROR_SNIPPET_LIMIT);
+        throw new Error(`Ответ ${url} не является валидным JSON: ${parseError.message}. Фрагмент: ${snippet}`);
+      }
+    }
+
     // === Загрузить историю ===
     async function loadHistory(user_id, ticket_id) {
       currentUserId = user_id;
       currentTicketId = ticket_id;
 
-      const response = await fetch(`/history?user_id=${user_id}&ticket_id=${ticket_id}`);
-      const data = await response.json();
+      let data;
+      try {
+        data = await fetchJsonWithAuth(`/history?user_id=${user_id}&ticket_id=${ticket_id}`, { cache: 'no-store' }) || {};
+      } catch (error) {
+        console.error('Ошибка при загрузке истории:', error);
+        const reason = error && error.message ? `: ${error.message}` : '';
+        alert(`Не удалось загрузить историю заявки${reason}`);
+        return;
+      }
+
       const container = document.getElementById('historyContent');
       
       if (!container) {
@@ -630,10 +662,12 @@ function createMediaHtml(ticket_id, mediaInfo) {
       
       container.innerHTML = '';
 
-      if (data.messages.length === 0) {
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+
+      if (messages.length === 0) {
         container.innerHTML = '<p class="text-muted">Нет сообщений</p>';
       } else {
-        data.messages.forEach(msg => {
+        messages.forEach(msg => {
           const cls = msg.sender === 'support' ? 'from-support' : 'from-user';
           let name = msg.sender === 'support' ? '🛠 Поддержка' : '👤 Клиент';
 
@@ -684,16 +718,24 @@ function createMediaHtml(ticket_id, mediaInfo) {
     // === Только обновить сообщения ===
     async function loadHistoryMessagesOnly(user_id, ticket_id) {
       if (currentUserId !== user_id) return;
-      
-      const response = await fetch(`/history?user_id=${user_id}&ticket_id=${ticket_id}`);
-      const data = await response.json();
+
+      let data;
+      try {
+        data = await fetchJsonWithAuth(`/history?user_id=${user_id}&ticket_id=${ticket_id}`, { cache: 'no-store' }) || {};
+      } catch (error) {
+        console.error('Ошибка при обновлении истории:', error);
+        return;
+      }
+
       const container = document.getElementById('historyContent');
-      
+
       if (!container) return;
-      
+
       container.innerHTML = '';
-      
-      data.messages.forEach(msg => {
+
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+
+      messages.forEach(msg => {
         const cls = msg.sender === 'support' ? 'from-support' : 'from-user';
         let name = msg.sender === 'support' ? '🛠 Поддержка' : '👤 Клиент';
 
