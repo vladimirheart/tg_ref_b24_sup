@@ -73,11 +73,7 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
           <div class="kb-status-message" id="kbStatusMessage"></div>
-          <div class="btn-group">
-            <button class="btn btn-primary" id="kbSaveButton" type="button">💾 Сохранить</button>
-            <button class="btn btn-outline-secondary" type="button" id="kbExportDocx" {% if not article.id %}disabled{% endif %}>DOCX</button>
-            <button class="btn btn-outline-secondary" type="button" id="kbExportPdf" {% if not article.id %}disabled{% endif %}>PDF</button>
-          </div>
+          <button class="btn btn-primary" id="kbSaveButton" type="button">💾 Сохранить</button>
         </div>
       </div>
 
@@ -164,8 +160,6 @@
       const authorInput = document.getElementById('kbAuthor');
       const summaryInput = document.getElementById('kbSummary');
       const saveButton = document.getElementById('kbSaveButton');
-      const exportDocxBtn = document.getElementById('kbExportDocx');
-      const exportPdfBtn = document.getElementById('kbExportPdf');
       const statusBox = document.getElementById('kbStatusMessage');
       const attachmentInput = document.getElementById('kbAttachmentInput');
       const attachmentDropzone = document.getElementById('kbAttachmentDropzone');
@@ -199,10 +193,6 @@
         if (currentArticleId) {
           articleIdBadge.style.display = '';
           articleIdValue.textContent = currentArticleId;
-          exportDocxBtn.disabled = false;
-          exportPdfBtn.disabled = false;
-          exportDocxBtn.dataset.href = `/knowledge_base/${currentArticleId}/export/docx`;
-          exportPdfBtn.dataset.href = `/knowledge_base/${currentArticleId}/export/pdf`;
         }
       }
 
@@ -400,15 +390,6 @@
       populateForm();
       renderAttachments();
 
-      exportDocxBtn.addEventListener('click', () => {
-        if (!currentArticleId) return;
-        window.open(`/knowledge_base/${currentArticleId}/export/docx`, '_blank');
-      });
-      exportPdfBtn.addEventListener('click', () => {
-        if (!currentArticleId) return;
-        window.open(`/knowledge_base/${currentArticleId}/export/pdf`, '_blank');
-      });
-
       async function saveArticle() {
         const payload = {
           title: titleInput.value.trim(),
@@ -449,8 +430,6 @@
           renderAttachments();
           articleIdBadge.style.display = '';
           articleIdValue.textContent = currentArticleId;
-          exportDocxBtn.disabled = false;
-          exportPdfBtn.disabled = false;
           setStatus('Изменения сохранены', 'success');
           if (!articleData.id) {
             history.replaceState({}, '', `/knowledge_base/${currentArticleId}`);
