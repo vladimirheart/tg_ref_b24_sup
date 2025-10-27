@@ -25,6 +25,7 @@ from uuid import uuid4
 import sys
 import shutil
 from pathlib import Path
+import secrets
 
 PARENT_DIR = Path(__file__).resolve().parent.parent
 if str(PARENT_DIR) not in sys.path:
@@ -63,6 +64,7 @@ USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
 OBJECT_PASSPORT_DB_PATH = os.path.join(BASE_DIR, "object_passports.db")
 OBJECT_PASSPORT_UPLOADS_DIR = os.path.join(BASE_DIR, "object_passport_uploads")
+WEB_FORM_SESSIONS_TABLE = "web_form_sessions"
 
 os.makedirs(OBJECT_PASSPORT_UPLOADS_DIR, exist_ok=True)
 os.makedirs(KNOWLEDGE_BASE_ATTACHMENTS_DIR, exist_ok=True)
@@ -3311,6 +3313,530 @@ def save_locations(locations):
     with open(LOCATIONS_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
+
+# === Публичная веб-форма обращений ===
+
+def ensure_web_form_schema():
+    """Создаёт таблицу с сессиями веб-форм, если её ещё нет."""
+
+    create_sql = f"""
+        CREATE TABLE IF NOT EXISTS {WEB_FORM_SESSIONS_TABLE} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT NOT NULL UNIQUE,
+            ticket_id TEXT NOT NULL,
+            channel_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            answers_json TEXT,
+            client_name TEXT,
+            client_contact TEXT,
+            username TEXT,
+            created_at TEXT NOT NULL,
+            last_active_at TEXT NOT NULL
+        )
+    """
+
+    with get_db() as conn:
+        exec_with_retry(lambda: conn.execute(create_sql))
+
+
+ensure_web_form_schema()
+
+
+def _allocate_web_user_id(conn) -> int:
+    """Возвращает уникальный отрицательный user_id для обращений с веб-формы."""
+
+    row = exec_with_retry(
+        lambda: conn.execute(
+            "SELECT MIN(user_id) AS min_id FROM messages WHERE user_id < 0"
+        )
+    ).fetchone()
+    min_id = row["min_id"] if row and row["min_id"] is not None else None
+    if min_id is None or int(min_id) >= 0:
+        return -1
+    return int(min_id) - 1
+
+
+def _prepare_public_form_config(channel_id: int) -> dict | None:
+    """Собирает метаданные для публичной формы (канал, вопросы, пресеты)."""
+
+    with get_db() as conn:
+        channel_row = exec_with_retry(
+            lambda: conn.execute(
+                "SELECT id, channel_name, is_active FROM channels WHERE id = ?",
+                (channel_id,),
+            )
+        ).fetchone()
+
+    if not channel_row:
+        return None
+
+    is_active_raw = channel_row["is_active"]
+    if is_active_raw is not None and str(is_active_raw).strip().lower() not in {"1", "true"}:
+        return None
+
+    settings = load_settings()
+    locations_payload = load_locations()
+    location_tree = locations_payload.get("tree") if isinstance(locations_payload, dict) else {}
+    definitions = build_location_presets(
+        location_tree if isinstance(location_tree, dict) else {},
+        base_definitions=DEFAULT_BOT_PRESET_DEFINITIONS,
+    )
+
+    bot_settings = settings.get("bot_settings") if isinstance(settings, dict) else {}
+    question_flow = []
+    if isinstance(bot_settings, dict):
+        active_template_id = bot_settings.get("active_template_id")
+        templates = bot_settings.get("question_templates") or []
+        if active_template_id and isinstance(templates, list):
+            for tpl in templates:
+                if isinstance(tpl, dict) and tpl.get("id") == active_template_id:
+                    question_flow = tpl.get("question_flow") or []
+                    break
+        if not question_flow:
+            question_flow = bot_settings.get("question_flow") or []
+
+    prepared_questions: list[dict] = []
+    for index, item in enumerate(question_flow, start=1):
+        if not isinstance(item, dict):
+            continue
+        q_type = str(item.get("type") or "custom").strip().lower()
+        if q_type not in {"preset", "custom"}:
+            q_type = "custom"
+        raw_text = item.get("text") or item.get("label") or ""
+        text = str(raw_text or "").strip()
+        q_id = str(item.get("id") or "").strip() or uuid4().hex
+        try:
+            order = int(item.get("order") or index)
+        except (TypeError, ValueError):
+            order = index
+
+        entry = {
+            "id": q_id,
+            "text": text,
+            "type": "preset" if q_type == "preset" else "custom",
+            "order": order,
+        }
+
+        excluded = item.get("excluded_options") or item.get("excludedOptions")
+        if isinstance(excluded, (list, tuple)):
+            entry["excluded_options"] = [
+                str(value).strip() for value in excluded if str(value or "").strip()
+            ]
+
+        if entry["type"] == "preset":
+            preset_payload = item.get("preset") if isinstance(item.get("preset"), dict) else {}
+            group = str(preset_payload.get("group") or item.get("group") or "").strip()
+            field = str(preset_payload.get("field") or item.get("field") or "").strip()
+            entry["preset"] = {"group": group, "field": field}
+            meta = definitions.get(group, {}).get("fields", {}).get(field, {})
+            options = meta.get("options") if isinstance(meta, dict) else []
+            if isinstance(options, list):
+                entry["options"] = options
+            deps = meta.get("option_dependencies") if isinstance(meta, dict) else None
+            if isinstance(deps, dict) and deps:
+                entry["option_dependencies"] = deps
+            tree = meta.get("tree") if isinstance(meta, dict) else None
+            if tree:
+                entry["tree"] = tree
+            label = str(meta.get("label") or "").strip()
+            if not entry["text"] and label:
+                entry["text"] = label
+
+        if not entry["text"]:
+            entry["text"] = f"Вопрос #{order}"
+
+        prepared_questions.append(entry)
+
+    prepared_questions.sort(key=lambda q: q.get("order") or 0)
+    lookup = {item["id"]: item for item in prepared_questions}
+
+    channel_name = channel_row["channel_name"] or f"Канал #{channel_row['id']}"
+
+    return {
+        "channel": {
+            "id": channel_row["id"],
+            "name": channel_name,
+        },
+        "questions": prepared_questions,
+        "question_lookup": lookup,
+        "answer_order": [item["id"] for item in prepared_questions],
+    }
+
+
+def _serialize_public_form_config(config: dict) -> dict:
+    questions_payload = []
+    for question in config.get("questions", []):
+        payload = {
+            "id": question["id"],
+            "text": question.get("text", ""),
+            "type": question.get("type", "custom"),
+            "order": question.get("order", 0),
+        }
+        for key in ("preset", "options", "option_dependencies", "tree", "excluded_options"):
+            if key in question and question[key]:
+                payload[key] = question[key]
+        questions_payload.append(payload)
+
+    return {
+        "success": True,
+        "channel": config.get("channel", {}),
+        "questions": questions_payload,
+    }
+
+
+def _build_answers_summary(config: dict, answers: dict[str, str]) -> list[str]:
+    summary: list[str] = []
+    order = config.get("answer_order") or []
+    lookup = config.get("question_lookup") or {}
+    for question_id in order:
+        value = str(answers.get(question_id) or "").strip()
+        if not value:
+            continue
+        question = lookup.get(question_id) or {}
+        label = str(question.get("text") or "").strip() or "Вопрос"
+        summary.append(f"{label}: {value}")
+    return summary
+
+
+def _insert_ticket_message(
+    conn,
+    *,
+    group_msg_id,
+    user_id,
+    business,
+    location_type,
+    city,
+    location_name,
+    problem,
+    created_at,
+    username,
+    category,
+    ticket_id,
+    created_date,
+    created_time,
+    client_name,
+    client_status,
+    updated_at,
+    updated_by,
+    channel_id,
+):
+    exec_with_retry(
+        lambda: conn.execute(
+            """
+      INSERT INTO messages(
+        group_msg_id, user_id, business, location_type, city, location_name,
+        problem, created_at, username, category, ticket_id, created_date,
+        created_time, client_status, client_name, updated_at, updated_by, channel_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """,
+            (
+                group_msg_id,
+                user_id,
+                business,
+                location_type,
+                city,
+                location_name,
+                problem,
+                created_at,
+                username,
+                category,
+                ticket_id,
+                created_date,
+                created_time,
+                client_status,
+                client_name,
+                updated_at,
+                updated_by,
+                channel_id,
+            ),
+        )
+    )
+
+    try:
+        row = exec_with_retry(
+            lambda: conn.execute(
+                "SELECT user FROM ticket_active WHERE ticket_id=? ORDER BY last_seen DESC LIMIT 1",
+                (ticket_id,),
+            )
+        ).fetchone()
+        target_user = row["user"] if row else None
+        if target_user:
+            exec_with_retry(
+                lambda: conn.execute(
+                    "INSERT INTO notifications(user, text, url) VALUES(?, ?, ?)",
+                    (
+                        target_user,
+                        f"Новое сообщение в диалоге {ticket_id}",
+                        f"/#open=ticket:{ticket_id}",
+                    ),
+                )
+            )
+        else:
+            exec_with_retry(
+                lambda: conn.execute(
+                    "INSERT INTO notifications(user, text, url) VALUES(?, ?, ?)",
+                    (
+                        "all",
+                        f"Новое сообщение в диалоге {ticket_id}",
+                        f"/#open=ticket:{ticket_id}",
+                    ),
+                )
+            )
+    except Exception:
+        pass
+
+
+def _add_chat_history_entry(
+    conn,
+    *,
+    ticket_id,
+    sender,
+    message,
+    timestamp,
+    message_type="text",
+    attachment=None,
+    channel_id=None,
+    user_id=None,
+):
+    exec_with_retry(
+        lambda: conn.execute(
+            """
+        INSERT INTO chat_history
+          (user_id, ticket_id, sender, message, timestamp, message_type, attachment,
+           tg_message_id, reply_to_tg_id, channel_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)
+    """,
+            (
+                user_id,
+                ticket_id,
+                sender,
+                message,
+                timestamp,
+                message_type,
+                attachment,
+                channel_id,
+            ),
+        )
+    )
+
+
+def _create_web_form_session(
+    channel_id: int,
+    config: dict,
+    answers: dict[str, str],
+    message: str,
+    *,
+    client_name: str | None = None,
+    client_contact: str | None = None,
+    username: str | None = None,
+) -> dict:
+    ensure_web_form_schema()
+
+    sanitized_answers: dict[str, str] = {}
+    for key, value in (answers or {}).items():
+        key_str = str(key)
+        value_str = str(value or "").strip()
+        if value_str:
+            sanitized_answers[key_str] = value_str
+
+    summary = _build_answers_summary(config, sanitized_answers)
+    message_body = str(message or "").strip()
+    combined_message = message_body
+    if summary:
+        combined_message = "Ответы формы:\n" + "\n".join(summary)
+        if message_body:
+            combined_message += "\n\n" + message_body
+
+    field_values: dict[str, str] = {}
+    for q_id, question in (config.get("question_lookup") or {}).items():
+        if not isinstance(question, dict):
+            continue
+        if question.get("type") == "preset":
+            preset = question.get("preset") or {}
+            field = preset.get("field") if isinstance(preset, dict) else None
+            field = str(field or "").strip()
+            if field:
+                value = sanitized_answers.get(q_id)
+                if value:
+                    field_values[field] = value
+
+    for fallback_key in (
+        "business",
+        "location_type",
+        "city",
+        "location_name",
+        "category",
+        "client_status",
+        "client_name",
+    ):
+        if fallback_key not in field_values and fallback_key in sanitized_answers:
+            field_values[fallback_key] = sanitized_answers[fallback_key]
+
+    final_client_name = (client_name or "").strip() or field_values.get("client_name")
+    if not final_client_name:
+        final_client_name = sanitized_answers.get("client_name")
+    if not final_client_name:
+        final_client_name = sanitized_answers.get("name") or sanitized_answers.get("full_name")
+    if not final_client_name:
+        final_client_name = "Клиент веб-формы"
+
+    final_contact = (client_contact or "").strip()
+    if not final_contact:
+        for contact_key in ("contact", "phone", "email"):
+            candidate = sanitized_answers.get(contact_key)
+            if candidate:
+                final_contact = candidate
+                break
+
+    final_username = (username or "").strip() or "web_form"
+
+    now_local = dt.now()
+    created_at = now_local.isoformat()
+    created_date = now_local.strftime("%Y-%m-%d")
+    created_time = now_local.strftime("%H:%M:%S")
+    now_utc = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    with get_db() as conn:
+        conn.execute("BEGIN")
+        try:
+            user_id = _allocate_web_user_id(conn)
+
+            ticket_id = None
+            while True:
+                candidate = f"web-{uuid4().hex[:8]}"
+                exists = exec_with_retry(
+                    lambda: conn.execute(
+                        "SELECT 1 FROM tickets WHERE ticket_id = ?",
+                        (candidate,),
+                    )
+                ).fetchone()
+                if not exists:
+                    ticket_id = candidate
+                    break
+
+            exec_with_retry(
+                lambda: conn.execute(
+                    "INSERT INTO tickets (user_id, group_msg_id, status, ticket_id, channel_id)"
+                    " VALUES (?, NULL, 'pending', ?, ?)",
+                    (user_id, ticket_id, channel_id),
+                )
+            )
+
+            problem_text = combined_message or message_body
+            _insert_ticket_message(
+                conn,
+                group_msg_id=None,
+                user_id=user_id,
+                business=field_values.get("business"),
+                location_type=field_values.get("location_type"),
+                city=field_values.get("city"),
+                location_name=field_values.get("location_name"),
+                problem=problem_text,
+                created_at=created_at,
+                username=final_username,
+                category=field_values.get("category"),
+                ticket_id=ticket_id,
+                created_date=created_date,
+                created_time=created_time,
+                client_name=final_client_name,
+                client_status=field_values.get("client_status"),
+                updated_at=created_at,
+                updated_by="web_form",
+                channel_id=channel_id,
+            )
+
+            _add_chat_history_entry(
+                conn,
+                ticket_id=ticket_id,
+                sender="user",
+                message=combined_message or message_body,
+                timestamp=now_utc,
+                message_type="text",
+                attachment=None,
+                channel_id=channel_id,
+                user_id=user_id,
+            )
+
+            answers_json = json.dumps(sanitized_answers, ensure_ascii=False)
+            token = None
+            for _ in range(6):
+                candidate = secrets.token_urlsafe(16)
+                try:
+                    exec_with_retry(
+                        lambda: conn.execute(
+                            f"INSERT INTO {WEB_FORM_SESSIONS_TABLE} (token, ticket_id, channel_id, user_id, answers_json, client_name, client_contact, username, created_at, last_active_at)"
+                            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (
+                                candidate,
+                                ticket_id,
+                                channel_id,
+                                user_id,
+                                answers_json,
+                                final_client_name,
+                                final_contact,
+                                final_username,
+                                created_at,
+                                created_at,
+                            ),
+                        )
+                    )
+                    token = candidate
+                    break
+                except sqlite3.IntegrityError:
+                    continue
+
+            if not token:
+                raise sqlite3.IntegrityError("Не удалось создать уникальный токен веб-формы")
+
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    return {
+        "token": token,
+        "ticket_id": ticket_id,
+        "answers": sanitized_answers,
+        "summary": summary,
+        "client_name": final_client_name,
+        "client_contact": final_contact,
+    }
+
+
+def _load_public_form_session(channel_id: int, token: str):
+    with get_db() as conn:
+        session_row = exec_with_retry(
+            lambda: conn.execute(
+                f"""
+                SELECT s.token, s.ticket_id, s.channel_id, s.user_id, s.answers_json,
+                       s.client_name, s.client_contact, s.username,
+                       s.created_at, s.last_active_at,
+                       t.status, t.resolved_at, t.resolved_by
+                  FROM {WEB_FORM_SESSIONS_TABLE} s
+                  JOIN tickets t ON t.ticket_id = s.ticket_id AND t.channel_id = s.channel_id
+                 WHERE s.channel_id = ? AND s.token = ?
+                """,
+                (channel_id, token),
+            )
+        ).fetchone()
+
+        if not session_row:
+            return None
+
+        history_rows = exec_with_retry(
+            lambda: conn.execute(
+                """
+                SELECT sender, message, timestamp, message_type, attachment
+                  FROM chat_history
+                 WHERE ticket_id = ? AND (channel_id = ? OR channel_id IS NULL)
+                 ORDER BY substr(timestamp,1,19) ASC, rowid ASC
+                """,
+                (session_row["ticket_id"], channel_id),
+            )
+        ).fetchall()
+
+    return session_row, history_rows
+
 def format_time_duration(minutes):
     """
     Форматирует время в минутах в читаемый формат (часы и минуты)
@@ -3377,6 +3903,267 @@ def login_required(f):
         return f(*args, **kwargs)
     decorated.__name__ = f.__name__
     return decorated
+
+
+# === Публичные эндпоинты веб-формы ===
+
+@app.route("/public/forms/<int:channel_id>")
+def public_form(channel_id: int):
+    config = _prepare_public_form_config(channel_id)
+    if not config:
+        abort(404)
+    token = (request.args.get("dialog") or request.args.get("token") or "").strip()
+    return render_template(
+        "public_form.html",
+        channel=config.get("channel", {}),
+        channel_id=channel_id,
+        initial_token=token,
+    )
+
+
+@app.route("/api/public/forms/<int:channel_id>/config", methods=["GET"])
+def api_public_form_config(channel_id: int):
+    config = _prepare_public_form_config(channel_id)
+    if not config:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+    return jsonify(_serialize_public_form_config(config))
+
+
+def _parse_public_answers(payload: dict) -> dict:
+    raw_answers = payload.get("answers")
+    if isinstance(raw_answers, dict):
+        return raw_answers
+    if isinstance(raw_answers, str) and raw_answers.strip():
+        try:
+            parsed = json.loads(raw_answers)
+            return parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+@app.route("/api/public/forms/<int:channel_id>/sessions", methods=["POST"])
+def api_public_form_create_session(channel_id: int):
+    config = _prepare_public_form_config(channel_id)
+    if not config:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    if not payload and request.form:
+        payload = request.form.to_dict(flat=True)
+
+    message_text = str(payload.get("message") or "").strip()
+    if not message_text:
+        return jsonify({"success": False, "error": "Опишите проблему"}), 400
+
+    answers = _parse_public_answers(payload)
+    client_name = payload.get("client_name")
+    client_contact = payload.get("contact") or payload.get("client_contact")
+    username = payload.get("username")
+
+    try:
+        result = _create_web_form_session(
+            channel_id,
+            config,
+            answers,
+            message_text,
+            client_name=client_name,
+            client_contact=client_contact,
+            username=username,
+        )
+    except Exception as exc:
+        logging.exception("Failed to create web form session: %s", exc)
+        return jsonify({"success": False, "error": "Не удалось создать обращение"}), 500
+
+    response = {
+        "success": True,
+        "token": result["token"],
+        "ticket_id": result["ticket_id"],
+        "channel": config.get("channel", {}),
+    }
+    return jsonify(response), 201
+
+
+@app.route(
+    "/api/public/forms/<int:channel_id>/sessions/<string:token>",
+    methods=["GET"],
+)
+def api_public_form_session(channel_id: int, token: str):
+    config = _prepare_public_form_config(channel_id)
+    if not config:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+
+    loaded = _load_public_form_session(channel_id, token)
+    if not loaded:
+        return jsonify({"success": False, "error": "Диалог не найден"}), 404
+
+    session_row, history_rows = loaded
+    try:
+        answers = json.loads(session_row["answers_json"] or "{}") if session_row["answers_json"] else {}
+    except Exception:
+        answers = {}
+
+    messages: list[dict] = []
+    for row in history_rows:
+        entry = {
+            "sender": row["sender"],
+            "message": row["message"] or "",
+            "timestamp": row["timestamp"],
+            "message_type": row["message_type"] or "text",
+        }
+        if row["attachment"]:
+            entry["attachment"] = row["attachment"]
+        messages.append(entry)
+
+    payload = {
+        "success": True,
+        "session": {
+            "token": session_row["token"],
+            "ticket_id": session_row["ticket_id"],
+            "channel_id": session_row["channel_id"],
+            "channel": config.get("channel", {}),
+            "status": session_row["status"],
+            "resolved_at": session_row["resolved_at"],
+            "resolved_by": session_row["resolved_by"],
+            "client_name": session_row["client_name"],
+            "client_contact": session_row["client_contact"],
+            "created_at": session_row["created_at"],
+            "last_active_at": session_row["last_active_at"],
+            "answers": answers if isinstance(answers, dict) else {},
+            "messages": messages,
+        },
+    }
+    return jsonify(payload)
+
+
+@app.route(
+    "/api/public/forms/<int:channel_id>/sessions/<string:token>/messages",
+    methods=["POST"],
+)
+def api_public_form_send_message(channel_id: int, token: str):
+    config = _prepare_public_form_config(channel_id)
+    if not config:
+        return jsonify({"success": False, "error": "Канал не найден или отключён"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    if not payload and request.form:
+        payload = request.form.to_dict(flat=True)
+
+    text = str(payload.get("message") or "").strip()
+    if not text:
+        return jsonify({"success": False, "error": "Сообщение не может быть пустым"}), 400
+
+    with get_db() as conn:
+        conn.execute("BEGIN")
+        try:
+            session_row = exec_with_retry(
+                lambda: conn.execute(
+                    f"""
+                    SELECT token, ticket_id, channel_id, user_id, client_name,
+                           client_contact, username, answers_json
+                      FROM {WEB_FORM_SESSIONS_TABLE}
+                     WHERE channel_id = ? AND token = ?
+                    """,
+                    (channel_id, token),
+                )
+            ).fetchone()
+
+            if not session_row:
+                conn.rollback()
+                return jsonify({"success": False, "error": "Диалог не найден"}), 404
+
+            user_id = session_row["user_id"]
+            ticket_id = session_row["ticket_id"]
+            username = session_row["username"] or "web_form"
+            client_name = session_row["client_name"] or "Клиент веб-формы"
+
+            stored_answers: dict[str, str] = {}
+            try:
+                parsed_answers = json.loads(session_row["answers_json"] or "{}") if session_row["answers_json"] else {}
+                if isinstance(parsed_answers, dict):
+                    stored_answers = parsed_answers
+            except Exception:
+                stored_answers = {}
+
+            field_values: dict[str, str] = {}
+            for q_id, question in (config.get("question_lookup") or {}).items():
+                if not isinstance(question, dict):
+                    continue
+                if question.get("type") == "preset":
+                    preset = question.get("preset") or {}
+                    field = str((preset.get("field") if isinstance(preset, dict) else "") or "").strip()
+                    if field:
+                        value = stored_answers.get(q_id)
+                        if isinstance(value, str) and value.strip():
+                            field_values[field] = value.strip()
+
+            for key in ("business", "location_type", "city", "location_name", "category", "client_status", "client_name"):
+                value = stored_answers.get(key)
+                if isinstance(value, str) and value.strip():
+                    field_values.setdefault(key, value.strip())
+
+            now_local = dt.now()
+            created_at = now_local.isoformat()
+            created_date = now_local.strftime("%Y-%m-%d")
+            created_time = now_local.strftime("%H:%M:%S")
+            now_utc = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+            _insert_ticket_message(
+                conn,
+                group_msg_id=None,
+                user_id=user_id,
+                business=field_values.get("business"),
+                location_type=field_values.get("location_type"),
+                city=field_values.get("city"),
+                location_name=field_values.get("location_name"),
+                problem=text,
+                created_at=created_at,
+                username=username,
+                category=field_values.get("category"),
+                ticket_id=ticket_id,
+                created_date=created_date,
+                created_time=created_time,
+                client_name=client_name,
+                client_status=field_values.get("client_status"),
+                updated_at=created_at,
+                updated_by="web_form",
+                channel_id=channel_id,
+            )
+
+            _add_chat_history_entry(
+                conn,
+                ticket_id=ticket_id,
+                sender="user",
+                message=text,
+                timestamp=now_utc,
+                message_type="text",
+                attachment=None,
+                channel_id=channel_id,
+                user_id=user_id,
+            )
+
+            exec_with_retry(
+                lambda: conn.execute(
+                    "UPDATE tickets SET status='pending', resolved_at=NULL, resolved_by=NULL"
+                    " WHERE ticket_id=? AND channel_id=?",
+                    (ticket_id, channel_id),
+                )
+            )
+
+            exec_with_retry(
+                lambda: conn.execute(
+                    f"UPDATE {WEB_FORM_SESSIONS_TABLE} SET last_active_at=? WHERE token=?",
+                    (created_at, token),
+                )
+            )
+
+            conn.commit()
+        except Exception as exc:
+            conn.rollback()
+            logging.exception("Failed to append message to web form session: %s", exc)
+            return jsonify({"success": False, "error": "Не удалось отправить сообщение"}), 500
+
+    return jsonify({"success": True})
 
 from functools import wraps
 from flask import jsonify, session
