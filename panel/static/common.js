@@ -12,8 +12,8 @@ function showNotification(message, type = 'info', containerId = 'notification-co
 
     container.style.position = 'fixed';
     container.style.inset = '0';
-    // Делаем уведомление поверх модальных окон Bootstrap (z-index 1055)
-    container.style.zIndex = '2000';
+    // Делаем уведомление поверх модальных окон Bootstrap (кастомный z-index модалок — 99999)
+    container.style.zIndex = '120000';
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.style.alignItems = 'center';
