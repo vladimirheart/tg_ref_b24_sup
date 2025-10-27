@@ -23,6 +23,7 @@ import unicodedata
 import time, sqlite3
 from uuid import uuid4
 import sys
+import shutil
 from pathlib import Path
 
 PARENT_DIR = Path(__file__).resolve().parent.parent
@@ -52,10 +53,15 @@ import io
 import mimetypes
 from typing import Any
 from werkzeug.utils import secure_filename
+from html2docx import Html2Docx
+from xhtml2pdf import pisa
+import docx
+from markupsafe import escape
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
 ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
+KNOWLEDGE_BASE_ATTACHMENTS_DIR = os.path.join(ATTACHMENTS_DIR, "knowledge_base")
 TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
 USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
@@ -63,6 +69,7 @@ OBJECT_PASSPORT_DB_PATH = os.path.join(BASE_DIR, "object_passports.db")
 OBJECT_PASSPORT_UPLOADS_DIR = os.path.join(BASE_DIR, "object_passport_uploads")
 
 os.makedirs(OBJECT_PASSPORT_UPLOADS_DIR, exist_ok=True)
+os.makedirs(KNOWLEDGE_BASE_ATTACHMENTS_DIR, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
@@ -714,10 +721,11 @@ def ensure_knowledge_base_schema():
                 direction_subtype TEXT,
                 summary TEXT,
                 content TEXT,
+                attachments TEXT,
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now'))
             )
-            """
+        """
         )
         existing_columns = {
             row["name"]: row["type"].upper()
@@ -732,6 +740,7 @@ def ensure_knowledge_base_schema():
             "direction_subtype": "TEXT",
             "summary": "TEXT",
             "content": "TEXT",
+            "attachments": "TEXT",
             "created_at": "TEXT DEFAULT (datetime('now'))",
             "updated_at": "TEXT DEFAULT (datetime('now'))",
         }
@@ -740,6 +749,28 @@ def ensure_knowledge_base_schema():
                 conn.execute(
                     f"ALTER TABLE knowledge_articles ADD COLUMN {column} {column_type}"
                 )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_article_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id INTEGER,
+                draft_token TEXT,
+                stored_path TEXT NOT NULL,
+                original_name TEXT,
+                mime_type TEXT,
+                file_size INTEGER,
+                uploaded_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(article_id) REFERENCES knowledge_articles(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_kb_files_article ON knowledge_article_files(article_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_kb_files_draft ON knowledge_article_files(draft_token)"
+        )
 
 
 ensure_knowledge_base_schema()
@@ -4163,6 +4194,149 @@ def _fetch_knowledge_articles() -> list[dict[str, str | int]]:
     return [_serialize_kb_row(row) for row in rows]
 
 
+def _serialize_kb_attachment(row: sqlite3.Row) -> dict[str, str | int]:
+    stored_path = row["stored_path"] or ""
+    download_url = url_for("knowledge_base_download_attachment", file_id=row["id"])
+    inline_url = url_for("knowledge_base_view_attachment", file_id=row["id"])
+    return {
+        "id": row["id"],
+        "name": row["original_name"] or os.path.basename(stored_path),
+        "size": row["file_size"] or 0,
+        "mime_type": row["mime_type"] or "application/octet-stream",
+        "uploaded_at": row["uploaded_at"],
+        "download_url": download_url,
+        "inline_url": inline_url,
+    }
+
+
+def _kb_attachment_abs_path(stored_path: str) -> str:
+    safe_relative = os.path.normpath(stored_path or "").replace("\\", "/")
+    return os.path.join(KNOWLEDGE_BASE_ATTACHMENTS_DIR, safe_relative)
+
+
+def _kb_attachment_rel_path(abs_path: str) -> str:
+    relative = os.path.relpath(abs_path, KNOWLEDGE_BASE_ATTACHMENTS_DIR)
+    return relative.replace("\\", "/")
+
+
+def _fetch_kb_article(article_id: int) -> dict | None:
+    ensure_knowledge_base_schema()
+    with get_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, title, department, article_type, status, author, direction,
+                   direction_subtype, summary, content, attachments, created_at, updated_at
+            FROM knowledge_articles
+            WHERE id = ?
+            """,
+            (article_id,),
+        ).fetchone()
+        if not row:
+            return None
+        attachments = conn.execute(
+            """
+            SELECT id, stored_path, original_name, mime_type, file_size, uploaded_at
+            FROM knowledge_article_files
+            WHERE article_id = ?
+            ORDER BY uploaded_at DESC, id DESC
+            """,
+            (article_id,),
+        ).fetchall()
+    article = _serialize_kb_row(row)
+    article.update(
+        {
+            "summary": _clean_kb_value(row["summary"]),
+            "content": row["content"] or "",
+            "attachments": json.loads(row["attachments"]) if row["attachments"] else [],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "files": [_serialize_kb_attachment(item) for item in attachments],
+        }
+    )
+    return article
+
+
+def _now_iso() -> str:
+    return dt.utcnow().replace(microsecond=0, tzinfo=timezone.utc).isoformat()
+
+
+def _assign_attachments_to_article(conn: sqlite3.Connection, attachment_ids: list[int], article_id: int) -> list[dict]:
+    if not attachment_ids:
+        return []
+    placeholders = ",".join(["?"] * len(attachment_ids))
+    rows = conn.execute(
+        f"""
+        SELECT id, article_id, draft_token, stored_path, original_name, mime_type,
+               file_size, uploaded_at
+        FROM knowledge_article_files
+        WHERE id IN ({placeholders})
+        """,
+        attachment_ids,
+    ).fetchall()
+    assigned = []
+    for row in rows:
+        if row["article_id"] and row["article_id"] != article_id:
+            continue
+        stored_path = row["stored_path"] or ""
+        abs_path = _kb_attachment_abs_path(stored_path)
+        if not os.path.isfile(abs_path):
+            continue
+        base_name = os.path.basename(abs_path)
+        target_dir = os.path.join(KNOWLEDGE_BASE_ATTACHMENTS_DIR, f"article_{article_id}")
+        os.makedirs(target_dir, exist_ok=True)
+        target_path = os.path.join(target_dir, base_name)
+        if os.path.abspath(os.path.dirname(abs_path)) != os.path.abspath(target_dir):
+            if os.path.exists(target_path):
+                stem, ext = os.path.splitext(base_name)
+                target_path = os.path.join(
+                    target_dir, f"{stem}_{uuid4().hex[:8]}{ext}"
+                )
+            shutil.move(abs_path, target_path)
+            new_rel = _kb_attachment_rel_path(target_path)
+        else:
+            new_rel = _kb_attachment_rel_path(abs_path)
+
+        conn.execute(
+            """
+            UPDATE knowledge_article_files
+            SET article_id = ?, draft_token = NULL, stored_path = ?
+            WHERE id = ?
+            """,
+            (article_id, new_rel, row["id"]),
+        )
+        assigned.append(row["id"])
+    if assigned:
+        conn.commit()
+    return assigned
+
+
+def _cleanup_orphan_attachments(conn: sqlite3.Connection, article_id: int, keep_ids: list[int]) -> None:
+    keep_set = set(keep_ids or [])
+    rows = conn.execute(
+        """
+        SELECT id, stored_path
+        FROM knowledge_article_files
+        WHERE article_id = ?
+        """,
+        (article_id,),
+    ).fetchall()
+    for row in rows:
+        if row["id"] in keep_set:
+            continue
+        stored_path = row["stored_path"] or ""
+        abs_path = _kb_attachment_abs_path(stored_path)
+        conn.execute(
+            "DELETE FROM knowledge_article_files WHERE id = ?",
+            (row["id"],),
+        )
+        try:
+            if os.path.isfile(abs_path):
+                os.remove(abs_path)
+        except Exception:
+            pass
+    conn.commit()
+
+
 @app.route("/knowledge_base")
 @app.route("/knowledge-base")
 @login_required
@@ -4171,12 +4345,452 @@ def knowledge_base_page():
     return render_template("knowledge_base.html", articles=articles)
 
 
+@app.route("/knowledge_base/new")
+@login_required
+def knowledge_base_new_article():
+    draft_token = uuid4().hex
+    article = {
+        "id": None,
+        "title": "",
+        "department": "",
+        "article_type": "",
+        "status": "",
+        "author": "",
+        "direction": "",
+        "direction_subtype": "",
+        "summary": "",
+        "content": "",
+        "files": [],
+    }
+    return render_template(
+        "knowledge_base_article.html",
+        article=article,
+        draft_token=draft_token,
+    )
+
+
+@app.route("/knowledge_base/<int:article_id>")
+@login_required
+def knowledge_base_article_detail(article_id: int):
+    article = _fetch_kb_article(article_id)
+    if not article:
+        abort(404)
+    return render_template(
+        "knowledge_base_article.html",
+        article=article,
+        draft_token=uuid4().hex,
+    )
+
+
 @app.route("/api/knowledge_base/articles", methods=["GET"])
 @app.route("/api/knowledge-base/articles", methods=["GET"])
 @login_required_api
 def api_knowledge_base_articles():
     articles = _fetch_knowledge_articles()
     return jsonify({"items": articles, "count": len(articles)})
+
+
+def _normalize_article_payload(payload: dict) -> tuple[dict, list[int]]:
+    data = {
+        "title": (payload.get("title") or "").strip(),
+        "department": (payload.get("department") or "").strip(),
+        "article_type": (payload.get("article_type") or "").strip(),
+        "status": (payload.get("status") or "").strip(),
+        "author": (payload.get("author") or "").strip(),
+        "direction": (payload.get("direction") or "").strip(),
+        "direction_subtype": (payload.get("direction_subtype") or "").strip(),
+        "summary": (payload.get("summary") or "").strip(),
+        "content": payload.get("content") or "",
+    }
+    attachment_ids = payload.get("attachments") or []
+    if not isinstance(attachment_ids, list):
+        attachment_ids = []
+    clean_ids = []
+    for value in attachment_ids:
+        try:
+            clean_ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    return data, clean_ids
+
+
+@app.route("/api/knowledge_base/articles", methods=["POST"])
+@app.route("/api/knowledge-base/articles", methods=["POST"])
+@login_required_api
+def api_create_knowledge_article():
+    payload = request.json or {}
+    data, attachment_ids = _normalize_article_payload(payload)
+    if not data["title"]:
+        return jsonify({"success": False, "error": "Укажите название статьи"}), 400
+
+    now_iso = _now_iso()
+    with get_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO knowledge_articles (
+                title, department, article_type, status, author, direction,
+                direction_subtype, summary, content, attachments, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["title"],
+                data["department"],
+                data["article_type"],
+                data["status"],
+                data["author"],
+                data["direction"],
+                data["direction_subtype"],
+                data["summary"],
+                data["content"],
+                json.dumps(attachment_ids),
+                now_iso,
+                now_iso,
+            ),
+        )
+        article_id = cursor.lastrowid
+        if attachment_ids:
+            assigned = _assign_attachments_to_article(conn, attachment_ids, article_id)
+            data["attachments"] = assigned
+        else:
+            data["attachments"] = []
+        conn.execute(
+            "UPDATE knowledge_articles SET attachments = ? WHERE id = ?",
+            (json.dumps(data["attachments"]), article_id),
+        )
+        conn.commit()
+
+    article = _fetch_kb_article(article_id)
+    return jsonify({"success": True, "item": article})
+
+
+@app.route("/api/knowledge_base/articles/<int:article_id>", methods=["PUT"])
+@app.route("/api/knowledge-base/articles/<int:article_id>", methods=["PUT"])
+@login_required_api
+def api_update_knowledge_article(article_id: int):
+    article = _fetch_kb_article(article_id)
+    if not article:
+        return jsonify({"success": False, "error": "Статья не найдена"}), 404
+
+    payload = request.json or {}
+    data, attachment_ids = _normalize_article_payload(payload)
+    if not data["title"]:
+        return jsonify({"success": False, "error": "Укажите название статьи"}), 400
+
+    now_iso = _now_iso()
+    with get_db() as conn:
+        conn.execute(
+            """
+            UPDATE knowledge_articles
+            SET title = ?, department = ?, article_type = ?, status = ?, author = ?,
+                direction = ?, direction_subtype = ?, summary = ?, content = ?,
+                attachments = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                data["title"],
+                data["department"],
+                data["article_type"],
+                data["status"],
+                data["author"],
+                data["direction"],
+                data["direction_subtype"],
+                data["summary"],
+                data["content"],
+                json.dumps(attachment_ids),
+                now_iso,
+                article_id,
+            ),
+        )
+        if attachment_ids:
+            _assign_attachments_to_article(conn, attachment_ids, article_id)
+        _cleanup_orphan_attachments(conn, article_id, attachment_ids)
+        conn.commit()
+
+    article = _fetch_kb_article(article_id)
+    return jsonify({"success": True, "item": article})
+
+
+@app.route("/api/knowledge_base/articles/<int:article_id>", methods=["GET"])
+@app.route("/api/knowledge-base/articles/<int:article_id>", methods=["GET"])
+@login_required_api
+def api_get_knowledge_article(article_id: int):
+    article = _fetch_kb_article(article_id)
+    if not article:
+        return jsonify({"success": False, "error": "Статья не найдена"}), 404
+    return jsonify({"success": True, "item": article})
+
+
+def _save_kb_upload(file_storage, *, article_id: int | None, draft_token: str | None) -> tuple[int, dict] | tuple[None, str]:
+    filename = secure_filename(file_storage.filename or "")
+    if not filename:
+        return None, "Недопустимое имя файла"
+
+    if article_id:
+        target_dir = os.path.join(
+            KNOWLEDGE_BASE_ATTACHMENTS_DIR, f"article_{article_id}"
+        )
+    else:
+        if not draft_token:
+            draft_token = uuid4().hex
+        target_dir = os.path.join(
+            KNOWLEDGE_BASE_ATTACHMENTS_DIR, f"draft_{draft_token}"
+        )
+    os.makedirs(target_dir, exist_ok=True)
+
+    unique_name = f"{int(time.time())}_{uuid4().hex}_{filename}"
+    abs_path = os.path.join(target_dir, unique_name)
+    file_storage.save(abs_path)
+    file_size = os.path.getsize(abs_path)
+    stored_path = _kb_attachment_rel_path(abs_path)
+
+    with get_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO knowledge_article_files (
+                article_id, draft_token, stored_path, original_name, mime_type, file_size
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                article_id,
+                draft_token if not article_id else None,
+                stored_path,
+                file_storage.filename,
+                file_storage.mimetype,
+                file_size,
+            ),
+        )
+        file_id = cursor.lastrowid
+        conn.commit()
+
+    metadata = {
+        "id": file_id,
+        "name": file_storage.filename,
+        "size": file_size,
+        "mime_type": file_storage.mimetype,
+        "download_url": url_for("knowledge_base_download_attachment", file_id=file_id),
+        "inline_url": url_for("knowledge_base_view_attachment", file_id=file_id),
+    }
+    return file_id, metadata
+
+
+@app.route("/api/knowledge_base/uploads", methods=["POST"])
+@app.route("/api/knowledge-base/uploads", methods=["POST"])
+@login_required_api
+def api_upload_knowledge_file():
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "Файл не найден в запросе"}), 400
+    file_storage = request.files["file"]
+    if not file_storage or not (file_storage.filename or "").strip():
+        return jsonify({"success": False, "error": "Выберите файл"}), 400
+
+    article_id = request.form.get("article_id")
+    draft_token = request.form.get("draft_token")
+    try:
+        article_id_int = int(article_id) if article_id else None
+    except (TypeError, ValueError):
+        article_id_int = None
+
+    if article_id_int:
+        existing = _fetch_kb_article(article_id_int)
+        if not existing:
+            return jsonify({"success": False, "error": "Статья не найдена"}), 404
+
+    file_id, metadata_or_error = _save_kb_upload(
+        file_storage,
+        article_id=article_id_int,
+        draft_token=draft_token,
+    )
+    if file_id is None:
+        return jsonify({"success": False, "error": metadata_or_error}), 400
+    return jsonify({"success": True, "file": metadata_or_error})
+
+
+@app.route("/api/knowledge_base/uploads/<int:file_id>", methods=["DELETE"])
+@app.route("/api/knowledge-base/uploads/<int:file_id>", methods=["DELETE"])
+@login_required_api
+def api_delete_knowledge_file(file_id: int):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT stored_path FROM knowledge_article_files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Файл не найден"}), 404
+        conn.execute(
+            "DELETE FROM knowledge_article_files WHERE id = ?",
+            (file_id,),
+        )
+        conn.commit()
+    stored_path = row["stored_path"] or ""
+    abs_path = _kb_attachment_abs_path(stored_path)
+    try:
+        if os.path.isfile(abs_path):
+            os.remove(abs_path)
+    except Exception:
+        pass
+    return jsonify({"success": True})
+
+
+@app.route("/knowledge_base/attachments/<int:file_id>")
+@login_required
+def knowledge_base_download_attachment(file_id: int):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT stored_path, original_name FROM knowledge_article_files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+    stored_path = row["stored_path"] or ""
+    abs_path = _kb_attachment_abs_path(stored_path)
+    if not os.path.isfile(abs_path):
+        abort(404)
+    directory = os.path.dirname(abs_path)
+    filename = os.path.basename(abs_path)
+    download_name = row["original_name"] or filename
+    return send_from_directory(
+        directory,
+        filename,
+        as_attachment=True,
+        download_name=download_name,
+    )
+
+
+@app.route("/knowledge_base/attachments/<int:file_id>/view")
+@login_required
+def knowledge_base_view_attachment(file_id: int):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT stored_path, original_name, mime_type FROM knowledge_article_files WHERE id = ?",
+            (file_id,),
+        ).fetchone()
+        if not row:
+            abort(404)
+    stored_path = row["stored_path"] or ""
+    abs_path = _kb_attachment_abs_path(stored_path)
+    if not os.path.isfile(abs_path):
+        abort(404)
+    directory = os.path.dirname(abs_path)
+    filename = os.path.basename(abs_path)
+    mimetype = row["mime_type"] or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return send_from_directory(
+        directory,
+        filename,
+        mimetype=mimetype,
+        as_attachment=False,
+    )
+
+
+def _build_article_export_html(article: dict) -> str:
+    fields = [
+        ("ID", str(article.get("id") or "")),
+        ("Отдел", article.get("department") or "—"),
+        ("Тип", article.get("article_type") or "—"),
+        ("Статус", article.get("status") or "—"),
+        ("Автор", article.get("author") or "—"),
+        ("Направление", article.get("direction") or "—"),
+        ("Подтип направления", article.get("direction_subtype") or "—"),
+    ]
+    summary = article.get("summary") or ""
+    content_html = article.get("content") or ""
+    parts = [
+        "<html><head><meta charset='utf-8'>",
+        "<style>body{font-family:'DejaVu Sans',sans-serif;font-size:12pt;color:#222;}h1{font-size:22pt;margin-bottom:12px;}table{border-collapse:collapse;margin:16px 0;width:100%;}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}blockquote{border-left:4px solid #ccc;padding-left:12px;color:#555;}pre{background:#f5f5f5;padding:10px;border-radius:4px;}code{background:#f5f5f5;padding:2px 4px;border-radius:4px;}hr{margin:24px 0;border:none;border-top:1px solid #ddd;}ul,ol{margin-left:24px;}img{max-width:100%;height:auto;}</style>",
+        "</head><body>",
+        f"<h1>{escape(article.get('title') or 'Без названия')}</h1>",
+        "<table>",
+    ]
+    for label, value in fields:
+        parts.append(
+            f"<tr><th style='width:220px'>{escape(label)}</th><td>{escape(value)}</td></tr>"
+        )
+    parts.append("</table>")
+    if summary:
+        parts.append(f"<p><em>{escape(summary)}</em></p>")
+        parts.append("<hr>")
+    parts.append(content_html)
+    attachments = article.get("files") or []
+    if attachments:
+        parts.append("<hr>")
+        parts.append("<h2>Вложения</h2>")
+        parts.append("<ul>")
+        for item in attachments:
+            name = escape(item.get("name") or "Файл")
+            parts.append(f"<li>{name}</li>")
+        parts.append("</ul>")
+    parts.append("</body></html>")
+    return "".join(parts)
+
+
+@app.route("/knowledge_base/<int:article_id>/export/docx")
+@login_required
+def knowledge_base_export_docx(article_id: int):
+    article = _fetch_kb_article(article_id)
+    if not article:
+        abort(404)
+
+    document = docx.Document()
+    document.add_heading(article.get("title") or "Без названия", level=1)
+    meta_table = document.add_table(rows=0, cols=2)
+    meta_fields = [
+        ("ID", str(article.get("id") or "")),
+        ("Отдел", article.get("department") or "—"),
+        ("Тип", article.get("article_type") or "—"),
+        ("Статус", article.get("status") or "—"),
+        ("Автор", article.get("author") or "—"),
+        ("Направление", article.get("direction") or "—"),
+        ("Подтип направления", article.get("direction_subtype") or "—"),
+    ]
+    for label, value in meta_fields:
+        row = meta_table.add_row().cells
+        row[0].text = label
+        row[1].text = value or ""
+
+    summary = article.get("summary") or ""
+    if summary:
+        document.add_paragraph(summary, style="Intense Quote")
+
+    html_converter = Html2Docx()
+    html_converter.add_html_to_document(article.get("content") or "", document)
+
+    attachments = article.get("files") or []
+    if attachments:
+        document.add_paragraph("Вложения", style="Heading 2")
+        for item in attachments:
+            document.add_paragraph(f"• {item.get('name')}")
+
+    buffer = io.BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+    filename = secure_filename(f"knowledge_article_{article_id}.docx") or f"article_{article_id}.docx"
+    return send_file(
+        buffer,
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@app.route("/knowledge_base/<int:article_id>/export/pdf")
+@login_required
+def knowledge_base_export_pdf(article_id: int):
+    article = _fetch_kb_article(article_id)
+    if not article:
+        abort(404)
+
+    html = _build_article_export_html(article)
+    buffer = io.BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=buffer)
+    if pisa_status.err:
+        return jsonify({"success": False, "error": "Не удалось сформировать PDF"}), 500
+    buffer.seek(0)
+    filename = secure_filename(f"knowledge_article_{article_id}.pdf") or f"article_{article_id}.pdf"
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
+    )
 
 
 # === Карточка клиента ===
