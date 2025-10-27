@@ -784,7 +784,9 @@
 }
 /* правая колонка с кнопками */
 .send-actions .btn { white-space: nowrap; }
-#replyTextInHistory { padding-bottom: 48px; } /* место под «док» внутри поля */
+#replyTextInHistory {
+  padding-bottom: 0; /* динамически задаётся скриптом */
+}
 #composerDock .btn { line-height: 1; }
 
 /* на узких экранах всё как раньше — под полем */
@@ -798,6 +800,37 @@
 /* История: компактнее зазор между текстом и кнопками действий */
 #historyModal .chat-bubble .msg-text { margin-bottom: 2px !important; }
 #historyModal .chat-bubble p { margin-bottom: 2px !important; }
+
+#clientTicketsSection {
+  display: none;
+}
+
+#clientTicketsSection .client-tickets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+#clientTicketsList {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+}
+
+#clientTicketsList .list-group-item {
+  cursor: pointer;
+}
+
+#clientTicketsList .list-group-item.active {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+#clientTicketsList .list-group-item.active .text-muted,
+#clientTicketsList .list-group-item.active .small {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
 
 /* подсветка целевого сообщения при переходе из «чипа» */
 .reply-preview {
@@ -1532,13 +1565,21 @@ function markTicketReopenedLocally() {
                     <div id="timeCounter">Загрузка...</div>
                     <div id="timeDetails" class="small text-muted mt-1"></div>
                   </div>
-					<button type="button" id="closeTicketBtn" class="btn btn-danger w-100 mt-3">
-						Закрыть заявку
-					</button>
+                                        <button type="button" id="closeTicketBtn" class="btn btn-danger w-100 mt-3">
+                                                Закрыть заявку
+                                        </button>
+                </div>
+
+                <div class="p-3 sidebar-info mt-3" id="clientTicketsSection">
+                  <div class="client-tickets-header">
+                    <span class="fw-semibold">Обращения клиента</span>
+                    <span class="badge bg-secondary" id="clientTicketsCount">0</span>
+                  </div>
+                  <div class="list-group list-group-flush" id="clientTicketsList"></div>
                 </div>
               </div>
             </div>
-			<div class="history-pane-resizer" id="historyPaneResizer"></div>
+                        <div class="history-pane-resizer" id="historyPaneResizer"></div>
 
             <!-- Правая часть - история переписки -->
             <div class="col-md-8 history-pane">
@@ -2013,13 +2054,15 @@ let cachedAdminUsers = null;
 	  });
 
 	  // клик вне панели/кнопки — закрываем; ESC — тоже
-	  document.addEventListener('click', (e)=>{
-		if (!panel.contains(e.target) && !dock.contains(e.target)) close();
-	  }, true);
-	  document.addEventListener('keydown', (e)=>{
-		if (e.key === 'Escape') close();
-	  });
-	})();
+          document.addEventListener('click', (e)=>{
+                if (!panel.contains(e.target) && !dock.contains(e.target)) close();
+          }, true);
+          document.addEventListener('keydown', (e)=>{
+                if (e.key === 'Escape') close();
+          });
+
+          adjustComposerPadding();
+        })();
 
 	async function uploadOneFile(file) {
 	  const fd = new FormData();
@@ -2131,6 +2174,91 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
           if (!Array.isArray(rawTickets)) return [];
           return rawTickets.map(normalizeSingleTicket);
         }
+
+        function getTicketCreatedAt(ticket) {
+          if (!ticket) return null;
+          const raw = ticket.created_at
+            || ticket.createdAt
+            || (ticket.created_date && ticket.created_time ? `${ticket.created_date} ${ticket.created_time}` : null)
+            || ticket.created
+            || ticket.createdDate;
+          if (!raw) return null;
+          const iso = normalizeToISO(raw);
+          const date = new Date(iso);
+          return isNaN(date) ? null : date;
+        }
+
+        function formatTicketListTime(ticket) {
+          const date = getTicketCreatedAt(ticket);
+          if (!date) return '—';
+          const dd = String(date.getDate()).padStart(2, '0');
+          const mm = String(date.getMonth() + 1).padStart(2, '0');
+          const hh = String(date.getHours()).padStart(2, '0');
+          const mi = String(date.getMinutes()).padStart(2, '0');
+          return `${dd}.${mm} ${hh}:${mi}`;
+        }
+
+        function renderClientTicketsList(userId, activeTicketId) {
+          const section = document.getElementById('clientTicketsSection');
+          const list = document.getElementById('clientTicketsList');
+          const counter = document.getElementById('clientTicketsCount');
+          if (!section || !list) return;
+
+          const tickets = (window.allTickets || []).filter(t => String(t.user_id ?? t.userId ?? '') === String(userId));
+          if (!tickets.length) {
+            section.style.display = 'none';
+            list.innerHTML = '';
+            if (counter) counter.textContent = '0';
+            return;
+          }
+
+          const sorted = tickets.slice().sort((a, b) => {
+            const ta = getTicketCreatedAt(a)?.getTime() ?? 0;
+            const tb = getTicketCreatedAt(b)?.getTime() ?? 0;
+            return tb - ta;
+          });
+
+          const html = sorted.map(ticket => {
+            const isActive = String(ticket.ticket_id) === String(activeTicketId);
+            const status = ticket.status || '—';
+            const created = formatTicketListTime(ticket);
+            const unread = unreadCountByTicket?.[String(ticket.ticket_id)] ?? 0;
+            const unreadBadge = unread > 0
+              ? `<span class="badge bg-danger ms-2">${unread}</span>`
+              : '';
+
+            return `
+              <button type="button"
+                      class="list-group-item list-group-item-action ${isActive ? 'active' : ''}"
+                      data-ticket-id="${ticket.ticket_id}"
+                      data-user-id="${ticket.user_id}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold">#${escapeHtml(String(ticket.ticket_id))}</span>
+                  <span class="text-muted small">${escapeHtml(created)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                  <span class="small">${escapeHtml(String(status))}</span>
+                  ${unreadBadge}
+                </div>
+              </button>
+            `;
+          }).join('');
+
+          list.innerHTML = html;
+          section.style.display = 'block';
+          if (counter) counter.textContent = String(tickets.length);
+        }
+
+        function adjustComposerPadding() {
+          const ta = document.getElementById('replyTextInHistory');
+          if (!ta) return;
+          const dock = document.getElementById('composerDock');
+          const dockHeight = dock ? (dock.offsetHeight || dock.clientHeight || 0) : 0;
+          const extra = dockHeight ? dockHeight + 8 : 0;
+          ta.style.paddingBottom = extra ? `${extra}px` : '';
+        }
+
+        window.addEventListener('resize', adjustComposerPadding, { passive: true });
 		        function shouldDisplayUnreadBadge(ticket, overrideStatus) {
           if (!ticket) return true;
           const resolvedBy = String(ticket.resolved_by || '').toLowerCase();
@@ -3494,6 +3622,10 @@ function initColumnResize() {
                         // Сохраняем все заявки для пагинации
                         allTickets = tickets;
 
+                        if (historyModalIsOpen && currentUserId && currentTicketId) {
+                                renderClientTicketsList(currentUserId, currentTicketId);
+                        }
+
                         if (window.initialClientStatusFilter && !window.initialClientStatusFilterApplied) {
                                 applyInitialClientStatusFilter();
                         } else if (window.filteredTickets) {
@@ -4290,8 +4422,10 @@ function displayTicketsForCurrentPage() {
                         if (clientData) {
                                 window.currentClientData = clientData;
                                 updateHistoryClientMeta(clientData, window.currentTicketDetails || {});
+                                renderClientTicketsList(currentUserId, currentTicketId);
                         } else {
                                 updateHistoryClientMeta({}, window.currentTicketDetails || {});
+                                renderClientTicketsList(currentUserId, currentTicketId);
                         }
 
 			// 1) берем массив из ответа
@@ -4393,6 +4527,11 @@ function displayTicketsForCurrentPage() {
                                 cache: 'no-store'
                         });
 
+                        if (response.status === 404) {
+                                alert('Паспорт для этой локации не найден');
+                                return;
+                        }
+
                         if (!response.ok) {
                                 throw new Error(`Failed to fetch passport: ${response.status}`);
                         }
@@ -4433,12 +4572,13 @@ function displayTicketsForCurrentPage() {
                                           ticketResp.json()
                                   ]);
 
-                                  const allTickets = normalizeTicketsFromServer(ticketsRaw);
+                                  const ticketsFromServer = normalizeTicketsFromServer(ticketsRaw);
+                                  allTickets = ticketsFromServer;
 
-				const qs = new URLSearchParams({
-					user_id: String(user_id),
-					ticket_id: String(ticket_id),
-					_: String(Date.now())
+                                const qs = new URLSearchParams({
+                                        user_id: String(user_id),
+                                        ticket_id: String(ticket_id),
+                                        _: String(Date.now())
 				});
 				
 				if (window.currentChannelId && Number(window.currentChannelId) > 0) {
@@ -4448,22 +4588,23 @@ function displayTicketsForCurrentPage() {
 				const historyResp = await fetch(`/history?${qs.toString()}`, { cache: 'no-store' });
 				const historyData = await historyResp.json();
 
-				currentUserId = user_id;
-				currentTicketId = ticket_id;
+                                currentUserId = user_id;
+                                currentTicketId = ticket_id;
 
-				// Ищем данные клиента в полученных тикетах
-				const clientData = allTickets.find(t => t.user_id == user_id && t.ticket_id == ticket_id);
-				if (clientData && ticketFull) {
-						if (!clientData.client_name && ticketFull.client_name) clientData.client_name = ticketFull.client_name;
-						if (!clientData.username && ticketFull.username) clientData.username = ticketFull.username;
-				}
+                                // Ищем данные клиента в полученных тикетах
+                                const clientData = ticketsFromServer.find(t => t.user_id == user_id && t.ticket_id == ticket_id);
+                                if (clientData && ticketFull) {
+                                                if (!clientData.client_name && ticketFull.client_name) clientData.client_name = ticketFull.client_name;
+                                                if (!clientData.username && ticketFull.username) clientData.username = ticketFull.username;
+                                }
                                 window.currentClientData = clientData || {};
                                 window.currentTicketDetails = ticketFull || {};
                                 window.currentChannelId = clientData?.channel_id ?? null;
 
                                 updateHistoryClientMeta(window.currentClientData, window.currentTicketDetails);
+                                renderClientTicketsList(currentUserId, currentTicketId);
 
-				const avaEl = document.getElementById('clientAvatarInHistory');
+                                const avaEl = document.getElementById('clientAvatarInHistory');
 				if (avaEl) {
 						const fallbackAvatar = '/static/default-avatar.png';
 						const avatarCandidates = [
@@ -4553,15 +4694,26 @@ function displayTicketsForCurrentPage() {
 				// === ВРЕМЕННЫЕ МЕТРИКИ (СООТВЕТСТВУЮТ ВАШЕЙ ЛОГИКЕ) ===
 				// "Создана" — когда заявка попала в список заявок.
 				// 1) Пытаемся взять ticket.created_at (от бэка); 2) иначе — первое сообщение клиента.
-                                let createdAt = parseDateFromAny(ticketFull.created_at || ticketFull.createdAt);
+                                let createdAt = parseDateFromAny(
+                                        ticketFull.created_at
+                                        || ticketFull.createdAt
+                                        || ticketFull.first_user_message_at
+                                        || ticketFull.firstUserMessageAt
+                                );
                                 if (!createdAt) {
                                         const firstUserMsg = messages.find(m => !isSupportMsg(m) && messageDate(m));
                                         createdAt = firstUserMsg ? messageDate(firstUserMsg) : null;
                                 }
 
                                 // "Первый ответ оператора" — первое сообщение support
-                                const firstSupportMsg = messages.find(m => isSupportMsg(m) && messageDate(m));
-                                const firstReply = firstSupportMsg ? messageDate(firstSupportMsg) : null;
+                                let firstReply = parseDateFromAny(
+                                        ticketFull.first_support_reply_at
+                                        || ticketFull.firstSupportReplyAt
+                                );
+                                if (!firstReply) {
+                                        const firstSupportMsg = messages.find(m => isSupportMsg(m) && messageDate(m));
+                                        firstReply = firstSupportMsg ? messageDate(firstSupportMsg) : null;
+                                }
 
                                 // "Завершение" — resolved_at от бэка
                                 const resolvedAt = parseDateFromAny(ticketFull.resolved_at || ticketFull.resolvedAt);
@@ -4721,9 +4873,10 @@ function displayTicketsForCurrentPage() {
                                 const modal = new bootstrap.Modal(document.getElementById('historyModal'));
                                 historyModalIsOpen = true;
                                 modal.show();
+                                adjustComposerPadding();
 
-				// после первичного рендера истории:
-					const chatEl = document.getElementById('historyContent');
+                                // после первичного рендера истории:
+                                        const chatEl = document.getElementById('historyContent');
 
 				// если оператор доскроллил до низа — обнуляем непрочитанные
 				chatEl.addEventListener('scroll', () => {
@@ -4814,6 +4967,7 @@ function displayTicketsForCurrentPage() {
                 document.getElementById('historyModal').addEventListener('shown.bs.modal', () => {
                   historyModalIsOpen = true;
                   _sizeHistoryHeights();
+                  adjustComposerPadding();
                   // пересчитываем при ресайзе и изменении высоты футера (textarea растёт)
                   new ResizeObserver(_sizeHistoryHeights).observe(document.getElementById('historyModal'));
                   window.addEventListener('resize', _sizeHistoryHeights, { passive: true });
@@ -6731,6 +6885,20 @@ document.addEventListener('click', async (e)=>{
       alert('Сеть недоступна. Попробуйте ещё раз.');
   }
 });
+
+const clientTicketsList = document.getElementById('clientTicketsList');
+if (clientTicketsList) {
+  clientTicketsList.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-ticket-id]');
+    if (!target) return;
+    const ticketId = target.dataset.ticketId;
+    const userId = target.dataset.userId || currentUserId;
+    if (!ticketId || String(ticketId) === String(currentTicketId)) {
+      return;
+    }
+    loadHistory(userId, ticketId);
+  });
+}
 
   (function(){
     function openFromHash(){
