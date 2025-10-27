@@ -4986,6 +4986,7 @@ def get_ticket(ticket_id):
     )
     meta_row = cur.fetchone()
     if meta_row:
+        meta_row = dict(meta_row)
         for key in ("business", "location_name", "client_name", "username", "channel_id"):
             value = meta_row.get(key)
             if value and not ticket.get(key):
@@ -5005,6 +5006,7 @@ def get_ticket(ticket_id):
     )
     created_row = cur.fetchone()
     if created_row:
+        created_row = dict(created_row)
         created_at_raw = created_row.get("created_at")
         if not created_at_raw:
             date_part = (created_row.get("created_date") or "").strip()
@@ -5024,7 +5026,8 @@ def get_ticket(ticket_id):
         """,
         (ticket_id,),
     )
-    timeline = cur.fetchone() or {}
+    timeline_row = cur.fetchone()
+    timeline = dict(timeline_row) if timeline_row else {}
 
     if not created_at_raw:
         created_at_raw = timeline.get("first_user_message_at") or timeline.get("first_message_at")
@@ -5042,6 +5045,7 @@ def get_ticket(ticket_id):
         )
         span_row = cur.fetchone()
         if span_row:
+            span_row = dict(span_row)
             created_at_raw = span_row.get("started_at")
 
     ticket["created_at"] = _coerce_to_iso(created_at_raw)
