@@ -238,9 +238,11 @@
 	  </div>
 	</div>
 
-<div class="card mb-4">
+<div class="card mb-4" id="clientPhonesCard">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">📞 Телефоны клиента</span>
+  </div>
   <div class="card-body">
-    <h5>📞 Телефоны клиента</h5>
 
     <h6 class="mt-2">Из Telegram (только для чтения)</h6>
     {% if phones_telegram and phones_telegram|length > 0 %}
@@ -269,8 +271,8 @@
             </td>
             <td><small class="text-muted">{{ p.created_at }}</small></td>
             <td class="text-end">
-              <button class="btn btn-sm btn-outline-primary" onclick="savePhoneLabel({{ client.user_id }}, {{ p.id }}, this)">💾</button>
-              <button class="btn btn-sm btn-outline-danger" onclick="archivePhone({{ client.user_id }}, {{ p.id }}, this)">🗑</button>
+              <button class="btn btn-sm btn-outline-primary" data-edit-mark-dirty onclick="savePhoneLabel({{ client.user_id }}, {{ p.id }}, this)">💾</button>
+              <button class="btn btn-sm btn-outline-danger" data-edit-mark-dirty onclick="archivePhone({{ client.user_id }}, {{ p.id }}, this)">🗑</button>
             </td>
           </tr>
           {% endfor %}
@@ -285,8 +287,9 @@
       <div class="col-md-4">
         <input id="newPhoneLabelInput" class="form-control" placeholder="личный / рабочий / другое">
       </div>
-      <div class="col-md-4">
-        <button class="btn btn-primary w-100" onclick="addManualPhone({{ client.user_id }})">➕ Добавить телефон</button>
+      <div class="col-md-4 d-flex flex-column flex-sm-row gap-2">
+        <button class="btn btn-primary flex-fill" data-edit-mark-dirty onclick="addManualPhone({{ client.user_id }})">➕ Добавить телефон</button>
+        <button class="btn btn-success flex-fill" data-edit-guard-edit-visible data-edit-mark-dirty id="bulkSavePhonesBtn" disabled>💾 Сохранить изменения</button>
       </div>
     </div>
   </div>
@@ -976,6 +979,7 @@ function createMediaHtml(ticket_id, mediaInfo) {
       }
     }
 </script>
+<script src="{{ url_for('static', filename='edit-guard.js') }}"></script>
 <script>
 	async function addManualPhone(userId){
 	  const phone = (document.getElementById('newPhoneInput')?.value || '').trim();
@@ -990,51 +994,158 @@ function createMediaHtml(ticket_id, mediaInfo) {
 	  location.reload();
 	}
 
-	async function savePhoneLabel(userId, phoneId, btn){
-	  const tr = btn.closest('tr');
-	  const inp = tr.querySelector('.phone-label-input');
-	  const label = inp ? inp.value.trim() : '';
-	  const r = await fetch(`/client/${userId}/phones/${phoneId}`, {
-		method:'PATCH', headers:{'Content-Type':'application/json'},
-		body: JSON.stringify({label})
-	  });
-	  const j = await r.json();
-	  if(!j.success){ alert('Ошибка: '+(j.error||'неизвестно')); return; }
-	  btn.classList.remove('btn-outline-primary');
-	  btn.classList.add('btn-success');
-	  setTimeout(()=>{ btn.classList.remove('btn-success'); btn.classList.add('btn-outline-primary'); }, 700);
-	}
+        async function savePhoneLabel(userId, phoneId, btn){
+          const tr = btn.closest('tr');
+          const inp = tr.querySelector('.phone-label-input');
+          const label = inp ? inp.value.trim() : '';
+          const r = await fetch(`/client/${userId}/phones/${phoneId}`, {
+                method:'PATCH', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({label})
+          });
+          const j = await r.json();
+          if(!j.success){ alert('Ошибка: '+(j.error||'неизвестно')); return; }
+          if (inp) {
+            inp.dataset.originalLabel = label;
+          }
+          updateBulkSaveButtonState();
+          const card = document.getElementById('clientPhonesCard');
+          if (card && window.EditGuard) {
+            window.EditGuard.refreshBlockSnapshot(card);
+          }
+          btn.classList.remove('btn-outline-primary');
+          btn.classList.add('btn-success');
+          setTimeout(()=>{ btn.classList.remove('btn-success'); btn.classList.add('btn-outline-primary'); }, 700);
+        }
 
-	async function archivePhone(userId, phoneId, btn){
-	  if(!confirm('Убрать телефон из активных?')) return;
-	  const r = await fetch(`/client/${userId}/phones/${phoneId}`, {
-		method:'PATCH', headers:{'Content-Type':'application/json'},
-		body: JSON.stringify({is_active:false})
-	  });
-	  const j = await r.json();
-	  if(!j.success){ alert('Ошибка: '+(j.error||'неизвестно')); return; }
-	  btn.closest('tr')?.remove();
-	}
-</script>
-<script>
-	async function addManualPhone() {
-	  const phone = document.getElementById('newPhone').value.trim();
-	  const label = document.getElementById('newPhoneLabel').value.trim();
-	  if (!phone) { alert('Введите телефон'); return; }
-	  const resp = await fetch('/client/{{ client.user_id }}/phones', {
-		method: 'POST',
-		headers: {'Content-Type':'application/json'},
-		body: JSON.stringify({ phone, label })
-	  });
-	  const data = await resp.json();
-	  if (data.success) location.reload(); else alert('Ошибка: ' + (data.error || 'неизвестно'));
-	}
+        async function archivePhone(userId, phoneId, btn){
+          if(!confirm('Убрать телефон из активных?')) return;
+          const r = await fetch(`/client/${userId}/phones/${phoneId}`, {
+                method:'PATCH', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({is_active:false})
+          });
+          const j = await r.json();
+          if(!j.success){ alert('Ошибка: '+(j.error||'неизвестно')); return; }
+          btn.closest('tr')?.remove();
+          updateBulkSaveButtonState();
+          const card = document.getElementById('clientPhonesCard');
+          if (card && window.EditGuard) {
+            window.EditGuard.refreshBlockSnapshot(card);
+          }
+        }
 
-	async function deactivatePhone(id) {
-	  const resp = await fetch(`/client/{{ client.user_id }}/phones/${id}/deactivate`, { method: 'POST' });
-	  const data = await resp.json();
-	  if (data.success) location.reload(); else alert('Ошибка: ' + (data.error || 'неизвестно'));
-	}
+        function collectManualPhoneUpdates() {
+          const rows = Array.from(document.querySelectorAll('#manualPhonesTbody tr[data-id]'));
+          return rows
+            .map((row) => {
+              const input = row.querySelector('.phone-label-input');
+              if (!input) return null;
+              const phoneId = Number(row.dataset.id);
+              if (!Number.isFinite(phoneId)) return null;
+              const original = (input.dataset.originalLabel || '').trim();
+              const current = (input.value || '').trim();
+              if (original === current) return null;
+              return { id: phoneId, label: current, input };
+            })
+            .filter(Boolean);
+        }
+
+        function updateBulkSaveButtonState() {
+          const bulkBtn = document.getElementById('bulkSavePhonesBtn');
+          if (!bulkBtn) return;
+          const hasChanges = collectManualPhoneUpdates().length > 0;
+          bulkBtn.disabled = !hasChanges;
+        }
+
+        async function bulkSaveManualPhoneLabels(options = {}) {
+          const keepEditing = options.keepEditing === true;
+          const silent = options.silent === true;
+          const card = document.getElementById('clientPhonesCard');
+          const bulkBtn = document.getElementById('bulkSavePhonesBtn');
+          const updates = collectManualPhoneUpdates();
+
+          if (!updates.length) {
+            if (card && window.EditGuard) {
+              window.EditGuard.refreshBlockSnapshot(card);
+            }
+            updateBulkSaveButtonState();
+            return true;
+          }
+
+          let originalHtml = '';
+          if (bulkBtn) {
+            originalHtml = bulkBtn.innerHTML;
+            bulkBtn.disabled = true;
+            bulkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Сохранение…';
+          }
+
+          try {
+            for (const entry of updates) {
+              const response = await fetch(`/client/{{ client.user_id }}/phones/${entry.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label: entry.label })
+              });
+              const data = await response.json();
+              if (!data.success) {
+                throw new Error(data.error || 'Не удалось сохранить изменения');
+              }
+              if (entry.input) {
+                entry.input.dataset.originalLabel = entry.label;
+              }
+            }
+
+            if (!silent) {
+              alert('✅ Изменения сохранены');
+            }
+
+            if (card && window.EditGuard) {
+              if (keepEditing) {
+                window.EditGuard.refreshBlockSnapshot(card);
+              } else {
+                window.EditGuard.markBlockSaved(card);
+              }
+            }
+
+            return true;
+          } catch (error) {
+            alert('Ошибка при сохранении телефонов: ' + (error?.message || error));
+            return false;
+          } finally {
+            if (bulkBtn) {
+              bulkBtn.innerHTML = originalHtml || '💾 Сохранить изменения';
+              updateBulkSaveButtonState();
+            }
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          const phoneCard = document.getElementById('clientPhonesCard');
+          const bulkBtn = document.getElementById('bulkSavePhonesBtn');
+
+          document.querySelectorAll('#manualPhonesTbody .phone-label-input').forEach((input) => {
+            input.dataset.originalLabel = (input.value || '').trim();
+            input.addEventListener('input', updateBulkSaveButtonState);
+            input.addEventListener('change', updateBulkSaveButtonState);
+          });
+
+          updateBulkSaveButtonState();
+
+          if (phoneCard && window.EditGuard) {
+            window.EditGuard.registerBlock(phoneCard, {
+              onSave: () => bulkSaveManualPhoneLabels({ keepEditing: false, silent: true }),
+              onDirtyChange: () => updateBulkSaveButtonState()
+            });
+
+            if (bulkBtn) {
+              bulkBtn.addEventListener('click', async () => {
+                const success = await bulkSaveManualPhoneLabels({ keepEditing: true });
+                if (success && phoneCard && window.EditGuard) {
+                  window.EditGuard.refreshBlockSnapshot(phoneCard);
+                }
+              });
+            }
+          }
+        });
 </script>
 <script>
 	(function () {
