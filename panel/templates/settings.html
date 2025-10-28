@@ -640,7 +640,11 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div class="auth-management" data-auth-management>
+            <div
+              class="auth-management"
+              data-auth-management
+              data-auth-photo-upload-endpoint="{{ url_for('api_users_upload_photo') }}"
+            >
               <div class="alert alert-danger d-none" role="alert" data-auth-message></div>
 
               <ul class="nav nav-tabs" role="tablist" data-auth-tabs>
@@ -735,7 +739,32 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
-                  <input type="text" class="form-control form-control-sm" id="authUserModalPhoto" name="photo" placeholder="Ссылка на изображение">
+                  <div class="auth-user-photo-uploader" data-auth-user-photo-uploader>
+                    <input type="hidden" id="authUserModalPhoto" name="photo" data-auth-user-photo-value>
+                    <input type="file" class="visually-hidden" accept="image/*" data-auth-user-photo-file>
+                    <div class="auth-user-photo-dropzone" data-auth-user-photo-dropzone>
+                      <div class="auth-user-photo-placeholder" data-auth-user-photo-placeholder>
+                        <div class="auth-user-photo-icon mb-2">
+                          <i class="bi bi-image"></i>
+                        </div>
+                        <p class="mb-2">Перетащите фото сюда или нажмите, чтобы загрузить</p>
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-trigger>Выбрать файл</button>
+                        <div class="text-muted small mt-2">PNG, JPG, WebP до 5 МБ</div>
+                      </div>
+                      <div class="auth-user-photo-preview d-none" data-auth-user-photo-preview>
+                        <img src="" alt="Фото пользователя" class="auth-user-photo-img" data-auth-user-photo-img loading="lazy">
+                        <div class="d-flex gap-2 mt-3">
+                          <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-change>Заменить</button>
+                          <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-photo-remove>Удалить</button>
+                        </div>
+                      </div>
+                      <div class="auth-user-photo-uploading d-none" data-auth-user-photo-uploading>
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <span class="ms-2 small">Загрузка...</span>
+                      </div>
+                    </div>
+                    <div class="form-text mt-2" data-auth-user-photo-status></div>
+                  </div>
                 </div>
               </div>
               <hr class="my-3">
