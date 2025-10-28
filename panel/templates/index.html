@@ -3993,12 +3993,15 @@ function displayTicketsForCurrentPage() {
                 } else {
                   const sanitizedProblem = (t.problem || '').replace(/"/g, '&quot;');
                   const sanitizedLocation = (t.location_name || t.city || '').replace(/"/g, '&quot;');
-                  createTaskBtn = `<button class="btn btn-sm btn-outline-primary create-task-btn"`
-                     data-problem="${sanitizedProblem}"
-                     data-location="${sanitizedLocation}"
-                     data-ticket="${t.ticket_id}">
-                     Создать задачу
-                   </button>`;
+                    createTaskBtn = `
+                      <button
+                        class="btn btn-sm btn-outline-primary create-task-btn"
+                        data-problem="${sanitizedProblem}"
+                        data-location="${sanitizedLocation}"
+                        data-ticket="${t.ticket_id}"
+                      >
+                        Создать задачу
+                      </button>`;
                 }
 
         const businessValue = t.business || '—';
