@@ -11,6 +11,7 @@ from flask import (
     send_file,
     send_from_directory,
     abort,
+    g,
 )
 import sqlite3
 import datetime
@@ -26,6 +27,7 @@ import sys
 import shutil
 from pathlib import Path
 import secrets
+from functools import wraps
 
 PARENT_DIR = Path(__file__).resolve().parent.parent
 if str(PARENT_DIR) not in sys.path:
@@ -520,6 +522,511 @@ def get_users_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+PERMISSION_WILDCARD = "*"
+
+AVAILABLE_PAGE_PERMISSIONS = [
+    {"key": "dialogs", "label": "Диалоги"},
+    {"key": "tasks", "label": "Задачи"},
+    {"key": "clients", "label": "Клиенты"},
+    {"key": "object_passports", "label": "Паспорта объектов"},
+    {"key": "knowledge_base", "label": "База знаний"},
+    {"key": "dashboard", "label": "Дашборд"},
+    {"key": "analytics", "label": "Аналитика"},
+    {"key": "channels", "label": "Каналы"},
+    {"key": "settings", "label": "Настройки"},
+    {"key": "user_management", "label": "Пользователи и роли"},
+]
+
+EDITABLE_FIELD_PERMISSIONS = [
+    {"key": "user.create", "label": "Создание пользователя"},
+    {"key": "user.username", "label": "Изменение логина пользователя"},
+    {"key": "user.password", "label": "Изменение пароля пользователя"},
+    {"key": "user.role", "label": "Изменение роли пользователя"},
+    {"key": "user.delete", "label": "Удаление пользователя"},
+    {"key": "role.create", "label": "Создание роли"},
+    {"key": "role.name", "label": "Изменение названия роли"},
+    {"key": "role.description", "label": "Изменение описания роли"},
+    {"key": "role.pages", "label": "Настройка доступа к страницам"},
+    {"key": "role.fields.edit", "label": "Настройка прав редактирования полей"},
+    {"key": "role.fields.view", "label": "Настройка прав просмотра полей"},
+    {"key": "role.delete", "label": "Удаление роли"},
+]
+
+VIEWABLE_FIELD_PERMISSIONS = [
+    {"key": "user.password", "label": "Просмотр пароля пользователя"},
+]
+
+DEFAULT_ROLE_PERMISSIONS = {
+    "admin": {
+        "pages": [PERMISSION_WILDCARD],
+        "fields": {
+            "edit": [PERMISSION_WILDCARD],
+            "view": [PERMISSION_WILDCARD],
+        },
+        "description": "Полный доступ ко всем настройкам панели",
+    },
+    "user": {
+        "pages": [
+            item["key"]
+            for item in AVAILABLE_PAGE_PERMISSIONS
+            if item["key"] not in {"settings", "user_management"}
+        ],
+        "fields": {"edit": [], "view": []},
+        "description": "Базовая роль без доступа к настройкам",
+    },
+}
+
+
+def _normalize_permission_list(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw = [value]
+    elif isinstance(value, (set, tuple)):
+        raw = list(value)
+    elif isinstance(value, list):
+        raw = value
+    else:
+        return []
+    result: list[str] = []
+    for item in raw:
+        key = str(item or "").strip()
+        if key:
+            result.append(key)
+    return result
+
+
+def _normalize_permissions_payload(raw) -> dict:
+    if not raw:
+        return {"pages": [], "fields": {"edit": [], "view": []}}
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            raw = {}
+    if not isinstance(raw, dict):
+        return {"pages": [], "fields": {"edit": [], "view": []}}
+    pages = _normalize_permission_list(raw.get("pages"))
+    fields_payload = raw.get("fields") or {}
+    if isinstance(fields_payload, str):
+        try:
+            fields_payload = json.loads(fields_payload)
+        except json.JSONDecodeError:
+            fields_payload = {}
+    if not isinstance(fields_payload, dict):
+        fields_payload = {}
+    edit_list = _normalize_permission_list(fields_payload.get("edit"))
+    view_list = _normalize_permission_list(fields_payload.get("view"))
+    return {"pages": pages, "fields": {"edit": edit_list, "view": view_list}}
+
+
+def _permission_matches(values: list[str], key: str) -> bool:
+    for value in values or []:
+        if value == PERMISSION_WILDCARD:
+            return True
+        candidate = str(value or "").strip()
+        if not candidate:
+            continue
+        if candidate.endswith(".*") and key.startswith(candidate[:-1]):
+            return True
+        if candidate == key:
+            return True
+    return False
+
+
+def _merge_permission_lists(base: list[str], extra: list[str]) -> list[str]:
+    result: list[str] = []
+    for item in (base or []) + (extra or []):
+        key = str(item or "").strip()
+        if key and key not in result:
+            result.append(key)
+    return result
+
+
+def _sanitize_permission_values(values: list[str], allowed_keys: list[str]) -> list[str]:
+    allowed = set(allowed_keys or [])
+    result: list[str] = []
+    for item in _normalize_permission_list(values):
+        if item == PERMISSION_WILDCARD or item in allowed:
+            if item not in result:
+                result.append(item)
+    return result
+
+
+def _ensure_user_schema():
+    with get_users_db() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS roles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                description TEXT,
+                permissions TEXT NOT NULL DEFAULT '{}'
+            )
+            """
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_roles_name ON roles(name)"
+        )
+
+        user_columns = {
+            row["name"]: row for row in conn.execute("PRAGMA table_info(users)")
+        }
+        if "role_id" not in user_columns:
+            conn.execute("ALTER TABLE users ADD COLUMN role_id INTEGER")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id)"
+            )
+
+        # Если пароль был захэширован и лежит в столбце password, перенесём его в password_hash
+        rows = conn.execute(
+            "SELECT id, password, password_hash FROM users"
+        ).fetchall()
+        for row in rows:
+            password_value = row["password"] or ""
+            password_hash = row["password_hash"] or ""
+            if password_value and not password_hash and password_value.startswith(
+                ("pbkdf2:", "scrypt:", "sha256:")
+            ):
+                conn.execute(
+                    "UPDATE users SET password_hash = ?, password = NULL WHERE id = ?",
+                    (password_value, row["id"]),
+                )
+
+        existing_roles = {
+            row["name"]: row
+            for row in conn.execute("SELECT id, name, description, permissions FROM roles")
+        }
+
+        for role_name, payload in DEFAULT_ROLE_PERMISSIONS.items():
+            if role_name not in existing_roles:
+                permissions_payload = {
+                    "pages": payload.get("pages", []),
+                    "fields": payload.get("fields", {}),
+                }
+                conn.execute(
+                    "INSERT INTO roles (name, description, permissions) VALUES (?, ?, ?)",
+                    (
+                        role_name,
+                        payload.get("description", ""),
+                        json.dumps(permissions_payload, ensure_ascii=False),
+                    ),
+                )
+
+        conn.commit()
+
+        # После добавления ролей получим их актуальный список
+        existing_roles = {
+            row["name"]: row
+            for row in conn.execute("SELECT id, name, permissions FROM roles")
+        }
+
+        def assign_role_if_needed(user_row, target_role_name: str):
+            role_row = existing_roles.get(target_role_name)
+            if not role_row:
+                return
+            if user_row.get("role_id") == role_row["id"]:
+                return
+            conn.execute(
+                "UPDATE users SET role_id = ?, role = ? WHERE id = ?",
+                (role_row["id"], target_role_name, user_row["id"]),
+            )
+
+        # Убедимся, что существует пользователь admin
+        admin_row = conn.execute(
+            "SELECT id, username, password, password_hash, role_id, role FROM users WHERE username = 'admin'"
+        ).fetchone()
+        admin_role_row = existing_roles.get("admin")
+        if not admin_row:
+            default_password = "admin"
+            hashed = generate_password_hash(default_password)
+            conn.execute(
+                "INSERT INTO users (username, password, password_hash, role_id, role) VALUES (?, ?, ?, ?, ?)",
+                (
+                    "admin",
+                    default_password,
+                    hashed,
+                    admin_role_row["id"] if admin_role_row else None,
+                    "admin",
+                ),
+            )
+        else:
+            if admin_role_row:
+                assign_role_if_needed(admin_row, "admin")
+            if not (admin_row["password_hash"] or "").strip():
+                current_plain = admin_row["password"] or "admin"
+                conn.execute(
+                    "UPDATE users SET password_hash = ? WHERE id = ?",
+                    (generate_password_hash(current_plain), admin_row["id"]),
+                )
+
+        # Пользователи с ролью user должны получить одноимённую запись
+        user_role_row = existing_roles.get("user")
+        if user_role_row:
+            users_without_role = conn.execute(
+                "SELECT id, role, role_id FROM users WHERE role_id IS NULL"
+            ).fetchall()
+            for row in users_without_role:
+                target_name = row["role"] or "user"
+                role_row = existing_roles.get(target_name) or user_role_row
+                conn.execute(
+                    "UPDATE users SET role_id = ?, role = ? WHERE id = ?",
+                    (role_row["id"], role_row["name"], row["id"]),
+                )
+
+        conn.commit()
+
+
+_ensure_user_schema()
+
+
+def _get_permissions_catalog() -> dict:
+    return {
+        "pages": AVAILABLE_PAGE_PERMISSIONS,
+        "fields": {
+            "edit": EDITABLE_FIELD_PERMISSIONS,
+            "view": VIEWABLE_FIELD_PERMISSIONS,
+        },
+    }
+
+
+def _empty_permissions() -> dict:
+    return {"pages": [], "fields": {"edit": [], "view": []}}
+
+
+def _load_user_row(user_id: int | None = None, username: str | None = None):
+    if user_id is None and not username:
+        return None
+    with get_users_db() as conn:
+        if user_id is not None:
+            row = conn.execute(
+                """
+                SELECT u.*, r.name AS role_name, r.permissions AS role_permissions
+                FROM users u
+                LEFT JOIN roles r ON r.id = u.role_id
+                WHERE u.id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT u.*, r.name AS role_name, r.permissions AS role_permissions
+                FROM users u
+                LEFT JOIN roles r ON r.id = u.role_id
+                WHERE LOWER(u.username) = LOWER(?)
+                """,
+                (username,),
+            ).fetchone()
+    return row
+
+
+def _load_role_row(role_id: int | None = None, role_name: str | None = None):
+    if role_id is None and not role_name:
+        return None
+    query = "SELECT id, name, description, permissions FROM roles WHERE {} LIMIT 1"
+    if role_id is not None:
+        clause = "id = ?"
+        param = (role_id,)
+    else:
+        clause = "LOWER(name) = LOWER(?)"
+        param = (role_name,)
+    with get_users_db() as conn:
+        return conn.execute(query.format(clause), param).fetchone()
+
+
+def _row_value(row: sqlite3.Row | dict, key: str, default=None):
+    if isinstance(row, dict):
+        return row.get(key, default)
+    if hasattr(row, "keys") and key in row.keys():
+        return row[key]
+    return default
+
+
+def _serialize_role(row: sqlite3.Row | dict) -> dict:
+    if not row:
+        return {}
+    permissions_raw = _row_value(row, "permissions", {})
+    permissions = _normalize_permissions_payload(permissions_raw)
+    name = _row_value(row, "name", "")
+    description = _row_value(row, "description", "")
+    role_id = _row_value(row, "id")
+    return {
+        "id": role_id,
+        "name": name,
+        "description": description or "",
+        "permissions": permissions,
+        "is_admin": (name or "").lower() == "admin",
+    }
+
+
+def _build_permissions_from_row(row: sqlite3.Row | dict | None) -> dict:
+    if not row:
+        return _empty_permissions()
+    if isinstance(row, dict):
+        permissions_raw = row.get("role_permissions") or row.get("permissions")
+    else:
+        if hasattr(row, "keys") and "role_permissions" in row.keys():
+            permissions_raw = row["role_permissions"]
+        else:
+            permissions_raw = _row_value(row, "permissions", {})
+    return _normalize_permissions_payload(permissions_raw)
+
+
+def _permission_values_for_action(action: str) -> list[dict]:
+    if action == "edit":
+        return EDITABLE_FIELD_PERMISSIONS
+    if action == "view":
+        return VIEWABLE_FIELD_PERMISSIONS
+    return []
+
+
+def _catalog_keys_for_action(action: str) -> list[str]:
+    return [item["key"] for item in _permission_values_for_action(action)]
+
+
+def _prepare_permissions_payload(data: dict | None) -> dict:
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            data = {}
+    if not isinstance(data, dict):
+        data = {}
+    allowed_pages = [item["key"] for item in AVAILABLE_PAGE_PERMISSIONS]
+    pages = _sanitize_permission_values(data.get("pages") or [], allowed_pages)
+    fields_payload = data.get("fields") or {}
+    if isinstance(fields_payload, str):
+        try:
+            fields_payload = json.loads(fields_payload)
+        except json.JSONDecodeError:
+            fields_payload = {}
+    if not isinstance(fields_payload, dict):
+        fields_payload = {}
+    edit_permissions = _sanitize_permission_values(
+        fields_payload.get("edit") or [], _catalog_keys_for_action("edit")
+    )
+    view_permissions = _sanitize_permission_values(
+        fields_payload.get("view") or [], _catalog_keys_for_action("view")
+    )
+    return {
+        "pages": pages,
+        "fields": {
+            "edit": edit_permissions,
+            "view": view_permissions,
+        },
+    }
+
+
+def _is_builtin_role(name: str | None) -> bool:
+    return (name or "").lower() == "admin"
+
+
+def _get_current_permissions() -> dict:
+    permissions = getattr(g, "current_permissions", None)
+    if not permissions:
+        return _empty_permissions()
+    return permissions
+
+
+def _current_user_id() -> int | None:
+    user_row = getattr(g, "current_user", None)
+    if user_row is not None:
+        return _row_value(user_row, "id")
+    return session.get("user_id")
+
+
+def has_page_access(page_key: str) -> bool:
+    permissions = _get_current_permissions()
+    return _permission_matches(permissions.get("pages", []), page_key)
+
+
+def has_field_edit_permission(field_key: str) -> bool:
+    permissions = _get_current_permissions()
+    return _permission_matches(permissions.get("fields", {}).get("edit", []), field_key)
+
+
+def has_field_view_permission(field_key: str) -> bool:
+    permissions = _get_current_permissions()
+    return _permission_matches(permissions.get("fields", {}).get("view", []), field_key)
+
+
+def require_field_permission(field_key: str, action: str = "edit"):
+    allowed = (
+        has_field_edit_permission(field_key)
+        if action == "edit"
+        else has_field_view_permission(field_key)
+    )
+    if not allowed:
+        abort(403)
+
+
+def _check_user_password(user_row, candidate: str) -> bool:
+    if not user_row:
+        return False
+    password_hash = _row_value(user_row, "password_hash", "") or ""
+    if password_hash:
+        try:
+            if check_password_hash(password_hash, candidate):
+                return True
+        except ValueError:
+            pass
+    stored_password = _row_value(user_row, "password", "") or ""
+    if stored_password:
+        return secrets.compare_digest(stored_password, candidate)
+    return False
+
+
+def _set_user_password(conn, user_id: int, new_password: str):
+    if user_id is None:
+        raise ValueError("user_id is required to set password")
+    hashed = generate_password_hash(new_password)
+    conn.execute(
+        "UPDATE users SET password = ?, password_hash = ? WHERE id = ?",
+        (new_password, hashed, user_id),
+    )
+
+
+@app.before_request
+def _load_current_user_context():
+    g.current_user = None
+    g.current_permissions = _empty_permissions()
+    user_id = session.get("user_id")
+    username = session.get("username") or session.get("user")
+    row = None
+    if user_id is not None:
+        row = _load_user_row(user_id=user_id)
+    if row is None and username:
+        row = _load_user_row(username=username)
+    if row is None:
+        return
+    g.current_user = row
+    permissions = _build_permissions_from_row(row)
+    g.current_permissions = permissions
+    session["user_id"] = _row_value(row, "id")
+    session["user"] = _row_value(row, "username") or session.get("user")
+    session["username"] = _row_value(row, "username") or session.get("username")
+    session["role_id"] = _row_value(row, "role_id")
+    session["role"] = (
+        _row_value(row, "role_name")
+        or _row_value(row, "role")
+        or session.get("role")
+    )
+
+
+def page_access_required(page_key: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if "user" not in session:
+                return redirect(url_for("login"))
+            if not has_page_access(page_key):
+                abort(403)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 def _init_sqlite():
     with get_db() as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
@@ -3957,18 +4464,28 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
         with get_users_db() as conn:
-            user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-        if user and (user["password"] == password or check_password_hash(user["password"], password)):
+            user = conn.execute(
+                """
+                SELECT u.*, r.name AS role_name, r.permissions AS role_permissions
+                FROM users u
+                LEFT JOIN roles r ON r.id = u.role_id
+                WHERE LOWER(u.username) = LOWER(?)
+                """,
+                (username,),
+            ).fetchone()
+        if user and _check_user_password(user, password):
             # унифицируем ключи сессии, чтобы их видели и страницы, и API
             session.clear()
-            session["user"] = username                 # твой текущий ключ, на нём завязан login_required
-            session["role"] = user["role"]
+            resolved_username = _row_value(user, "username", username)
+            session["user"] = resolved_username  # твой текущий ключ, на нём завязан login_required
+            session["role"] = _row_value(user, "role_name") or _row_value(user, "role")
 
             # универсальные ключи для API и шаблонов (tasks.html берёт user_email)
             session["logged_in"] = True
-            session["user_id"] = user.get("id") if isinstance(user, dict) else user["id"]
-            session["username"] = username
-            session["user_email"] = username  # если реальной почты нет — используем username
+            session["user_id"] = _row_value(user, "id")
+            session["role_id"] = _row_value(user, "role_id")
+            session["username"] = resolved_username
+            session["user_email"] = resolved_username  # если реальной почты нет — используем username
 
             return redirect(url_for("index"))
         else:
@@ -3982,11 +4499,11 @@ def logout():
 
 # === Декоратор для защиты маршрутов ===
 def login_required(f):
+    @wraps(f)
     def decorated(*args, **kwargs):
         if "user" not in session:
             return redirect(url_for("login"))
         return f(*args, **kwargs)
-    decorated.__name__ = f.__name__
     return decorated
 
 
@@ -4268,7 +4785,6 @@ def api_public_form_send_message(channel_id: str, token: str):
 
     return jsonify({"success": True})
 
-from functools import wraps
 from flask import jsonify, session
 
 def _is_authenticated():
@@ -4370,6 +4886,7 @@ def reopen_ticket_if_needed(ticket_id: str) -> bool | str:
 from datetime import datetime as dt, timedelta, timezone
 @app.route("/")
 @login_required
+@page_access_required("dialogs")
 def index():
     settings = {"categories": ["Консультация", "Другое"]}
     if os.path.exists(SETTINGS_PATH):
@@ -5070,6 +5587,7 @@ def get_ticket_category(ticket_id):
 
 @app.route("/clients")
 @login_required
+@page_access_required("clients")
 def clients_list():
     # фильтр по блэклисту: '1' (только в блэклисте), '0' (только не в блэклисте), '' или None (все)
     bl_filter = (request.args.get("blacklist") or "").strip()
@@ -5352,6 +5870,7 @@ def _cleanup_orphan_attachments(conn: sqlite3.Connection, article_id: int, keep_
 @app.route("/knowledge_base")
 @app.route("/knowledge-base")
 @login_required
+@page_access_required("knowledge_base")
 def knowledge_base_page():
     articles = _fetch_knowledge_articles()
     return render_template("knowledge_base.html", articles=articles)
@@ -6439,6 +6958,7 @@ def _prepare_client_analytics(conn):
 
 @app.route("/analytics/clients")
 @login_required
+@page_access_required("analytics")
 def analytics_clients():
     tab = request.args.get("tab") or "clients"
     return redirect(url_for("analytics", tab=tab))
@@ -6446,6 +6966,7 @@ def analytics_clients():
 
 @app.route("/analytics")
 @login_required
+@page_access_required("analytics")
 def analytics():
     conn = get_db()
     try:
@@ -6471,6 +6992,7 @@ def analytics():
 # === Детали клиента для аналитики ===
 @app.route("/analytics/clients/<int:user_id>/details")
 @login_required
+@page_access_required("analytics")
 def client_analytics_details(user_id):
     try:
         conn = get_db()
@@ -6845,11 +7367,13 @@ def export_analytics():
 
 @app.route("/users_list")
 @login_required
+@page_access_required("user_management")
 def users_page():
     return render_template("users_list.html")
 
 @app.route("/dashboard")
 @login_required
+@page_access_required("dashboard")
 def dashboard():
     conn = get_db()
     cur = conn.cursor()
@@ -6918,6 +7442,7 @@ import requests
 
 @app.route('/tasks')
 @login_required
+@page_access_required("tasks")
 def tasks_page():
     import sqlite3
     users = []
@@ -7495,6 +8020,7 @@ def api_notify_read(nid):
 
 @app.route("/channels", methods=["GET"])
 @login_required
+@page_access_required("channels")
 def channels_page():
     conn = get_db()
     rows = conn.execute("SELECT * FROM channels ORDER BY id DESC").fetchall()
@@ -7649,6 +8175,7 @@ def api_channels_delete(channel_id):
 
 @app.route("/settings")
 @login_required
+@page_access_required("settings")
 def settings_page():
     settings = load_settings()
     locations_payload = load_locations()
@@ -8624,6 +9151,7 @@ def api_delete_it_equipment(item_id):
 
 @app.route("/object_passports")
 @login_required
+@page_access_required("object_passports")
 def object_passports_page():
     settings = load_settings()
     network_profiles = settings.get("network_profiles", []) if isinstance(settings, dict) else []
@@ -9447,71 +9975,437 @@ def api_object_passport_equipment_delete_photo(photo_id):
 
     return jsonify({"success": True, "equipment": equipment})
 
-# === API для управления пользователями ===
+# === API для управления пользователями и ролями ===
+
+
+def _resolve_role_assignment(conn, role_id: int | None, role_name: str | None):
+    if role_id:
+        row = conn.execute(
+            "SELECT id, name FROM roles WHERE id = ?",
+            (role_id,),
+        ).fetchone()
+        if not row:
+            abort(400, description="Указанная роль не найдена")
+        return row
+    if role_name:
+        row = conn.execute(
+            "SELECT id, name FROM roles WHERE LOWER(name) = LOWER(?)",
+            (role_name,),
+        ).fetchone()
+        if not row:
+            abort(400, description="Указанная роль не найдена")
+        return row
+    row = conn.execute(
+        "SELECT id, name FROM roles WHERE name = 'user'"
+    ).fetchone()
+    if not row:
+        raise RuntimeError("Роль по умолчанию не найдена")
+    return row
+
+
+def _serialize_user_row(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "role": row["role_name"],
+        "role_id": row["role_id"],
+    }
+
+
+def _fetch_user_summary(conn, user_id: int):
+    return conn.execute(
+        """
+        SELECT u.id, u.username, u.role_id, COALESCE(r.name, u.role) AS role_name
+        FROM users u
+        LEFT JOIN roles r ON r.id = u.role_id
+        WHERE u.id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+
+
 @app.route("/users")
 @login_required
 def get_users():
+    if not (has_page_access("user_management") or has_page_access("settings")):
+        abort(403)
     try:
         with get_users_db() as conn:
-            users = conn.execute("SELECT id, username, role FROM users").fetchall()
-        return jsonify([dict(u) for u in users])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            rows = conn.execute(
+                """
+                SELECT u.id, u.username, u.role_id, COALESCE(r.name, u.role) AS role_name
+                FROM users u
+                LEFT JOIN roles r ON r.id = u.role_id
+                ORDER BY LOWER(u.username)
+                """
+            ).fetchall()
+        return jsonify([_serialize_user_row(row) for row in rows])
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
 
 @app.route("/users", methods=["POST"])
 @login_required
 def add_user():
+    if not has_field_edit_permission("user.create"):
+        abort(403)
+    data = request.json or {}
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+    role_id = data.get("role_id")
+    role_name = (data.get("role") or "").strip() or None
+
+    if not username or not password:
+        return jsonify({"success": False, "error": "Имя пользователя и пароль не могут быть пустыми"}), 400
+
     try:
-        data = request.json
-        username = data.get("username", "").strip()
-        password = data.get("password", "").strip()
-        role = data.get("role", "user").strip()
-
-        if not username or not password:
-            return jsonify({"success": False, "error": "Имя пользователя и пароль не могут быть пустыми"})
-
         with get_users_db() as conn:
-            # Проверяем, существует ли пользователь
-            existing = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+            existing = conn.execute(
+                "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+                (username,),
+            ).fetchone()
             if existing:
-                return jsonify({"success": False, "error": "Пользователь уже существует"})
+                return jsonify({"success": False, "error": "Пользователь уже существует"}), 400
 
-            # Хэшируем пароль и сохраняем
-            hashed_password = generate_password_hash(password)
-            conn.execute(
-                "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                (username, hashed_password, role)
+            role_row = _resolve_role_assignment(conn, role_id, role_name)
+            cursor = conn.execute(
+                "INSERT INTO users (username, role_id, role) VALUES (?, ?, ?)",
+                (username, role_row["id"], role_row["name"]),
             )
+            new_user_id = cursor.lastrowid
+            _set_user_password(conn, new_user_id, password)
             conn.commit()
-        
-        return jsonify({"success": True})
-    
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+            summary = _fetch_user_summary(conn, new_user_id)
+
+        return jsonify({"success": True, "user": _serialize_user_row(summary)})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/users/<int:user_id>", methods=["PUT", "PATCH"])
+@login_required
+def update_user(user_id):
+    data = request.json or {}
+    with get_users_db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Пользователь не найден"}), 404
+
+        updates_made = False
+
+        if "username" in data:
+            new_username = (data.get("username") or "").strip()
+            if not new_username:
+                return jsonify({"success": False, "error": "Имя пользователя не может быть пустым"}), 400
+            if not has_field_edit_permission("user.username"):
+                abort(403)
+            if new_username.lower() != (row["username"] or "").lower():
+                existing = conn.execute(
+                    "SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id <> ?",
+                    (new_username, user_id),
+                ).fetchone()
+                if existing:
+                    return jsonify({"success": False, "error": "Пользователь с таким именем уже существует"}), 400
+                conn.execute(
+                    "UPDATE users SET username = ? WHERE id = ?",
+                    (new_username, user_id),
+                )
+                updates_made = True
+
+        if "role_id" in data or "role" in data:
+            if not has_field_edit_permission("user.role"):
+                abort(403)
+            role_row = _resolve_role_assignment(
+                conn,
+                data.get("role_id"),
+                (data.get("role") or "").strip() or None,
+            )
+            conn.execute(
+                "UPDATE users SET role_id = ?, role = ? WHERE id = ?",
+                (role_row["id"], role_row["name"], user_id),
+            )
+            updates_made = True
+
+        if "password" in data:
+            new_password = (data.get("password") or "").strip()
+            if not new_password:
+                return jsonify({"success": False, "error": "Пароль не может быть пустым"}), 400
+            current_id = _current_user_id()
+            if user_id != current_id and not has_field_edit_permission("user.password"):
+                abort(403)
+            _set_user_password(conn, user_id, new_password)
+            updates_made = True
+
+        if updates_made:
+            conn.commit()
+        summary = _fetch_user_summary(conn, user_id)
+
+    if not summary:
+        return jsonify({"success": False, "error": "Пользователь не найден"}), 404
+
+    return jsonify({"success": True, "user": _serialize_user_row(summary), "updated": updates_made})
+
 
 @app.route("/users/<int:user_id>", methods=["DELETE"])
 @login_required
 def delete_user(user_id):
-    try:
-        # Защита от удаления самого себя или администратора
-        if user_id == 1:  # ID администратора
-            return jsonify({"success": False, "error": "Нельзя удалить администратора"})
-        
-        with get_users_db() as conn:
-            # Проверяем, существует ли пользователь
-            user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-            if not user:
-                return jsonify({"success": False, "error": "Пользователь не найден"})
-            
-            # Удаляем пользователя
-            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    current_id = _current_user_id()
+    if current_id == user_id:
+        return jsonify({"success": False, "error": "Нельзя удалить свою учётную запись"}), 400
+    if not has_field_edit_permission("user.delete"):
+        abort(403)
+
+    with get_users_db() as conn:
+        row = conn.execute(
+            "SELECT id, username, role, role_id FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Пользователь не найден"}), 404
+
+        role_name = (row["role"] or "").lower()
+        if role_name == "admin":
+            remaining_admins = conn.execute(
+                "SELECT COUNT(*) AS total FROM users WHERE LOWER(role) = 'admin' AND id <> ?",
+                (user_id,),
+            ).fetchone()["total"]
+            if remaining_admins == 0:
+                return jsonify({"success": False, "error": "Нельзя удалить последнего администратора"}), 400
+
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+
+    return jsonify({"success": True})
+
+
+@app.route("/users/<int:user_id>/password", methods=["GET"])
+@login_required
+def get_user_password(user_id):
+    current_id = _current_user_id()
+    if user_id != current_id and not has_field_view_permission("user.password"):
+        abort(403)
+
+    row = _load_user_row(user_id=user_id)
+    if not row:
+        return jsonify({"success": False, "error": "Пользователь не найден"}), 404
+    password_value = _row_value(row, "password", "") or ""
+    if not password_value:
+        return jsonify({"success": False, "error": "Пароль недоступен"}), 404
+    return jsonify({"success": True, "password": password_value})
+
+
+@app.route("/roles", methods=["GET"])
+@login_required
+def list_roles():
+    if not (has_page_access("user_management") or has_page_access("settings")):
+        abort(403)
+    with get_users_db() as conn:
+        rows = conn.execute(
+            "SELECT id, name, description, permissions FROM roles ORDER BY LOWER(name)"
+        ).fetchall()
+    return jsonify([_serialize_role(row) for row in rows])
+
+
+@app.route("/roles", methods=["POST"])
+@login_required
+def create_role():
+    if not has_field_edit_permission("role.create"):
+        abort(403)
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    description = (data.get("description") or "").strip()
+    permissions_payload = _prepare_permissions_payload(data.get("permissions"))
+
+    if not name:
+        return jsonify({"success": False, "error": "Название роли не может быть пустым"}), 400
+
+    with get_users_db() as conn:
+        existing = conn.execute(
+            "SELECT id FROM roles WHERE LOWER(name) = LOWER(?)",
+            (name,),
+        ).fetchone()
+        if existing:
+            return jsonify({"success": False, "error": "Роль с таким названием уже существует"}), 400
+        cursor = conn.execute(
+            "INSERT INTO roles (name, description, permissions) VALUES (?, ?, ?)",
+            (name, description, json.dumps(permissions_payload, ensure_ascii=False)),
+        )
+        conn.commit()
+        new_role = conn.execute(
+            "SELECT id, name, description, permissions FROM roles WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+
+    return jsonify({"success": True, "role": _serialize_role(new_role)})
+
+
+@app.route("/roles/<int:role_id>", methods=["PUT", "PATCH"])
+@login_required
+def update_role(role_id):
+    data = request.json or {}
+    with get_users_db() as conn:
+        row = conn.execute(
+            "SELECT id, name, description, permissions FROM roles WHERE id = ?",
+            (role_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Роль не найдена"}), 404
+
+        role_name = _row_value(row, "name", "")
+        is_admin_role = _is_builtin_role(role_name)
+        updates = {}
+
+        if "name" in data:
+            if is_admin_role:
+                return jsonify({"success": False, "error": "Нельзя переименовывать роль admin"}), 400
+            if not has_field_edit_permission("role.name"):
+                abort(403)
+            new_name = (data.get("name") or "").strip()
+            if not new_name:
+                return jsonify({"success": False, "error": "Название роли не может быть пустым"}), 400
+            exists = conn.execute(
+                "SELECT id FROM roles WHERE LOWER(name) = LOWER(?) AND id <> ?",
+                (new_name, role_id),
+            ).fetchone()
+            if exists:
+                return jsonify({"success": False, "error": "Роль с таким названием уже существует"}), 400
+            updates["name"] = new_name
+
+        if "description" in data:
+            if not has_field_edit_permission("role.description"):
+                abort(403)
+            updates["description"] = (data.get("description") or "").strip()
+
+        if "permissions" in data:
+            if is_admin_role:
+                return jsonify({"success": False, "error": "Нельзя изменять права роли admin"}), 400
+            permissions_data = data.get("permissions") or {}
+            if isinstance(permissions_data, dict):
+                if "pages" in permissions_data and not has_field_edit_permission("role.pages"):
+                    abort(403)
+                fields_part = permissions_data.get("fields") or {}
+                if isinstance(fields_part, dict):
+                    if "edit" in fields_part and not has_field_edit_permission("role.fields.edit"):
+                        abort(403)
+                    if "view" in fields_part and not has_field_edit_permission("role.fields.view"):
+                        abort(403)
+            permissions_payload = _prepare_permissions_payload(permissions_data)
+            updates["permissions"] = json.dumps(permissions_payload, ensure_ascii=False)
+
+        if updates:
+            assignments = []
+            params = []
+            for column, value in updates.items():
+                assignments.append(f"{column} = ?")
+                params.append(value)
+            params.append(role_id)
+            conn.execute(
+                f"UPDATE roles SET {', '.join(assignments)} WHERE id = ?",
+                params,
+            )
             conn.commit()
-        
-        return jsonify({"success": True})
-    
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-            
+
+        updated_row = conn.execute(
+            "SELECT id, name, description, permissions FROM roles WHERE id = ?",
+            (role_id,),
+        ).fetchone()
+
+    return jsonify({"success": True, "role": _serialize_role(updated_row), "updated": bool(updates)})
+
+
+@app.route("/roles/<int:role_id>", methods=["DELETE"])
+@login_required
+def delete_role(role_id):
+    if not has_field_edit_permission("role.delete"):
+        abort(403)
+    with get_users_db() as conn:
+        row = conn.execute(
+            "SELECT id, name FROM roles WHERE id = ?",
+            (role_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "error": "Роль не найдена"}), 404
+        role_name = _row_value(row, "name", "")
+        if _is_builtin_role(role_name):
+            return jsonify({"success": False, "error": "Нельзя удалить системную роль"}), 400
+        usage = conn.execute(
+            "SELECT COUNT(*) AS total FROM users WHERE role_id = ?",
+            (role_id,),
+        ).fetchone()["total"]
+        if usage:
+            return jsonify({"success": False, "error": "Роль используется пользователями"}), 400
+        conn.execute("DELETE FROM roles WHERE id = ?", (role_id,))
+        conn.commit()
+
+    return jsonify({"success": True})
+
+
+@app.route("/auth/state", methods=["GET"])
+@login_required
+def get_auth_state():
+    if not (has_page_access("user_management") or has_page_access("settings")):
+        abort(403)
+    with get_users_db() as conn:
+        users_rows = conn.execute(
+            """
+            SELECT u.id, u.username, u.role_id, COALESCE(r.name, u.role) AS role_name
+            FROM users u
+            LEFT JOIN roles r ON r.id = u.role_id
+            ORDER BY LOWER(u.username)
+            """
+        ).fetchall()
+        role_rows = conn.execute(
+            "SELECT id, name, description, permissions FROM roles ORDER BY LOWER(name)"
+        ).fetchall()
+
+    current_id = _current_user_id()
+    can_view_password_globally = has_field_view_permission("user.password")
+    can_edit_password_globally = has_field_edit_permission("user.password")
+    can_edit_username = has_field_edit_permission("user.username")
+    can_edit_role = has_field_edit_permission("user.role")
+    can_delete_user = has_field_edit_permission("user.delete")
+
+    users_payload = []
+    for row in users_rows:
+        user_id = row["id"]
+        is_self = user_id == current_id
+        role_name = (row["role_name"] or "").lower()
+        users_payload.append(
+            {
+                **_serialize_user_row(row),
+                "is_self": is_self,
+                "role_is_admin": role_name == "admin",
+                "can_view_password": is_self or can_view_password_globally,
+                "can_edit_password": is_self or can_edit_password_globally,
+                "can_edit_username": can_edit_username,
+                "can_edit_role": can_edit_role,
+                "can_delete": can_delete_user and not is_self and role_name != "admin",
+            }
+        )
+
+    capabilities = {
+        "fields": {
+            "edit": {
+                item["key"]: has_field_edit_permission(item["key"])
+                for item in EDITABLE_FIELD_PERMISSIONS
+            },
+            "view": {
+                item["key"]: has_field_view_permission(item["key"])
+                for item in VIEWABLE_FIELD_PERMISSIONS
+            },
+        }
+    }
+
+    return jsonify(
+        {
+            "users": users_payload,
+            "roles": [_serialize_role(row) for row in role_rows],
+            "catalog": _get_permissions_catalog(),
+            "capabilities": capabilities,
+            "current_user_id": current_id,
+        }
+    )
+
 @app.route("/api/channels/<int:channel_id>", methods=["GET"])
 @login_required
 def api_channels_get(channel_id):
