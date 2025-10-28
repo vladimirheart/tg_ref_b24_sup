@@ -521,6 +521,66 @@ def get_db():
     conn.execute("PRAGMA synchronous=NORMAL;")
     return conn
 
+
+def _extract_operator_name(message: str) -> str:
+    if not message:
+        return ""
+    text = str(message)
+    patterns = [
+        r"от поддержки\s*\(([^)]+)\)",
+        r"^От:\s*(.+)$",
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            return m.group(1).strip()
+    return ""
+
+
+def _resolve_ticket_responsible(cur: sqlite3.Cursor, ticket_id: str, channel_id: int | None = None) -> dict[str, str | None]:
+    assigned_row = cur.execute(
+        "SELECT responsible, assigned_at, assigned_by FROM ticket_responsibles WHERE ticket_id = ?",
+        (ticket_id,),
+    ).fetchone()
+    manual = (assigned_row["responsible"].strip() if assigned_row and assigned_row["responsible"] else "")
+    assigned_at = assigned_row["assigned_at"] if assigned_row else None
+    assigned_by = assigned_row["assigned_by"] if assigned_row else None
+
+    first_support_row = cur.execute(
+        """
+        SELECT sender, message
+        FROM chat_history
+        WHERE ticket_id = ?
+          AND (channel_id = ? OR channel_id IS NULL OR ? IS NULL)
+          AND sender IS NOT NULL
+          AND TRIM(sender) != ''
+          AND LOWER(sender) != 'user'
+        ORDER BY timestamp ASC
+        LIMIT 1
+        """,
+        (ticket_id, channel_id, channel_id),
+    ).fetchone()
+
+    auto = ""
+    if first_support_row:
+        sender = (first_support_row["sender"] or "").strip()
+        if sender and sender.lower() not in {"support", "bot"}:
+            auto = sender
+        else:
+            auto = _extract_operator_name(first_support_row["message"] or "")
+
+    effective = manual or auto
+    source = "manual" if manual else ("auto" if auto else "")
+
+    return {
+        "manual": manual,
+        "auto": auto,
+        "assigned_at": assigned_at,
+        "assigned_by": assigned_by,
+        "responsible": effective,
+        "source": source,
+    }
+
 def _ensure_users_schema(conn: sqlite3.Connection) -> None:
     """Добавляет недостающие поля в таблицу пользователей."""
 
@@ -2677,6 +2737,14 @@ def ensure_tasks_schema():
             ticket_id TEXT PRIMARY KEY,
             user      TEXT NOT NULL,
             last_seen TEXT DEFAULT (datetime('now'))
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS ticket_responsibles(
+            ticket_id   TEXT PRIMARY KEY,
+            responsible TEXT NOT NULL,
+            assigned_at TEXT DEFAULT (datetime('now')),
+            assigned_by TEXT
         )
         """)
         conn.execute("""
@@ -5462,24 +5530,17 @@ def tickets_list():
                 else:
                     status_human = "Неизвестно"
 
-            # (опционально) имя первого ответившего администратора
-            cur.execute("""
-                SELECT message FROM chat_history
-                WHERE ticket_id = ? AND channel_id = ? AND sender = 'support'
-                ORDER BY timestamp ASC LIMIT 1
-            """, (t['ticket_id'], t['channel_id']))
-            first_reply = cur.fetchone()
-            admin_name = "Bender"
-            if first_reply:
-                import re
-                m = re.search(r"от поддержки \(([^)]+)\)", first_reply['message'] or "")
-                if m:
-                    admin_name = m.group(1)
+            responsible_info = _resolve_ticket_responsible(cur, t['ticket_id'], t['channel_id'])
 
             row = dict(t)
             row['avatar_url'] = url_for('avatar', user_id=t['user_id'])
             row['status'] = status_human
-            row['responsible'] = admin_name
+            row['responsible'] = (responsible_info['responsible'] or '').strip()
+            row['manual_responsible'] = (responsible_info['manual'] or '').strip()
+            row['auto_responsible'] = (responsible_info['auto'] or '').strip()
+            row['responsible_source'] = responsible_info['source'] or ''
+            row['responsible_assigned_at'] = _coerce_to_iso(responsible_info['assigned_at'])
+            row['responsible_assigned_by'] = (responsible_info['assigned_by'] or '').strip() if responsible_info['assigned_by'] else ''
             result.append(row)
 
         conn.close()
@@ -5622,6 +5683,14 @@ def get_ticket(ticket_id):
     ticket["created_at"] = _coerce_to_iso(created_at_raw)
     ticket["first_user_message_at"] = _coerce_to_iso(timeline.get("first_user_message_at"))
     ticket["first_support_reply_at"] = _coerce_to_iso(timeline.get("first_support_message_at"))
+
+    responsible_info = _resolve_ticket_responsible(cur, ticket_id, ticket.get("channel_id"))
+    ticket["responsible"] = (responsible_info["responsible"] or "").strip()
+    ticket["manual_responsible"] = (responsible_info["manual"] or "").strip()
+    ticket["auto_responsible"] = (responsible_info["auto"] or "").strip()
+    ticket["responsible_source"] = responsible_info["source"] or ""
+    ticket["responsible_assigned_at"] = _coerce_to_iso(responsible_info["assigned_at"])
+    ticket["responsible_assigned_by"] = responsible_info["assigned_by"] or ""
 
     conn.close()
     return jsonify(ticket)
@@ -8017,6 +8086,51 @@ def api_ticket_invite(ticket_id):
         return jsonify({'success': False, 'error': str(exc)}), 500
 
     return jsonify({'success': True})
+
+
+@app.route('/api/tickets/<ticket_id>/responsible', methods=['POST'])
+@login_required_api
+def api_ticket_responsible(ticket_id):
+    ticket_id = str(ticket_id or '').strip()
+    if not ticket_id:
+        return jsonify({'success': False, 'error': 'Некорректный идентификатор заявки'}), 400
+
+    data = request.get_json(force=True, silent=True) or {}
+    responsible = (data.get('responsible') or '').strip()
+    current_user = session.get('user_email') or session.get('username') or session.get('user') or ''
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        ticket_row = cur.execute("SELECT channel_id FROM tickets WHERE ticket_id = ?", (ticket_id,)).fetchone()
+        if not ticket_row:
+            return jsonify({'success': False, 'error': 'Заявка не найдена'}), 404
+
+        if responsible:
+            cur.execute(
+                """
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_at, assigned_by)
+                VALUES(?, ?, datetime('now'), ?)
+                ON CONFLICT(ticket_id) DO UPDATE SET
+                    responsible = excluded.responsible,
+                    assigned_at = datetime('now'),
+                    assigned_by = excluded.assigned_by
+                """,
+                (ticket_id, responsible, current_user),
+            )
+        else:
+            cur.execute("DELETE FROM ticket_responsibles WHERE ticket_id = ?", (ticket_id,))
+
+        info = _resolve_ticket_responsible(cur, ticket_id, ticket_row['channel_id'])
+
+    return jsonify({
+        'success': True,
+        'responsible': (info['responsible'] or '').strip(),
+        'manual': (info['manual'] or '').strip(),
+        'auto': (info['auto'] or '').strip(),
+        'source': info['source'] or '',
+        'responsible_assigned_at': _coerce_to_iso(info['assigned_at']),
+        'responsible_assigned_by': info['assigned_by'] or '',
+    })
 
 @app.route('/api/notifications/unread_count')
 @login_required_api
