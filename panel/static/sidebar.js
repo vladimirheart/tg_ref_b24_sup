@@ -71,7 +71,7 @@
   const nav = sidebar.querySelector('.sidebar-nav');
   const ORDER_STORAGE_KEY = 'sidebarNavOrder';
   const DEFAULT_ORDER = ['dialogs', 'tasks', 'clients', 'object_passports', 'knowledge_base', 'dashboard', 'analytics', 'settings'];
-  const NAV_TITLE_DEFAULT = 'Нажмите «Редактировать порядок», чтобы изменить расположение страниц';
+  const NAV_TITLE_DEFAULT = 'Нажмите на иконку «⇅», чтобы изменить расположение страниц';
   const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
   const resetOrderBtn = document.getElementById('resetSidebarOrderBtn');
   const editOrderBtn = document.getElementById('editSidebarOrderBtn');
@@ -237,9 +237,15 @@
 
   function updateEditOrderButton() {
     if (editOrderBtn) {
-      editOrderBtn.textContent = isEditingOrder ? 'Готово' : 'Редактировать порядок';
+      const icon = editOrderBtn.querySelector('.icon');
+      if (icon) {
+        icon.textContent = isEditingOrder ? '✔️' : '⇅';
+      }
       editOrderBtn.classList.toggle('active', isEditingOrder);
       editOrderBtn.setAttribute('aria-pressed', isEditingOrder ? 'true' : 'false');
+      const label = isEditingOrder ? 'Завершить редактирование порядка' : 'Редактировать порядок';
+      editOrderBtn.setAttribute('aria-label', label);
+      editOrderBtn.setAttribute('title', label);
     }
     if (nav) {
       nav.setAttribute('title', isEditingOrder ? NAV_TITLE_EDITING : NAV_TITLE_DEFAULT);
