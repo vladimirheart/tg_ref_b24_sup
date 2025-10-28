@@ -7531,6 +7531,27 @@ window.addEventListener('resize', function() {
   }
 });
 
+function applyHistoryFontSize(size) {
+  const historyContent = document.getElementById('historyContent');
+  if (!historyContent) {
+    return;
+  }
+
+  const allowedSizes = ['small', 'medium', 'large'];
+  const normalizedSize = allowedSizes.includes(size) ? size : 'medium';
+
+  allowedSizes.forEach((item) => {
+    historyContent.classList.remove(`font-size-${item}`);
+  });
+
+  historyContent.classList.add(`font-size-${normalizedSize}`);
+
+  const fontSelect = document.getElementById('historyFontSizeControl');
+  if (fontSelect && fontSelect.value !== normalizedSize) {
+    fontSelect.value = normalizedSize;
+  }
+}
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
   const savedUnread = localStorage.getItem('unreadCountByTicket');
