@@ -3771,6 +3771,54 @@ def _sanitize_completion_templates(raw):
     return templates
 
 
+def _sanitize_hex_color(value: Any, fallback: str) -> str:
+    if isinstance(value, str):
+        candidate = value.strip()
+        if re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", candidate):
+            return candidate
+    return fallback
+
+
+def _sanitize_time_metrics(raw: Any) -> dict[str, Any]:
+    defaults = {
+        "good_limit": 30,
+        "warning_limit": 60,
+        "colors": {
+            "good": "#d1f7d1",
+            "warning": "#fff4d6",
+            "danger": "#f8d7da",
+        },
+    }
+    payload = raw if isinstance(raw, dict) else {}
+
+    try:
+        good_limit = int(payload.get("good_limit", defaults["good_limit"]))
+    except (TypeError, ValueError):
+        good_limit = defaults["good_limit"]
+    if good_limit <= 0:
+        good_limit = defaults["good_limit"]
+
+    try:
+        warning_limit = int(payload.get("warning_limit", defaults["warning_limit"]))
+    except (TypeError, ValueError):
+        warning_limit = defaults["warning_limit"]
+    if warning_limit <= good_limit:
+        warning_limit = max(good_limit + 1, defaults["warning_limit"])
+
+    raw_colors = payload.get("colors") if isinstance(payload.get("colors"), dict) else {}
+    colors = {
+        "good": _sanitize_hex_color(raw_colors.get("good"), defaults["colors"]["good"]),
+        "warning": _sanitize_hex_color(raw_colors.get("warning"), defaults["colors"]["warning"]),
+        "danger": _sanitize_hex_color(raw_colors.get("danger"), defaults["colors"]["danger"]),
+    }
+
+    return {
+        "good_limit": good_limit,
+        "warning_limit": warning_limit,
+        "colors": colors,
+    }
+
+
 def _sanitize_auto_close_templates(raw, *, fallback_hours: int = 24):
     templates: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
@@ -3855,10 +3903,12 @@ def ensure_dialog_config(settings):
     category_templates = _sanitize_category_templates(config.get("category_templates"), fallback=fallback_categories)
     question_templates = _sanitize_question_templates(config.get("question_templates"))
     completion_templates = _sanitize_completion_templates(config.get("completion_templates"))
+    time_metrics = _sanitize_time_metrics(config.get("time_metrics"))
 
     config["category_templates"] = category_templates
     config["question_templates"] = question_templates
     config["completion_templates"] = completion_templates
+    config["time_metrics"] = time_metrics
 
     settings["dialog_config"] = config
     settings["categories"] = category_templates[0]["categories"] if category_templates else []
@@ -8512,6 +8562,7 @@ def update_settings():
                 "dialog_category_templates",
                 "dialog_question_templates",
                 "dialog_completion_templates",
+                "dialog_time_metrics",
             )
         ):
             dialog_config = settings.get("dialog_config")
@@ -8532,6 +8583,11 @@ def update_settings():
             if "dialog_completion_templates" in data:
                 dialog_config["completion_templates"] = _sanitize_completion_templates(
                     data.get("dialog_completion_templates")
+                )
+
+            if "dialog_time_metrics" in data:
+                dialog_config["time_metrics"] = _sanitize_time_metrics(
+                    data.get("dialog_time_metrics")
                 )
 
             settings["dialog_config"] = dialog_config
