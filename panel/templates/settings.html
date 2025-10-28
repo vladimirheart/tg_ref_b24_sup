@@ -198,6 +198,22 @@
       border-radius: 0.75rem;
       background-color: #fdfdfd;
     }
+    .dialog-time-metrics-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .dialog-time-metrics-preview__chip {
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      box-shadow: 0 0.15rem 0.4rem rgba(0, 0, 0, 0.06);
+      min-width: 9rem;
+      text-align: center;
+      color: #212529;
+    }
     .partner-contact-details__header {
       display: flex;
       align-items: center;
@@ -838,6 +854,50 @@
               </div>
               <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
               <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
+            </section>
+
+            <hr>
+
+            <section>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Цветовая индикация времени</h6>
+              </div>
+              <p class="small text-muted">Настройте пороги и цвета подсветки блока «Время обращения» в окне истории диалога.</p>
+              <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                  <label for="timeMetricGoodLimit" class="form-label">Зелёная зона, мин</label>
+                  <input type="number" class="form-control" id="timeMetricGoodLimit" min="1" step="1">
+                  <div class="invalid-feedback">Укажите положительное число минут.</div>
+                  <div class="form-text">До этого значения блок подсвечивается зеленоватым цветом.</div>
+                </div>
+                <div class="col-md-4">
+                  <label for="timeMetricWarningLimit" class="form-label">Жёлтая зона, мин</label>
+                  <input type="number" class="form-control" id="timeMetricWarningLimit" min="1" step="1">
+                  <div class="invalid-feedback">Значение должно быть больше зелёной зоны.</div>
+                  <div class="form-text">После этого порога цвет станет красным.</div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Цветовые маркеры</label>
+                  <div class="d-flex flex-column gap-2">
+                    <label class="d-flex align-items-center gap-2">
+                      <span class="small text-muted flex-grow-1">Зелёный</span>
+                      <input type="color" class="form-control form-control-color" id="timeMetricColorGood" title="Цвет зелёной зоны">
+                    </label>
+                    <label class="d-flex align-items-center gap-2">
+                      <span class="small text-muted flex-grow-1">Жёлтый</span>
+                      <input type="color" class="form-control form-control-color" id="timeMetricColorWarning" title="Цвет жёлтой зоны">
+                    </label>
+                    <label class="d-flex align-items-center gap-2">
+                      <span class="small text-muted flex-grow-1">Красный</span>
+                      <input type="color" class="form-control form-control-color" id="timeMetricColorDanger" title="Цвет красной зоны">
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <label class="form-label">Предпросмотр</label>
+                <div id="timeMetricPreview" class="dialog-time-metrics-preview"></div>
+              </div>
             </section>
           </div>
           <div class="modal-footer">
@@ -1855,6 +1915,60 @@
   const AUTO_CLOSE_CONFIG = RAW_AUTO_CLOSE_CONFIG && typeof RAW_AUTO_CLOSE_CONFIG === 'object' ? RAW_AUTO_CLOSE_CONFIG : {};
   const AUTO_CLOSE_FALLBACK_HOURS = Number({{ settings.auto_close_hours | tojson }}) || 24;
   const FALLBACK_DIALOG_CATEGORIES = {{ settings.categories | tojson | safe }};
+
+  const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
+    good_limit: 30,
+    warning_limit: 60,
+    colors: Object.freeze({
+      good: '#d1f7d1',
+      warning: '#fff4d6',
+      danger: '#f8d7da',
+    }),
+  });
+
+  function sanitizeHexColor(value, fallback) {
+    const raw = typeof value === 'string' ? value.trim() : '';
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) {
+      return raw;
+    }
+    return fallback;
+  }
+
+  function normalizeDialogTimeMetrics(raw) {
+    const base = {
+      good_limit: DEFAULT_DIALOG_TIME_METRICS.good_limit,
+      warning_limit: DEFAULT_DIALOG_TIME_METRICS.warning_limit,
+      colors: {
+        ...DEFAULT_DIALOG_TIME_METRICS.colors,
+      },
+    };
+
+    if (raw && typeof raw === 'object') {
+      const good = Number.parseInt(raw.good_limit, 10);
+      const warning = Number.parseInt(raw.warning_limit, 10);
+      if (Number.isFinite(good) && good > 0) {
+        base.good_limit = good;
+      }
+      if (Number.isFinite(warning) && warning > 0) {
+        base.warning_limit = warning;
+      }
+      if (raw.colors && typeof raw.colors === 'object') {
+        base.colors.good = sanitizeHexColor(raw.colors.good, base.colors.good);
+        base.colors.warning = sanitizeHexColor(raw.colors.warning, base.colors.warning);
+        base.colors.danger = sanitizeHexColor(raw.colors.danger, base.colors.danger);
+      }
+    }
+
+    if (!Number.isFinite(base.good_limit) || base.good_limit <= 0) {
+      base.good_limit = DEFAULT_DIALOG_TIME_METRICS.good_limit;
+    }
+
+    if (!Number.isFinite(base.warning_limit) || base.warning_limit <= base.good_limit) {
+      base.warning_limit = Math.max(base.good_limit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
+    }
+
+    return base;
+  }
 
   const BOT_SETTINGS_INITIAL = {{ settings.bot_settings | tojson | safe }};
   const BOT_PRESET_DEFINITIONS = {{ bot_question_presets | tojson | safe }};
@@ -9470,6 +9584,121 @@
     }
   }
 
+  function getTimeMetricsInputs() {
+    return {
+      good: document.getElementById('timeMetricGoodLimit'),
+      warning: document.getElementById('timeMetricWarningLimit'),
+      goodColor: document.getElementById('timeMetricColorGood'),
+      warningColor: document.getElementById('timeMetricColorWarning'),
+      dangerColor: document.getElementById('timeMetricColorDanger'),
+      preview: document.getElementById('timeMetricPreview'),
+    };
+  }
+
+  function updateTimeMetricsPreview(metrics) {
+    const inputs = getTimeMetricsInputs();
+    if (!inputs.preview) return;
+    const normalized = normalizeDialogTimeMetrics(metrics);
+    const segments = [
+      { label: `Менее ${normalized.good_limit} мин`, color: normalized.colors.good },
+      { label: `От ${normalized.good_limit} до ${normalized.warning_limit} мин`, color: normalized.colors.warning },
+      { label: `От ${normalized.warning_limit} мин и более`, color: normalized.colors.danger },
+    ];
+    inputs.preview.innerHTML = segments
+      .map(
+        (segment) => `
+          <div class="dialog-time-metrics-preview__chip" style="background-color: ${segment.color};">
+            ${segment.label}
+          </div>
+        `
+      )
+      .join('');
+  }
+
+  function initTimeMetricsControls() {
+    const inputs = getTimeMetricsInputs();
+    if (!inputs.good || !inputs.warning || !inputs.goodColor || !inputs.warningColor || !inputs.dangerColor) {
+      return;
+    }
+    const metrics = normalizeDialogTimeMetrics(DIALOG_CONFIG.time_metrics);
+    inputs.good.value = metrics.good_limit;
+    inputs.warning.value = metrics.warning_limit;
+    inputs.goodColor.value = metrics.colors.good;
+    inputs.warningColor.value = metrics.colors.warning;
+    inputs.dangerColor.value = metrics.colors.danger;
+    updateTimeMetricsPreview(metrics);
+
+    [inputs.good, inputs.warning, inputs.goodColor, inputs.warningColor, inputs.dangerColor].forEach((input) => {
+      if (!input) return;
+      input.addEventListener('input', () => {
+        if (input.classList.contains('is-invalid')) {
+          input.classList.remove('is-invalid');
+        }
+        const snapshot = {
+          good_limit: Number(inputs.good.value),
+          warning_limit: Number(inputs.warning.value),
+          colors: {
+            good: inputs.goodColor.value,
+            warning: inputs.warningColor.value,
+            danger: inputs.dangerColor.value,
+          },
+        };
+        updateTimeMetricsPreview(snapshot);
+      });
+    });
+  }
+
+  function collectTimeMetricsConfig() {
+    const inputs = getTimeMetricsInputs();
+    const errors = [];
+
+    let goodLimit = Math.round(Number(inputs.good?.value));
+    if (!Number.isFinite(goodLimit) || goodLimit <= 0) {
+      errors.push('Укажите положительное значение зелёной зоны (минуты).');
+      if (inputs.good) {
+        inputs.good.classList.add('is-invalid');
+      }
+      goodLimit = DEFAULT_DIALOG_TIME_METRICS.good_limit;
+    } else if (inputs.good) {
+      inputs.good.classList.remove('is-invalid');
+      inputs.good.value = goodLimit;
+    }
+
+    let warningLimit = Math.round(Number(inputs.warning?.value));
+    let warningValid = true;
+    if (!Number.isFinite(warningLimit) || warningLimit <= 0) {
+      errors.push('Укажите корректное значение жёлтой зоны (минуты).');
+      warningValid = false;
+    } else if (warningLimit <= goodLimit) {
+      errors.push('Жёлтая зона должна быть больше зелёной.');
+      warningValid = false;
+    }
+
+    if (!warningValid) {
+      warningLimit = Math.max(goodLimit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
+      if (inputs.warning) {
+        inputs.warning.classList.add('is-invalid');
+      }
+    } else if (inputs.warning) {
+      inputs.warning.classList.remove('is-invalid');
+      inputs.warning.value = warningLimit;
+    }
+
+    const config = normalizeDialogTimeMetrics({
+      good_limit: goodLimit,
+      warning_limit: warningLimit,
+      colors: {
+        good: inputs.goodColor?.value,
+        warning: inputs.warningColor?.value,
+        danger: inputs.dangerColor?.value,
+      },
+    });
+
+    updateTimeMetricsPreview(config);
+
+    return { config, errors };
+  }
+
   function initDialogTemplates() {
     const categoryTemplates = Array.isArray(DIALOG_CONFIG.category_templates)
       ? DIALOG_CONFIG.category_templates
@@ -9521,6 +9750,13 @@
         templates: autoCloseState.templates,
         active_template_id: autoCloseState.active_template_id,
       };
+
+      const timeMetricsState = collectTimeMetricsConfig();
+      if (timeMetricsState.errors && timeMetricsState.errors.length) {
+        const uniqueErrors = Array.from(new Set(timeMetricsState.errors));
+        alert(uniqueErrors.join('\n'));
+        return;
+      }
 
       // Собираем шаблоны категорий
       const categoryTemplates = Array.from(document.querySelectorAll('[data-category-template]')).map((card, index) => {
@@ -9596,6 +9832,7 @@
           dialog_category_templates: categoryTemplates,
           dialog_question_templates: questionTemplates,
           dialog_completion_templates: completionTemplates,
+          dialog_time_metrics: timeMetricsState.config,
           auto_close_config: autoClosePayload,
           auto_close_hours: autoCloseHours,
         })
@@ -9617,6 +9854,7 @@
     initClientStatuses();
     initAutoCloseTemplates();
     initDialogTemplates();
+    initTimeMetricsControls();
     initLocationWizard();
     buildLocationsTree();
     loadChannels(); // <— добавили
