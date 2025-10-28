@@ -591,7 +591,7 @@
 
     createRoleCard(role, catalog) {
       const card = document.createElement('div');
-      card.className = 'card shadow-sm';
+      card.className = 'card shadow-sm role-card';
       card.dataset.roleId = String(role.id);
       card.dataset.initialName = role.name || '';
       card.dataset.initialDescription = role.description || '';
@@ -609,11 +609,54 @@
       const canEditFieldsView = this.capabilitiesEdit('role.fields.view') && !role.is_admin;
       const canDeleteRole = this.capabilitiesEdit('role.delete') && !role.is_admin;
 
-      const header = document.createElement('div');
-      header.className = 'card-header d-flex flex-wrap justify-content-between gap-2';
+      const collapseId = `roleDetails${role.id != null ? role.id : Math.random().toString(16).slice(2)}`;
 
-      const titleWrapper = document.createElement('div');
-      titleWrapper.className = 'flex-grow-1';
+      const header = document.createElement('div');
+      header.className = 'card-header d-flex align-items-center gap-2';
+
+      const toggleButton = document.createElement('button');
+      toggleButton.type = 'button';
+      toggleButton.className =
+        'role-card__toggle d-flex align-items-center flex-grow-1 text-start bg-transparent border-0 p-0';
+      toggleButton.dataset.bsToggle = 'collapse';
+      toggleButton.dataset.bsTarget = `#${collapseId}`;
+      toggleButton.setAttribute('aria-expanded', 'false');
+      toggleButton.setAttribute('aria-controls', collapseId);
+
+      const toggleContent = document.createElement('div');
+      toggleContent.className = 'flex-grow-1';
+      const toggleTitle = document.createElement('div');
+      toggleTitle.className = 'fw-semibold role-card__title';
+      toggleContent.appendChild(toggleTitle);
+      const toggleSummary = document.createElement('div');
+      toggleSummary.className = 'small text-muted role-card__summary';
+      toggleContent.appendChild(toggleSummary);
+
+      toggleButton.appendChild(toggleContent);
+
+      const chevron = document.createElement('i');
+      chevron.className = 'bi bi-chevron-down role-card__chevron';
+      toggleButton.appendChild(chevron);
+
+      header.appendChild(toggleButton);
+
+      const badgeWrapper = document.createElement('div');
+      badgeWrapper.className = 'text-end align-self-center ms-2';
+      const badge = document.createElement('span');
+      badge.className = 'badge rounded-pill ' + (role.is_admin ? 'bg-danger' : 'bg-secondary');
+      badge.textContent = role.is_admin ? 'Администратор' : 'Роль';
+      badgeWrapper.appendChild(badge);
+      header.appendChild(badgeWrapper);
+
+      const collapse = document.createElement('div');
+      collapse.className = 'collapse';
+      collapse.id = collapseId;
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+
+      const nameGroup = document.createElement('div');
+      nameGroup.className = 'mb-3';
       const nameLabel = document.createElement('label');
       nameLabel.className = 'form-label small mb-1';
       nameLabel.textContent = 'Название';
@@ -624,21 +667,9 @@
       nameInput.dataset.field = 'name';
       nameInput.disabled = !canEditName;
       nameInput.autocomplete = 'off';
-      titleWrapper.appendChild(nameLabel);
-      titleWrapper.appendChild(nameInput);
-
-      const badgeWrapper = document.createElement('div');
-      badgeWrapper.className = 'text-end align-self-center';
-      const badge = document.createElement('span');
-      badge.className = 'badge rounded-pill ' + (role.is_admin ? 'bg-danger' : 'bg-secondary');
-      badge.textContent = role.is_admin ? 'Администратор' : 'Роль';
-      badgeWrapper.appendChild(badge);
-
-      header.appendChild(titleWrapper);
-      header.appendChild(badgeWrapper);
-
-      const body = document.createElement('div');
-      body.className = 'card-body';
+      nameGroup.appendChild(nameLabel);
+      nameGroup.appendChild(nameInput);
+      body.appendChild(nameGroup);
 
       const descriptionGroup = document.createElement('div');
       descriptionGroup.className = 'mb-3';
@@ -699,9 +730,31 @@
       footer.appendChild(saveBtn);
       footer.appendChild(deleteBtn);
 
+      const updateTitle = () => {
+        const value = nameInput.value.trim();
+        toggleTitle.textContent = value || 'Без названия';
+      };
+      updateTitle();
+      nameInput.addEventListener('input', updateTitle);
+
+      const updateSummary = () => {
+        const value = descriptionInput.value.trim();
+        if (value) {
+          toggleSummary.textContent = value;
+          toggleSummary.classList.remove('role-card__summary--empty');
+        } else {
+          toggleSummary.textContent = 'Описание не задано';
+          toggleSummary.classList.add('role-card__summary--empty');
+        }
+      };
+      updateSummary();
+      descriptionInput.addEventListener('input', updateSummary);
+
+      collapse.appendChild(body);
+      collapse.appendChild(footer);
+
       card.appendChild(header);
-      card.appendChild(body);
-      card.appendChild(footer);
+      card.appendChild(collapse);
       return card;
     }
 
