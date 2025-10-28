@@ -38,6 +38,10 @@
         capabilities: { fields: { edit: {}, view: {} } },
         currentUserId: null,
       };
+      this.photoUploadEndpoint = root.dataset.authPhotoUploadEndpoint || '/api/users/photo-upload';
+      this.photoUploadState = { value: '', previewUrl: '', tempUrl: '' };
+      this.photoUploadDisabled = false;
+      this.photoUploadUploading = false;
       const documentRoot = typeof document === 'undefined' ? null : document;
       const resolveFrom = (scope, selector) => scope?.querySelector(selector) || null;
       const userModal =
@@ -72,7 +76,18 @@
         userEmailInput: resolveFrom(userModal, '[name="email"]'),
         userDepartmentInput: resolveFrom(userModal, '[name="department"]'),
         userBirthDateInput: resolveFrom(userModal, '[name="birth_date"]'),
-        userPhotoInput: resolveFrom(userModal, '[name="photo"]'),
+        userPhotoInput: resolveFrom(userModal, '[data-auth-user-photo-value]'),
+        userPhotoFileInput: resolveFrom(userModal, '[data-auth-user-photo-file]'),
+        userPhotoPreview: resolveFrom(userModal, '[data-auth-user-photo-preview]'),
+        userPhotoPreviewImage: resolveFrom(userModal, '[data-auth-user-photo-img]'),
+        userPhotoPlaceholder: resolveFrom(userModal, '[data-auth-user-photo-placeholder]'),
+        userPhotoStatus: resolveFrom(userModal, '[data-auth-user-photo-status]'),
+        userPhotoDropzone: resolveFrom(userModal, '[data-auth-user-photo-dropzone]'),
+        userPhotoTrigger: resolveFrom(userModal, '[data-auth-user-photo-trigger]'),
+        userPhotoChangeButton: resolveFrom(userModal, '[data-auth-user-photo-change]'),
+        userPhotoRemoveButton: resolveFrom(userModal, '[data-auth-user-photo-remove]'),
+        userPhotoUploadingIndicator: resolveFrom(userModal, '[data-auth-user-photo-uploading]'),
+        userPhotoUploader: resolveFrom(userModal, '[data-auth-user-photo-uploader]'),
       };
       this.handleUsersClick = this.handleUsersClick.bind(this);
       this.handleRolesClick = this.handleRolesClick.bind(this);
@@ -84,6 +99,12 @@
       this.handlePhoneListClick = this.handlePhoneListClick.bind(this);
       this.handleModalPasswordToggle = this.handleModalPasswordToggle.bind(this);
       this.handleUserModalHidden = this.handleUserModalHidden.bind(this);
+      this.handlePhotoFileChange = this.handlePhotoFileChange.bind(this);
+      this.handlePhotoDropzoneClick = this.handlePhotoDropzoneClick.bind(this);
+      this.handlePhotoDrop = this.handlePhotoDrop.bind(this);
+      this.handlePhotoDragOver = this.handlePhotoDragOver.bind(this);
+      this.handlePhotoDragLeave = this.handlePhotoDragLeave.bind(this);
+      this.handlePhotoRemove = this.handlePhotoRemove.bind(this);
       this.modalState = null;
       this.modalPasswordState = { visible: false, loaded: false, value: '' };
       this.modalInstance = null;
@@ -126,6 +147,29 @@
       }
       if (this.elements.userModal) {
         this.elements.userModal.addEventListener('hidden.bs.modal', this.handleUserModalHidden);
+      }
+      if (this.elements.userPhotoFileInput) {
+        this.elements.userPhotoFileInput.addEventListener('change', this.handlePhotoFileChange);
+      }
+      if (this.elements.userPhotoTrigger) {
+        this.elements.userPhotoTrigger.addEventListener('click', this.handlePhotoDropzoneClick);
+      }
+      if (this.elements.userPhotoChangeButton) {
+        this.elements.userPhotoChangeButton.addEventListener('click', this.handlePhotoDropzoneClick);
+      }
+      if (this.elements.userPhotoRemoveButton) {
+        this.elements.userPhotoRemoveButton.addEventListener('click', this.handlePhotoRemove);
+      }
+      if (this.elements.userPhotoDropzone) {
+        const dropzone = this.elements.userPhotoDropzone;
+        dropzone.addEventListener('click', this.handlePhotoDropzoneClick);
+        ['dragenter', 'dragover'].forEach((eventName) =>
+          dropzone.addEventListener(eventName, this.handlePhotoDragOver)
+        );
+        ['dragleave', 'dragend'].forEach((eventName) =>
+          dropzone.addEventListener(eventName, this.handlePhotoDragLeave)
+        );
+        dropzone.addEventListener('drop', this.handlePhotoDrop);
       }
     }
 
@@ -251,16 +295,24 @@
       row.dataset.userName = user.username || '';
 
       const usernameCell = document.createElement('td');
+      const userWrapper = document.createElement('div');
+      userWrapper.className = 'd-flex align-items-center gap-3';
+      const avatar = this.createUserAvatar(user);
+      userWrapper.appendChild(avatar);
+      const userInfo = document.createElement('div');
+      userInfo.className = 'd-flex flex-column';
       const usernameTitle = document.createElement('div');
       usernameTitle.className = 'fw-semibold';
       usernameTitle.textContent = user.username || '—';
-      usernameCell.appendChild(usernameTitle);
+      userInfo.appendChild(usernameTitle);
       if (user.department) {
         const departmentRow = document.createElement('div');
         departmentRow.className = 'text-muted small';
         departmentRow.textContent = user.department;
-        usernameCell.appendChild(departmentRow);
+        userInfo.appendChild(departmentRow);
       }
+      userWrapper.appendChild(userInfo);
+      usernameCell.appendChild(userWrapper);
 
       const roleCell = document.createElement('td');
       roleCell.textContent = user.role || '—';
@@ -318,6 +370,46 @@
       return row;
     }
 
+    createUserAvatar(user) {
+      const container = document.createElement('div');
+      container.className = 'auth-user-avatar';
+      const photoUrl = String(user?.photo || '').trim();
+      if (photoUrl) {
+        container.classList.add('auth-user-avatar--image');
+        const img = document.createElement('img');
+        img.src = photoUrl;
+        img.alt = user?.username ? `Фото ${user.username}` : 'Фото пользователя';
+        img.loading = 'lazy';
+        container.appendChild(img);
+      } else {
+        container.classList.add('auth-user-avatar--placeholder');
+        const initials = document.createElement('span');
+        initials.className = 'auth-user-avatar__initials';
+        initials.textContent = this.getUserInitials(user?.username || '');
+        container.appendChild(initials);
+      }
+      return container;
+    }
+
+    getUserInitials(name) {
+      const value = String(name || '').trim();
+      if (!value) {
+        return '•';
+      }
+      const parts = value.split(/\s+/).filter(Boolean);
+      if (parts.length === 0) {
+        return value.slice(0, 2).toUpperCase();
+      }
+      if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+      }
+      return parts
+        .slice(0, 2)
+        .map((part) => part.charAt(0))
+        .join('')
+        .toUpperCase();
+    }
+
     formatPhonesList(phones) {
       if (!Array.isArray(phones) || phones.length === 0) {
         return '';
@@ -336,6 +428,324 @@
         })
         .filter(Boolean);
       return values.join(', ');
+    }
+
+    resetPhotoUploader(value = '', canEdit = true) {
+      if (this.photoUploadState?.tempUrl && this.photoUploadState.tempUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(this.photoUploadState.tempUrl);
+      }
+      const cleanValue = String(value || '').trim();
+      this.photoUploadState = { value: cleanValue, previewUrl: cleanValue, tempUrl: '' };
+      if (this.elements.userPhotoInput) {
+        this.elements.userPhotoInput.value = cleanValue;
+        this.elements.userPhotoInput.disabled = !canEdit;
+      }
+      if (this.elements.userPhotoFileInput) {
+        this.elements.userPhotoFileInput.value = '';
+        this.elements.userPhotoFileInput.disabled = !canEdit;
+      }
+      this.applyPhotoPreview(cleanValue, { temporary: false });
+      this.setPhotoStatus('');
+      this.setPhotoUploading(false);
+      this.setPhotoUploadDisabled(!canEdit);
+    }
+
+    setPhotoValue(value) {
+      const cleanValue = String(value || '').trim();
+      this.photoUploadState.value = cleanValue;
+      this.photoUploadState.previewUrl = cleanValue;
+      if (this.elements.userPhotoInput) {
+        this.elements.userPhotoInput.value = cleanValue;
+      }
+      this.applyPhotoPreview(cleanValue, { temporary: false });
+    }
+
+    applyPhotoPreview(url, { temporary = false } = {}) {
+      const nextUrl = String(url || '').trim();
+      if (temporary) {
+        if (this.photoUploadState.tempUrl && this.photoUploadState.tempUrl.startsWith('blob:') && this.photoUploadState.tempUrl !== nextUrl) {
+          URL.revokeObjectURL(this.photoUploadState.tempUrl);
+        }
+        this.photoUploadState.tempUrl = nextUrl;
+      } else {
+        if (this.photoUploadState.tempUrl && this.photoUploadState.tempUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(this.photoUploadState.tempUrl);
+        }
+        this.photoUploadState.tempUrl = '';
+        this.photoUploadState.previewUrl = nextUrl;
+      }
+      const effectiveUrl = (this.photoUploadState.tempUrl || this.photoUploadState.previewUrl || '').trim();
+      const hasPreview = Boolean(effectiveUrl);
+      if (this.elements.userPhotoPreviewImage) {
+        if (hasPreview) {
+          this.elements.userPhotoPreviewImage.src = effectiveUrl;
+          this.elements.userPhotoPreviewImage.alt = 'Фото пользователя';
+        } else {
+          this.elements.userPhotoPreviewImage.removeAttribute('src');
+          this.elements.userPhotoPreviewImage.alt = 'Фото пользователя';
+        }
+      }
+      if (this.elements.userPhotoPreview) {
+        this.elements.userPhotoPreview.classList.toggle('d-none', !hasPreview);
+      }
+      if (this.elements.userPhotoPlaceholder) {
+        this.elements.userPhotoPlaceholder.classList.toggle('d-none', hasPreview);
+      }
+      if (this.elements.userPhotoDropzone) {
+        this.elements.userPhotoDropzone.classList.toggle('has-photo', hasPreview);
+        this.elements.userPhotoDropzone.classList.remove('is-dragover');
+      }
+      this.updatePhotoControls();
+    }
+
+    setPhotoStatus(message, variant = 'muted') {
+      const status = this.elements.userPhotoStatus;
+      if (!status) {
+        return;
+      }
+      const text = String(message || '').trim();
+      status.textContent = text;
+      status.classList.remove('text-danger', 'text-success', 'text-muted');
+      if (!text) {
+        status.classList.add('text-muted');
+        return;
+      }
+      const variantClass = variant === 'danger' ? 'text-danger' : variant === 'success' ? 'text-success' : 'text-muted';
+      status.classList.add(variantClass);
+    }
+
+    setPhotoUploadDisabled(disabled) {
+      this.photoUploadDisabled = Boolean(disabled);
+      const dropzone = this.elements.userPhotoDropzone;
+      if (dropzone) {
+        dropzone.classList.toggle('is-disabled', this.photoUploadDisabled);
+        if (this.photoUploadDisabled) {
+          dropzone.classList.remove('is-dragover');
+        }
+      }
+      if (this.elements.userPhotoTrigger) {
+        this.elements.userPhotoTrigger.disabled = this.photoUploadDisabled || this.photoUploadUploading;
+      }
+      if (this.elements.userPhotoChangeButton) {
+        this.elements.userPhotoChangeButton.disabled = this.photoUploadDisabled || this.photoUploadUploading;
+      }
+      if (this.elements.userPhotoRemoveButton) {
+        this.elements.userPhotoRemoveButton.disabled = this.photoUploadDisabled || !this.photoUploadState.value;
+      }
+      if (this.elements.userPhotoFileInput) {
+        this.elements.userPhotoFileInput.disabled = this.photoUploadDisabled || this.photoUploadUploading;
+      }
+      this.updatePhotoControls();
+    }
+
+    setPhotoUploading(isUploading) {
+      this.photoUploadUploading = Boolean(isUploading);
+      const dropzone = this.elements.userPhotoDropzone;
+      if (dropzone) {
+        dropzone.classList.toggle('is-uploading', this.photoUploadUploading);
+      }
+      if (this.elements.userPhotoTrigger) {
+        this.elements.userPhotoTrigger.disabled = this.photoUploadDisabled || this.photoUploadUploading;
+      }
+      if (this.elements.userPhotoChangeButton) {
+        this.elements.userPhotoChangeButton.disabled = this.photoUploadDisabled || this.photoUploadUploading;
+      }
+      if (this.elements.userPhotoRemoveButton) {
+        this.elements.userPhotoRemoveButton.disabled = this.photoUploadDisabled || (!this.photoUploadState.value && !this.photoUploadState.tempUrl) || this.photoUploadUploading;
+      }
+      if (this.elements.userPhotoUploadingIndicator) {
+        this.elements.userPhotoUploadingIndicator.classList.toggle('d-none', !this.photoUploadUploading);
+      }
+      if (this.elements.userPhotoFileInput) {
+        this.elements.userPhotoFileInput.disabled = this.photoUploadDisabled || this.photoUploadUploading;
+      }
+      this.updatePhotoControls();
+    }
+
+    updatePhotoControls() {
+      if (this.elements.userPhotoRemoveButton) {
+        const hasValue = Boolean((this.photoUploadState.value || this.photoUploadState.tempUrl || '').trim());
+        this.elements.userPhotoRemoveButton.disabled = this.photoUploadDisabled || !hasValue || this.photoUploadUploading;
+      }
+    }
+
+    isPhotoInteractionLocked() {
+      return this.photoUploadDisabled || this.photoUploadUploading;
+    }
+
+    handlePhotoDropzoneClick(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      if (event?.target?.closest('[data-auth-user-photo-remove]')) {
+        return;
+      }
+      if (this.isPhotoInteractionLocked()) {
+        return;
+      }
+      if (this.elements.userPhotoFileInput) {
+        this.elements.userPhotoFileInput.click();
+      }
+    }
+
+    handlePhotoFileChange(event) {
+      const files = event?.target?.files;
+      if (!files || !files.length) {
+        return;
+      }
+      this.processPhotoFile(files[0]);
+    }
+
+    handlePhotoDrop(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (this.elements.userPhotoDropzone) {
+        this.elements.userPhotoDropzone.classList.remove('is-dragover');
+      }
+      if (this.isPhotoInteractionLocked()) {
+        return;
+      }
+      let file = null;
+      const items = event.dataTransfer?.items;
+      if (items && items.length) {
+        for (const item of items) {
+          if (item.kind === 'file') {
+            file = item.getAsFile();
+            break;
+          }
+        }
+      }
+      if (!file) {
+        const files = event.dataTransfer?.files;
+        if (files && files.length) {
+          file = files[0];
+        }
+      }
+      if (file) {
+        this.processPhotoFile(file);
+      }
+    }
+
+    handlePhotoDragOver(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!this.elements.userPhotoDropzone) {
+        return;
+      }
+      if (this.isPhotoInteractionLocked()) {
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = 'none';
+        }
+        return;
+      }
+      this.elements.userPhotoDropzone.classList.add('is-dragover');
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'copy';
+      }
+    }
+
+    handlePhotoDragLeave(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (this.elements.userPhotoDropzone) {
+        this.elements.userPhotoDropzone.classList.remove('is-dragover');
+      }
+    }
+
+    handlePhotoRemove(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      if (this.isPhotoInteractionLocked()) {
+        return;
+      }
+      const hadValue = Boolean(this.photoUploadState.value || this.photoUploadState.previewUrl);
+      this.setPhotoValue('');
+      this.setPhotoStatus(hadValue ? 'Фото удалено.' : '');
+    }
+
+    processPhotoFile(file) {
+      if (!file || this.isPhotoInteractionLocked()) {
+        return;
+      }
+      const errorMessage = this.validatePhotoFile(file);
+      if (errorMessage) {
+        this.setPhotoStatus(errorMessage, 'danger');
+        return;
+      }
+      const previousValue = this.photoUploadState.value;
+      const previousPreview = this.photoUploadState.previewUrl;
+      const objectUrl = URL.createObjectURL(file);
+      this.applyPhotoPreview(objectUrl, { temporary: true });
+      this.setPhotoStatus('Загружаем файл…', 'muted');
+      this.setPhotoUploading(true);
+      this.uploadUserPhoto(file)
+        .then((data) => {
+          const url = String(data?.url || data?.photo || data?.path || '').trim();
+          if (!url) {
+            throw new Error('Сервер не вернул ссылку на фото.');
+          }
+          this.setPhotoValue(url);
+          this.setPhotoStatus('Фото обновлено.', 'success');
+        })
+        .catch((error) => {
+          this.applyPhotoPreview('', { temporary: true });
+          this.applyPhotoPreview(previousPreview, { temporary: false });
+          this.photoUploadState.value = previousValue;
+          this.photoUploadState.previewUrl = previousPreview;
+          if (this.elements.userPhotoInput) {
+            this.elements.userPhotoInput.value = previousValue;
+          }
+          this.setPhotoStatus(error.message || String(error), 'danger');
+        })
+        .finally(() => {
+          this.setPhotoUploading(false);
+          if (this.elements.userPhotoFileInput) {
+            this.elements.userPhotoFileInput.value = '';
+          }
+        });
+    }
+
+    validatePhotoFile(file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        return 'Размер файла не должен превышать 5 МБ.';
+      }
+      if (file.type && !allowedTypes.includes(file.type)) {
+        return 'Поддерживаются изображения в форматах PNG, JPG, GIF или WebP.';
+      }
+      const extension = (file.name || '').split('.').pop()?.toLowerCase();
+      if (!extension) {
+        return 'Выберите изображение в поддерживаемом формате.';
+      }
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      if (!allowedExtensions.includes(extension)) {
+        return 'Поддерживаются изображения в форматах PNG, JPG, GIF или WebP.';
+      }
+      return '';
+    }
+
+    uploadUserPhoto(file) {
+      if (!this.photoUploadEndpoint) {
+        return Promise.reject(new Error('Загрузка фотографий недоступна.'));
+      }
+      const formData = new FormData();
+      formData.append('photo', file);
+      return fetch(this.photoUploadEndpoint, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+      })
+        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.success === false) {
+            throw new Error(data?.error || 'Не удалось загрузить фото');
+          }
+          return data;
+        });
     }
 
     handleUsersClick(event) {
@@ -428,10 +838,7 @@
         this.elements.userBirthDateInput.value = user?.birth_date || '';
         this.elements.userBirthDateInput.disabled = !permissions.canEditDetails;
       }
-      if (this.elements.userPhotoInput) {
-        this.elements.userPhotoInput.value = user?.photo || '';
-        this.elements.userPhotoInput.disabled = !permissions.canEditDetails;
-      }
+      this.resetPhotoUploader(user?.photo || '', permissions.canEditDetails);
 
       if (this.elements.userPasswordInput) {
         this.elements.userPasswordInput.value = '';
@@ -950,6 +1357,7 @@
         this.elements.userRegistrationInput.value = '';
       }
       this.renderPhoneList([], true);
+      this.resetPhotoUploader('', true);
       this.setPasswordBlockVisible(false);
       this.resetModalPasswordDisplay();
       this.setUserModalError('');
