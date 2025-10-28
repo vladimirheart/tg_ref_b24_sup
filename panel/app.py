@@ -66,10 +66,14 @@ USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
 OBJECT_PASSPORT_DB_PATH = os.path.join(BASE_DIR, "object_passports.db")
 OBJECT_PASSPORT_UPLOADS_DIR = os.path.join(BASE_DIR, "object_passport_uploads")
+USER_PHOTOS_DIR = os.path.join(os.path.dirname(__file__), "static", "user_photos")
+ALLOWED_USER_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+MAX_USER_PHOTO_SIZE = 5 * 1024 * 1024
 WEB_FORM_SESSIONS_TABLE = "web_form_sessions"
 
 os.makedirs(OBJECT_PASSPORT_UPLOADS_DIR, exist_ok=True)
 os.makedirs(KNOWLEDGE_BASE_ATTACHMENTS_DIR, exist_ok=True)
+os.makedirs(USER_PHOTOS_DIR, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
@@ -10132,6 +10136,49 @@ def _fetch_user_summary(conn, user_id: int):
         """,
         (user_id,),
     ).fetchone()
+
+
+@app.route("/api/users/photo-upload", methods=["POST"])
+@login_required_api
+def api_users_upload_photo():
+    file_storage = request.files.get("photo")
+    if not file_storage or not (file_storage.filename or "").strip():
+        return jsonify({"success": False, "error": "Выберите файл с изображением."}), 400
+
+    filename = secure_filename(file_storage.filename or "")
+    if not filename:
+        return jsonify({"success": False, "error": "Недопустимое имя файла."}), 400
+
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in ALLOWED_USER_PHOTO_EXTENSIONS:
+        return jsonify({"success": False, "error": "Поддерживаются изображения PNG, JPG, GIF или WebP."}), 400
+
+    mimetype = (file_storage.mimetype or "").lower()
+    if mimetype and not mimetype.startswith("image/"):
+        return jsonify({"success": False, "error": "Загрузите файл изображения."}), 400
+
+    try:
+        file_storage.stream.seek(0, os.SEEK_END)
+        file_size = file_storage.stream.tell()
+        file_storage.stream.seek(0)
+    except (OSError, AttributeError, io.UnsupportedOperation):
+        file_bytes = file_storage.read()
+        file_size = len(file_bytes)
+        file_storage.stream = io.BytesIO(file_bytes)
+        file_storage.stream.seek(0)
+
+    if file_size > MAX_USER_PHOTO_SIZE:
+        return jsonify({"success": False, "error": "Размер файла не должен превышать 5 МБ."}), 400
+    if file_size == 0:
+        return jsonify({"success": False, "error": "Файл не может быть пустым."}), 400
+
+    os.makedirs(USER_PHOTOS_DIR, exist_ok=True)
+    unique_name = f"{int(time.time())}_{uuid4().hex}{extension}"
+    save_path = os.path.join(USER_PHOTOS_DIR, unique_name)
+    file_storage.save(save_path)
+
+    file_url = url_for("static", filename=f"user_photos/{unique_name}")
+    return jsonify({"success": True, "url": file_url, "filename": unique_name})
 
 
 @app.route("/users")
