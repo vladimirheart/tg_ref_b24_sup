@@ -4106,42 +4106,42 @@ function displayTicketsForCurrentPage() {
                                         displayTicketsForCurrentPage();
                                         updatePagination();
                                   }
-                                });
-					// Не закрывать дропдауны категорий при клике по лейблу/чекбоксу (история и закрытие)
-						document.addEventListener('click', function(e) {
-								  const menu = e.target.closest('.dropdown-menu');
-								  if (!menu) return;
-							
-							// Делегированный клик по миниатюрам (у тебя класс .js-preview уже проставляется)
-								document.addEventListener('click', (e) => {
-								  const target = e.target.closest('.js-preview');
-								  if (!target) return;
-								  const full = target.getAttribute('data-fullsrc') || target.src;
-								  const img = document.getElementById('imageViewerImg');
-								  img.src = full;
-								  new bootstrap.Modal(document.getElementById('imageViewerModal')).show();
-								});
-								document.addEventListener('click', function (e) {
-								  const img = e.target.closest('.js-preview');
-								  if (!img) return;	
-								});
-							// Клик по блоку "Ответ на" — перейти к исходному сообщению
-							document.addEventListener('click', function (e) {
-							  const box = e.target.closest('.reply-preview.rp-jump');
-							  if (!box) return;
+                                  });
+                          // Делегированный клик по миниатюрам (у тебя класс .js-preview уже проставляется)
+                                  document.addEventListener('click', (e) => {
+                                    const target = e.target.closest('.js-preview');
+                                    if (!target) return;
+                                    const full = target.getAttribute('data-fullsrc') || target.src;
+                                    const img = document.getElementById('imageViewerImg');
+                                    if (img) {
+                                          img.src = full;
+                                          const modal = document.getElementById('imageViewerModal');
+                                          if (modal) {
+                                                new bootstrap.Modal(modal).show();
+                                          }
+                                    }
+                                  });
+                          // Клик по блоку "Ответ на" — перейти к исходному сообщению
+                                  document.addEventListener('click', function (e) {
+                                    const box = e.target.closest('.reply-preview.rp-jump');
+                                    if (!box) return;
 
-							  const targetTgId = box.getAttribute('data-target');
-							  if (!targetTgId) return;
+                                    const targetTgId = box.getAttribute('data-target');
+                                    if (!targetTgId) return;
 
-							  const target = document.querySelector(`.chat-bubble[data-tg-id="${targetTgId}"]`);
-							  if (target) {
-								target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-								target.classList.add('reply-target');
-								setTimeout(() => target.classList.remove('reply-target'), 1200);
-							  }
-							});
+                                    const target = document.querySelector(`.chat-bubble[data-tg-id="${targetTgId}"]`);
+                                    if (target) {
+                                          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                          target.classList.add('reply-target');
+                                          setTimeout(() => target.classList.remove('reply-target'), 1200);
+                                    }
+                                  });
+                          // Не закрывать дропдауны категорий при клике по лейблу/чекбоксу (история и закрытие)
+                                  document.addEventListener('click', function(e) {
+                                                    const menu = e.target.closest('.dropdown-menu');
+                                                    if (!menu) return;
 
-						  // Клик был внутри меню категорий истории?
+                                            // Клик был внутри меню категорий истории?
 							if (menu.closest('#historyModal')) {
 								const item = e.target.closest('.form-check');
 								if (item) {
