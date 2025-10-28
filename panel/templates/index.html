@@ -4137,47 +4137,47 @@ function displayTicketsForCurrentPage() {
                                     }
                                   });
                           // Не закрывать дропдауны категорий при клике по лейблу/чекбоксу (история и закрытие)
-                                  document.addEventListener('click', function(e) {
-                                                    const menu = e.target.closest('.dropdown-menu');
-                                                    if (!menu) return;
+                                  document.addEventListener(
+                                    'click',
+                                    function (e) {
+                                      const menu = e.target.closest('.dropdown-menu');
+                                      if (!menu) return;
 
-                                            // Клик был внутри меню категорий истории?
-							if (menu.closest('#historyModal')) {
-								const item = e.target.closest('.form-check');
-								if (item) {
-								  e.preventDefault();
-								  e.stopPropagation();
-								  const input = item.querySelector('input[type="checkbox"]');
-								  if (input && e.target !== input) {
-									input.checked = !input.checked;
-								  }
-								  if (typeof syncCategorySelection === 'function') {
-									syncCategorySelection();
-								  }
-								}
-							}
+                                      const toggleItemCheckbox = (syncFn) => {
+                                        const item = e.target.closest('.form-check');
+                                        if (!item) return;
 
-						  // Клик был внутри меню категорий модалки закрытия?
-							if (menu.closest('#closeTicketModal')) {
-								const item = e.target.closest('.form-check');
-								if (item) {
-								  e.preventDefault();
-								  e.stopPropagation();
-								  const input = item.querySelector('input[type="checkbox"]');
-								  if (input && e.target !== input) {
-									input.checked = !input.checked;
-								  }
-								  if (typeof syncCloseCategorySelection === 'function') {
-									syncCloseCategorySelection();
-								  }
-								}
-								if (selectedCategory) {
-								  // категория выбрана → закрываем напрямую без второго окна
-								  closeTicketDirectly(ticketId, selectedCategory);
-								  return;
-								}
-							}
-						}, true);
+                                        e.preventDefault();
+                                        e.stopPropagation();
+
+                                        const input = item.querySelector('input[type="checkbox"]');
+                                        if (input && e.target !== input) {
+                                          input.checked = !input.checked;
+                                        }
+
+                                        if (typeof syncFn === 'function') {
+                                          syncFn();
+                                        }
+                                      };
+
+                                      // Клик был внутри меню категорий истории?
+                                      if (menu.closest('#historyModal')) {
+                                        toggleItemCheckbox(syncCategorySelection);
+                                      }
+
+                                      // Клик был внутри меню категорий модалки закрытия?
+                                      if (menu.closest('#closeTicketModal')) {
+                                        toggleItemCheckbox(syncCloseCategorySelection);
+
+                                        if (selectedCategory) {
+                                          // категория выбрана → закрываем напрямую без второго окна
+                                          closeTicketDirectly(ticketId, selectedCategory);
+                                          return;
+                                        }
+                                      }
+                                    },
+                                    true
+                                  );
 
 			  // === Загрузка статусов клиентов ===
 						async function loadClientStatuses() {
