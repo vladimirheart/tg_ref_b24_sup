@@ -654,34 +654,18 @@
 
               <div class="tab-content pt-3">
                 <div class="tab-pane fade show active" id="settingsAuthUsers" role="tabpanel" data-auth-users-section>
-                  <form class="row g-2 align-items-end mb-3" data-auth-user-create>
-                    <div class="col-md-4">
-                      <label class="form-label small mb-1" for="authUserName">Логин</label>
-                      <input type="text" class="form-control form-control-sm" id="authUserName" name="username" autocomplete="off" required>
-                    </div>
-                    <div class="col-md-4">
-                      <label class="form-label small mb-1" for="authUserPassword">Пароль</label>
-                      <input type="text" class="form-control form-control-sm" id="authUserPassword" name="password" autocomplete="off" required>
-                    </div>
-                    <div class="col-md-3">
-                      <label class="form-label small mb-1" for="authUserRole">Роль</label>
-                      <select class="form-select form-select-sm" id="authUserRole" name="role_id" data-auth-user-role-select>
-                        <option value="" selected>По умолчанию</option>
-                      </select>
-                    </div>
-                    <div class="col-md-1 d-flex justify-content-end">
-                      <button type="submit" class="btn btn-primary btn-sm w-100">Создать</button>
-                    </div>
-                  </form>
-                  <div class="text-danger small mb-3 d-none" data-auth-user-create-error></div>
+                  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+                    <div class="text-muted small">Управляйте карточками пользователей, контактами и доступом.</div>
+                    <button type="button" class="btn btn-primary btn-sm" data-auth-user-create-trigger>+ Создать пользователя</button>
+                  </div>
 
                   <div class="table-responsive">
                     <table class="table table-sm align-middle" data-auth-users-table>
                       <thead>
                         <tr>
-                          <th style="width: 30%">Логин</th>
+                          <th style="width: 30%">Пользователь</th>
                           <th style="width: 22%">Роль</th>
-                          <th style="width: 32%">Пароль</th>
+                          <th style="width: 32%">Контакты</th>
                           <th class="text-end" style="width: 16%">Действия</th>
                         </tr>
                       </thead>
@@ -712,6 +696,77 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <form data-auth-user-form>
+            <div class="modal-header">
+              <h5 class="modal-title" data-auth-user-modal-title>Пользователь</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="alert alert-danger d-none" role="alert" data-auth-user-modal-error></div>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
+                  <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1" for="authUserModalRole">Роль</label>
+                  <select class="form-select form-select-sm" id="authUserModalRole" name="role_id" data-auth-user-role-select>
+                    <option value="">По умолчанию</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1" for="authUserModalEmail">E-mail</label>
+                  <input type="email" class="form-control form-control-sm" id="authUserModalEmail" name="email" autocomplete="off">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
+                  <input type="text" class="form-control form-control-sm" id="authUserModalDepartment" name="department" autocomplete="off">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1" for="authUserModalBirthDate">Дата рождения</label>
+                  <input type="date" class="form-control form-control-sm" id="authUserModalBirthDate" name="birth_date">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
+                  <input type="text" class="form-control form-control-sm" id="authUserModalPhoto" name="photo" placeholder="Ссылка на изображение">
+                </div>
+              </div>
+              <hr class="my-3">
+              <div class="mb-3" data-auth-user-password-current>
+                <label class="form-label small mb-1">Текущий пароль</label>
+                <div class="input-group input-group-sm">
+                  <input type="password" class="form-control" data-auth-user-password-display value="••••••••" readonly>
+                  <button type="button" class="btn btn-outline-secondary" data-auth-user-password-toggle data-action="toggle-password">Показать</button>
+                </div>
+                <div class="form-text">Пароль доступен при наличии прав.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small mb-1" for="authUserModalPassword">Пароль</label>
+                <input type="text" class="form-control form-control-sm" id="authUserModalPassword" name="password" autocomplete="off" placeholder="Оставьте пустым, чтобы не менять">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small mb-1" for="authUserModalRegistration">Дата регистрации</label>
+                <input type="text" class="form-control form-control-sm" id="authUserModalRegistration" data-auth-user-registration readonly>
+              </div>
+              <div class="mb-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h6 class="mb-0">Телефоны</h6>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-auth-user-phone-add>+ Добавить телефон</button>
+              </div>
+              <div class="d-flex flex-column gap-2" data-auth-user-phones></div>
+              <div class="text-muted small d-none" data-auth-user-phones-empty>Телефоны не указаны.</div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отменить</button>
+              <button type="submit" class="btn btn-primary" data-auth-user-submit>Сохранить</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
