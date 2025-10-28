@@ -594,8 +594,8 @@
         <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#usersModal">
           <div class="card-body">
             <div class="tile-icon">👥</div>
-            <h5 class="card-title">Пользователи панели</h5>
-            <p class="card-text text-muted">Управляйте доступом сотрудников и их ролями.</p>
+            <h5 class="card-title">Пользователи панили и настройки доступа</h5>
+            <p class="card-text text-muted">Создавайте роли, настраивайте права и управляйте пользователями.</p>
           </div>
         </div>
       </div>
@@ -636,14 +636,81 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панели</h5>
+            <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панили и настройки доступа</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div id="usersList" class="mb-3">
-              <!-- Список загрузится динамически -->
+            <div class="auth-management" data-auth-management>
+              <div class="alert alert-danger d-none" role="alert" data-auth-message></div>
+
+              <ul class="nav nav-tabs" role="tablist" data-auth-tabs>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="auth-users-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthUsers" type="button" role="tab">Пользователи</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="auth-roles-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthRoles" type="button" role="tab">Роли</button>
+                </li>
+              </ul>
+
+              <div class="tab-content pt-3">
+                <div class="tab-pane fade show active" id="settingsAuthUsers" role="tabpanel" data-auth-users-section>
+                  <form class="row g-2 align-items-end mb-3" data-auth-user-create>
+                    <div class="col-md-4">
+                      <label class="form-label small mb-1" for="authUserName">Логин</label>
+                      <input type="text" class="form-control form-control-sm" id="authUserName" name="username" autocomplete="off" required>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label small mb-1" for="authUserPassword">Пароль</label>
+                      <input type="text" class="form-control form-control-sm" id="authUserPassword" name="password" autocomplete="off" required>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label small mb-1" for="authUserRole">Роль</label>
+                      <select class="form-select form-select-sm" id="authUserRole" name="role_id" data-auth-user-role-select>
+                        <option value="" selected>По умолчанию</option>
+                      </select>
+                    </div>
+                    <div class="col-md-1 d-flex justify-content-end">
+                      <button type="submit" class="btn btn-primary btn-sm w-100">Создать</button>
+                    </div>
+                  </form>
+                  <div class="text-danger small mb-3 d-none" data-auth-user-create-error></div>
+
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle" data-auth-users-table>
+                      <thead>
+                        <tr>
+                          <th style="width: 30%">Логин</th>
+                          <th style="width: 22%">Роль</th>
+                          <th style="width: 32%">Пароль</th>
+                          <th class="text-end" style="width: 16%">Действия</th>
+                        </tr>
+                      </thead>
+                      <tbody data-auth-users-body></tbody>
+                    </table>
+                  </div>
+                  <div class="alert alert-info mt-3 d-none" data-auth-users-empty>Пользователи не найдены.</div>
+                </div>
+
+                <div class="tab-pane fade" id="settingsAuthRoles" role="tabpanel" data-auth-roles-section>
+                  <form class="row g-2 align-items-end mb-3" data-auth-role-create>
+                    <div class="col-md-4">
+                      <label class="form-label small mb-1" for="authRoleName">Название</label>
+                      <input type="text" class="form-control form-control-sm" id="authRoleName" name="name" autocomplete="off" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small mb-1" for="authRoleDescription">Описание</label>
+                      <input type="text" class="form-control form-control-sm" id="authRoleDescription" name="description" autocomplete="off">
+                    </div>
+                    <div class="col-md-2 d-flex justify-content-end">
+                      <button type="submit" class="btn btn-primary btn-sm w-100">Создать роль</button>
+                    </div>
+                  </form>
+                  <div class="text-danger small mb-3 d-none" data-auth-role-create-error></div>
+                  <div class="d-flex flex-column gap-3" data-auth-roles-container></div>
+                  <div class="alert alert-info d-none" data-auth-roles-empty>Роли не найдены.</div>
+                </div>
+              </div>
             </div>
-            <button class="btn btn-sm btn-success" onclick="addUser()">+ Добавить пользователя</button>
           </div>
         </div>
       </div>
@@ -7184,83 +7251,37 @@
     setStatusesEditMode(false);
   }
 
-  // === JavaScript для управления пользователями ===
-  async function loadUsers() {
-    try {
-      const response = await fetch('/users');
-      if (!response.ok) throw new Error('Ошибка загрузки пользователей');
-      
-      const users = await response.json();
-      const container = document.getElementById('usersList');
-      container.innerHTML = '';
-      
-      users.forEach(u => {
-        const div = document.createElement('div');
-        div.className = 'input-group mb-2';
-        div.innerHTML = `
-          <input type="text" class="form-control" value="${u.username}" disabled>
-          <select class="form-select" disabled>
-            <option ${u.role==='admin'?'selected':''}>admin</option>
-            <option ${u.role==='user'?'selected':''}>user</option>
-          </select>
-          <button class="btn btn-outline-danger" onclick="deleteUser(${u.id}, '${u.username}')">Удалить</button>
-        `;
-        container.appendChild(div);
-      });
-    } catch (error) {
-      console.error('Ошибка загрузки пользователей:', error);
-      alert('❌ Ошибка загрузки пользователей: ' + error.message);
+  // === Инициализация управления доступом ===
+  document.addEventListener('DOMContentLoaded', () => {
+    const usersModalEl = document.getElementById('usersModal');
+    if (!usersModalEl) {
+      return;
     }
-  }
 
-  async function addUser() {
-    const username = prompt("Логин:");
-    if (!username) return;
-    
-    const password = prompt("Пароль:");
-    if (!password) return;
-    
-    const role = prompt("Роль (admin/user):", "user");
-    if (!role) return;
-
-    try {
-      const response = await fetch('/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, role })
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        alert('✅ Пользователь добавлен');
-        loadUsers();
-      } else {
-        alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+    usersModalEl.addEventListener('shown.bs.modal', () => {
+      const container = usersModalEl.querySelector('[data-auth-management]');
+      if (!container || !window.AuthManagement) {
+        console.error('Модуль управления доступом недоступен.');
+        return;
       }
-    } catch (error) {
-      alert('❌ Ошибка сети: ' + error.message);
-    }
-  }
-
-  async function deleteUser(id, name) {
-    if (!confirm(`Удалить пользователя ${name}?`)) return;
-    
-    try {
-      const response = await fetch(`/users/${id}`, { method: 'DELETE' });
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('✅ Пользователь удален');
-        loadUsers();
+      if (!container.__authManager) {
+        container.__authManager = window.AuthManagement.mount(container);
       } else {
-        alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+        container.__authManager.refresh();
       }
-    } catch (error) {
-      alert('❌ Ошибка сети: ' + error.message);
-    }
-  }
+    });
 
-    // === JavaScript для редактирования структуры локаций ===
+    usersModalEl.addEventListener('hidden.bs.modal', () => {
+      const container = usersModalEl.querySelector('[data-auth-management]');
+      const manager = container && container.__authManager;
+      if (manager) {
+        manager.resetPasswords();
+        manager.clearMessage();
+      }
+    });
+  });
+
+  // === JavaScript для редактирования структуры локаций ===
   const LOCATION_STATUS_OPTIONS = [
     'Активен',
     'Закрыт',
@@ -9514,7 +9535,6 @@
     initDialogTemplates();
     initLocationWizard();
     buildLocationsTree();
-    loadUsers();
     loadChannels(); // <— добавили
     loadParameters();
     renderNetworkProfiles();
@@ -9936,6 +9956,7 @@
   }
   </script>
 </main>
+  <script src="{{ url_for('static', filename='auth-management.js') }}"></script>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
   <script src="{{ url_for('static', filename='bot-settings.js') }}"></script>
