@@ -402,3 +402,122 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   font-style: italic;
   color: var(--bs-secondary-color, #6c757d);
 }
+
+/* Пользовательские фото */
+.auth-user-photo-uploader {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-user-photo-dropzone {
+  border: 2px dashed rgba(13, 110, 253, 0.35);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  background: rgba(13, 110, 253, 0.05);
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.auth-user-photo-dropzone.has-photo {
+  border-style: solid;
+  background: #fff;
+  padding: 1.25rem;
+}
+
+.auth-user-photo-dropzone.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.auth-user-photo-dropzone.is-uploading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.auth-user-photo-dropzone.is-dragover {
+  border-color: rgba(13, 110, 253, 0.8);
+  background: rgba(13, 110, 253, 0.12);
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.2);
+}
+
+.auth-user-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.auth-user-photo-icon {
+  font-size: 2.5rem;
+  color: #0d6efd;
+}
+
+.auth-user-photo-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.auth-user-photo-img {
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 1.25rem;
+  box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.18);
+}
+
+.auth-user-photo-preview .btn {
+  min-width: 110px;
+}
+
+.auth-user-photo-uploading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.auth-user-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 110, 253, 0.12);
+  color: #0d6efd;
+  font-weight: 600;
+  font-size: 1rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-transform: uppercase;
+}
+
+.auth-user-avatar--image {
+  background: transparent;
+}
+
+.auth-user-avatar--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auth-user-avatar__initials {
+  line-height: 1;
+}
+
+@media (max-width: 767.98px) {
+  .auth-user-photo-dropzone {
+    padding: 1.25rem;
+  }
+
+  .auth-user-photo-img {
+    width: 140px;
+    height: 140px;
+  }
+}
