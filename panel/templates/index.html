@@ -617,10 +617,141 @@
 #historySidebar.collapsed .sidebar-collapse-toggle {
   right: -28px;
 }
-.history-pane-resizer.invisible {
-  opacity: 0;
-  pointer-events: none;
-}
+  .history-pane-resizer.invisible {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .history-vertical-resizer {
+    flex: 0 0 auto;
+    height: 10px;
+    cursor: row-resize;
+    background: rgba(0, 0, 0, 0.05);
+    position: relative;
+  }
+
+  .history-vertical-resizer::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.15);
+    transform: translate(-50%, -50%);
+  }
+
+  .history-vertical-resizer:hover::after,
+  .history-vertical-resizer.resizing::after {
+    background: rgba(13, 110, 253, 0.45);
+  }
+
+  body.history-vertical-resizing {
+    cursor: row-resize !important;
+    user-select: none;
+  }
+
+  #historyVerticalResizerOverlay {
+    position: fixed;
+    inset: 0;
+    cursor: row-resize;
+    z-index: 9999;
+    background: transparent;
+  }
+
+  .sidebar-info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .sidebar-info-group .problem-info,
+  .sidebar-info-group .category-selector {
+    margin: 0;
+  }
+
+  #historyModal .category-selector .category-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  #historyModal .category-selector .category-selector-header .category-save-btn {
+    flex: 0 0 auto;
+  }
+
+  #historyModal .category-selector .category-selector-header .category-save-btn::after {
+    display: none;
+  }
+
+  #historyModal .category-selector .category-selector-header .form-label {
+    margin-bottom: 0;
+  }
+
+  #historyModal .category-selector .category-save-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #historyModal .category-selector .category-save-btn .visually-hidden {
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    width: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-toggle {
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    color: inherit;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-toggle.disabled {
+    color: var(--bs-secondary-color, #6c757d);
+    cursor: default;
+    opacity: 0.75;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-toggle:focus {
+    box-shadow: none;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-toggle::after {
+    display: none;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-indicator {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-left: 0.25rem;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-menu {
+    max-height: 320px;
+    overflow-y: auto;
+    min-width: 260px;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-item.active,
+  #historyModal .client-history-dropdown .dropdown-item:active {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: inherit;
+  }
+
+  #historyModal .client-history-dropdown .dropdown-item .badge {
+    margin-left: 0.5rem;
+  }
 
 #historyModal .history-avatar-wrapper {
   display: flex;
@@ -1614,8 +1745,16 @@ function markTicketReopenedLocally() {
                     <h5 class="modal-title mb-0 d-flex align-items-center flex-wrap gap-2" id="historyModalTitle">
                       <span class="me-1">💬 Диалог №</span>
                       <span id="ticketIdDisplay"></span>
-                      <span class="d-inline-flex align-items-center gap-2">
-                        <span id="clientDisplayName">—</span>
+                      <span class="d-inline-flex align-items-center flex-wrap gap-2">
+                        <div class="dropdown client-history-dropdown">
+                          <button type="button" class="dropdown-toggle" id="clientHistoryToggle" data-bs-toggle="dropdown" aria-expanded="false" title="История обращений клиента">
+                            <span id="clientDisplayName">—</span>
+                            <span class="dropdown-indicator">▾</span>
+                          </button>
+                          <ul class="dropdown-menu" aria-labelledby="clientHistoryToggle" id="clientHistoryMenu">
+                            <li class="dropdown-item-text text-muted small px-3 py-2" id="clientHistoryEmpty">Нет обращений</li>
+                          </ul>
+                        </div>
                         <span class="badge bg-info" id="clientStatusDisplay"></span>
                       </span>
                       <span id="unreadBadge" class="badge bg-danger ms-2 d-none">0</span>
@@ -1670,28 +1809,33 @@ function markTicketReopenedLocally() {
                   </div>
                   <div class="list-group mt-2" id="activeDialogList"></div>
                   </div>
-                  <!-- Проблема -->
-                  <div class="problem-info p-3 sidebar-info">
-                  <strong>Проблема:</strong>
-                  <span id="problemText" class="ellipsis-100ch" title=""></span>
-                </div>
+                  <div class="sidebar-info-group">
+                    <!-- Проблема -->
+                    <div class="problem-info p-3 sidebar-info">
+                      <strong>Проблема:</strong>
+                      <span id="problemText" class="ellipsis-100ch" title=""></span>
+                    </div>
 
-                <!-- Категория обращения -->
-                  <div class="category-selector p-3 sidebar-info">
-                  <label class="form-label" for="categoryTemplateSelect">Категория обращения:</label>
-                  <select id="categoryTemplateSelect" class="form-select form-select-sm mb-2"></select>
-                  <div class="selected-categories mt-2 ellipsis-100ch" id="selectedCategories" style="font-size: 0.9rem;" title=""></div>
-                  <select id="ticketCategorySelect" class="form-select" multiple hidden></select>
-                  <div class="dropdown" data-bs-auto-close="outside">
-                    <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                      Выберите категории...
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="categoryDropdown" id="categoryOptionsList" style="max-height: 300px; overflow-y: auto;"></ul>
-                  </div>
-                  <div class="form-text">Можно выбрать несколько категорий</div>
-                  <button type="button" class="btn btn-outline-primary mt-2 w-100" onclick="saveTicketCategory()">
-                    💾 Сохранить категорию
-                  </button>
+                    <!-- Категория обращения -->
+                    <div class="category-selector p-3 sidebar-info">
+                      <div class="category-selector-header">
+                        <button type="button" class="btn btn-outline-primary btn-sm category-save-btn" onclick="saveTicketCategory()" title="Сохранить выбранные категории">
+                          💾
+                          <span class="visually-hidden">Сохранить категорию</span>
+                        </button>
+                        <label class="form-label" for="categoryTemplateSelect">Категория обращения:</label>
+                      </div>
+                      <select id="categoryTemplateSelect" class="form-select form-select-sm mb-2"></select>
+                      <div class="selected-categories mt-2 ellipsis-100ch" id="selectedCategories" style="font-size: 0.9rem;" title=""></div>
+                      <select id="ticketCategorySelect" class="form-select" multiple hidden></select>
+                      <div class="dropdown mt-2" data-bs-auto-close="outside">
+                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                          Выберите категории...
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="categoryDropdown" id="categoryOptionsList" style="max-height: 300px; overflow-y: auto;"></ul>
+                      </div>
+                      <div class="form-text mt-2">Можно выбрать несколько категорий</div>
+                    </div>
                   </div>
 
                   <!-- Фото клиента -->
@@ -1738,6 +1882,7 @@ function markTicketReopenedLocally() {
               <div class="d-flex flex-column flex-fill min-height-0">
                 <!-- Блок переписки -->
                 <div class="chat-container flex-grow-1 min-height-0 font-size-medium" id="historyContent"></div>
+                <div class="history-vertical-resizer" id="historyVerticalResizer" role="separator" aria-orientation="horizontal" aria-label="Изменить высоту истории"></div>
 
                 <!-- Поле ввода сообщения и кнопка отправки -->
                 <div class="input-group-send border-top bg-light w-100 px-3 pt-3 pb-0">
@@ -2443,6 +2588,7 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
             section.style.display = 'none';
             list.innerHTML = '';
             if (counter) counter.textContent = '0';
+            renderClientTicketsDropdown(userId, activeTicketId, []);
             return;
           }
 
@@ -2481,6 +2627,79 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
           list.innerHTML = html;
           section.style.display = 'block';
           if (counter) counter.textContent = String(tickets.length);
+
+          renderClientTicketsDropdown(userId, activeTicketId, sorted);
+        }
+
+        function renderClientTicketsDropdown(userId, activeTicketId, preSortedTickets) {
+          const menu = document.getElementById('clientHistoryMenu');
+          const toggle = document.getElementById('clientHistoryToggle');
+          const emptyItem = document.getElementById('clientHistoryEmpty');
+
+          if (!menu || !toggle) {
+            return;
+          }
+
+          const tickets = Array.isArray(preSortedTickets)
+            ? preSortedTickets
+            : (window.allTickets || []).filter(t => String(t.user_id ?? t.userId ?? '') === String(userId))
+                .sort((a, b) => {
+                  const ta = getTicketCreatedAt(a)?.getTime() ?? 0;
+                  const tb = getTicketCreatedAt(b)?.getTime() ?? 0;
+                  return tb - ta;
+                });
+
+          if (!tickets.length) {
+            menu.innerHTML = '';
+            if (emptyItem) {
+              emptyItem.textContent = 'Нет обращений';
+              menu.appendChild(emptyItem);
+              emptyItem.classList.remove('d-none');
+            }
+            toggle.classList.add('disabled');
+            toggle.setAttribute('aria-disabled', 'true');
+            toggle.setAttribute('tabindex', '-1');
+            toggle.disabled = true;
+            return;
+          }
+
+          const header = '<li><h6 class="dropdown-header">История обращений</h6></li>';
+          const items = tickets.map(ticket => {
+            const isActive = String(ticket.ticket_id) === String(activeTicketId);
+            const created = formatTicketListTime(ticket);
+            const status = ticket.status || '—';
+            const unread = unreadCountByTicket?.[String(ticket.ticket_id)] ?? 0;
+            const unreadBadge = unread > 0
+              ? `<span class="badge bg-danger">${unread}</span>`
+              : '';
+
+            return `
+              <li>
+                <button type="button"
+                        class="dropdown-item text-start ${isActive ? 'active' : ''}"
+                        data-ticket-id="${ticket.ticket_id}"
+                        data-user-id="${ticket.user_id}">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold">#${escapeHtml(String(ticket.ticket_id))}</span>
+                    <span class="text-muted small ms-2">${escapeHtml(created)}</span>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center mt-1">
+                    <span class="small text-truncate" style="max-width: 16rem;">${escapeHtml(String(status))}</span>
+                    ${unreadBadge}
+                  </div>
+                </button>
+              </li>
+            `;
+          }).join('');
+
+          menu.innerHTML = header + items;
+          if (emptyItem) {
+            emptyItem.classList.add('d-none');
+          }
+          toggle.classList.remove('disabled');
+          toggle.removeAttribute('aria-disabled');
+          toggle.removeAttribute('tabindex');
+          toggle.disabled = false;
         }
 
         function adjustComposerPadding() {
@@ -5347,6 +5566,13 @@ function displayTicketsForCurrentPage() {
                                         clearInterval(historyPolling);
                                         historyPolling = null;
                                   }
+                                  document.body.classList.remove('history-vertical-resizing');
+                                  const overlay = document.getElementById('historyVerticalResizerOverlay');
+                                  if (overlay) overlay.remove();
+                                  const verticalResizer = document.getElementById('historyVerticalResizer');
+                                  if (verticalResizer && typeof verticalResizer._stopHistoryVerticalResizing === 'function') {
+                                        verticalResizer._stopHistoryVerticalResizing();
+                                  }
                                 });
 
 				// === Автообновление истории (инкрементально) ===
@@ -5407,6 +5633,8 @@ function displayTicketsForCurrentPage() {
                   historyModalIsOpen = true;
                   _sizeHistoryHeights();
                   adjustComposerPadding();
+                  initHistoryVerticalResizer();
+                  requestAnimationFrame(() => applyStoredHistoryChatHeight());
                   // пересчитываем при ресайзе и изменении высоты футера (textarea растёт)
                   new ResizeObserver(_sizeHistoryHeights).observe(document.getElementById('historyModal'));
                   window.addEventListener('resize', _sizeHistoryHeights, { passive: true });
@@ -7339,6 +7567,30 @@ if (clientTicketsList) {
   });
 }
 
+const clientHistoryMenu = document.getElementById('clientHistoryMenu');
+if (clientHistoryMenu) {
+  clientHistoryMenu.addEventListener('click', (event) => {
+    const item = event.target.closest('[data-ticket-id]');
+    if (!item) {
+      return;
+    }
+
+    const ticketId = item.dataset.ticketId;
+    const userId = item.dataset.userId || currentUserId;
+    if (!ticketId || String(ticketId) === String(currentTicketId)) {
+      return;
+    }
+
+    const toggleEl = document.getElementById('clientHistoryToggle');
+    if (toggleEl) {
+      const dropdown = bootstrap.Dropdown.getInstance(toggleEl) || new bootstrap.Dropdown(toggleEl);
+      dropdown.hide();
+    }
+
+    loadHistory(userId, ticketId);
+  });
+}
+
 const assignResponsibleBtn = document.getElementById('assignResponsibleBtn');
 if (assignResponsibleBtn) {
   assignResponsibleBtn.addEventListener('click', (event) => {
@@ -7521,6 +7773,99 @@ if (assignResponsibleBtn) {
 		  });
 		});
 
+
+const HISTORY_CHAT_HEIGHT_KEY = 'historyChatHeight';
+let historyVerticalResizerInitialized = false;
+
+function applyStoredHistoryChatHeight() {
+  const chat = document.getElementById('historyContent');
+  const composer = document.querySelector('#historyModal .input-group-send');
+  if (!chat || !composer) return;
+
+  const raw = localStorage.getItem(HISTORY_CHAT_HEIGHT_KEY);
+  const stored = raw ? parseFloat(raw) : NaN;
+  if (Number.isFinite(stored) && stored > 0) {
+    const parentHeight = chat.parentElement?.getBoundingClientRect().height || 0;
+    const composerHeight = composer.getBoundingClientRect().height || 0;
+    const composerMinHeight = Math.max(140, composerHeight * 0.75);
+    const nextHeight = parentHeight ? Math.min(Math.max(stored, 180), Math.max(180, parentHeight - composerMinHeight)) : stored;
+    chat.style.flex = '0 0 auto';
+    chat.style.height = `${Math.round(nextHeight)}px`;
+  } else {
+    chat.style.flex = '';
+    chat.style.height = '';
+  }
+}
+
+function initHistoryVerticalResizer() {
+  if (historyVerticalResizerInitialized) return;
+
+  const resizer = document.getElementById('historyVerticalResizer');
+  const chat = document.getElementById('historyContent');
+  const composer = document.querySelector('#historyModal .input-group-send');
+  if (!resizer || !chat || !composer) return;
+
+  let isResizing = false;
+  let startY = 0;
+  let startHeight = 0;
+  let parentHeight = 0;
+  let composerHeight = 0;
+
+  resizer.addEventListener('mousedown', (event) => {
+    if (event.button !== 0) return;
+
+    isResizing = true;
+    startY = event.clientY;
+    startHeight = chat.getBoundingClientRect().height;
+    parentHeight = chat.parentElement?.getBoundingClientRect().height || (startHeight + composer.getBoundingClientRect().height);
+    composerHeight = composer.getBoundingClientRect().height;
+
+    chat.style.flex = '0 0 auto';
+    resizer.classList.add('resizing');
+    document.body.classList.add('history-vertical-resizing');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'historyVerticalResizerOverlay';
+    document.body.appendChild(overlay);
+
+    event.preventDefault();
+  });
+
+  function onMouseMove(event) {
+    if (!isResizing) return;
+
+    const delta = event.clientY - startY;
+    const minHeight = 180;
+    const composerMinHeight = Math.max(140, composerHeight * 0.75);
+    const maxHeight = Math.max(minHeight, parentHeight - composerMinHeight);
+    const nextHeight = Math.min(Math.max(startHeight + delta, minHeight), maxHeight);
+
+    chat.style.height = `${nextHeight}px`;
+  }
+
+  function stopResizing() {
+    if (!isResizing) return;
+
+    isResizing = false;
+    resizer.classList.remove('resizing');
+    document.body.classList.remove('history-vertical-resizing');
+
+    const overlay = document.getElementById('historyVerticalResizerOverlay');
+    if (overlay) overlay.remove();
+
+    const height = chat.getBoundingClientRect().height;
+    if (Number.isFinite(height) && height > 0) {
+      localStorage.setItem(HISTORY_CHAT_HEIGHT_KEY, String(Math.round(height)));
+    }
+  }
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', stopResizing);
+
+  resizer._stopHistoryVerticalResizing = stopResizing;
+
+  historyVerticalResizerInitialized = true;
+}
 
 // === Ресайзер и состояние левой панели истории ===
 function rememberSidebarWidth(width) {
