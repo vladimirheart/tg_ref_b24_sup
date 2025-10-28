@@ -930,6 +930,28 @@
   padding: 0 4px;
 }
 
+#historyModal .time-info {
+  --time-metric-color: #f8f9fa;
+  background-color: var(--time-metric-color);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+#historyModal .time-info.time-metric--state-good {
+  --time-metric-color: rgba(209, 247, 209, 0.85);
+  border-color: rgba(46, 125, 50, 0.35);
+}
+
+#historyModal .time-info.time-metric--state-warning {
+  --time-metric-color: rgba(255, 244, 214, 0.9);
+  border-color: rgba(154, 103, 0, 0.35);
+}
+
+#historyModal .time-info.time-metric--state-danger {
+  --time-metric-color: rgba(248, 215, 218, 0.9);
+  border-color: rgba(132, 32, 41, 0.35);
+}
+
 #historyModal .chat-bubble:hover .bubble-actions {
   opacity: 1;
 }
@@ -1250,6 +1272,91 @@ const CURRENT_OPERATOR = {{ (session.get('user_email') or session.get('username'
 function getOperatorName() {
   const name = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
   return name || 'Bender';
+}
+
+const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
+  good_limit: 30,
+  warning_limit: 60,
+  colors: Object.freeze({
+    good: '#d1f7d1',
+    warning: '#fff4d6',
+    danger: '#f8d7da'
+  })
+});
+
+function sanitizeHexColor(value, fallback) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) {
+    return raw;
+  }
+  return fallback;
+}
+
+function normalizeDialogTimeMetrics(raw) {
+  const base = {
+    good_limit: DEFAULT_DIALOG_TIME_METRICS.good_limit,
+    warning_limit: DEFAULT_DIALOG_TIME_METRICS.warning_limit,
+    colors: {
+      ...DEFAULT_DIALOG_TIME_METRICS.colors
+    }
+  };
+
+  if (raw && typeof raw === 'object') {
+    const good = Number.parseInt(raw.good_limit, 10);
+    const warning = Number.parseInt(raw.warning_limit, 10);
+    if (Number.isFinite(good) && good > 0) {
+      base.good_limit = good;
+    }
+    if (Number.isFinite(warning) && warning > 0) {
+      base.warning_limit = warning;
+    }
+    if (raw.colors && typeof raw.colors === 'object') {
+      base.colors.good = sanitizeHexColor(raw.colors.good, base.colors.good);
+      base.colors.warning = sanitizeHexColor(raw.colors.warning, base.colors.warning);
+      base.colors.danger = sanitizeHexColor(raw.colors.danger, base.colors.danger);
+    }
+  }
+
+  if (!Number.isFinite(base.good_limit) || base.good_limit <= 0) {
+    base.good_limit = DEFAULT_DIALOG_TIME_METRICS.good_limit;
+  }
+
+  if (!Number.isFinite(base.warning_limit) || base.warning_limit <= base.good_limit) {
+    base.warning_limit = Math.max(base.good_limit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
+  }
+
+  return base;
+}
+
+const DIALOG_TIME_METRICS = normalizeDialogTimeMetrics(
+  window.settings && window.settings.dialogConfig ? window.settings.dialogConfig.time_metrics : null
+);
+
+function applyTimeMetricsColor(element, minutes) {
+  if (!element) return;
+
+  element.classList.remove('time-metric--state-good', 'time-metric--state-warning', 'time-metric--state-danger');
+  element.style.removeProperty('--time-metric-color');
+
+  if (!Number.isFinite(minutes)) {
+    return;
+  }
+
+  let state = 'danger';
+  if (minutes < DIALOG_TIME_METRICS.good_limit) {
+    state = 'good';
+  } else if (minutes < DIALOG_TIME_METRICS.warning_limit) {
+    state = 'warning';
+  }
+
+  const color = (DIALOG_TIME_METRICS.colors && DIALOG_TIME_METRICS.colors[state])
+    || DEFAULT_DIALOG_TIME_METRICS.colors[state];
+
+  if (color) {
+    element.style.setProperty('--time-metric-color', color);
+  }
+
+  element.classList.add(`time-metric--state-${state}`);
 }
 
 function markTicketReopenedLocally() {
@@ -1606,7 +1713,7 @@ function markTicketReopenedLocally() {
                 <!-- Таймер/счётчик времени -->
                 <div class="time-counter p-3 sidebar-info mt-3">
                   <label class="form-label">Время обращения:</label>
-                  <div class="time-info bg-light p-3 rounded" id="timeInfo" title="">
+                  <div class="time-info p-3 rounded" id="timeInfo" title="">
                     <div id="timeCounter">Загрузка...</div>
                     <div id="timeDetails" class="small text-muted mt-1"></div>
                   </div>
@@ -1709,7 +1816,10 @@ function markTicketReopenedLocally() {
                     <label for="replyFiles" id="replyFilesBtn" class="btn btn-outline-secondary w-100 mb-2">
                       📎
                     </label>
-                    <button type="button" id="sendReplyInHistory" class="btn btn-primary w-100">📤</button>
+                      <button type="button" id="sendReplyInHistory" class="btn btn-primary w-100" title="Отправить сообщение">
+                        <span aria-hidden="true">➤</span>
+                        <span class="visually-hidden">Отправить</span>
+                      </button>
                   </div>
                 </div>
 
@@ -1738,7 +1848,10 @@ function markTicketReopenedLocally() {
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-          <button type="button" class="btn btn-success" onclick="sendReply()">Отправить</button>
+          <button type="button" class="btn btn-success" onclick="sendReply()" title="Отправить сообщение">
+            <span aria-hidden="true">➤</span>
+            <span class="visually-hidden">Отправить</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1829,7 +1942,15 @@ function markTicketReopenedLocally() {
       dialogConfig: {{ settings.dialog_config | tojson | safe }}
     };
     if (!window.settings.dialogConfig || typeof window.settings.dialogConfig !== 'object') {
-      window.settings.dialogConfig = { category_templates: [], question_templates: [], completion_templates: [] };
+      window.settings.dialogConfig = {
+        category_templates: [],
+        question_templates: [],
+        completion_templates: [],
+        time_metrics: { good_limit: 30, warning_limit: 60, colors: { good: '#d1f7d1', warning: '#fff4d6', danger: '#f8d7da' } }
+      };
+    }
+    if (!window.settings.dialogConfig.time_metrics || typeof window.settings.dialogConfig.time_metrics !== 'object') {
+      window.settings.dialogConfig.time_metrics = { good_limit: 30, warning_limit: 60, colors: { good: '#d1f7d1', warning: '#fff4d6', danger: '#f8d7da' } };
     }
   </script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
@@ -2869,11 +2990,13 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
     if (!isSupport) {
       const clientName = clientData?.client_name;
       const username   = clientData?.username;
-      if (clientName && clientName !== 'не задано') name = '👤 ' + clientName;
-      else if (username) name = '👤 @' + username;
+      if (clientName && clientName !== 'не задано') name = '👤 ' + escapeHtml(clientName);
+      else if (username) name = '👤 @' + escapeHtml(username);
       else name = '👤 Клиент';
     } else {
-      name = msg.sender_name || '🤖 Bender';
+      const operatorRaw = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
+      const supportLabel = operatorRaw || (msg.sender_name ? String(msg.sender_name).trim() : '') || getOperatorName();
+      name = '🛠 ' + escapeHtml(supportLabel);
     }
 
     let mediaHtml = '';
@@ -5030,17 +5153,26 @@ function displayTicketsForCurrentPage() {
 
 				// Формируем HTML для блока "Время обращения"
 				const info = document.getElementById('timeInfo');
-				info.innerHTML = `
-					<div id="timeCounter" style="font-size: 1.2em; font-weight: bold; margin-bottom: 8px;"></div>
-					<div id="timeDetails" style="font-size: 0.95em; line-height: 1.6;">
-						<div><strong>Статус:</strong> ${statusText}</div>
-						<div><strong>Создана:</strong> ${formatRuDate(createdAt)}</div>
-						<div><strong>Первый ответ оператора:</strong> ${formatRuDate(firstReply)}</div>
-						<div><strong>Время до ответа:</strong> ${timeToFirstReply}</div>
-						<div><strong>Завершение:</strong> ${formatRuDate(resolvedAt)}</div>
-						<div><strong>Общее время:</strong> ${totalWorkTime}</div>
-					</div>
-				`;
+                                info.innerHTML = `
+                                        <div id="timeCounter" style="font-size: 1.2em; font-weight: bold; margin-bottom: 8px;"></div>
+                                        <div id="timeDetails" style="font-size: 0.95em; line-height: 1.6;">
+                                                <div><strong>Статус:</strong> ${statusText}</div>
+                                                <div><strong>Создана:</strong> ${formatRuDate(createdAt)}</div>
+                                                <div><strong>Первый ответ оператора:</strong> ${formatRuDate(firstReply)}</div>
+                                                <div><strong>Время до ответа:</strong> ${timeToFirstReply}</div>
+                                                <div><strong>Завершение:</strong> ${formatRuDate(resolvedAt)}</div>
+                                                <div><strong>Общее время:</strong> ${totalWorkTime}</div>
+                                        </div>
+                                `;
+
+                                const elapsedMinutes = (() => {
+                                        if (!createdAt) return null;
+                                        const endpoint = resolvedAt || new Date();
+                                        if (!(endpoint instanceof Date) || isNaN(endpoint)) return null;
+                                        return Math.max(0, Math.round((endpoint - createdAt) / 60000));
+                                })();
+
+                                applyTimeMetricsColor(info, elapsedMinutes);
 				
 				// первичный рендер всей ленты (и оператора, и клиента)
 				const container = document.getElementById('historyContent');
@@ -5072,16 +5204,18 @@ function displayTicketsForCurrentPage() {
 				timeInfo.title = tooltipText;
 
 				// === ЖИВОЙ ТАЙМЕР (только если заявка НЕ закрыта): показываем, сколько прошло с момента "Создана" до сейчас
-				if (ticketFull.status !== 'resolved' && createdAt) {
-					const timerEl = info.querySelector('#timeCounter');
-					const updateTimer = () => {
-						const now = new Date();
-						timerEl.textContent = diffHMin(createdAt, now);
-					};
-					updateTimer(); // первый вызов
-					if (window.timeUpdateInterval) clearInterval(window.timeUpdateInterval);
-					window.timeUpdateInterval = setInterval(updateTimer, 60000);
-				} else {
+                                if (ticketFull.status !== 'resolved' && createdAt) {
+                                        const timerEl = info.querySelector('#timeCounter');
+                                        const updateTimer = () => {
+                                                const now = new Date();
+                                                timerEl.textContent = diffHMin(createdAt, now);
+                                                const minutesElapsed = Math.max(0, Math.round((now - createdAt) / 60000));
+                                                applyTimeMetricsColor(info, minutesElapsed);
+                                        };
+                                        updateTimer(); // первый вызов
+                                        if (window.timeUpdateInterval) clearInterval(window.timeUpdateInterval);
+                                        window.timeUpdateInterval = setInterval(updateTimer, 60000);
+                                } else {
 					const timerEl = info.querySelector('#timeCounter');
 					if (timerEl) timerEl.textContent = '';
 					if (window.timeUpdateInterval) clearInterval(window.timeUpdateInterval);
