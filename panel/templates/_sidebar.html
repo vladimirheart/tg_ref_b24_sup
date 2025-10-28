@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <nav class="sidebar-nav" aria-label="Основная навигация" title="Нажмите «Редактировать порядок», чтобы изменить расположение страниц">
+  <nav class="sidebar-nav" aria-label="Основная навигация" title="Нажмите на иконку «⇅», чтобы изменить расположение страниц">
     <a href="/" class="nav-link" data-page-key="dialogs">
       <span class="icon">💬</span><span class="label">Диалоги</span>
     </a>
@@ -41,10 +41,18 @@
     <a href="/settings" class="nav-link" data-page-key="settings">
       <span class="icon">⚙️</span><span class="label">Настройки</span>
     </a>
-    <div class="sidebar-order-controls">
-      <button id="editSidebarOrderBtn" class="sidebar-order-btn" type="button">Редактировать порядок</button>
-    </div>
   </nav>
+  <div class="sidebar-order-controls">
+    <button
+      id="editSidebarOrderBtn"
+      class="sidebar-order-btn"
+      type="button"
+      aria-label="Редактировать порядок"
+      title="Редактировать порядок"
+    >
+      <span class="icon" aria-hidden="true">⇅</span>
+    </button>
+  </div>
 </div>
 
 <style id="modal-animations-style">
