@@ -283,6 +283,44 @@
     color: black !important;
   }
 
+  th[data-column="business"] {
+    width: 115px;
+    min-width: 115px;
+    text-align: center;
+  }
+
+  td.business-cell {
+    text-align: center;
+    width: 115px;
+  }
+
+  .actions-cell .btn.btn-sm {
+    font-size: 0.79rem;
+    padding: 0.225rem 0.45rem;
+  }
+
+  .actions-cell .actions-layout {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .actions-cell .actions-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1 1 auto;
+  }
+
+  .actions-cell .actions-column .btn {
+    width: 100%;
+  }
+
+  .actions-cell .actions-side {
+    display: flex;
+    align-items: center;
+  }
+
   /* Стили для resize столбцов */
   .table th {
     position: relative;
@@ -1437,7 +1475,7 @@ function markTicketReopenedLocally() {
             <th data-column="clientStatus" data-field="clientStatus" data-resizable="true">Статус клиента</th>
 			<th data-column="channel" data-field="channel" data-resizable="true">Имя канала</th>
             <th data-column="ticketId" data-field="ticketId" data-resizable="true">ID заявки</th>
-            <th data-column="business" data-field="business" data-resizable="true">Бизнес</th>
+            <th data-column="business" data-field="business" data-resizable="true" class="text-center">Бизнес</th>
             <th data-column="location" data-field="location" data-resizable="true">Локация</th>
             <th data-column="problem" data-field="problem" data-resizable="true">Проблема</th>
             <th data-column="responsible" data-field="responsible" data-resizable="true">Ответственный</th>
@@ -1483,6 +1521,12 @@ function markTicketReopenedLocally() {
                     </div>
                     <div class="header-meta-item text-muted small">
                       <span class="fw-semibold me-1">Локация:</span><span id="headerLocation">—</span>
+                    </div>
+                    <div class="header-meta-item d-flex align-items-center gap-2 flex-wrap" id="responsibleControl">
+                      <span class="small text-muted">Ответственный:</span>
+                      <span id="dialogResponsibleDisplay" class="fw-semibold">ещё не в работе</span>
+                      <select id="dialogResponsibleSelect" class="form-select form-select-sm w-auto"></select>
+                      <button type="button" class="btn btn-outline-primary btn-sm" id="assignResponsibleBtn">Назначить</button>
                     </div>
                     <div class="header-meta-item d-flex align-items-center gap-2">
                       <label for="historyFontSizeControl" class="form-label mb-0 small text-muted">Размер текста</label>
@@ -1801,9 +1845,17 @@ function markTicketReopenedLocally() {
     let currentTicketId = null;
     let historyPolling = null;
     window.currentTicketDetails = window.currentTicketDetails || {};
-	window.lastReadAtByTicket = JSON.parse(localStorage.getItem('lastReadAtByTicket') || '{}');
+        window.lastReadAtByTicket = JSON.parse(localStorage.getItem('lastReadAtByTicket') || '{}');
     let currentPageSize = 20;
-	        function persistCurrentPageIfUnfiltered() {
+    let filtersCurrentlyActive = false;
+    const responsibleControlState = {
+      ticketId: null,
+      auto: '',
+      manual: '',
+      effective: '',
+      source: ''
+    };
+                function persistCurrentPageIfUnfiltered() {
           if (!window.filteredTickets) {
                 localStorage.setItem('ticketsCurrentPage', String(currentPage));
           }
@@ -2137,6 +2189,62 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
                 || null;
         }
 
+        function updateTicketResponsible(ticketId, effective, source = '', manual = '', autoValue = '', assignedAt = null, assignedBy = '') {
+          const normalizedId = String(ticketId);
+
+          const apply = (ticket) => {
+            if (!ticket || typeof ticket !== 'object') return;
+            ticket.responsible = (effective || '').trim();
+            ticket.responsible_source = source || '';
+            ticket.manual_responsible = (manual || '').trim();
+            ticket.auto_responsible = (autoValue || '').trim();
+            if (assignedAt !== undefined) {
+              ticket.responsible_assigned_at = assignedAt;
+            }
+            if (assignedBy !== undefined) {
+              ticket.responsible_assigned_by = assignedBy;
+            }
+          };
+
+          apply(getTicketById(normalizedId));
+
+          if (Array.isArray(window.filteredTickets)) {
+            const idx = window.filteredTickets.findIndex(t => String(t.ticket_id) === normalizedId);
+            if (idx >= 0) apply(window.filteredTickets[idx]);
+          }
+
+          if (window.currentTicketDetails && String(window.currentTicketDetails.ticket_id || window.currentTicketDetails.ticketId || '') === normalizedId) {
+            apply(window.currentTicketDetails);
+            responsibleControlState.ticketId = normalizedId;
+            responsibleControlState.effective = (effective || '').trim();
+            responsibleControlState.manual = (manual || '').trim();
+            responsibleControlState.auto = (autoValue || '').trim();
+            responsibleControlState.source = source || '';
+            updateResponsibleDisplay(responsibleControlState.effective);
+            const selectEl = document.getElementById('dialogResponsibleSelect');
+            if (selectEl) {
+              const targetValue = responsibleControlState.manual || responsibleControlState.effective || '';
+              if (targetValue) {
+                if (!Array.from(selectEl.options).some(opt => opt.value.toLowerCase() === targetValue.toLowerCase())) {
+                  const opt = document.createElement('option');
+                  opt.value = targetValue;
+                  opt.textContent = `${targetValue} (вне списка)`;
+                  selectEl.appendChild(opt);
+                }
+              }
+              selectEl.value = targetValue;
+            }
+          }
+
+          if (filtersCurrentlyActive && window.filteredTickets) {
+            displayTicketsForCurrentPageFiltered();
+            updatePaginationFiltered();
+          } else {
+            displayTicketsForCurrentPage();
+            updatePagination();
+          }
+        }
+
         function toBool(value) {
           return value === true || value === 1 || value === '1';
         }
@@ -2148,6 +2256,10 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
 
           const ticket = { ...rawTicket };
 
+          ticket.responsible = (ticket.responsible || '').trim();
+          ticket.manual_responsible = (ticket.manual_responsible || '').trim();
+          ticket.auto_responsible = (ticket.auto_responsible || '').trim();
+          ticket.responsible_source = ticket.responsible_source || '';
           const statusLower = String(ticket.status || '').toLowerCase();
           const rawStatusLower = String(ticket.raw_status || '').toLowerCase();
 
@@ -3240,6 +3352,130 @@ async function fetchAdminUsersList() {
   }
 }
 
+function updateResponsibleDisplay(name) {
+  const displayEl = document.getElementById('dialogResponsibleDisplay');
+  if (displayEl) {
+    displayEl.textContent = name ? name : 'ещё не в работе';
+  }
+}
+
+async function populateResponsibleSelect() {
+  const selectEl = document.getElementById('dialogResponsibleSelect');
+  const assignBtn = document.getElementById('assignResponsibleBtn');
+  if (!selectEl) return;
+
+  if (assignBtn) assignBtn.disabled = true;
+  selectEl.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '— Не назначен —';
+  selectEl.appendChild(placeholder);
+
+  try {
+    const users = await fetchAdminUsersList();
+    const seen = new Set();
+    users.forEach(user => {
+      const normalized = String(user || '').trim();
+      if (!normalized) return;
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const opt = document.createElement('option');
+      opt.value = normalized;
+      opt.textContent = normalized;
+      selectEl.appendChild(opt);
+    });
+
+    const effective = responsibleControlState.manual || responsibleControlState.effective;
+    if (effective) {
+      const key = effective.toLowerCase();
+      if (!Array.from(selectEl.options).some(opt => opt.value.toLowerCase() === key)) {
+        const opt = document.createElement('option');
+        opt.value = effective;
+        opt.textContent = `${effective} (вне списка)`;
+        selectEl.appendChild(opt);
+      }
+    }
+
+    const manualValue = responsibleControlState.manual || '';
+    selectEl.value = manualValue;
+  } catch (error) {
+    console.error('Не удалось загрузить список сотрудников', error);
+    selectEl.innerHTML = '';
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = '— Ошибка загрузки —';
+    selectEl.appendChild(option);
+    selectEl.value = '';
+  } finally {
+    if (assignBtn) assignBtn.disabled = false;
+  }
+}
+
+async function setupResponsibleControl(ticketDetails = {}) {
+  responsibleControlState.ticketId = ticketDetails?.ticket_id ?? ticketDetails?.ticketId ?? currentTicketId ?? null;
+  responsibleControlState.auto = (ticketDetails?.auto_responsible || ticketDetails?.autoResponsible || '').trim();
+  responsibleControlState.manual = (ticketDetails?.manual_responsible || ticketDetails?.manualResponsible || '').trim();
+  const effective = (ticketDetails?.responsible || '').trim()
+    || responsibleControlState.manual
+    || responsibleControlState.auto;
+  responsibleControlState.effective = effective ? effective.trim() : '';
+  responsibleControlState.source = ticketDetails?.responsible_source
+    || (responsibleControlState.manual ? 'manual' : (responsibleControlState.auto ? 'auto' : ''));
+
+  updateResponsibleDisplay(responsibleControlState.effective);
+  await populateResponsibleSelect();
+}
+
+async function assignResponsibleFromControl() {
+  const ticketId = responsibleControlState.ticketId;
+  const selectEl = document.getElementById('dialogResponsibleSelect');
+  const assignBtn = document.getElementById('assignResponsibleBtn');
+  if (!ticketId || !selectEl || !assignBtn) {
+    return;
+  }
+
+  const chosen = (selectEl.value || '').trim();
+  assignBtn.disabled = true;
+
+  try {
+    const resp = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/responsible`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ responsible: chosen })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.success === false) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+
+    responsibleControlState.manual = (data.manual || '').trim();
+    responsibleControlState.auto = (data.auto || responsibleControlState.auto || '').trim();
+    responsibleControlState.effective = (data.responsible || '').trim();
+    responsibleControlState.source = data.source || '';
+
+    updateResponsibleDisplay(responsibleControlState.effective);
+    await populateResponsibleSelect();
+
+    updateTicketResponsible(
+      ticketId,
+      responsibleControlState.effective,
+      responsibleControlState.source,
+      responsibleControlState.manual,
+      responsibleControlState.auto,
+      data.responsible_assigned_at || null,
+      data.responsible_assigned_by || ''
+    );
+  } catch (error) {
+    console.error('assignResponsibleFromControl failed', error);
+    alert('Не удалось назначить ответственного: ' + error.message);
+  } finally {
+    assignBtn.disabled = false;
+  }
+}
+
 async function inviteUserToDialog(ticketId, invitee) {
   const cleanTicket = ticketId != null ? String(ticketId) : '';
   const cleanInvitee = (invitee || '').trim();
@@ -3625,12 +3861,33 @@ function initColumnResize() {
 
                         if (historyModalIsOpen && currentUserId && currentTicketId) {
                                 renderClientTicketsList(currentUserId, currentTicketId);
+                                const activeTicket = getTicketById(currentTicketId);
+                                if (activeTicket) {
+                                        window.currentTicketDetails = { ...window.currentTicketDetails, ...activeTicket };
+                                        responsibleControlState.ticketId = String(activeTicket.ticket_id || currentTicketId);
+                                        responsibleControlState.manual = (activeTicket.manual_responsible || '').trim();
+                                        responsibleControlState.auto = (activeTicket.auto_responsible || '').trim();
+                                        responsibleControlState.effective = (activeTicket.responsible || '').trim();
+                                        responsibleControlState.source = activeTicket.responsible_source || '';
+                                        updateResponsibleDisplay(responsibleControlState.effective);
+                                        const selectEl = document.getElementById('dialogResponsibleSelect');
+                                        if (selectEl) {
+                                                const manualValue = responsibleControlState.manual || '';
+                                                if (manualValue && !Array.from(selectEl.options).some(opt => opt.value.toLowerCase() === manualValue.toLowerCase())) {
+                                                        const opt = document.createElement('option');
+                                                        opt.value = manualValue;
+                                                        opt.textContent = manualValue;
+                                                        selectEl.appendChild(opt);
+                                                }
+                                                selectEl.value = manualValue;
+                                        }
+                                }
                         }
 
                         if (window.initialClientStatusFilter && !window.initialClientStatusFilterApplied) {
                                 applyInitialClientStatusFilter();
-                        } else if (window.filteredTickets) {
-                                applyFilters(); // Переприменяем фильтры к новым данным
+                        } else if (filtersCurrentlyActive) {
+                                applyFilters({ preservePage: true });
                         } else {
                                 // Иначе отображаем все заявки как обычно
                                 totalPages = Math.ceil(allTickets.length / currentPageSize);
@@ -3743,27 +4000,29 @@ function displayTicketsForCurrentPage() {
 		   Создать задачу
 		 </button>`;
 
-	const actionBtns = (t.raw_status !== 'resolved')
-	  ? `<button class="btn btn-sm btn-outline-secondary" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>
-		 ${createTaskBtn}
-		 <button class="btn btn-sm btn-danger" onclick="confirmClose(${t.user_id}, '${t.ticket_id}')">Закрыть</button>`
-	  : `<button class="btn btn-sm btn-outline-secondary" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>
-		 ${createTaskBtn}`;
+        const businessValue = t.business || '—';
+        const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
+        const historyButton = `<button class="btn btn-sm btn-outline-secondary w-100" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>`;
+        const closeButton = (t.raw_status !== 'resolved')
+          ? `<button class="btn btn-sm btn-danger w-100" onclick="confirmClose(${t.user_id}, '${t.ticket_id}')">Закрыть</button>`
+          : '';
+        const actionsColumn = `<div class="actions-column">${historyButton}${closeButton}</div>`;
+        const actionBtns = `<div class="actions-layout">${actionsColumn}<div class="actions-side">${createTaskBtn}</div></div>`;
 
   let rowHTML = '';
-	rowHTML += `<td>${clientCell}</td>`;
-	rowHTML += `<td>${t.client_status || '—'}</td>`;
-	rowHTML += `<td>${t.channel_name || '—'}</td>`;
-	rowHTML += `<td><code>${t.ticket_id}</code></td>`;
-	rowHTML += `<td class="${businessClass}">${t.business}</td>`;
-	rowHTML += `<td>${t.city}<br><small>${t.location_name}</small></td>`;
-	rowHTML += `<td>${t.problem}</td>`;
-	rowHTML += `<td>${t.responsible}</td>`;
-	rowHTML += `<td>${statusBadge}</td>`;
-	const dt = displayTicketDateTime(t);
-		rowHTML += `<td>${dt.date}</td>`;
-		rowHTML += `<td>${dt.time}</td>`;
-	rowHTML += `<td>${actionBtns}</td>`;
+        rowHTML += `<td>${clientCell}</td>`;
+        rowHTML += `<td>${t.client_status || '—'}</td>`;
+        rowHTML += `<td>${t.channel_name || '—'}</td>`;
+        rowHTML += `<td><code>${t.ticket_id}</code></td>`;
+        rowHTML += `<td class="business-cell ${businessClass}">${businessValue}</td>`;
+        rowHTML += `<td>${t.city}<br><small>${t.location_name}</small></td>`;
+        rowHTML += `<td>${t.problem}</td>`;
+        rowHTML += `<td>${responsibleDisplay}</td>`;
+        rowHTML += `<td>${statusBadge}</td>`;
+        const dt = displayTicketDateTime(t);
+                rowHTML += `<td>${dt.date}</td>`;
+                rowHTML += `<td>${dt.time}</td>`;
+        rowHTML += `<td class="actions-cell">${actionBtns}</td>`;
 	row.innerHTML = rowHTML;
 	container.appendChild(row);
 		// --- ВОССТАНОВЛЕНИЕ СЧЁТЧИКА НЕПРОЧИТАННЫХ ПРИ ОТРИСОВКЕ ---
@@ -3781,7 +4040,6 @@ function displayTicketsForCurrentPage() {
                 });
 	parseEmojis(document.getElementById('ticketsBody'));
 		applyColumnSettingsFromState();
-		applyFilters();
 		initColumnResize(); // Инициализируем resize после обновления таблицы
 		}
 
@@ -3936,78 +4194,89 @@ function displayTicketsForCurrentPage() {
 
 					// === Фильтрация ===
 					// === Фильтрация (применяется ко всем данным) ===
-						function applyFilters() {
-							const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
-							const status = document.getElementById('filterStatus')?.value || '';
-							const user = document.getElementById('filterUser')?.value.toLowerCase() || '';
-							const ticketId = document.getElementById('filterTicketId')?.value.toLowerCase() || '';
-							const business = document.getElementById('filterBusiness')?.value.toLowerCase() || '';
-							const location = document.getElementById('filterLocation')?.value.toLowerCase() || '';
-							const responsible = document.getElementById('filterResponsible')?.value.toLowerCase() || '';
-							const clientStatus = document.getElementById('filterClientStatus')?.value.toLowerCase() || '';
-							const dateFrom = document.getElementById('filterDateFrom')?.value || '';
-							const dateTo = document.getElementById('filterDateTo')?.value || '';
+						function collectInlineFilterValues() {
+        return {
+                search: document.getElementById('searchInput')?.value.toLowerCase() || '',
+                status: document.getElementById('filterStatus')?.value.toLowerCase() || '',
+                user: document.getElementById('filterUser')?.value.toLowerCase() || '',
+                ticketId: document.getElementById('filterTicketId')?.value.toLowerCase() || '',
+                business: document.getElementById('filterBusiness')?.value.toLowerCase() || '',
+                location: document.getElementById('filterLocation')?.value.toLowerCase() || '',
+                responsible: document.getElementById('filterResponsible')?.value.toLowerCase() || '',
+                clientStatus: document.getElementById('filterClientStatus')?.value.toLowerCase() || '',
+                dateFrom: document.getElementById('filterDateFrom')?.value || '',
+                dateTo: document.getElementById('filterDateTo')?.value || ''
+        };
+}\n\nfunction applyFilters(optionsOrEvent = {}) {
+        let options = {};
+        if (optionsOrEvent && typeof optionsOrEvent === 'object' && typeof optionsOrEvent.preventDefault === 'function') {
+                optionsOrEvent.preventDefault();
+        } else if (optionsOrEvent && typeof optionsOrEvent === 'object') {
+                options = optionsOrEvent;
+        }
+        const preservePage = !!options.preservePage;
+        const values = collectInlineFilterValues();
+        const { search, status, user, ticketId, business, location, responsible, clientStatus, dateFrom, dateTo } = values;
+        const hasActiveFilters = [search, status, user, ticketId, business, location, responsible, clientStatus, dateFrom, dateTo].some(Boolean);
 
-							// Фильтруем ВСЕ заявки
-							const filteredTickets = allTickets.filter(t => {
-								const searchIndex = [
-									String(t.user_id || ''),
-									String(t.ticket_id || ''),
-									String(t.client_status || ''),
-									String(t.channel_name || ''),
-									String(t.business || ''),
-									String(t.city || ''),
-									String(t.location_name || ''),
-									String(t.problem || ''),
-									String(t.responsible || ''),
-									String(t.raw_status || ''),
-									String(t.status || ''),
-									String(t.created_date || ''),
-									String(t.created_time || ''),
-									String(t.username || ''),
-									String(t.client_name || '')
-								].join(' ').toLowerCase();
+        if (!hasActiveFilters) {
+                filtersCurrentlyActive = false;
+                window.filteredTickets = null;
+                totalPages = ensureCurrentPageBounds(allTickets.length);
+                persistCurrentPageIfUnfiltered();
+                displayTicketsForCurrentPage();
+                updatePagination();
+                return;
+        }
 
-								const createdDate = t.created_date || '';
-								
-								const matches = (!search || searchIndex.includes(search)) &&
-											  (!status || searchIndex.includes(status)) &&
-											  (!user || searchIndex.includes(user)) &&
-											  (!ticketId || searchIndex.includes(ticketId)) &&
-											  (!business || searchIndex.includes(business)) &&
-											  (!location || searchIndex.includes(location)) &&
-											  (!responsible || searchIndex.includes(responsible)) &&
-											  (!clientStatus || searchIndex.includes(clientStatus)) &&
-											  (!dateFrom || createdDate >= dateFrom) &&
-											  (!dateTo || createdDate <= dateTo);
+        filtersCurrentlyActive = true;
 
-								return matches;
-							});
+        const filteredTickets = allTickets.filter(t => {
+                const searchIndex = [
+                        String(t.user_id || ''),
+                        String(t.ticket_id || ''),
+                        String(t.client_status || ''),
+                        String(t.channel_name || ''),
+                        String(t.business || ''),
+                        String(t.city || ''),
+                        String(t.location_name || ''),
+                        String(t.problem || ''),
+                        String(t.responsible || ''),
+                        String(t.raw_status || ''),
+                        String(t.status || ''),
+                        String(t.created_date || ''),
+                        String(t.created_time || ''),
+                        String(t.username || ''),
+                        String(t.client_name || '')
+                ].join(' ').toLowerCase();
 
-							// Обновляем отображаемые данные
-							displayFilteredTickets(filteredTickets);
-						}
+                const createdDate = t.created_date || '';
 
-						// === Отображение отфильтрованных заявок ===
-						function displayFilteredTickets(filteredTickets) {
-							// Сбрасываем на первую страницу
-                                                        currentPage = 1;
+                return (!search || searchIndex.includes(search)) &&
+                       (!status || searchIndex.includes(status)) &&
+                       (!user || searchIndex.includes(user)) &&
+                       (!ticketId || searchIndex.includes(ticketId)) &&
+                       (!business || searchIndex.includes(business)) &&
+                       (!location || searchIndex.includes(location)) &&
+                       (!responsible || searchIndex.includes(responsible)) &&
+                       (!clientStatus || searchIndex.includes(clientStatus)) &&
+                       (!dateFrom || createdDate >= dateFrom) &&
+                       (!dateTo || createdDate <= dateTo);
+        });
 
-                                                        // Рассчитываем общее количество страниц для отфильтрованных данных
-                                                        totalPages = ensureCurrentPageBounds(filteredTickets.length);
-
-                                                        // Сохраняем отфильтрованные заявки для пагинации
-                                                        window.filteredTickets = filteredTickets;
-							
-							// Отображаем заявки для текущей страницы
-							displayTicketsForCurrentPageFiltered();
-							
-							// Обновляем пагинацию
-							updatePaginationFiltered();
-						}
-
-						// === Отображение заявок текущей страницы (для отфильтрованных данных) ===
-                                                function displayTicketsForCurrentPageFiltered() {
+        displayFilteredTickets(filteredTickets, { preservePage });
+}\n\nfunction displayFilteredTickets(filteredTickets, options = {}) {
+        const preservePage = !!options.preservePage;
+        if (!preservePage) {
+                currentPage = 1;
+        } else {
+                ensureCurrentPageBounds(filteredTickets.length);
+        }
+        totalPages = ensureCurrentPageBounds(filteredTickets.length);
+        window.filteredTickets = filteredTickets;
+        displayTicketsForCurrentPageFiltered();
+        updatePaginationFiltered();
+}\n\nfunction displayTicketsForCurrentPageFiltered() {
                                                         const container = document.getElementById('ticketsBody');
                                                         if (!container) return;
 
@@ -4104,27 +4373,29 @@ function displayTicketsForCurrentPage() {
 									   Создать задачу
 									 </button>`;
 
-								const actionBtns = (t.raw_status !== 'resolved')
-									? `<button class="btn btn-sm btn-outline-secondary" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>
-									 ${createTaskBtn}
-									 <button class="btn btn-sm btn-danger" onclick="confirmClose(${t.user_id}, '${t.ticket_id}')">Закрыть</button>`
-									: `<button class="btn btn-sm btn-outline-secondary" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>
-									 ${createTaskBtn}`;
+								                                                                  const businessValue = t.business || '—';
+                                                                  const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
+                                                                  const historyButton = `<button class="btn btn-sm btn-outline-secondary w-100" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>`;
+                                                                  const closeButton = (t.raw_status !== 'resolved')
+                                                                          ? `<button class="btn btn-sm btn-danger w-100" onclick="confirmClose(${t.user_id}, '${t.ticket_id}')">Закрыть</button>`
+                                                                          : '';
+                                                                  const actionsColumn = `<div class="actions-column">${historyButton}${closeButton}</div>`;
+                                                                  const actionBtns = `<div class="actions-layout">${actionsColumn}<div class="actions-side">${createTaskBtn}</div></div>`;
 
-								let rowHTML = '';
-								rowHTML += `<td>${clientCell}</td>`;
-								rowHTML += `<td>${t.client_status || '—'}</td>`;
-								rowHTML += `<td>${t.channel_name || '—'}</td>`;
-								rowHTML += `<td><code>${t.ticket_id}</code></td>`;
-								rowHTML += `<td class="${businessClass}">${t.business}</td>`;
-								rowHTML += `<td>${t.city}<br><small>${t.location_name}</small></td>`;
-								rowHTML += `<td>${t.problem}</td>`;
-								rowHTML += `<td>${t.responsible}</td>`;
-								rowHTML += `<td>${statusBadge}</td>`;
-								const dt = displayTicketDateTime(t);
-									rowHTML += `<td>${dt.date}</td>`;
-									rowHTML += `<td>${dt.time}</td>`;
-								rowHTML += `<td>${actionBtns}</td>`;
+                                                                  let rowHTML = '';
+                                                                  rowHTML += `<td>${clientCell}</td>`;
+                                                                  rowHTML += `<td>${t.client_status || '—'}</td>`;
+                                                                  rowHTML += `<td>${t.channel_name || '—'}</td>`;
+                                                                  rowHTML += `<td><code>${t.ticket_id}</code></td>`;
+                                                                  rowHTML += `<td class="business-cell ${businessClass}">${businessValue}</td>`;
+                                                                  rowHTML += `<td>${t.city}<br><small>${t.location_name}</small></td>`;
+                                                                  rowHTML += `<td>${t.problem}</td>`;
+                                                                  rowHTML += `<td>${responsibleDisplay}</td>`;
+                                                                  rowHTML += `<td>${statusBadge}</td>`;
+                                                                  const dt = displayTicketDateTime(t);
+                                                                          rowHTML += `<td>${dt.date}</td>`;
+                                                                          rowHTML += `<td>${dt.time}</td>`;
+                                                                  rowHTML += `<td class="actions-cell">${actionBtns}</td>`;
 								row.innerHTML = rowHTML;
 								container.appendChild(row);
 
@@ -4210,6 +4481,7 @@ function displayTicketsForCurrentPage() {
 							  
 							  // Возвращаемся к отображению всех заявок
                                                           currentPage = 1;
+                                                          filtersCurrentlyActive = false;
                                                           window.filteredTickets = null;
                                                           totalPages = ensureCurrentPageBounds(allTickets.length);
                                                           persistCurrentPageIfUnfiltered();
@@ -4621,6 +4893,7 @@ function displayTicketsForCurrentPage() {
                                 window.currentChannelId = clientData?.channel_id ?? null;
 
                                 updateHistoryClientMeta(window.currentClientData, window.currentTicketDetails);
+                                await setupResponsibleControl(window.currentTicketDetails);
                                 renderClientTicketsList(currentUserId, currentTicketId);
 
                                 const avaEl = document.getElementById('clientAvatarInHistory');
@@ -6920,6 +7193,14 @@ if (clientTicketsList) {
   });
 }
 
+const assignResponsibleBtn = document.getElementById('assignResponsibleBtn');
+if (assignResponsibleBtn) {
+  assignResponsibleBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    assignResponsibleFromControl();
+  });
+}
+
   (function(){
     function openFromHash(){
       const h = location.hash || '';
@@ -6961,65 +7242,35 @@ if (clientTicketsList) {
   });
 
 	// Функции для работы с модальными фильтрами
-	function applyFiltersModal() {
-		  // Получаем значения напрямую из модального окна
-		  const status = document.getElementById('filterStatusModal')?.value || '';
-		  const user = document.getElementById('filterUserModal')?.value.toLowerCase() || '';
-		  const ticketId = document.getElementById('filterTicketIdModal')?.value.toLowerCase() || '';
-		  const business = document.getElementById('filterBusinessModal')?.value.toLowerCase() || '';
-		  const location = document.getElementById('filterLocationModal')?.value.toLowerCase() || '';
-		  const clientStatus = document.getElementById('filterClientStatusModal')?.value.toLowerCase() || '';
-		  const responsible = document.getElementById('filterResponsibleModal')?.value.toLowerCase() || '';
-		  const dateFrom = document.getElementById('filterDateFromModal')?.value || '';
-		  const dateTo = document.getElementById('filterDateToModal')?.value || '';
+        function applyFiltersModal() {
+                  const mapping = [
+                        ['filterStatusModal', 'filterStatus'],
+                        ['filterUserModal', 'filterUser'],
+                        ['filterTicketIdModal', 'filterTicketId'],
+                        ['filterBusinessModal', 'filterBusiness'],
+                        ['filterLocationModal', 'filterLocation'],
+                        ['filterClientStatusModal', 'filterClientStatus'],
+                        ['filterResponsibleModal', 'filterResponsible'],
+                        ['filterDateFromModal', 'filterDateFrom'],
+                        ['filterDateToModal', 'filterDateTo']
+                  ];
 
-		  // Фильтруем ВСЕ заявки
-		  const filteredTickets = allTickets.filter(t => {
-			const searchIndex = [
-			  String(t.user_id || ''),
-			  String(t.ticket_id || ''),
-			  String(t.client_status || ''),
-			  String(t.channel_name || ''),
-			  String(t.business || ''),
-			  String(t.city || ''),
-			  String(t.location_name || ''),
-			  String(t.problem || ''),
-			  String(t.responsible || ''),
-			  String(t.raw_status || ''),
-			  String(t.status || ''),
-			  String(t.created_date || ''),
-			  String(t.created_time || ''),
-			  String(t.username || ''),
-			  String(t.client_name || '')
-			].join(' ').toLowerCase();
+                  mapping.forEach(([modalId, inlineId]) => {
+                        const modalEl = document.getElementById(modalId);
+                        const inlineEl = document.getElementById(inlineId);
+                        if (modalEl && inlineEl) {
+                          inlineEl.value = modalEl.value || '';
+                        }
+                  });
 
-			const createdDate = t.created_date || '';
-			
-			const matches = (!status || searchIndex.includes(status)) &&
-						  (!user || searchIndex.includes(user)) &&
-						  (!ticketId || searchIndex.includes(ticketId)) &&
-						  (!business || searchIndex.includes(business)) &&
-						  (!location || searchIndex.includes(location)) &&
-						  (!responsible || searchIndex.includes(responsible)) &&
-						  (!clientStatus || searchIndex.includes(clientStatus)) &&
-						  (!dateFrom || createdDate >= dateFrom) &&
-						  (!dateTo || createdDate <= dateTo);
+                  applyFilters();
+                  showActiveFiltersModal();
 
-			return matches;
-		  });
-
-		  // Обновляем отображаемые данные
-		  displayFilteredTickets(filteredTickets);
-		  
-		  // Показываем активные фильтры
-		  showActiveFiltersModal();
-		  
-		  // Закрываем модальное окно
-		  const modalInstance = bootstrap.Modal.getInstance(document.getElementById('filtersModal'));
-		  if (modalInstance) {
-			modalInstance.hide();
-		  }
-	}
+                  const modalInstance = bootstrap.Modal.getInstance(document.getElementById('filtersModal'));
+                  if (modalInstance) {
+                        modalInstance.hide();
+                  }
+        }
 
 	function resetFiltersModal() {
 	  // Сбрасываем значения в модальном окне
