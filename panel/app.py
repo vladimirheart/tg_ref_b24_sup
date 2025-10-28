@@ -517,9 +517,51 @@ def get_db():
     conn.execute("PRAGMA synchronous=NORMAL;")
     return conn
 
+def _ensure_users_schema(conn: sqlite3.Connection) -> None:
+    """Добавляет недостающие поля в таблицу пользователей."""
+
+    cursor = conn.execute("PRAGMA table_info(users)")
+    existing_columns = {row[1] for row in cursor.fetchall()}
+    schema_updated = False
+
+    def add_column(sql: str) -> None:
+        nonlocal schema_updated
+        conn.execute(sql)
+        schema_updated = True
+
+    if "photo" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN photo TEXT")
+    if "registration_date" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN registration_date TEXT")
+    if "birth_date" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN birth_date TEXT")
+    if "email" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN email TEXT")
+    if "department" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN department TEXT")
+    if "phones" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN phones TEXT")
+
+    if schema_updated:
+        conn.commit()
+
+    # Убедимся, что у существующих записей есть дата регистрации
+    needs_registration_update = conn.execute(
+        "SELECT COUNT(1) FROM users WHERE registration_date IS NULL"
+    ).fetchone()[0]
+    if needs_registration_update:
+        now_iso = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+        conn.execute(
+            "UPDATE users SET registration_date = ? WHERE registration_date IS NULL",
+            (now_iso,),
+        )
+        conn.commit()
+
+
 def get_users_db():
     conn = sqlite3.connect(USERS_DB_PATH)
     conn.row_factory = sqlite3.Row
+    _ensure_users_schema(conn)
     return conn
 
 PERMISSION_WILDCARD = "*"
@@ -935,6 +977,13 @@ def _current_user_id() -> int | None:
     if user_row is not None:
         return _row_value(user_row, "id")
     return session.get("user_id")
+
+
+def _can_edit_user_profile(user_id: int) -> bool:
+    current_id = _current_user_id()
+    if current_id is not None and current_id == user_id:
+        return True
+    return has_field_edit_permission("user.username")
 
 
 def has_page_access(page_key: str) -> bool:
@@ -10004,19 +10053,79 @@ def _resolve_role_assignment(conn, role_id: int | None, role_name: str | None):
     return row
 
 
+def _parse_user_phones(raw) -> list[dict]:
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+    if not isinstance(raw, list):
+        return []
+    result: list[dict] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        number = (item.get("value") or item.get("number") or "").strip()
+        if not number:
+            continue
+        phone_type = (item.get("type") or item.get("label") or "").strip()
+        result.append({"type": phone_type, "value": number})
+    return result
+
+
+def _normalize_phone_payload(raw) -> list[dict]:
+    if not raw:
+        return []
+    result: list[dict] = []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            raw = []
+    if not isinstance(raw, list):
+        return []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        number = str(item.get("value") or item.get("number") or "").strip()
+        if not number:
+            continue
+        phone_type = str(item.get("type") or item.get("label") or "").strip()
+        result.append({"type": phone_type, "value": number})
+    return result
+
+
 def _serialize_user_row(row: sqlite3.Row) -> dict:
     return {
-        "id": row["id"],
-        "username": row["username"],
-        "role": row["role_name"],
-        "role_id": row["role_id"],
+        "id": _row_value(row, "id"),
+        "username": _row_value(row, "username", ""),
+        "role": _row_value(row, "role_name", ""),
+        "role_id": _row_value(row, "role_id"),
+        "photo": _row_value(row, "photo"),
+        "registration_date": _row_value(row, "registration_date"),
+        "birth_date": _row_value(row, "birth_date"),
+        "email": _row_value(row, "email"),
+        "department": _row_value(row, "department"),
+        "phones": _parse_user_phones(_row_value(row, "phones")),
     }
 
 
 def _fetch_user_summary(conn, user_id: int):
     return conn.execute(
         """
-        SELECT u.id, u.username, u.role_id, COALESCE(r.name, u.role) AS role_name
+        SELECT
+            u.id,
+            u.username,
+            u.role_id,
+            COALESCE(r.name, u.role) AS role_name,
+            u.photo,
+            u.registration_date,
+            u.birth_date,
+            u.email,
+            u.department,
+            u.phones
         FROM users u
         LEFT JOIN roles r ON r.id = u.role_id
         WHERE u.id = ?
@@ -10034,7 +10143,17 @@ def get_users():
         with get_users_db() as conn:
             rows = conn.execute(
                 """
-                SELECT u.id, u.username, u.role_id, COALESCE(r.name, u.role) AS role_name
+                SELECT
+                    u.id,
+                    u.username,
+                    u.role_id,
+                    COALESCE(r.name, u.role) AS role_name,
+                    u.photo,
+                    u.registration_date,
+                    u.birth_date,
+                    u.email,
+                    u.department,
+                    u.phones
                 FROM users u
                 LEFT JOIN roles r ON r.id = u.role_id
                 ORDER BY LOWER(u.username)
@@ -10055,6 +10174,13 @@ def add_user():
     password = (data.get("password") or "").strip()
     role_id = data.get("role_id")
     role_name = (data.get("role") or "").strip() or None
+    photo = (data.get("photo") or "").strip() or None
+    birth_date = (data.get("birth_date") or "").strip() or None
+    email = (data.get("email") or "").strip() or None
+    department = (data.get("department") or "").strip() or None
+    phones_payload = _normalize_phone_payload(data.get("phones"))
+    registration_date = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    phones_json = json.dumps(phones_payload, ensure_ascii=False) if phones_payload else None
 
     if not username or not password:
         return jsonify({"success": False, "error": "Имя пользователя и пароль не могут быть пустыми"}), 400
@@ -10070,8 +10196,31 @@ def add_user():
 
             role_row = _resolve_role_assignment(conn, role_id, role_name)
             cursor = conn.execute(
-                "INSERT INTO users (username, role_id, role) VALUES (?, ?, ?)",
-                (username, role_row["id"], role_row["name"]),
+                """
+                INSERT INTO users (
+                    username,
+                    role_id,
+                    role,
+                    photo,
+                    registration_date,
+                    birth_date,
+                    email,
+                    department,
+                    phones
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    username,
+                    role_row["id"],
+                    role_row["name"],
+                    photo,
+                    registration_date,
+                    birth_date or None,
+                    email or None,
+                    department or None,
+                    phones_json,
+                ),
             )
             new_user_id = cursor.lastrowid
             _set_user_password(conn, new_user_id, password)
@@ -10093,6 +10242,7 @@ def update_user(user_id):
             return jsonify({"success": False, "error": "Пользователь не найден"}), 404
 
         updates_made = False
+        can_edit_profile = _can_edit_user_profile(user_id)
 
         if "username" in data:
             new_username = (data.get("username") or "").strip()
@@ -10135,6 +10285,57 @@ def update_user(user_id):
             if user_id != current_id and not has_field_edit_permission("user.password"):
                 abort(403)
             _set_user_password(conn, user_id, new_password)
+            updates_made = True
+
+        if "photo" in data:
+            if not can_edit_profile:
+                abort(403)
+            photo_value = (data.get("photo") or "").strip() or None
+            conn.execute(
+                "UPDATE users SET photo = ? WHERE id = ?",
+                (photo_value, user_id),
+            )
+            updates_made = True
+
+        if "birth_date" in data:
+            if not can_edit_profile:
+                abort(403)
+            birth_date = (data.get("birth_date") or "").strip() or None
+            conn.execute(
+                "UPDATE users SET birth_date = ? WHERE id = ?",
+                (birth_date, user_id),
+            )
+            updates_made = True
+
+        if "email" in data:
+            if not can_edit_profile:
+                abort(403)
+            email_value = (data.get("email") or "").strip() or None
+            conn.execute(
+                "UPDATE users SET email = ? WHERE id = ?",
+                (email_value, user_id),
+            )
+            updates_made = True
+
+        if "department" in data:
+            if not can_edit_profile:
+                abort(403)
+            department = (data.get("department") or "").strip() or None
+            conn.execute(
+                "UPDATE users SET department = ? WHERE id = ?",
+                (department, user_id),
+            )
+            updates_made = True
+
+        if "phones" in data:
+            if not can_edit_profile:
+                abort(403)
+            phones_payload = _normalize_phone_payload(data.get("phones"))
+            phones_json = json.dumps(phones_payload, ensure_ascii=False) if phones_payload else None
+            conn.execute(
+                "UPDATE users SET phones = ? WHERE id = ?",
+                (phones_json, user_id),
+            )
             updates_made = True
 
         if updates_made:
@@ -10349,7 +10550,17 @@ def get_auth_state():
     with get_users_db() as conn:
         users_rows = conn.execute(
             """
-            SELECT u.id, u.username, u.role_id, COALESCE(r.name, u.role) AS role_name
+            SELECT
+                u.id,
+                u.username,
+                u.role_id,
+                COALESCE(r.name, u.role) AS role_name,
+                u.photo,
+                u.registration_date,
+                u.birth_date,
+                u.email,
+                u.department,
+                u.phones
             FROM users u
             LEFT JOIN roles r ON r.id = u.role_id
             ORDER BY LOWER(u.username)
