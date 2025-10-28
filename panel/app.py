@@ -725,7 +725,8 @@ def _ensure_user_schema():
             role_row = existing_roles.get(target_role_name)
             if not role_row:
                 return
-            if user_row.get("role_id") == role_row["id"]:
+            current_role_id = user_row["role_id"] if "role_id" in user_row.keys() else None
+            if current_role_id == role_row["id"]:
                 return
             conn.execute(
                 "UPDATE users SET role_id = ?, role = ? WHERE id = ?",
