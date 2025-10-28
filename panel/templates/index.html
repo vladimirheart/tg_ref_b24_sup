@@ -3138,6 +3138,10 @@ function restoreActiveDialogs() {
   renderActiveDialogs();
 }
 
+// Гарантируем доступность функции в глобальном контексте,
+// поскольку обработчики событий могут выполняться вне текущей области видимости.
+window.restoreActiveDialogs = restoreActiveDialogs;
+
 function parseMediaPayload(raw) {
   if (!raw) return null;
   try {
@@ -7574,7 +7578,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  restoreActiveDialogs();
+  if (typeof restoreActiveDialogs === 'function') {
+    restoreActiveDialogs();
+  }
 
   const historyModalEl = document.getElementById('historyModal');
   const fullscreenToggleBtn = document.getElementById('toggleHistoryFullscreenBtn');
