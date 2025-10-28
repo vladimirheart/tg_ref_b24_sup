@@ -3325,14 +3325,6 @@ function openMediaViewer(payload) {
   modal.show();
 }
 
-function applyHistoryFontSize(size) {
-  const container = document.getElementById('historyContent');
-  if (!container) return;
-  container.classList.remove('font-size-small', 'font-size-medium', 'font-size-large');
-  const classes = { small: 'font-size-small', medium: 'font-size-medium', large: 'font-size-large' };
-  container.classList.add(classes[size] || classes.medium);
-}
-
 async function fetchAdminUsersList() {
   if (Array.isArray(cachedAdminUsers)) return cachedAdminUsers;
   try {
