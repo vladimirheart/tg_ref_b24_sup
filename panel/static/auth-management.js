@@ -43,24 +43,52 @@
         usersSection: root.querySelector('[data-auth-users-section]'),
         usersBody: root.querySelector('[data-auth-users-body]'),
         usersEmpty: root.querySelector('[data-auth-users-empty]'),
-        createUserForm: root.querySelector('[data-auth-user-create]'),
-        createUserError: root.querySelector('[data-auth-user-create-error]'),
-        createUserRoleSelect: root.querySelector('[data-auth-user-role-select]'),
+        createUserButton: root.querySelector('[data-auth-user-create-trigger]'),
         rolesSection: root.querySelector('[data-auth-roles-section]'),
         rolesContainer: root.querySelector('[data-auth-roles-container]'),
         rolesEmpty: root.querySelector('[data-auth-roles-empty]'),
         createRoleForm: root.querySelector('[data-auth-role-create]'),
         createRoleError: root.querySelector('[data-auth-role-create-error]'),
+        userModal: root.querySelector('[data-auth-user-modal]'),
+        userForm: root.querySelector('[data-auth-user-form]'),
+        userModalTitle: root.querySelector('[data-auth-user-modal-title]'),
+        userModalError: root.querySelector('[data-auth-user-modal-error]'),
+        userRoleSelect: root.querySelector('[data-auth-user-modal] [data-auth-user-role-select]'),
+        userPasswordDisplay: root.querySelector('[data-auth-user-password-display]'),
+        userPasswordToggle: root.querySelector('[data-auth-user-password-toggle]'),
+        userPasswordBlock: root.querySelector('[data-auth-user-password-current]'),
+        userPasswordInput: root.querySelector('[data-auth-user-form] [name="password"]'),
+        userRegistrationInput: root.querySelector('[data-auth-user-registration]'),
+        userPhonesContainer: root.querySelector('[data-auth-user-phones]'),
+        userPhonesEmpty: root.querySelector('[data-auth-user-phones-empty]'),
+        userPhoneAddButton: root.querySelector('[data-auth-user-phone-add]'),
+        userUsernameInput: root.querySelector('[data-auth-user-form] [name="username"]'),
+        userEmailInput: root.querySelector('[data-auth-user-form] [name="email"]'),
+        userDepartmentInput: root.querySelector('[data-auth-user-form] [name="department"]'),
+        userBirthDateInput: root.querySelector('[data-auth-user-form] [name="birth_date"]'),
+        userPhotoInput: root.querySelector('[data-auth-user-form] [name="photo"]'),
       };
       this.handleUsersClick = this.handleUsersClick.bind(this);
       this.handleRolesClick = this.handleRolesClick.bind(this);
       this.handlePermissionToggle = this.handlePermissionToggle.bind(this);
-      this.handleCreateUser = this.handleCreateUser.bind(this);
+      this.handleUserFormSubmit = this.handleUserFormSubmit.bind(this);
       this.handleCreateRole = this.handleCreateRole.bind(this);
+      this.handleCreateUserTrigger = this.handleCreateUserTrigger.bind(this);
+      this.handleAddPhone = this.handleAddPhone.bind(this);
+      this.handlePhoneListClick = this.handlePhoneListClick.bind(this);
+      this.handleModalPasswordToggle = this.handleModalPasswordToggle.bind(this);
+      this.handleUserModalHidden = this.handleUserModalHidden.bind(this);
+      this.modalState = null;
+      this.modalPasswordState = { visible: false, loaded: false, value: '' };
+      this.modalInstance = null;
+      this.bootstrap = window.bootstrap || null;
     }
 
     init() {
       this.bindEvents();
+      if (this.elements.userModal && this.bootstrap?.Modal) {
+        this.modalInstance = this.bootstrap.Modal.getOrCreateInstance(this.elements.userModal);
+      }
       return this.refresh();
     }
 
@@ -72,11 +100,26 @@
         this.elements.rolesContainer.addEventListener('click', this.handleRolesClick);
         this.elements.rolesContainer.addEventListener('change', this.handlePermissionToggle);
       }
-      if (this.elements.createUserForm) {
-        this.elements.createUserForm.addEventListener('submit', this.handleCreateUser);
-      }
       if (this.elements.createRoleForm) {
         this.elements.createRoleForm.addEventListener('submit', this.handleCreateRole);
+      }
+      if (this.elements.createUserButton) {
+        this.elements.createUserButton.addEventListener('click', this.handleCreateUserTrigger);
+      }
+      if (this.elements.userForm) {
+        this.elements.userForm.addEventListener('submit', this.handleUserFormSubmit);
+      }
+      if (this.elements.userPhoneAddButton) {
+        this.elements.userPhoneAddButton.addEventListener('click', this.handleAddPhone);
+      }
+      if (this.elements.userPhonesContainer) {
+        this.elements.userPhonesContainer.addEventListener('click', this.handlePhoneListClick);
+      }
+      if (this.elements.userPasswordToggle) {
+        this.elements.userPasswordToggle.addEventListener('click', this.handleModalPasswordToggle);
+      }
+      if (this.elements.userModal) {
+        this.elements.userModal.addEventListener('hidden.bs.modal', this.handleUserModalHidden);
       }
     }
 
@@ -148,19 +191,15 @@
     }
 
     updateCreateControls() {
-      if (this.elements.createUserForm) {
+      if (this.elements.createUserButton) {
         const canCreateUser = this.capabilitiesEdit('user.create');
-        Array.from(this.elements.createUserForm.elements || []).forEach((control) => {
-          control.disabled = !canCreateUser;
-        });
-        if (this.elements.createUserError) {
-          if (canCreateUser) {
-            this.elements.createUserError.classList.add('d-none');
-            this.elements.createUserError.textContent = '';
-          } else {
-            this.elements.createUserError.textContent = 'У вас нет прав на создание пользователей.';
-            this.elements.createUserError.classList.remove('d-none');
-          }
+        this.elements.createUserButton.disabled = !canCreateUser;
+        if (!canCreateUser) {
+          this.elements.createUserButton.classList.add('disabled');
+          this.elements.createUserButton.setAttribute('title', 'У вас нет прав на создание пользователей.');
+        } else {
+          this.elements.createUserButton.classList.remove('disabled');
+          this.elements.createUserButton.removeAttribute('title');
         }
       }
 
@@ -191,8 +230,6 @@
         this.elements.usersEmpty.classList.toggle('d-none', this.state.users.length > 0);
       }
 
-      this.populateCreateUserRoleOptions();
-
       if (!tbody) {
         return;
       }
@@ -202,14 +239,257 @@
         tbody.appendChild(row);
       });
     }
+    createUserRow(user) {
+      const row = document.createElement('tr');
+      row.dataset.userId = String(user.id);
+      row.dataset.userName = user.username || '';
 
-    populateCreateUserRoleOptions() {
-      const select = this.elements.createUserRoleSelect;
+      const usernameCell = document.createElement('td');
+      const usernameTitle = document.createElement('div');
+      usernameTitle.className = 'fw-semibold';
+      usernameTitle.textContent = user.username || '—';
+      usernameCell.appendChild(usernameTitle);
+      if (user.department) {
+        const departmentRow = document.createElement('div');
+        departmentRow.className = 'text-muted small';
+        departmentRow.textContent = user.department;
+        usernameCell.appendChild(departmentRow);
+      }
+
+      const roleCell = document.createElement('td');
+      roleCell.textContent = user.role || '—';
+
+      const contactsCell = document.createElement('td');
+      const contactsWrapper = document.createElement('div');
+      contactsWrapper.className = 'd-flex flex-column gap-1';
+      if (user.email) {
+        const emailRow = document.createElement('div');
+        emailRow.className = 'small';
+        emailRow.innerHTML = `<i class="bi bi-envelope me-1"></i>${escapeHtml(user.email)}`;
+        contactsWrapper.appendChild(emailRow);
+      }
+      const phonesText = this.formatPhonesList(user.phones);
+      if (phonesText) {
+        const phonesRow = document.createElement('div');
+        phonesRow.className = 'small';
+        phonesRow.innerHTML = `<i class="bi bi-telephone me-1"></i>${escapeHtml(phonesText)}`;
+        contactsWrapper.appendChild(phonesRow);
+      }
+      if (!contactsWrapper.childElementCount) {
+        const emptyRow = document.createElement('div');
+        emptyRow.className = 'text-muted small';
+        emptyRow.textContent = '—';
+        contactsWrapper.appendChild(emptyRow);
+      }
+      contactsCell.appendChild(contactsWrapper);
+
+      const actionsCell = document.createElement('td');
+      actionsCell.className = 'text-end';
+      const actionsWrapper = document.createElement('div');
+      actionsWrapper.className = 'd-flex justify-content-end gap-2';
+
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'btn btn-outline-primary btn-sm';
+      openBtn.dataset.action = 'open-user';
+      openBtn.textContent = 'Открыть';
+      actionsWrapper.appendChild(openBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn btn-outline-danger btn-sm';
+      deleteBtn.dataset.action = 'delete-user';
+      deleteBtn.textContent = 'Удалить';
+      deleteBtn.disabled = !user.can_delete;
+      actionsWrapper.appendChild(deleteBtn);
+
+      actionsCell.appendChild(actionsWrapper);
+
+      row.appendChild(usernameCell);
+      row.appendChild(roleCell);
+      row.appendChild(contactsCell);
+      row.appendChild(actionsCell);
+      return row;
+    }
+
+    formatPhonesList(phones) {
+      if (!Array.isArray(phones) || phones.length === 0) {
+        return '';
+      }
+      const values = phones
+        .map((item) => {
+          if (!item) {
+            return null;
+          }
+          const number = String(item.value || item.number || '').trim();
+          if (!number) {
+            return null;
+          }
+          const label = String(item.type || item.label || '').trim();
+          return label ? `${label}: ${number}` : number;
+        })
+        .filter(Boolean);
+      return values.join(', ');
+    }
+
+    handleUsersClick(event) {
+      const button = event.target.closest('[data-action]');
+      if (!button) {
+        return;
+      }
+      const row = button.closest('tr[data-user-id]');
+      if (!row) {
+        return;
+      }
+      const userId = row.dataset.userId;
+      switch (button.dataset.action) {
+        case 'open-user':
+          this.openUserModal(userId);
+          break;
+        case 'delete-user':
+          this.handleDeleteUser(row, userId);
+          break;
+        default:
+          break;
+      }
+    }
+
+    handleCreateUserTrigger(event) {
+      event.preventDefault();
+      if (!this.capabilitiesEdit('user.create')) {
+        this.setMessage('У вас нет прав на создание пользователей.');
+        return;
+      }
+      this.showUserModal('create');
+    }
+
+    openUserModal(userId) {
+      const user = this.state.users.find((item) => String(item.id) === String(userId));
+      if (!user) {
+        this.setMessage('Пользователь не найден.', 'danger');
+        return;
+      }
+      this.showUserModal('edit', user);
+    }
+
+    showUserModal(mode, user) {
+      if (!this.elements.userForm) {
+        return;
+      }
+      this.modalPasswordState = { visible: false, loaded: false, value: '' };
+      const original = user ? JSON.parse(JSON.stringify(user)) : null;
+      const permissions = this.resolveModalPermissions(mode, user);
+      this.modalState = {
+        mode,
+        userId: mode === 'edit' ? user?.id : null,
+        original,
+        permissions,
+      };
+      this.elements.userForm.dataset.mode = mode;
+      this.setUserModalError('');
+
+      if (this.elements.userModalTitle) {
+        this.elements.userModalTitle.textContent =
+          mode === 'create'
+            ? 'Новый пользователь'
+            : `Пользователь ${user?.username || ''}`.trim();
+      }
+
+      const username = user?.username || '';
+      if (this.elements.userUsernameInput) {
+        this.elements.userUsernameInput.value = username;
+        this.elements.userUsernameInput.disabled = mode === 'edit' && !permissions.canEditUsername;
+      }
+
+      const roleId = user?.role_id != null ? String(user.role_id) : '';
+      this.populateRoleSelect(this.elements.userRoleSelect, mode === 'edit' ? roleId : '');
+      if (this.elements.userRoleSelect) {
+        this.elements.userRoleSelect.disabled = !permissions.canEditRole;
+        if (mode === 'edit') {
+          this.elements.userRoleSelect.value = roleId || this.elements.userRoleSelect.value;
+        }
+      }
+
+      if (this.elements.userEmailInput) {
+        this.elements.userEmailInput.value = user?.email || '';
+        this.elements.userEmailInput.disabled = !permissions.canEditDetails;
+      }
+      if (this.elements.userDepartmentInput) {
+        this.elements.userDepartmentInput.value = user?.department || '';
+        this.elements.userDepartmentInput.disabled = !permissions.canEditDetails;
+      }
+      if (this.elements.userBirthDateInput) {
+        this.elements.userBirthDateInput.value = user?.birth_date || '';
+        this.elements.userBirthDateInput.disabled = !permissions.canEditDetails;
+      }
+      if (this.elements.userPhotoInput) {
+        this.elements.userPhotoInput.value = user?.photo || '';
+        this.elements.userPhotoInput.disabled = !permissions.canEditDetails;
+      }
+
+      if (this.elements.userPasswordInput) {
+        this.elements.userPasswordInput.value = '';
+        if (mode === 'create') {
+          this.elements.userPasswordInput.placeholder = 'Придумайте пароль';
+          this.elements.userPasswordInput.required = true;
+          this.elements.userPasswordInput.disabled = false;
+        } else {
+          this.elements.userPasswordInput.placeholder = 'Оставьте пустым, чтобы не менять';
+          this.elements.userPasswordInput.required = false;
+          this.elements.userPasswordInput.disabled = !permissions.canEditPassword;
+        }
+      }
+
+      this.resetModalPasswordDisplay();
+      this.setPasswordBlockVisible(mode === 'edit' && permissions.canViewPassword);
+      if (this.elements.userPasswordToggle) {
+        this.elements.userPasswordToggle.disabled = !(mode === 'edit' && permissions.canViewPassword);
+      }
+
+      if (this.elements.userRegistrationInput) {
+        this.elements.userRegistrationInput.value =
+          mode === 'edit'
+            ? this.formatRegistrationDate(user?.registration_date) || '—'
+            : 'Будет назначена автоматически';
+      }
+
+      const phones = mode === 'edit' ? user?.phones || [] : [];
+      this.renderPhoneList(phones, permissions.canEditDetails);
+
+      if (this.modalInstance) {
+        this.modalInstance.show();
+      } else if (this.elements.userModal) {
+        this.elements.userModal.classList.add('show');
+        this.elements.userModal.style.display = 'block';
+        this.elements.userModal.removeAttribute('aria-hidden');
+      }
+    }
+
+    resolveModalPermissions(mode, user) {
+      if (mode === 'create') {
+        return {
+          canEditUsername: true,
+          canEditRole: this.capabilitiesEdit('user.role'),
+          canEditPassword: true,
+          canViewPassword: false,
+          canEditDetails: true,
+        };
+      }
+      return {
+        canEditUsername: Boolean(user?.can_edit_username),
+        canEditRole: Boolean(user?.can_edit_role),
+        canEditPassword: Boolean(user?.can_edit_password),
+        canViewPassword: Boolean(user?.can_view_password),
+        canEditDetails: Boolean(user?.is_self || user?.can_edit_username),
+      };
+    }
+
+    populateRoleSelect(select, currentValue) {
       if (!select) {
         return;
       }
       const roles = this.state.roles || [];
-      const previousValue = select.value;
+      const targetValue = currentValue != null ? String(currentValue) : '';
       select.innerHTML = '';
 
       const defaultOption = document.createElement('option');
@@ -225,330 +505,403 @@
       });
 
       const preferred = roles.find((role) => (role.name || '').toLowerCase() === 'user');
-      const targetValue = roles.some((role) => String(role.id) === previousValue)
-        ? previousValue
+      const desiredValue = targetValue
+        ? targetValue
         : preferred && preferred.id != null
           ? String(preferred.id)
           : '';
-      select.value = targetValue;
+      const values = Array.from(select.options).map((option) => option.value);
+      select.value = values.includes(desiredValue) ? desiredValue : '';
     }
 
-    createUserRow(user) {
-      const row = document.createElement('tr');
-      row.dataset.userId = String(user.id);
-      row.dataset.initialUsername = user.username || '';
-      row.dataset.initialRoleId = user.role_id != null ? String(user.role_id) : '';
+    setUserModalError(message) {
+      const box = this.elements.userModalError;
+      if (!box) {
+        return;
+      }
+      if (!message) {
+        box.classList.add('d-none');
+        box.textContent = '';
+      } else {
+        box.textContent = message;
+        box.classList.remove('d-none');
+      }
+    }
 
-      const usernameCell = document.createElement('td');
-      const usernameInput = document.createElement('input');
-      usernameInput.type = 'text';
-      usernameInput.className = 'form-control form-control-sm';
-      usernameInput.value = user.username || '';
-      usernameInput.dataset.field = 'username';
-      usernameInput.autocomplete = 'off';
-      usernameInput.disabled = !user.can_edit_username;
-      usernameCell.appendChild(usernameInput);
+    formatRegistrationDate(value) {
+      if (!value) {
+        return '';
+      }
+      const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+      const date = new Date(normalized);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return date.toLocaleString();
+    }
 
-      const roleCell = document.createElement('td');
-      const roleSelect = document.createElement('select');
-      roleSelect.className = 'form-select form-select-sm';
-      roleSelect.dataset.field = 'role';
-      roleSelect.disabled = !user.can_edit_role;
-      (this.state.roles || []).forEach((role) => {
-        const option = document.createElement('option');
-        option.value = role.id != null ? String(role.id) : '';
-        option.textContent = role.name || '';
-        if (String(role.id) === (user.role_id != null ? String(user.role_id) : '')) {
-          option.selected = true;
-        }
-        roleSelect.appendChild(option);
+    renderPhoneList(phones, editable) {
+      const container = this.elements.userPhonesContainer;
+      if (!container) {
+        return;
+      }
+      container.innerHTML = '';
+      const list = Array.isArray(phones) ? phones : [];
+      list.forEach((phone) => {
+        container.appendChild(this.createPhoneRow(phone, editable));
       });
-      roleCell.appendChild(roleSelect);
+      this.togglePhonesEmpty(list.length === 0);
+      if (this.elements.userPhoneAddButton) {
+        this.elements.userPhoneAddButton.disabled = !editable;
+      }
+    }
 
-      const passwordCell = document.createElement('td');
-      const passwordGroup = document.createElement('div');
-      passwordGroup.className = 'input-group input-group-sm';
-      const passwordInput = document.createElement('input');
-      passwordInput.type = 'password';
-      passwordInput.className = 'form-control';
-      passwordInput.value = PASSWORD_PLACEHOLDER;
-      passwordInput.readOnly = true;
-      passwordInput.dataset.field = 'password';
-      passwordGroup.appendChild(passwordInput);
+    createPhoneRow(phone, editable) {
+      const row = document.createElement('div');
+      row.className = 'row g-2 align-items-end';
+      row.dataset.authUserPhoneRow = 'true';
 
-      const toggleBtn = document.createElement('button');
-      toggleBtn.type = 'button';
-      toggleBtn.className = 'btn btn-outline-secondary';
-      toggleBtn.textContent = 'Показать';
-      toggleBtn.dataset.action = 'toggle-password';
-      toggleBtn.disabled = !user.can_view_password;
-      passwordGroup.appendChild(toggleBtn);
+      const typeCol = document.createElement('div');
+      typeCol.className = 'col-12 col-sm-5';
+      const typeLabel = document.createElement('label');
+      typeLabel.className = 'form-label small mb-1';
+      typeLabel.textContent = 'Тип';
+      const typeInput = document.createElement('input');
+      typeInput.type = 'text';
+      typeInput.className = 'form-control form-control-sm';
+      typeInput.name = 'phone_type';
+      typeInput.placeholder = 'Например, мобильный';
+      typeInput.value = String(phone?.type || phone?.label || '').trim();
+      typeInput.disabled = !editable;
+      typeCol.appendChild(typeLabel);
+      typeCol.appendChild(typeInput);
 
-      const changeBtn = document.createElement('button');
-      changeBtn.type = 'button';
-      changeBtn.className = 'btn btn-outline-secondary';
-      changeBtn.textContent = 'Сменить';
-      changeBtn.dataset.action = 'change-password';
-      changeBtn.disabled = !user.can_edit_password;
-      passwordGroup.appendChild(changeBtn);
+      const valueCol = document.createElement('div');
+      valueCol.className = 'col-12 col-sm-6';
+      const valueLabel = document.createElement('label');
+      valueLabel.className = 'form-label small mb-1';
+      valueLabel.textContent = 'Номер';
+      const valueInput = document.createElement('input');
+      valueInput.type = 'text';
+      valueInput.className = 'form-control form-control-sm';
+      valueInput.name = 'phone_value';
+      valueInput.placeholder = '+7 (999) 000-00-00';
+      valueInput.value = String(phone?.value || phone?.number || '').trim();
+      valueInput.disabled = !editable;
+      valueCol.appendChild(valueLabel);
+      valueCol.appendChild(valueInput);
 
-      passwordCell.appendChild(passwordGroup);
+      const removeCol = document.createElement('div');
+      removeCol.className = 'col-12 col-sm-1 d-flex align-items-end';
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn-outline-danger btn-sm w-100';
+      removeBtn.dataset.action = 'remove-phone';
+      removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      removeBtn.disabled = !editable;
+      removeCol.appendChild(removeBtn);
 
-      const actionsCell = document.createElement('td');
-      actionsCell.className = 'text-end';
-      const actionsWrapper = document.createElement('div');
-      actionsWrapper.className = 'd-flex justify-content-end gap-2';
-
-      const saveBtn = document.createElement('button');
-      saveBtn.type = 'button';
-      saveBtn.className = 'btn btn-outline-primary btn-sm';
-      saveBtn.dataset.action = 'save-user';
-      saveBtn.textContent = 'Сохранить';
-      saveBtn.disabled = !user.can_edit_username && !user.can_edit_role;
-      actionsWrapper.appendChild(saveBtn);
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'btn btn-outline-danger btn-sm';
-      deleteBtn.dataset.action = 'delete-user';
-      deleteBtn.textContent = 'Удалить';
-      deleteBtn.disabled = !user.can_delete;
-      actionsWrapper.appendChild(deleteBtn);
-
-      actionsCell.appendChild(actionsWrapper);
-
-      row.appendChild(usernameCell);
-      row.appendChild(roleCell);
-      row.appendChild(passwordCell);
-      row.appendChild(actionsCell);
+      row.appendChild(typeCol);
+      row.appendChild(valueCol);
+      row.appendChild(removeCol);
       return row;
     }
 
-    resetPasswords() {
-      if (!this.elements.usersBody) {
+    togglePhonesEmpty(isEmpty) {
+      if (!this.elements.userPhonesEmpty) {
         return;
       }
-      this.elements.usersBody.querySelectorAll('tr[data-user-id]').forEach((row) => {
-        this.hidePassword(row);
-      });
+      this.elements.userPhonesEmpty.classList.toggle('d-none', !isEmpty);
     }
 
-    hidePassword(row) {
-      const input = row.querySelector('[data-field="password"]');
-      const toggle = row.querySelector('[data-action="toggle-password"]');
-      if (input) {
-        input.type = 'password';
-        input.value = PASSWORD_PLACEHOLDER;
+    handleAddPhone(event) {
+      event.preventDefault();
+      if (!this.modalState?.permissions?.canEditDetails) {
+        return;
       }
-      if (toggle) {
-        toggle.textContent = 'Показать';
+      if (!this.elements.userPhonesContainer) {
+        return;
       }
-      delete row.dataset.passwordVisible;
-      delete row.dataset.passwordValue;
+      this.elements.userPhonesContainer.appendChild(this.createPhoneRow({ type: '', value: '' }, true));
+      this.togglePhonesEmpty(false);
     }
 
-    showPassword(row, password) {
-      const input = row.querySelector('[data-field="password"]');
-      const toggle = row.querySelector('[data-action="toggle-password"]');
-      if (input) {
-        input.type = 'text';
-        input.value = password;
-      }
-      if (toggle) {
-        toggle.textContent = 'Скрыть';
-      }
-      row.dataset.passwordVisible = 'true';
-      row.dataset.passwordValue = password;
-    }
-
-    handleUsersClick(event) {
-      const button = event.target.closest('[data-action]');
+    handlePhoneListClick(event) {
+      const button = event.target.closest('[data-action="remove-phone"]');
       if (!button) {
         return;
       }
-      const row = button.closest('tr[data-user-id]');
-      if (!row) {
-        return;
-      }
-      const userId = row.dataset.userId;
-      switch (button.dataset.action) {
-        case 'save-user':
-          this.handleSaveUser(row, userId, button);
-          break;
-        case 'toggle-password':
-          this.handleTogglePassword(row, userId, button);
-          break;
-        case 'change-password':
-          this.handleChangePassword(row, userId);
-          break;
-        case 'delete-user':
-          this.handleDeleteUser(row, userId);
-          break;
-        default:
-          break;
-      }
-    }
-
-    handleCreateUser(event) {
       event.preventDefault();
-      if (!this.capabilitiesEdit('user.create')) {
-        this.setMessage('У вас нет прав на создание пользователей.');
+      if (!this.modalState?.permissions?.canEditDetails) {
         return;
       }
-      const form = event.currentTarget;
-      const formData = new FormData(form);
-      const payload = {
-        username: String(formData.get('username') || '').trim(),
-        password: String(formData.get('password') || '').trim(),
-      };
-      const roleId = String(formData.get('role_id') || '').trim();
-      if (roleId) {
-        payload.role_id = Number(roleId);
+      const row = button.closest('[data-auth-user-phone-row]');
+      if (row && row.parentElement) {
+        row.parentElement.removeChild(row);
       }
-      if (!payload.username || !payload.password) {
-        if (this.elements.createUserError) {
-          this.elements.createUserError.textContent = 'Укажите логин и пароль.';
-          this.elements.createUserError.classList.remove('d-none');
-        }
-        return;
+      if (this.elements.userPhonesContainer && this.elements.userPhonesContainer.children.length === 0) {
+        this.togglePhonesEmpty(true);
       }
-      if (this.elements.createUserError) {
-        this.elements.createUserError.classList.add('d-none');
-        this.elements.createUserError.textContent = '';
-      }
-      this.setMessage('');
-      fetch(this.usersEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify(payload),
-      })
-        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
-        .then(({ ok, data }) => {
-          if (!ok || data.success === false) {
-            throw new Error(data.error || 'Не удалось создать пользователя');
-          }
-          form.reset();
-          this.populateCreateUserRoleOptions();
-          this.setMessage('Пользователь создан.', 'success');
-          return this.refresh();
-        })
-        .catch((error) => {
-          if (this.elements.createUserError) {
-            this.elements.createUserError.textContent = error.message || String(error);
-            this.elements.createUserError.classList.remove('d-none');
-          } else {
-            this.setMessage(error.message || String(error));
-          }
-        });
     }
 
-    handleSaveUser(row, userId, button) {
-      const payload = {};
-      const usernameInput = row.querySelector('[data-field="username"]');
-      const roleSelect = row.querySelector('[data-field="role"]');
-      const initialUsername = row.dataset.initialUsername || '';
-      const initialRoleId = row.dataset.initialRoleId || '';
-      let hasChanges = false;
-
-      if (usernameInput && !usernameInput.disabled) {
-        const newUsername = usernameInput.value.trim();
-        if (newUsername !== initialUsername) {
-          payload.username = newUsername;
-          hasChanges = true;
-        }
+    collectPhonePayload() {
+      const container = this.elements.userPhonesContainer;
+      if (!container) {
+        return [];
       }
+      return Array.from(container.querySelectorAll('[data-auth-user-phone-row]'))
+        .map((row) => {
+          const typeInput = row.querySelector('[name="phone_type"]');
+          const valueInput = row.querySelector('[name="phone_value"]');
+          const number = valueInput ? valueInput.value.trim() : '';
+          if (!number) {
+            return null;
+          }
+          const label = typeInput ? typeInput.value.trim() : '';
+          return { type: label, value: number };
+        })
+        .filter(Boolean);
+    }
 
-      if (roleSelect && !roleSelect.disabled) {
-        const newRole = roleSelect.value ? String(roleSelect.value) : '';
-        if (newRole !== initialRoleId) {
-          payload.role_id = newRole ? Number(newRole) : null;
-          hasChanges = true;
-        }
+    setPasswordBlockVisible(visible) {
+      if (this.elements.userPasswordBlock) {
+        this.elements.userPasswordBlock.classList.toggle('d-none', !visible);
       }
+    }
 
-      if (!hasChanges) {
-        this.setMessage('Нет изменений для сохранения.', 'info');
+    resetModalPasswordDisplay() {
+      if (this.elements.userPasswordDisplay) {
+        this.elements.userPasswordDisplay.type = 'password';
+        this.elements.userPasswordDisplay.value = PASSWORD_PLACEHOLDER;
+      }
+      if (this.elements.userPasswordToggle) {
+        this.elements.userPasswordToggle.textContent = 'Показать';
+      }
+      this.modalPasswordState.visible = false;
+    }
+
+    showModalPassword(password) {
+      if (this.elements.userPasswordDisplay) {
+        this.elements.userPasswordDisplay.type = 'text';
+        this.elements.userPasswordDisplay.value = password;
+      }
+      if (this.elements.userPasswordToggle) {
+        this.elements.userPasswordToggle.textContent = 'Скрыть';
+      }
+      this.modalPasswordState.visible = true;
+      this.modalPasswordState.loaded = true;
+      this.modalPasswordState.value = password;
+    }
+
+    hideModalPassword() {
+      this.resetModalPasswordDisplay();
+    }
+
+    handleModalPasswordToggle(event) {
+      if (event) {
+        event.preventDefault();
+      }
+      if (!this.modalState || this.modalState.mode !== 'edit') {
         return;
       }
-
-      button.disabled = true;
-      fetch(`${this.usersEndpoint}/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify(payload),
-      })
-        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
-        .then(({ ok, data }) => {
-          if (!ok || data.success === false) {
-            throw new Error(data.error || 'Не удалось сохранить пользователя');
-          }
-          this.setMessage('Данные пользователя обновлены.', 'success');
-          return this.refresh();
+      if (!this.modalState.permissions?.canViewPassword) {
+        return;
+      }
+      if (this.modalPasswordState.visible) {
+        this.hideModalPassword();
+        return;
+      }
+      if (this.modalPasswordState.loaded) {
+        this.showModalPassword(this.modalPasswordState.value || '');
+        return;
+      }
+      const userId = this.modalState.userId;
+      if (!userId) {
+        return;
+      }
+      if (this.elements.userPasswordToggle) {
+        this.elements.userPasswordToggle.disabled = true;
+      }
+      this.fetchUserPassword(userId)
+        .then((password) => {
+          this.showModalPassword(password || '');
         })
         .catch((error) => {
-          this.setMessage(error.message || String(error));
+          this.setUserModalError(error.message || String(error));
         })
         .finally(() => {
-          button.disabled = false;
+          if (this.elements.userPasswordToggle) {
+            this.elements.userPasswordToggle.disabled = false;
+          }
         });
     }
 
-    handleTogglePassword(row, userId, button) {
-      if (row.dataset.passwordVisible === 'true') {
-        this.hidePassword(row);
-        return;
-      }
-      if (row.dataset.passwordValue) {
-        this.showPassword(row, row.dataset.passwordValue);
-        return;
-      }
-      button.disabled = true;
-      fetch(`${this.usersEndpoint}/${userId}/password`, { credentials: 'same-origin' })
+    fetchUserPassword(userId) {
+      return fetch(`${this.usersEndpoint}/${userId}/password`, { credentials: 'same-origin' })
         .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
         .then(({ ok, data }) => {
           if (!ok || data.success === false) {
             throw new Error(data.error || 'Пароль недоступен');
           }
-          this.showPassword(row, data.password || '');
-        })
-        .catch((error) => {
-          this.setMessage(error.message || String(error));
-        })
-        .finally(() => {
-          button.disabled = false;
+          return data.password || '';
         });
     }
 
-    handleChangePassword(row, userId) {
-      const currentName = row.dataset.initialUsername || '';
-      const promptTitle = currentName ? `Введите новый пароль для ${currentName}` : 'Введите новый пароль';
-      const newPassword = window.prompt(promptTitle, '');
-      if (!newPassword) {
+    handleUserFormSubmit(event) {
+      event.preventDefault();
+      if (!this.modalState) {
         return;
       }
-      fetch(`${this.usersEndpoint}/${userId}`, {
-        method: 'PUT',
+      const form = event.currentTarget;
+      const submitButton = form.querySelector('[data-auth-user-submit]') || form.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+      this.setUserModalError('');
+      const { mode, original, permissions, userId } = this.modalState;
+      const payload = {};
+      const username = this.elements.userUsernameInput ? this.elements.userUsernameInput.value.trim() : '';
+      if (!username) {
+        this.setUserModalError('Укажите логин пользователя.');
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+        return;
+      }
+
+      if (mode === 'create' || (permissions.canEditUsername && username !== (original?.username || ''))) {
+        payload.username = username;
+      }
+
+      const roleSelect = this.elements.userRoleSelect;
+      const roleValue = roleSelect ? roleSelect.value.trim() : '';
+      const originalRoleId = original?.role_id != null ? String(original.role_id) : '';
+      if (mode === 'create') {
+        if (roleValue) {
+          payload.role_id = Number(roleValue);
+        }
+      } else if (permissions.canEditRole && roleValue !== originalRoleId) {
+        payload.role_id = roleValue ? Number(roleValue) : null;
+      }
+
+      const email = this.elements.userEmailInput ? this.elements.userEmailInput.value.trim() : '';
+      if (mode === 'create') {
+        if (email) {
+          payload.email = email;
+        }
+      } else if (permissions.canEditDetails && email !== (original?.email || '')) {
+        payload.email = email || null;
+      }
+
+      const department = this.elements.userDepartmentInput ? this.elements.userDepartmentInput.value.trim() : '';
+      if (mode === 'create') {
+        if (department) {
+          payload.department = department;
+        }
+      } else if (permissions.canEditDetails && department !== (original?.department || '')) {
+        payload.department = department || null;
+      }
+
+      const birthDate = this.elements.userBirthDateInput ? this.elements.userBirthDateInput.value.trim() : '';
+      if (mode === 'create') {
+        if (birthDate) {
+          payload.birth_date = birthDate;
+        }
+      } else if (permissions.canEditDetails && birthDate !== (original?.birth_date || '')) {
+        payload.birth_date = birthDate || null;
+      }
+
+      const photo = this.elements.userPhotoInput ? this.elements.userPhotoInput.value.trim() : '';
+      if (mode === 'create') {
+        if (photo) {
+          payload.photo = photo;
+        }
+      } else if (permissions.canEditDetails && photo !== (original?.photo || '')) {
+        payload.photo = photo || null;
+      }
+
+      const phones = this.collectPhonePayload();
+      if (mode === 'create') {
+        if (phones.length) {
+          payload.phones = phones;
+        }
+      } else if (permissions.canEditDetails) {
+        const originalPhones = Array.isArray(original?.phones)
+          ? original.phones.map((item) => ({
+              type: String(item?.type || item?.label || '').trim(),
+              value: String(item?.value || item?.number || '').trim(),
+            }))
+          : [];
+        const currentPhones = phones.map((item) => ({
+          type: String(item.type || '').trim(),
+          value: String(item.value || '').trim(),
+        }));
+        if (JSON.stringify(currentPhones) !== JSON.stringify(originalPhones)) {
+          payload.phones = phones;
+        }
+      }
+
+      const password = this.elements.userPasswordInput ? this.elements.userPasswordInput.value.trim() : '';
+      if (mode === 'create') {
+        if (!password) {
+          this.setUserModalError('Укажите пароль для нового пользователя.');
+          if (submitButton) {
+            submitButton.disabled = false;
+          }
+          return;
+        }
+        payload.password = password;
+      } else if (password) {
+        if (!permissions.canEditPassword) {
+          this.setUserModalError('У вас нет прав на изменение пароля.');
+          if (submitButton) {
+            submitButton.disabled = false;
+          }
+          return;
+        }
+        payload.password = password;
+      }
+
+      if (mode === 'edit' && Object.keys(payload).length === 0) {
+        this.setMessage('Нет изменений для сохранения.', 'info');
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+        return;
+      }
+
+      const requestUrl = mode === 'create' ? this.usersEndpoint : `${this.usersEndpoint}/${userId}`;
+      const method = mode === 'create' ? 'POST' : 'PUT';
+
+      fetch(requestUrl, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ password: newPassword }),
+        body: JSON.stringify(payload),
       })
         .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
         .then(({ ok, data }) => {
           if (!ok || data.success === false) {
-            throw new Error(data.error || 'Не удалось изменить пароль');
+            throw new Error(
+              data.error || (mode === 'create' ? 'Не удалось создать пользователя' : 'Не удалось сохранить пользователя')
+            );
           }
-          this.hidePassword(row);
-          this.setMessage('Пароль обновлён.', 'success');
+          this.closeUserModal();
+          this.setMessage(mode === 'create' ? 'Пользователь создан.' : 'Данные пользователя обновлены.', 'success');
+          return this.refresh();
         })
         .catch((error) => {
-          this.setMessage(error.message || String(error));
+          this.setUserModalError(error.message || String(error));
+        })
+        .finally(() => {
+          if (submitButton) {
+            submitButton.disabled = false;
+          }
         });
     }
 
     handleDeleteUser(row, userId) {
-      const username = row.dataset.initialUsername || '';
+      const username = row.dataset.userName || '';
       if (!window.confirm(`Удалить пользователя ${username || '#' + userId}?`)) {
         return;
       }
@@ -568,6 +921,34 @@
           this.setMessage(error.message || String(error));
         });
     }
+
+    closeUserModal() {
+      if (this.modalInstance) {
+        this.modalInstance.hide();
+      } else if (this.elements.userModal) {
+        this.elements.userModal.classList.remove('show');
+        this.elements.userModal.style.display = 'none';
+        this.elements.userModal.setAttribute('aria-hidden', 'true');
+        this.handleUserModalHidden();
+      }
+    }
+
+    handleUserModalHidden() {
+      this.modalState = null;
+      this.modalPasswordState = { visible: false, loaded: false, value: '' };
+      if (this.elements.userForm) {
+        this.elements.userForm.reset();
+        delete this.elements.userForm.dataset.mode;
+      }
+      if (this.elements.userRegistrationInput) {
+        this.elements.userRegistrationInput.value = '';
+      }
+      this.renderPhoneList([], true);
+      this.setPasswordBlockVisible(false);
+      this.resetModalPasswordDisplay();
+      this.setUserModalError('');
+    }
+
 
     renderRoles() {
       const container = this.elements.rolesContainer;
