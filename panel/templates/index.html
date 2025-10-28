@@ -3985,16 +3985,21 @@ function displayTicketsForCurrentPage() {
   else if (t.business === 'БлинБери') businessClass = 'business-blin';
 
   // Кнопка создания задачи (безопасно прокидываем текст через JSON.stringify, чтобы не париться с кавычками)
-	const createTaskBtn = (t.linked_task_id)
-	  ? `<button class="btn btn-sm btn-outline-primary open-task-btn" data-task-id="${t.linked_task_id}">
-		   №DL_${t.linked_task_id}
-		 </button>`
-	  : `<button class="btn btn-sm btn-outline-primary create-task-btn"
-		   data-problem="${(t.problem||'').replace(/"/g,'&quot;')}"
-		   data-location="${(t.location_name||t.city||'').replace(/"/g,'&quot;')}"
-		   data-ticket="${t.ticket_id}">
-		   Создать задачу
-		 </button>`;
+                let createTaskBtn;
+                if (t.linked_task_id) {
+                  createTaskBtn = `<button class="btn btn-sm btn-outline-primary open-task-btn" data-task-id="${t.linked_task_id}">
+                     №DL_${t.linked_task_id}
+                   </button>`;
+                } else {
+                  const sanitizedProblem = (t.problem || '').replace(/"/g, '&quot;');
+                  const sanitizedLocation = (t.location_name || t.city || '').replace(/"/g, '&quot;');
+                  createTaskBtn = `<button class="btn btn-sm btn-outline-primary create-task-btn"`
+                     data-problem="${sanitizedProblem}"
+                     data-location="${sanitizedLocation}"
+                     data-ticket="${t.ticket_id}">
+                     Создать задачу
+                   </button>`;
+                }
 
         const businessValue = t.business || '—';
         const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
