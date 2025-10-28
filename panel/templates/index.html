@@ -4191,7 +4191,7 @@ function displayTicketsForCurrentPage() {
 							}
 							return {};
 						}
-			
+
 
 					// === Фильтрация ===
 					// === Фильтрация (применяется ко всем данным) ===
@@ -4208,7 +4208,9 @@ function displayTicketsForCurrentPage() {
                 dateFrom: document.getElementById('filterDateFrom')?.value || '',
                 dateTo: document.getElementById('filterDateTo')?.value || ''
         };
-}\n\nfunction applyFilters(optionsOrEvent = {}) {
+						}
+
+						function applyFilters(optionsOrEvent = {}) {
         let options = {};
         if (optionsOrEvent && typeof optionsOrEvent === 'object' && typeof optionsOrEvent.preventDefault === 'function') {
                 optionsOrEvent.preventDefault();
@@ -4266,7 +4268,10 @@ function displayTicketsForCurrentPage() {
         });
 
         displayFilteredTickets(filteredTickets, { preservePage });
-}\n\nfunction displayFilteredTickets(filteredTickets, options = {}) {
+
+						}
+
+						function displayFilteredTickets(filteredTickets, options = {}) {
         const preservePage = !!options.preservePage;
         if (!preservePage) {
                 currentPage = 1;
@@ -4277,7 +4282,10 @@ function displayTicketsForCurrentPage() {
         window.filteredTickets = filteredTickets;
         displayTicketsForCurrentPageFiltered();
         updatePaginationFiltered();
-}\n\nfunction displayTicketsForCurrentPageFiltered() {
+
+						}
+
+						function displayTicketsForCurrentPageFiltered() {
                                                         const container = document.getElementById('ticketsBody');
                                                         if (!container) return;
 
