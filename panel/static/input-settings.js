@@ -26,6 +26,26 @@
   const defaultPhoneTypes = ['Рабочий', 'Личный', 'Дополнительный'];
   const phoneTypes = new Set(defaultPhoneTypes);
 
+  function exportInputSettingsState() {
+    const existing = window.__inputSettings || {};
+    const format = getPhoneFormatByKey(phoneSelectors.select ? phoneSelectors.select.value : PHONE_FORMATS[0]?.key);
+    const nextState = {
+      ...existing,
+      phone: {
+        format: {
+          key: format?.key || '',
+          prefix: format?.prefix || '',
+          pattern: format?.pattern || '',
+          example: format?.example || '',
+          label: format?.label || '',
+        },
+        types: Array.from(phoneTypes),
+      },
+    };
+    window.__inputSettings = nextState;
+    document.dispatchEvent(new CustomEvent('inputSettings:change', { detail: nextState }));
+  }
+
   function getPhoneFormatByKey(key) {
     return PHONE_FORMATS.find((item) => item.key === key) || PHONE_FORMATS[0];
   }
@@ -102,18 +122,20 @@
   }
 
   function renderPhoneTypes() {
-    if (!phoneSelectors.typeList) return;
-    phoneSelectors.typeList.innerHTML = '';
-    if (!phoneTypes.size) {
-      const placeholder = document.createElement('span');
-      placeholder.className = 'text-muted small';
-      placeholder.textContent = 'Типы не заданы';
-      phoneSelectors.typeList.appendChild(placeholder);
-      return;
+    if (phoneSelectors.typeList) {
+      phoneSelectors.typeList.innerHTML = '';
+      if (!phoneTypes.size) {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'text-muted small';
+        placeholder.textContent = 'Типы не заданы';
+        phoneSelectors.typeList.appendChild(placeholder);
+      } else {
+        phoneTypes.forEach((type) => {
+          phoneSelectors.typeList.appendChild(createPhoneTypeBadge(type));
+        });
+      }
     }
-    phoneTypes.forEach((type) => {
-      phoneSelectors.typeList.appendChild(createPhoneTypeBadge(type));
-    });
+    exportInputSettingsState();
   }
 
   function addPhoneType() {
@@ -141,7 +163,10 @@
   }
 
   if (phoneSelectors.select) {
-    phoneSelectors.select.addEventListener('change', handlePhoneCountryChange);
+    phoneSelectors.select.addEventListener('change', () => {
+      handlePhoneCountryChange();
+      exportInputSettingsState();
+    });
   }
 
   if (phoneSelectors.input) {
@@ -150,6 +175,7 @@
 
   renderPhoneTypes();
   handlePhoneCountryChange();
+  exportInputSettingsState();
 
   const emailSelectors = {
     requireAt: modal.querySelector('[data-email-require-at]'),
