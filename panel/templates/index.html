@@ -57,7 +57,7 @@
     }
 
     .chat-bubble {
-      max-width: 90%;
+      max-width: 100%;
     }
 
     .input-group-send {
@@ -116,12 +116,16 @@
   }
 
   .chat-bubble {
-    padding: 8px 12px;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 0;
+    max-width: 100%;
     word-wrap: break-word;
     transition: opacity 0.3s ease;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
   /* Имя отправителя - делаем немного крупнее */
   .chat-bubble strong {
@@ -167,14 +171,10 @@
   }
   .from-user {
     background: #e3f2fd;
-    align-self: flex-start;
-	margin-right: auto;
   }
 
   .from-support {
     background: #d1f7d1;
-    align-self: flex-end;
-	margin-left: auto;
   }
 
   .chat-container {
@@ -190,44 +190,12 @@
 }
 
 /* фиксируем ширину полосы — контент больше не «сжимается» при ховере контейнера */
-#historyContent::-webkit-scrollbar {
-  width: 12px;
-}
-#historyContent { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,.55) transparent; }
-
-/* желоб (трек) */
-#historyContent::-webkit-scrollbar-track {
-  background: transparent;
-}
-#historyContent::-webkit-scrollbar-track:hover {
-  background: rgba(0,0,0,.04); /* опционально */
-}
-
-/* ползунок */
-#historyContent::-webkit-scrollbar-thumb {
-  background-color: rgba(0,0,0,.40);
-  border-radius: 8px;
-  border: 2px solid transparent;     /* визуально тоньше */
-  background-clip: content-box;
-  transition: background-color .15s ease;
-}
-#historyContent::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0,0,0,.85);  /* меняем «прозрачность» только на самом ползунке */
-}
-
-/* оставляем, чтобы ширина под полосу была стабильной и не дёргалась верстка */
-#historyContent { scrollbar-gutter: stable both-edges; }
-
 #historyContent {
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: auto;
 }
 
-/* Firefox: цвет и толщина (тонкий по умолчанию, «авто» при ховере) */
-#historyContent { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,.4) transparent; }
-#historyContent.hovering { scrollbar-width: auto; scrollbar-color: rgba(0,0,0,.95) transparent; }
-  
 .history-viewport { position: relative; }
-  
+
 .history-scroll-btn {
   position: absolute;
   right: 6px;                /* рядом со скролл-баром */
@@ -753,26 +721,40 @@
     margin-left: 0.5rem;
   }
 
-#historyModal .history-avatar-wrapper {
+#historyModal .chat-entry {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+#historyModal .chat-entry + .chat-entry {
+  margin-top: 12px;
+}
+
+#historyModal .message-avatar {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  overflow: hidden;
 }
 
-#historyModal .history-avatar {
+#historyModal .message-avatar img {
   width: 100%;
-  max-width: 192px;
-  aspect-ratio: 1 / 1;
+  height: 100%;
   object-fit: cover;
-  border: 1px solid rgba(0, 0, 0, .1);
-  cursor: zoom-in;
-  margin-inline: auto;
-  transition: transform .2s ease;
 }
 
-#historyModal .history-avatar:hover {
-  transform: scale(1.03);
+#historyModal .message-avatar:focus-visible {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
 }
 
 /* Правая колонка (история) */
@@ -808,7 +790,7 @@
   padding: 16px 16px 0px;
   display: flex;
   flex-direction: column;
-   gap: 12px;
+  gap: 0;
   justify-content: flex-start;
   margin-bottom: 0;
   background-color: #f8f9fa !important;
@@ -836,24 +818,22 @@
 
 /* === История: разные шрифты для времени, автора и текста === */
 #historyModal .chat-bubble .msg-time {
-  /* моноширинный — лучше читаются цифры времени */
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: calc(0.80rem * var(--history-font-scale, 1)); /* фиксированный размер от масштаба истории */
+  font-size: calc(0.80rem * var(--history-font-scale, 1));
   line-height: 1.2;
   color: #6c757d !important;
   letter-spacing: .01em;
-  display: inline-block;
-  margin-bottom: .15rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 #historyModal .chat-bubble .msg-author {
-  /* плотный санс-сериф для имени */
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
-  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-weight: 600;
   font-size: calc(0.95rem * var(--history-font-scale, 1));
   line-height: 1.25;
-  display: inline-block;
-  margin-bottom: .05rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 #historyModal .chat-bubble .msg-text {
@@ -870,14 +850,10 @@
   #historyModal .chat-bubble .msg-author { font-size: calc(.90rem * var(--history-font-scale, 1)); }
   #historyModal .chat-bubble .msg-text   { font-size: calc(.95rem * var(--history-font-scale, 1)); }
 }
-/* Стек: время сверху, ниже — имя с минимальным зазором */
+
+#historyModal .chat-bubble .msg-author,
 #historyModal .chat-bubble .msg-time {
-  display: block;
-  margin: 0;                 /* без лишних отступов */
-}
-#historyModal .chat-bubble .msg-author {
-  display: block;
-  margin: 1px 0 2px 0;       /* компактный отступ между временем и именем */
+  margin: 0;
 }
 
 /* Обёртка каждого превью для позиционирования иконки */
@@ -953,7 +929,26 @@
   }
 }
 /* правая колонка с кнопками */
-.send-actions .btn { white-space: nowrap; }
+#historyModal .send-actions {
+  gap: 0.5rem;
+}
+
+#historyModal .send-actions .btn,
+#historyModal .send-actions label.btn {
+  white-space: nowrap;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  border-radius: 10px;
+}
+
+#historyModal .send-actions label.btn {
+  cursor: pointer;
+}
 #replyTextInHistory {
   padding-bottom: 0; /* динамически задаётся скриптом */
 }
@@ -961,7 +956,12 @@
 
 /* на узких экранах всё как раньше — под полем */
 @media (max-width: 1024px) {
-  .send-actions { width: 100% !important; }
+  .send-actions {
+    width: auto !important;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
 }
 /* Кнопка пикера — полупрозрачная, пока не активна */
 .dock-btn { opacity:.45; transition:opacity .15s ease; }
@@ -1030,16 +1030,28 @@
 /* Экшен-бар внутри пузыря */
 #historyModal .chat-bubble {
   position: relative;
-  padding: 0 14px;
   overflow: visible;
+}
+
+#historyModal .bubble-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+#historyModal .bubble-author {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 #historyModal .bubble-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.35rem;
+  margin-left: auto;
 }
 
 #historyModal .bubble-meta .msg-time {
@@ -1053,6 +1065,7 @@
   margin: 0 !important;
   opacity: .95;
   transition: opacity .15s ease;
+  align-self: flex-start;
 }
 
 #historyModal .chat-bubble .bubble-actions .btn {
@@ -1094,15 +1107,17 @@
 
 /* Мобильный фоллбек */
 @media (max-width: 768px){
-  #historyModal .bubble-meta {
-    flex-wrap: wrap;
-    row-gap: 0.25rem;
+  #historyModal .bubble-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
   }
-  #historyModal .chat-bubble {
-    padding: 0 12px;
+  #historyModal .bubble-meta {
+    width: 100%;
+    justify-content: space-between;
   }
   #historyModal .chat-bubble .bubble-actions{
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
   }
 }
@@ -1200,7 +1215,17 @@
 * === Редактирование / удаление === *
 .chat-bubble.is-editing { outline: 2px dashed #6c757d; outline-offset: 2px; }
 .chat-bubble.deleted    { opacity: .55; }
-.badge-meta { font-weight: 500; border: 1px solid rgba(0,0,0,.08); }
+.badge-meta {
+  font-weight: 500;
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.75rem;
+  background-color: rgba(255,255,255,0.65);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 
 
 .reply-target {
@@ -1309,6 +1334,52 @@
 
 #avatarModal .modal-footer {
   background: transparent;
+}
+
+#avatarModal .modal-body {
+  position: relative;
+}
+
+#avatarModal .avatar-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#avatarModal .avatar-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+#avatarModal .avatar-nav:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+#avatarModalPrev { left: 12px; }
+#avatarModalNext { right: 12px; }
+
+#avatarModalCounter {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
 }
 
 .modal.small-modal {
@@ -1838,12 +1909,6 @@ function markTicketReopenedLocally() {
                     </div>
                   </div>
 
-                  <!-- Фото клиента -->
-                  <div class="p-3 text-center history-avatar-wrapper">
-                  <img id="clientAvatarInHistory" src="" alt="Аватар" class="rounded-circle history-avatar">
-                  <div class="small text-muted mt-2">Фото клиента</div>
-                </div>
-
                 <!-- Дополнительные данные клиента -->
                   <div class="p-3 sidebar-info text-start" id="historyClientMeta">
                   <div><strong>Бизнес:</strong> <span id="historyBusiness">—</span></div>
@@ -1956,12 +2021,13 @@ function markTicketReopenedLocally() {
                   </div>
 
                   <!-- ПРАВАЯ колонка: «Прикрепить» + «Отправить» -->
-                  <div class="send-actions d-flex flex-column ms-2" style="width:160px;">
+                  <div class="send-actions d-flex flex-column justify-content-end align-items-center ms-2">
                     <input type="file" id="replyFiles" class="d-none" multiple>
-                    <label for="replyFiles" id="replyFilesBtn" class="btn btn-outline-secondary w-100 mb-2">
-                      📎
+                    <label for="replyFiles" id="replyFilesBtn" class="btn btn-outline-secondary" title="Прикрепить файлы">
+                      <span aria-hidden="true">📎</span>
+                      <span class="visually-hidden">Прикрепить файлы</span>
                     </label>
-                      <button type="button" id="sendReplyInHistory" class="btn btn-primary w-100" title="Отправить сообщение">
+                      <button type="button" id="sendReplyInHistory" class="btn btn-primary" title="Отправить сообщение">
                         <span aria-hidden="true">➤</span>
                         <span class="visually-hidden">Отправить</span>
                       </button>
@@ -2240,6 +2306,164 @@ let cachedAdminUsers = null;
           if (!normalized.startsWith('/')) return normalized;
           if (normalized.includes('?full=1')) return normalized;
           return normalized.includes('?') ? `${normalized}&full=1` : `${normalized}?full=1`;
+        }
+
+        const DEFAULT_AVATAR_SRC = '/static/default-avatar.png';
+        const AVATAR_HISTORY_PREFIX = 'history-avatar::';
+
+        function readAvatarHistory(key) {
+          if (!key) return [];
+          try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (error) {
+            return [];
+          }
+        }
+
+        function writeAvatarHistory(key, entries) {
+          if (!key) return;
+          try {
+            localStorage.setItem(key, JSON.stringify(entries));
+          } catch (error) {
+            /* noop */
+          }
+        }
+
+        function avatarEntryFromSource(src, treatAsFallback = false) {
+          const normalizedThumb = normalizeAvatarUrl(src);
+          if (!normalizedThumb) return null;
+          let normalizedFull = ensureFullAvatarUrl(normalizedThumb);
+          if (!normalizedFull || treatAsFallback) {
+            normalizedFull = normalizedThumb;
+          }
+          return { thumb: normalizedThumb, full: normalizedFull };
+        }
+
+        function collectAvatarSources(raw) {
+          const list = [];
+          if (!raw) return list;
+
+          const push = (value) => {
+            const normalized = normalizeAvatarUrl(value);
+            if (normalized) list.push(normalized);
+          };
+
+          if (Array.isArray(raw)) {
+            raw.forEach((item) => {
+              if (!item) return;
+              if (typeof item === 'string') {
+                push(item);
+              } else if (typeof item === 'object') {
+                push(item.full || item.url || item.src || item.avatar || item.path);
+              }
+            });
+          } else if (typeof raw === 'object') {
+            push(raw.full || raw.url || raw.src || raw.avatar || raw.path);
+          } else {
+            push(raw);
+          }
+
+          return list;
+        }
+
+        function mergeAvatarHistory(key, candidates, fallback) {
+          const existing = [];
+          const seen = new Set();
+          const stored = readAvatarHistory(key);
+          const fallbackNormalized = normalizeAvatarUrl(fallback);
+
+          const pushEntry = (thumb, full, treatAsFallback = false) => {
+            const normalizedThumb = normalizeAvatarUrl(thumb);
+            if (!normalizedThumb || seen.has(normalizedThumb)) return;
+            let normalizedFull = normalizeAvatarUrl(full);
+            if (!normalizedFull || treatAsFallback) {
+              normalizedFull = treatAsFallback
+                ? normalizedThumb
+                : ensureFullAvatarUrl(normalizedThumb) || normalizedThumb;
+            }
+            existing.push({ thumb: normalizedThumb, full: normalizedFull });
+            seen.add(normalizedThumb);
+          };
+
+          stored.forEach((entry) => {
+            if (!entry) return;
+            const treatFallback = fallbackNormalized && normalizeAvatarUrl(entry.thumb) === fallbackNormalized;
+            pushEntry(entry.thumb, entry.full, treatFallback);
+          });
+
+          candidates.forEach((candidate) => {
+            const treatFallback = fallbackNormalized && normalizeAvatarUrl(candidate) === fallbackNormalized;
+            const entry = avatarEntryFromSource(candidate, treatFallback);
+            if (entry) pushEntry(entry.thumb, entry.full, treatFallback);
+          });
+
+          if (!existing.length && fallbackNormalized) {
+            const fallbackEntry = avatarEntryFromSource(fallbackNormalized, true);
+            if (fallbackEntry) pushEntry(fallbackEntry.thumb, fallbackEntry.full, true);
+          }
+
+          writeAvatarHistory(key, existing);
+          return existing;
+        }
+
+        function prepareHistoryAvatarStore({ userId, clientData, ticketDetails, historyPayload }) {
+          const fallback = DEFAULT_AVATAR_SRC;
+          const clientKey = `${AVATAR_HISTORY_PREFIX}client::${userId ?? 'unknown'}`;
+          const clientCandidates = [
+            ...collectAvatarSources(historyPayload?.avatar_history),
+            ...collectAvatarSources(ticketDetails?.avatar_history),
+            clientData?.avatar_full_url,
+            clientData?.avatar_url,
+            ticketDetails?.avatar_full_url,
+            ticketDetails?.avatar_url,
+            clientData?.avatar,
+            ticketDetails?.avatar,
+            userId ? `/avatar/${userId}` : null,
+          ].filter(Boolean);
+
+          const clientEntries = mergeAvatarHistory(clientKey, clientCandidates, fallback);
+          const clientIndex = clientEntries.length ? clientEntries.length - 1 : 0;
+
+          const supportKeyBase = (ticketDetails?.responsible || ticketDetails?.operator || '').toString().trim().toLowerCase() || 'default';
+          const supportKey = `${AVATAR_HISTORY_PREFIX}support::${supportKeyBase}`;
+          const supportCandidates = [
+            ticketDetails?.support_avatar_url,
+            ticketDetails?.operator_avatar_url,
+            ticketDetails?.support_avatar,
+            window.settings?.dialogConfig?.support_avatar_url,
+            window.settings?.dialogConfig?.support_avatar,
+          ].filter(Boolean);
+
+          const supportEntries = mergeAvatarHistory(supportKey, supportCandidates, fallback);
+          const supportIndex = supportEntries.length ? supportEntries.length - 1 : 0;
+
+          return {
+            client: { key: clientKey, entries: clientEntries, currentIndex: clientIndex },
+            support: { key: supportKey, entries: supportEntries, currentIndex: supportIndex },
+          };
+        }
+
+        function resolveHistoryAvatar(type) {
+          const fallback = DEFAULT_AVATAR_SRC;
+          const store = window.historyAvatarStore && window.historyAvatarStore[type];
+          if (!store || !Array.isArray(store.entries) || !store.entries.length) {
+            return { thumb: fallback, full: fallback, index: 0, total: 1 };
+          }
+
+          const { entries } = store;
+          let idx = store.currentIndex;
+          if (!Number.isFinite(idx) || idx < 0 || idx >= entries.length) {
+            idx = entries.length - 1;
+          }
+
+          store.currentIndex = idx;
+          const entry = entries[idx] || {};
+          const thumb = normalizeAvatarUrl(entry.thumb) || fallback;
+          const full = normalizeAvatarUrl(entry.full) || ensureFullAvatarUrl(thumb) || thumb;
+          return { thumb, full, index: idx, total: entries.length };
         }
 	document.querySelectorAll('.fmt').forEach(btn=>{
 	  btn.addEventListener('click', ()=>{
@@ -3227,51 +3451,72 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
       });
     }
 
+    const avatarType = isSupport ? 'support' : 'client';
+    const avatarInfo = resolveHistoryAvatar(avatarType);
+    const avatarSrc = escapeHtml(avatarInfo.thumb || DEFAULT_AVATAR_SRC);
+    const avatarIndex = Number.isFinite(avatarInfo.index) ? avatarInfo.index : 0;
+    const avatarAlt = escapeHtml(isSupport ? 'Аватар оператора' : 'Аватар клиента');
+    const avatarTitle = escapeHtml(isSupport ? 'История аватаров оператора' : 'История аватаров клиента');
+    const badges = [
+      msg.edited_at ? '<span class="badge-meta">изменено</span>' : '',
+      msg.deleted_at ? '<span class="badge-meta">удалено у клиента</span>' : ''
+    ].filter(Boolean).join('');
+
     return `
-      <div class="chat-bubble ${cls} ${msg.deleted_at ? 'opacity-50' : ''}"
-         data-sender="${isSupport ? 'support' : 'user'}"
-         data-ts="${tsMs}"
-         data-tg-id="${safeId(msg) ?? ''}"
-         data-mid="${telegramMid(msg) ?? ''}">
-        <div class="bubble-meta">
-          <small class="msg-time" data-iso="${iso}">${fmtTsISO(iso)}</small>
-          <div class="bubble-actions dropdown">
-            <button class="btn btn-sm btn-light p-1 px-2" data-bs-toggle="dropdown" aria-expanded="false"
-                    title="Действия" style="line-height:1">⋯</button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><button class="dropdown-item action-reply">↩ Ответить</button></li>
-              ${isSupport ? `
-                <li><button class="dropdown-item action-edit">✏️ Редактировать</button></li>
-                <li><button class="dropdown-item text-danger action-delete">🗑 Удалить</button></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
-              ` : `
-                <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
-              `}
-            </ul>
+      <div class="chat-entry ${cls}" data-sender="${isSupport ? 'support' : 'user'}">
+        <button type="button"
+                class="message-avatar"
+                data-avatar-type="${avatarType}"
+                data-avatar-index="${avatarIndex}"
+                title="${avatarTitle}">
+          <img src="${avatarSrc}" alt="${avatarAlt}">
+        </button>
+        <div class="chat-bubble ${cls} ${msg.deleted_at ? 'opacity-50' : ''}"
+             data-sender="${isSupport ? 'support' : 'user'}"
+             data-ts="${tsMs}"
+             data-tg-id="${safeId(msg) ?? ''}"
+             data-mid="${telegramMid(msg) ?? ''}">
+          <div class="bubble-header">
+            <div class="bubble-author">
+              <strong class="msg-author">${name}</strong>
+              ${badges}
+            </div>
+            <div class="bubble-meta">
+              <small class="msg-time" data-iso="${iso}">${fmtTsISO(iso)}</small>
+              <div class="bubble-actions dropdown">
+                <button class="btn btn-sm btn-light p-1 px-2" data-bs-toggle="dropdown" aria-expanded="false" title="Действия" style="line-height:1">⋯</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><button class="dropdown-item action-reply">↩ Ответить</button></li>
+                  ${isSupport ? `
+                    <li><button class="dropdown-item action-edit">✏️ Редактировать</button></li>
+                    <li><button class="dropdown-item text-danger action-delete">🗑 Удалить</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
+                  ` : `
+                    <li><button class="dropdown-item action-download">⤓ Скачать вложение</button></li>
+                  `}
+                </ul>
+              </div>
+            </div>
           </div>
+
+          ${(msg.reply_preview || msg.reply_to_tg_id) ? `
+            <div
+              class="reply-preview rp-jump"
+              data-target="${msg.reply_to_tg_id || ''}"
+              title="Показать исходное сообщение"
+              style="cursor:pointer"
+            >
+              <div class="rp-box">${escapeHtml(msg.reply_preview || '').replace(/\n/g,'<br>')}</div>
+            </div>
+          ` : ''}
+
+          ${bodyText && (!msg.message_type || msg.message_type === 'text')
+            ? `<p class="msg-text mb-1">${escapeHtml(bodyText).replace(/\n/g,'<br>')}</p>`
+            : ''}
+
+          ${mediaHtml}
         </div>
-        <strong class="msg-author">${name}</strong>
-                ${msg.edited_at ? `<span class="badge-meta">изменено</span>` : ``}
-                ${msg.deleted_at ? `<span class="badge-meta">удалено у клиента</span>` : ``}
-
-        ${(msg.reply_preview || msg.reply_to_tg_id) ? `
-		  <div
-			class="reply-preview rp-jump"
-			data-target="${msg.reply_to_tg_id || ''}"
-			title="Показать исходное сообщение"
-			style="cursor:pointer"
-		  >
-			<div class="rp-box">${escapeHtml(msg.reply_preview || '').replace(/\n/g,'<br>')}</div>
-		  </div>
-		` : ''}
-	
-        ${bodyText && (!msg.message_type || msg.message_type === 'text')
-          ? `<p class="msg-text mb-1">${escapeHtml(bodyText).replace(/\n/g,'<br>')}</p>`
-          : ''}
-
-        ${mediaHtml}
-
       </div>
     `;
   }).join('');
@@ -5250,47 +5495,12 @@ function displayTicketsForCurrentPage() {
                                 await setupResponsibleControl(window.currentTicketDetails);
                                 renderClientTicketsList(currentUserId, currentTicketId);
 
-                                const avaEl = document.getElementById('clientAvatarInHistory');
-				if (avaEl) {
-						const fallbackAvatar = '/static/default-avatar.png';
-						const avatarCandidates = [
-								clientData?.avatar_full_url,
-								clientData?.avatar_url,
-								ticketFull?.avatar_full_url,
-								ticketFull?.avatar_url,
-								clientData?.avatar,
-								ticketFull?.avatar,
-								`/avatar/${currentUserId}`
-						];
-
-						let avatarSrc = '';
-						for (const candidate of avatarCandidates) {
-								const normalized = normalizeAvatarUrl(candidate);
-								if (normalized) { avatarSrc = normalized; break; }
-						}
-						if (!avatarSrc) avatarSrc = fallbackAvatar;
-
-						let fullSrc = '';
-						const fullCandidates = [
-								clientData?.avatar_full_url,
-								ticketFull?.avatar_full_url,
-								avatarSrc === fallbackAvatar ? '' : avatarSrc
-						];
-						for (const candidate of fullCandidates) {
-								const normalized = ensureFullAvatarUrl(candidate);
-								if (normalized) { fullSrc = normalized; break; }
-						}
-						if (!fullSrc) fullSrc = avatarSrc;
-
-						avaEl.src = avatarSrc;
-						avaEl.dataset.fullsrc = fullSrc;
-						avaEl.alt = 'Аватар клиента';
-						avaEl.onerror = () => {
-								avaEl.onerror = null;
-								avaEl.src = fallbackAvatar;
-								avaEl.dataset.fullsrc = fallbackAvatar;
-						};
-				}
+                                window.historyAvatarStore = prepareHistoryAvatarStore({
+                                        userId: currentUserId,
+                                        clientData: window.currentClientData,
+                                        ticketDetails: window.currentTicketDetails,
+                                        historyPayload: historyData
+                                });
 
 				const messages = historyData.messages || [];
 				
@@ -7347,24 +7557,104 @@ function findTicketEverywhere(ticketId) {
 </script>
 <script>
 (function () {
-  function showAvatar(src) {
-    const fallbackSrc = '/static/default-avatar.png';
-    let prepared = ensureFullAvatarUrl(src);
-    if (!prepared) {
-      const normalized = normalizeAvatarUrl(src);
-      prepared = normalized || fallbackSrc;
-    }
+  const modalEl = document.getElementById('avatarModal');
+  const modalImg = document.getElementById('avatarModalImg');
+  const downloadLink = document.getElementById('avatarDownloadLink');
+  const modalDialog = modalEl ? modalEl.querySelector('.modal-dialog') : null;
+  const prevBtn = document.getElementById('avatarModalPrev');
+  const nextBtn = document.getElementById('avatarModalNext');
+  const counterEl = document.getElementById('avatarModalCounter');
+  const historyContent = document.getElementById('historyContent');
+  const fallbackSrc = DEFAULT_AVATAR_SRC;
 
-    // ИСПРАВЛЕНИЕ: используем правильную модалку для аватара
-    const modalEl = document.getElementById('avatarModal');
-    const modalImg = document.getElementById('avatarModalImg');
-    const downloadLink = document.getElementById('avatarDownloadLink');
-    const modalDialog = modalEl ? modalEl.querySelector('.modal-dialog') : null;
+  if (!modalEl || !modalImg) return;
 
-    if (!modalEl || !modalImg) {
-      console.error('Modal elements not found');
+  let currentType = 'client';
+  let currentIndex = 0;
+
+  function updateDownloadLink(nextSrc) {
+    if (!downloadLink) return;
+    downloadLink.href = nextSrc;
+    downloadLink.download = 'avatar.jpg';
+  }
+
+  function adjustAvatarModalSize() {
+    if (!modalDialog) return;
+    const naturalWidth = modalImg.naturalWidth;
+    const naturalHeight = modalImg.naturalHeight;
+
+    if (!naturalWidth || !naturalHeight) {
+      modalDialog.style.removeProperty('max-width');
+      modalDialog.style.removeProperty('width');
+      modalImg.style.maxHeight = modalImg.dataset.defaultMaxHeight || '';
       return;
     }
+
+    const viewportWidth = window.innerWidth * 0.95;
+    const viewportHeight = window.innerHeight * 0.9;
+    const dialogWidth = Math.min(naturalWidth, viewportWidth);
+    const imageMaxHeight = Math.min(naturalHeight, viewportHeight);
+
+    modalDialog.style.maxWidth = dialogWidth + 'px';
+    modalDialog.style.width = 'auto';
+    modalImg.style.maxHeight = imageMaxHeight + 'px';
+  }
+
+  function cleanupModal() {
+    window.removeEventListener('resize', adjustAvatarModalSize);
+    if (modalDialog) {
+      modalDialog.style.removeProperty('max-width');
+      modalDialog.style.removeProperty('width');
+    }
+    modalImg.style.maxHeight = modalImg.dataset.defaultMaxHeight || '';
+    modalEl._avatarResizeHandler = null;
+    modalEl._avatarCleanupHandler = null;
+    modalEl._avatarShownHandler = null;
+  }
+
+  function updateNavigation(store) {
+    const total = store?.entries?.length || 0;
+    const hasMultiple = total > 1;
+
+    if (prevBtn) {
+      prevBtn.disabled = !hasMultiple;
+      prevBtn.style.display = hasMultiple ? '' : 'none';
+    }
+
+    if (nextBtn) {
+      nextBtn.disabled = !hasMultiple;
+      nextBtn.style.display = hasMultiple ? '' : 'none';
+    }
+
+    if (counterEl) {
+      if (hasMultiple) {
+        counterEl.classList.remove('d-none');
+        counterEl.textContent = `${currentIndex + 1} / ${total}`;
+      } else {
+        counterEl.classList.add('d-none');
+        counterEl.textContent = '';
+      }
+    }
+  }
+
+  function showAvatarFromStore(type, indexOverride) {
+    const store = window.historyAvatarStore && window.historyAvatarStore[type];
+    const entries = Array.isArray(store?.entries) && store.entries.length
+      ? store.entries
+      : [{ thumb: fallbackSrc, full: fallbackSrc }];
+
+    let nextIndex = Number.isFinite(indexOverride) ? indexOverride : store?.currentIndex;
+    if (!Number.isFinite(nextIndex)) nextIndex = entries.length - 1;
+    if (nextIndex < 0) nextIndex = entries.length - 1;
+    if (nextIndex >= entries.length) nextIndex = 0;
+
+    if (store) store.currentIndex = nextIndex;
+    currentType = type;
+    currentIndex = nextIndex;
+
+    const entry = entries[nextIndex] || {};
+    const targetSrc = normalizeAvatarUrl(entry.full || entry.thumb) || fallbackSrc;
+    const displaySrc = targetSrc || fallbackSrc;
 
     if (modalEl._avatarResizeHandler) {
       window.removeEventListener('resize', modalEl._avatarResizeHandler);
@@ -7380,45 +7670,13 @@ function findTicketEverywhere(ticketId) {
       modalImg.dataset.defaultMaxHeight = modalImg.style.maxHeight || '';
     }
 
-    const adjustAvatarModalSize = () => {
-      if (!modalDialog) {
-        return;
-      }
-
-      const naturalWidth = modalImg.naturalWidth;
-      const naturalHeight = modalImg.naturalHeight;
-
-      if (!naturalWidth || !naturalHeight) {
-        modalDialog.style.removeProperty('max-width');
-        modalDialog.style.removeProperty('width');
-        modalImg.style.maxHeight = modalImg.dataset.defaultMaxHeight || '';
-        return;
-      }
-
-      const viewportWidth = window.innerWidth * 0.95;
-      const viewportHeight = window.innerHeight * 0.9;
-      const dialogWidth = Math.min(naturalWidth, viewportWidth);
-      const imageMaxHeight = Math.min(naturalHeight, viewportHeight);
-
-      modalDialog.style.maxWidth = dialogWidth + 'px';
-      modalDialog.style.width = 'auto';
-      modalImg.style.maxHeight = imageMaxHeight + 'px';
-    };
-
-    const updateDownloadLink = (nextSrc) => {
-      if (!downloadLink) return;
-      downloadLink.href = nextSrc;
-      downloadLink.download = 'avatar.jpg';
-    };
-
     const currentSrc = modalImg.getAttribute('src') || '';
-    const isSameSrc = currentSrc === prepared;
-
+    const isSameSrc = currentSrc === displaySrc;
     if (!isSameSrc) {
       modalImg.style.opacity = '0';
     }
 
-    modalImg.alt = 'Фото клиента';
+    modalImg.alt = type === 'support' ? 'Фото оператора' : 'Фото клиента';
 
     modalImg.onload = () => {
       modalImg.style.opacity = '1';
@@ -7428,12 +7686,11 @@ function findTicketEverywhere(ticketId) {
     };
 
     modalImg.onerror = () => {
-      if (!modalImg.src.includes(fallbackSrc)) {
+      if (modalImg.src !== fallbackSrc) {
         modalImg.src = fallbackSrc;
         updateDownloadLink(fallbackSrc);
         return;
       }
-
       modalImg.style.opacity = '1';
       modalImg.onerror = null;
     };
@@ -7445,13 +7702,13 @@ function findTicketEverywhere(ticketId) {
         modalImg.onerror = null;
       } else {
         modalImg.src = '';
-        modalImg.src = prepared;
+        modalImg.src = displaySrc;
       }
     } else {
-      modalImg.src = prepared;
+      modalImg.src = displaySrc;
     }
 
-    updateDownloadLink(prepared);
+    updateDownloadLink(displaySrc);
 
     if (modalImg.complete && modalImg.naturalWidth > 0) {
       modalImg.style.opacity = '1';
@@ -7460,43 +7717,47 @@ function findTicketEverywhere(ticketId) {
       adjustAvatarModalSize();
     }
 
-    modalImg.dataset.currentSrc = prepared;
+    modalImg.dataset.currentSrc = displaySrc;
 
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
     modalInstance.show();
 
     window.addEventListener('resize', adjustAvatarModalSize);
     modalEl._avatarResizeHandler = adjustAvatarModalSize;
-
-    const cleanupModal = () => {
-      window.removeEventListener('resize', adjustAvatarModalSize);
-      if (modalDialog) {
-        modalDialog.style.removeProperty('max-width');
-        modalDialog.style.removeProperty('width');
-      }
-      modalImg.style.maxHeight = modalImg.dataset.defaultMaxHeight || '';
-      modalEl._avatarResizeHandler = null;
-      modalEl._avatarCleanupHandler = null;
-      modalEl._avatarShownHandler = null;
-    };
-
     modalEl.addEventListener('hidden.bs.modal', cleanupModal, { once: true });
     modalEl._avatarCleanupHandler = cleanupModal;
+    modalEl.addEventListener('shown.bs.modal', adjustAvatarModalSize, { once: true });
+    modalEl._avatarShownHandler = adjustAvatarModalSize;
 
-    const handleModalShown = () => {
-      adjustAvatarModalSize();
-    };
-
-    modalEl.addEventListener('shown.bs.modal', handleModalShown, { once: true });
-    modalEl._avatarShownHandler = handleModalShown;
+    updateNavigation(store);
   }
 
-  const avaInHistory = document.getElementById('clientAvatarInHistory');
-  if (avaInHistory) {
-    avaInHistory.style.cursor = 'zoom-in';
-    avaInHistory.addEventListener('click', function () {
-      const fullSrc = this.dataset.fullsrc || this.src;
-      showAvatar(fullSrc);
+  prevBtn?.addEventListener('click', () => {
+    const store = window.historyAvatarStore && window.historyAvatarStore[currentType];
+    const total = store?.entries?.length || 0;
+    if (!total) return;
+    showAvatarFromStore(currentType, (currentIndex - 1 + total) % total);
+  });
+
+  nextBtn?.addEventListener('click', () => {
+    const store = window.historyAvatarStore && window.historyAvatarStore[currentType];
+    const total = store?.entries?.length || 0;
+    if (!total) return;
+    showAvatarFromStore(currentType, (currentIndex + 1) % total);
+  });
+
+  window.openHistoryAvatar = function (type, indexOverride) {
+    const normalizedType = type === 'support' ? 'support' : 'client';
+    showAvatarFromStore(normalizedType, indexOverride);
+  };
+
+  if (historyContent) {
+    historyContent.addEventListener('click', (event) => {
+      const avatarBtn = event.target.closest('.message-avatar');
+      if (!avatarBtn) return;
+      const type = avatarBtn.dataset.avatarType === 'support' ? 'support' : 'client';
+      const index = Number.parseInt(avatarBtn.dataset.avatarIndex, 10);
+      showAvatarFromStore(type, Number.isFinite(index) ? index : undefined);
     });
   }
 })();
@@ -8268,7 +8529,10 @@ window.currentUser = CURRENT_OPERATOR;
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
       </div>
       <div class="modal-body p-0 text-center">
-        <img id="avatarModalImg" src="" alt="Аватар клиента" style="max-width: 100%; max-height: 80vh; object-fit: contain;">
+        <button type="button" class="avatar-nav" id="avatarModalPrev" aria-label="Предыдущее фото">‹</button>
+        <img id="avatarModalImg" src="" alt="Аватар" style="max-width: 100%; max-height: 80vh; object-fit: contain;">
+        <button type="button" class="avatar-nav" id="avatarModalNext" aria-label="Следующее фото">›</button>
+        <div id="avatarModalCounter" class="d-none"></div>
       </div>
       <div class="modal-footer border-0 justify-content-center">
         <a id="avatarDownloadLink" class="btn btn-primary" href="#" download="avatar.jpg">
