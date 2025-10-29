@@ -76,6 +76,7 @@
         userPasswordBlock: resolveFrom(userModal, '[data-auth-user-password-current]'),
         userPasswordInput: resolveFrom(userModal, '[name="password"]'),
         userRegistrationInput: resolveFrom(userModal, '[data-auth-user-registration]'),
+        userRegistrationRelative: resolveFrom(userModal, '[data-auth-user-registration-relative]'),
         userPhonesContainer: resolveFrom(userModal, '[data-auth-user-phones]'),
         userPhonesEmpty: resolveFrom(userModal, '[data-auth-user-phones-empty]'),
         userPhoneAddButton: resolveFrom(userModal, '[data-auth-user-phone-add]'),
@@ -101,6 +102,10 @@
         userPasswordCreateSection: resolveFrom(userModal, '[data-auth-user-password-create]'),
         userPasswordChangeWrapper: resolveFrom(userModal, '[data-auth-user-password-change-wrapper]'),
         userPasswordChangeButton: resolveFrom(userModal, '[data-auth-user-password-change]'),
+        userBlockWrapper: resolveFrom(userModal, '[data-auth-user-block-wrapper]'),
+        userBlockStatus: resolveFrom(userModal, '[data-auth-user-block-status]'),
+        userBlockToggle: resolveFrom(userModal, '[data-auth-user-block-toggle]'),
+        userBlockMessage: resolveFrom(userModal, '[data-auth-user-block-message]'),
         userPhotoViewerModal:
           resolveFrom(userModal, '[data-auth-user-photo-viewer-modal]') ||
           resolveFrom(documentRoot, '[data-auth-user-photo-viewer-modal]'),
@@ -168,6 +173,9 @@
       this.handleOrgMembersSubmit = this.handleOrgMembersSubmit.bind(this);
       this.handleInputSettingsChange = this.handleInputSettingsChange.bind(this);
       this.handleDepartmentSearchInput = this.handleDepartmentSearchInput.bind(this);
+      this.handleFullNameInput = this.handleFullNameInput.bind(this);
+      this.handleUsernameInput = this.handleUsernameInput.bind(this);
+      this.handleBlockToggle = this.handleBlockToggle.bind(this);
       this.modalState = null;
       this.modalPasswordState = { visible: false, loaded: false, value: '' };
       this.modalInstance = null;
@@ -266,6 +274,12 @@
       if (this.elements.userDepartmentSearch) {
         this.elements.userDepartmentSearch.addEventListener('input', this.handleDepartmentSearchInput);
       }
+      if (this.elements.userFullNameInput) {
+        this.elements.userFullNameInput.addEventListener('input', this.handleFullNameInput);
+      }
+      if (this.elements.userUsernameInput) {
+        this.elements.userUsernameInput.addEventListener('input', this.handleUsernameInput);
+      }
       if (this.documentRoot) {
         this.documentRoot.addEventListener('inputSettings:change', this.handleInputSettingsChange);
       }
@@ -288,6 +302,9 @@
         this.elements.orgMembersModal.addEventListener('hidden.bs.modal', () => {
           this.orgMembersModalState = { nodeId: null };
         });
+      }
+      if (this.elements.userBlockToggle) {
+        this.elements.userBlockToggle.addEventListener('click', this.handleBlockToggle);
       }
     }
 
@@ -435,6 +452,12 @@
         fullNameRow.className = 'text-muted small';
         fullNameRow.textContent = user.full_name;
         userInfo.appendChild(fullNameRow);
+      }
+      if (user.is_blocked) {
+        const statusBadge = document.createElement('span');
+        statusBadge.className = 'badge rounded-pill text-bg-danger align-self-start mt-2';
+        statusBadge.textContent = 'Заблокирован';
+        userInfo.appendChild(statusBadge);
       }
       if (user.department) {
         const departmentRow = document.createElement('div');
@@ -947,6 +970,7 @@
         userId: mode === 'edit' ? user?.id : null,
         original,
         permissions,
+        isBlocked: Boolean(user?.is_blocked),
       };
       this.elements.userForm.dataset.mode = mode;
       this.setUserModalError('');
@@ -968,6 +992,8 @@
         this.elements.userFullNameInput.value = fullName;
         this.elements.userFullNameInput.disabled = mode === 'edit' && !permissions.canEditDetails;
       }
+
+      this.updateUserModalTitleFromInputs();
 
       const roleId = user?.role_id != null ? String(user.role_id) : '';
       this.populateRoleSelect(this.elements.userRoleSelect, mode === 'edit' ? roleId : '');
@@ -1029,11 +1055,23 @@
         this.elements.userPasswordToggle.disabled = !(mode === 'edit' && permissions.canViewPassword);
       }
 
-      if (this.elements.userRegistrationInput) {
-        this.elements.userRegistrationInput.value =
-          mode === 'edit'
-            ? this.formatRegistrationDate(user?.registration_date) || '—'
-            : 'Будет назначена автоматически';
+      if (mode === 'edit') {
+        const formattedDate = this.formatRegistrationDate(user?.registration_date) || '—';
+        const relativeText = this.formatRegistrationRelative(user?.registration_date);
+        this.setRegistrationInfo(formattedDate, relativeText);
+      } else {
+        this.setRegistrationInfo('Будет назначена автоматически', '—');
+      }
+
+      if (this.elements.userBlockWrapper) {
+        const canBlock = permissions.canBlock;
+        const isBlocked = Boolean(user?.is_blocked);
+        this.modalState.isBlocked = isBlocked;
+        this.elements.userBlockWrapper.classList.toggle('d-none', mode !== 'edit');
+        this.updateBlockControls(isBlocked, mode === 'edit' && canBlock);
+        if (this.elements.userBlockToggle) {
+          this.elements.userBlockToggle.disabled = !(mode === 'edit' && canBlock);
+        }
       }
 
       const phones = mode === 'edit' ? user?.phones || [] : [];
@@ -1056,6 +1094,7 @@
           canEditPassword: true,
           canViewPassword: false,
           canEditDetails: true,
+          canBlock: false,
         };
       }
       return {
@@ -1064,6 +1103,7 @@
         canEditPassword: Boolean(user?.can_edit_password),
         canViewPassword: Boolean(user?.can_view_password),
         canEditDetails: Boolean(user?.is_self || user?.can_edit_username),
+        canBlock: Boolean(user?.can_block),
       };
     }
 
@@ -2024,6 +2064,9 @@
       if (this.elements.userRegistrationInput) {
         this.elements.userRegistrationInput.value = '';
       }
+      if (this.elements.userRegistrationRelative) {
+        this.elements.userRegistrationRelative.textContent = '—';
+      }
       if (this.elements.userPasswordConfirmInput) {
         this.elements.userPasswordConfirmInput.value = '';
       }
@@ -2041,6 +2084,23 @@
       this.setPasswordBlockVisible(false);
       this.resetModalPasswordDisplay();
       this.setUserModalError('');
+      if (this.elements.userBlockWrapper) {
+        this.elements.userBlockWrapper.classList.add('d-none');
+      }
+      if (this.elements.userBlockStatus) {
+        this.elements.userBlockStatus.textContent = 'Активен';
+        this.elements.userBlockStatus.classList.remove('text-bg-danger');
+        this.elements.userBlockStatus.classList.add('text-bg-success');
+      }
+      if (this.elements.userBlockToggle) {
+        this.elements.userBlockToggle.disabled = false;
+        this.elements.userBlockToggle.textContent = 'Заблокировать';
+        this.elements.userBlockToggle.classList.remove('btn-outline-success');
+        this.elements.userBlockToggle.classList.add('btn-outline-danger');
+      }
+      if (this.elements.userBlockMessage) {
+        this.elements.userBlockMessage.textContent = 'Пользователь может входить в панель.';
+      }
       if (this.passwordModalInstance) {
         this.passwordModalInstance.hide();
       } else if (this.elements.userPasswordModal) {
@@ -2049,6 +2109,192 @@
         this.elements.userPasswordModal.setAttribute('aria-hidden', 'true');
       }
       this.handlePasswordModalHidden();
+    }
+
+    resetPasswords() {
+      this.resetModalPasswordDisplay();
+      this.handlePasswordModalHidden();
+    }
+
+    handleFullNameInput() {
+      this.updateUserModalTitleFromInputs();
+    }
+
+    handleUsernameInput() {
+      this.updateUserModalTitleFromInputs();
+    }
+
+    updateUserModalTitleFromInputs() {
+      if (!this.elements.userModalTitle || !this.modalState) {
+        return;
+      }
+      const mode = this.modalState.mode;
+      const fullName = this.elements.userFullNameInput ? this.elements.userFullNameInput.value.trim() : '';
+      const username = this.elements.userUsernameInput ? this.elements.userUsernameInput.value.trim() : '';
+      if (mode === 'create') {
+        this.elements.userModalTitle.textContent = fullName || 'Новый пользователь';
+        return;
+      }
+      this.elements.userModalTitle.textContent = fullName || username || 'Пользователь';
+    }
+
+    setRegistrationInfo(value, relativeText) {
+      if (this.elements.userRegistrationInput) {
+        this.elements.userRegistrationInput.value = value || '';
+      }
+      if (this.elements.userRegistrationRelative) {
+        const text = relativeText && relativeText.trim() ? relativeText.trim() : '—';
+        this.elements.userRegistrationRelative.textContent = text;
+      }
+    }
+
+    formatRegistrationRelative(value) {
+      if (!value) {
+        return '—';
+      }
+      const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+      const date = new Date(normalized);
+      if (Number.isNaN(date.getTime())) {
+        return '—';
+      }
+      const now = new Date();
+      if (date > now) {
+        return 'меньше месяца назад';
+      }
+      const nowTotalMonths = now.getFullYear() * 12 + now.getMonth();
+      const dateTotalMonths = date.getFullYear() * 12 + date.getMonth();
+      let totalMonths = nowTotalMonths - dateTotalMonths;
+      if (now.getDate() < date.getDate()) {
+        totalMonths = Math.max(0, totalMonths - 1);
+      }
+      if (totalMonths <= 0) {
+        return 'меньше месяца назад';
+      }
+      const years = Math.floor(totalMonths / 12);
+      const months = totalMonths % 12;
+      const parts = [];
+      if (years > 0) {
+        parts.push(`${years} ${this.pluralizeRu(years, ['год', 'года', 'лет'])}`);
+      }
+      if (months > 0) {
+        parts.push(`${months} ${this.pluralizeRu(months, ['месяц', 'месяца', 'месяцев'])}`);
+      }
+      return parts.length ? `${parts.join(' ')} назад` : 'меньше месяца назад';
+    }
+
+    pluralizeRu(value, forms) {
+      const abs = Math.abs(value) % 100;
+      const last = abs % 10;
+      if (abs > 10 && abs < 20) {
+        return forms[2];
+      }
+      if (last > 1 && last < 5) {
+        return forms[1];
+      }
+      if (last === 1) {
+        return forms[0];
+      }
+      return forms[2];
+    }
+
+    updateBlockControls(isBlocked, canBlock) {
+      if (this.elements.userBlockStatus) {
+        this.elements.userBlockStatus.textContent = isBlocked ? 'Заблокирован' : 'Активен';
+        this.elements.userBlockStatus.classList.toggle('text-bg-danger', isBlocked);
+        this.elements.userBlockStatus.classList.toggle('text-bg-success', !isBlocked);
+      }
+      if (this.elements.userBlockToggle) {
+        this.elements.userBlockToggle.textContent = isBlocked ? 'Разблокировать' : 'Заблокировать';
+        this.elements.userBlockToggle.classList.toggle('btn-outline-success', isBlocked);
+        this.elements.userBlockToggle.classList.toggle('btn-outline-danger', !isBlocked);
+        this.elements.userBlockToggle.disabled = !canBlock;
+      }
+      if (this.elements.userBlockMessage) {
+        this.elements.userBlockMessage.textContent = isBlocked
+          ? 'Пользователь не сможет войти в панель до разблокировки.'
+          : 'Пользователь может входить в панель.';
+      }
+    }
+
+    setBlockControlsLoading(isLoading) {
+      if (!this.elements.userBlockToggle) {
+        return;
+      }
+      if (isLoading) {
+        this.elements.userBlockToggle.disabled = true;
+        return;
+      }
+      const canBlock = this.modalState?.mode === 'edit' && this.modalState?.permissions?.canBlock;
+      this.elements.userBlockToggle.disabled = !canBlock;
+    }
+
+    handleBlockToggle(event) {
+      if (event) {
+        event.preventDefault();
+      }
+      if (!this.modalState || this.modalState.mode !== 'edit') {
+        return;
+      }
+      const { userId, permissions } = this.modalState;
+      if (!permissions?.canBlock) {
+        this.setMessage('У вас нет прав на изменение статуса доступа.', 'danger');
+        return;
+      }
+      if (!userId) {
+        this.setUserModalError('Пользователь не найден.');
+        return;
+      }
+      const nextState = !this.modalState.isBlocked;
+      this.setUserModalError('');
+      this.setBlockControlsLoading(true);
+      fetch(`${this.usersEndpoint}/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ is_blocked: nextState }),
+      })
+        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.success === false) {
+            throw new Error(data.error || 'Не удалось обновить статус доступа');
+          }
+          const updatedUser = data.user || null;
+          if (updatedUser) {
+            this.applyUserUpdate(updatedUser);
+            this.modalState.original = { ...(this.modalState.original || {}), ...updatedUser };
+            this.modalState.isBlocked = Boolean(updatedUser.is_blocked);
+          } else {
+            this.modalState.isBlocked = nextState;
+            if (this.modalState.original) {
+              this.modalState.original.is_blocked = nextState;
+            }
+          }
+          this.updateBlockControls(this.modalState.isBlocked, permissions.canBlock);
+          this.setMessage(
+            this.modalState.isBlocked ? 'Пользователь заблокирован.' : 'Пользователь разблокирован.',
+            'success',
+          );
+        })
+        .catch((error) => {
+          this.setUserModalError(error.message || String(error));
+        })
+        .finally(() => {
+          this.setBlockControlsLoading(false);
+        });
+    }
+
+    applyUserUpdate(user) {
+      if (!user) {
+        return;
+      }
+      const index = this.state.users.findIndex((item) => String(item.id) === String(user.id));
+      if (index === -1) {
+        this.state.users.push(user);
+      } else {
+        const existing = this.state.users[index];
+        this.state.users[index] = { ...existing, ...user };
+      }
+      this.renderUsers();
     }
 
 
