@@ -1431,7 +1431,7 @@
       this.populatePhoneTypeSelect(typeSelect, initialType);
       typeSelect.disabled = !editable;
       typeCol.appendChild(typeLabel);
-      typeCol.appendChild(typeInput);
+      typeCol.appendChild(typeSelect);
 
       const valueCol = document.createElement('div');
       valueCol.className = 'col-12 col-sm-6';
@@ -1449,7 +1449,7 @@
       this.applyPhoneValueSettings(valueInput);
       valueInput.disabled = !editable;
       valueCol.appendChild(valueLabel);
-      typeCol.appendChild(typeSelect);
+      valueCol.appendChild(valueInput);
 
       const removeCol = document.createElement('div');
       removeCol.className = 'col-12 col-sm-1 d-flex align-items-end';
