@@ -269,24 +269,27 @@
 
   .actions-cell .actions-layout {
     display: flex;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-
-  .actions-cell .actions-column {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    flex: 1 1 auto;
-  }
-
-  .actions-cell .actions-column .btn {
-    width: 100%;
-  }
-
-  .actions-cell .actions-side {
-    display: flex;
     align-items: center;
+    gap: 0.35rem;
+  }
+
+  .actions-cell .actions-layout .btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .actions-cell .action-icon {
+    width: 2rem;
+    min-width: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+  }
+
+  .actions-cell .action-icon span[aria-hidden="true"] {
+    line-height: 1;
+    font-size: 1rem;
   }
 
   /* Стили для resize столбцов */
@@ -4637,7 +4640,7 @@ function displayTicketsForCurrentPage() {
   // Кнопка создания задачи (безопасно прокидываем текст через JSON.stringify, чтобы не париться с кавычками)
                 let createTaskBtn;
                 if (t.linked_task_id) {
-                  createTaskBtn = `<button class="btn btn-sm btn-outline-primary open-task-btn" data-task-id="${t.linked_task_id}">
+                  createTaskBtn = `<button type="button" class="btn btn-sm btn-outline-primary open-task-btn" data-task-id="${t.linked_task_id}">
                      №DL_${t.linked_task_id}
                    </button>`;
                 } else {
@@ -4645,6 +4648,7 @@ function displayTicketsForCurrentPage() {
                   const sanitizedLocation = (t.location_name || t.city || '').replace(/"/g, '&quot;');
                     createTaskBtn = `
                       <button
+                        type="button"
                         class="btn btn-sm btn-outline-primary create-task-btn"
                         data-problem="${sanitizedProblem}"
                         data-location="${sanitizedLocation}"
@@ -4656,12 +4660,29 @@ function displayTicketsForCurrentPage() {
 
         const businessValue = t.business || '—';
         const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
-        const historyButton = `<button class="btn btn-sm btn-outline-secondary w-100" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>`;
+        const historyButton = `
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary action-icon"
+            title="История переписки"
+            onclick="loadHistory(${t.user_id}, '${t.ticket_id}')"
+          >
+            <span aria-hidden="true">📜</span>
+            <span class="visually-hidden">История</span>
+          </button>`;
         const closeButton = (t.raw_status !== 'resolved')
-          ? `<button class="btn btn-sm btn-danger w-100" onclick="confirmClose(${t.user_id}, '${t.ticket_id}')">Закрыть</button>`
+          ? `
+            <button
+              type="button"
+              class="btn btn-sm btn-danger action-icon"
+              title="Закрыть заявку"
+              onclick="confirmClose(${t.user_id}, '${t.ticket_id}')"
+            >
+              <span aria-hidden="true">🛑</span>
+              <span class="visually-hidden">Закрыть</span>
+            </button>`
           : '';
-        const actionsColumn = `<div class="actions-column">${historyButton}${closeButton}</div>`;
-        const actionBtns = `<div class="actions-layout">${actionsColumn}<div class="actions-side">${createTaskBtn}</div></div>`;
+        const actionBtns = `<div class="actions-layout">${historyButton}${closeButton}${createTaskBtn}</div>`;
 
   let rowHTML = '';
         rowHTML += `<td>${clientCell}</td>`;
@@ -4848,20 +4869,41 @@ function displayTicketsForCurrentPage() {
 
 					// === Фильтрация ===
 					// === Фильтрация (применяется ко всем данным) ===
-						function collectInlineFilterValues() {
+                                                function getFilterElementValue(baseId, options = {}) {
+        const { lowerCase = true } = options;
+        const inlineEl = document.getElementById(baseId);
+        const modalEl = document.getElementById(`${baseId}Modal`);
+        const element = inlineEl || modalEl;
+
+        if (!element || typeof element.value === 'undefined') {
+                return '';
+        }
+
+        let value = element.value;
+        if (typeof value === 'string') {
+                value = value.trim();
+                if (lowerCase) {
+                        value = value.toLowerCase();
+                }
+        }
+
+        return value;
+                                                }
+
+                                                function collectInlineFilterValues() {
         return {
-                search: document.getElementById('searchInput')?.value.toLowerCase() || '',
-                status: document.getElementById('filterStatus')?.value.toLowerCase() || '',
-                user: document.getElementById('filterUser')?.value.toLowerCase() || '',
-                ticketId: document.getElementById('filterTicketId')?.value.toLowerCase() || '',
-                business: document.getElementById('filterBusiness')?.value.toLowerCase() || '',
-                location: document.getElementById('filterLocation')?.value.toLowerCase() || '',
-                responsible: document.getElementById('filterResponsible')?.value.toLowerCase() || '',
-                clientStatus: document.getElementById('filterClientStatus')?.value.toLowerCase() || '',
-                dateFrom: document.getElementById('filterDateFrom')?.value || '',
-                dateTo: document.getElementById('filterDateTo')?.value || ''
+                search: getFilterElementValue('searchInput'),
+                status: getFilterElementValue('filterStatus'),
+                user: getFilterElementValue('filterUser'),
+                ticketId: getFilterElementValue('filterTicketId'),
+                business: getFilterElementValue('filterBusiness'),
+                location: getFilterElementValue('filterLocation'),
+                responsible: getFilterElementValue('filterResponsible'),
+                clientStatus: getFilterElementValue('filterClientStatus'),
+                dateFrom: getFilterElementValue('filterDateFrom', { lowerCase: false }),
+                dateTo: getFilterElementValue('filterDateTo', { lowerCase: false })
         };
-						}
+                                                }
 
 						function applyFilters(optionsOrEvent = {}) {
         let options = {};
@@ -5024,25 +5066,42 @@ function displayTicketsForCurrentPage() {
 								if (t.business === 'СушиВесла') businessClass = 'business-sushi';
 								else if (t.business === 'БлинБери') businessClass = 'business-blin';
 
-								const createTaskBtn = (t.linked_task_id)
-									? `<button class="btn btn-sm btn-outline-primary open-task-btn" data-task-id="${t.linked_task_id}">
-									   №DL_${t.linked_task_id}
-									 </button>`
-									: `<button class="btn btn-sm btn-outline-primary create-task-btn"
-									   data-problem="${(t.problem||'').replace(/"/g,'&quot;')}"
-									   data-location="${(t.location_name||t.city||'').replace(/"/g,'&quot;')}"
-									   data-ticket="${t.ticket_id}">
-									   Создать задачу
-									 </button>`;
+                                                                const createTaskBtn = (t.linked_task_id)
+                                                                        ? `<button type="button" class="btn btn-sm btn-outline-primary open-task-btn" data-task-id="${t.linked_task_id}">
+                                                                           №DL_${t.linked_task_id}
+                                                                         </button>`
+                                                                        : `<button type="button" class="btn btn-sm btn-outline-primary create-task-btn"
+                                                                           data-problem="${(t.problem||'').replace(/"/g,'&quot;')}"
+                                                                           data-location="${(t.location_name||t.city||'').replace(/"/g,'&quot;')}"
+                                                                           data-ticket="${t.ticket_id}">
+                                                                           Создать задачу
+                                                                         </button>`
 
 								                                                                  const businessValue = t.business || '—';
                                                                   const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
-                                                                  const historyButton = `<button class="btn btn-sm btn-outline-secondary w-100" onclick="loadHistory(${t.user_id}, '${t.ticket_id}')">История</button>`;
+                                                                  const historyButton = `
+                                                                    <button
+                                                                      type="button"
+                                                                      class="btn btn-sm btn-outline-secondary action-icon"
+                                                                      title="История переписки"
+                                                                      onclick="loadHistory(${t.user_id}, '${t.ticket_id}')"
+                                                                    >
+                                                                      <span aria-hidden="true">📜</span>
+                                                                      <span class="visually-hidden">История</span>
+                                                                    </button>`;
                                                                   const closeButton = (t.raw_status !== 'resolved')
-                                                                          ? `<button class="btn btn-sm btn-danger w-100" onclick="confirmClose(${t.user_id}, '${t.ticket_id}')">Закрыть</button>`
+                                                                          ? `
+                                                                            <button
+                                                                              type="button"
+                                                                              class="btn btn-sm btn-danger action-icon"
+                                                                              title="Закрыть заявку"
+                                                                              onclick="confirmClose(${t.user_id}, '${t.ticket_id}')"
+                                                                            >
+                                                                              <span aria-hidden="true">🛑</span>
+                                                                              <span class="visually-hidden">Закрыть</span>
+                                                                            </button>`
                                                                           : '';
-                                                                  const actionsColumn = `<div class="actions-column">${historyButton}${closeButton}</div>`;
-                                                                  const actionBtns = `<div class="actions-layout">${actionsColumn}<div class="actions-side">${createTaskBtn}</div></div>`;
+                                                                  const actionBtns = `<div class="actions-layout">${historyButton}${closeButton}${createTaskBtn}</div>`;
 
                                                                   let rowHTML = '';
                                                                   rowHTML += `<td>${clientCell}</td>`;
@@ -5128,20 +5187,33 @@ function displayTicketsForCurrentPage() {
 						// === Сброс фильтров ===
 						function resetFilters() {
 							  // Сбрасываем значения фильтров (только существующие элементы)
-							  const filterIds = [
-								'searchInput', 'filterStatus', 'filterUser', 'filterTicketId', 
-								'filterBusiness', 'filterLocation', 'filterClientStatus', 
-								'filterResponsible', 'filterDateFrom', 'filterDateTo'
-							  ];
-							  
-							  filterIds.forEach(id => {
-								const element = document.getElementById(id);
-								if (element) {
-								  element.value = '';
-								}
-							  });
-							  
-							  // Возвращаемся к отображению всех заявок
+                                                          const filterIds = [
+                                                                'searchInput', 'filterStatus', 'filterUser', 'filterTicketId',
+                                                                'filterBusiness', 'filterLocation', 'filterClientStatus',
+                                                                'filterResponsible', 'filterDateFrom', 'filterDateTo'
+                                                          ];
+
+                                                          filterIds.forEach(id => {
+                                                                const element = document.getElementById(id);
+                                                                if (element) {
+                                                                  element.value = '';
+                                                                }
+                                                          });
+
+                                                          const modalFilterIds = [
+                                                                'filterStatusModal', 'filterUserModal', 'filterTicketIdModal',
+                                                                'filterBusinessModal', 'filterLocationModal', 'filterClientStatusModal',
+                                                                'filterResponsibleModal', 'filterDateFromModal', 'filterDateToModal'
+                                                          ];
+
+                                                          modalFilterIds.forEach(id => {
+                                                                const modalElement = document.getElementById(id);
+                                                                if (modalElement) {
+                                                                  modalElement.value = '';
+                                                                }
+                                                          });
+
+                                                          // Возвращаемся к отображению всех заявок
                                                           currentPage = 1;
                                                           filtersCurrentlyActive = false;
                                                           window.filteredTickets = null;
@@ -5149,6 +5221,10 @@ function displayTicketsForCurrentPage() {
                                                           persistCurrentPageIfUnfiltered();
                                                           displayTicketsForCurrentPage();
                                                           updatePagination();
+
+                                                          if (typeof showActiveFiltersModal === 'function') {
+                                                                showActiveFiltersModal();
+                                                          }
                                                 }
 
    // === Обновляем обработчики событий ===
