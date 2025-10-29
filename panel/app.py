@@ -4138,6 +4138,110 @@ def save_org_structure(structure: dict | list | None) -> dict:
     return sanitized
 
 
+def _normalize_department_path(value: str | None) -> str:
+    if not value:
+        return ""
+    if not isinstance(value, str):
+        value = str(value)
+    parts = [part.strip() for part in value.split("/") if part and part.strip()]
+    return " / ".join(parts)
+
+
+def _find_org_node_id_by_department(nodes: list[dict], department: str | None) -> str | None:
+    normalized_value = _normalize_department_path(department)
+    if not normalized_value:
+        return None
+    normalized_lower = normalized_value.lower()
+    id_map: dict[str, dict] = {}
+    for node in nodes:
+        node_id = node.get("id")
+        if node_id:
+            id_map[str(node_id)] = node
+
+    def build_path(node_id: str) -> str:
+        path_parts: list[str] = []
+        current_id = node_id
+        visited: set[str] = set()
+        while current_id and current_id not in visited:
+            visited.add(current_id)
+            node = id_map.get(current_id)
+            if not node:
+                break
+            name = str(node.get("name") or "").strip()
+            if name:
+                path_parts.append(name)
+            parent_id = node.get("parent_id")
+            current_id = str(parent_id) if parent_id and str(parent_id) in id_map else None
+        return " / ".join(reversed(path_parts))
+
+    fallback_id: str | None = None
+    for node_id, node in id_map.items():
+        path = _normalize_department_path(build_path(node_id))
+        if path and path.lower() == normalized_lower:
+            return node_id
+        if fallback_id is None:
+            name_normalized = _normalize_department_path(node.get("name"))
+            if name_normalized and name_normalized.lower() == normalized_lower:
+                fallback_id = node_id
+    return fallback_id
+
+
+def sync_org_structure_user_department(
+    user_id: int | str | None,
+    previous_department: str | None,
+    new_department: str | None,
+) -> None:
+    try:
+        numeric_user_id = int(user_id)
+    except (TypeError, ValueError):
+        return
+    if numeric_user_id <= 0:
+        return
+
+    previous_normalized = _normalize_department_path(previous_department)
+    new_normalized = _normalize_department_path(new_department)
+    if not previous_normalized and not new_normalized:
+        return
+
+    structure = load_org_structure()
+    nodes = structure.get("nodes") if isinstance(structure, dict) else None
+    if not isinstance(nodes, list) or not nodes:
+        return
+
+    target_add = _find_org_node_id_by_department(nodes, new_normalized) if new_normalized else None
+    target_remove = None
+    if previous_normalized and (not new_normalized or previous_normalized != new_normalized):
+        target_remove = _find_org_node_id_by_department(nodes, previous_normalized)
+
+    changed = False
+    for node in nodes:
+        node_id = node.get("id")
+        if not node_id:
+            continue
+        raw_members = node.get("members") if isinstance(node.get("members"), list) else []
+        member_set: set[int] = set()
+        for value in raw_members:
+            try:
+                member_set.add(int(value))
+            except (TypeError, ValueError):
+                continue
+
+        updated_members = set(member_set)
+        if target_remove and str(node_id) == str(target_remove) and numeric_user_id in updated_members:
+            if not target_add or str(target_add) != str(node_id):
+                updated_members.discard(numeric_user_id)
+        if target_add and str(node_id) == str(target_add):
+            if numeric_user_id not in updated_members:
+                updated_members.add(numeric_user_id)
+
+        if updated_members != member_set:
+            node["members"] = sorted(updated_members)
+            changed = True
+
+    if changed:
+        save_org_structure(structure)
+
+
 # === Публичная веб-форма обращений ===
 
 def ensure_web_form_schema():
@@ -10554,6 +10658,7 @@ def add_user():
             conn.commit()
             summary = _fetch_user_summary(conn, new_user_id)
 
+        sync_org_structure_user_department(new_user_id, None, summary.get("department") if summary else None)
         return jsonify({"success": True, "user": _serialize_user_row(summary)})
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
@@ -10563,11 +10668,13 @@ def add_user():
 @login_required
 def update_user(user_id):
     data = request.json or {}
+    original_department: str | None = None
     with get_users_db() as conn:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row:
             return jsonify({"success": False, "error": "Пользователь не найден"}), 404
 
+        original_department = (row["department"] or "").strip() or None
         updates_made = False
         can_edit_profile = _can_edit_user_profile(user_id)
 
@@ -10690,6 +10797,13 @@ def update_user(user_id):
 
     if not summary:
         return jsonify({"success": False, "error": "Пользователь не найден"}), 404
+
+    if "department" in data:
+        sync_org_structure_user_department(
+            user_id,
+            original_department,
+            summary.get("department") if summary else None,
+        )
 
     return jsonify({"success": True, "user": _serialize_user_row(summary), "updated": updates_made})
 
