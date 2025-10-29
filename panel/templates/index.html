@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/bootstrap-table.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css', v='2') }}" rel="stylesheet" />
   <style>
   /* Предотвращаем первый «прыжок» при ресайзе столбцов */
 #ticketsTable {
@@ -448,7 +448,7 @@
 
 .resizable-modal .modal-dialog {
   resize: both;
-  overflow: auto;
+  overflow: hidden;
   min-width: 400px;
   min-height: 300px;
 }
@@ -744,6 +744,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  margin-top: 4px;
 }
 
 #historyModal .message-avatar img {
@@ -2308,7 +2309,7 @@ let cachedAdminUsers = null;
           return normalized.includes('?') ? `${normalized}&full=1` : `${normalized}?full=1`;
         }
 
-        const DEFAULT_AVATAR_SRC = '/static/default-avatar.png';
+        const DEFAULT_AVATAR_SRC = "{{ url_for('static', filename='avatar_default.svg') }}";
         const AVATAR_HISTORY_PREFIX = 'history-avatar::';
 
         function readAvatarHistory(key) {
@@ -2430,9 +2431,12 @@ let cachedAdminUsers = null;
           const supportKeyBase = (ticketDetails?.responsible || ticketDetails?.operator || '').toString().trim().toLowerCase() || 'default';
           const supportKey = `${AVATAR_HISTORY_PREFIX}support::${supportKeyBase}`;
           const supportCandidates = [
+            ticketDetails?.support_avatar_full_url,
             ticketDetails?.support_avatar_url,
+            ticketDetails?.operator_avatar_full_url,
             ticketDetails?.operator_avatar_url,
             ticketDetails?.support_avatar,
+            window.settings?.dialogConfig?.support_avatar_full_url,
             window.settings?.dialogConfig?.support_avatar_url,
             window.settings?.dialogConfig?.support_avatar,
           ].filter(Boolean);
@@ -6090,13 +6094,7 @@ function displayTicketsForCurrentPage() {
 
         function formatRuDate(d) {
                 if (!(d instanceof Date) || isNaN(d)) return '—';
-		const dd = String(d.getDate()).padStart(2,'0');
-		const mm = String(d.getMonth()+1).padStart(2,'0');
-		const yyyy = d.getFullYear();
-		const hh = String(d.getHours()).padStart(2,'0');
-		const mi = String(d.getMinutes()).padStart(2,'0');
-		const ss = String(d.getSeconds()).padStart(2,'0');
-		return `${dd}.${mm}.${yyyy}, ${hh}:${mi}:${ss}`;
+		return fmtTsISO(d.toISOString());
 	}
 
 	function diffHMin(from, to) {
@@ -7399,7 +7397,7 @@ function findTicketEverywhere(ticketId) {
 		});
 		
 	// список базовых таймзон (можно расширить)
-  const DEFAULT_TZ = localStorage.getItem('its_operator_tz') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const BROWSER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 	function fmtTsISO(iso, tz = getOperatorTZ()) {
 	  const d = new Date(iso);
@@ -7412,13 +7410,16 @@ function findTicketEverywhere(ticketId) {
 	}
 
 	function getOperatorTZ() {
-	  const saved = localStorage.getItem('its_operator_tz') || 'UTC';
-	  return saved === 'browser' ? 'UTC' : saved;
+	  const saved = localStorage.getItem('its_operator_tz');
+	  if (!saved || saved === 'browser') {
+	    return BROWSER_TIMEZONE;
+	  }
+	  return saved;
 	}
 
 	function setOperatorTZ(value) {
 	  localStorage.setItem('its_operator_tz', value);
-	  const tz = value === 'browser' ? 'UTC' : value;
+	  const tz = value === 'browser' || !value ? BROWSER_TIMEZONE : value;
 	  // Перерисовать все временные метки
 	  document.querySelectorAll('.msg-time[data-iso]').forEach(el => {
 		el.textContent = fmtTsISO(el.dataset.iso, tz);
