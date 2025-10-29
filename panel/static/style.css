@@ -469,6 +469,15 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.18);
 }
 
+.auth-user-photo-img[data-auth-user-photo-preview-trigger] {
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+}
+
+.auth-user-photo-img[data-auth-user-photo-preview-trigger]:hover {
+  transform: scale(1.03);
+}
+
 .auth-user-photo-preview .btn {
   min-width: 110px;
 }
@@ -479,6 +488,14 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   justify-content: center;
   gap: 0.5rem;
   margin-top: 1rem;
+}
+
+.auth-user-photo-preview-modal {
+  background-color: #000;
+}
+
+.auth-user-photo-preview-modal .modal-body {
+  background-color: transparent;
 }
 
 .auth-user-avatar {
