@@ -65,6 +65,7 @@ TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
 USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
 OBJECT_PASSPORT_DB_PATH = os.path.join(BASE_DIR, "object_passports.db")
+ORG_STRUCTURE_PATH = os.path.join(BASE_DIR, "org_structure.json")
 OBJECT_PASSPORT_UPLOADS_DIR = os.path.join(BASE_DIR, "object_passport_uploads")
 USER_PHOTOS_DIR = os.path.join(os.path.dirname(__file__), "static", "user_photos")
 ALLOWED_USER_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -4037,6 +4038,99 @@ def save_locations(locations):
 
     with open(LOCATIONS_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
+
+
+def sanitize_org_structure_payload(source: dict | list | None) -> dict:
+    nodes_source = []
+    if isinstance(source, dict):
+        raw_nodes = source.get("nodes")
+        if isinstance(raw_nodes, list):
+            nodes_source = raw_nodes
+    elif isinstance(source, list):
+        nodes_source = source
+
+    sanitized: list[dict] = []
+    if not isinstance(nodes_source, list):
+        return {"nodes": sanitized}
+
+    used_ids: set[str] = set()
+    raw_to_sanitized: dict[str, str] = {}
+
+    def _sanitize_members(payload) -> list[int]:
+        if not isinstance(payload, (list, tuple, set)):
+            return []
+        result: list[int] = []
+        seen: set[int] = set()
+        for value in payload:
+            try:
+                member_id = int(value)
+            except (TypeError, ValueError):
+                continue
+            if member_id not in seen:
+                seen.add(member_id)
+                result.append(member_id)
+        result.sort()
+        return result
+
+    temp_entries: list[tuple[dict, dict]] = []
+    for entry in nodes_source:
+        if not isinstance(entry, dict):
+            continue
+        raw_id = str(entry.get("id") or "").strip()
+        node_id = raw_id or uuid4().hex
+        while not node_id or node_id in used_ids:
+            node_id = uuid4().hex
+        if raw_id:
+            raw_to_sanitized.setdefault(raw_id, node_id)
+        name = str(entry.get("name") or "").strip() or "Новая ветка"
+        members = _sanitize_members(entry.get("members"))
+        sanitized_entry = {
+            "id": node_id,
+            "name": name,
+            "members": members,
+            "parent_id": None,
+        }
+        temp_entries.append((entry, sanitized_entry))
+        used_ids.add(node_id)
+
+    valid_ids = {item[1]["id"] for item in temp_entries}
+    for original, sanitized_entry in temp_entries:
+        parent_raw = None
+        if isinstance(original, dict):
+            parent_raw = original.get("parent_id")
+        parent_id: str | None = None
+        if parent_raw is not None:
+            parent_key = str(parent_raw).strip()
+            if parent_key:
+                if parent_key in raw_to_sanitized and raw_to_sanitized[parent_key] in valid_ids:
+                    parent_id = raw_to_sanitized[parent_key]
+                elif parent_key in valid_ids:
+                    parent_id = parent_key
+        if parent_id == sanitized_entry["id"] or parent_id not in valid_ids:
+            parent_id = None
+        sanitized_entry["parent_id"] = parent_id
+        sanitized.append(sanitized_entry)
+
+    sanitized.sort(key=lambda item: ((item.get("parent_id") or ""), item.get("name", "").lower(), item.get("id")))
+    return {"nodes": sanitized}
+
+
+def load_org_structure() -> dict:
+    if not os.path.exists(ORG_STRUCTURE_PATH):
+        return {"nodes": []}
+    try:
+        with open(ORG_STRUCTURE_PATH, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+    except Exception:
+        return {"nodes": []}
+    return sanitize_org_structure_payload(raw)
+
+
+def save_org_structure(structure: dict | list | None) -> dict:
+    sanitized = sanitize_org_structure_payload(structure)
+    with open(ORG_STRUCTURE_PATH, "w", encoding="utf-8") as f:
+        json.dump(sanitized, f, ensure_ascii=False, indent=2)
+    return sanitized
 
 
 # === Публичная веб-форма обращений ===
@@ -10832,8 +10926,21 @@ def get_auth_state():
             "catalog": _get_permissions_catalog(),
             "capabilities": capabilities,
             "current_user_id": current_id,
+            "org_structure": load_org_structure(),
         }
     )
+
+
+@app.route("/auth/org-structure", methods=["POST"])
+@login_required
+def update_org_structure_state():
+    if not (has_page_access("user_management") or has_page_access("settings")):
+        abort(403)
+
+    data = request.get_json(force=True, silent=True) or {}
+    payload = data.get("org_structure") if isinstance(data, dict) else data
+    sanitized = save_org_structure(payload)
+    return jsonify({"success": True, "org_structure": sanitized})
 
 @app.route("/api/channels/<int:channel_id>", methods=["GET"])
 @login_required
