@@ -1190,7 +1190,23 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
-                  <input type="text" class="form-control form-control-sm" id="authUserModalDepartment" name="department" autocomplete="off">
+                  <input
+                    type="search"
+                    class="form-control form-control-sm mb-2"
+                    placeholder="Поиск по отделам"
+                    autocomplete="off"
+                    data-auth-user-department-search
+                    aria-label="Поиск по отделам"
+                  >
+                  <select
+                    class="form-select form-select-sm"
+                    id="authUserModalDepartment"
+                    name="department"
+                    data-auth-user-department-select
+                  >
+                    <option value="">Не выбран</option>
+                  </select>
+                  <div class="form-text">Список отделов формируется на вкладке «Орг.структура».</div>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label small mb-1" for="authUserModalBirthDate">Дата рождения</label>
@@ -1211,7 +1227,17 @@
                         <div class="text-muted small mt-2">PNG, JPG, WebP до 5 МБ</div>
                       </div>
                       <div class="auth-user-photo-preview d-none" data-auth-user-photo-preview>
-                        <img src="" alt="Фото пользователя" class="auth-user-photo-img" data-auth-user-photo-img loading="lazy">
+                        <img
+                          src=""
+                          alt="Фото пользователя"
+                          class="auth-user-photo-img"
+                          data-auth-user-photo-img
+                          data-auth-user-photo-preview-trigger
+                          role="button"
+                          tabindex="0"
+                          aria-label="Открыть фото в полном размере"
+                          loading="lazy"
+                        >
                         <div class="d-flex gap-2 mt-3">
                           <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-change>Заменить</button>
                           <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-photo-remove>Удалить</button>
@@ -1240,6 +1266,17 @@
                 <input type="text" class="form-control form-control-sm" id="authUserModalPassword" name="password" autocomplete="off" placeholder="Оставьте пустым, чтобы не менять">
               </div>
               <div class="mb-3">
+                <label class="form-label small mb-1" for="authUserModalPasswordConfirm">Повторите пароль</label>
+                <input
+                  type="text"
+                  class="form-control form-control-sm"
+                  id="authUserModalPasswordConfirm"
+                  autocomplete="off"
+                  placeholder="Введите пароль повторно"
+                  data-auth-user-password-confirm
+                >
+              </div>
+              <div class="mb-3">
                 <label class="form-label small mb-1" for="authUserModalRegistration">Дата регистрации</label>
                 <input type="text" class="form-control form-control-sm" id="authUserModalRegistration" data-auth-user-registration readonly>
               </div>
@@ -1255,6 +1292,20 @@
               <button type="submit" class="btn btn-primary" data-auth-user-submit>Сохранить</button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="authUserPhotoPreviewModal" tabindex="-1" aria-hidden="true" data-auth-user-photo-viewer-modal>
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark text-white auth-user-photo-preview-modal">
+          <div class="modal-header border-0">
+            <h5 class="modal-title">Фото пользователя</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body text-center">
+            <img src="" alt="Фото пользователя" class="img-fluid rounded shadow" data-auth-user-photo-viewer-img loading="lazy">
+          </div>
         </div>
       </div>
     </div>
