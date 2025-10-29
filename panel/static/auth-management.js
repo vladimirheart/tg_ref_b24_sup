@@ -80,6 +80,7 @@
         userPhonesEmpty: resolveFrom(userModal, '[data-auth-user-phones-empty]'),
         userPhoneAddButton: resolveFrom(userModal, '[data-auth-user-phone-add]'),
         userUsernameInput: resolveFrom(userModal, '[name="username"]'),
+        userFullNameInput: resolveFrom(userModal, '[name="full_name"]'),
         userEmailInput: resolveFrom(userModal, '[name="email"]'),
         userDepartmentInput: resolveFrom(userModal, '[data-auth-user-department-select]'),
         userDepartmentSearch: resolveFrom(userModal, '[data-auth-user-department-search]'),
@@ -97,12 +98,24 @@
         userPhotoUploadingIndicator: resolveFrom(userModal, '[data-auth-user-photo-uploading]'),
         userPhotoUploader: resolveFrom(userModal, '[data-auth-user-photo-uploader]'),
         userPasswordConfirmInput: resolveFrom(userModal, '[data-auth-user-password-confirm]'),
+        userPasswordCreateSection: resolveFrom(userModal, '[data-auth-user-password-create]'),
+        userPasswordChangeWrapper: resolveFrom(userModal, '[data-auth-user-password-change-wrapper]'),
+        userPasswordChangeButton: resolveFrom(userModal, '[data-auth-user-password-change]'),
         userPhotoViewerModal:
           resolveFrom(userModal, '[data-auth-user-photo-viewer-modal]') ||
           resolveFrom(documentRoot, '[data-auth-user-photo-viewer-modal]'),
         userPhotoViewerImage:
           resolveFrom(userModal, '[data-auth-user-photo-viewer-img]') ||
           resolveFrom(documentRoot, '[data-auth-user-photo-viewer-img]'),
+        userPhotoViewerDownload:
+          resolveFrom(userModal, '[data-auth-user-photo-download]') ||
+          resolveFrom(documentRoot, '[data-auth-user-photo-download]'),
+        userPasswordModal: resolveFrom(documentRoot, '[data-auth-user-password-modal]'),
+        userPasswordModalForm: resolveFrom(documentRoot, '[data-auth-user-password-form]'),
+        userPasswordModalError: resolveFrom(documentRoot, '[data-auth-user-password-error]'),
+        userPasswordModalInput: resolveFrom(documentRoot, '[data-auth-user-password-new]'),
+        userPasswordModalConfirmInput: resolveFrom(documentRoot, '[data-auth-user-password-confirm-new]'),
+        userPasswordModalSubmit: resolveFrom(documentRoot, '[data-auth-user-password-submit]'),
         orgSection: resolveFrom(root, '[data-org-structure-section]'),
         orgTree: resolveFrom(root, '[data-org-tree]'),
         orgTreeWrapper: resolveFrom(root, '[data-org-tree-wrapper]'),
@@ -147,6 +160,9 @@
       this.handlePhotoRemove = this.handlePhotoRemove.bind(this);
       this.handlePhotoPreviewClick = this.handlePhotoPreviewClick.bind(this);
       this.handlePhotoPreviewKeydown = this.handlePhotoPreviewKeydown.bind(this);
+      this.handlePasswordChangeTrigger = this.handlePasswordChangeTrigger.bind(this);
+      this.handlePasswordModalSubmit = this.handlePasswordModalSubmit.bind(this);
+      this.handlePasswordModalHidden = this.handlePasswordModalHidden.bind(this);
       this.handleOrgSectionClick = this.handleOrgSectionClick.bind(this);
       this.handleOrgSaveClick = this.handleOrgSaveClick.bind(this);
       this.handleOrgMembersSubmit = this.handleOrgMembersSubmit.bind(this);
@@ -155,6 +171,8 @@
       this.modalState = null;
       this.modalPasswordState = { visible: false, loaded: false, value: '' };
       this.modalInstance = null;
+      this.passwordModalInstance = null;
+      this.passwordModalState = { userId: null };
       this.bootstrap = window.bootstrap || null;
     }
 
@@ -171,6 +189,11 @@
       if (this.elements.userPhotoViewerModal && this.bootstrap?.Modal) {
         this.photoViewerModalInstance = this.bootstrap.Modal.getOrCreateInstance(
           this.elements.userPhotoViewerModal,
+        );
+      }
+      if (this.elements.userPasswordModal && this.bootstrap?.Modal) {
+        this.passwordModalInstance = this.bootstrap.Modal.getOrCreateInstance(
+          this.elements.userPasswordModal,
         );
       }
       this.refreshPhoneControlsFromSettings();
@@ -204,6 +227,9 @@
       }
       if (this.elements.userPasswordToggle) {
         this.elements.userPasswordToggle.addEventListener('click', this.handleModalPasswordToggle);
+      }
+      if (this.elements.userPasswordChangeButton) {
+        this.elements.userPasswordChangeButton.addEventListener('click', this.handlePasswordChangeTrigger);
       }
       if (this.elements.userModal) {
         this.elements.userModal.addEventListener('hidden.bs.modal', this.handleUserModalHidden);
@@ -242,6 +268,12 @@
       }
       if (this.documentRoot) {
         this.documentRoot.addEventListener('inputSettings:change', this.handleInputSettingsChange);
+      }
+      if (this.elements.userPasswordModalForm) {
+        this.elements.userPasswordModalForm.addEventListener('submit', this.handlePasswordModalSubmit);
+      }
+      if (this.elements.userPasswordModal) {
+        this.elements.userPasswordModal.addEventListener('hidden.bs.modal', this.handlePasswordModalHidden);
       }
       if (this.elements.orgSection) {
         this.elements.orgSection.addEventListener('click', this.handleOrgSectionClick);
@@ -383,8 +415,9 @@
     }
     createUserRow(user) {
       const row = document.createElement('tr');
+      const displayName = (user.full_name || user.username || '').trim();
       row.dataset.userId = String(user.id);
-      row.dataset.userName = user.username || '';
+      row.dataset.userName = displayName || '';
 
       const usernameCell = document.createElement('td');
       const userWrapper = document.createElement('div');
@@ -397,6 +430,12 @@
       usernameTitle.className = 'fw-semibold';
       usernameTitle.textContent = user.username || '—';
       userInfo.appendChild(usernameTitle);
+      if (user.full_name) {
+        const fullNameRow = document.createElement('div');
+        fullNameRow.className = 'text-muted small';
+        fullNameRow.textContent = user.full_name;
+        userInfo.appendChild(fullNameRow);
+      }
       if (user.department) {
         const departmentRow = document.createElement('div');
         departmentRow.className = 'text-muted small';
@@ -465,19 +504,20 @@
     createUserAvatar(user) {
       const container = document.createElement('div');
       container.className = 'auth-user-avatar';
+      const displayName = (user?.full_name || user?.username || '').trim();
       const photoUrl = String(user?.photo || '').trim();
       if (photoUrl) {
         container.classList.add('auth-user-avatar--image');
         const img = document.createElement('img');
         img.src = photoUrl;
-        img.alt = user?.username ? `Фото ${user.username}` : 'Фото пользователя';
+        img.alt = displayName ? `Фото ${displayName}` : 'Фото пользователя';
         img.loading = 'lazy';
         container.appendChild(img);
       } else {
         container.classList.add('auth-user-avatar--placeholder');
         const initials = document.createElement('span');
         initials.className = 'auth-user-avatar__initials';
-        initials.textContent = this.getUserInitials(user?.username || '');
+        initials.textContent = this.getUserInitials(displayName || '');
         container.appendChild(initials);
       }
       return container;
@@ -587,6 +627,11 @@
         this.elements.userPhotoDropzone.classList.toggle('has-photo', hasPreview);
         this.elements.userPhotoDropzone.classList.remove('is-dragover');
       }
+      if (this.elements.userPhotoViewerDownload && !hasPreview) {
+        this.elements.userPhotoViewerDownload.href = '#';
+        this.elements.userPhotoViewerDownload.classList.add('disabled');
+        this.elements.userPhotoViewerDownload.removeAttribute('download');
+      }
       this.updatePhotoControls();
     }
 
@@ -673,7 +718,17 @@
       if (event?.target?.closest('[data-auth-user-photo-remove]')) {
         return;
       }
+      if (event?.target?.closest('[data-auth-user-photo-preview-trigger]')) {
+        return;
+      }
       if (this.isPhotoInteractionLocked()) {
+        return;
+      }
+      const dropzone = this.elements.userPhotoDropzone;
+      const hasPhoto = dropzone ? dropzone.classList.contains('has-photo') : false;
+      const clickedTrigger = event?.target?.closest('[data-auth-user-photo-trigger]');
+      const clickedChange = event?.target?.closest('[data-auth-user-photo-change]');
+      if (hasPhoto && !clickedTrigger && !clickedChange) {
         return;
       }
       if (this.elements.userPhotoFileInput) {
@@ -909,6 +964,12 @@
         this.elements.userUsernameInput.disabled = mode === 'edit' && !permissions.canEditUsername;
       }
 
+      if (this.elements.userFullNameInput) {
+        const fullName = user?.full_name || '';
+        this.elements.userFullNameInput.value = fullName;
+        this.elements.userFullNameInput.disabled = mode === 'edit' && !permissions.canEditDetails;
+      }
+
       const roleId = user?.role_id != null ? String(user.role_id) : '';
       this.populateRoleSelect(this.elements.userRoleSelect, mode === 'edit' ? roleId : '');
       if (this.elements.userRoleSelect) {
@@ -937,27 +998,30 @@
 
       if (this.elements.userPasswordInput) {
         this.elements.userPasswordInput.value = '';
-        if (mode === 'create') {
-          this.elements.userPasswordInput.placeholder = 'Придумайте пароль';
-          this.elements.userPasswordInput.required = true;
-          this.elements.userPasswordInput.disabled = false;
-        } else {
-          this.elements.userPasswordInput.placeholder = 'Оставьте пустым, чтобы не менять';
-          this.elements.userPasswordInput.required = false;
-          this.elements.userPasswordInput.disabled = !permissions.canEditPassword;
-        }
+        this.elements.userPasswordInput.placeholder =
+          mode === 'create' ? 'Придумайте пароль' : 'Смена выполняется через отдельное окно';
+        this.elements.userPasswordInput.required = mode === 'create';
+        this.elements.userPasswordInput.disabled = mode !== 'create';
       }
       if (this.elements.userPasswordConfirmInput) {
         this.elements.userPasswordConfirmInput.value = '';
-        if (mode === 'create') {
-          this.elements.userPasswordConfirmInput.placeholder = 'Повторите пароль';
-          this.elements.userPasswordConfirmInput.required = true;
-          this.elements.userPasswordConfirmInput.disabled = false;
-        } else {
-          this.elements.userPasswordConfirmInput.placeholder = 'Повторите новый пароль';
-          this.elements.userPasswordConfirmInput.required = false;
-          this.elements.userPasswordConfirmInput.disabled = !permissions.canEditPassword;
+        this.elements.userPasswordConfirmInput.placeholder =
+          mode === 'create' ? 'Повторите пароль' : 'Смена выполняется через отдельное окно';
+        this.elements.userPasswordConfirmInput.required = mode === 'create';
+        this.elements.userPasswordConfirmInput.disabled = mode !== 'create';
+      }
+
+      if (this.elements.userPasswordCreateSection) {
+        this.elements.userPasswordCreateSection.classList.toggle('d-none', mode !== 'create');
+      }
+      if (this.elements.userPasswordChangeWrapper) {
+        const showChange = mode === 'edit' && permissions.canEditPassword;
+        this.elements.userPasswordChangeWrapper.classList.toggle('d-none', !showChange);
+        if (this.elements.userPasswordChangeButton) {
+          this.elements.userPasswordChangeButton.disabled = !showChange;
         }
+      } else if (this.elements.userPasswordChangeButton) {
+        this.elements.userPasswordChangeButton.disabled = !(mode === 'edit' && permissions.canEditPassword);
       }
 
       this.resetModalPasswordDisplay();
@@ -1364,6 +1428,7 @@
         return;
       }
       event.preventDefault();
+      event.stopPropagation();
       this.openPhotoViewer();
     }
 
@@ -1372,6 +1437,7 @@
         return;
       }
       event.preventDefault();
+      event.stopPropagation();
       this.openPhotoViewer();
     }
 
@@ -1384,9 +1450,20 @@
         (this.modalState?.mode === 'edit' && this.modalState?.original?.username) ||
         (this.elements.userUsernameInput ? this.elements.userUsernameInput.value : '') ||
         '';
-      const altText = username ? `Фото пользователя ${username}` : 'Фото пользователя';
+      const fullName =
+        (this.modalState?.mode === 'edit' && this.modalState?.original?.full_name) ||
+        (this.elements.userFullNameInput ? this.elements.userFullNameInput.value : '') ||
+        '';
+      const displayName = fullName || username;
+      const altText = displayName ? `Фото пользователя ${displayName}` : 'Фото пользователя';
       this.elements.userPhotoViewerImage.src = url;
       this.elements.userPhotoViewerImage.alt = altText;
+      if (this.elements.userPhotoViewerDownload) {
+        const sanitizedName = (displayName || 'user-photo').replace(/[^\w\-]+/g, '_');
+        this.elements.userPhotoViewerDownload.href = url;
+        this.elements.userPhotoViewerDownload.setAttribute('download', sanitizedName || 'user-photo');
+        this.elements.userPhotoViewerDownload.classList.remove('disabled');
+      }
       if (this.photoViewerModalInstance) {
         this.photoViewerModalInstance.show();
       } else if (this.elements.userPhotoViewerModal) {
@@ -1610,6 +1687,132 @@
         });
     }
 
+    resetPasswordModal() {
+      if (this.elements.userPasswordModalForm) {
+        this.elements.userPasswordModalForm.reset();
+      }
+      if (this.elements.userPasswordModalInput) {
+        this.elements.userPasswordModalInput.value = '';
+      }
+      if (this.elements.userPasswordModalConfirmInput) {
+        this.elements.userPasswordModalConfirmInput.value = '';
+      }
+      this.setPasswordModalMessage('');
+      if (this.elements.userPasswordModalSubmit) {
+        this.elements.userPasswordModalSubmit.disabled = false;
+      }
+    }
+
+    setPasswordModalMessage(message, variant = 'danger') {
+      const box = this.elements.userPasswordModalError;
+      if (!box) {
+        return;
+      }
+      box.classList.remove('alert-danger', 'alert-success');
+      if (!message) {
+        box.classList.add('d-none');
+        box.textContent = '';
+        return;
+      }
+      const variantClass = variant === 'success' ? 'alert-success' : 'alert-danger';
+      box.textContent = message;
+      box.classList.remove('d-none');
+      box.classList.add(variantClass);
+    }
+
+    handlePasswordChangeTrigger(event) {
+      event.preventDefault();
+      if (!this.modalState || this.modalState.mode !== 'edit') {
+        return;
+      }
+      const { userId, permissions } = this.modalState;
+      if (!permissions?.canEditPassword) {
+        this.setMessage('У вас нет прав на изменение пароля.', 'danger');
+        return;
+      }
+      this.passwordModalState = { userId };
+      this.resetPasswordModal();
+      if (this.passwordModalInstance) {
+        this.passwordModalInstance.show();
+      } else if (this.elements.userPasswordModal) {
+        this.elements.userPasswordModal.classList.add('show');
+        this.elements.userPasswordModal.style.display = 'block';
+        this.elements.userPasswordModal.removeAttribute('aria-hidden');
+      }
+    }
+
+    handlePasswordModalSubmit(event) {
+      event.preventDefault();
+      if (!this.modalState || this.modalState.mode !== 'edit') {
+        return;
+      }
+      const { userId } = this.modalState;
+      if (!userId) {
+        this.setPasswordModalMessage('Пользователь не найден.');
+        return;
+      }
+      const form = event.currentTarget;
+      const submitButton = this.elements.userPasswordModalSubmit || form.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+      const newPassword = this.elements.userPasswordModalInput
+        ? this.elements.userPasswordModalInput.value.trim()
+        : '';
+      const confirmPassword = this.elements.userPasswordModalConfirmInput
+        ? this.elements.userPasswordModalConfirmInput.value.trim()
+        : '';
+      if (!newPassword || !confirmPassword) {
+        this.setPasswordModalMessage('Укажите новый пароль и подтверждение.');
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        this.setPasswordModalMessage('Пароли не совпадают.');
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+        return;
+      }
+      this.setPasswordModalMessage('');
+      fetch(`${this.usersEndpoint}/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ password: newPassword }),
+      })
+        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.success === false) {
+            throw new Error(data.error || 'Не удалось обновить пароль');
+          }
+          this.setMessage('Пароль обновлён.', 'success');
+          if (this.passwordModalInstance) {
+            this.passwordModalInstance.hide();
+          } else if (this.elements.userPasswordModal) {
+            this.elements.userPasswordModal.classList.remove('show');
+            this.elements.userPasswordModal.style.display = 'none';
+            this.elements.userPasswordModal.setAttribute('aria-hidden', 'true');
+            this.handlePasswordModalHidden();
+          }
+        })
+        .catch((error) => {
+          this.setPasswordModalMessage(error.message || String(error));
+        })
+        .finally(() => {
+          if (submitButton) {
+            submitButton.disabled = false;
+          }
+        });
+    }
+
+    handlePasswordModalHidden() {
+      this.passwordModalState = { userId: null };
+      this.resetPasswordModal();
+    }
+
     handleUserFormSubmit(event) {
       event.preventDefault();
       if (!this.modalState) {
@@ -1634,6 +1837,15 @@
 
       if (mode === 'create' || (permissions.canEditUsername && username !== (original?.username || ''))) {
         payload.username = username;
+      }
+
+      const fullName = this.elements.userFullNameInput ? this.elements.userFullNameInput.value.trim() : '';
+      if (mode === 'create') {
+        if (fullName) {
+          payload.full_name = fullName;
+        }
+      } else if (permissions.canEditDetails && fullName !== (original?.full_name || '')) {
+        payload.full_name = fullName || null;
       }
 
       const roleSelect = this.elements.userRoleSelect;
@@ -1708,15 +1920,6 @@
       const passwordConfirm = this.elements.userPasswordConfirmInput
         ? this.elements.userPasswordConfirmInput.value.trim()
         : '';
-      if (password || passwordConfirm) {
-        if (password !== passwordConfirm) {
-          this.setUserModalError('Пароли не совпадают.');
-          if (submitButton) {
-            submitButton.disabled = false;
-          }
-          return;
-        }
-      }
       if (mode === 'create') {
         if (!password) {
           this.setUserModalError('Укажите пароль для нового пользователя.');
@@ -1725,16 +1928,20 @@
           }
           return;
         }
-        payload.password = password;
-      } else if (password) {
-        if (!permissions.canEditPassword) {
-          this.setUserModalError('У вас нет прав на изменение пароля.');
+        if (password !== passwordConfirm) {
+          this.setUserModalError('Пароли не совпадают.');
           if (submitButton) {
             submitButton.disabled = false;
           }
           return;
         }
         payload.password = password;
+      } else if (password || passwordConfirm) {
+        this.setUserModalError('Смена пароля выполняется через отдельное окно.');
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+        return;
       }
 
       if (mode === 'edit' && Object.keys(payload).length === 0) {
@@ -1835,6 +2042,14 @@
       this.setPasswordBlockVisible(false);
       this.resetModalPasswordDisplay();
       this.setUserModalError('');
+      if (this.passwordModalInstance) {
+        this.passwordModalInstance.hide();
+      } else if (this.elements.userPasswordModal) {
+        this.elements.userPasswordModal.classList.remove('show');
+        this.elements.userPasswordModal.style.display = 'none';
+        this.elements.userPasswordModal.setAttribute('aria-hidden', 'true');
+      }
+      this.handlePasswordModalHidden();
     }
 
 
