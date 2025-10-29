@@ -608,6 +608,8 @@ def _ensure_users_schema(conn: sqlite3.Connection) -> None:
         add_column("ALTER TABLE users ADD COLUMN department TEXT")
     if "phones" not in existing_columns:
         add_column("ALTER TABLE users ADD COLUMN phones TEXT")
+    if "is_blocked" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0")
 
     if schema_updated:
         conn.commit()
@@ -652,6 +654,7 @@ EDITABLE_FIELD_PERMISSIONS = [
     {"key": "user.password", "label": "Изменение пароля пользователя"},
     {"key": "user.role", "label": "Изменение роли пользователя"},
     {"key": "user.delete", "label": "Удаление пользователя"},
+    {"key": "user.block", "label": "Блокировка пользователя"},
     {"key": "role.create", "label": "Создание роли"},
     {"key": "role.name", "label": "Изменение названия роли"},
     {"key": "role.description", "label": "Изменение описания роли"},
@@ -10380,6 +10383,7 @@ def _serialize_user_row(row: sqlite3.Row) -> dict:
         "email": _row_value(row, "email"),
         "department": _row_value(row, "department"),
         "phones": _parse_user_phones(_row_value(row, "phones")),
+        "is_blocked": bool(_row_value(row, "is_blocked", 0)),
     }
 
 
@@ -10397,7 +10401,8 @@ def _fetch_user_summary(conn, user_id: int):
             u.birth_date,
             u.email,
             u.department,
-            u.phones
+            u.phones,
+            u.is_blocked
         FROM users u
         LEFT JOIN roles r ON r.id = u.role_id
         WHERE u.id = ?
@@ -10469,7 +10474,8 @@ def get_users():
                     u.birth_date,
                     u.email,
                     u.department,
-                    u.phones
+                    u.phones,
+                    u.is_blocked
                 FROM users u
                 LEFT JOIN roles r ON r.id = u.role_id
                 ORDER BY LOWER(u.username)
@@ -10524,9 +10530,10 @@ def add_user():
                     birth_date,
                     email,
                     department,
-                    phones
+                    phones,
+                    is_blocked
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     username,
@@ -10539,6 +10546,7 @@ def add_user():
                     email or None,
                     department or None,
                     phones_json,
+                    0,
                 ),
             )
             new_user_id = cursor.lastrowid
@@ -10604,6 +10612,15 @@ def update_user(user_id):
             if user_id != current_id and not has_field_edit_permission("user.password"):
                 abort(403)
             _set_user_password(conn, user_id, new_password)
+            updates_made = True
+
+        if "is_blocked" in data:
+            if user_id == _current_user_id():
+                return jsonify({"success": False, "error": "Нельзя изменить блокировку своей учётной записи"}), 400
+            if not has_field_edit_permission("user.block"):
+                abort(403)
+            blocked_value = 1 if bool(data.get("is_blocked")) else 0
+            conn.execute("UPDATE users SET is_blocked = ? WHERE id = ?", (blocked_value, user_id))
             updates_made = True
 
         if "full_name" in data:
@@ -10889,7 +10906,8 @@ def get_auth_state():
                 u.birth_date,
                 u.email,
                 u.department,
-                u.phones
+                u.phones,
+                u.is_blocked
             FROM users u
             LEFT JOIN roles r ON r.id = u.role_id
             ORDER BY LOWER(u.username)
@@ -10905,6 +10923,7 @@ def get_auth_state():
     can_edit_username = has_field_edit_permission("user.username")
     can_edit_role = has_field_edit_permission("user.role")
     can_delete_user = has_field_edit_permission("user.delete")
+    can_block_user = has_field_edit_permission("user.block")
 
     users_payload = []
     for row in users_rows:
@@ -10921,6 +10940,7 @@ def get_auth_state():
                 "can_edit_username": can_edit_username,
                 "can_edit_role": can_edit_role,
                 "can_delete": can_delete_user and not is_self and role_name != "admin",
+                "can_block": can_block_user and not is_self,
             }
         )
 
