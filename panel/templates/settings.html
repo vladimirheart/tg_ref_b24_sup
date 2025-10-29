@@ -1164,7 +1164,7 @@
     </div>
 
     <div class="modal fade" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <form data-auth-user-form>
             <div class="modal-header">
@@ -1174,41 +1174,45 @@
             <div class="modal-body">
               <div class="alert alert-danger d-none" role="alert" data-auth-user-modal-error></div>
               <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-12">
                   <label class="form-label small mb-1" for="authUserModalFullName">ФИО</label>
                   <input type="text" class="form-control form-control-sm" id="authUserModalFullName" name="full_name" autocomplete="off" placeholder="Введите ФИО целиком">
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
-                  <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required>
+                <div class="col-lg-8">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
+                      <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small mb-1" for="authUserModalRole">Роль</label>
+                      <select class="form-select form-select-sm" id="authUserModalRole" name="role_id" data-auth-user-role-select>
+                        <option value="">По умолчанию</option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
+                      <input
+                        type="search"
+                        class="form-control form-control-sm mb-2"
+                        placeholder="Поиск по отделам"
+                        autocomplete="off"
+                        data-auth-user-department-search
+                        aria-label="Поиск по отделам"
+                      >
+                      <select
+                        class="form-select form-select-sm"
+                        id="authUserModalDepartment"
+                        name="department"
+                        data-auth-user-department-select
+                      >
+                        <option value="">Не выбран</option>
+                      </select>
+                      <div class="form-text">Список отделов формируется на вкладке «Орг.структура».</div>
+                    </div>
+                  </div>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label small mb-1" for="authUserModalRole">Роль</label>
-                  <select class="form-select form-select-sm" id="authUserModalRole" name="role_id" data-auth-user-role-select>
-                    <option value="">По умолчанию</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
-                  <input
-                    type="search"
-                    class="form-control form-control-sm mb-2"
-                    placeholder="Поиск по отделам"
-                    autocomplete="off"
-                    data-auth-user-department-search
-                    aria-label="Поиск по отделам"
-                  >
-                  <select
-                    class="form-select form-select-sm"
-                    id="authUserModalDepartment"
-                    name="department"
-                    data-auth-user-department-select
-                  >
-                    <option value="">Не выбран</option>
-                  </select>
-                  <div class="form-text">Список отделов формируется на вкладке «Орг.структура».</div>
-                </div>
-                <div class="col-md-6">
+                <div class="col-lg-4">
                   <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
                   <div class="auth-user-photo-uploader" data-auth-user-photo-uploader>
                     <input type="hidden" id="authUserModalPhoto" name="photo" data-auth-user-photo-value>
