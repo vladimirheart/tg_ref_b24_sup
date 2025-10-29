@@ -2166,18 +2166,28 @@ function markTicketReopenedLocally() {
   <!-- Подключение JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    window.settings = {
-      categories: {{ settings.categories | tojson | safe }},
-      dialogConfig: {{ settings.dialog_config | tojson | safe }}
-    };
-    if (!window.settings.dialogConfig || typeof window.settings.dialogConfig !== 'object') {
-      window.settings.dialogConfig = {
-        category_templates: [],
-        question_templates: [],
-        completion_templates: [],
-        time_metrics: { good_limit: 30, warning_limit: 60, colors: { good: '#d1f7d1', warning: '#fff4d6', danger: '#f8d7da' } }
-      };
+    window.settings = {{ settings | tojson | safe }};
+    if (!window.settings || typeof window.settings !== 'object') {
+      window.settings = {};
     }
+
+    if (!Array.isArray(window.settings.categories)) {
+      window.settings.categories = {{ settings.categories | tojson | safe }};
+    }
+
+    const rawDialogConfig = (window.settings.dialogConfig && typeof window.settings.dialogConfig === 'object')
+      ? window.settings.dialogConfig
+      : (window.settings.dialog_config && typeof window.settings.dialog_config === 'object'
+        ? window.settings.dialog_config
+        : null);
+
+    window.settings.dialogConfig = rawDialogConfig || {
+      category_templates: [],
+      question_templates: [],
+      completion_templates: [],
+      time_metrics: { good_limit: 30, warning_limit: 60, colors: { good: '#d1f7d1', warning: '#fff4d6', danger: '#f8d7da' } }
+    };
+
     if (!window.settings.dialogConfig.time_metrics || typeof window.settings.dialogConfig.time_metrics !== 'object') {
       window.settings.dialogConfig.time_metrics = { good_limit: 30, warning_limit: 60, colors: { good: '#d1f7d1', warning: '#fff4d6', danger: '#f8d7da' } };
     }
@@ -7714,7 +7724,7 @@ function findTicketEverywhere(ticketId) {
   document.addEventListener('DOMContentLoaded', function () { parseEmojis(document.body); });
 </script>
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', () => {
   const modalEl = document.getElementById('avatarModal');
   const modalImg = document.getElementById('avatarModalImg');
   const downloadLink = document.getElementById('avatarDownloadLink');
@@ -7919,7 +7929,8 @@ function findTicketEverywhere(ticketId) {
   };
 
   document.addEventListener('click', handleAvatarClick);
-})();
+
+});
 
 document.addEventListener('click', async (e)=>{
   const locationLink = e.target.closest('#historyLocationLink');
