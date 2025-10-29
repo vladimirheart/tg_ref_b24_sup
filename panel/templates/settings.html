@@ -742,6 +742,327 @@
           </div>
         </div>
       </div>
+
+      <div class="col">
+        <div
+          class="card settings-tile settings-tile--accent h-100"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#inputFormattingModal"
+        >
+          <div class="card-body">
+            <div class="tile-icon"><i class="bi bi-input-cursor-text"></i></div>
+            <h5 class="card-title">Настройка вводимых данных</h5>
+            <p class="card-text text-muted">
+              Централизуйте требования для телефонов, e-mail и адресов.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Настройка вводимых данных -->
+    <div class="modal fade" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="inputFormattingModalLabel">🧾 Настройка вводимых данных</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-light border mb-4" role="alert">
+              Определите единые правила форматирования и проверки для телефонов, электронных адресов и почтовых адресов. Эти настройки используются формами по всей системе.
+            </div>
+
+            <div class="card mb-4 shadow-sm border-0">
+              <div class="card-header bg-primary bg-opacity-10 border-primary border-opacity-25">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2">
+                  <div>
+                    <h5 class="mb-1">📞 Телефон</h5>
+                    <p class="mb-0 text-muted small">Настройте форматы по странам, список типов телефонов и автоматическое форматирование.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="row g-4">
+                  <div class="col-lg-4">
+                    <label class="form-label" for="inputPhoneCountry">Формат телефона</label>
+                    <select class="form-select" id="inputPhoneCountry" data-phone-country>
+                      <option value="ru" data-prefix="+7 " data-pattern="(###) ###-##-##" data-example="+7 (900) 123-45-67">Россия (+7)</option>
+                      <option value="kz" data-prefix="+7 " data-pattern="(###) ###-##-##" data-example="+7 (701) 123-45-67">Казахстан (+7)</option>
+                      <option value="by" data-prefix="+375 " data-pattern="(##) ###-##-##" data-example="+375 (29) 123-45-67">Беларусь (+375)</option>
+                      <option value="us" data-prefix="+1 " data-pattern="(###) ###-####" data-example="+1 (415) 555-1234">США (+1)</option>
+                      <option value="de" data-prefix="+49 " data-pattern="(####) ########" data-example="+49 (030) 12345678">Германия (+49)</option>
+                    </select>
+                    <div class="form-text">Пример: <span data-phone-format-example>+7 (900) 123-45-67</span></div>
+                  </div>
+
+                  <div class="col-lg-4">
+                    <label class="form-label" for="inputPhoneTypeAdd">Типы телефона</label>
+                    <div class="d-flex flex-column gap-2">
+                      <div class="input-group">
+                        <input type="text" class="form-control" id="inputPhoneTypeAdd" placeholder="Например, Рабочий" data-phone-type-input>
+                        <button class="btn btn-outline-primary" type="button" data-phone-type-add>Добавить</button>
+                      </div>
+                      <div class="d-flex flex-wrap gap-2" data-phone-type-list></div>
+                    </div>
+                    <div class="form-text">Редактируйте выпадающий список типов вручную.</div>
+                  </div>
+
+                  <div class="col-lg-4">
+                    <label class="form-label" for="inputPhonePreview">Автоформатирование ввода</label>
+                    <input type="text" class="form-control" id="inputPhonePreview" placeholder="Введите номер" data-phone-format-input>
+                    <div class="form-text">Номер автоматически приводится к формату выбранной страны.</div>
+                    <div class="border rounded mt-3 p-3 bg-light" data-phone-preview data-font-preview="phone">+7 (900) 123-45-67</div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="card border-0 bg-light">
+                      <div class="card-body d-flex flex-wrap align-items-center gap-3" data-font-settings="phone">
+                        <div class="fw-semibold">Настройки шрифта</div>
+                        <div class="d-flex align-items-center gap-2">
+                          <label class="form-label small mb-0" for="inputPhoneFontFamily">Шрифт</label>
+                          <select class="form-select form-select-sm" id="inputPhoneFontFamily" data-font-family>
+                            <option value="Inter, sans-serif">Inter</option>
+                            <option value="Roboto, sans-serif">Roboto</option>
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'Courier New', monospace">Courier New</option>
+                          </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                          <label class="form-label small mb-0" for="inputPhoneFontSize">Размер</label>
+                          <input type="number" class="form-control form-control-sm" id="inputPhoneFontSize" min="10" max="36" step="1" value="16" data-font-size>
+                          <span class="small text-muted">px</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm border-0">
+              <div class="card-header bg-success bg-opacity-10 border-success border-opacity-25">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2">
+                  <div>
+                    <h5 class="mb-1">✉️ E-mail</h5>
+                    <p class="mb-0 text-muted small">Задайте обязательные проверки и тексты ошибок.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="row g-4">
+                  <div class="col-md-6">
+                    <div class="form-check form-switch mb-3">
+                      <input class="form-check-input" type="checkbox" id="inputEmailRequireAt" data-email-require-at checked>
+                      <label class="form-check-label" for="inputEmailRequireAt">Требовать символ «@»</label>
+                    </div>
+                    <label class="form-label" for="inputEmailMessageAt">Сообщение об ошибке</label>
+                    <input type="text" class="form-control mb-3" id="inputEmailMessageAt" placeholder="Укажите e-mail с символом @" data-email-message-at value="Укажите e-mail с символом @">
+
+                    <div class="form-check form-switch mb-3">
+                      <input class="form-check-input" type="checkbox" id="inputEmailRequireDomain" data-email-require-domain checked>
+                      <label class="form-check-label" for="inputEmailRequireDomain">Требовать домен после «@»</label>
+                    </div>
+                    <label class="form-label" for="inputEmailMessageDomain">Сообщение об ошибке</label>
+                    <input type="text" class="form-control" id="inputEmailMessageDomain" placeholder="Добавьте домен, например example.com" data-email-message-domain value="Добавьте домен, например example.com">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label" for="inputEmailPreview">Предпросмотр проверки</label>
+                    <input type="text" class="form-control" id="inputEmailPreview" placeholder="Введите e-mail" data-email-preview-input>
+                    <div class="form-text">Текст ошибки обновляется при вводе.</div>
+                    <div class="mt-3">
+                      <div class="small text-muted">Результат проверки</div>
+                      <div class="border rounded p-3 bg-light" data-email-preview-message data-font-preview="email">Введите e-mail для проверки.</div>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="card border-0 bg-light">
+                      <div class="card-body d-flex flex-wrap align-items-center gap-3" data-font-settings="email">
+                        <div class="fw-semibold">Настройки шрифта</div>
+                        <div class="d-flex align-items-center gap-2">
+                          <label class="form-label small mb-0" for="inputEmailFontFamily">Шрифт</label>
+                          <select class="form-select form-select-sm" id="inputEmailFontFamily" data-font-family>
+                            <option value="Inter, sans-serif">Inter</option>
+                            <option value="Roboto, sans-serif">Roboto</option>
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'Courier New', monospace">Courier New</option>
+                          </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                          <label class="form-label small mb-0" for="inputEmailFontSize">Размер</label>
+                          <input type="number" class="form-control form-control-sm" id="inputEmailFontSize" min="10" max="36" step="1" value="16" data-font-size>
+                          <span class="small text-muted">px</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+              <div class="card-header bg-warning bg-opacity-10 border-warning border-opacity-25">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2">
+                  <div>
+                    <h5 class="mb-1">🏠 Адрес</h5>
+                    <p class="mb-0 text-muted small">Разделение на блоки и автоматическое упорядочивание.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="row g-4">
+                  <div class="col-lg-6">
+                    <label class="form-label" for="inputAddressRaw">Исходный ввод</label>
+                    <textarea class="form-control" id="inputAddressRaw" rows="6" placeholder="Вставьте адрес целиком" data-address-raw></textarea>
+                    <div class="form-text">При вставке одним блоком данные будут распределены по полям в заданном порядке.</div>
+                  </div>
+
+                  <div class="col-lg-6">
+                    <label class="form-label">Результат форматирования</label>
+                    <div class="border rounded p-3 bg-light" data-address-preview data-font-preview="address">
+                      <ol class="list-unstyled mb-0" data-address-preview-list></ol>
+                    </div>
+                    <div class="form-text">Поле «—» означает, что значение не заполнено или блок отключён.</div>
+                    <div class="alert alert-info mt-3 d-none" role="alert" data-address-overflow></div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th style="width: 28%">Блок адреса</th>
+                            <th style="width: 16%">Использовать</th>
+                            <th>Заполненное значение</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr data-address-field="country">
+                            <td>Страна</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldCountry" data-address-toggle="country" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="country">—</td>
+                          </tr>
+                          <tr data-address-field="postal_code">
+                            <td>Индекс</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldPostal" data-address-toggle="postal_code" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="postal_code">—</td>
+                          </tr>
+                          <tr data-address-field="region">
+                            <td>Регион</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldRegion" data-address-toggle="region" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="region">—</td>
+                          </tr>
+                          <tr data-address-field="city">
+                            <td>Город</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldCity" data-address-toggle="city" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="city">—</td>
+                          </tr>
+                          <tr data-address-field="district">
+                            <td>Район</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldDistrict" data-address-toggle="district" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="district">—</td>
+                          </tr>
+                          <tr data-address-field="street">
+                            <td>Улица</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldStreet" data-address-toggle="street" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="street">—</td>
+                          </tr>
+                          <tr data-address-field="building">
+                            <td>Дом</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldBuilding" data-address-toggle="building" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="building">—</td>
+                          </tr>
+                          <tr data-address-field="block">
+                            <td>Строение / корпус</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldBlock" data-address-toggle="block" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="block">—</td>
+                          </tr>
+                          <tr data-address-field="apartment">
+                            <td>Квартира / офис</td>
+                            <td>
+                              <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addressFieldApartment" data-address-toggle="apartment" checked>
+                              </div>
+                            </td>
+                            <td data-address-value="apartment">—</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="card border-0 bg-light">
+                      <div class="card-body d-flex flex-wrap align-items-center gap-3" data-font-settings="address">
+                        <div class="fw-semibold">Настройки шрифта</div>
+                        <div class="d-flex align-items-center gap-2">
+                          <label class="form-label small mb-0" for="inputAddressFontFamily">Шрифт</label>
+                          <select class="form-select form-select-sm" id="inputAddressFontFamily" data-font-family>
+                            <option value="Inter, sans-serif">Inter</option>
+                            <option value="Roboto, sans-serif">Roboto</option>
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'Courier New', monospace">Courier New</option>
+                          </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                          <label class="form-label small mb-0" for="inputAddressFontSize">Размер</label>
+                          <input type="number" class="form-control form-control-sm" id="inputAddressFontSize" min="10" max="36" step="1" value="16" data-font-size>
+                          <span class="small text-muted">px</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-input-settings-save>Сохранить изменения</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Пользователи -->
@@ -10423,6 +10744,7 @@
   }
   </script>
 </main>
+  <script src="{{ url_for('static', filename='input-settings.js') }}"></script>
   <script src="{{ url_for('static', filename='auth-management.js') }}"></script>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
