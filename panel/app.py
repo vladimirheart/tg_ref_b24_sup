@@ -594,6 +594,8 @@ def _ensure_users_schema(conn: sqlite3.Connection) -> None:
         conn.execute(sql)
         schema_updated = True
 
+    if "full_name" not in existing_columns:
+        add_column("ALTER TABLE users ADD COLUMN full_name TEXT")
     if "photo" not in existing_columns:
         add_column("ALTER TABLE users ADD COLUMN photo TEXT")
     if "registration_date" not in existing_columns:
@@ -10369,6 +10371,7 @@ def _serialize_user_row(row: sqlite3.Row) -> dict:
     return {
         "id": _row_value(row, "id"),
         "username": _row_value(row, "username", ""),
+        "full_name": _row_value(row, "full_name"),
         "role": _row_value(row, "role_name", ""),
         "role_id": _row_value(row, "role_id"),
         "photo": _row_value(row, "photo"),
@@ -10386,6 +10389,7 @@ def _fetch_user_summary(conn, user_id: int):
         SELECT
             u.id,
             u.username,
+            u.full_name,
             u.role_id,
             COALESCE(r.name, u.role) AS role_name,
             u.photo,
@@ -10457,6 +10461,7 @@ def get_users():
                 SELECT
                     u.id,
                     u.username,
+                    u.full_name,
                     u.role_id,
                     COALESCE(r.name, u.role) AS role_name,
                     u.photo,
@@ -10482,6 +10487,7 @@ def add_user():
         abort(403)
     data = request.json or {}
     username = (data.get("username") or "").strip()
+    full_name = (data.get("full_name") or "").strip() or None
     password = (data.get("password") or "").strip()
     role_id = data.get("role_id")
     role_name = (data.get("role") or "").strip() or None
@@ -10510,6 +10516,7 @@ def add_user():
                 """
                 INSERT INTO users (
                     username,
+                    full_name,
                     role_id,
                     role,
                     photo,
@@ -10519,10 +10526,11 @@ def add_user():
                     department,
                     phones
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     username,
+                    full_name,
                     role_row["id"],
                     role_row["name"],
                     photo,
@@ -10596,6 +10604,16 @@ def update_user(user_id):
             if user_id != current_id and not has_field_edit_permission("user.password"):
                 abort(403)
             _set_user_password(conn, user_id, new_password)
+            updates_made = True
+
+        if "full_name" in data:
+            if not can_edit_profile:
+                abort(403)
+            full_name = (data.get("full_name") or "").strip() or None
+            conn.execute(
+                "UPDATE users SET full_name = ? WHERE id = ?",
+                (full_name, user_id),
+            )
             updates_made = True
 
         if "photo" in data:
