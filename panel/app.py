@@ -10899,6 +10899,7 @@ def get_auth_state():
             SELECT
                 u.id,
                 u.username,
+                u.full_name,
                 u.role_id,
                 COALESCE(r.name, u.role) AS role_name,
                 u.photo,
