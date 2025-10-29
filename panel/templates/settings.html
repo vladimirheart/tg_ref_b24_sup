@@ -199,6 +199,68 @@
       background-color: #fdfdfd;
     }
 
+    .auth-user-modal-dialog {
+      width: auto;
+      max-width: min(100vw - 2rem, 1280px);
+    }
+
+    @media (max-width: 575.98px) {
+      .auth-user-modal-dialog {
+        margin: 0.5rem auto;
+      }
+    }
+
+    .auth-user-overview {
+      gap: 1.5rem;
+    }
+
+    .auth-user-overview .auth-user-main {
+      flex: 1 1 auto;
+    }
+
+    .auth-user-overview .auth-user-photo {
+      flex: 0 0 auto;
+      max-width: 340px;
+      width: 100%;
+    }
+
+    @media (max-width: 1199.98px) {
+      .auth-user-overview .auth-user-photo {
+        max-width: none;
+      }
+    }
+
+    .auth-user-photo-wrapper {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .auth-user-photo-dropzone {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-user-fullname-field {
+      max-width: 26rem;
+    }
+
+    .auth-user-registration-input {
+      min-width: 200px;
+      max-width: 240px;
+    }
+
+    .auth-user-registration-relative {
+      min-width: 160px;
+    }
+
+    .auth-user-block-status.badge {
+      font-size: 0.85rem;
+      padding: 0.4rem 0.75rem;
+    }
+
     .org-tree-wrapper {
       border: 1px solid #e9ecef;
       border-radius: 0.75rem;
@@ -1164,7 +1226,7 @@
     </div>
 
     <div class="modal fade" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-dialog modal-dialog-scrollable modal-xl auth-user-modal-dialog modal-fullscreen-sm-down">
         <div class="modal-content">
           <form data-auth-user-form>
             <div class="modal-header">
@@ -1173,150 +1235,174 @@
             </div>
             <div class="modal-body">
               <div class="alert alert-danger d-none" role="alert" data-auth-user-modal-error></div>
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label small mb-1" for="authUserModalFullName">ФИО</label>
-                  <input type="text" class="form-control form-control-sm" id="authUserModalFullName" name="full_name" autocomplete="off" placeholder="Введите ФИО целиком">
-                </div>
-                <div class="col-lg-8">
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
-                      <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required>
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label small mb-1" for="authUserModalRole">Роль</label>
-                      <select class="form-select form-select-sm" id="authUserModalRole" name="role_id" data-auth-user-role-select>
-                        <option value="">По умолчанию</option>
-                      </select>
-                    </div>
-                    <div class="col-12">
-                      <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
-                      <input
-                        type="search"
-                        class="form-control form-control-sm mb-2"
-                        placeholder="Поиск по отделам"
-                        autocomplete="off"
-                        data-auth-user-department-search
-                        aria-label="Поиск по отделам"
-                      >
-                      <select
-                        class="form-select form-select-sm"
-                        id="authUserModalDepartment"
-                        name="department"
-                        data-auth-user-department-select
-                      >
-                        <option value="">Не выбран</option>
-                      </select>
-                      <div class="form-text">Список отделов формируется на вкладке «Орг.структура».</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-lg-4">
-                  <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
-                  <div class="auth-user-photo-uploader" data-auth-user-photo-uploader>
-                    <input type="hidden" id="authUserModalPhoto" name="photo" data-auth-user-photo-value>
-                    <input type="file" class="visually-hidden" accept="image/*" data-auth-user-photo-file>
-                    <div class="auth-user-photo-dropzone" data-auth-user-photo-dropzone>
-                      <div class="auth-user-photo-placeholder" data-auth-user-photo-placeholder>
-                        <div class="auth-user-photo-icon mb-2">
-                          <i class="bi bi-image"></i>
-                        </div>
-                        <p class="mb-2">Перетащите фото сюда или нажмите, чтобы загрузить</p>
-                        <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-trigger>Выбрать файл</button>
-                        <div class="text-muted small mt-2">PNG, JPG, WebP до 5 МБ</div>
-                      </div>
-                      <div class="auth-user-photo-preview d-none" data-auth-user-photo-preview>
-                        <img
-                          src=""
-                          alt="Фото пользователя"
-                          class="auth-user-photo-img"
-                          data-auth-user-photo-img
-                          data-auth-user-photo-preview-trigger
-                          role="button"
-                          tabindex="0"
-                          aria-label="Открыть фото в полном размере"
-                          loading="lazy"
-                        >
-                        <div class="d-flex gap-2 mt-3">
-                          <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-change>Заменить</button>
-                          <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-photo-remove>Удалить</button>
-                        </div>
-                      </div>
-                      <div class="auth-user-photo-uploading d-none" data-auth-user-photo-uploading>
-                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                        <span class="ms-2 small">Загрузка...</span>
-                      </div>
-                    </div>
-                    <div class="form-text mt-2" data-auth-user-photo-status></div>
-                  </div>
-                </div>
-                <div class="col-12">
-                  <div class="border rounded-3 p-3 bg-light-subtle">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                      <h6 class="mb-0">Контактные данные</h6>
+              <div class="d-flex flex-column gap-4">
+                <div class="auth-user-overview d-flex flex-column flex-xl-row align-items-stretch">
+                  <div class="auth-user-main pe-xl-4">
+                    <div class="auth-user-fullname-field mb-3">
+                      <label class="form-label small mb-1" for="authUserModalFullName">ФИО</label>
+                      <input type="text" class="form-control form-control-sm" id="authUserModalFullName" name="full_name" autocomplete="off" placeholder="Введите ФИО целиком">
                     </div>
                     <div class="row g-3">
                       <div class="col-md-6">
-                        <label class="form-label small mb-1" for="authUserModalEmail">E-mail</label>
-                        <input type="email" class="form-control form-control-sm" id="authUserModalEmail" name="email" autocomplete="off">
+                        <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
+                        <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required>
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label small mb-1" for="authUserModalBirthDate">Дата рождения</label>
-                        <input type="date" class="form-control form-control-sm" id="authUserModalBirthDate" name="birth_date">
+                        <label class="form-label small mb-1" for="authUserModalRole">Роль</label>
+                        <select class="form-select form-select-sm" id="authUserModalRole" name="role_id" data-auth-user-role-select>
+                          <option value="">По умолчанию</option>
+                        </select>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
+                        <input
+                          type="search"
+                          class="form-control form-control-sm mb-2"
+                          placeholder="Поиск по отделам"
+                          autocomplete="off"
+                          data-auth-user-department-search
+                          aria-label="Поиск по отделам"
+                        >
+                        <select
+                          class="form-select form-select-sm"
+                          id="authUserModalDepartment"
+                          name="department"
+                          data-auth-user-department-select
+                        >
+                          <option value="">Не выбран</option>
+                        </select>
+                        <div class="form-text">Список отделов формируется на вкладке «Орг.структура».</div>
                       </div>
                     </div>
-                    <div class="mt-3">
-                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                        <h6 class="mb-0">Телефоны</h6>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" data-auth-user-phone-add>+ Добавить телефон</button>
+                  </div>
+                  <div class="auth-user-photo ms-xl-auto">
+                    <div class="auth-user-photo-wrapper auth-user-photo-uploader" data-auth-user-photo-uploader>
+                      <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
+                      <input type="hidden" id="authUserModalPhoto" name="photo" data-auth-user-photo-value>
+                      <input type="file" class="visually-hidden" accept="image/*" data-auth-user-photo-file>
+                      <div class="auth-user-photo-dropzone" data-auth-user-photo-dropzone>
+                        <div class="auth-user-photo-placeholder" data-auth-user-photo-placeholder>
+                          <div class="auth-user-photo-icon mb-2">
+                            <i class="bi bi-image"></i>
+                          </div>
+                          <p class="mb-2">Перетащите фото сюда или нажмите, чтобы загрузить</p>
+                          <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-trigger>Выбрать файл</button>
+                          <div class="text-muted small mt-2">PNG, JPG, WebP до 5 МБ</div>
+                        </div>
+                        <div class="auth-user-photo-preview d-none" data-auth-user-photo-preview>
+                          <img
+                            src=""
+                            alt="Фото пользователя"
+                            class="auth-user-photo-img"
+                            data-auth-user-photo-img
+                            data-auth-user-photo-preview-trigger
+                            role="button"
+                            tabindex="0"
+                            aria-label="Открыть фото в полном размере"
+                            loading="lazy"
+                          >
+                          <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-change>Заменить</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-photo-remove>Удалить</button>
+                          </div>
+                        </div>
+                        <div class="auth-user-photo-uploading d-none" data-auth-user-photo-uploading>
+                          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                          <span class="ms-2 small">Загрузка...</span>
+                        </div>
                       </div>
-                      <div class="d-flex flex-column gap-2 mt-2" data-auth-user-phones></div>
-                      <div class="text-muted small d-none" data-auth-user-phones-empty>Телефоны не указаны.</div>
+                      <div class="form-text mt-2" data-auth-user-photo-status></div>
                     </div>
                   </div>
                 </div>
-                <div class="col-12">
-                  <div class="border rounded-3 p-3">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3" data-auth-user-password-change-wrapper>
-                      <div>
-                        <h6 class="mb-0">Безопасность</h6>
-                        <p class="small text-muted mb-0">Просмотр текущего пароля доступен по правам. Смена выполняется отдельно.</p>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="border rounded-3 p-3 bg-light-subtle">
+                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <h6 class="mb-0">Контактные данные</h6>
                       </div>
-                      <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-password-change>Сменить пароль</button>
-                    </div>
-                    <div class="mb-0" data-auth-user-password-current>
-                      <label class="form-label small mb-1">Текущий пароль</label>
-                      <div class="input-group input-group-sm">
-                        <input type="password" class="form-control" data-auth-user-password-display value="••••••••" readonly>
-                        <button type="button" class="btn btn-outline-secondary" data-auth-user-password-toggle data-action="toggle-password">Показать</button>
-                      </div>
-                      <div class="form-text">Пароль доступен при наличии прав.</div>
-                    </div>
-                    <div class="mt-3 d-none" data-auth-user-password-create>
                       <div class="row g-3">
                         <div class="col-md-6">
-                          <label class="form-label small mb-1" for="authUserModalPassword">Пароль</label>
-                          <input type="password" class="form-control form-control-sm" id="authUserModalPassword" name="password" autocomplete="off" placeholder="Придумайте пароль">
+                          <label class="form-label small mb-1" for="authUserModalEmail">E-mail</label>
+                          <input type="email" class="form-control form-control-sm" id="authUserModalEmail" name="email" autocomplete="off">
                         </div>
                         <div class="col-md-6">
-                          <label class="form-label small mb-1" for="authUserModalPasswordConfirm">Повторите пароль</label>
-                          <input
-                            type="password"
-                            class="form-control form-control-sm"
-                            id="authUserModalPasswordConfirm"
-                            autocomplete="off"
-                            placeholder="Введите пароль повторно"
-                            data-auth-user-password-confirm
-                          >
+                          <label class="form-label small mb-1" for="authUserModalBirthDate">Дата рождения</label>
+                          <input type="date" class="form-control form-control-sm" id="authUserModalBirthDate" name="birth_date">
+                        </div>
+                      </div>
+                      <div class="mt-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                          <h6 class="mb-0">Телефоны</h6>
+                          <button type="button" class="btn btn-outline-secondary btn-sm" data-auth-user-phone-add>+ Добавить телефон</button>
+                        </div>
+                        <div class="d-flex flex-column gap-2 mt-2" data-auth-user-phones></div>
+                        <div class="text-muted small d-none" data-auth-user-phones-empty>Телефоны не указаны.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <div class="border rounded-3 p-3">
+                      <div class="d-flex flex-column gap-3">
+                        <div class="d-flex flex-column gap-2 d-none" data-auth-user-block-wrapper>
+                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                              <h6 class="mb-0">Статус доступа</h6>
+                              <p class="small text-muted mb-0">Управляйте блокировкой доступа к панели.</p>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="badge rounded-pill text-bg-success auth-user-block-status" data-auth-user-block-status>Активен</span>
+                              <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-block-toggle>Заблокировать</button>
+                            </div>
+                          </div>
+                          <div class="small text-muted" data-auth-user-block-message>Пользователь может входить в панель.</div>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2" data-auth-user-password-change-wrapper>
+                          <div>
+                            <h6 class="mb-0">Безопасность</h6>
+                            <p class="small text-muted mb-0">Просмотр текущего пароля доступен по правам. Смена выполняется отдельно.</p>
+                          </div>
+                          <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-password-change>Сменить пароль</button>
+                        </div>
+                      </div>
+                      <div class="mb-0 mt-3" data-auth-user-password-current>
+                        <label class="form-label small mb-1">Текущий пароль</label>
+                        <div class="input-group input-group-sm">
+                          <input type="password" class="form-control" data-auth-user-password-display value="••••••••" readonly>
+                          <button type="button" class="btn btn-outline-secondary" data-auth-user-password-toggle data-action="toggle-password">Показать</button>
+                        </div>
+                        <div class="form-text">Пароль доступен при наличии прав.</div>
+                      </div>
+                      <div class="mt-3 d-none" data-auth-user-password-create>
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <label class="form-label small mb-1" for="authUserModalPassword">Пароль</label>
+                            <input type="password" class="form-control form-control-sm" id="authUserModalPassword" name="password" autocomplete="off" placeholder="Придумайте пароль">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small mb-1" for="authUserModalPasswordConfirm">Повторите пароль</label>
+                            <input
+                              type="password"
+                              class="form-control form-control-sm"
+                              id="authUserModalPasswordConfirm"
+                              autocomplete="off"
+                              placeholder="Введите пароль повторно"
+                              data-auth-user-password-confirm
+                            >
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label small mb-1" for="authUserModalRegistration">Дата регистрации</label>
-                  <input type="text" class="form-control form-control-sm" id="authUserModalRegistration" data-auth-user-registration readonly>
+                  <div class="col-12">
+                    <label class="form-label small mb-1" for="authUserModalRegistration">Дата регистрации</label>
+                    <div class="row g-2 align-items-center flex-wrap">
+                      <div class="col-auto">
+                        <input type="text" class="form-control form-control-sm auth-user-registration-input" id="authUserModalRegistration" data-auth-user-registration readonly>
+                      </div>
+                      <div class="col-auto text-muted small auth-user-registration-relative" data-auth-user-registration-relative>—</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
