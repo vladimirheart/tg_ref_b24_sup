@@ -37,6 +37,7 @@
         catalog: { pages: [], fields: { edit: [], view: [] } },
         capabilities: { fields: { edit: {}, view: {} } },
         currentUserId: null,
+        orgStructure: { nodes: [] },
       };
       this.photoUploadEndpoint = root.dataset.authPhotoUploadEndpoint || '/api/users/photo-upload';
       this.photoUploadState = { value: '', previewUrl: '', tempUrl: '' };
@@ -47,6 +48,9 @@
       const userModal =
         resolveFrom(root, '[data-auth-user-modal]') ||
         resolveFrom(documentRoot, '[data-auth-user-modal]');
+      const orgMembersModal =
+        resolveFrom(root, '[data-org-members-modal]') ||
+        resolveFrom(documentRoot, '[data-org-members-modal]');
 
       this.elements = {
         message: resolveFrom(root, '[data-auth-message]'),
@@ -88,7 +92,26 @@
         userPhotoRemoveButton: resolveFrom(userModal, '[data-auth-user-photo-remove]'),
         userPhotoUploadingIndicator: resolveFrom(userModal, '[data-auth-user-photo-uploading]'),
         userPhotoUploader: resolveFrom(userModal, '[data-auth-user-photo-uploader]'),
+        orgSection: resolveFrom(root, '[data-org-structure-section]'),
+        orgTree: resolveFrom(root, '[data-org-tree]'),
+        orgTreeWrapper: resolveFrom(root, '[data-org-tree-wrapper]'),
+        orgEmpty: resolveFrom(root, '[data-org-empty]'),
+        orgSaveButton: resolveFrom(root, '[data-org-save]'),
+        orgMembersModal,
+        orgMembersForm: resolveFrom(orgMembersModal, '[data-org-members-form]'),
+        orgMembersList: resolveFrom(orgMembersModal, '[data-org-members-list]'),
+        orgMembersTitle: resolveFrom(orgMembersModal, '[data-org-members-title]'),
+        orgMembersDescription: resolveFrom(orgMembersModal, '[data-org-members-description]'),
+        orgMembersEmpty: resolveFrom(orgMembersModal, '[data-org-members-empty]'),
       };
+      this.orgSaveButtonDefaultText = this.elements.orgSaveButton
+        ? this.elements.orgSaveButton.textContent.trim()
+        : '';
+      this.orgStructureDirty = false;
+      this.orgStructureSaving = false;
+      this.orgCollapseState = {};
+      this.orgMembersModalState = { nodeId: null };
+      this.orgMembersModalInstance = null;
       this.handleUsersClick = this.handleUsersClick.bind(this);
       this.handleRolesClick = this.handleRolesClick.bind(this);
       this.handlePermissionToggle = this.handlePermissionToggle.bind(this);
@@ -105,6 +128,9 @@
       this.handlePhotoDragOver = this.handlePhotoDragOver.bind(this);
       this.handlePhotoDragLeave = this.handlePhotoDragLeave.bind(this);
       this.handlePhotoRemove = this.handlePhotoRemove.bind(this);
+      this.handleOrgSectionClick = this.handleOrgSectionClick.bind(this);
+      this.handleOrgSaveClick = this.handleOrgSaveClick.bind(this);
+      this.handleOrgMembersSubmit = this.handleOrgMembersSubmit.bind(this);
       this.modalState = null;
       this.modalPasswordState = { visible: false, loaded: false, value: '' };
       this.modalInstance = null;
@@ -115,6 +141,11 @@
       this.bindEvents();
       if (this.elements.userModal && this.bootstrap?.Modal) {
         this.modalInstance = this.bootstrap.Modal.getOrCreateInstance(this.elements.userModal);
+      }
+      if (this.elements.orgMembersModal && this.bootstrap?.Modal) {
+        this.orgMembersModalInstance = this.bootstrap.Modal.getOrCreateInstance(
+          this.elements.orgMembersModal,
+        );
       }
       return this.refresh();
     }
@@ -171,6 +202,20 @@
         );
         dropzone.addEventListener('drop', this.handlePhotoDrop);
       }
+      if (this.elements.orgSection) {
+        this.elements.orgSection.addEventListener('click', this.handleOrgSectionClick);
+      }
+      if (this.elements.orgSaveButton) {
+        this.elements.orgSaveButton.addEventListener('click', this.handleOrgSaveClick);
+      }
+      if (this.elements.orgMembersForm) {
+        this.elements.orgMembersForm.addEventListener('submit', this.handleOrgMembersSubmit);
+      }
+      if (this.elements.orgMembersModal) {
+        this.elements.orgMembersModal.addEventListener('hidden.bs.modal', () => {
+          this.orgMembersModalState = { nodeId: null };
+        });
+      }
     }
 
     setLoading(isLoading) {
@@ -216,6 +261,9 @@
           this.state.catalog = data.catalog || { pages: [], fields: { edit: [], view: [] } };
           this.state.capabilities = data.capabilities || { fields: { edit: {}, view: {} } };
           this.state.currentUserId = data.current_user_id;
+          this.state.orgStructure = this.normalizeOrgStructure(data.org_structure);
+          this.orgStructureDirty = false;
+          this.orgStructureSaving = false;
           this.render();
         })
         .catch((error) => {
@@ -229,6 +277,8 @@
     render() {
       this.renderUsers();
       this.renderRoles();
+      this.renderOrgStructure();
+      this.updateOrgStructureControls();
       this.updateCreateControls();
     }
 
@@ -1857,6 +1907,555 @@
         })
         .catch((error) => {
           this.setMessage(error.message || String(error));
+        });
+    }
+
+    normalizeOrgStructure(structure) {
+      const nodes = [];
+      const source = Array.isArray(structure?.nodes)
+        ? structure.nodes
+        : Array.isArray(structure)
+        ? structure
+        : [];
+      if (!Array.isArray(source)) {
+        return { nodes };
+      }
+      const seenIds = new Set();
+      source.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') {
+          return;
+        }
+        const rawId = String(entry.id || '').trim();
+        if (!rawId || seenIds.has(rawId)) {
+          return;
+        }
+        seenIds.add(rawId);
+        const name = String(entry.name || '').trim() || 'Новая ветка';
+        const parentIdRaw = entry.parent_id != null ? String(entry.parent_id).trim() : '';
+        const parentId = parentIdRaw || null;
+        const members = Array.isArray(entry.members)
+          ? Array.from(
+              new Set(
+                entry.members
+                  .map((value) => {
+                    const num = Number(value);
+                    return Number.isInteger(num) ? num : null;
+                  })
+                  .filter((value) => Number.isInteger(value)),
+              ),
+            ).sort((a, b) => a - b)
+          : [];
+        nodes.push({ id: rawId, name, parent_id: parentId, members });
+      });
+      return { nodes };
+    }
+
+    generateOrgNodeId() {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      return `node-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    }
+
+    buildOrgTree() {
+      const nodes = this.state.orgStructure?.nodes || [];
+      const map = new Map();
+      nodes.forEach((node) => {
+        if (!node || !node.id) {
+          return;
+        }
+        map.set(node.id, {
+          id: node.id,
+          name: node.name || 'Новая ветка',
+          parent_id: node.parent_id || null,
+          members: Array.isArray(node.members) ? node.members.slice() : [],
+          children: [],
+        });
+      });
+
+      const roots = [];
+      map.forEach((node) => {
+        const parentId = node.parent_id && map.has(node.parent_id) ? node.parent_id : null;
+        if (parentId) {
+          map.get(parentId).children.push(node);
+        } else {
+          roots.push(node);
+        }
+      });
+
+      const collator = new Intl.Collator('ru', { sensitivity: 'base' });
+      const sortNodes = (list) => {
+        list.sort((a, b) => collator.compare(a.name, b.name));
+        list.forEach((child) => sortNodes(child.children));
+      };
+      sortNodes(roots);
+      return roots;
+    }
+
+    renderOrgStructure() {
+      const container = this.elements.orgTree;
+      if (!container) {
+        return;
+      }
+      container.innerHTML = '';
+      const tree = this.buildOrgTree();
+      const hasNodes = tree.length > 0;
+      if (this.elements.orgEmpty) {
+        this.elements.orgEmpty.classList.toggle('d-none', hasNodes);
+      }
+      if (!hasNodes) {
+        return;
+      }
+      tree.forEach((node) => {
+        container.appendChild(this.createOrgNodeElement(node));
+      });
+    }
+
+    createOrgNodeElement(node) {
+      const item = document.createElement('li');
+      item.className = 'org-tree__item';
+      item.dataset.nodeId = node.id;
+
+      const card = document.createElement('div');
+      card.className = 'org-node';
+
+      const header = document.createElement('div');
+      header.className = 'org-node__header';
+
+      const info = document.createElement('div');
+      info.className = 'flex-grow-1 d-flex flex-column gap-1';
+      const title = document.createElement('div');
+      title.className = 'org-node__title';
+      title.textContent = node.name || 'Новая ветка';
+      info.appendChild(title);
+
+      const members = this.getOrgNodeMembers(node);
+      const meta = document.createElement('div');
+      meta.className = 'org-node__meta';
+      meta.textContent = members.length
+        ? `Участников: ${members.length}`
+        : 'Участники не назначены';
+      info.appendChild(meta);
+
+      if (members.length) {
+        const membersContainer = document.createElement('div');
+        membersContainer.className = 'org-node__members';
+        members.forEach((user) => {
+          const badge = document.createElement('span');
+          badge.className = 'org-node__badge';
+          badge.textContent = user.username || `ID ${user.id}`;
+          membersContainer.appendChild(badge);
+        });
+        info.appendChild(membersContainer);
+      }
+
+      header.appendChild(info);
+
+      const actions = document.createElement('div');
+      actions.className = 'org-node__actions d-flex flex-wrap gap-2';
+
+      const membersBtn = document.createElement('button');
+      membersBtn.type = 'button';
+      membersBtn.className = 'btn btn-outline-secondary btn-sm';
+      membersBtn.dataset.orgAction = 'members';
+      membersBtn.dataset.nodeId = node.id;
+      membersBtn.textContent = 'Состав';
+      actions.appendChild(membersBtn);
+
+      const childBtn = document.createElement('button');
+      childBtn.type = 'button';
+      childBtn.className = 'btn btn-outline-primary btn-sm';
+      childBtn.dataset.orgAction = 'add-child';
+      childBtn.dataset.nodeId = node.id;
+      childBtn.textContent = '+ Ветка';
+      actions.appendChild(childBtn);
+
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.className = 'btn btn-outline-secondary btn-sm';
+      renameBtn.dataset.orgAction = 'rename';
+      renameBtn.dataset.nodeId = node.id;
+      renameBtn.textContent = 'Переименовать';
+      actions.appendChild(renameBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn btn-outline-danger btn-sm';
+      deleteBtn.dataset.orgAction = 'delete';
+      deleteBtn.dataset.nodeId = node.id;
+      deleteBtn.textContent = 'Удалить';
+      actions.appendChild(deleteBtn);
+
+      header.appendChild(actions);
+      card.appendChild(header);
+      item.appendChild(card);
+
+      if (Array.isArray(node.children) && node.children.length) {
+        const childrenList = document.createElement('ul');
+        childrenList.className = 'org-tree__children list-unstyled';
+        node.children.forEach((child) => {
+          childrenList.appendChild(this.createOrgNodeElement(child));
+        });
+        item.appendChild(childrenList);
+      }
+
+      return item;
+    }
+
+    getOrgNodeMembers(node) {
+      const members = Array.isArray(node?.members) ? node.members : [];
+      if (!members.length) {
+        return [];
+      }
+      const lookup = new Map();
+      (this.state.users || []).forEach((user) => {
+        if (user && user.id != null) {
+          const id = Number(user.id);
+          if (Number.isInteger(id)) {
+            lookup.set(id, user);
+          }
+        }
+      });
+      const resolved = [];
+      members.forEach((id) => {
+        const numericId = Number(id);
+        if (!Number.isInteger(numericId)) {
+          return;
+        }
+        const user = lookup.get(numericId);
+        if (user) {
+          resolved.push(user);
+        }
+      });
+      const collator = new Intl.Collator('ru', { sensitivity: 'base' });
+      resolved.sort((a, b) => collator.compare(a.username || '', b.username || ''));
+      return resolved;
+    }
+
+    markOrgStructureDirty() {
+      this.orgStructureDirty = true;
+      this.updateOrgStructureControls();
+    }
+
+    updateOrgStructureControls() {
+      const saveBtn = this.elements.orgSaveButton;
+      if (!saveBtn) {
+        return;
+      }
+      if (this.orgStructureSaving) {
+        saveBtn.disabled = true;
+        saveBtn.classList.add('disabled');
+        saveBtn.textContent = 'Сохранение...';
+        return;
+      }
+      saveBtn.disabled = !this.orgStructureDirty;
+      saveBtn.classList.toggle('disabled', saveBtn.disabled);
+      if (this.orgSaveButtonDefaultText) {
+        saveBtn.textContent = this.orgSaveButtonDefaultText;
+      }
+    }
+
+    handleOrgSectionClick(event) {
+      const actionEl = event.target.closest('[data-org-action]');
+      if (!actionEl || !this.elements.orgSection?.contains(actionEl)) {
+        return;
+      }
+      const action = actionEl.dataset.orgAction;
+      const nodeId = actionEl.dataset.nodeId || null;
+      switch (action) {
+        case 'add-root':
+          event.preventDefault();
+          this.addOrgNode(null);
+          break;
+        case 'add-child':
+          event.preventDefault();
+          if (nodeId) {
+            this.addOrgNode(nodeId);
+          }
+          break;
+        case 'rename':
+          event.preventDefault();
+          if (nodeId) {
+            this.renameOrgNode(nodeId);
+          }
+          break;
+        case 'delete':
+          event.preventDefault();
+          if (nodeId) {
+            this.removeOrgNode(nodeId);
+          }
+          break;
+        case 'members':
+          event.preventDefault();
+          if (nodeId) {
+            this.openOrgMembersModal(nodeId);
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+    addOrgNode(parentId) {
+      if (!Array.isArray(this.state.orgStructure?.nodes)) {
+        this.state.orgStructure = { nodes: [] };
+      }
+      const nodes = this.state.orgStructure.nodes;
+      const newNode = {
+        id: this.generateOrgNodeId(),
+        name: parentId ? 'Новая ветка' : 'Новый отдел',
+        parent_id: parentId || null,
+        members: [],
+      };
+      nodes.push(newNode);
+      this.markOrgStructureDirty();
+      this.renderOrgStructure();
+    }
+
+    findOrgNode(nodeId) {
+      if (!nodeId) {
+        return null;
+      }
+      const nodes = this.state.orgStructure?.nodes || [];
+      return nodes.find((node) => node?.id === nodeId) || null;
+    }
+
+    collectOrgNodeDescendants(nodeId) {
+      const nodes = this.state.orgStructure?.nodes || [];
+      const toRemove = new Set();
+      const stack = [nodeId];
+      while (stack.length) {
+        const current = stack.pop();
+        if (!current || toRemove.has(current)) {
+          continue;
+        }
+        toRemove.add(current);
+        nodes.forEach((node) => {
+          if (node?.parent_id === current) {
+            stack.push(node.id);
+          }
+        });
+      }
+      return toRemove;
+    }
+
+    removeOrgNode(nodeId) {
+      const node = this.findOrgNode(nodeId);
+      if (!node) {
+        return;
+      }
+      const toRemove = this.collectOrgNodeDescendants(nodeId);
+      const total = toRemove.size;
+      const rest = total - 1;
+      let suffix = 'дочерних веток';
+      if (rest === 1) {
+        suffix = 'дочернюю ветку';
+      } else if (rest >= 2 && rest <= 4) {
+        suffix = 'дочерние ветки';
+      }
+      const message =
+        rest > 0
+          ? `Удалить ветку "${node.name}" и ${rest} ${suffix}?`
+          : `Удалить ветку "${node.name}"?`;
+      if (!window.confirm(message)) {
+        return;
+      }
+      this.state.orgStructure.nodes = (this.state.orgStructure.nodes || []).filter(
+        (entry) => !toRemove.has(entry.id),
+      );
+      this.markOrgStructureDirty();
+      this.renderOrgStructure();
+    }
+
+    renameOrgNode(nodeId) {
+      const node = this.findOrgNode(nodeId);
+      if (!node) {
+        return;
+      }
+      const nextName = window.prompt('Название ветки', node.name || '') || '';
+      const trimmed = nextName.trim();
+      if (!trimmed || trimmed === node.name) {
+        return;
+      }
+      node.name = trimmed;
+      this.markOrgStructureDirty();
+      this.renderOrgStructure();
+    }
+
+    openOrgMembersModal(nodeId) {
+      const node = this.findOrgNode(nodeId);
+      if (!node || !this.elements.orgMembersModal) {
+        return;
+      }
+      this.orgMembersModalState = { nodeId };
+      if (this.elements.orgMembersTitle) {
+        this.elements.orgMembersTitle.textContent = `Состав ветки «${node.name}»`;
+      }
+      if (this.elements.orgMembersDescription) {
+        this.elements.orgMembersDescription.textContent =
+          'Отметьте пользователей, которые входят в выбранную ветку.';
+      }
+      this.populateOrgMembersModal(node);
+      if (this.orgMembersModalInstance) {
+        this.orgMembersModalInstance.show();
+      } else {
+        this.elements.orgMembersModal.classList.add('show');
+        this.elements.orgMembersModal.style.display = 'block';
+      }
+    }
+
+    closeOrgMembersModal() {
+      if (this.orgMembersModalInstance) {
+        this.orgMembersModalInstance.hide();
+      } else if (this.elements.orgMembersModal) {
+        this.elements.orgMembersModal.classList.remove('show');
+        this.elements.orgMembersModal.style.display = 'none';
+      }
+      this.orgMembersModalState = { nodeId: null };
+    }
+
+    populateOrgMembersModal(node) {
+      const list = this.elements.orgMembersList;
+      if (!list) {
+        return;
+      }
+      list.innerHTML = '';
+      const membersSet = new Set(Array.isArray(node.members) ? node.members : []);
+      const users = (this.state.users || []).slice();
+      const collator = new Intl.Collator('ru', { sensitivity: 'base' });
+      users.sort((a, b) => collator.compare(a.username || '', b.username || ''));
+
+      if (!users.length) {
+        if (this.elements.orgMembersEmpty) {
+          this.elements.orgMembersEmpty.classList.remove('d-none');
+        }
+        return;
+      }
+
+      if (this.elements.orgMembersEmpty) {
+        this.elements.orgMembersEmpty.classList.add('d-none');
+      }
+
+      users.forEach((user) => {
+        if (user?.id == null) {
+          return;
+        }
+        const numericId = Number(user.id);
+        if (!Number.isInteger(numericId)) {
+          return;
+        }
+        const wrapper = document.createElement('div');
+        wrapper.className = 'form-check';
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.className = 'form-check-input';
+        input.name = 'memberIds';
+        input.value = String(numericId);
+        const inputId = `org-member-${node.id}-${numericId}`;
+        input.id = inputId;
+        input.checked = membersSet.has(numericId);
+
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.setAttribute('for', inputId);
+        const username = user.username || `ID ${numericId}`;
+        label.textContent = username;
+
+        if (user.department || user.role) {
+          const meta = document.createElement('div');
+          meta.className = 'small text-muted';
+          const parts = [];
+          if (user.role) {
+            parts.push(user.role);
+          }
+          if (user.department) {
+            parts.push(user.department);
+          }
+          meta.textContent = parts.join(' • ');
+          label.appendChild(document.createElement('br'));
+          label.appendChild(meta);
+        }
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(label);
+        list.appendChild(wrapper);
+      });
+    }
+
+    handleOrgMembersSubmit(event) {
+      event.preventDefault();
+      const nodeId = this.orgMembersModalState?.nodeId;
+      const node = nodeId ? this.findOrgNode(nodeId) : null;
+      if (!node) {
+        this.closeOrgMembersModal();
+        return;
+      }
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      const selected = formData
+        .getAll('memberIds')
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value));
+      selected.sort((a, b) => a - b);
+      node.members = Array.from(new Set(selected));
+      this.markOrgStructureDirty();
+      this.renderOrgStructure();
+      this.closeOrgMembersModal();
+      this.setMessage('Состав ветки обновлён.', 'success');
+    }
+
+    handleOrgSaveClick(event) {
+      event.preventDefault();
+      this.saveOrgStructure();
+    }
+
+    saveOrgStructure() {
+      if (this.orgStructureSaving) {
+        return;
+      }
+      if (!this.orgStructureDirty) {
+        this.setMessage('Нет изменений для сохранения.', 'info');
+        return;
+      }
+      this.orgStructureSaving = true;
+      this.updateOrgStructureControls();
+      const nodes = Array.isArray(this.state.orgStructure?.nodes)
+        ? this.state.orgStructure.nodes
+        : [];
+      const payload = {
+        org_structure: {
+          nodes: nodes.map((node) => ({
+            id: node.id,
+            name: node.name,
+            parent_id: node.parent_id || null,
+            members: Array.isArray(node.members) ? node.members.slice() : [],
+          })),
+        },
+      };
+
+      fetch('/auth/org-structure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+      })
+        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.success === false) {
+            throw new Error(data.error || 'Не удалось сохранить оргструктуру');
+          }
+          this.state.orgStructure = this.normalizeOrgStructure(data.org_structure);
+          this.orgStructureDirty = false;
+          this.setMessage('Оргструктура сохранена.', 'success');
+          this.renderOrgStructure();
+        })
+        .catch((error) => {
+          this.setMessage(error.message || String(error));
+        })
+        .finally(() => {
+          this.orgStructureSaving = false;
+          this.updateOrgStructureControls();
         });
     }
   }
