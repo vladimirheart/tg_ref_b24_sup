@@ -1,6 +1,8 @@
 (() => {
   const PASSWORD_PLACEHOLDER = '••••••••';
   const PERMISSION_WILDCARD = '*';
+  const DEFAULT_PHONE_TYPES = ['Рабочий', 'Личный', 'Дополнительный'];
+  const DEFAULT_PHONE_PLACEHOLDER = '+7 (999) 000-00-00';
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -44,6 +46,7 @@
       this.photoUploadDisabled = false;
       this.photoUploadUploading = false;
       const documentRoot = typeof document === 'undefined' ? null : document;
+      this.documentRoot = documentRoot;
       const resolveFrom = (scope, selector) => scope?.querySelector(selector) || null;
       const userModal =
         resolveFrom(root, '[data-auth-user-modal]') ||
@@ -78,7 +81,8 @@
         userPhoneAddButton: resolveFrom(userModal, '[data-auth-user-phone-add]'),
         userUsernameInput: resolveFrom(userModal, '[name="username"]'),
         userEmailInput: resolveFrom(userModal, '[name="email"]'),
-        userDepartmentInput: resolveFrom(userModal, '[name="department"]'),
+        userDepartmentInput: resolveFrom(userModal, '[data-auth-user-department-select]'),
+        userDepartmentSearch: resolveFrom(userModal, '[data-auth-user-department-search]'),
         userBirthDateInput: resolveFrom(userModal, '[name="birth_date"]'),
         userPhotoInput: resolveFrom(userModal, '[data-auth-user-photo-value]'),
         userPhotoFileInput: resolveFrom(userModal, '[data-auth-user-photo-file]'),
@@ -92,6 +96,13 @@
         userPhotoRemoveButton: resolveFrom(userModal, '[data-auth-user-photo-remove]'),
         userPhotoUploadingIndicator: resolveFrom(userModal, '[data-auth-user-photo-uploading]'),
         userPhotoUploader: resolveFrom(userModal, '[data-auth-user-photo-uploader]'),
+        userPasswordConfirmInput: resolveFrom(userModal, '[data-auth-user-password-confirm]'),
+        userPhotoViewerModal:
+          resolveFrom(userModal, '[data-auth-user-photo-viewer-modal]') ||
+          resolveFrom(documentRoot, '[data-auth-user-photo-viewer-modal]'),
+        userPhotoViewerImage:
+          resolveFrom(userModal, '[data-auth-user-photo-viewer-img]') ||
+          resolveFrom(documentRoot, '[data-auth-user-photo-viewer-img]'),
         orgSection: resolveFrom(root, '[data-org-structure-section]'),
         orgTree: resolveFrom(root, '[data-org-tree]'),
         orgTreeWrapper: resolveFrom(root, '[data-org-tree-wrapper]'),
@@ -112,6 +123,11 @@
       this.orgCollapseState = {};
       this.orgMembersModalState = { nodeId: null };
       this.orgMembersModalInstance = null;
+      this.photoViewerModalInstance = null;
+      this.departmentOptions = [];
+      this.customDepartmentOptions = new Set();
+      this.departmentSearchTerm = '';
+      this.inputSettings = typeof window !== 'undefined' ? window.__inputSettings || {} : {};
       this.handleUsersClick = this.handleUsersClick.bind(this);
       this.handleRolesClick = this.handleRolesClick.bind(this);
       this.handlePermissionToggle = this.handlePermissionToggle.bind(this);
@@ -120,6 +136,7 @@
       this.handleCreateUserTrigger = this.handleCreateUserTrigger.bind(this);
       this.handleAddPhone = this.handleAddPhone.bind(this);
       this.handlePhoneListClick = this.handlePhoneListClick.bind(this);
+      this.handlePhoneValueInput = this.handlePhoneValueInput.bind(this);
       this.handleModalPasswordToggle = this.handleModalPasswordToggle.bind(this);
       this.handleUserModalHidden = this.handleUserModalHidden.bind(this);
       this.handlePhotoFileChange = this.handlePhotoFileChange.bind(this);
@@ -128,9 +145,13 @@
       this.handlePhotoDragOver = this.handlePhotoDragOver.bind(this);
       this.handlePhotoDragLeave = this.handlePhotoDragLeave.bind(this);
       this.handlePhotoRemove = this.handlePhotoRemove.bind(this);
+      this.handlePhotoPreviewClick = this.handlePhotoPreviewClick.bind(this);
+      this.handlePhotoPreviewKeydown = this.handlePhotoPreviewKeydown.bind(this);
       this.handleOrgSectionClick = this.handleOrgSectionClick.bind(this);
       this.handleOrgSaveClick = this.handleOrgSaveClick.bind(this);
       this.handleOrgMembersSubmit = this.handleOrgMembersSubmit.bind(this);
+      this.handleInputSettingsChange = this.handleInputSettingsChange.bind(this);
+      this.handleDepartmentSearchInput = this.handleDepartmentSearchInput.bind(this);
       this.modalState = null;
       this.modalPasswordState = { visible: false, loaded: false, value: '' };
       this.modalInstance = null;
@@ -147,6 +168,13 @@
           this.elements.orgMembersModal,
         );
       }
+      if (this.elements.userPhotoViewerModal && this.bootstrap?.Modal) {
+        this.photoViewerModalInstance = this.bootstrap.Modal.getOrCreateInstance(
+          this.elements.userPhotoViewerModal,
+        );
+      }
+      this.refreshPhoneControlsFromSettings();
+      this.refreshDepartmentSelect();
       return this.refresh();
     }
 
@@ -172,6 +200,7 @@
       }
       if (this.elements.userPhonesContainer) {
         this.elements.userPhonesContainer.addEventListener('click', this.handlePhoneListClick);
+        this.elements.userPhonesContainer.addEventListener('input', this.handlePhoneValueInput);
       }
       if (this.elements.userPasswordToggle) {
         this.elements.userPasswordToggle.addEventListener('click', this.handleModalPasswordToggle);
@@ -191,6 +220,12 @@
       if (this.elements.userPhotoRemoveButton) {
         this.elements.userPhotoRemoveButton.addEventListener('click', this.handlePhotoRemove);
       }
+      if (this.elements.userPhotoPreview) {
+        this.elements.userPhotoPreview.addEventListener('click', this.handlePhotoPreviewClick);
+      }
+      if (this.elements.userPhotoPreviewImage) {
+        this.elements.userPhotoPreviewImage.addEventListener('keydown', this.handlePhotoPreviewKeydown);
+      }
       if (this.elements.userPhotoDropzone) {
         const dropzone = this.elements.userPhotoDropzone;
         dropzone.addEventListener('click', this.handlePhotoDropzoneClick);
@@ -201,6 +236,12 @@
           dropzone.addEventListener(eventName, this.handlePhotoDragLeave)
         );
         dropzone.addEventListener('drop', this.handlePhotoDrop);
+      }
+      if (this.elements.userDepartmentSearch) {
+        this.elements.userDepartmentSearch.addEventListener('input', this.handleDepartmentSearchInput);
+      }
+      if (this.documentRoot) {
+        this.documentRoot.addEventListener('inputSettings:change', this.handleInputSettingsChange);
       }
       if (this.elements.orgSection) {
         this.elements.orgSection.addEventListener('click', this.handleOrgSectionClick);
@@ -280,6 +321,7 @@
       this.renderOrgStructure();
       this.updateOrgStructureControls();
       this.updateCreateControls();
+      this.updateDepartmentOptionsFromOrgStructure();
     }
 
     capabilitiesEdit(key) {
@@ -881,8 +923,11 @@
         this.elements.userEmailInput.disabled = !permissions.canEditDetails;
       }
       if (this.elements.userDepartmentInput) {
-        this.elements.userDepartmentInput.value = user?.department || '';
+        this.setDepartmentValue(user?.department || '');
         this.elements.userDepartmentInput.disabled = !permissions.canEditDetails;
+      }
+      if (this.elements.userDepartmentSearch) {
+        this.elements.userDepartmentSearch.disabled = !permissions.canEditDetails;
       }
       if (this.elements.userBirthDateInput) {
         this.elements.userBirthDateInput.value = user?.birth_date || '';
@@ -900,6 +945,18 @@
           this.elements.userPasswordInput.placeholder = 'Оставьте пустым, чтобы не менять';
           this.elements.userPasswordInput.required = false;
           this.elements.userPasswordInput.disabled = !permissions.canEditPassword;
+        }
+      }
+      if (this.elements.userPasswordConfirmInput) {
+        this.elements.userPasswordConfirmInput.value = '';
+        if (mode === 'create') {
+          this.elements.userPasswordConfirmInput.placeholder = 'Повторите пароль';
+          this.elements.userPasswordConfirmInput.required = true;
+          this.elements.userPasswordConfirmInput.disabled = false;
+        } else {
+          this.elements.userPasswordConfirmInput.placeholder = 'Повторите новый пароль';
+          this.elements.userPasswordConfirmInput.required = false;
+          this.elements.userPasswordConfirmInput.disabled = !permissions.canEditPassword;
         }
       }
 
@@ -1003,6 +1060,342 @@
       return date.toLocaleString();
     }
 
+    getPhoneSettings() {
+      return this.inputSettings?.phone || {};
+    }
+
+    getPhoneTypes() {
+      const settings = this.getPhoneSettings();
+      if (Array.isArray(settings.types) && settings.types.length) {
+        return settings.types;
+      }
+      return DEFAULT_PHONE_TYPES;
+    }
+
+    getPhoneFormat() {
+      const settings = this.getPhoneSettings();
+      const format = settings?.format || {};
+      return {
+        prefix: format.prefix || '',
+        pattern: format.pattern || '',
+        example: format.example || '',
+      };
+    }
+
+    formatPhoneNumber(value) {
+      const format = this.getPhoneFormat();
+      const digits = String(value || '').replace(/\D+/g, '');
+      const prefixDigits = (format.prefix || '').replace(/\D+/g, '');
+      let cleanedDigits = digits;
+      if (prefixDigits && cleanedDigits.startsWith(prefixDigits)) {
+        cleanedDigits = cleanedDigits.slice(prefixDigits.length);
+      }
+      let result = format.prefix || '';
+      let digitIndex = 0;
+      const pattern = format.pattern || '';
+      if (pattern) {
+        for (let i = 0; i < pattern.length; i += 1) {
+          const char = pattern[i];
+          if (char === '#') {
+            if (digitIndex < cleanedDigits.length) {
+              result += cleanedDigits[digitIndex];
+              digitIndex += 1;
+            } else {
+              break;
+            }
+          } else if (digitIndex < cleanedDigits.length) {
+            result += char;
+          }
+        }
+      }
+      while (digitIndex < cleanedDigits.length) {
+        result += cleanedDigits[digitIndex];
+        digitIndex += 1;
+      }
+      if (!pattern && !format.prefix) {
+        return digits;
+      }
+      return result.trim();
+    }
+
+    applyPhoneValueSettings(input) {
+      if (!input) {
+        return;
+      }
+      const format = this.getPhoneFormat();
+      const placeholder = format.example || DEFAULT_PHONE_PLACEHOLDER;
+      input.placeholder = placeholder;
+      const formatted = this.formatPhoneNumber(input.value);
+      if (formatted !== input.value) {
+        input.value = formatted;
+      }
+    }
+
+    populatePhoneTypeSelect(select, selectedValue) {
+      if (!select) {
+        return;
+      }
+      const types = this.getPhoneTypes();
+      const normalizedSelected = (selectedValue || '').trim();
+      const normalizedSelectedKey = normalizedSelected.toLowerCase();
+      select.innerHTML = '';
+      const placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = 'Не выбран';
+      select.appendChild(placeholderOption);
+      const seen = new Set();
+      types.forEach((type) => {
+        const label = String(type || '').trim();
+        if (!label) {
+          return;
+        }
+        const key = label.toLowerCase();
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        const option = document.createElement('option');
+        option.value = label;
+        option.textContent = label;
+        select.appendChild(option);
+      });
+      if (normalizedSelected && !seen.has(normalizedSelectedKey)) {
+        const customOption = document.createElement('option');
+        customOption.value = normalizedSelected;
+        customOption.textContent = normalizedSelected;
+        select.appendChild(customOption);
+      }
+      select.value = normalizedSelected;
+    }
+
+    refreshPhoneControlsFromSettings() {
+      if (this.elements.userPhonesContainer) {
+        const typeSelects = this.elements.userPhonesContainer.querySelectorAll('[data-auth-user-phone-type]');
+        typeSelects.forEach((select) => {
+          this.populatePhoneTypeSelect(select, select.value);
+        });
+        const valueInputs = this.elements.userPhonesContainer.querySelectorAll('[data-auth-user-phone-input]');
+        valueInputs.forEach((input) => {
+          this.applyPhoneValueSettings(input);
+        });
+      }
+    }
+
+    handlePhoneValueInput(event) {
+      const input = event.target.closest('[data-auth-user-phone-input]');
+      if (!input) {
+        return;
+      }
+      if (!this.modalState?.permissions?.canEditDetails) {
+        return;
+      }
+      const formatted = this.formatPhoneNumber(input.value);
+      if (formatted !== input.value) {
+        input.value = formatted;
+      }
+    }
+
+    handleInputSettingsChange(event) {
+      const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
+      this.inputSettings = detail;
+      this.refreshPhoneControlsFromSettings();
+    }
+
+    handleDepartmentSearchInput(event) {
+      if (!this.elements.userDepartmentSearch) {
+        return;
+      }
+      this.departmentSearchTerm = event.target.value || '';
+      this.refreshDepartmentSelect();
+    }
+
+    clearDepartmentSearch() {
+      this.departmentSearchTerm = '';
+      if (this.elements.userDepartmentSearch) {
+        this.elements.userDepartmentSearch.value = '';
+      }
+    }
+
+    buildDepartmentOptionList(nodes, prefix = []) {
+      const result = [];
+      const list = Array.isArray(nodes) ? nodes : [];
+      list.forEach((node) => {
+        if (!node) {
+          return;
+        }
+        const name = String(node.name || '').trim() || 'Без названия';
+        const pathParts = [...prefix, name];
+        const value = pathParts.join(' / ');
+        result.push({
+          value,
+          label: name,
+          depth: prefix.length,
+          search: pathParts.join(' ').toLowerCase(),
+          pathParts,
+        });
+        if (Array.isArray(node.children) && node.children.length) {
+          result.push(...this.buildDepartmentOptionList(node.children, pathParts));
+        }
+      });
+      return result;
+    }
+
+    updateDepartmentOptionsFromOrgStructure() {
+      const tree = this.buildOrgTree();
+      this.departmentOptions = this.buildDepartmentOptionList(tree);
+      const known = new Set(
+        this.departmentOptions.map((option) => option.value.toLowerCase()),
+      );
+      const customValues = new Set(this.customDepartmentOptions);
+      this.state.users.forEach((user) => {
+        const department = String(user?.department || '').trim();
+        if (department && !known.has(department.toLowerCase())) {
+          customValues.add(department);
+        }
+      });
+      this.customDepartmentOptions = customValues;
+      this.refreshDepartmentSelect();
+    }
+
+    refreshDepartmentSelect(forcedValue) {
+      const select = this.elements.userDepartmentInput;
+      if (!select) {
+        return;
+      }
+      if (
+        this.elements.userDepartmentSearch &&
+        this.elements.userDepartmentSearch.value !== this.departmentSearchTerm
+      ) {
+        this.elements.userDepartmentSearch.value = this.departmentSearchTerm;
+      }
+      const baseOptions = [...this.departmentOptions];
+      this.customDepartmentOptions.forEach((value) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) {
+          return;
+        }
+        baseOptions.push({
+          value: trimmed,
+          label: trimmed,
+          depth: 0,
+          search: trimmed.toLowerCase(),
+          pathParts: [trimmed],
+          isCustom: true,
+        });
+      });
+      const searchTerm = (this.departmentSearchTerm || '').trim().toLowerCase();
+      let filtered = baseOptions.filter((option) => {
+        if (!searchTerm) {
+          return true;
+        }
+        return option.search.includes(searchTerm);
+      });
+      const selectedValue =
+        typeof forcedValue === 'string' ? forcedValue : select.value || '';
+      const selectedKey = selectedValue.trim().toLowerCase();
+      if (selectedValue) {
+        const hasSelected = filtered.some((option) => option.value.toLowerCase() === selectedKey);
+        if (!hasSelected) {
+          const match = baseOptions.find(
+            (option) => option.value.toLowerCase() === selectedKey,
+          )
+            || baseOptions.find((option) => {
+              const last = option.pathParts?.[option.pathParts.length - 1];
+              return last && last.toLowerCase() === selectedKey;
+            })
+            || {
+              value: selectedValue,
+              label: selectedValue,
+              depth: 0,
+              search: selectedKey,
+              pathParts: [selectedValue],
+              isCustom: true,
+            };
+          filtered = [match, ...filtered];
+        }
+      }
+      const seenValues = new Set();
+      const uniqueOptions = [];
+      filtered.forEach((option) => {
+        const key = option.value.toLowerCase();
+        if (seenValues.has(key)) {
+          return;
+        }
+        seenValues.add(key);
+        uniqueOptions.push(option);
+      });
+      select.innerHTML = '';
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = 'Не выбран';
+      select.appendChild(emptyOption);
+      uniqueOptions.forEach((option) => {
+        const el = document.createElement('option');
+        el.value = option.value;
+        const indent = option.depth > 0 ? `${'\u00A0'.repeat(option.depth * 2)}↳ ` : '';
+        el.textContent = `${indent}${option.label}`;
+        el.title = option.pathParts ? option.pathParts.join(' / ') : option.label;
+        select.appendChild(el);
+      });
+      select.value = selectedValue;
+    }
+
+    setDepartmentValue(value) {
+      if (!this.elements.userDepartmentInput) {
+        return;
+      }
+      const normalized = String(value || '').trim();
+      if (normalized) {
+        const exists = this.departmentOptions.some(
+          (option) => option.value.toLowerCase() === normalized.toLowerCase(),
+        );
+        if (!exists) {
+          this.customDepartmentOptions.add(normalized);
+        }
+      }
+      this.clearDepartmentSearch();
+      this.refreshDepartmentSelect(normalized);
+      this.elements.userDepartmentInput.value = normalized;
+    }
+
+    handlePhotoPreviewClick(event) {
+      const trigger = event.target.closest('[data-auth-user-photo-preview-trigger]');
+      if (!trigger) {
+        return;
+      }
+      event.preventDefault();
+      this.openPhotoViewer();
+    }
+
+    handlePhotoPreviewKeydown(event) {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      event.preventDefault();
+      this.openPhotoViewer();
+    }
+
+    openPhotoViewer() {
+      const url = (this.photoUploadState?.tempUrl || this.photoUploadState?.previewUrl || '').trim();
+      if (!url || !this.elements.userPhotoViewerImage) {
+        return;
+      }
+      const username =
+        (this.modalState?.mode === 'edit' && this.modalState?.original?.username) ||
+        (this.elements.userUsernameInput ? this.elements.userUsernameInput.value : '') ||
+        '';
+      const altText = username ? `Фото пользователя ${username}` : 'Фото пользователя';
+      this.elements.userPhotoViewerImage.src = url;
+      this.elements.userPhotoViewerImage.alt = altText;
+      if (this.photoViewerModalInstance) {
+        this.photoViewerModalInstance.show();
+      } else if (this.elements.userPhotoViewerModal) {
+        this.elements.userPhotoViewerModal.classList.add('show');
+        this.elements.userPhotoViewerModal.style.display = 'block';
+        this.elements.userPhotoViewerModal.removeAttribute('aria-hidden');
+      }
+    }
+
     renderPhoneList(phones, editable) {
       const container = this.elements.userPhonesContainer;
       if (!container) {
@@ -1017,6 +1410,7 @@
       if (this.elements.userPhoneAddButton) {
         this.elements.userPhoneAddButton.disabled = !editable;
       }
+      this.refreshPhoneControlsFromSettings();
     }
 
     createPhoneRow(phone, editable) {
@@ -1029,13 +1423,13 @@
       const typeLabel = document.createElement('label');
       typeLabel.className = 'form-label small mb-1';
       typeLabel.textContent = 'Тип';
-      const typeInput = document.createElement('input');
-      typeInput.type = 'text';
-      typeInput.className = 'form-control form-control-sm';
-      typeInput.name = 'phone_type';
-      typeInput.placeholder = 'Например, мобильный';
-      typeInput.value = String(phone?.type || phone?.label || '').trim();
-      typeInput.disabled = !editable;
+      const typeSelect = document.createElement('select');
+      typeSelect.className = 'form-select form-select-sm';
+      typeSelect.name = 'phone_type';
+      typeSelect.dataset.authUserPhoneType = 'true';
+      const initialType = String(phone?.type || phone?.label || '').trim();
+      this.populatePhoneTypeSelect(typeSelect, initialType);
+      typeSelect.disabled = !editable;
       typeCol.appendChild(typeLabel);
       typeCol.appendChild(typeInput);
 
@@ -1048,11 +1442,14 @@
       valueInput.type = 'text';
       valueInput.className = 'form-control form-control-sm';
       valueInput.name = 'phone_value';
-      valueInput.placeholder = '+7 (999) 000-00-00';
-      valueInput.value = String(phone?.value || phone?.number || '').trim();
+      valueInput.autocomplete = 'off';
+      valueInput.dataset.authUserPhoneInput = 'true';
+      const initialNumber = String(phone?.value || phone?.number || '').trim();
+      valueInput.value = initialNumber;
+      this.applyPhoneValueSettings(valueInput);
       valueInput.disabled = !editable;
       valueCol.appendChild(valueLabel);
-      valueCol.appendChild(valueInput);
+      typeCol.appendChild(typeSelect);
 
       const removeCol = document.createElement('div');
       removeCol.className = 'col-12 col-sm-1 d-flex align-items-end';
@@ -1085,7 +1482,10 @@
       if (!this.elements.userPhonesContainer) {
         return;
       }
-      this.elements.userPhonesContainer.appendChild(this.createPhoneRow({ type: '', value: '' }, true));
+      const defaultType = this.getPhoneTypes()[0] || '';
+      this.elements.userPhonesContainer.appendChild(
+        this.createPhoneRow({ type: defaultType, value: '' }, true),
+      );
       this.togglePhonesEmpty(false);
     }
 
@@ -1305,6 +1705,18 @@
       }
 
       const password = this.elements.userPasswordInput ? this.elements.userPasswordInput.value.trim() : '';
+      const passwordConfirm = this.elements.userPasswordConfirmInput
+        ? this.elements.userPasswordConfirmInput.value.trim()
+        : '';
+      if (password || passwordConfirm) {
+        if (password !== passwordConfirm) {
+          this.setUserModalError('Пароли не совпадают.');
+          if (submitButton) {
+            submitButton.disabled = false;
+          }
+          return;
+        }
+      }
       if (mode === 'create') {
         if (!password) {
           this.setUserModalError('Укажите пароль для нового пользователя.');
@@ -1405,6 +1817,18 @@
       }
       if (this.elements.userRegistrationInput) {
         this.elements.userRegistrationInput.value = '';
+      }
+      if (this.elements.userPasswordConfirmInput) {
+        this.elements.userPasswordConfirmInput.value = '';
+      }
+      this.clearDepartmentSearch();
+      if (this.elements.userDepartmentInput) {
+        this.refreshDepartmentSelect('');
+        this.elements.userDepartmentInput.value = '';
+        this.elements.userDepartmentInput.disabled = false;
+      }
+      if (this.elements.userDepartmentSearch) {
+        this.elements.userDepartmentSearch.disabled = false;
       }
       this.renderPhoneList([], true);
       this.resetPhotoUploader('', true);
