@@ -6381,16 +6381,16 @@ function displayTicketsForCurrentPage() {
           return result;
         }
 
-        const rawDialogConfig = window.settings && typeof window.settings === 'object' ? window.settings.dialogConfig : {};
+        const dialogConfig = window.settings && typeof window.settings === 'object' ? window.settings.dialogConfig : {};
         const CATEGORY_TEMPLATES = normalizeCategoryTemplates(
-          rawDialogConfig && rawDialogConfig.category_templates,
+          dialogConfig && dialogConfig.category_templates,
           window.settings && window.settings.categories
         );
         const QUESTION_TEMPLATES = normalizeQuestionTemplates(
-          rawDialogConfig && rawDialogConfig.question_templates
+          dialogConfig && dialogConfig.question_templates
         );
         const COMPLETION_TEMPLATES = normalizeCompletionTemplates(
-          rawDialogConfig && rawDialogConfig.completion_templates
+          dialogConfig && dialogConfig.completion_templates
         );
 
         let activeCategoryTemplateId = CATEGORY_TEMPLATES.length ? CATEGORY_TEMPLATES[0].id : null;
