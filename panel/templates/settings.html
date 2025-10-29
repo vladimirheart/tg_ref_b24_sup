@@ -198,6 +198,103 @@
       border-radius: 0.75rem;
       background-color: #fdfdfd;
     }
+
+    .org-tree-wrapper {
+      border: 1px solid #e9ecef;
+      border-radius: 0.75rem;
+      background: #ffffff;
+      padding: 1rem;
+      min-height: 6rem;
+    }
+
+    .org-tree {
+      margin: 0;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .org-tree__item {
+      list-style: none;
+      margin-bottom: 0.75rem;
+    }
+
+    .org-tree__item:last-child {
+      margin-bottom: 0;
+    }
+
+    .org-tree__children {
+      margin-top: 0.75rem;
+      margin-left: 1.5rem;
+      padding-left: 0.75rem;
+      border-left: 2px solid #e9ecef;
+    }
+
+    .org-node {
+      border: 1px solid #e9ecef;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), #ffffff);
+      box-shadow: 0 0.25rem 0.75rem rgba(13, 110, 253, 0.08);
+    }
+
+    .org-node__header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .org-node__title {
+      font-weight: 600;
+      color: #0d6efd;
+    }
+
+    .org-node__meta {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    .org-node__members {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+    }
+
+    .org-node__badge {
+      background: #f1f3f5;
+      border: 1px solid #dee2e6;
+      border-radius: 9999px;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.75rem;
+      color: #495057;
+    }
+
+    .org-node__actions .btn {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+    }
+
+    .org-members-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .org-members-list .form-check {
+      padding: 0.35rem 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid transparent;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .org-members-list .form-check:hover {
+      background-color: #f8f9fa;
+      border-color: #e9ecef;
+    }
     .dialog-time-metrics-preview {
       display: flex;
       flex-wrap: wrap;
@@ -652,7 +749,7 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панили и настройки доступа</h5>
+            <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панели и настройки доступа</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -669,6 +766,9 @@
                 </li>
                 <li class="nav-item" role="presentation">
                   <button class="nav-link" id="auth-roles-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthRoles" type="button" role="tab">Роли</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="auth-org-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthOrg" type="button" role="tab">Орг.структура</button>
                 </li>
               </ul>
 
@@ -712,6 +812,28 @@
                   <div class="text-danger small mb-3 d-none" data-auth-role-create-error></div>
                   <div class="d-flex flex-column gap-3" data-auth-roles-container></div>
                   <div class="alert alert-info d-none" data-auth-roles-empty>Роли не найдены.</div>
+                </div>
+
+                <div class="tab-pane fade" id="settingsAuthOrg" role="tabpanel" data-org-structure-section>
+                  <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+                        <div class="text-muted small">
+                          Формируйте иерархию подразделений и назначайте пользователей в каждой ветке.
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 justify-content-end">
+                          <button type="button" class="btn btn-outline-primary btn-sm" data-org-action="add-root">+ Добавить корневую ветку</button>
+                          <button type="button" class="btn btn-success btn-sm" data-org-save disabled>Сохранить оргструктуру</button>
+                        </div>
+                      </div>
+                      <div class="org-tree-wrapper" data-org-tree-wrapper>
+                        <div class="alert alert-info small" data-org-empty>
+                          Оргструктура не задана. Добавьте первую ветку, чтобы начать.
+                        </div>
+                        <ul class="org-tree list-unstyled mb-0" data-org-tree></ul>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -810,6 +932,29 @@
             <div class="modal-footer">
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отменить</button>
               <button type="submit" class="btn btn-primary" data-auth-user-submit>Сохранить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="orgMembersModal" tabindex="-1" aria-hidden="true" data-org-members-modal>
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <form data-org-members-form>
+            <div class="modal-header">
+              <h5 class="modal-title" data-org-members-title>Состав ветки</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <div class="text-muted small" data-org-members-description></div>
+              </div>
+              <div class="org-members-list" data-org-members-list></div>
+              <div class="alert alert-info small d-none mt-3" data-org-members-empty>Нет доступных пользователей.</div>
+            </div>
+            <div class="modal-footer justify-content-end">
+              <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
             </div>
           </form>
         </div>
