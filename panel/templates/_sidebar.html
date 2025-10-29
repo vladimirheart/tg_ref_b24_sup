@@ -42,16 +42,22 @@
       <span class="icon">⚙️</span><span class="label">Настройки</span>
     </a>
   </nav>
-  <div class="sidebar-order-controls">
-    <button
-      id="editSidebarOrderBtn"
-      class="sidebar-order-btn"
-      type="button"
-      aria-label="Редактировать порядок"
-      title="Редактировать порядок"
-    >
-      <span class="icon" aria-hidden="true">⇅</span>
-    </button>
+  <div class="sidebar-footer">
+    <div class="sidebar-order-controls">
+      <button
+        id="editSidebarOrderBtn"
+        class="sidebar-order-btn"
+        type="button"
+        aria-label="Редактировать порядок"
+        title="Редактировать порядок"
+      >
+        <span class="icon" aria-hidden="true">⇅</span>
+      </button>
+    </div>
+    <a href="{{ url_for('logout') }}" class="sidebar-logout-btn" role="button">
+      <span class="icon" aria-hidden="true">🚪</span>
+      <span class="label">Выйти</span>
+    </a>
   </div>
 </div>
 
