@@ -951,21 +951,20 @@
       this.elements.userForm.dataset.mode = mode;
       this.setUserModalError('');
 
+      const username = user?.username || '';
+      const fullName = user?.full_name || '';
       if (this.elements.userModalTitle) {
+        const displayName = fullName.trim() || username.trim() || 'Пользователь';
         this.elements.userModalTitle.textContent =
-          mode === 'create'
-            ? 'Новый пользователь'
-            : `Пользователь ${user?.username || ''}`.trim();
+          mode === 'create' ? 'Новый пользователь' : displayName;
       }
 
-      const username = user?.username || '';
       if (this.elements.userUsernameInput) {
         this.elements.userUsernameInput.value = username;
         this.elements.userUsernameInput.disabled = mode === 'edit' && !permissions.canEditUsername;
       }
 
       if (this.elements.userFullNameInput) {
-        const fullName = user?.full_name || '';
         this.elements.userFullNameInput.value = fullName;
         this.elements.userFullNameInput.disabled = mode === 'edit' && !permissions.canEditDetails;
       }
