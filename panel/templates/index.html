@@ -1959,7 +1959,7 @@ function markTicketReopenedLocally() {
                   <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
                   <div class="flex-grow-1 position-relative">
                     <div class="w-100">
-                      <div class="mb-2" id="questionTemplateSection">
+                      <div class="mb-2 d-none" id="questionTemplateSection">
                         <label class="form-label small mb-1" for="questionTemplateSelect">Шаблон типовых вопросов</label>
                         <div class="input-group input-group-sm">
                           <select id="questionTemplateSelect" class="form-select"></select>
@@ -2038,7 +2038,6 @@ function markTicketReopenedLocally() {
                       </button>
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
@@ -6605,13 +6604,22 @@ function displayTicketsForCurrentPage() {
           renderQuestionTemplateQuestions(activeQuestionTemplateId);
         }
 
+        function toggleQuestionTemplateSection(shouldShow) {
+          const section = document.getElementById('questionTemplateSection');
+          if (!section) return;
+          section.classList.toggle('d-none', !shouldShow);
+        }
+
         function renderQuestionTemplateSelect() {
           const select = document.getElementById('questionTemplateSelect');
           const applyBtn = document.getElementById('applyQuestionTemplateBtn');
+          const hasTemplates = QUESTION_TEMPLATES.length > 0;
+
+          toggleQuestionTemplateSection(hasTemplates);
           if (!select) return;
 
           select.innerHTML = '';
-          if (!QUESTION_TEMPLATES.length) {
+          if (!hasTemplates) {
             const option = document.createElement('option');
             option.value = '';
             option.textContent = 'Нет шаблонов';
