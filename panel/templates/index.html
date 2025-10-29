@@ -3675,15 +3675,17 @@ function displayTicketDateTime(t) {
 // Универсальный рендерер сообщений
 function renderMessagesHTML(ticket_id, messages, clientData) {
   return (messages || []).map(msg => {
-    const rawSender = String(msg.sender || '').toLowerCase().trim();
+    const senderLabelRaw = msg.sender ?? msg.sender_type ?? '';
+    const rawSender = String(senderLabelRaw || '').toLowerCase().trim();
     const isSupport =
-      ['support','operator','admin','поддержка','оператор','staff','agent'].includes(rawSender) ||
+      isSupportSenderLabel(senderLabelRaw) ||
       msg.is_support === true ||
       msg.from_support === true ||
       msg.is_outgoing === true ||
       msg.sender_type === 'support' ||
       msg.direction === 'out' ||
-      msg.sender === 'support';
+      msg.sender === 'support' ||
+      (!isUserSenderLabel(senderLabelRaw) && !!rawSender);
 
     const cls  = isSupport ? 'from-support' : 'from-user';
     let name   = isSupport ? '🤖 Bender' : '👤 Клиент';
