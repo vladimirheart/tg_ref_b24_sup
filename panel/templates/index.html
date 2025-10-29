@@ -744,7 +744,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: 6px;
+  align-self: flex-start;
 }
 
 #historyModal .message-avatar img {
@@ -2431,14 +2432,36 @@ let cachedAdminUsers = null;
           const supportKeyBase = (ticketDetails?.responsible || ticketDetails?.operator || '').toString().trim().toLowerCase() || 'default';
           const supportKey = `${AVATAR_HISTORY_PREFIX}support::${supportKeyBase}`;
           const supportCandidates = [
+            ...collectAvatarSources(historyPayload?.support_avatar_history),
+            ...collectAvatarSources(historyPayload?.operator_avatar_history),
+            ...collectAvatarSources(historyPayload?.responsible_avatar_history),
+            ...collectAvatarSources(ticketDetails?.support_avatar_history),
+            ...collectAvatarSources(ticketDetails?.operator_avatar_history),
+            ...collectAvatarSources(ticketDetails?.responsible_avatar_history),
             ticketDetails?.support_avatar_full_url,
             ticketDetails?.support_avatar_url,
+            ticketDetails?.support_avatar,
             ticketDetails?.operator_avatar_full_url,
             ticketDetails?.operator_avatar_url,
-            ticketDetails?.support_avatar,
+            ticketDetails?.operator_avatar,
+            ticketDetails?.responsible_avatar_full_url,
+            ticketDetails?.responsible_avatar_url,
+            ticketDetails?.responsible_avatar,
+            ticketDetails?.assigned_operator_avatar_full_url,
+            ticketDetails?.assigned_operator_avatar_url,
+            ticketDetails?.assigned_operator_avatar,
             window.settings?.dialogConfig?.support_avatar_full_url,
             window.settings?.dialogConfig?.support_avatar_url,
             window.settings?.dialogConfig?.support_avatar,
+            ...collectAvatarSources(window.settings?.dialogConfig?.support_avatar_history),
+            ...collectAvatarSources(window.settings?.dialogConfig?.operator_avatar_history),
+            window.settings?.dialogConfig?.operator_avatar_full_url,
+            window.settings?.dialogConfig?.operator_avatar_url,
+            window.settings?.dialogConfig?.operator_avatar,
+            window.settings?.support_avatar_full_url,
+            window.settings?.support_avatar_url,
+            window.settings?.support_avatar,
+            ...collectAvatarSources(window.settings?.support_avatar_history),
           ].filter(Boolean);
 
           const supportEntries = mergeAvatarHistory(supportKey, supportCandidates, fallback);
@@ -3187,32 +3210,68 @@ function ensureHistoryScrollButtons() {
     } catch (error) { return 0; }
 	}
 
-		
+
 	function normalizeToISO(x) {
 	  if (x == null) return new Date().toISOString();
 	  if (typeof x === 'number') {
 		const ms = x < 1e12 ? x * 1000 : x;
 		return new Date(ms).toISOString();
 	  }
-	  if (typeof x === 'string') {
-		const s = x.trim();
-		// Уже ISO с Z или смещением — используем как есть
-		if (/[zZ]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
-		  const d = new Date(s);
-		  return isNaN(d) ? new Date().toISOString() : d.toISOString();
-		}
-		// Без таймзоны — считаем UTC (все времена в БД хранятся как UTC)
-		if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(s)) {
-		  const norm = s.replace(' ', 'T') + 'Z';
-		  const d = new Date(norm);
-		  return isNaN(d) ? new Date().toISOString() : d.toISOString();
-		}
-		// Иное — даём JS распарсить
-		const d = new Date(s);
-		return isNaN(d) ? new Date().toISOString() : d.toISOString();
-	  }
-	  return new Date().toISOString();
-	}
+          if (typeof x === 'string') {
+                const s = x.trim();
+                // Уже ISO с Z или смещением — используем как есть
+                if (/[zZ]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
+                  const d = new Date(s);
+                  return isNaN(d) ? new Date().toISOString() : d.toISOString();
+                }
+                const naiveMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/);
+                if (naiveMatch) {
+                  const [, y, m, d, hh, mm, ss = '00', fraction] = naiveMatch;
+                  const msFromFraction = fraction ? Math.min(999, Math.round(Number(`0.${fraction}`) * 1000)) : 0;
+                  const baseUtcMs = Date.UTC(
+                    Number(y),
+                    Number(m) - 1,
+                    Number(d),
+                    Number(hh),
+                    Number(mm),
+                    Number(ss),
+                    msFromFraction
+                  );
+                  let tz;
+                  try {
+                    tz = BROWSER_TIMEZONE;
+                  } catch (error) {
+                    try {
+                      tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+                    } catch (_) {
+                      tz = 'UTC';
+                    }
+                  }
+                  try {
+                    if (typeof getOperatorTZ === 'function') {
+                      const operatorTz = getOperatorTZ();
+                      if (operatorTz) {
+                        tz = operatorTz;
+                      }
+                    }
+                  } catch (error) {
+                    /* ignore, fallback already set */
+                  }
+                  let offsetMinutes = 0;
+                  try {
+                    offsetMinutes = tzOffsetMinutes(tz, new Date(baseUtcMs));
+                  } catch (error) {
+                    offsetMinutes = 0;
+                  }
+                  const utcMs = baseUtcMs - (offsetMinutes * 60000);
+                  return new Date(utcMs).toISOString();
+                }
+                // Иное — даём JS распарсить
+                const d = new Date(s);
+                return isNaN(d) ? new Date().toISOString() : d.toISOString();
+          }
+          return new Date().toISOString();
+        }
 
         function sortMessagesStable(arr) {
           return arr.sort((a, b) => {
@@ -7752,15 +7811,16 @@ function findTicketEverywhere(ticketId) {
     showAvatarFromStore(normalizedType, indexOverride);
   };
 
-  if (historyContent) {
-    historyContent.addEventListener('click', (event) => {
-      const avatarBtn = event.target.closest('.message-avatar');
-      if (!avatarBtn) return;
-      const type = avatarBtn.dataset.avatarType === 'support' ? 'support' : 'client';
-      const index = Number.parseInt(avatarBtn.dataset.avatarIndex, 10);
-      showAvatarFromStore(type, Number.isFinite(index) ? index : undefined);
-    });
-  }
+  const handleAvatarClick = (event) => {
+    const avatarBtn = event.target.closest('#historyModal .message-avatar');
+    if (!avatarBtn) return;
+    event.preventDefault();
+    const type = avatarBtn.dataset.avatarType === 'support' ? 'support' : 'client';
+    const index = Number.parseInt(avatarBtn.dataset.avatarIndex, 10);
+    showAvatarFromStore(type, Number.isFinite(index) ? index : undefined);
+  };
+
+  document.addEventListener('click', handleAvatarClick);
 })();
 
 document.addEventListener('click', async (e)=>{
