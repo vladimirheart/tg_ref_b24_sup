@@ -23,23 +23,23 @@
         position: absolute;
         inset: 0;
         display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem;
-        background: rgba(248, 249, 250, 0.65);
-        backdrop-filter: blur(2px);
+        align-items: flex-start;
+        justify-content: flex-end;
+        padding: 1rem;
+        background: transparent;
         pointer-events: none;
         z-index: 20;
       }
       .edit-guard-overlay__message {
         font-size: 0.95rem;
         color: #495057;
-        text-align: center;
-        background: rgba(255, 255, 255, 0.85);
-        border: 1px solid rgba(222, 226, 230, 0.8);
+        text-align: left;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(222, 226, 230, 0.9);
         border-radius: 0.75rem;
-        padding: 0.75rem 1.25rem;
+        padding: 0.75rem 1rem;
         box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.08);
+        max-width: 18rem;
       }
       .edit-guard-block[data-edit-locked="true"] .edit-guard-overlay {
         display: flex;
