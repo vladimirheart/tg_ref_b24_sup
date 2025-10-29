@@ -817,8 +817,22 @@
   flex: 0 0 auto;
 }
 
-#historyModal .input-group-send {
-  margin-top: 0 !important;
+#historyModal .input-group-send .composer-wrapper {
+  min-height: 0;
+}
+
+#historyModal .input-group-send .composer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#historyModal .input-group-send .composer-inner > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+#historyModal .input-group-send .composer-inner textarea {
+  margin-bottom: 0;
 }
 
 /* === История: разные шрифты для времени, автора и текста === */
@@ -1957,8 +1971,8 @@ function markTicketReopenedLocally() {
                 <!-- Поле ввода сообщения и кнопка отправки -->
                 <div class="input-group-send border-top bg-light w-100 px-3 pt-3 pb-0">
                   <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
-                  <div class="flex-grow-1 position-relative">
-                    <div class="w-100">
+                  <div class="flex-grow-1 position-relative d-flex flex-column composer-wrapper">
+                    <div class="w-100 mt-auto composer-inner">
                       <div class="mb-2 d-none" id="questionTemplateSection">
                         <label class="form-label small mb-1" for="questionTemplateSelect">Шаблон типовых вопросов</label>
                         <div class="input-group input-group-sm">
