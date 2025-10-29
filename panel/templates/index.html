@@ -728,6 +728,15 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  width: 100%;
+}
+
+#historyModal .chat-entry.from-user,
+#historyModal .chat-entry.from-support {
+  justify-content: flex-start;
+  align-self: stretch;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 #historyModal .chat-entry + .chat-entry {
@@ -797,19 +806,26 @@
   flex-direction: column;
   gap: 0;
   justify-content: flex-start;
+  align-items: stretch;
   margin-bottom: 0;
   background-color: #f8f9fa !important;
 }
 
 /* Обеспечиваем правильное отображение пузырей на фоне */
 #historyModal .chat-bubble.from-user {
-  background: #e3f2fd;
-  border: 1px solid #bbdefb;
+  background: #edf4ff;
+  border: 1px solid #c8d9ff;
+  align-self: flex-start;
+  margin-left: 0;
+  margin-right: auto;
 }
 
 #historyModal .chat-bubble.from-support {
-  background: #d1f7d1;
-  border: 1px solid #a5d6a7;
+  background: #fff3e2;
+  border: 1px solid #f5c08a;
+  align-self: flex-start;
+  margin-left: 0;
+  margin-right: auto;
 }
 
 #historyModal .input-group-send {
@@ -2338,6 +2354,166 @@ let cachedAdminUsers = null;
 
         const DEFAULT_AVATAR_SRC = "{{ url_for('static', filename='avatar_default.svg') }}";
         const AVATAR_HISTORY_PREFIX = 'history-avatar::';
+        const ZERO_WIDTH_RE = new RegExp('[\\u200b\\u200c\\u200d\\ufeff]', 'g');
+
+        let operatorProfilesPromise = null;
+
+        function normalizeOperatorKey(value) {
+          if (!value && value !== 0) return '';
+          return String(value)
+            .replace(ZERO_WIDTH_RE, '')
+            .replace(/^@+/, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+        }
+
+        function buildOperatorProfileIndex(profiles) {
+          const index = new Map();
+          const register = (key, profile) => {
+            const normalized = normalizeOperatorKey(key);
+            if (!normalized || index.has(normalized)) return;
+            index.set(normalized, profile);
+            const collapsed = normalized.replace(/\s+/g, '');
+            if (collapsed && collapsed !== normalized && !index.has(collapsed)) {
+              index.set(collapsed, profile);
+            }
+          };
+
+          (profiles || []).forEach((profile) => {
+            if (!profile || typeof profile !== 'object') return;
+            register(profile.username);
+            if (profile.username && typeof profile.username === 'string') {
+              const withoutDomain = profile.username.split('@')[0];
+              register(withoutDomain);
+            }
+            register(profile.full_name || profile.display_name || profile.name);
+            register(profile.login || profile.operator_login || profile.user_login);
+            register(profile.email);
+            if (profile.id !== undefined && profile.id !== null) {
+              register(profile.id);
+            }
+            const role = normalizeOperatorKey(profile.role || profile.role_name);
+            if (role === 'admin') {
+              register('admin');
+            }
+          });
+
+          return index;
+        }
+
+        function lookupOperatorProfileByKey(value) {
+          const index = window.operatorProfileIndex;
+          if (!index || typeof index.get !== 'function') return null;
+          const normalized = normalizeOperatorKey(value);
+          if (!normalized) return null;
+          const direct = index.get(normalized);
+          if (direct) return direct;
+          const collapsed = normalized.replace(/\s+/g, '');
+          if (collapsed) {
+            const collapsedMatch = index.get(collapsed);
+            if (collapsedMatch) return collapsedMatch;
+          }
+          return null;
+        }
+
+        async function ensureOperatorProfiles() {
+          if (window.operatorProfileIndex && window.operatorProfileIndex instanceof Map) {
+            return window.operatorProfileIndex;
+          }
+          if (!operatorProfilesPromise) {
+            operatorProfilesPromise = (async () => {
+              let profiles = [];
+              try {
+                const payload = await fetchJsonWithAuth('/users', { cache: 'no-store' });
+                if (Array.isArray(payload)) {
+                  profiles = payload;
+                }
+              } catch (error) {
+                console.warn('Не удалось загрузить профили операторов', error);
+              }
+              window.operatorProfiles = profiles;
+              window.operatorProfileIndex = buildOperatorProfileIndex(profiles);
+              return window.operatorProfileIndex;
+            })();
+          }
+          return operatorProfilesPromise;
+        }
+
+        function collectSupportProfilePhotos(ticketDetails, historyPayload) {
+          const photos = [];
+          const seen = new Set();
+
+          const addPhoto = (src) => {
+            const normalized = normalizeAvatarUrl(src);
+            if (!normalized || seen.has(normalized)) return;
+            seen.add(normalized);
+            photos.push(normalized);
+          };
+
+          const addProfileForLabel = (label) => {
+            const profile = lookupOperatorProfileByKey(label);
+            if (!profile || typeof profile !== 'object') return;
+            addPhoto(profile.photo || profile.avatar || profile.avatar_url || profile.image);
+            if (Array.isArray(profile.avatar_history)) {
+              profile.avatar_history.forEach((entry) => {
+                if (typeof entry === 'string') {
+                  addPhoto(entry);
+                } else if (entry && typeof entry === 'object') {
+                  addPhoto(entry.full || entry.thumb || entry.url);
+                }
+              });
+            }
+          };
+
+          const candidateLabels = new Set();
+          const pushLabel = (value) => {
+            const normalized = normalizeOperatorKey(value);
+            if (!normalized) return;
+            candidateLabels.add(normalized);
+          };
+
+          const ticket = ticketDetails || {};
+          pushLabel(ticket.responsible);
+          pushLabel(ticket.manual_responsible);
+          pushLabel(ticket.auto_responsible);
+          pushLabel(ticket.responsible_assigned_by);
+          pushLabel(ticket.resolved_by);
+          pushLabel(ticket.operator);
+          pushLabel(ticket.operator_username);
+
+          const payload = historyPayload || {};
+          pushLabel(payload.responsible);
+          pushLabel(payload.operator);
+          pushLabel(payload.operator_username);
+          pushLabel(payload.support);
+
+          pushLabel(CURRENT_OPERATOR);
+
+          if (Array.isArray(payload.messages)) {
+            payload.messages.forEach((message) => {
+              if (!isSupportMsg(message)) return;
+              pushLabel(message.sender);
+              pushLabel(message.sender_name);
+              pushLabel(message.sender_username);
+              pushLabel(message.sender_login);
+              pushLabel(message.operator);
+              pushLabel(message.operator_name);
+              pushLabel(message.operator_username);
+              pushLabel(message.operator_login);
+              pushLabel(message.author);
+              pushLabel(message.user);
+              pushLabel(message.from_username);
+              pushLabel(message.from_login);
+              pushLabel(message.login);
+              pushLabel(message.support);
+            });
+          }
+
+          candidateLabels.forEach((label) => addProfileForLabel(label));
+
+          return photos;
+        }
 
         function readAvatarHistory(key) {
           if (!key) return [];
@@ -2488,6 +2664,7 @@ let cachedAdminUsers = null;
             window.settings?.support_avatar_url,
             window.settings?.support_avatar,
             ...collectAvatarSources(window.settings?.support_avatar_history),
+            ...collectSupportProfilePhotos(ticketDetails, historyPayload),
           ].filter(Boolean);
 
           const supportEntries = mergeAvatarHistory(supportKey, supportCandidates, fallback);
@@ -5657,6 +5834,7 @@ function displayTicketsForCurrentPage() {
                                 await setupResponsibleControl(window.currentTicketDetails);
                                 renderClientTicketsList(currentUserId, currentTicketId);
 
+                                await ensureOperatorProfiles();
                                 window.historyAvatarStore = prepareHistoryAvatarStore({
                                         userId: currentUserId,
                                         clientData: window.currentClientData,
