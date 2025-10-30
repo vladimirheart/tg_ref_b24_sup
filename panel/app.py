@@ -6831,6 +6831,10 @@ def client_profile(user_id):
         with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
             settings = json.load(f)
 
+    current_operator_photo = ""
+    if getattr(g, "current_user", None):
+        current_operator_photo = _row_value(g.current_user, "photo") or ""
+
     return render_template(
         "client_profile.html",
         client=dict(info),
@@ -6845,6 +6849,7 @@ def client_profile(user_id):
         phones_manual=phones_manual,
         client_blacklist=client_blacklist,
         unblock_requests=unblock_requests,
+        current_operator_photo=current_operator_photo,
     )
        
 # === API для дашборда с фильтрами ===
