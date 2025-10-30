@@ -853,6 +853,15 @@
 }
 
 /* === История: разные шрифты для времени, автора и текста === */
+#historyModal .chat-bubble {
+  gap: 9px;
+  padding-top: 12px;
+}
+
+#historyModal .chat-bubble > .bubble-header {
+  margin-top: -9px;
+}
+
 #historyModal .chat-bubble .msg-time {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-size: calc(0.80rem * var(--history-font-scale, 1));
@@ -1261,6 +1270,19 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  color: #495057;
+}
+
+.badge-meta--edited {
+  background-color: rgba(13, 110, 253, 0.18);
+  border-color: rgba(13, 110, 253, 0.35);
+  color: #0b4f99;
+}
+
+.badge-meta--deleted {
+  background-color: rgba(220, 53, 69, 0.18);
+  border-color: rgba(220, 53, 69, 0.35);
+  color: #842029;
 }
 
 
@@ -3727,8 +3749,8 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
     const avatarAlt = escapeHtml(isSupport ? 'Аватар оператора' : 'Аватар клиента');
     const avatarTitle = escapeHtml(isSupport ? 'История аватаров оператора' : 'История аватаров клиента');
     const badges = [
-      msg.edited_at ? '<span class="badge-meta">изменено</span>' : '',
-      msg.deleted_at ? '<span class="badge-meta">удалено у клиента</span>' : ''
+      msg.edited_at ? '<span class="badge-meta badge-meta--edited">изменено</span>' : '',
+      msg.deleted_at ? '<span class="badge-meta badge-meta--deleted">удалено у клиента</span>' : ''
     ].filter(Boolean).join('');
 
     return `
@@ -5544,9 +5566,9 @@ function displayTicketsForCurrentPage() {
 						});
 					const data = await resp.json();
 					if (!data.success) return alert('❌ Не удалось удалить: '+(data.error||''));
-					if (data.deleted_on_client) {
-					  bubble.insertAdjacentHTML('beforeend', `<div class="badge-meta">удалено у клиента</div>`);
-					}
+                                        if (data.deleted_on_client) {
+                                          bubble.insertAdjacentHTML('beforeend', `<div class="badge-meta badge-meta--deleted">удалено у клиента</div>`);
+                                        }
 					bubble.classList.add('opacity-50');
 					bubble.querySelector('.bubble-actions')?.remove();
 				  }
