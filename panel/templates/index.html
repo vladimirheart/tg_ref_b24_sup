@@ -2210,6 +2210,39 @@ function markTicketReopenedLocally() {
   </div>
 </div>
 
+<!-- Модальное окно: подтверждение действия -->
+<div class="modal fade small-modal" id="confirmActionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="modal-body">
+        <div class="fs-1" aria-hidden="true" data-confirm-icon>🛑</div>
+        <h5 class="mb-2" data-confirm-title>Подтвердите действие</h5>
+        <p class="text-muted mb-0" data-confirm-message>Вы уверены, что хотите продолжить?</p>
+      </div>
+      <div class="modal-footer justify-content-center border-0 gap-2">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-danger" data-confirm-accept>Продолжить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно: сообщения приложения -->
+<div class="modal fade small-modal" id="appMessageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="modal-body">
+        <div class="fs-1" aria-hidden="true" data-message-icon>ℹ️</div>
+        <h5 class="mb-2" data-message-title>Сообщение</h5>
+        <p class="mb-0" data-message-text>Текст сообщения</p>
+      </div>
+      <div class="modal-footer justify-content-center border-0">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ок</button>
+      </div>
+    </div>
+  </div>
+</div>
+
   <!-- Модальное окно: редактирование имени клиента -->
   <div class="modal fade" id="editClientNameModal" tabindex="-1">
     <div class="modal-dialog">
@@ -2237,8 +2270,9 @@ function markTicketReopenedLocally() {
   </div>
 
   <!-- Подключение JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='modal-helpers.js') }}"></script>
+    <script>
     window.settings = {{ settings | tojson | safe }};
     if (!window.settings || typeof window.settings !== 'object') {
       window.settings = {};
@@ -7909,13 +7943,20 @@ function findTicketEverywhere(ticketId) {
                 return Array.from(document.querySelectorAll('.category-checkbox:checked')).map(cb => cb.value);
         }
 
-	async function performTicketClose(selectedCategories, triggerButton) {
+          const showAppModalMessage = window.showAppModalMessage;
+          const showConfirmActionModal = window.showConfirmActionModal;
+
+        async function performTicketClose(selectedCategories, triggerButton) {
                 if (!Array.isArray(selectedCategories) || selectedCategories.length === 0) {
-                        alert('❌ Выберите хотя бы одну категорию');
+                        showAppModalMessage({
+                                title: 'Не выбраны категории',
+                                message: 'Выберите хотя бы одну категорию перед закрытием обращения клиента.',
+                                variant: 'warning'
+                        });
                         return;
                 }
 
-		const admin = getOperatorName();
+                const admin = getOperatorName();
                 try {
                         triggerButton?.setAttribute('disabled', 'disabled');
 
@@ -7932,7 +7973,11 @@ function findTicketEverywhere(ticketId) {
 
                         const data = await response.json();
                         if (!data.success) {
-                                alert('❌ Ошибка: ' + (data.error || 'Не удалось закрыть заявку'));
+                                showAppModalMessage({
+                                        title: 'Ошибка закрытия заявки',
+                                        message: data.error || 'Не удалось закрыть заявку',
+                                        variant: 'danger'
+                                });
                                 return;
                         }
 
@@ -7946,12 +7991,36 @@ function findTicketEverywhere(ticketId) {
                         if (successModalEl) {
                                 bootstrap.Modal.getOrCreateInstance(successModalEl).show();
                         } else {
-                                alert('✅ Заявка закрыта');
-                                location.reload();
+                                const shown = showAppModalMessage({
+                                        title: 'Заявка закрыта',
+                                        message: 'Обращение успешно переведено в завершённое состояние.',
+                                        variant: 'success'
+                                });
+                                if (shown) {
+                                        const messageModalEl = document.getElementById('appMessageModal');
+                                        if (messageModalEl) {
+                                                const handler = () => {
+                                                        messageModalEl.removeEventListener('hidden.bs.modal', handler);
+                                                        location.reload();
+                                                };
+                                                messageModalEl.addEventListener('hidden.bs.modal', handler);
+                                        }
+                                } else {
+                                        window.alert('✅ Заявка закрыта');
+                                        location.reload();
+                                }
                         }
                 } catch (error) {
                         console.error('Ошибка закрытия заявки:', error);
-                        alert('❌ Ошибка: ' + (error?.message || error));
+                        const message = error?.message || String(error);
+                        const handled = showAppModalMessage({
+                                title: 'Ошибка закрытия заявки',
+                                message,
+                                variant: 'danger'
+                        });
+                        if (!handled) {
+                                window.alert('❌ Ошибка: ' + message);
+                        }
                 } finally {
                         triggerButton?.removeAttribute('disabled');
                 }
