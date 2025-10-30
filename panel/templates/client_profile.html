@@ -62,6 +62,29 @@
       display: block;
     }
 
+    .history-avatar-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: transparent;
+      cursor: zoom-in;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .history-avatar-thumb:focus-visible {
+      outline: 2px solid rgba(25, 135, 84, 0.6);
+      outline-offset: 2px;
+    }
+
+    .history-avatar-thumb img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
     .from-user { background: #e3f2fd; align-self: flex-end; }
     .from-support { background: #d1f7d1; align-self: flex-start; }
 
@@ -253,7 +276,10 @@
                                 </p>
 			  </div>
 		</div>
-                <div id="avatarHistory" class="mt-2"></div>
+                <div class="mt-3">
+                  <h6 class="fw-semibold mb-2">История фотографий</h6>
+                  <div id="avatarHistory" class="d-flex flex-column gap-2"></div>
+                </div>
         {% if unblock_requests %}
         <div class="mt-4">
           <h6 class="fw-semibold">История запросов на разблокировку</h6>
@@ -1409,18 +1435,71 @@ function createMediaHtml(ticket_id, mediaInfo) {
 	  }
 
 	  // показать историю (пример)
-	  const historyBox = document.getElementById('avatarHistory');
-	  if (historyBox) {
-		fetch(`/api/client/{{ client.user_id }}/avatar_history`)
-		  .then(r => r.ok ? r.json() : [])
-		  .then(list => {
-			if (!Array.isArray(list) || !list.length) return;
-			historyBox.innerHTML = list.map(x => `
-			  <div class="small text-muted">${x.at}: ${x.url}</div>
-			`).join('');
-		  }).catch(()=>{});
-	  }
-	})();
+          const historyBox = document.getElementById('avatarHistory');
+          if (historyBox) {
+                const fallback = profileAva?.dataset?.fallback || fallbackImage;
+                fetch(`/api/client/{{ client.user_id }}/avatar_history`)
+                  .then((r) => (r.ok ? r.json() : []))
+                  .then((list) => {
+                        historyBox.innerHTML = '';
+                        if (!Array.isArray(list) || !list.length) {
+                              const empty = document.createElement('div');
+                              empty.className = 'small text-muted';
+                              empty.textContent = 'История фотографий пока пуста';
+                              historyBox.appendChild(empty);
+                              return;
+                        }
+
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'd-flex flex-wrap gap-3';
+
+                        list.forEach((entry, index) => {
+                              const card = document.createElement('div');
+                              card.className = 'd-flex flex-column align-items-center gap-1';
+
+                              const button = document.createElement('button');
+                              button.type = 'button';
+                              button.className = 'btn p-0 border-0 history-avatar-thumb';
+                              button.dataset.full = (entry && entry.full_url) || fallback;
+                              button.dataset.thumb = (entry && entry.url) || fallback;
+                              button.setAttribute('aria-label', 'Открыть фото клиента');
+
+                              const image = document.createElement('img');
+                              image.src = button.dataset.thumb || fallback;
+                              image.alt = `Фото клиента ${index + 1}`;
+                              image.width = 64;
+                              image.height = 64;
+                              image.className = 'rounded-circle border';
+                              image.style.objectFit = 'cover';
+                              image.onerror = () => {
+                                    image.onerror = null;
+                                    image.src = fallback;
+                              };
+
+                              button.appendChild(image);
+                              button.addEventListener('click', () => {
+                                    openAvatarModal(button.dataset.full || fallback, {
+                                          type: 'client',
+                                          fallback,
+                                    });
+                              });
+
+                              const caption = document.createElement('div');
+                              caption.className = 'small text-muted text-center';
+                              caption.textContent = (entry && entry.display_at) || '';
+
+                              card.appendChild(button);
+                              card.appendChild(caption);
+                              wrapper.appendChild(card);
+                        });
+
+                        historyBox.appendChild(wrapper);
+                  })
+                  .catch(() => {
+                        /* noop */
+                  });
+          }
+        })();
 </script>
 
 <script>
