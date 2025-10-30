@@ -1669,9 +1669,10 @@ function markTicketReopenedLocally() {
 		</div>
 
 		<!-- Кнопка Фильтры -->
-		<button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#filtersModal">
-		  <i class="bi bi-funnel"></i> Фильтры
-		</button>
+                <button id="filtersToggleBtn" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#filtersModal">
+                  <i class="bi bi-funnel"></i> Фильтры
+                  <span id="filtersActiveBadge" class="badge bg-warning text-dark ms-2" style="display: none;"></span>
+                </button>
 
 		<!-- Кнопка сброса фильтров -->
 		<button class="btn btn-outline-secondary me-2" onclick="resetFilters()" title="Сбросить все фильтры">
@@ -1702,13 +1703,25 @@ function markTicketReopenedLocally() {
 	  </div>
 	</div>
 
-	<!-- Убираем старый блок фильтров и заменяем его на более компактный -->
-	<div class="filter-grid mb-3" style="display: none;" id="compactFilters">
-	  <!-- Этот блок можно скрыть, так как фильтры теперь в модальном окне -->
-	</div>
+	<!-- Блок фильтров -->
+        <div class="filter-grid mb-3" style="display: none;" id="compactFilters">
+          <!-- Этот блок можно скрыть, так как фильтры теперь в модальном окне -->
+        </div>
 
-	<!-- Модальное окно фильтров для заявок -->
-	<div class="modal fade" id="filtersModal" tabindex="-1">
+        <div id="appliedFiltersState" class="d-none">
+          <input type="hidden" id="filterStatus">
+          <input type="hidden" id="filterUser">
+          <input type="hidden" id="filterTicketId">
+          <input type="hidden" id="filterBusiness">
+          <input type="hidden" id="filterLocation">
+          <input type="hidden" id="filterClientStatus">
+          <input type="hidden" id="filterResponsible">
+          <input type="hidden" id="filterDateFrom">
+          <input type="hidden" id="filterDateTo">
+        </div>
+
+        <!-- Модальное окно фильтров для заявок -->
+        <div class="modal fade" id="filtersModal" tabindex="-1">
 	  <div class="modal-dialog modal-lg">
 		<div class="modal-content">
 		  <div class="modal-header">
@@ -1736,22 +1749,30 @@ function markTicketReopenedLocally() {
 				<label>ID заявки</label>
 				<input type="text" class="form-control" id="filterTicketIdModal" placeholder="Введите ID заявки">
 			  </div>
-			  <div class="col-md-6 mb-3">
-				<label>Бизнес</label>
-				<input type="text" class="form-control" id="filterBusinessModal" placeholder="Введите бизнес">
-			  </div>
-			  <div class="col-md-6 mb-3">
-				<label>Локация</label>
-				<input type="text" class="form-control" id="filterLocationModal" placeholder="Введите локацию">
-			  </div>
-			  <div class="col-md-6 mb-3">
-				<label>Статус клиента</label>
-				<input type="text" class="form-control" id="filterClientStatusModal" placeholder="Введите статус клиента">
-			  </div>
-			  <div class="col-md-6 mb-3">
-				<label>Ответственный</label>
-				<input type="text" class="form-control" id="filterResponsibleModal" placeholder="Введите ответственного">
-			  </div>
+                          <div class="col-md-6 mb-3">
+                                <label>Бизнес</label>
+                                <select class="form-select" id="filterBusinessModal">
+                                  <option value="">Все бизнесы</option>
+                                </select>
+                          </div>
+                          <div class="col-md-6 mb-3">
+                                <label>Локация</label>
+                                <select class="form-select" id="filterLocationModal">
+                                  <option value="">Все локации</option>
+                                </select>
+                          </div>
+                          <div class="col-md-6 mb-3">
+                                <label>Статус клиента</label>
+                                <select class="form-select" id="filterClientStatusModal">
+                                  <option value="">Все статусы клиентов</option>
+                                </select>
+                          </div>
+                          <div class="col-md-6 mb-3">
+                                <label>Ответственный</label>
+                                <select class="form-select" id="filterResponsibleModal">
+                                  <option value="">Все ответственные</option>
+                                </select>
+                          </div>
 			  <div class="col-md-6 mb-3">
 				<label>Дата от</label>
 				<input type="date" class="form-control" id="filterDateFromModal">
@@ -2260,6 +2281,118 @@ function markTicketReopenedLocally() {
         window.lastReadAtByTicket = JSON.parse(localStorage.getItem('lastReadAtByTicket') || '{}');
     let currentPageSize = 20;
     let filtersCurrentlyActive = false;
+    const filterSelectConfig = {
+      business: { modalId: 'filterBusinessModal', label: 'Бизнес', placeholder: 'Все бизнесы' },
+      location: { modalId: 'filterLocationModal', label: 'Локация', placeholder: 'Все локации' },
+      responsible: { modalId: 'filterResponsibleModal', label: 'Ответственный', placeholder: 'Все ответственные' },
+      clientStatus: { modalId: 'filterClientStatusModal', label: 'Статус клиента', placeholder: 'Все статусы клиентов' }
+    };
+
+    function normalizeFilterValue(value) {
+      if (value === null || value === undefined) return '';
+      return String(value).trim();
+    }
+
+    function extractFilterOptionsFromTickets(tickets) {
+      const accumulator = {
+        business: new Set(),
+        location: new Set(),
+        responsible: new Set(),
+        clientStatus: new Set()
+      };
+
+      (tickets || []).forEach(ticket => {
+        if (!ticket) return;
+
+        const business = normalizeFilterValue(ticket.business);
+        if (business) accumulator.business.add(business);
+
+        const location = normalizeFilterValue(ticket.location_name || ticket.city);
+        if (location) accumulator.location.add(location);
+
+        const responsible = normalizeFilterValue(ticket.responsible);
+        if (responsible) accumulator.responsible.add(responsible);
+
+        const clientStatus = normalizeFilterValue(ticket.client_status);
+        if (clientStatus) accumulator.clientStatus.add(clientStatus);
+      });
+
+      Object.entries(filterSelectConfig).forEach(([key, { modalId }]) => {
+        const select = document.getElementById(modalId);
+        if (select) {
+          const currentValue = normalizeFilterValue(select.value);
+          if (currentValue) accumulator[key].add(currentValue);
+        }
+      });
+
+      const sorted = {};
+      Object.entries(accumulator).forEach(([key, values]) => {
+        sorted[key] = Array.from(values).sort((a, b) => a.localeCompare(b, 'ru', { sensitivity: 'base' }));
+      });
+
+      return sorted;
+    }
+
+    function populateModalFilterSelects(tickets) {
+      const options = extractFilterOptionsFromTickets(tickets);
+
+      Object.entries(filterSelectConfig).forEach(([key, config]) => {
+        const select = document.getElementById(config.modalId);
+        if (!select) return;
+
+        const currentValue = normalizeFilterValue(select.value);
+        select.innerHTML = '';
+
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = config.placeholder;
+        select.appendChild(defaultOption);
+
+        (options[key] || []).forEach(value => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+
+        if (currentValue) {
+          const exists = (options[key] || []).some(value => value === currentValue);
+          if (!exists) {
+            const preservedOption = document.createElement('option');
+            preservedOption.value = currentValue;
+            preservedOption.textContent = currentValue;
+            select.appendChild(preservedOption);
+          }
+          select.value = currentValue;
+        }
+      });
+    }
+
+    function countActiveFilters(values) {
+      return Object.values(values).reduce((count, value) => {
+        return count + (normalizeFilterValue(value) ? 1 : 0);
+      }, 0);
+    }
+
+    function updateFiltersIndicator(activeFiltersCount) {
+      const toggleButton = document.getElementById('filtersToggleBtn');
+      const badge = document.getElementById('filtersActiveBadge');
+      if (!toggleButton || !badge) return;
+
+      if (activeFiltersCount > 0) {
+        badge.textContent = activeFiltersCount;
+        badge.style.display = 'inline-block';
+        toggleButton.classList.remove('btn-primary');
+        toggleButton.classList.add('btn-warning', 'text-dark');
+      } else {
+        badge.textContent = '';
+        badge.style.display = 'none';
+        toggleButton.classList.remove('btn-warning', 'text-dark');
+        if (!toggleButton.classList.contains('btn-primary')) {
+          toggleButton.classList.add('btn-primary');
+        }
+      }
+    }
     const responsibleControlState = {
       ticketId: null,
       auto: '',
@@ -4747,6 +4880,7 @@ function initColumnResize() {
 
                         // Сохраняем все заявки для пагинации
                         allTickets = tickets;
+                        populateModalFilterSelects(allTickets);
 
                         if (historyModalIsOpen && currentUserId && currentTicketId) {
                                 renderClientTicketsList(currentUserId, currentTicketId);
@@ -5173,7 +5307,10 @@ function displayTicketsForCurrentPage() {
         const preservePage = !!options.preservePage;
         const values = collectInlineFilterValues();
         const { search, status, user, ticketId, business, location, responsible, clientStatus, dateFrom, dateTo } = values;
-        const hasActiveFilters = [search, status, user, ticketId, business, location, responsible, clientStatus, dateFrom, dateTo].some(Boolean);
+        const activeFiltersCount = countActiveFilters(values);
+        const hasActiveFilters = activeFiltersCount > 0;
+
+        updateFiltersIndicator(activeFiltersCount);
 
         if (!hasActiveFilters) {
                 filtersCurrentlyActive = false;
@@ -5496,6 +5633,7 @@ function displayTicketsForCurrentPage() {
                                                           currentPage = 1;
                                                           filtersCurrentlyActive = false;
                                                           window.filteredTickets = null;
+                                                          updateFiltersIndicator(0);
                                                           totalPages = ensureCurrentPageBounds(allTickets.length);
                                                           persistCurrentPageIfUnfiltered();
                                                           displayTicketsForCurrentPage();
@@ -5507,10 +5645,11 @@ function displayTicketsForCurrentPage() {
                                                 }
 
    // === Обновляем обработчики событий ===
-		document.addEventListener('DOMContentLoaded', function() {
-		  // Обработчики для основных фильтров (теперь применяются ко всем данным)
-		  const searchInput = document.getElementById('searchInput');
-		  if (searchInput) searchInput.addEventListener('input', applyFilters);
+                document.addEventListener('DOMContentLoaded', function() {
+                  updateFiltersIndicator(countActiveFilters(collectInlineFilterValues()));
+                  // Обработчики для основных фильтров (теперь применяются ко всем данным)
+                  const searchInput = document.getElementById('searchInput');
+                  if (searchInput) searchInput.addEventListener('input', applyFilters);
 		  
 		  // Добавьте обработчики для остальных фильтров аналогично
 		  const filterStatus = document.getElementById('filterStatus');
@@ -5883,6 +6022,7 @@ function displayTicketsForCurrentPage() {
 
                         const ticketsFromServer = normalizeTicketsFromServer(Array.isArray(ticketsRaw) ? ticketsRaw : []);
                         allTickets = ticketsFromServer;
+                        populateModalFilterSelects(allTickets);
 
                                 const qs = new URLSearchParams({
                                         user_id: String(user_id),
