@@ -396,16 +396,20 @@
   if (saveButton) {
     saveButton.addEventListener('click', () => {
       const enabledAddressFields = getEnabledFields().map((field) => field.label).join(', ');
-      const message = [
-        'Настройки вводимых данных обновлены.',
-        `Формат телефона: ${getPhoneFormatByKey(phoneSelectors.select.value).label}.`,
-        `Типы телефонов: ${Array.from(phoneTypes).join(', ') || 'не заданы'}.`,
-        `Проверка e-mail: ${emailSelectors.requireAt && emailSelectors.requireAt.checked ? 'обязателен @' : 'символ @ не обязателен'}, ${
-          emailSelectors.requireDomain && emailSelectors.requireDomain.checked ? 'обязателен домен' : 'домен не обязателен'
-        }.`,
-        `Блоки адреса: ${enabledAddressFields || 'ничего не выбрано'}.`,
-      ].join('\n');
-      alert(message);
-    });
-  }
+        const message = [
+          `Формат телефона: ${getPhoneFormatByKey(phoneSelectors.select.value).label}.`,
+          `Типы телефонов: ${Array.from(phoneTypes).join(', ') || 'не заданы'}.`,
+          `Проверка e-mail: ${emailSelectors.requireAt && emailSelectors.requireAt.checked ? 'обязателен @' : 'символ @ не обязателен'}, ${
+            emailSelectors.requireDomain && emailSelectors.requireDomain.checked ? 'обязателен домен' : 'домен не обязателен'
+          }.`,
+          `Блоки адреса: ${enabledAddressFields || 'ничего не выбрано'}.`,
+        ].join('\n');
+        showAppModalMessage({
+          title: 'Настройки обновлены',
+          message,
+          variant: 'success',
+          icon: '✅',
+        });
+      });
+    }
 })();
