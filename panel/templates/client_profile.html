@@ -8,7 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='bender-icon.svg') }}" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css', v='2') }}" rel="stylesheet" />
   <style>
     .chat-bubble { 
       padding: 8px 12px; 
@@ -164,8 +164,9 @@
 	  <h2>👤 Карточка клиента</h2>
 	  <div class="d-flex align-items-center gap-2">
 		<a href="/clients" class="btn btn-secondary">← Назад</a>
-		<button class="btn btn-sm btn-outline-danger"
-				onclick="blacklistAdd('{{ client.user_id }}')">Заблокировать</button>
+                <button class="btn btn-sm btn-outline-danger"
+                                type="button"
+                                onclick="openBlacklistModal('{{ client.user_id }}')">Заблокировать</button>
 		<button class="btn btn-sm btn-success"
 				onclick="blacklistRemove('{{ client.user_id }}')">Разблокировать</button>
 	  </div>
@@ -1219,39 +1220,200 @@ function createMediaHtml(ticket_id, mediaInfo) {
 	  document.addEventListener('DOMContentLoaded', function () { parseEmojis(document.body); });
 </script>
 <script>
-	async function blacklistAdd(userId) {
-	  const reason = prompt('Причина блокировки (необязательно):') || '';
-	  const r = await fetch('/api/blacklist/add', {
-		method: 'POST',
-		headers: {'Content-Type':'application/json'},
-		body: JSON.stringify({user_id: userId, reason})
-	  });
-	  const j = await r.json();
-	  alert(j.ok ? 'Клиент заблокирован' : ('Ошибка: '+(j.error||'unknown')));
-	  if (j.ok) location.reload();
-	}
+        (function () {
+          const blacklistModalEl = document.getElementById('blacklistModal');
+          const blacklistForm = document.getElementById('blacklistForm');
+          const reasonInput = document.getElementById('blacklistReason');
+          const userIdPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
+          const submitButton = blacklistModalEl?.querySelector('[data-blacklist-submit]');
+          const submitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
+          const loadingSpinner = blacklistModalEl?.querySelector('[data-blacklist-loading]');
+          const feedbackError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
+          const feedbackSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
+          let blacklistModalInstance = null;
 
-	async function blacklistRemove(userId) {
-	  const r = await fetch('/api/blacklist/remove', {
-			method: 'POST',
-			headers: {'Content-Type':'application/json'},
-			body: JSON.stringify({user_id: userId})
-	  });
-	  const j = await r.json();
-	  alert(j.ok ? 'Клиент разблокирован' : ('Ошибка: '+(j.error||'unknown')));
-	  if (j.ok) location.reload();
-	}
+          function getModalInstance() {
+            if (!blacklistModalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+              return null;
+            }
+            if (!blacklistModalInstance) {
+              blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
+            }
+            return blacklistModalInstance;
+          }
 
-	const ticketClosedModalEl = document.getElementById('ticketClosedModal');
-	if (ticketClosedModalEl) {
-	  ticketClosedModalEl.addEventListener('hidden.bs.modal', () => {
-		location.reload();
-	  });
-	}
+          function resetFeedback() {
+            [feedbackError, feedbackSuccess].forEach((node) => {
+              if (!node) return;
+              node.classList.add('d-none');
+              node.textContent = '';
+            });
+          }
 
-	window.currentUser = CURRENT_OPERATOR;
+          function showFeedback(type, message) {
+            resetFeedback();
+            const target = type === 'success' ? feedbackSuccess : feedbackError;
+            if (!target) return;
+            target.textContent = message;
+            target.classList.remove('d-none');
+          }
+
+          function setLoading(isLoading) {
+            if (!submitButton) return;
+            submitButton.disabled = isLoading;
+            if (submitText) {
+              submitText.classList.toggle('d-none', isLoading);
+            }
+            if (loadingSpinner) {
+              loadingSpinner.classList.toggle('d-none', !isLoading);
+            }
+          }
+
+          window.openBlacklistModal = function (userId) {
+            const modal = getModalInstance();
+            if (!modal) return;
+            blacklistModalEl.dataset.userId = userId || '';
+            if (userIdPlaceholder) {
+              userIdPlaceholder.textContent = userId || '—';
+            }
+            if (reasonInput) {
+              reasonInput.value = '';
+              reasonInput.classList.remove('is-invalid');
+            }
+            resetFeedback();
+            setLoading(false);
+            modal.show();
+            setTimeout(() => {
+              reasonInput?.focus();
+            }, 150);
+          };
+
+          if (blacklistForm) {
+            blacklistForm.addEventListener('submit', async (event) => {
+              event.preventDefault();
+              resetFeedback();
+              if (!blacklistModalEl) return;
+              const userId = blacklistModalEl.dataset.userId;
+              const reason = (reasonInput?.value || '').trim();
+
+              if (reasonInput) {
+                if (!reason) {
+                  reasonInput.classList.add('is-invalid');
+                  return;
+                }
+                reasonInput.classList.remove('is-invalid');
+              }
+
+              if (!userId) {
+                showFeedback('error', 'Не удалось определить клиента для блокировки.');
+                return;
+              }
+
+              setLoading(true);
+              try {
+                const response = await fetch('/api/blacklist/add', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: userId, reason })
+                });
+                let payload = {};
+                try {
+                  payload = await response.json();
+                } catch (jsonError) {
+                  payload = {};
+                }
+
+                if (!response.ok || !payload.ok) {
+                  const errorMessage = payload.error || `Не удалось заблокировать клиента (код ${response.status}).`;
+                  throw new Error(errorMessage);
+                }
+
+                showFeedback('success', 'Клиент заблокирован. Страница будет обновлена.');
+                setTimeout(() => {
+                  getModalInstance()?.hide();
+                  location.reload();
+                }, 900);
+              } catch (error) {
+                showFeedback('error', error?.message || 'Не удалось заблокировать клиента.');
+              } finally {
+                setLoading(false);
+              }
+            });
+          }
+
+          window.blacklistRemove = async function (userId) {
+            if (!userId) {
+              alert('Не удалось определить клиента для разблокировки.');
+              return;
+            }
+
+            try {
+              const response = await fetch('/api/blacklist/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+              });
+              let payload = {};
+              try {
+                payload = await response.json();
+              } catch (jsonError) {
+                payload = {};
+              }
+
+              if (!response.ok || !payload.ok) {
+                const errorMessage = payload.error || `Не удалось разблокировать клиента (код ${response.status}).`;
+                throw new Error(errorMessage);
+              }
+
+              alert('Клиент разблокирован');
+              location.reload();
+            } catch (error) {
+              alert('Ошибка: ' + (error?.message || 'Не удалось разблокировать клиента.'));
+            }
+          };
+
+          const ticketClosedModalEl = document.getElementById('ticketClosedModal');
+          if (ticketClosedModalEl) {
+            ticketClosedModalEl.addEventListener('hidden.bs.modal', () => {
+              location.reload();
+            });
+          }
+        })();
+
+        window.currentUser = CURRENT_OPERATOR;
 </script>
-	
+
+<!-- Модальное окно: блокировка клиента -->
+        <div class="modal fade" id="blacklistModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+                <form class="modal-content" id="blacklistForm" novalidate>
+                  <div class="modal-header">
+                        <h5 class="modal-title">Заблокировать клиента</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                  </div>
+                  <div class="modal-body">
+                        <p class="mb-3">
+                          Укажите причину блокировки для клиента <code data-blacklist-user-id>{{ client.user_id }}</code>.
+                        </p>
+                        <div class="mb-3">
+                          <label for="blacklistReason" class="form-label">Причина блокировки</label>
+                          <textarea class="form-control" id="blacklistReason" name="reason" rows="3" required></textarea>
+                          <div class="invalid-feedback">Пожалуйста, укажите причину блокировки.</div>
+                        </div>
+                        <div class="alert alert-danger d-none" role="alert" data-blacklist-feedback="error"></div>
+                        <div class="alert alert-success d-none" role="alert" data-blacklist-feedback="success"></div>
+                  </div>
+                  <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger" data-blacklist-submit>
+                          <span data-blacklist-submit-text>Заблокировать</span>
+                          <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" data-blacklist-loading></span>
+                        </button>
+                  </div>
+                </form>
+          </div>
+        </div>
+
 <!-- Модальное окно: подтверждение успешного закрытия -->
         <div class="modal fade small-modal" id="ticketClosedModal" tabindex="-1" aria-hidden="true">
           <div class="modal-dialog modal-dialog-centered">
