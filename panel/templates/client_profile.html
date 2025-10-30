@@ -1220,7 +1220,7 @@ function createMediaHtml(ticket_id, mediaInfo) {
 	  document.addEventListener('DOMContentLoaded', function () { parseEmojis(document.body); });
 </script>
 <script>
-        (function () {
+        document.addEventListener('DOMContentLoaded', () => {
           const blacklistModalEl = document.getElementById('blacklistModal');
           const blacklistForm = document.getElementById('blacklistForm');
           const reasonInput = document.getElementById('blacklistReason');
@@ -1378,7 +1378,7 @@ function createMediaHtml(ticket_id, mediaInfo) {
               location.reload();
             });
           }
-        })();
+        });
 
         window.currentUser = CURRENT_OPERATOR;
 </script>
