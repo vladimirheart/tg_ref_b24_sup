@@ -1785,13 +1785,13 @@ const id = ensureQuestionId(source.id);
     });
   }
 
-  if (templatesContainer) {
-    templatesContainer.addEventListener('click', (event) => {
-      const card = event.target.closest('.card[data-template-id]');
-      if (!card) {
-        return;
-      }
-      const templateId = card.dataset.templateId;
+    if (templatesContainer) {
+      templatesContainer.addEventListener('click', async (event) => {
+        const card = event.target.closest('.card[data-template-id]');
+        if (!card) {
+          return;
+        }
+        const templateId = card.dataset.templateId;
       const index = findTemplateIndexById(templateId);
       if (index === -1) {
         return;
@@ -1800,20 +1800,27 @@ const id = ensureQuestionId(source.id);
         openTemplateEditor(index);
         return;
       }
-      if (event.target.closest('[data-bot-template-duplicate]')) {
-        duplicateTemplate(index);
-        return;
-      }
-      if (event.target.closest('[data-bot-template-delete]')) {
-        if (state.templates.length <= 1) {
+        if (event.target.closest('[data-bot-template-duplicate]')) {
+          duplicateTemplate(index);
           return;
         }
-        if (confirm('Удалить шаблон вопросов?')) {
-          deleteTemplate(index);
+        if (event.target.closest('[data-bot-template-delete]')) {
+          if (state.templates.length <= 1) {
+            return;
+          }
+          const confirmed = await showConfirmActionModal({
+            title: 'Удаление шаблона',
+            message: 'Удалить шаблон вопросов?',
+            confirmText: 'Удалить',
+            confirmVariant: 'danger',
+            icon: '🗑️',
+          });
+          if (confirmed) {
+            deleteTemplate(index);
+          }
+          return;
         }
-        return;
-      }
-    });
+      });
 
     templatesContainer.addEventListener('change', (event) => {
       const input = event.target.closest('[data-bot-template-select]');
@@ -1948,13 +1955,13 @@ const id = ensureQuestionId(source.id);
     });
   }
 
-  if (ratingTemplatesContainer) {
-    ratingTemplatesContainer.addEventListener('click', (event) => {
-      const card = event.target.closest('.card[data-rating-template-id]');
-      if (!card) {
-        return;
-      }
-      const templateId = card.dataset.ratingTemplateId;
+    if (ratingTemplatesContainer) {
+      ratingTemplatesContainer.addEventListener('click', async (event) => {
+        const card = event.target.closest('.card[data-rating-template-id]');
+        if (!card) {
+          return;
+        }
+        const templateId = card.dataset.ratingTemplateId;
       const index = findRatingTemplateIndexById(templateId);
       if (index === -1) {
         return;
@@ -1963,19 +1970,26 @@ const id = ensureQuestionId(source.id);
         openRatingTemplateEditor(index);
         return;
       }
-      if (event.target.closest('[data-bot-rating-template-duplicate]')) {
-        duplicateRatingTemplate(index);
-        return;
-      }
-      if (event.target.closest('[data-bot-rating-template-delete]')) {
-        if (state.ratingTemplates.length <= 1) {
+        if (event.target.closest('[data-bot-rating-template-duplicate]')) {
+          duplicateRatingTemplate(index);
           return;
         }
-        if (confirm('Удалить шаблон оценок?')) {
-          deleteRatingTemplate(index);
+        if (event.target.closest('[data-bot-rating-template-delete]')) {
+          if (state.ratingTemplates.length <= 1) {
+            return;
+          }
+          const confirmed = await showConfirmActionModal({
+            title: 'Удаление шаблона',
+            message: 'Удалить шаблон оценок?',
+            confirmText: 'Удалить',
+            confirmVariant: 'danger',
+            icon: '🗑️',
+          });
+          if (confirmed) {
+            deleteRatingTemplate(index);
+          }
         }
-      }
-    });
+      });
 
     ratingTemplatesContainer.addEventListener('change', (event) => {
       const input = event.target.closest('[data-bot-rating-template-select]');
