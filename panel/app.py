@@ -93,6 +93,7 @@ PARAMETER_TYPES = {
     "business": "Бизнес",
     "partner_type": "Тип партнёра",
     "country": "Страна",
+    "city": "Город",
     "legal_entity": "ЮЛ",
     "partner_contact": "Контакты партнёров и КА",
     "department": "Департамент",
@@ -101,6 +102,17 @@ PARAMETER_TYPES = {
     "remote_access": "Параметры удалённого доступа",
     "iiko_server": "Адреса серверов iiko",
 }
+
+PARAMETER_DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    "partner_type": ("country",),
+    "business": ("country", "partner_type"),
+    "city": ("country", "partner_type", "business"),
+    "department": ("country", "partner_type", "business", "city"),
+}
+
+DEPENDENCY_PARAM_TYPES: set[str] = set(PARAMETER_DEPENDENCIES.keys())
+for _chain in PARAMETER_DEPENDENCIES.values():
+    DEPENDENCY_PARAM_TYPES.update(_chain)
 
 REMOTE_ACCESS_DEFAULTS = (
     "RMSviewer",
@@ -511,6 +523,33 @@ def _normalize_parameter_state(param_type, state):
             return candidate
         return default_state
     return default_state
+
+
+def _normalize_parameter_dependencies(conn: sqlite3.Connection, param_type: str, payload: dict):
+    keys = PARAMETER_DEPENDENCIES.get(param_type)
+    if not keys:
+        return {}, None
+    dependencies_payload = payload.get("dependencies") if isinstance(payload, dict) else {}
+    if not isinstance(dependencies_payload, dict):
+        dependencies_payload = {}
+    dependencies: dict[str, str] = {}
+    for key in keys:
+        raw_value = payload.get(key) if isinstance(payload, dict) else None
+        if raw_value is None:
+            raw_value = dependencies_payload.get(key)
+        value = (raw_value or "").strip()
+        if not value:
+            label = PARAMETER_TYPES.get(key, key)
+            return None, f"Поле «{label}» обязательно"
+        exists = conn.execute(
+            "SELECT 1 FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
+            (key, value),
+        ).fetchone()
+        if not exists:
+            label = PARAMETER_TYPES.get(key, key)
+            return None, f"Значение для «{label}» не найдено"
+        dependencies[key] = value
+    return dependencies, None
 
 # Подключение к базе
 def get_db():
@@ -2615,6 +2654,8 @@ def _render_passport_template(passport_detail, is_new):
         iiko_server_options=iiko_server_options,
         it_equipment_options=it_equipment_options,
         it_equipment_catalog=it_equipment_catalog,
+        parameter_types=PARAMETER_TYPES,
+        parameter_dependencies=PARAMETER_DEPENDENCIES,
     )
 
 
@@ -8930,6 +8971,7 @@ def settings_page():
         locations=locations_payload,
         cities=city_names,
         parameter_types=PARAMETER_TYPES,
+        parameter_dependencies=PARAMETER_DEPENDENCIES,
         it_connection_categories=get_it_connection_categories(settings),
         it_connection_category_fields=DEFAULT_IT_CONNECTION_CATEGORY_FIELDS,
         contract_usage=contract_usage,
@@ -9172,6 +9214,23 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
                 extra_payload = json.loads(raw_extra)
             except Exception:
                 extra_payload = {}
+        if not isinstance(extra_payload, dict):
+            extra_payload = {}
+        dependency_keys = PARAMETER_DEPENDENCIES.get(slug)
+        dependencies: dict[str, str] = {}
+        if dependency_keys:
+            dependencies_source = extra_payload.get("dependencies") if isinstance(extra_payload.get("dependencies"), dict) else {}
+            for dep_key in dependency_keys:
+                raw_dependency = dependencies_source.get(dep_key) if dependencies_source else None
+                if raw_dependency is None:
+                    raw_dependency = extra_payload.get(dep_key)
+                dependencies[dep_key] = (raw_dependency or "").strip()
+            normalized_dependencies = {key: (dependencies.get(key) or "") for key in dependency_keys}
+            extra_payload["dependencies"] = normalized_dependencies
+            for dep_key in dependency_keys:
+                extra_payload[dep_key] = normalized_dependencies.get(dep_key, "")
+        else:
+            dependencies = {}
         if slug == "it_connection":
             usage_count = 0
         else:
@@ -9186,6 +9245,7 @@ def _fetch_parameters_grouped(conn, *, include_deleted: bool = False):
             "deleted_at": row["deleted_at"],
             "usage_count": usage_count,
             "extra": extra_payload,
+            "dependencies": dependencies,
         }
         if slug == "it_connection":
             equipment_type = (extra_payload.get("equipment_type") or "").strip()
@@ -9406,57 +9466,68 @@ def api_create_parameter():
         return jsonify({"success": False, "error": "Значение не может быть пустым"}), 400
 
     normalized_state = _normalize_parameter_state(param_type, state)
-    extra_payload = {}
-    if param_type == "it_connection":
-        category = (payload.get("category") or "").strip()
-        categories = get_it_connection_categories()
-        if category not in categories:
-            return (
-                jsonify({"success": False, "error": "Неизвестная категория подключения"}),
-                400,
-            )
-        sanitized = {
-            "category": category,
-            "category_label": categories.get(category, category),
-            "equipment_type": (payload.get("equipment_type") or "").strip(),
-            "equipment_vendor": (payload.get("equipment_vendor") or "").strip(),
-            "equipment_model": (payload.get("equipment_model") or "").strip(),
-            "equipment_status": (payload.get("equipment_status") or "").strip(),
-        }
-        category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(category)
-        if category_field:
-            if not sanitized.get(category_field):
-                sanitized[category_field] = value
-        else:
-            sanitized.update(
-                {
-                    "equipment_type": "",
-                    "equipment_vendor": "",
-                    "equipment_model": "",
-                    "equipment_status": "",
-                }
-            )
-        extra_payload = sanitized
-    elif param_type == "iiko_server":
-        server_name = (payload.get("server_name") or "").strip()
-        if not server_name:
-            return (
-                jsonify({"success": False, "error": "Поле «Имя сервера» обязательно"}),
-                400,
-            )
-        extra_payload = {"server_name": server_name}
-    elif param_type == "legal_entity":
-        extra_payload = {
-            "inn": (payload.get("inn") or "").strip(),
-            "manager_contacts": (payload.get("manager_contacts") or "").strip(),
-        }
-    elif param_type == "partner_contact":
-        extra_payload = sanitize_partner_contact_extra(payload, value=value)
-
-    extra_json = json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
 
     conn = get_db()
     try:
+        dependencies, error = _normalize_parameter_dependencies(conn, param_type, payload)
+        if error:
+            return jsonify({"success": False, "error": error}), 400
+
+        extra_payload: dict[str, Any] = {}
+        if dependencies:
+            extra_payload.update({key: value for key, value in dependencies.items()})
+            extra_payload["dependencies"] = dependencies
+
+        if param_type == "it_connection":
+            category = (payload.get("category") or "").strip()
+            categories = get_it_connection_categories()
+            if category not in categories:
+                return (
+                    jsonify({"success": False, "error": "Неизвестная категория подключения"}),
+                    400,
+                )
+            sanitized = {
+                "category": category,
+                "category_label": categories.get(category, category),
+                "equipment_type": (payload.get("equipment_type") or "").strip(),
+                "equipment_vendor": (payload.get("equipment_vendor") or "").strip(),
+                "equipment_model": (payload.get("equipment_model") or "").strip(),
+                "equipment_status": (payload.get("equipment_status") or "").strip(),
+            }
+            category_field = DEFAULT_IT_CONNECTION_CATEGORY_FIELDS.get(category)
+            if category_field:
+                if not sanitized.get(category_field):
+                    sanitized[category_field] = value
+            else:
+                sanitized.update(
+                    {
+                        "equipment_type": "",
+                        "equipment_vendor": "",
+                        "equipment_model": "",
+                        "equipment_status": "",
+                    }
+                )
+            extra_payload.update(sanitized)
+        elif param_type == "iiko_server":
+            server_name = (payload.get("server_name") or "").strip()
+            if not server_name:
+                return (
+                    jsonify({"success": False, "error": "Поле «Имя сервера» обязательно"}),
+                    400,
+                )
+            extra_payload.update({"server_name": server_name})
+        elif param_type == "legal_entity":
+            extra_payload.update(
+                {
+                    "inn": (payload.get("inn") or "").strip(),
+                    "manager_contacts": (payload.get("manager_contacts") or "").strip(),
+                }
+            )
+        elif param_type == "partner_contact":
+            extra_payload = sanitize_partner_contact_extra(payload, value=value)
+
+        extra_json = json.dumps(extra_payload, ensure_ascii=False) if extra_payload else None
+
         try:
             cur = conn.execute(
                 """
@@ -9503,6 +9574,23 @@ def api_update_parameter(param_id):
             extra_payload = {}
         if not isinstance(extra_payload, dict):
             extra_payload = {}
+
+        dependency_keys = PARAMETER_DEPENDENCIES.get(param_type)
+        if dependency_keys:
+            dependencies_requested = False
+            if isinstance(payload.get("dependencies"), dict):
+                dependencies_requested = True
+            else:
+                dependencies_requested = any(key in payload for key in dependency_keys)
+            if dependencies_requested:
+                normalized_dependencies, error = _normalize_parameter_dependencies(conn, param_type, payload)
+                if error:
+                    return jsonify({"success": False, "error": error}), 400
+                for key in dependency_keys:
+                    extra_payload[key] = normalized_dependencies.get(key, "")
+                extra_payload["dependencies"] = {key: normalized_dependencies.get(key, "") for key in dependency_keys}
+                updates.append("extra_json = ?")
+                params.append(json.dumps(extra_payload, ensure_ascii=False))
 
         new_value = None
         if "value" in payload:
