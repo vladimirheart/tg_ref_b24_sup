@@ -6022,7 +6022,13 @@ def clients_list():
 
     # Подтянем статусы блэклиста разом в словарь
     cur.execute("SELECT user_id, is_blacklisted, unblock_requested FROM client_blacklist")
-    blmap = {r["user_id"]: (int(r["is_blacklisted"]), int(r["unblock_requested"])) for r in cur.fetchall()}
+    # user_id в messages хранится как INTEGER, а в client_blacklist — как TEXT.
+    # Без нормализации типов не находились записи по заблокированным клиентам,
+    # поэтому в списке отображалось, что клиент вне блэклиста.
+    blmap = {
+        str(r["user_id"]): (int(r["is_blacklisted"]), int(r["unblock_requested"]))
+        for r in cur.fetchall()
+    }
 
     # Подтянем статусы клиентов
     cur.execute("SELECT user_id, status FROM client_statuses")
@@ -6072,7 +6078,7 @@ def clients_list():
         client_dict['client_status'] = status_map.get(user_id, "")
 
         # статусы блэклиста
-        is_bl, unb = blmap.get(user_id, (0, 0))
+        is_bl, unb = blmap.get(str(user_id), (0, 0))
         client_dict["blacklist"] = is_bl
         client_dict["unblock_requested"] = unb
 
