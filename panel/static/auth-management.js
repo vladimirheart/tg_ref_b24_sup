@@ -2021,27 +2021,34 @@
         });
     }
 
-    handleDeleteUser(row, userId) {
-      const username = row.dataset.userName || '';
-      if (!window.confirm(`Удалить пользователя ${username || '#' + userId}?`)) {
-        return;
-      }
-      fetch(`${this.usersEndpoint}/${userId}`, {
-        method: 'DELETE',
-        credentials: 'same-origin',
-      })
-        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
-        .then(({ ok, data }) => {
-          if (!ok || data.success === false) {
+      async handleDeleteUser(row, userId) {
+        const username = row.dataset.userName || '';
+        const confirmed = await showConfirmActionModal({
+          title: 'Удаление пользователя',
+          message: `Удалить пользователя ${username || '#' + userId}?`,
+          confirmText: 'Удалить',
+          confirmVariant: 'danger',
+          icon: '🗑️',
+        });
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`${this.usersEndpoint}/${userId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin',
+          });
+          const data = await response.json();
+          if (!response.ok || data.success === false) {
             throw new Error(data.error || 'Не удалось удалить пользователя');
           }
           this.setMessage('Пользователь удалён.', 'success');
           return this.refresh();
-        })
-        .catch((error) => {
+        } catch (error) {
           this.setMessage(error.message || String(error));
-        });
-    }
+        }
+      }
 
     closeUserModal() {
       if (this.modalInstance) {
@@ -2773,26 +2780,33 @@
         });
     }
 
-    handleDeleteRole(card, roleId) {
-      if (!window.confirm('Удалить роль?')) {
-        return;
-      }
-      fetch(`${this.rolesEndpoint}/${roleId}`, {
-        method: 'DELETE',
-        credentials: 'same-origin',
-      })
-        .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
-        .then(({ ok, data }) => {
-          if (!ok || data.success === false) {
+      async handleDeleteRole(card, roleId) {
+        const confirmed = await showConfirmActionModal({
+          title: 'Удаление роли',
+          message: 'Удалить роль?',
+          confirmText: 'Удалить',
+          confirmVariant: 'danger',
+          icon: '🗑️',
+        });
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`${this.rolesEndpoint}/${roleId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin',
+          });
+          const data = await response.json();
+          if (!response.ok || data.success === false) {
             throw new Error(data.error || 'Не удалось удалить роль');
           }
           this.setMessage('Роль удалена.', 'success');
           return this.refresh();
-        })
-        .catch((error) => {
+        } catch (error) {
           this.setMessage(error.message || String(error));
-        });
-    }
+        }
+      }
 
     normalizeOrgStructure(structure) {
       const nodes = [];
@@ -3123,45 +3137,62 @@
       return toRemove;
     }
 
-    removeOrgNode(nodeId) {
-      const node = this.findOrgNode(nodeId);
-      if (!node) {
-        return;
+      async removeOrgNode(nodeId) {
+        const node = this.findOrgNode(nodeId);
+        if (!node) {
+          return;
+        }
+        const toRemove = this.collectOrgNodeDescendants(nodeId);
+        const total = toRemove.size;
+        const rest = total - 1;
+        let suffix = 'дочерних веток';
+        if (rest === 1) {
+          suffix = 'дочернюю ветку';
+        } else if (rest >= 2 && rest <= 4) {
+          suffix = 'дочерние ветки';
+        }
+        const message =
+          rest > 0
+            ? `Удалить ветку "${node.name}" и ${rest} ${suffix}?`
+            : `Удалить ветку "${node.name}"?`;
+        const confirmed = await showConfirmActionModal({
+          title: 'Удаление ветки',
+          message,
+          confirmText: 'Удалить',
+          confirmVariant: 'danger',
+          icon: '🗑️',
+        });
+        if (!confirmed) {
+          return;
+        }
+        this.state.orgStructure.nodes = (this.state.orgStructure.nodes || []).filter(
+          (entry) => !toRemove.has(entry.id),
+        );
+        this.markOrgStructureDirty();
+        this.renderOrgStructure();
       }
-      const toRemove = this.collectOrgNodeDescendants(nodeId);
-      const total = toRemove.size;
-      const rest = total - 1;
-      let suffix = 'дочерних веток';
-      if (rest === 1) {
-        suffix = 'дочернюю ветку';
-      } else if (rest >= 2 && rest <= 4) {
-        suffix = 'дочерние ветки';
-      }
-      const message =
-        rest > 0
-          ? `Удалить ветку "${node.name}" и ${rest} ${suffix}?`
-          : `Удалить ветку "${node.name}"?`;
-      if (!window.confirm(message)) {
-        return;
-      }
-      this.state.orgStructure.nodes = (this.state.orgStructure.nodes || []).filter(
-        (entry) => !toRemove.has(entry.id),
-      );
-      this.markOrgStructureDirty();
-      this.renderOrgStructure();
-    }
 
-    renameOrgNode(nodeId) {
-      const node = this.findOrgNode(nodeId);
-      if (!node) {
-        return;
-      }
-      const nextName = window.prompt('Название ветки', node.name || '') || '';
-      const trimmed = nextName.trim();
-      if (!trimmed || trimmed === node.name) {
-        return;
-      }
-      node.name = trimmed;
+      async renameOrgNode(nodeId) {
+        const node = this.findOrgNode(nodeId);
+        if (!node) {
+          return;
+        }
+        const nextName = await showPromptModal({
+          title: 'Переименовать ветку',
+          message: 'Введите новое название для ветки.',
+          confirmText: 'Сохранить',
+          cancelText: 'Отмена',
+          icon: '✏️',
+          defaultValue: node.name || '',
+        });
+        if (nextName === null) {
+          return;
+        }
+        const trimmed = nextName.trim();
+        if (!trimmed || trimmed === node.name) {
+          return;
+        }
+        node.name = trimmed;
       this.markOrgStructureDirty();
       this.renderOrgStructure();
     }
