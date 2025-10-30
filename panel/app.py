@@ -26,6 +26,7 @@ import html
 from uuid import uuid4
 import sys
 import shutil
+import hashlib
 from pathlib import Path
 import secrets
 from functools import wraps
@@ -62,6 +63,9 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
 ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
 KNOWLEDGE_BASE_ATTACHMENTS_DIR = os.path.join(ATTACHMENTS_DIR, "knowledge_base")
+AVATAR_CACHE_DIR = os.path.join(ATTACHMENTS_DIR, "avatars")
+AVATAR_HISTORY_DIR = os.path.join(AVATAR_CACHE_DIR, "history")
+AVATAR_CACHE_TTL_SECONDS = 15 * 60  # 15 minutes
 TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
 USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
@@ -73,6 +77,9 @@ ALLOWED_USER_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 MAX_USER_PHOTO_SIZE = 5 * 1024 * 1024
 WEB_FORM_SESSIONS_TABLE = "web_form_sessions"
 
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+os.makedirs(AVATAR_CACHE_DIR, exist_ok=True)
+os.makedirs(AVATAR_HISTORY_DIR, exist_ok=True)
 os.makedirs(OBJECT_PASSPORT_UPLOADS_DIR, exist_ok=True)
 os.makedirs(KNOWLEDGE_BASE_ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(USER_PHOTOS_DIR, exist_ok=True)
@@ -3576,6 +3583,31 @@ def ensure_client_profile_schema():
                 created_by TEXT
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS client_avatar_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                fingerprint TEXT NOT NULL,
+                source TEXT NOT NULL,
+                file_unique_id TEXT,
+                file_id TEXT,
+                thumb_path TEXT,
+                full_path TEXT,
+                width INTEGER,
+                height INTEGER,
+                file_size INTEGER,
+                fetched_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                metadata TEXT,
+                UNIQUE(user_id, fingerprint)
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_client_avatar_history_user ON client_avatar_history(user_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_client_avatar_history_last_seen ON client_avatar_history(last_seen_at)"
+        )
         conn.commit()
     except Exception as e:
         print(f"ensure_client_profile_schema: {e}")
@@ -5416,6 +5448,283 @@ def object_passport_media(filename):
         abort(404)
     return send_from_directory(OBJECT_PASSPORT_UPLOADS_DIR, safe_path)
 
+
+def _avatar_cache_path(user_id: int, want_full: bool) -> str:
+    suffix = "_full" if want_full else ""
+    return os.path.join(AVATAR_CACHE_DIR, f"{user_id}{suffix}.jpg")
+
+
+def _avatar_cache_is_stale(path: str) -> bool:
+    if not os.path.isfile(path):
+        return True
+    if AVATAR_CACHE_TTL_SECONDS <= 0:
+        return False
+    try:
+        age = time.time() - os.path.getmtime(path)
+        return age >= AVATAR_CACHE_TTL_SECONDS
+    except OSError:
+        return True
+
+
+def _transparent_pixel_response():
+    from io import BytesIO
+    from PIL import Image
+
+    img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+    bio = BytesIO()
+    img.save(bio, format="PNG")
+    bio.seek(0)
+    return send_file(bio, mimetype="image/png")
+
+
+def _normalize_fingerprint(value: str) -> str:
+    normalized = (value or "").strip()
+    if normalized:
+        return normalized
+    # fallback to random-ish fingerprint
+    return uuid4().hex
+
+
+def _store_avatar_history_entry(
+    user_id: int,
+    *,
+    fingerprint: str,
+    source: str,
+    file_unique_id: str | None = None,
+    file_id: str | None = None,
+    thumb_bytes: bytes | None = None,
+    full_bytes: bytes | None = None,
+    width: int | None = None,
+    height: int | None = None,
+    file_size: int | None = None,
+) -> dict[str, str] | None:
+    fingerprint = _normalize_fingerprint(fingerprint)
+    if not thumb_bytes and not full_bytes:
+        return None
+
+    if thumb_bytes is None:
+        thumb_bytes = full_bytes
+    if full_bytes is None:
+        full_bytes = thumb_bytes
+
+    if not thumb_bytes or not full_bytes:
+        return None
+
+    digest = hashlib.sha1(fingerprint.encode("utf-8", "ignore")).hexdigest()
+    base_name = f"{user_id}_{digest}"
+    thumb_filename = f"{base_name}.jpg"
+    full_filename = f"{base_name}_full.jpg"
+    thumb_path = os.path.join(AVATAR_HISTORY_DIR, thumb_filename)
+    full_path = os.path.join(AVATAR_HISTORY_DIR, full_filename)
+
+    with open(thumb_path, "wb") as f:
+        f.write(thumb_bytes)
+    with open(full_path, "wb") as f:
+        f.write(full_bytes)
+
+    rel_thumb = os.path.relpath(thumb_path, AVATAR_HISTORY_DIR)
+    rel_full = os.path.relpath(full_path, AVATAR_HISTORY_DIR)
+    now_iso = dt.now(timezone.utc).isoformat()
+
+    conn = get_db()
+    try:
+        conn.execute(
+            """
+            INSERT INTO client_avatar_history (
+                user_id, fingerprint, source, file_unique_id, file_id,
+                thumb_path, full_path, width, height, file_size,
+                fetched_at, last_seen_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, fingerprint) DO UPDATE SET
+                source=excluded.source,
+                file_unique_id=COALESCE(excluded.file_unique_id, client_avatar_history.file_unique_id),
+                file_id=COALESCE(excluded.file_id, client_avatar_history.file_id),
+                thumb_path=excluded.thumb_path,
+                full_path=excluded.full_path,
+                width=COALESCE(excluded.width, client_avatar_history.width),
+                height=COALESCE(excluded.height, client_avatar_history.height),
+                file_size=COALESCE(excluded.file_size, client_avatar_history.file_size),
+                last_seen_at=excluded.last_seen_at
+            """,
+            (
+                user_id,
+                fingerprint,
+                source,
+                file_unique_id,
+                file_id,
+                rel_thumb,
+                rel_full,
+                width,
+                height,
+                file_size,
+                now_iso,
+                now_iso,
+            ),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT id FROM client_avatar_history WHERE user_id=? AND fingerprint=?",
+            (user_id, fingerprint),
+        ).fetchone()
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    if not row:
+        return None
+
+    return {
+        "id": row["id"],
+        "thumb_path": thumb_path,
+        "full_path": full_path,
+        "thumb_rel": rel_thumb,
+        "full_rel": rel_full,
+    }
+
+
+def _copy_history_to_cache(user_id: int, record: dict[str, str] | None) -> None:
+    if not record:
+        return
+    thumb_src = record.get("thumb_path")
+    full_src = record.get("full_path")
+    if thumb_src and os.path.isfile(thumb_src):
+        shutil.copyfile(thumb_src, _avatar_cache_path(user_id, want_full=False))
+    if full_src and os.path.isfile(full_src):
+        shutil.copyfile(full_src, _avatar_cache_path(user_id, want_full=True))
+
+
+def _record_avatar_from_url(user_id: int, src: str) -> dict[str, str] | None:
+    if not src:
+        return None
+    src = src.strip()
+    if not src.lower().startswith(("http://", "https://")):
+        return None
+    try:
+        response = requests.get(src, timeout=10)
+        response.raise_for_status()
+        content = response.content
+    except Exception:
+        return None
+
+    if not content:
+        return None
+
+    fingerprint = hashlib.sha1(content).hexdigest()
+    return _store_avatar_history_entry(
+        user_id,
+        fingerprint=fingerprint,
+        source="url",
+        thumb_bytes=content,
+        full_bytes=content,
+        file_size=len(content),
+    )
+
+
+def _download_telegram_file(file_id: str) -> bytes | None:
+    if not file_id:
+        return None
+    try:
+        resp = requests.get(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile",
+            params={"file_id": file_id},
+            timeout=10,
+        ).json()
+        file_path = (resp.get("result") or {}).get("file_path")
+        if not file_path:
+            return None
+        url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+        binresp = requests.get(url, timeout=10)
+        binresp.raise_for_status()
+        return binresp.content
+    except Exception:
+        return None
+
+
+def _refresh_telegram_avatar_cache(user_id: int) -> dict[str, str] | None:
+    try:
+        resp = requests.get(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUserProfilePhotos",
+            params={"user_id": user_id, "limit": 1},
+            timeout=10,
+        ).json()
+    except Exception:
+        return None
+
+    photos = (resp.get("result") or {}).get("photos") or []
+    if not photos:
+        return None
+
+    sizes = photos[0] or []
+    if not sizes:
+        return None
+
+    smallest = sizes[0]
+    largest = sizes[-1]
+
+    small_bytes = _download_telegram_file(smallest.get("file_id")) if smallest else None
+    full_bytes = _download_telegram_file(largest.get("file_id")) if largest else None
+
+    if not full_bytes and small_bytes:
+        full_bytes = small_bytes
+    if not small_bytes and full_bytes:
+        small_bytes = full_bytes
+
+    if not small_bytes or not full_bytes:
+        return None
+
+    record = _store_avatar_history_entry(
+        user_id,
+        fingerprint=largest.get("file_unique_id") or smallest.get("file_unique_id") or hashlib.sha1(full_bytes).hexdigest(),
+        source="telegram",
+        file_unique_id=largest.get("file_unique_id") or smallest.get("file_unique_id"),
+        file_id=largest.get("file_id") or smallest.get("file_id"),
+        thumb_bytes=small_bytes,
+        full_bytes=full_bytes,
+        width=largest.get("width") or smallest.get("width"),
+        height=largest.get("height") or smallest.get("height"),
+        file_size=largest.get("file_size") or smallest.get("file_size"),
+    )
+
+    if small_bytes:
+        with open(_avatar_cache_path(user_id, want_full=False), "wb") as f:
+            f.write(small_bytes)
+    if full_bytes:
+        with open(_avatar_cache_path(user_id, want_full=True), "wb") as f:
+            f.write(full_bytes)
+
+    return record
+
+
+def _serve_avatar_from_cache(cache_path: str):
+    if os.path.isfile(cache_path):
+        return send_file(cache_path, mimetype="image/jpeg")
+    return None
+
+
+def _format_avatar_timestamp(raw: str | None) -> str:
+    if raw is None:
+        return ""
+    normalized = str(raw).strip()
+    if not normalized:
+        return ""
+    try:
+        dt_value = dt.fromisoformat(normalized.replace("Z", "+00:00"))
+        if dt_value.tzinfo is None:
+            dt_value = dt_value.replace(tzinfo=timezone.utc)
+        try:
+            tz_name = os.getenv("TZ") or "UTC"
+            local_zone = ZoneInfo(tz_name)
+        except Exception:
+            local_zone = timezone.utc
+        dt_value = dt_value.astimezone(local_zone)
+        return dt_value.strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return normalized
+
+
 @app.route("/avatar/<int:user_id>")
 @login_required
 def avatar(user_id):
@@ -5425,67 +5734,104 @@ def avatar(user_id):
     - При ?full=1: максимальная версия (кэш: <user_id>_full.jpg)
     Если фото нет — прозрачный пиксель.
     """
-    import os, requests
-    from flask import send_file, request
-
-    AVA_DIR = os.path.join(ATTACHMENTS_DIR, "avatars")
-    os.makedirs(AVA_DIR, exist_ok=True)
-
     want_full = (request.args.get("full", "").lower() in ("1", "true", "yes"))
-    cache_name = f"{user_id}_full.jpg" if want_full else f"{user_id}.jpg"
-    cache_path = os.path.join(AVA_DIR, cache_name)
+    src_hint = (request.args.get("src") or "").strip()
+    if src_hint:
+        record = _record_avatar_from_url(user_id, src_hint)
+        if record:
+            _copy_history_to_cache(user_id, record)
 
-    # 1) Есть в кэше — отдаём
-    if os.path.exists(cache_path):
-        return send_file(cache_path, mimetype="image/jpeg")
+    cache_path = _avatar_cache_path(user_id, want_full)
+    if _avatar_cache_is_stale(cache_path):
+        record = _refresh_telegram_avatar_cache(user_id)
+        if record and want_full:
+            cache_path = _avatar_cache_path(user_id, want_full)
 
-    # 2) Тянем из Telegram
+    response = _serve_avatar_from_cache(cache_path)
+    if response:
+        return response
+
+    # попробуем альтернативный вариант (full/preview)
+    alt_path = _avatar_cache_path(user_id, not want_full)
+    response = _serve_avatar_from_cache(alt_path)
+    if response:
+        return response
+
+    return _transparent_pixel_response()
+
+
+@app.route("/avatar/history/<int:entry_id>")
+@login_required
+def avatar_history_entry(entry_id: int):
+    want_full = (request.args.get("full", "").lower() in ("1", "true", "yes"))
+    conn = get_db()
     try:
-        resp = requests.get(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUserProfilePhotos",
-            params={"user_id": user_id, "limit": 1},
-            timeout=10
-        ).json()
-        photos = (resp.get("result") or {}).get("photos") or []
-        if not photos:
-            # прозрачный пиксель
-            from io import BytesIO
-            from PIL import Image
-            img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-            bio = BytesIO()
-            img.save(bio, format="PNG")
-            bio.seek(0)
-            return send_file(bio, mimetype="image/png")
+        row = conn.execute(
+            "SELECT thumb_path, full_path FROM client_avatar_history WHERE id=?",
+            (entry_id,),
+        ).fetchone()
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
-        # маленькая или максимальная версия
-        size_idx = -1 if want_full else 0
-        file_id = photos[0][size_idx]["file_id"]
+    if not row:
+        abort(404)
 
-        resp2 = requests.get(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile",
-            params={"file_id": file_id},
-            timeout=10
-        ).json()
-        file_path = (resp2.get("result") or {}).get("file_path")
-        if not file_path:
-            raise RuntimeError("file_path not found")
+    rel_path = (row["full_path"] if want_full and row["full_path"] else row["thumb_path"]) or row["thumb_path"]
+    if not rel_path:
+        abort(404)
 
-        url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
-        binresp = requests.get(url, timeout=10)
-        binresp.raise_for_status()
-        with open(cache_path, "wb") as f:
-            f.write(binresp.content)
+    safe_relative = os.path.normpath(str(rel_path)).replace("\\", "/")
+    if safe_relative.startswith("../") or safe_relative.startswith("/"):
+        abort(404)
 
-        return send_file(cache_path, mimetype="image/jpeg")
-    except Exception:
-        # прозрачный пиксель на любой сбой
-        from io import BytesIO
-        from PIL import Image
-        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-        bio = BytesIO()
-        img.save(bio, format="PNG")
-        bio.seek(0)
-        return send_file(bio, mimetype="image/png")
+    base_dir = os.path.abspath(AVATAR_HISTORY_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, safe_relative))
+    if not abs_path.startswith(base_dir) or not os.path.isfile(abs_path):
+        abort(404)
+
+    mimetype = mimetypes.guess_type(abs_path)[0] or "image/jpeg"
+    return send_file(abs_path, mimetype=mimetype)
+
+
+@app.route("/api/client/<int:user_id>/avatar_history")
+@login_required
+def api_client_avatar_history(user_id: int):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, source, fetched_at, last_seen_at
+            FROM client_avatar_history
+            WHERE user_id = ?
+            ORDER BY datetime(fetched_at) ASC, id ASC
+            """,
+            (user_id,),
+        ).fetchall()
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    result = []
+    for row in rows or []:
+        fetched_at = row["fetched_at"] or row["last_seen_at"]
+        result.append(
+            {
+                "id": row["id"],
+                "source": row["source"] or "",
+                "fetched_at": row["fetched_at"],
+                "last_seen_at": row["last_seen_at"],
+                "display_at": _format_avatar_timestamp(fetched_at),
+                "url": url_for("avatar_history_entry", entry_id=row["id"]),
+                "full_url": url_for("avatar_history_entry", entry_id=row["id"], full=1),
+            }
+        )
+
+    return jsonify(result)
 
 
 # === Обновление имени клиента ===
