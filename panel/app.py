@@ -6667,20 +6667,8 @@ def client_profile(user_id):
     cur.execute("SELECT status FROM client_statuses WHERE user_id = ?", (user_id,))
     status_row = cur.fetchone()
     client_status = status_row['status'] if status_row else None
-        # История username и телефоны
-    cur.execute("SELECT username, seen_at FROM client_usernames WHERE user_id=? ORDER BY seen_at DESC", (user_id,))
-    username_history = [dict(r) for r in cur.fetchall()]
 
-    cur.execute("""
-        SELECT id, phone, label, source, is_active, created_at, created_by
-        FROM client_phones
-        WHERE user_id=? ORDER BY source DESC, created_at DESC
-    """, (user_id,))
-    phones_all = [dict(r) for r in cur.fetchall()]
-
-    phones_telegram = [p for p in phones_all if p['source'] == 'telegram' and p['is_active']]
-    phones_manual   = [p for p in phones_all if p['source'] == 'manual' and p['is_active']]
-        # История username
+    # История username
     cur.execute(
         "SELECT username, seen_at FROM client_usernames WHERE user_id=? ORDER BY seen_at DESC",
         (user_id,),
@@ -6695,8 +6683,31 @@ def client_profile(user_id):
     """, (user_id,))
     phones_all = [dict(r) for r in cur.fetchall()]
 
-    phones_telegram = [p for p in phones_all if p["source"] == "telegram" and p["is_active"]]
-    phones_manual   = [p for p in phones_all if p["source"] == "manual" and p["is_active"]]
+    phones_telegram = [p for p in phones_all if p['source'] == 'telegram' and p['is_active']]
+    phones_manual   = [p for p in phones_all if p['source'] == 'manual' and p['is_active']]
+
+    # Данные блэклиста клиента
+    cur.execute(
+        """
+        SELECT user_id, is_blacklisted, reason, added_at, added_by,
+               unblock_requested, unblock_requested_at
+        FROM client_blacklist
+        WHERE user_id=?
+        """,
+        (user_id,),
+    )
+    client_blacklist_row = cur.fetchone()
+    client_blacklist: dict[str, Any] | None = None
+    if client_blacklist_row:
+        client_blacklist = dict(client_blacklist_row)
+        added_at_raw = client_blacklist.get("added_at")
+        added_at_display = None
+        if added_at_raw:
+            try:
+                added_at_display = dt.fromisoformat(str(added_at_raw).replace("Z", "")).strftime("%d.%m.%Y %H:%M")
+            except Exception:
+                added_at_display = added_at_raw
+        client_blacklist["added_at_display"] = added_at_display
 
     conn.close()
 
@@ -6716,7 +6727,8 @@ def client_profile(user_id):
         client_status=client_status,
         username_history=username_history,
         phones_telegram=phones_telegram,
-        phones_manual=phones_manual
+        phones_manual=phones_manual,
+        client_blacklist=client_blacklist,
     )
        
 # === API для дашборда с фильтрами ===
