@@ -5912,15 +5912,21 @@ function displayTicketsForCurrentPage() {
 					(ticketFull.status === 'pending' || ticketFull.status === 'in_progress') ? 'В обработке' :
 					(ticketFull.status || '—');
 
-				// === ВРЕМЕННЫЕ МЕТРИКИ (СООТВЕТСТВУЮТ ВАШЕЙ ЛОГИКЕ) ===
-				// "Создана" — когда заявка попала в список заявок.
-				// 1) Пытаемся взять ticket.created_at (от бэка); 2) иначе — первое сообщение клиента.
-                                let createdAt = parseDateFromAny(
-                                        ticketFull.created_at
-                                        || ticketFull.createdAt
-                                        || ticketFull.first_user_message_at
-                                        || ticketFull.firstUserMessageAt
-                                );
+				// === ВРЕМЕННЫЕ МЕТРИКИ ===
+                                // "Создана" — когда заявка попала в список заявок.
+                                // Сначала пробуем взять время из таблицы (там оно отображается корректно для оператора),
+                                // затем из детальной информации тикета. Если ничего не найдено — fallback к первому сообщению клиента.
+                                const listTicket = (Array.isArray(window.allTickets) ? window.allTickets : [])
+                                        .find(t => String(t.ticket_id) === String(ticket_id));
+                                let createdAt =
+                                        (listTicket ? getTicketCreatedAt(listTicket) : null)
+                                        || getTicketCreatedAt(ticketFull)
+                                        || parseDateFromAny(
+                                                ticketFull?.created_at
+                                                || ticketFull?.createdAt
+                                                || ticketFull?.first_user_message_at
+                                                || ticketFull?.firstUserMessageAt
+                                        );
                                 if (!createdAt) {
                                         const firstUserMsg = messages.find(m => !isSupportMsg(m) && messageDate(m));
                                         createdAt = firstUserMsg ? messageDate(firstUserMsg) : null;
