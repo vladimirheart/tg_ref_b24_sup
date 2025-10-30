@@ -167,10 +167,15 @@
                 <button class="btn btn-sm btn-outline-danger"
                                 type="button"
                                 onclick="openBlacklistModal('{{ client.user_id }}')">Заблокировать</button>
-		<button class="btn btn-sm btn-success"
-				onclick="blacklistRemove('{{ client.user_id }}')">Разблокировать</button>
-	  </div>
-	</div>
+                <button class="btn btn-sm btn-success"
+                                onclick="blacklistRemove('{{ client.user_id }}')">Разблокировать</button>
+                {% if client_blacklist and client_blacklist.is_blacklisted and client_blacklist.unblock_requested %}
+                <button class="btn btn-sm btn-warning"
+                                type="button"
+                                onclick="openRejectUnblockModal('{{ client.user_id }}')">Отклонить запрос</button>
+                {% endif %}
+          </div>
+        </div>
 
     <div class="card mb-4">
       <div class="card-body">
@@ -214,7 +219,61 @@
                                 </p>
 			  </div>
 		</div>
-		<div id="avatarHistory" class="mt-2"></div>
+                <div id="avatarHistory" class="mt-2"></div>
+        {% if unblock_requests %}
+        <div class="mt-4">
+          <h6 class="fw-semibold">История запросов на разблокировку</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead>
+                <tr>
+                  <th scope="col">Дата запроса</th>
+                  <th scope="col">Комментарий клиента</th>
+                  <th scope="col">Статус</th>
+                  <th scope="col">Решение оператора</th>
+                  <th scope="col">Оператор</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in unblock_requests %}
+                <tr>
+                  <td>{{ entry.created_at_display or '—' }}</td>
+                  <td>{{ entry.reason or '—' }}</td>
+                  <td>
+                    {% if entry.status == 'pending' %}
+                      <span class="badge text-bg-warning text-dark">В ожидании</span>
+                    {% elif entry.status == 'approved' %}
+                      <span class="badge text-bg-success">Разблокирован</span>
+                    {% elif entry.status == 'rejected' %}
+                      <span class="badge text-bg-danger">Отклонён</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary">{{ entry.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.status == 'pending' %}
+                      <span class="text-muted">Ожидает решения</span>
+                    {% else %}
+                      {{ entry.decision_comment or '—' }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.status == 'pending' %}
+                      <span class="text-muted">—</span>
+                    {% else %}
+                      <div>{{ entry.decided_by or '—' }}</div>
+                      {% if entry.decided_at_display %}
+                        <div class="small text-muted">{{ entry.decided_at_display }}</div>
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
         <p><strong>ID Telegram:</strong> <code>{{ client.user_id }}</code></p>
         <p><strong>Юзернейм в Telegram:</strong> {{ client.username or '—' }}</p>
         <p><strong>Имя в БД:</strong> <span id="clientNameDisplay">{{ client.client_name or '—' }}</span></p>
@@ -1440,6 +1499,122 @@ function createMediaHtml(ticket_id, mediaInfo) {
             }
           };
 
+          const rejectModalEl = document.getElementById('rejectUnblockModal');
+          const rejectForm = document.getElementById('rejectUnblockForm');
+          const rejectUserPlaceholder = rejectModalEl?.querySelector('[data-reject-user-id]');
+          const rejectCommentInput = rejectModalEl?.querySelector('[data-reject-comment]');
+          const rejectSubmitButton = rejectModalEl?.querySelector('[data-reject-submit]');
+          const rejectSubmitText = rejectModalEl?.querySelector('[data-reject-submit-text]');
+          const rejectLoadingSpinner = rejectModalEl?.querySelector('[data-reject-loading]');
+          const rejectFeedbackError = rejectModalEl?.querySelector('[data-reject-feedback="error"]');
+          const rejectFeedbackSuccess = rejectModalEl?.querySelector('[data-reject-feedback="success"]');
+          let rejectModalInstance = null;
+
+          function getRejectModalInstance() {
+            if (!rejectModalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+              return null;
+            }
+            if (!rejectModalInstance) {
+              rejectModalInstance = new bootstrap.Modal(rejectModalEl);
+            }
+            return rejectModalInstance;
+          }
+
+          function resetRejectFeedback() {
+            if (rejectFeedbackError) {
+              rejectFeedbackError.classList.add('d-none');
+              rejectFeedbackError.textContent = '';
+            }
+            if (rejectFeedbackSuccess) {
+              rejectFeedbackSuccess.classList.add('d-none');
+              rejectFeedbackSuccess.textContent = '';
+            }
+          }
+
+          function setRejectLoading(isLoading) {
+            if (rejectSubmitButton) {
+              rejectSubmitButton.disabled = isLoading;
+            }
+            if (rejectSubmitText) {
+              rejectSubmitText.classList.toggle('d-none', isLoading);
+            }
+            if (rejectLoadingSpinner) {
+              rejectLoadingSpinner.classList.toggle('d-none', !isLoading);
+            }
+          }
+
+          window.openRejectUnblockModal = function (userId) {
+            const modal = getRejectModalInstance();
+            if (!modal) return;
+            rejectModalEl.dataset.userId = userId || '';
+            if (rejectUserPlaceholder) {
+              rejectUserPlaceholder.textContent = userId || '—';
+            }
+            if (rejectCommentInput) {
+              rejectCommentInput.value = '';
+            }
+            resetRejectFeedback();
+            setRejectLoading(false);
+            modal.show();
+            setTimeout(() => {
+              rejectCommentInput?.focus();
+            }, 150);
+          };
+
+          if (rejectForm) {
+            rejectForm.addEventListener('submit', async (event) => {
+              event.preventDefault();
+              resetRejectFeedback();
+              if (!rejectModalEl) return;
+              const userId = rejectModalEl.dataset.userId;
+              const comment = (rejectCommentInput?.value || '').trim();
+
+              if (!userId) {
+                if (rejectFeedbackError) {
+                  rejectFeedbackError.textContent = 'Не удалось определить клиента для отказа.';
+                  rejectFeedbackError.classList.remove('d-none');
+                }
+                return;
+              }
+
+              setRejectLoading(true);
+              try {
+                const response = await fetch('/api/blacklist/reject-request', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: userId, comment })
+                });
+                let payload = {};
+                try {
+                  payload = await response.json();
+                } catch (jsonError) {
+                  payload = {};
+                }
+
+                if (!response.ok || !payload.ok) {
+                  const errorMessage = payload.error || `Не удалось отклонить запрос (код ${response.status}).`;
+                  throw new Error(errorMessage);
+                }
+
+                if (rejectFeedbackSuccess) {
+                  rejectFeedbackSuccess.textContent = 'Решение сохранено. Страница будет обновлена.';
+                  rejectFeedbackSuccess.classList.remove('d-none');
+                }
+                setTimeout(() => {
+                  getRejectModalInstance()?.hide();
+                  location.reload();
+                }, 900);
+              } catch (error) {
+                if (rejectFeedbackError) {
+                  rejectFeedbackError.textContent = error?.message || 'Не удалось отклонить запрос.';
+                  rejectFeedbackError.classList.remove('d-none');
+                }
+              } finally {
+                setRejectLoading(false);
+              }
+            });
+          }
+
           const ticketClosedModalEl = document.getElementById('ticketClosedModal');
           if (ticketClosedModalEl) {
             ticketClosedModalEl.addEventListener('hidden.bs.modal', () => {
@@ -1479,6 +1654,36 @@ function createMediaHtml(ticket_id, mediaInfo) {
                         </button>
                   </div>
                 </form>
+          </div>
+        </div>
+
+        <div class="modal fade" id="rejectUnblockModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <form class="modal-content" id="rejectUnblockForm" novalidate>
+              <div class="modal-header">
+                <h5 class="modal-title">Отклонить запрос на разблокировку</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+              </div>
+              <div class="modal-body">
+                <p class="mb-3">
+                  Укажите комментарий для клиента <code data-reject-user-id>{{ client.user_id }}</code> (необязательно).
+                </p>
+                <div class="mb-3">
+                  <label for="rejectUnblockComment" class="form-label">Комментарий оператора</label>
+                  <textarea class="form-control" id="rejectUnblockComment" name="comment" rows="3" data-reject-comment></textarea>
+                  <div class="form-text">Комментарий сохранится в истории и будет виден коллегам.</div>
+                </div>
+                <div class="alert alert-danger d-none" role="alert" data-reject-feedback="error"></div>
+                <div class="alert alert-success d-none" role="alert" data-reject-feedback="success"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-warning" data-reject-submit>
+                  <span data-reject-submit-text>Отклонить запрос</span>
+                  <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" data-reject-loading></span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
 
