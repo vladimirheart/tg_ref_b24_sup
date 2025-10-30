@@ -940,6 +940,8 @@
       return true;
     }
 
+    const PARAMETER_TITLES = {{ parameter_types | tojson }} || {};
+    const PARAMETER_DEPENDENCIES = {{ parameter_dependencies | default({}) | tojson }} || {};
     const parameterValuesInitial = {{ parameter_values | tojson }};
     const statuses = {{ statuses | tojson }};
     const dayLabels = {{ day_labels | tojson }};
@@ -2564,10 +2566,29 @@
       const value = prompt('Введите новое значение:');
       if (!value || !value.trim()) return;
       try {
+        const payload = { param_type: paramType, value: value.trim() };
+        const dependencies = Array.isArray(PARAMETER_DEPENDENCIES[paramType])
+          ? PARAMETER_DEPENDENCIES[paramType]
+          : [];
+        for (const dep of dependencies) {
+          const label = PARAMETER_TITLES[dep] || dep;
+          const suggestions = Array.isArray(parameterValues[dep]) ? parameterValues[dep] : [];
+          const hint = suggestions.length ? ` (например: ${suggestions.slice(0, 5).join(', ')})` : '';
+          const input = window.prompt(`Укажите значение для «${label}»${hint}:`);
+          if (input === null) {
+            return;
+          }
+          const trimmed = typeof input === 'string' ? input.trim() : '';
+          if (!trimmed) {
+            alert(`Поле «${label}» обязательно`);
+            return;
+          }
+          payload[dep] = trimmed;
+        }
         const response = await fetch('/api/settings/parameters', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ param_type: paramType, value: value.trim() }),
+          body: JSON.stringify(payload),
         });
         const data = await response.json();
         if (!response.ok || data.success === false) {
