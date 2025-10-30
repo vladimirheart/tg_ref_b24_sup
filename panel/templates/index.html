@@ -830,17 +830,18 @@
   flex: 0 0 auto;
 }
 
-#historyModal .history-composer-dock {
+#historyModal .history-composer {
   flex: 0 0 auto;
   min-height: 0;
   background: var(--bs-body-bg);
-}
-
-#historyModal .history-composer {
   position: sticky;
   bottom: 0;
   z-index: 2;
-  padding: 0 5px 5px;
+  padding: 5px;
+}
+
+#historyModal .history-composer > .input-group-send {
+  width: 100%;
 }
 
 #historyModal .input-group-send .composer-wrapper {
@@ -1938,18 +1939,6 @@ function markTicketReopenedLocally() {
               <div class="d-flex flex-column flex-fill min-height-0 sidebar-content">
                 <div class="sidebar-info-panel d-flex flex-column flex-fill min-height-0">
                   <div class="sidebar-scroll flex-grow-1 overflow-auto d-flex flex-column gap-3">
-                    <!-- Блок метрик времени обращения -->
-                    <div class="time-counter p-3 sidebar-info">
-                      <label class="form-label">Время обращения:</label>
-                      <div class="time-info p-3 rounded" id="timeInfo" title="">
-                        <div id="timeCounter">Загрузка...</div>
-                        <div id="timeDetails" class="small text-muted mt-1"></div>
-                      </div>
-                      <button type="button" id="closeTicketBtn" class="btn btn-danger w-100 mt-3">
-                        Закрыть заявку
-                      </button>
-                    </div>
-
                     <!-- Проблема и категории обращения -->
                     <div class="sidebar-info-group d-flex flex-column gap-3">
                       <div class="problem-info p-3 sidebar-info">
@@ -2007,6 +1996,18 @@ function markTicketReopenedLocally() {
                       </div>
                       <div class="list-group list-group-flush" id="clientTicketsList"></div>
                     </div>
+
+                    <!-- Блок метрик времени обращения -->
+                    <div class="time-counter p-3 sidebar-info">
+                      <label class="form-label">Время обращения:</label>
+                      <div class="time-info p-3 rounded" id="timeInfo" title="">
+                        <div id="timeCounter">Загрузка...</div>
+                        <div id="timeDetails" class="small text-muted mt-1"></div>
+                      </div>
+                      <button type="button" id="closeTicketBtn" class="btn btn-danger w-100 mt-3">
+                        Закрыть заявку
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2019,14 +2020,11 @@ function markTicketReopenedLocally() {
                 <!-- Блок переписки -->
                 <div class="chat-container flex-grow-1 min-height-0 font-size-medium" id="historyContent"></div>
 
-                <div class="history-composer-dock mt-auto d-flex flex-column">
-                  <div class="history-vertical-resizer" id="historyVerticalResizer" role="separator" aria-orientation="horizontal" aria-label="Изменить высоту истории"></div>
-
-                  <!-- Поле ввода сообщения и кнопка отправки -->
-                  <div class="input-group-send history-composer border-top bg-light w-100">
-                  <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
-                  <div class="flex-grow-1 position-relative d-flex flex-column composer-wrapper">
-                    <div class="w-100 mt-auto composer-inner">
+                <div class="history-composer mt-auto border-top bg-light">
+                  <div class="input-group-send w-100">
+                    <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
+                    <div class="flex-grow-1 position-relative d-flex flex-column composer-wrapper">
+                      <div class="w-100 mt-auto composer-inner">
                       <div class="mb-2 d-none" id="questionTemplateSection">
                         <label class="form-label small mb-1" for="questionTemplateSelect">Шаблон типовых вопросов</label>
                         <div class="input-group input-group-sm">
@@ -2104,7 +2102,6 @@ function markTicketReopenedLocally() {
                         <span aria-hidden="true">➤</span>
                         <span class="visually-hidden">Отправить</span>
                       </button>
-                  </div>
                   </div>
                 </div>
               </div>
