@@ -607,28 +607,11 @@
   }
 
   .history-vertical-resizer {
-    flex: 0 0 auto;
-    height: 10px;
-    cursor: row-resize;
-    background: rgba(0, 0, 0, 0.05);
-    position: relative;
+    display: none;
   }
 
   .history-vertical-resizer::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40px;
-    height: 4px;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.15);
-    transform: translate(-50%, -50%);
-  }
-
-  .history-vertical-resizer:hover::after,
-  .history-vertical-resizer.resizing::after {
-    background: rgba(13, 110, 253, 0.45);
+    display: none;
   }
 
   body.history-vertical-resizing {
@@ -857,6 +840,7 @@
   position: sticky;
   bottom: 0;
   z-index: 2;
+  padding: 0 5px 5px;
 }
 
 #historyModal .input-group-send .composer-wrapper {
@@ -2039,7 +2023,7 @@ function markTicketReopenedLocally() {
                   <div class="history-vertical-resizer" id="historyVerticalResizer" role="separator" aria-orientation="horizontal" aria-label="Изменить высоту истории"></div>
 
                   <!-- Поле ввода сообщения и кнопка отправки -->
-                  <div class="input-group-send history-composer border-top bg-light w-100 px-3 pt-3 pb-0">
+                  <div class="input-group-send history-composer border-top bg-light w-100">
                   <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
                   <div class="flex-grow-1 position-relative d-flex flex-column composer-wrapper">
                     <div class="w-100 mt-auto composer-inner">
