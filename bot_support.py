@@ -296,6 +296,36 @@ async def _inform_blacklisted_user(update: Update, *, pending_request: bool) -> 
     except Exception as exc:
         logging.debug("Не удалось отправить уведомление о блокировке: %s", exc)
 
+
+async def _guard_blacklisted_user(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int | None:
+    """Проверяет блокировку и переводит пользователя в режим разблокировки."""
+    user = update.effective_user
+    is_blacklisted, unblock_requested = _fetch_blacklist_flags(user.id)
+    if not is_blacklisted:
+        return None
+
+    try:
+        context.user_data.clear()
+    except Exception:
+        pass
+
+    if unblock_requested:
+        await _inform_blacklisted_user(update, pending_request=True)
+        return ConversationHandler.END
+
+    await update.message.reply_text(
+        "⛔️ Ваш аккаунт был заблокирован. Опишите, пожалуйста, причину, по которой хотите возобновить доступ.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    await update.message.reply_text(
+        "Расскажите, почему нужно снять блокировку — мы передадим запрос оператору.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    context.user_data["awaiting_unblock_reason"] = True
+    return UNBLOCK_REASON
+
 def create_ticket(conn, *, ticket_id: str, user_id: int, status: str, created_at: str, channel_id: int):
     conn.execute("""
         INSERT INTO tickets(ticket_id, user_id, status, created_at, channel_id)
@@ -758,6 +788,9 @@ PREV_STEP = 5
 # --- обработчик решения пользователя ---
 async def previous_choice_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (update.message.text or "").strip().lower()
+    guard_state = await _guard_blacklisted_user(update, context)
+    if guard_state is not None:
+        return guard_state
     if "да" in text or "✅" in text:
         # восстановить последний выбор и сразу попросить описание проблемы
         sel = context.user_data.get("last_selection") or {}
@@ -791,22 +824,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     channel_id = context.application.bot_data["channel_id"]
 
-    is_blacklisted, unblock_requested = _fetch_blacklist_flags(user.id)
-    if is_blacklisted:
-        if unblock_requested:
-            await _inform_blacklisted_user(update, pending_request=True)
-            return ConversationHandler.END
-
-        await update.message.reply_text(
-            "⛔️ Ваш аккаунт был заблокирован. Опишите, пожалуйста, причину, по которой хотите возобновить доступ.",
-            reply_markup=ReplyKeyboardRemove(),
-        )
-        await update.message.reply_text(
-            "Расскажите, почему нужно снять блокировку — мы передадим запрос оператору.",
-            reply_markup=ReplyKeyboardRemove(),
-        )
-        context.user_data["awaiting_unblock_reason"] = True
-        return UNBLOCK_REASON
+    guard_state = await _guard_blacklisted_user(update, context)
+    if guard_state is not None:
+        return guard_state
 
     # 1) Предложить продолжить с последним выбором по последней ЗАКРЫТОЙ заявке
     with sqlite3.connect(DB_PATH) as conn:
@@ -930,6 +950,9 @@ async def tickets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- выбор бизнеса ---
 async def business_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    guard_state = await _guard_blacklisted_user(update, context)
+    if guard_state is not None:
+        return guard_state
     if text == "◀️ Назад":
         return await start(update, context)
     if text == "🚫 Отмена":
@@ -951,6 +974,9 @@ async def business_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- выбор типа локации ---
 async def location_type_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
+    guard_state = await _guard_blacklisted_user(update, context)
+    if guard_state is not None:
+        return guard_state
     if text == "◀️ Назад":
         await update.message.reply_text(
             "1️⃣ Выберите бизнес:",
@@ -984,6 +1010,9 @@ async def location_type_choice(update: Update, context: ContextTypes.DEFAULT_TYP
 # --- выбор города ---
 async def city_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    guard_state = await _guard_blacklisted_user(update, context)
+    if guard_state is not None:
+        return guard_state
     if text == "◀️ Назад":
         await update.message.reply_text(
             "2️⃣ Тип локации:",
@@ -1011,6 +1040,9 @@ async def city_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- выбор локации ---
 async def location_name_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    guard_state = await _guard_blacklisted_user(update, context)
+    if guard_state is not None:
+        return guard_state
     if text == "◀️ Назад":
         business = context.user_data['business']
         loc_type = context.user_data['location_type']
@@ -1038,6 +1070,9 @@ async def location_name_choice(update: Update, context: ContextTypes.DEFAULT_TYP
 # --- описание проблемы и создание тикета ---
 async def problem_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    guard_state = await _guard_blacklisted_user(update, context)
+    if guard_state is not None:
+        return guard_state
     if text == "◀️ Назад":
         business = context.user_data['business']
         loc_type = context.user_data['location_type']
