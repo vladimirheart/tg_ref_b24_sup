@@ -22,6 +22,7 @@ import logging
 import re
 import unicodedata
 import time, sqlite3
+import html
 from uuid import uuid4
 import sys
 import shutil
@@ -7967,6 +7968,7 @@ def api_blacklist_add():
         return jsonify({"ok": False, "error": "user_id required"}), 400
 
     now_iso = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    notify_text = None
     try:
         with get_db() as conn:
             row_before = conn.execute(
@@ -8066,9 +8068,19 @@ def api_blacklist_remove():
                             pending_row["id"] if "id" in pending_row.keys() else pending_row[0],
                         ),
                     )
+                    notify_text = "✅ Ваш аккаунт разблокирован. Можете продолжать работу."
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if notify_text:
+            ok, info = send_telegram_message(chat_id=user_id, text=notify_text)
+            if not ok:
+                app.logger.warning(
+                    "Не удалось отправить уведомление о разблокировке пользователю %s: %s",
+                    user_id,
+                    info,
+                )
 
 
 @app.route("/api/blacklist/reject-request", methods=["POST"])
@@ -8083,6 +8095,7 @@ def api_blacklist_reject_request():
         return jsonify({"ok": False, "error": "user_id required"}), 400
 
     now_iso = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    notify_text = None
     try:
         with get_db() as conn:
             pending_row = conn.execute(
@@ -8121,9 +8134,23 @@ def api_blacklist_reject_request():
                 """,
                 (user_id,),
             )
+            escaped_comment = html.escape(decision_comment)
+            notify_text = (
+                "❌ Ваш запрос на разблокировку отклонён."
+                + (f"\nКомментарий оператора: {escaped_comment}" if escaped_comment else "")
+            )
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if notify_text:
+            ok, info = send_telegram_message(chat_id=user_id, text=notify_text)
+            if not ok:
+                app.logger.warning(
+                    "Не удалось отправить уведомление об отклонении разблокировки пользователю %s: %s",
+                    user_id,
+                    info,
+                )
 
 @app.route("/api/blacklist/request-unblock", methods=["POST"])
 def api_blacklist_request_unblock():
