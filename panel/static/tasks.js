@@ -139,10 +139,20 @@
     inst.hide();
   }
 
-  function requestModalClose() {
-    if (isDirty && !confirm('Есть несохранённые изменения. Закрыть без сохранения?')) return;
-    hideTaskModal(true);
-  }
+    function requestModalClose() {
+      if (!isDirty) {
+        hideTaskModal(true);
+        return;
+      }
+      showConfirmActionModal({
+        title: 'Закрыть задачу',
+        message: 'Есть несохранённые изменения. Закрыть без сохранения?',
+        confirmText: 'Закрыть',
+        confirmVariant: 'warning',
+        icon: '⚠️',
+        onConfirm: () => hideTaskModal(true),
+      });
+    }
 
   function syncStatusButtons(value) {
     if (!form) return;
@@ -156,12 +166,23 @@
 
   async function httpJson(url, opts = {}) {
     const r = await fetch(url, { credentials: 'same-origin', ...opts });
-    if (r.status === 401) {
-      let msg = 'Сессия истекла или нет доступа. Пожалуйста, войдите заново.';
-      try { const data = await r.json(); if (data && data.message) msg = 'Сессия истекла. Пожалуйста, войдите заново.'; } catch {}
-      if (!location.pathname.includes('/login')) { alert(msg); location.href = '/login'; }
-      throw new Error('Unauthorized');
-    }
+      if (r.status === 401) {
+        let msg = 'Сессия истекла или нет доступа. Пожалуйста, войдите заново.';
+        try { const data = await r.json(); if (data && data.message) msg = 'Сессия истекла. Пожалуйста, войдите заново.'; } catch {}
+        if (!location.pathname.includes('/login')) {
+          const redirect = () => { window.location.href = '/login'; };
+          const shown = showAppModalMessage({
+            title: 'Требуется вход',
+            message: msg,
+            variant: 'warning',
+            onHidden: redirect,
+          });
+          if (!shown) {
+            redirect();
+          }
+        }
+        throw new Error('Unauthorized');
+      }
     return r;
   }
 
@@ -438,12 +459,22 @@ setInterval(updateOverdueTasks, 60000);
   if (modalEl) setInterval(() => { if (modalEl.classList.contains('show')) saveDraft(); }, 2000);
 
   if (modalEl) {
-    modalEl.addEventListener('hide.bs.modal', (e) => {
-      if (skipDirtyConfirm) { skipDirtyConfirm = false; return; }
-      if (isDirty && !confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
-        e.preventDefault();
-      }
-    });
+      modalEl.addEventListener('hide.bs.modal', (e) => {
+        if (skipDirtyConfirm) { skipDirtyConfirm = false; return; }
+        if (isDirty) {
+          e.preventDefault();
+          showConfirmActionModal({
+            title: 'Закрыть задачу',
+            message: 'Есть несохранённые изменения. Закрыть без сохранения?',
+            confirmText: 'Закрыть',
+            confirmVariant: 'warning',
+            icon: '⚠️',
+            onConfirm: () => {
+              hideTaskModal(true);
+            },
+          });
+        }
+      });
     modalEl.addEventListener('hidden.bs.modal', () => { skipDirtyConfirm = false; });
     modalEl.querySelectorAll('[data-task-close]').forEach(btn => {
       btn.addEventListener('click', (ev) => { ev.preventDefault(); requestModalClose(); });
@@ -623,14 +654,18 @@ setInterval(updateOverdueTasks, 60000);
     try {
       const r = await httpJson('/api/tasks', { method: 'POST', body: fd });
       const data = await r.json();
-      if (data && data.ok) {
-        localStorage.removeItem('taskDraft_' + (form.id.value || 'new'));
-        isDirty = false;
-        hideTaskModal(true);
-        await load();
-      } else {
-        alert(data?.error || 'Ошибка сохранения');
-      }
+        if (data && data.ok) {
+          localStorage.removeItem('taskDraft_' + (form.id.value || 'new'));
+          isDirty = false;
+          hideTaskModal(true);
+          await load();
+        } else {
+          showAppModalMessage({
+            title: 'Ошибка сохранения',
+            message: data?.error || 'Ошибка сохранения',
+            variant: 'danger',
+          });
+        }
     } catch (e) {
       // httpJson сам обработает 401
     }
@@ -638,8 +673,15 @@ setInterval(updateOverdueTasks, 60000);
 
   // удаление
   if (deleteBtn) deleteBtn.addEventListener('click', async () => {
-    if (!form.id.value) return;
-    if (!confirm('Удалить задачу?')) return;
+      if (!form.id.value) return;
+      const confirmed = await showConfirmActionModal({
+        title: 'Удаление задачи',
+        message: 'Удалить задачу?',
+        confirmText: 'Удалить',
+        confirmVariant: 'danger',
+        icon: '🗑️',
+      });
+      if (!confirmed) return;
     const r = await httpJson('/api/tasks/' + form.id.value, { method: 'DELETE' });
     const data = await r.json();
     if (data && data.ok) {
@@ -647,9 +689,13 @@ setInterval(updateOverdueTasks, 60000);
       isDirty = false;
       hideTaskModal(true);
       load();
-    } else {
-      alert('Ошибка удаления');
-    }
+      } else {
+        showAppModalMessage({
+          title: 'Ошибка удаления',
+          message: data?.error || 'Не удалось удалить задачу',
+          variant: 'danger',
+        });
+      }
   });
 
   // открыть задачу из hash: #task=123
