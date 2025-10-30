@@ -10,23 +10,57 @@
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
   <link href="{{ url_for('static', filename='sidebar.css', v='2') }}" rel="stylesheet" />
   <style>
-    .chat-bubble { 
-      padding: 8px 12px; 
-      border-radius: 8px; 
-      margin-bottom: 6px; 
-      max-width: 80%; 
+    .chat-bubble {
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      max-width: 80%;
       word-wrap: break-word;
     }
-	/* ↑ Увеличение текста и эмодзи в пузырях сообщений ~в 1.5 раза */
-	.chat-bubble { 
-	  font-size: 1.5em;      /* было 1em по умолчанию → стало ~1.5x */
-	  line-height: 1.35;
-	}
-	.chat-bubble img.emoji {  /* твемоји растягиваются вместе с текстом */
-	  height: 1em;
-	  width: 1em;
-	  vertical-align: -0.1em;
-	}
+        /* ↑ Увеличение текста и эмодзи в пузырях сообщений ~в 1.5 раза */
+        .chat-bubble {
+          font-size: 1.5em;      /* было 1em по умолчанию → стало ~1.5x */
+          line-height: 1.35;
+        }
+        .chat-bubble img.emoji {  /* твемоји растягиваются вместе с текстом */
+          height: 1em;
+          width: 1em;
+          vertical-align: -0.1em;
+        }
+
+    .chat-bubble.chat-bubble-with-avatar {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .chat-bubble-with-avatar .chat-bubble-content {
+      flex: 1 1 auto;
+    }
+
+    .chat-bubble-avatar-btn {
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: zoom-in;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+
+    .chat-bubble-avatar-btn:focus-visible {
+      outline: 2px solid rgba(25, 135, 84, 0.6);
+      outline-offset: 2px;
+    }
+
+    .chat-bubble-avatar-btn img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
 
     .from-user { background: #e3f2fd; align-self: flex-end; }
     .from-support { background: #d1f7d1; align-self: flex-start; }
@@ -588,7 +622,11 @@
   </script>
   <script>
       const CURRENT_OPERATOR = {{ (session.get('user_email') or session.get('username') or session.get('user') or '') | tojson }};
+      const CURRENT_OPERATOR_PHOTO = {{ (current_operator_photo or '') | tojson }};
+      const SUPPORT_AVATAR_FALLBACK = {{ url_for('static', filename='avatar_default.svg') | tojson }};
       const CLIENT_BLACKLIST = {{ (client_blacklist or {}) | tojson }};
+      const CLIENT_NAME = {{ (client.client_name or '') | tojson }};
+      const CLIENT_USERNAME = {{ (client.username or '') | tojson }};
 
     function getOperatorName() {
       const name = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
@@ -744,6 +782,100 @@ function createMediaHtml(ticket_id, mediaInfo) {
 }
 
 
+    function getSupportAvatarUrl() {
+      const raw = typeof CURRENT_OPERATOR_PHOTO === 'string' ? CURRENT_OPERATOR_PHOTO.trim() : '';
+      return raw || SUPPORT_AVATAR_FALLBACK;
+    }
+
+    function createSupportAvatarButton() {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'chat-bubble-avatar-btn';
+      button.setAttribute('aria-label', 'Открыть фото оператора');
+
+      const img = document.createElement('img');
+      img.src = getSupportAvatarUrl();
+      img.alt = 'Фото оператора';
+      img.loading = 'lazy';
+      img.onerror = () => {
+        img.onerror = null;
+        img.src = SUPPORT_AVATAR_FALLBACK;
+      };
+
+      button.appendChild(img);
+      button.addEventListener('click', () => {
+        const currentSrc = img.getAttribute('src') || SUPPORT_AVATAR_FALLBACK;
+        openAvatarModal(currentSrc, { type: 'support', fallback: SUPPORT_AVATAR_FALLBACK });
+      });
+
+      return button;
+    }
+
+    function prepareHistoryMessageParts(msg, ticketId) {
+      const cls = msg.sender === 'support' ? 'from-support' : 'from-user';
+      let name = cls === 'from-support' ? '🛠 Поддержка' : '👤 Клиент';
+
+      if (cls !== 'from-support') {
+        const displayName = typeof CLIENT_NAME === 'string' ? CLIENT_NAME.trim() : '';
+        const username = typeof CLIENT_USERNAME === 'string' ? CLIENT_USERNAME.trim() : '';
+        if (displayName && displayName !== 'не задано') {
+          name = '👤 ' + displayName;
+        } else if (username) {
+          name = '👤 @' + username;
+        }
+      }
+
+      const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString('ru-RU') : '';
+
+      const isTextMessage = msg.message && (!msg.message_type || msg.message_type === 'text');
+      const textHtml = isTextMessage ? `<p class="mb-0">${msg.message.replace(/\n/g,'<br>')}</p>` : '';
+      const hasMedia = msg.message_type && msg.message_type !== 'text' && msg.attachment;
+      const mediaHtml = hasMedia
+        ? createMediaHtml(ticketId, { message_type: msg.message_type, attachment: msg.attachment, text: msg.message || '' })
+        : '';
+
+      return { cls, name, time, textHtml, mediaHtml };
+    }
+
+    function buildHistoryBubble(msg, ticketId) {
+      const { cls, name, time, textHtml, mediaHtml } = prepareHistoryMessageParts(msg, ticketId);
+      const bubble = document.createElement('div');
+      bubble.className = `chat-bubble ${cls}`;
+
+      const contentHtml = `
+        <small>${time}</small><br>
+        <strong>${name}</strong>
+        ${textHtml}
+        ${mediaHtml}
+      `;
+
+      if (cls === 'from-support') {
+        bubble.classList.add('chat-bubble-with-avatar');
+        const avatarButton = createSupportAvatarButton();
+        const content = document.createElement('div');
+        content.className = 'chat-bubble-content';
+        content.innerHTML = contentHtml;
+        bubble.appendChild(avatarButton);
+        bubble.appendChild(content);
+      } else {
+        bubble.innerHTML = contentHtml;
+      }
+
+      return bubble;
+    }
+
+    function renderHistoryMessages(container, messages, ticketId) {
+      if (!container) return;
+      container.innerHTML = '';
+      (messages || []).forEach((msg) => {
+        const bubble = buildHistoryBubble(msg, ticketId);
+        if (bubble) {
+          container.appendChild(bubble);
+        }
+      });
+    }
+
+
     const HISTORY_ERROR_SNIPPET_LIMIT = 200;
 
     async function fetchJsonWithAuth(url, options = {}) {
@@ -799,41 +931,7 @@ function createMediaHtml(ticket_id, mediaInfo) {
       if (messages.length === 0) {
         container.innerHTML = '<p class="text-muted">Нет сообщений</p>';
       } else {
-        messages.forEach(msg => {
-          const cls = msg.sender === 'support' ? 'from-support' : 'from-user';
-          let name = msg.sender === 'support' ? '🛠 Поддержка' : '👤 Клиент';
-
-          if (msg.sender === 'user') {
-            const clientName = "{{ client.client_name or '' }}";
-            const username = "{{ client.username or '' }}";
-            if (clientName && clientName !== 'не задано') {
-              name = '👤 ' + clientName;
-            } else if (username) {
-              name = '👤 @' + username;
-            } else {
-              name = '👤 Клиент';
-            }
-          }
-
-          const time = new Date(msg.timestamp).toLocaleString('ru-RU');
-          const bubble = document.createElement('div');
-          bubble.className = `chat-bubble ${cls}`;
-          const textHtml  = (msg.message && (!msg.message_type || msg.message_type === 'text'))
-			  ? `<p class="mb-0">${msg.message.replace(/\n/g,'<br>')}</p>`
-			  : '';
-			const mediaHtml = (msg.message_type && msg.message_type !== 'text' && msg.attachment)
-			  ? createMediaHtml(ticket_id, { message_type: msg.message_type, attachment: msg.attachment, text: msg.message || '' })
-			  : '';
-
-			bubble.innerHTML = `
-			  <small>${time}</small><br>
-			  <strong>${name}</strong>
-			  ${textHtml}
-			  ${mediaHtml}
-			`;
-
-          container.appendChild(bubble);
-        });
+        renderHistoryMessages(container, messages, ticket_id);
       }
 
       container.scrollTop = container.scrollHeight;
@@ -867,44 +965,10 @@ function createMediaHtml(ticket_id, mediaInfo) {
 
       const messages = Array.isArray(data.messages) ? data.messages : [];
 
-      messages.forEach(msg => {
-        const cls = msg.sender === 'support' ? 'from-support' : 'from-user';
-        let name = msg.sender === 'support' ? '🛠 Поддержка' : '👤 Клиент';
+      renderHistoryMessages(container, messages, ticket_id);
 
-        if (msg.sender === 'user') {
-          const clientName = "{{ client.client_name or '' }}";
-          const username = "{{ client.username or '' }}";
-          if (clientName && clientName !== 'не задано') {
-            name = '👤 ' + clientName;
-          } else if (username) {
-            name = '👤 @' + username;
-          } else {
-            name = '👤 Клиент';
-          }
-        }
-
-        const time = new Date(msg.timestamp).toLocaleString('ru-RU');
-        const bubble = document.createElement('div');
-        bubble.className = `chat-bubble ${cls}`;
-        const textHtml  = (msg.message && (!msg.message_type || msg.message_type === 'text'))
-		  ? `<p class="mb-0">${msg.message.replace(/\n/g,'<br>')}</p>`
-		  : '';
-		const mediaHtml = (msg.message_type && msg.message_type !== 'text' && msg.attachment)
-		  ? createMediaHtml(ticket_id, { message_type: msg.message_type, attachment: msg.attachment, text: msg.message || '' })
-		  : '';
-
-		bubble.innerHTML = `
-		  <small>${time}</small><br>
-		  <strong>${name}</strong>
-		  ${textHtml}
-		  ${mediaHtml}
-		`;
-
-        container.appendChild(bubble);
-      });
-      
       container.scrollTop = container.scrollHeight;
-	  parseEmojis(container);
+          parseEmojis(container);
     }
 
     // === Отправить ответ из истории ===
@@ -1277,23 +1341,44 @@ function createMediaHtml(ticket_id, mediaInfo) {
         });
 </script>
 <script>
-	(function () {
-	  function showAvatar(src) {
-		// Берём элементы модалки в момент клика, когда DOM уже готов
-		const modalEl  = document.getElementById('avatarModal');
-		const modalImg = document.getElementById('avatarModalImg');
-		if (!modalEl || !modalImg) return;
-		modalImg.src = src;
-		bootstrap.Modal.getOrCreateInstance(modalEl).show();
-	  }
-	  const profileAva = document.getElementById('clientAvatarProfile');
-	  if (profileAva) {
-		profileAva.style.cursor = 'zoom-in';
-		profileAva.addEventListener('click', () => {
-		  showAvatar(profileAva.dataset.fullsrc || profileAva.src);
-		});
-	  }
-	})();
+        (function () {
+          const modalEl  = document.getElementById('avatarModal');
+          const modalImg = document.getElementById('avatarModalImg');
+          const modalTitle = document.getElementById('avatarModalTitle');
+          const fallbackImage = SUPPORT_AVATAR_FALLBACK;
+
+          function applyAvatarModalState(src, type) {
+            if (!modalImg) return;
+            const viewType = type === 'support' ? 'support' : 'client';
+            modalImg.src = src;
+            modalImg.alt = viewType === 'support' ? 'Фото оператора' : 'Фото клиента';
+            if (modalTitle) {
+              modalTitle.textContent = viewType === 'support' ? 'Фото оператора' : 'Фото клиента';
+            }
+          }
+
+          window.openAvatarModal = function (src, options = {}) {
+            if (!modalEl || !modalImg) return;
+            const type = options.type === 'support' ? 'support' : 'client';
+            const fallback = (options.fallback && typeof options.fallback === 'string')
+              ? options.fallback
+              : fallbackImage;
+            const displaySrc = (typeof src === 'string' && src.trim()) ? src : fallback;
+            applyAvatarModalState(displaySrc, type);
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+          };
+
+          const profileAva = document.getElementById('clientAvatarProfile');
+          if (profileAva) {
+            profileAva.style.cursor = 'zoom-in';
+            profileAva.addEventListener('click', () => {
+              openAvatarModal(profileAva.dataset.fullsrc || profileAva.src, {
+                type: 'client',
+                fallback: profileAva.dataset.fallback || fallbackImage,
+              });
+            });
+          }
+        })();
 </script>
 
 <!-- Twemoji -->
@@ -1702,15 +1787,22 @@ function createMediaHtml(ticket_id, mediaInfo) {
           </div>
         </div>
 <!-- Modal: увеличение аватара -->
-	<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
-	  <div class="modal-dialog modal-dialog-centered">
-		<div class="modal-content bg-transparent border-0 shadow-none">
-		  <div class="modal-body p-0">
-			<img id="avatarModalImg" src="" class="img-fluid rounded" alt="Фото клиента">
-		  </div>
-		</div>
-	  </div>
-	</div>
+        <div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true" aria-labelledby="avatarModalTitle">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content bg-dark text-white border-0">
+                  <div class="modal-header border-0 justify-content-between align-items-start">
+                        <h5 class="modal-title text-white mb-0" id="avatarModalTitle">Фото клиента</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                  </div>
+                  <div class="modal-body p-0 text-center">
+                        <img id="avatarModalImg" src="" class="img-fluid rounded" alt="Фото клиента">
+                  </div>
+                  <div class="modal-footer border-0 justify-content-center">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                  </div>
+                </div>
+          </div>
+        </div>
   </main>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
