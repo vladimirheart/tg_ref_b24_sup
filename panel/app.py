@@ -2813,6 +2813,37 @@ def ensure_client_blacklist_schema():
 ensure_client_blacklist_schema()
 
 
+def ensure_client_unblock_requests_schema():
+    try:
+        with get_db() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS client_unblock_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    channel_id INTEGER,
+                    reason TEXT,
+                    created_at TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    decided_at TEXT,
+                    decided_by TEXT,
+                    decision_comment TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user
+                ON client_unblock_requests(user_id)
+                """
+            )
+    except Exception as e:
+        print(f"ensure_client_unblock_requests_schema: {e}")
+
+
+ensure_client_unblock_requests_schema()
+
+
 def ensure_settings_parameters_schema():
     try:
         with get_db() as conn:
@@ -6709,6 +6740,37 @@ def client_profile(user_id):
                 added_at_display = added_at_raw
         client_blacklist["added_at_display"] = added_at_display
 
+    cur.execute(
+        """
+        SELECT id, reason, created_at, status, decided_at, decided_by, decision_comment, channel_id
+        FROM client_unblock_requests
+        WHERE user_id=?
+        ORDER BY created_at DESC, id DESC
+        """,
+        (user_id,),
+    )
+    unblock_requests_rows = cur.fetchall()
+    unblock_requests: list[dict[str, Any]] = []
+    for row in unblock_requests_rows:
+        item = dict(row)
+        created_at_raw = item.get("created_at")
+        decided_at_raw = item.get("decided_at")
+        if created_at_raw:
+            try:
+                item["created_at_display"] = dt.fromisoformat(str(created_at_raw).replace("Z", "")).strftime("%d.%m.%Y %H:%M")
+            except Exception:
+                item["created_at_display"] = created_at_raw
+        else:
+            item["created_at_display"] = None
+        if decided_at_raw:
+            try:
+                item["decided_at_display"] = dt.fromisoformat(str(decided_at_raw).replace("Z", "")).strftime("%d.%m.%Y %H:%M")
+            except Exception:
+                item["decided_at_display"] = decided_at_raw
+        else:
+            item["decided_at_display"] = None
+        unblock_requests.append(item)
+
     conn.close()
 
     settings = {"categories": ["Консультация", "Другое"]}
@@ -6729,6 +6791,7 @@ def client_profile(user_id):
         phones_telegram=phones_telegram,
         phones_manual=phones_manual,
         client_blacklist=client_blacklist,
+        unblock_requests=unblock_requests,
     )
        
 # === API для дашборда с фильтрами ===
@@ -7892,9 +7955,14 @@ def api_blacklist_add():
     if not user_id:
         return jsonify({"ok": False, "error": "user_id required"}), 400
 
-    now_iso = dt.now().isoformat(timespec="seconds") + "Z"
+    now_iso = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     try:
         with get_db() as conn:
+            row_before = conn.execute(
+                "SELECT unblock_requested FROM client_blacklist WHERE user_id=?",
+                (user_id,),
+            ).fetchone()
+            had_pending = bool(row_before and row_before["unblock_requested"])
             conn.execute("""
                 INSERT INTO client_blacklist (user_id, is_blacklisted, reason, added_at, added_by, unblock_requested, unblock_requested_at)
                 VALUES (?, 1, ?, ?, ?, 0, NULL)
@@ -7906,6 +7974,31 @@ def api_blacklist_add():
                     unblock_requested=0,
                     unblock_requested_at=NULL
             """, (user_id, reason, now_iso, operator))
+            if had_pending:
+                pending_row = conn.execute(
+                    """
+                    SELECT id FROM client_unblock_requests
+                    WHERE user_id=? AND status='pending'
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                ).fetchone()
+                if pending_row:
+                    decision_comment = reason or "Оставлен в блокировке"
+                    conn.execute(
+                        """
+                        UPDATE client_unblock_requests
+                        SET status='rejected', decided_at=?, decided_by=?, decision_comment=?
+                        WHERE id=?
+                        """,
+                        (
+                            now_iso,
+                            operator,
+                            decision_comment,
+                            pending_row["id"] if "id" in pending_row.keys() else pending_row[0],
+                        ),
+                    )
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -7915,12 +8008,19 @@ def api_blacklist_add():
 def api_blacklist_remove():
     data = request.get_json(force=True) if request.is_json else request.form
     user_id = (data.get("user_id") or "").strip()
+    operator = session.get("username") or "operator"
 
     if not user_id:
         return jsonify({"ok": False, "error": "user_id required"}), 400
 
+    now_iso = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     try:
         with get_db() as conn:
+            row_before = conn.execute(
+                "SELECT unblock_requested FROM client_blacklist WHERE user_id=?",
+                (user_id,),
+            ).fetchone()
+            had_pending = bool(row_before and row_before["unblock_requested"])
             conn.execute("""
                 INSERT INTO client_blacklist (user_id, is_blacklisted, reason, added_at, added_by, unblock_requested, unblock_requested_at)
                 VALUES (?, 0, '', NULL, NULL, 0, NULL)
@@ -7932,6 +8032,84 @@ def api_blacklist_remove():
                     unblock_requested=0,
                     unblock_requested_at=NULL
             """, (user_id,))
+            if had_pending:
+                pending_row = conn.execute(
+                    """
+                    SELECT id FROM client_unblock_requests
+                    WHERE user_id=? AND status='pending'
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                ).fetchone()
+                if pending_row:
+                    conn.execute(
+                        """
+                        UPDATE client_unblock_requests
+                        SET status='approved', decided_at=?, decided_by=?, decision_comment='Разблокирован оператором'
+                        WHERE id=?
+                        """,
+                        (
+                            now_iso,
+                            operator,
+                            pending_row["id"] if "id" in pending_row.keys() else pending_row[0],
+                        ),
+                    )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/blacklist/reject-request", methods=["POST"])
+@login_required
+def api_blacklist_reject_request():
+    data = request.get_json(force=True) if request.is_json else request.form
+    user_id = (data.get("user_id") or "").strip()
+    comment = (data.get("comment") or "").strip()
+    operator = session.get("username") or "operator"
+
+    if not user_id:
+        return jsonify({"ok": False, "error": "user_id required"}), 400
+
+    now_iso = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    try:
+        with get_db() as conn:
+            pending_row = conn.execute(
+                """
+                SELECT id FROM client_unblock_requests
+                WHERE user_id=? AND status='pending'
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (user_id,),
+            ).fetchone()
+            if not pending_row:
+                return jsonify({"ok": False, "error": "Нет активного запроса на разблокировку"}), 400
+
+            decision_comment = comment or "Оставлен в блокировке"
+            conn.execute(
+                """
+                UPDATE client_unblock_requests
+                SET status='rejected', decided_at=?, decided_by=?, decision_comment=?
+                WHERE id=?
+                """,
+                (
+                    now_iso,
+                    operator,
+                    decision_comment,
+                    pending_row["id"] if "id" in pending_row.keys() else pending_row[0],
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO client_blacklist (user_id, is_blacklisted, unblock_requested, unblock_requested_at)
+                VALUES (?, 1, 0, NULL)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    unblock_requested=0,
+                    unblock_requested_at=NULL
+                """,
+                (user_id,),
+            )
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -7945,6 +8123,13 @@ def api_blacklist_request_unblock():
     data = request.get_json(force=True) if request.is_json else request.form
     user_id = (data.get("user_id") or "").strip()
     reason = (data.get("reason") or "").strip()
+    channel_id_raw = data.get("channel_id")
+    channel_id_val = None
+    if channel_id_raw not in (None, ""):
+        try:
+            channel_id_val = int(channel_id_raw)
+        except (TypeError, ValueError):
+            channel_id_val = None
 
     if not user_id:
         return jsonify({"ok": False, "error": "user_id required"}), 400
@@ -7952,6 +8137,7 @@ def api_blacklist_request_unblock():
     from datetime import datetime, timezone
     now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
     try:
+        created_new = False
         with get_db() as conn:
             conn.execute("""
                 INSERT INTO client_blacklist (user_id, is_blacklisted, unblock_requested, unblock_requested_at)
@@ -7960,8 +8146,41 @@ def api_blacklist_request_unblock():
                     unblock_requested=1,
                     unblock_requested_at=excluded.unblock_requested_at
             """, (user_id, now_iso))
-        # Создадим задачу оператору
-        create_unblock_request_task(user_id, reason)
+            existing = conn.execute(
+                """
+                SELECT id FROM client_unblock_requests
+                WHERE user_id=? AND status='pending'
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (user_id,),
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    """
+                    UPDATE client_unblock_requests
+                    SET reason=?, created_at=?, channel_id=?, status='pending',
+                        decided_at=NULL, decided_by=NULL, decision_comment=NULL
+                    WHERE id=?
+                    """,
+                    (
+                        reason,
+                        now_iso,
+                        channel_id_val,
+                        existing["id"] if "id" in existing.keys() else existing[0],
+                    ),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO client_unblock_requests (user_id, channel_id, reason, created_at, status)
+                    VALUES (?, ?, ?, ?, 'pending')
+                    """,
+                    (user_id, channel_id_val, reason, now_iso),
+                )
+                created_new = True
+        if created_new:
+            create_unblock_request_task(user_id, reason)
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
