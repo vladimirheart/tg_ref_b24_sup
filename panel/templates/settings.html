@@ -2746,6 +2746,7 @@
   const BOT_PRESET_DEFINITIONS = {{ bot_question_presets | tojson | safe }};
 
   const PARAMETER_TITLES = {{ parameter_types | tojson }};
+  const PARAMETER_DEPENDENCIES = {{ parameter_dependencies | default({}) | tojson }} || {};
   const PARAMETER_STATE_TYPES = new Set(['partner_type', 'country', 'legal_entity', 'partner_contact']);
   const PARAMETER_STATES = ['Активен', 'Подписание', 'Заблокирован', 'Black_List', 'Закрыт'];
   const PARAMETER_FILTER_KEYS = {
@@ -3614,6 +3615,154 @@
   setItConnectionCategories(IT_CONNECTION_FALLBACK_LABELS);
 
   let parameterData = {};
+  function getDependencyChain(type) {
+    const chain = PARAMETER_DEPENDENCIES[type];
+    return Array.isArray(chain) ? chain : [];
+  }
+
+  function normalizeDependencyValue(value) {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  function getDependencyLabel(key) {
+    return PARAMETER_TITLES[key] || key;
+  }
+
+  function getParameterItemsSafe(type) {
+    const items = parameterData[type];
+    return Array.isArray(items) ? items : [];
+  }
+
+  function buildDependencySelect(type, dependencyKey, selectedValue, disabled, context) {
+    const normalized = normalizeDependencyValue(selectedValue);
+    const disabledAttr = disabled ? ' disabled' : '';
+    const valueAttr = escapeHtml(normalized);
+    return `
+      <select
+        class="form-select form-select-sm"
+        data-param-dependency-field="${dependencyKey}"
+        data-param-type="${type}"
+        data-param-dependency-context="${context}"
+        data-param-dependency-value="${valueAttr}"${disabledAttr}>
+      </select>
+    `;
+  }
+
+  function buildDependencyOptions(type, selections) {
+    const baseSelections = selections && typeof selections === 'object' ? selections : {};
+    const items = getParameterItemsSafe(type);
+    const unique = new Map();
+    items.forEach((item) => {
+      if (!item || item.is_deleted) return;
+      const value = normalizeDependencyValue(item.value);
+      if (!value) return;
+      const deps = item && typeof item.dependencies === 'object' ? item.dependencies : {};
+      const matches = Object.entries(baseSelections).every(([key, selectionValue]) => {
+        const normalizedSelection = normalizeDependencyValue(selectionValue);
+        if (!normalizedSelection) return true;
+        if (key === type) return true;
+        const candidate = normalizeDependencyValue(deps && deps[key]);
+        if (!candidate) return false;
+        return candidate === normalizedSelection;
+      });
+      if (!matches) return;
+      if (!unique.has(value)) {
+        const label = normalizeDependencyValue(item.label || item.value);
+        unique.set(value, label || value);
+      }
+    });
+    return Array.from(unique.entries()).map(([value, label]) => ({ value, label }));
+  }
+
+  function fillDependencySelectOptions(select, options, { placeholder, selected } = {}) {
+    if (!(select instanceof HTMLSelectElement)) return;
+    const doc = select.ownerDocument || document;
+    const desired = normalizeDependencyValue(selected);
+    const wasDisabled = select.disabled;
+    select.innerHTML = '';
+    const placeholderOption = doc.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = placeholder || '—';
+    select.appendChild(placeholderOption);
+    let hasSelected = false;
+    options.forEach((option) => {
+      const optionEl = doc.createElement('option');
+      optionEl.value = option.value;
+      optionEl.textContent = option.label || option.value;
+      if (desired && option.value === desired) {
+        optionEl.selected = true;
+        hasSelected = true;
+      }
+      select.appendChild(optionEl);
+    });
+    if (hasSelected) {
+      select.value = desired;
+    } else {
+      select.value = '';
+    }
+    if (wasDisabled) {
+      select.disabled = true;
+    }
+  }
+
+  function refreshDependencySelectGroup(group, type) {
+    if (!(group instanceof HTMLElement)) return;
+    const chain = getDependencyChain(type);
+    if (!chain.length) return;
+    if (!group.dataset.paramType) {
+      group.dataset.paramType = type;
+    }
+    const selections = {};
+    chain.forEach((dep) => {
+      const select = group.querySelector(`[data-param-dependency-field="${dep}"]`);
+      if (!(select instanceof HTMLSelectElement)) {
+        selections[dep] = '';
+        return;
+      }
+      const desired = normalizeDependencyValue(select.dataset.paramDependencyValue || select.value);
+      const placeholder = `— ${getDependencyLabel(dep)} —`;
+      const options = buildDependencyOptions(dep, selections);
+      fillDependencySelectOptions(select, options, { placeholder, selected: desired });
+      const finalValue = normalizeDependencyValue(select.value);
+      select.dataset.paramDependencyValue = finalValue;
+      selections[dep] = finalValue;
+    });
+  }
+
+  function refreshParameterDependencyControls(root, fallbackType = null) {
+    const scope = root || document;
+    scope.querySelectorAll('[data-param-dependency-group]').forEach((group) => {
+      const groupType = group.dataset.paramType || fallbackType;
+      if (!groupType) return;
+      if (!getDependencyChain(groupType).length) return;
+      refreshDependencySelectGroup(group, groupType);
+    });
+  }
+
+  function collectDependencyValues(container, type) {
+    const chain = getDependencyChain(type);
+    const result = { values: {} };
+    if (!chain.length) {
+      return result;
+    }
+    if (!(container instanceof HTMLElement)) {
+      return result;
+    }
+    for (const dep of chain) {
+      const select = container.querySelector(`[data-param-dependency-field="${dep}"]`);
+      if (!(select instanceof HTMLSelectElement)) {
+        continue;
+      }
+      const value = normalizeDependencyValue(select.value);
+      if (!value) {
+        const label = getDependencyLabel(dep);
+        return { error: `Поле «${label}» обязательно`, field: select };
+      }
+      result.values[dep] = value;
+    }
+    return result;
+  }
+
   const parameterStatusCache = new Map();
   let parametersLoaded = false;
   Object.keys(PARAMETER_TITLES).forEach((type) => {
@@ -3639,7 +3788,8 @@
         const state = item && typeof item.state === 'string' && item.state ? item.state : PARAMETER_STATES[0];
         const usageRaw = Number(item && item.usage_count);
         const usageCount = Number.isFinite(usageRaw) ? usageRaw : 0;
-        const extra = item && typeof item.extra === 'object' && item.extra !== null ? item.extra : {};
+        const extraRaw = item && typeof item.extra === 'object' && item.extra !== null ? item.extra : {};
+        const extra = extraRaw && typeof extraRaw === 'object' ? Object.assign({}, extraRaw) : {};
         const entry = {
           id: Number.isFinite(normalizedId) ? normalizedId : null,
           value,
@@ -3723,8 +3873,34 @@
           entry.legal_entity = normalizedExtra.legal_entity;
           entry.inn = normalizedExtra.inn;
           entry.extra = normalizedExtra;
-        } else if (extra && Object.keys(extra).length) {
-          entry.extra = extra;
+        }
+
+        const dependencyChain = getDependencyChain(type);
+        if (dependencyChain.length) {
+          const baseExtra = entry.extra && typeof entry.extra === 'object'
+            ? Object.assign({}, entry.extra)
+            : Object.assign({}, extra);
+          const dependenciesSource = baseExtra && typeof baseExtra.dependencies === 'object'
+            ? baseExtra.dependencies
+            : {};
+          const normalizedDependencies = {};
+          dependencyChain.forEach((dep) => {
+            let raw = dependenciesSource && Object.prototype.hasOwnProperty.call(dependenciesSource, dep)
+              ? dependenciesSource[dep]
+              : baseExtra[dep];
+            normalizedDependencies[dep] = normalizeDependencyValue(raw);
+          });
+          entry.dependencies = normalizedDependencies;
+          const enrichedExtra = Object.assign({}, baseExtra, { dependencies: normalizedDependencies });
+          dependencyChain.forEach((dep) => {
+            enrichedExtra[dep] = normalizedDependencies[dep];
+          });
+          entry.extra = enrichedExtra;
+        } else {
+          entry.dependencies = {};
+          if (entry.extra === undefined && extra && Object.keys(extra).length) {
+            entry.extra = extra;
+          }
         }
         return entry;
       });
@@ -3773,6 +3949,14 @@
     }
     const value = item && item.value ? String(item.value) : '';
     const disabled = Boolean(item && item.is_deleted);
+    const dependencyChain = getDependencyChain(type);
+    const dependencyValues = item && typeof item.dependencies === 'object' ? item.dependencies : {};
+    const dependencySelects = dependencyChain
+      .map((dep) => {
+        const selected = dependencyValues && typeof dependencyValues[dep] === 'string' ? dependencyValues[dep] : '';
+        return buildDependencySelect(type, dep, selected, disabled, 'entry');
+      })
+      .join('');
     let serverNameInput = '';
     if (type === 'iiko_server') {
       let serverNameSource = '';
@@ -3794,8 +3978,9 @@
       : `<button class="btn btn-outline-danger" type="button" data-param-action="delete" data-param-id="${id}" data-param-type="${type}" title="Удалить">🗑</button>`;
     const deletedHint = disabled ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>' : '';
     return `
-      <div class="param-entry${disabled ? ' param-entry--deleted' : ''}" data-param-id="${id}" data-param-type="${type}">
+      <div class="param-entry${disabled ? ' param-entry--deleted' : ''}" data-param-id="${id}" data-param-type="${type}" data-param-dependency-group="entry">
         <div class="input-group input-group-sm mb-2">
+          ${dependencySelects}
           ${serverNameInput}
           ${valueInput}
           ${stateSelect}
@@ -3819,8 +4004,13 @@
         '<input type="text" class="form-control" placeholder="Имя сервера" data-param-create-field="server_name">'
       );
     }
+    const dependencyChain = getDependencyChain(type);
+    const dependencySelects = dependencyChain
+      .map((dep) => buildDependencySelect(type, dep, '', false, 'create'))
+      .join('');
     const controls = `
-      <div class="input-group input-group-sm mt-3">
+      <div class="input-group input-group-sm mt-3" data-param-dependency-group="create" data-param-type="${type}">
+        ${dependencySelects}
         ${buildStateSelect(type, PARAMETER_STATES[0], false, { forInput: true })}
         ${extraControls.join('')}
         <input type="text" class="form-control" placeholder="${createPlaceholder}" data-param-input>
@@ -5444,6 +5634,7 @@
     if (forceBody || !body.innerHTML.trim()) {
       body.innerHTML = buildParameterContent(type, items, 'card');
     }
+    refreshParameterDependencyControls(body, type);
   }
 
   function renderParameters({ forceBodies = false } = {}) {
@@ -5456,14 +5647,18 @@
   }
 
   function buildCityModalContent() {
+    const items = Array.isArray(parameterData[CITY_PARAMETER_TYPE]) ? parameterData[CITY_PARAMETER_TYPE] : [];
+    if (items.length) {
+      return buildParameterContent(CITY_PARAMETER_TYPE, items, 'modal');
+    }
     if (!CITY_OPTIONS.length) {
       return '<div class="empty-placeholder">Пока нет значений</div>';
     }
-    const items = CITY_OPTIONS.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
+    const listItems = CITY_OPTIONS.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
     return `
       <div data-param-container data-param-type="${CITY_PARAMETER_TYPE}">
         <div class="param-items">
-          <ul class="list-group list-group-flush">${items}</ul>
+          <ul class="list-group list-group-flush">${listItems}</ul>
         </div>
       </div>
     `;
@@ -5475,15 +5670,25 @@
     if (!body) return;
     if (type === CITY_PARAMETER_TYPE) {
       body.innerHTML = buildCityModalContent();
+      refreshParameterDependencyControls(body, type);
       return;
     }
     const items = Array.isArray(parameterData[type]) ? parameterData[type] : [];
     body.innerHTML = buildParameterContent(type, items, 'modal');
+    refreshParameterDependencyControls(body, type);
   }
 
   function renderCityCard() {
     if (!cityCardEl) return;
-    const count = Array.isArray(CITY_OPTIONS) ? CITY_OPTIONS.length : 0;
+    const parameterCities = Array.isArray(parameterData[CITY_PARAMETER_TYPE])
+      ? parameterData[CITY_PARAMETER_TYPE]
+          .map((item) => (item && typeof item.value === 'string' ? item.value.trim() : ''))
+          .filter((name) => name)
+      : [];
+    const sourceCities = parameterCities.length ? parameterCities : (Array.isArray(CITY_OPTIONS) ? CITY_OPTIONS : []);
+    const uniqueCities = Array.from(new Set(sourceCities.map((city) => city.trim()))).filter((city) => city);
+    uniqueCities.sort((a, b) => a.localeCompare(b));
+    const count = uniqueCities.length;
     cityCardEl.dataset.cityCount = String(count);
     const body = cityCardEl.querySelector('[data-city-body]');
     const hint = cityCardEl.querySelector('[data-city-hint]');
@@ -5494,7 +5699,7 @@
     const listContainer = cityCardEl.querySelector('[data-city-list]');
     if (listContainer) {
       if (count) {
-        const items = CITY_OPTIONS.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
+        const items = uniqueCities.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
         listContainer.innerHTML = `<ul class="list-group list-group-flush">${items}</ul>`;
       } else {
         listContainer.innerHTML = '<div class="empty-placeholder">Пока нет значений</div>';
@@ -5847,6 +6052,21 @@
   });
 
   document.addEventListener('change', (event) => {
+    const dependencySelect = event.target.closest('[data-param-dependency-field]');
+    if (dependencySelect) {
+      const group = dependencySelect.closest('[data-param-dependency-group]');
+      const type = group ? group.dataset.paramType || dependencySelect.dataset.paramType : dependencySelect.dataset.paramType;
+      if (type) {
+        dependencySelect.dataset.paramDependencyValue = normalizeDependencyValue(dependencySelect.value);
+        const targetGroup = group
+          || dependencySelect.closest('[data-param-dependency-group]')
+          || dependencySelect.closest('[data-param-type]');
+        if (targetGroup) {
+          refreshDependencySelectGroup(targetGroup, type);
+        }
+      }
+      return;
+    }
     const stateSelect = event.target.closest('[data-param-field="state"]');
     if (!stateSelect) return;
     const entry = stateSelect.closest('[data-param-id]');
@@ -7798,6 +8018,14 @@
         return;
       }
     }
+    const dependencyResult = collectDependencyValues(container, type);
+    if (dependencyResult.error) {
+      alert('❌ ' + dependencyResult.error);
+      if (dependencyResult.field) {
+        dependencyResult.field.focus();
+      }
+      return;
+    }
     const payload = { param_type: type, value };
     if (stateSelect && PARAMETER_STATE_TYPES.has(type)) {
       payload.state = stateSelect.value;
@@ -7805,6 +8033,7 @@
     if (type === 'iiko_server') {
       payload.server_name = serverName;
     }
+    Object.assign(payload, dependencyResult.values);
 
     const originalText = trigger.textContent;
     trigger.disabled = true;
@@ -7874,6 +8103,16 @@
       if (type === 'iiko_server') {
         payload.server_name = serverName;
       }
+      const dependencyResult = collectDependencyValues(entry, type);
+      if (dependencyResult.error) {
+        alert('❌ ' + dependencyResult.error);
+        if (dependencyResult.field) {
+          dependencyResult.field.focus();
+        }
+        trigger.disabled = false;
+        return;
+      }
+      Object.assign(payload, dependencyResult.values);
       const response = await fetch(`/api/settings/parameters/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
