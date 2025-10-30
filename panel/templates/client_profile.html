@@ -188,16 +188,30 @@
 			  <div>
 				<div><strong>ID Telegram:</strong> <code>{{ client.user_id }}</code></div>
 				<div><strong>Юзернейм:</strong> {{ client.username or '—' }}</div>
-				<p class="mb-1"><strong>Blacklist:</strong>
-				  {% if client_blacklist and client_blacklist.is_blacklisted %}
-					<span class="badge text-bg-danger">Да</span>
-					{% if client_blacklist.unblock_requested %}
-					  <span class="badge text-bg-warning ms-1">Запрос на снятие</span>
-					{% endif %}
-				  {% else %}
-					<span class="badge text-bg-secondary">Нет</span>
-				  {% endif %}
-				</p>
+                                <p class="mb-1"><strong>Blacklist:</strong>
+                                  {% if client_blacklist and client_blacklist.is_blacklisted %}
+                                        <span class="badge text-bg-danger">Да</span>
+                                        {% if client_blacklist.unblock_requested %}
+                                          <span class="badge text-bg-warning ms-1">Запрос на снятие</span>
+                                        {% endif %}
+                                        {% set added_at = client_blacklist.added_at_display or client_blacklist.added_at %}
+                                        {% if added_at or client_blacklist.added_by %}
+                                          <div class="small text-muted mt-1">
+                                            {% if added_at %}
+                                              Заблокирован: {{ added_at }}
+                                            {% endif %}
+                                            {% if client_blacklist.added_by %}
+                                              {% if added_at %}&nbsp;• {% endif %}Оператор: {{ client_blacklist.added_by }}
+                                            {% endif %}
+                                          </div>
+                                        {% endif %}
+                                        {% if client_blacklist.reason %}
+                                          <div class="small mt-1">Причина: {{ client_blacklist.reason }}</div>
+                                        {% endif %}
+                                  {% else %}
+                                        <span class="badge text-bg-secondary">Нет</span>
+                                  {% endif %}
+                                </p>
 			  </div>
 		</div>
 		<div id="avatarHistory" class="mt-2"></div>
@@ -472,8 +486,9 @@
       <div class="modal-content" style="min-height: 400px;">
         <div class="modal-header">
           <h5 class="modal-title" id="historyModalTitle">💬 История переписки — ID заявки: <span id="ticketIdDisplay"></span></h5>
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
             <span id="clientDisplayName">—</span>
+            <div id="clientStatusBadgeContainer" class="d-flex align-items-center flex-wrap gap-1"></div>
             <button type="button" class="btn btn-sm btn-outline-primary" id="editClientBtn" title="Редактировать имя">
               ✏️
             </button>
@@ -514,6 +529,7 @@
   </script>
   <script>
       const CURRENT_OPERATOR = {{ (session.get('user_email') or session.get('username') or session.get('user') or '') | tojson }};
+      const CLIENT_BLACKLIST = {{ (client_blacklist or {}) | tojson }};
 
     function getOperatorName() {
       const name = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
@@ -523,6 +539,56 @@
     let currentTicketId = null;
     let historyPolling = null;
     let clientData = null;
+
+    function renderClientBlacklistBadges() {
+      const container = document.getElementById('clientStatusBadgeContainer');
+      if (!container) return;
+
+      const isBlacklisted = !!(CLIENT_BLACKLIST && (Number(CLIENT_BLACKLIST.is_blacklisted) === 1 || CLIENT_BLACKLIST.is_blacklisted === true));
+      container.innerHTML = '';
+      container.classList.toggle('d-none', !isBlacklisted);
+      if (!isBlacklisted) {
+        container.removeAttribute('title');
+        return;
+      }
+
+      const mainBadge = document.createElement('span');
+      mainBadge.className = 'badge text-bg-danger';
+      mainBadge.textContent = 'В блэклисте';
+      container.appendChild(mainBadge);
+
+      const details = [];
+      if (CLIENT_BLACKLIST.added_at_display) {
+        details.push(`с ${CLIENT_BLACKLIST.added_at_display}`);
+      } else if (CLIENT_BLACKLIST.added_at) {
+        details.push(`с ${CLIENT_BLACKLIST.added_at}`);
+      }
+      if (CLIENT_BLACKLIST.added_by) {
+        details.push(`оператор: ${CLIENT_BLACKLIST.added_by}`);
+      }
+      if (details.length) {
+        const detailBadge = document.createElement('span');
+        detailBadge.className = 'badge text-bg-light text-muted border';
+        detailBadge.textContent = details.join(' · ');
+        container.appendChild(detailBadge);
+      }
+
+      if (CLIENT_BLACKLIST.unblock_requested) {
+        const requestBadge = document.createElement('span');
+        requestBadge.className = 'badge text-bg-warning text-dark';
+        requestBadge.textContent = 'Запрос на снятие';
+        container.appendChild(requestBadge);
+      }
+
+      const reason = (CLIENT_BLACKLIST.reason || '').trim();
+      if (reason) {
+        container.title = `Причина: ${reason}`;
+      } else {
+        container.removeAttribute('title');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', renderClientBlacklistBadges);
 	// === Медиа-хелперы для истории в модалке ===
 function getMediaUrl(ticket_id, filename) {
   const clean = (filename || '').split('/').pop();
@@ -659,12 +725,14 @@ function createMediaHtml(ticket_id, mediaInfo) {
       }
 
       const container = document.getElementById('historyContent');
-      
+
       if (!container) {
         console.error("❌ Контейнер истории не найден");
         return;
       }
-      
+
+      renderClientBlacklistBadges();
+
       container.innerHTML = '';
 
       const messages = Array.isArray(data.messages) ? data.messages : [];
