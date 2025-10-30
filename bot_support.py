@@ -782,8 +782,7 @@ def init_db():
 init_db()
 
 # --- состояния ---
-BUSINESS, LOCATION_TYPE, CITY, LOCATION_NAME, PROBLEM, UNBLOCK_REASON = range(6)
-PREV_STEP = 5
+BUSINESS, LOCATION_TYPE, CITY, LOCATION_NAME, PROBLEM, UNBLOCK_REASON, PREV_STEP = range(7)
 
 # --- обработчик решения пользователя ---
 async def previous_choice_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
