@@ -550,6 +550,19 @@
 #historySidebar .sidebar-scroll > *:last-child {
   margin-bottom: 1rem;
 }
+#historyModal .sidebar-info-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#historyModal .sidebar-info-panel .sidebar-scroll {
+  padding: 1.5rem 1.5rem 1.25rem;
+  gap: 1.5rem;
+}
+
+#historyModal .sidebar-info-panel .sidebar-scroll > * {
+  flex: 0 0 auto;
+}
 #historySidebar.collapsed {
   width: var(--sidebar-collapsed-width, 56px) !important;
   min-width: var(--sidebar-collapsed-width, 56px) !important;
@@ -634,7 +647,7 @@
   .sidebar-info-group {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 1.25rem;
   }
 
   .sidebar-info-group .problem-info,
@@ -832,6 +845,18 @@
 #historyModal .input-group-send {
   margin-top: 0 !important;
   flex: 0 0 auto;
+}
+
+#historyModal .history-composer-dock {
+  flex: 0 0 auto;
+  min-height: 0;
+  background: var(--bs-body-bg);
+}
+
+#historyModal .history-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
 
 #historyModal .input-group-send .composer-wrapper {
@@ -1927,74 +1952,78 @@ function markTicketReopenedLocally() {
                 <span class="toggle-icon">❮</span>
               </button>
               <div class="d-flex flex-column flex-fill min-height-0 sidebar-content">
-                <div class="sidebar-scroll d-flex flex-column gap-3">
-                  <div class="p-3 sidebar-info" id="activeDialogsBlock">
-                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div class="d-flex align-items-center gap-2">
-                      <strong class="me-1 mb-0">Активные диалоги</strong>
-                      <span class="badge bg-secondary" id="activeDialogCount">0</span>
-                    </div>
-                    <button type="button" class="btn btn-link btn-sm text-decoration-none px-1" id="clearActiveDialogsBtn">Очистить</button>
-                  </div>
-                  <div class="list-group mt-2" id="activeDialogList"></div>
-                  </div>
-                  <div class="sidebar-info-group">
-                    <!-- Проблема -->
-                    <div class="problem-info p-3 sidebar-info">
-                      <strong>Проблема:</strong>
-                      <span id="problemText" class="ellipsis-100ch" title=""></span>
-                    </div>
-
-                    <!-- Категория обращения -->
-                    <div class="category-selector p-3 sidebar-info">
-                      <div class="category-selector-header">
-                        <button type="button" class="btn btn-outline-primary btn-sm category-save-btn" onclick="saveTicketCategory()" title="Сохранить выбранные категории">
-                          💾
-                          <span class="visually-hidden">Сохранить категорию</span>
-                        </button>
-                        <label class="form-label" for="categoryTemplateSelect">Категория обращения:</label>
+                <div class="sidebar-info-panel d-flex flex-column flex-fill min-height-0">
+                  <div class="sidebar-scroll flex-grow-1 overflow-auto d-flex flex-column gap-3">
+                    <!-- Блок метрик времени обращения -->
+                    <div class="time-counter p-3 sidebar-info">
+                      <label class="form-label">Время обращения:</label>
+                      <div class="time-info p-3 rounded" id="timeInfo" title="">
+                        <div id="timeCounter">Загрузка...</div>
+                        <div id="timeDetails" class="small text-muted mt-1"></div>
                       </div>
-                      <select id="categoryTemplateSelect" class="form-select form-select-sm mb-2"></select>
-                      <div class="selected-categories mt-2 ellipsis-100ch" id="selectedCategories" style="font-size: 0.9rem;" title=""></div>
-                      <select id="ticketCategorySelect" class="form-select" multiple hidden></select>
-                      <div class="dropdown mt-2" data-bs-auto-close="outside">
-                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                          Выберите категории...
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="categoryDropdown" id="categoryOptionsList" style="max-height: 300px; overflow-y: auto;"></ul>
+                      <button type="button" id="closeTicketBtn" class="btn btn-danger w-100 mt-3">
+                        Закрыть заявку
+                      </button>
+                    </div>
+
+                    <!-- Проблема и категории обращения -->
+                    <div class="sidebar-info-group d-flex flex-column gap-3">
+                      <div class="problem-info p-3 sidebar-info">
+                        <strong>Проблема:</strong>
+                        <span id="problemText" class="ellipsis-100ch" title=""></span>
                       </div>
-                      <div class="form-text mt-2">Можно выбрать несколько категорий</div>
+
+                      <div class="category-selector p-3 sidebar-info">
+                        <div class="category-selector-header">
+                          <button type="button" class="btn btn-outline-primary btn-sm category-save-btn" onclick="saveTicketCategory()" title="Сохранить выбранные категории">
+                            💾
+                            <span class="visually-hidden">Сохранить категорию</span>
+                          </button>
+                          <label class="form-label" for="categoryTemplateSelect">Категория обращения:</label>
+                        </div>
+                        <select id="categoryTemplateSelect" class="form-select form-select-sm mb-2"></select>
+                        <div class="selected-categories mt-2 ellipsis-100ch" id="selectedCategories" style="font-size: 0.9rem;" title=""></div>
+                        <select id="ticketCategorySelect" class="form-select" multiple hidden></select>
+                        <div class="dropdown mt-2" data-bs-auto-close="outside">
+                          <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            Выберите категории...
+                          </button>
+                          <ul class="dropdown-menu" aria-labelledby="categoryDropdown" id="categoryOptionsList" style="max-height: 300px; overflow-y: auto;"></ul>
+                        </div>
+                        <div class="form-text mt-2">Можно выбрать несколько категорий</div>
+                      </div>
+                    </div>
+
+                    <!-- Данные клиента и локации -->
+                    <div class="p-3 sidebar-info text-start" id="historyClientMeta">
+                      <div><strong>Бизнес:</strong> <span id="historyBusiness">—</span></div>
+                      <div class="mt-1">
+                        <strong>Локация:</strong>
+                        <a href="#" id="historyLocationLink" class="link-primary text-decoration-none disabled" role="button" aria-disabled="true" tabindex="-1">—</a>
+                      </div>
+                    </div>
+
+                    <!-- Список активных диалогов -->
+                    <div class="p-3 sidebar-info" id="activeDialogsBlock">
+                      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                          <strong class="me-1 mb-0">Активные диалоги</strong>
+                          <span class="badge bg-secondary" id="activeDialogCount">0</span>
+                        </div>
+                        <button type="button" class="btn btn-link btn-sm text-decoration-none px-1" id="clearActiveDialogsBtn">Очистить</button>
+                      </div>
+                      <div class="list-group mt-2" id="activeDialogList"></div>
+                    </div>
+
+                    <!-- Другие обращения клиента -->
+                    <div class="p-3 sidebar-info" id="clientTicketsSection">
+                      <div class="client-tickets-header">
+                        <span class="fw-semibold">Обращения клиента</span>
+                        <span class="badge bg-secondary" id="clientTicketsCount">0</span>
+                      </div>
+                      <div class="list-group list-group-flush" id="clientTicketsList"></div>
                     </div>
                   </div>
-
-                <!-- Дополнительные данные клиента -->
-                  <div class="p-3 sidebar-info text-start" id="historyClientMeta">
-                  <div><strong>Бизнес:</strong> <span id="historyBusiness">—</span></div>
-                  <div class="mt-1">
-                    <strong>Локация:</strong>
-                    <a href="#" id="historyLocationLink" class="link-primary text-decoration-none disabled" role="button" aria-disabled="true" tabindex="-1">—</a>
-                  </div>
-                </div>
-                </div>
-
-                <!-- Таймер/счётчик времени -->
-                <div class="time-counter p-3 sidebar-info mt-3">
-                  <label class="form-label">Время обращения:</label>
-                  <div class="time-info p-3 rounded" id="timeInfo" title="">
-                    <div id="timeCounter">Загрузка...</div>
-                    <div id="timeDetails" class="small text-muted mt-1"></div>
-                  </div>
-                                        <button type="button" id="closeTicketBtn" class="btn btn-danger w-100 mt-3">
-                                                Закрыть заявку
-                                        </button>
-                </div>
-
-                <div class="p-3 sidebar-info mt-3" id="clientTicketsSection">
-                  <div class="client-tickets-header">
-                    <span class="fw-semibold">Обращения клиента</span>
-                    <span class="badge bg-secondary" id="clientTicketsCount">0</span>
-                  </div>
-                  <div class="list-group list-group-flush" id="clientTicketsList"></div>
                 </div>
               </div>
             </div>
@@ -2005,10 +2034,12 @@ function markTicketReopenedLocally() {
               <div class="d-flex flex-column flex-fill min-height-0">
                 <!-- Блок переписки -->
                 <div class="chat-container flex-grow-1 min-height-0 font-size-medium" id="historyContent"></div>
-                <div class="history-vertical-resizer" id="historyVerticalResizer" role="separator" aria-orientation="horizontal" aria-label="Изменить высоту истории"></div>
 
-                <!-- Поле ввода сообщения и кнопка отправки -->
-                <div class="input-group-send border-top bg-light w-100 px-3 pt-3 pb-0">
+                <div class="history-composer-dock mt-auto d-flex flex-column">
+                  <div class="history-vertical-resizer" id="historyVerticalResizer" role="separator" aria-orientation="horizontal" aria-label="Изменить высоту истории"></div>
+
+                  <!-- Поле ввода сообщения и кнопка отправки -->
+                  <div class="input-group-send history-composer border-top bg-light w-100 px-3 pt-3 pb-0">
                   <!-- Левая часть: textarea + «док» с эмодзи/стикерами/GIF ВНУТРИ поля -->
                   <div class="flex-grow-1 position-relative d-flex flex-column composer-wrapper">
                     <div class="w-100 mt-auto composer-inner">
@@ -2089,6 +2120,7 @@ function markTicketReopenedLocally() {
                         <span aria-hidden="true">➤</span>
                         <span class="visually-hidden">Отправить</span>
                       </button>
+                  </div>
                   </div>
                 </div>
               </div>
