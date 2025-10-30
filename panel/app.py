@@ -5749,6 +5749,8 @@ def tickets_list():
                 m.created_time,
                 t.channel_id,
                 (SELECT channel_name FROM channels c WHERE c.id = t.channel_id) AS channel_name,
+                COALESCE(cb.is_blacklisted, 0) AS is_blacklisted,
+                COALESCE(cb.unblock_requested, 0) AS unblock_requested,
                 -- связанная задача (если создана из этого диалога)
                 (SELECT tl.task_id FROM task_links tl WHERE tl.ticket_id = m.ticket_id LIMIT 1) AS linked_task_id,
 
@@ -5792,6 +5794,7 @@ def tickets_list():
 
             FROM messages m
             JOIN tickets t ON t.ticket_id = m.ticket_id
+            LEFT JOIN client_blacklist cb ON cb.user_id = CAST(m.user_id AS TEXT)
             WHERE 1=1
             GROUP BY m.ticket_id
             ORDER BY m.created_at DESC
@@ -5825,6 +5828,8 @@ def tickets_list():
             row['responsible_source'] = responsible_info['source'] or ''
             row['responsible_assigned_at'] = _coerce_to_iso(responsible_info['assigned_at'])
             row['responsible_assigned_by'] = (responsible_info['assigned_by'] or '').strip() if responsible_info['assigned_by'] else ''
+            row['is_blacklisted'] = int(row.get('is_blacklisted') or 0)
+            row['unblock_requested'] = int(row.get('unblock_requested') or 0)
             result.append(row)
 
         conn.close()
