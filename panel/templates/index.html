@@ -753,7 +753,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-top: 9px;
+  margin-top: 12px;
   align-self: flex-start;
 }
 
@@ -5921,7 +5921,16 @@ function displayTicketsForCurrentPage() {
                                         historyPayload: historyData
                                 });
 
-				const messages = historyData.messages || [];
+                                const messages = historyData.messages || [];
+
+                                const firstUserMessageDate = (() => {
+                                        for (const msg of messages) {
+                                                if (isSupportMsg(msg)) continue;
+                                                const dt = messageDate(msg);
+                                                if (dt) return dt;
+                                        }
+                                        return null;
+                                })();
 				
 				// ВАЖНОЕ ИСПРАВЛЕНИЕ: Полностью очищаем renderedMsgIds перед загрузкой новой истории
 				renderedMsgIds.clear();
@@ -5982,8 +5991,25 @@ function displayTicketsForCurrentPage() {
                                                 || ticketFull?.firstUserMessageAt
                                         );
                                 if (!createdAt) {
-                                        const firstUserMsg = messages.find(m => !isSupportMsg(m) && messageDate(m));
-                                        createdAt = firstUserMsg ? messageDate(firstUserMsg) : null;
+                                        createdAt = firstUserMessageDate;
+                                }
+                                if (createdAt && firstUserMessageDate) {
+                                        const diffMs = createdAt.getTime() - firstUserMessageDate.getTime();
+                                        if (diffMs > 2 * 60 * 60 * 1000) {
+                                                createdAt = firstUserMessageDate;
+                                        }
+                                }
+                                if (createdAt instanceof Date && !isNaN(createdAt)) {
+                                        const now = new Date();
+                                        if ((createdAt.getTime() - now.getTime()) > 60 * 60 * 1000) {
+                                                try {
+                                                        const tz = (typeof getOperatorTZ === 'function') ? getOperatorTZ() : null;
+                                                        const offsetMinutes = tz ? tzOffsetMinutes(tz, createdAt) : createdAt.getTimezoneOffset();
+                                                        createdAt = new Date(createdAt.getTime() - offsetMinutes * 60000);
+                                                } catch (error) {
+                                                        createdAt = new Date(createdAt.getTime() - createdAt.getTimezoneOffset() * 60000);
+                                                }
+                                        }
                                 }
 
                                 // "Первый ответ оператора" — первое сообщение support
