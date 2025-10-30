@@ -6201,14 +6201,17 @@ function displayTicketsForCurrentPage() {
                         alert(`Не удалось загрузить историю заявки${reason}`);
                 }
         }
-	function _sizeHistoryHeights() {
-		  const modal = document.getElementById('historyModal');
-		  if (!modal) return;
-		  const hdr = modal.querySelector('.modal-header');
-		  const ftr = modal.querySelector('.modal-footer');
-		  modal.style.setProperty('--hdr-h', (hdr?.offsetHeight || 0) + 'px');
-		  modal.style.setProperty('--ftr-h', (ftr?.offsetHeight || 0) + 'px');
-		}
+        function _sizeHistoryHeights() {
+                  const modal = document.getElementById('historyModal');
+                  if (!modal) return;
+                  const hdr = modal.querySelector('.modal-header');
+                  const ftr = modal.querySelector('.modal-footer');
+                  modal.style.setProperty('--hdr-h', (hdr?.offsetHeight || 0) + 'px');
+                  modal.style.setProperty('--ftr-h', (ftr?.offsetHeight || 0) + 'px');
+                  if (!document.body.classList.contains('history-vertical-resizing')) {
+                    applyStoredHistoryChatHeight();
+                  }
+                }
 
                 document.getElementById('historyModal').addEventListener('shown.bs.modal', () => {
                   historyModalIsOpen = true;
@@ -8420,21 +8423,42 @@ let historyVerticalResizerInitialized = false;
 function applyStoredHistoryChatHeight() {
   const chat = document.getElementById('historyContent');
   const composer = document.querySelector('#historyModal .input-group-send');
-  if (!chat || !composer) return;
+  if (!chat || !composer || document.body.classList.contains('history-vertical-resizing')) return;
 
   const raw = localStorage.getItem(HISTORY_CHAT_HEIGHT_KEY);
   const stored = raw ? parseFloat(raw) : NaN;
-  if (Number.isFinite(stored) && stored > 0) {
-    const parentHeight = chat.parentElement?.getBoundingClientRect().height || 0;
-    const composerHeight = composer.getBoundingClientRect().height || 0;
-    const composerMinHeight = Math.max(140, composerHeight * 0.75);
-    const nextHeight = parentHeight ? Math.min(Math.max(stored, 180), Math.max(180, parentHeight - composerMinHeight)) : stored;
-    chat.style.flex = '0 0 auto';
-    chat.style.height = `${Math.round(nextHeight)}px`;
-  } else {
+  const hasStoredHeight = Number.isFinite(stored) && stored > 0;
+
+  if (!hasStoredHeight) {
     chat.style.flex = '';
     chat.style.height = '';
+    return;
   }
+
+  const parent = chat.parentElement;
+  const parentHeight = parent?.getBoundingClientRect().height || 0;
+  const composerHeight = composer.getBoundingClientRect().height || 0;
+  const resizer = document.getElementById('historyVerticalResizer');
+  const resizerHeight = resizer?.getBoundingClientRect().height || 0;
+  const minHeight = 180;
+
+  let targetHeight = Math.max(minHeight, Math.round(stored));
+
+  if (parentHeight > 0) {
+    const availableHeight = parentHeight - composerHeight - resizerHeight;
+    if (Number.isFinite(availableHeight) && availableHeight > 0) {
+      const maxHeight = Math.max(minHeight, Math.round(availableHeight));
+      if (targetHeight > maxHeight) {
+        targetHeight = maxHeight;
+      } else if (maxHeight - targetHeight > 2) {
+        targetHeight = maxHeight;
+      }
+    }
+  }
+
+  chat.style.flex = '0 0 auto';
+  chat.style.height = `${targetHeight}px`;
+  localStorage.setItem(HISTORY_CHAT_HEIGHT_KEY, String(targetHeight));
 }
 
 function initHistoryVerticalResizer() {
