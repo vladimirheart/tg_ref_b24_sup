@@ -151,6 +151,151 @@ def db():
     conn.row_factory = sqlite3.Row
     return conn
 
+
+def ensure_client_unblock_requests_schema():
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS client_unblock_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    channel_id INTEGER,
+                    reason TEXT,
+                    created_at TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    decided_at TEXT,
+                    decided_by TEXT,
+                    decision_comment TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user
+                ON client_unblock_requests(user_id)
+                """
+            )
+    except Exception as exc:
+        logging.warning("ensure_client_unblock_requests_schema failed: %s", exc)
+
+
+ensure_client_unblock_requests_schema()
+
+
+def _fetch_blacklist_flags(user_id: int) -> tuple[bool, bool]:
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT is_blacklisted, unblock_requested FROM client_blacklist WHERE user_id = ?",
+                (str(user_id),),
+            ).fetchone()
+    except Exception as exc:
+        logging.error("fetch_blacklist_flags failed: %s", exc)
+        return False, False
+    if not row:
+        return False, False
+    try:
+        is_blacklisted = bool(row["is_blacklisted"])
+    except Exception:
+        is_blacklisted = bool(row[0])
+    try:
+        unblock_requested = bool(row["unblock_requested"])
+    except Exception:
+        unblock_requested = bool(row[1]) if len(row) > 1 else False
+    return is_blacklisted, unblock_requested
+
+
+def _create_unblock_request_task(conn: sqlite3.Connection, user_id: str, reason: str) -> None:
+    try:
+        row = conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM tasks").fetchone()
+        seq = row["n"] if row and "n" in row.keys() else (row[0] if row else 1)
+    except Exception:
+        seq = 1
+    title = f"Запрос разблокировки клиента {user_id}"
+    reason_block = f"<p>Комментарий: {reason}</p>" if reason else ""
+    body_html = f"<p>Клиент {user_id} запросил разблокировку.</p>{reason_block}"
+    conn.execute(
+        """
+        INSERT INTO tasks (seq, source, title, body_html, creator, tag, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (seq, "DL", title, body_html, "system", "unblock_request", "Новая"),
+    )
+
+
+def _store_unblock_request(user_id: int, reason: str, channel_id: int | None) -> None:
+    now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    str_user = str(user_id)
+    channel_id_int = None
+    if channel_id is not None:
+        try:
+            channel_id_int = int(channel_id)
+        except (TypeError, ValueError):
+            channel_id_int = None
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            """
+            INSERT INTO client_blacklist (user_id, is_blacklisted, unblock_requested, unblock_requested_at)
+            VALUES (?, 1, 1, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                unblock_requested=1,
+                unblock_requested_at=excluded.unblock_requested_at
+            """,
+            (str_user, now_iso),
+        )
+        existing = conn.execute(
+            """
+            SELECT id FROM client_unblock_requests
+            WHERE user_id = ? AND status = 'pending'
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (str_user,),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """
+                UPDATE client_unblock_requests
+                SET reason = ?, created_at = ?, channel_id = ?, status = 'pending',
+                    decided_at = NULL, decided_by = NULL, decision_comment = NULL
+                WHERE id = ?
+                """,
+                (reason, now_iso, channel_id_int, existing["id"] if "id" in existing.keys() else existing[0]),
+            )
+            created_new = False
+        else:
+            conn.execute(
+                """
+                INSERT INTO client_unblock_requests (user_id, channel_id, reason, created_at, status)
+                VALUES (?, ?, ?, ?, 'pending')
+                """,
+                (str_user, channel_id_int, reason, now_iso),
+            )
+            created_new = True
+
+        if created_new:
+            _create_unblock_request_task(conn, str_user, reason)
+
+        conn.commit()
+
+
+async def _inform_blacklisted_user(update: Update, *, pending_request: bool) -> None:
+    message = (
+        "Ваш аккаунт заблокирован. Запрос на разблокировку уже отправлен и находится на рассмотрении."
+        if pending_request
+        else (
+            "Ваш аккаунт заблокирован. Чтобы отправить запрос на разблокировку, нажмите /start и опишите причину."
+        )
+    )
+    try:
+        await update.message.reply_text(message, reply_markup=ReplyKeyboardRemove())
+    except Exception as exc:
+        logging.debug("Не удалось отправить уведомление о блокировке: %s", exc)
+
 def create_ticket(conn, *, ticket_id: str, user_id: int, status: str, created_at: str, channel_id: int):
     conn.execute("""
         INSERT INTO tickets(ticket_id, user_id, status, created_at, channel_id)
@@ -607,7 +752,7 @@ def init_db():
 init_db()
 
 # --- состояния ---
-BUSINESS, LOCATION_TYPE, CITY, LOCATION_NAME, PROBLEM = range(5)
+BUSINESS, LOCATION_TYPE, CITY, LOCATION_NAME, PROBLEM, UNBLOCK_REASON = range(6)
 PREV_STEP = 5
 
 # --- обработчик решения пользователя ---
@@ -645,6 +790,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     channel_id = context.application.bot_data["channel_id"]
+
+    is_blacklisted, unblock_requested = _fetch_blacklist_flags(user.id)
+    if is_blacklisted:
+        if unblock_requested:
+            await _inform_blacklisted_user(update, pending_request=True)
+            return ConversationHandler.END
+
+        await update.message.reply_text(
+            "⛔️ Ваш аккаунт был заблокирован. Опишите, пожалуйста, причину, по которой хотите возобновить доступ.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        await update.message.reply_text(
+            "Расскажите, почему нужно снять блокировку — мы передадим запрос оператору.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        context.user_data["awaiting_unblock_reason"] = True
+        return UNBLOCK_REASON
 
     # 1) Предложить продолжить с последним выбором по последней ЗАКРЫТОЙ заявке
     with sqlite3.connect(DB_PATH) as conn:
@@ -700,6 +862,56 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_keyboard_with_back(BUSINESS_OPTIONS, has_back=False),
     )
     return BUSINESS
+
+
+async def handle_unblock_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    reason = (update.message.text or "").strip()
+
+    if not reason:
+        await update.message.reply_text(
+            "Пожалуйста, опишите причину разблокировки текстом.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return UNBLOCK_REASON
+
+    is_blacklisted, unblock_requested = _fetch_blacklist_flags(user.id)
+    if not is_blacklisted:
+        await update.message.reply_text(
+            "Ваш аккаунт не числится заблокированным. Можно продолжать работу, при необходимости отправьте /start заново.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    if unblock_requested:
+        await _inform_blacklisted_user(update, pending_request=True)
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    channel_id = (
+        context.application.bot_data.get("channel_id")
+        if getattr(context, "application", None) and hasattr(context.application, "bot_data")
+        else None
+    )
+
+    try:
+        _store_unblock_request(user.id, reason, channel_id)
+    except Exception as exc:
+        logging.error("store_unblock_request failed: %s", exc)
+        await update.message.reply_text(
+            "❌ Не удалось отправить запрос. Попробуйте позже или свяжитесь с поддержкой другим способом.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    await update.message.reply_text(
+        "✅ Запрос на разблокировку отправлен. Ожидайте решения оператора.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    context.user_data.clear()
+    return ConversationHandler.END
 
 # --- /tickets - просмотр старых заявок ---
 async def tickets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1028,6 +1240,11 @@ async def save_user_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # сохраняем только если это сам клиент шарит свой контакт (contact.user_id == user.id)
     if not contact or (contact.user_id and contact.user_id != user.id):
         return
+
+    is_blacklisted, unblock_requested = _fetch_blacklist_flags(user.id)
+    if is_blacklisted:
+        await _inform_blacklisted_user(update, pending_request=unblock_requested)
+        return
     try:
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
@@ -1138,6 +1355,11 @@ async def save_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         or get_channel_id_by_token(context.bot.token)
         )
 
+    is_blacklisted, unblock_requested = _fetch_blacklist_flags(user.id)
+    if is_blacklisted:
+        await _inform_blacklisted_user(update, pending_request=unblock_requested)
+        return
+
     try:
         # 1) Берём последний активный тикет этого пользователя в рамках текущего канала
         with sqlite3.connect(DB_PATH) as conn:
@@ -1208,6 +1430,11 @@ async def save_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def save_user_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     message = update.message
+
+    is_blacklisted, unblock_requested = _fetch_blacklist_flags(user.id)
+    if is_blacklisted:
+        await _inform_blacklisted_user(update, pending_request=unblock_requested)
+        return
 
     # режим до отправки проблемы — складываем во временную папку
     if 'business' in context.user_data and 'problem' not in context.user_data:
@@ -1927,6 +2154,7 @@ async def run_all_bots():
                 CommandHandler("tickets", tickets_command),
             ],
             states={
+                UNBLOCK_REASON: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unblock_reason)],
                 PREV_STEP: [MessageHandler(filters.TEXT & ~filters.COMMAND, previous_choice_decision)],
                 BUSINESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, business_choice)],
                 LOCATION_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, location_type_choice)],
