@@ -595,14 +595,15 @@
     }
     .location-status-select {
       min-width: 10rem;
+      width: 100%;
       flex: 0 0 auto;
     }
     .location-actions {
       display: flex;
       align-items: center;
-      gap: 0.25rem;
-      margin-left: auto;
-      flex: 0 0 auto;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
     .location-actions .btn-icon {
       width: 2.25rem;
@@ -650,16 +651,45 @@
       gap: 0.5rem;
     }
     .location-tree-row {
+      display: flex;
+      align-items: stretch;
+      gap: 0.75rem;
       flex-wrap: wrap;
+    }
+    .location-tree-toggle {
+      align-self: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.5rem;
+    }
+    .location-tree-toggle i {
+      pointer-events: none;
+    }
+    .location-tree-bubble {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
       gap: 0.5rem;
+      flex-wrap: wrap;
       box-shadow: 0 0.35rem 1rem rgba(13, 110, 253, 0.08);
     }
-    .location-tree-row .location-actions {
+    .location-tree-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
       gap: 0.35rem;
-      flex-wrap: wrap;
+      flex: 0 0 auto;
+      min-width: 9.5rem;
     }
-    .location-tree-row .location-status-select {
-      min-width: 9rem;
+    .location-tree-controls .location-status-wrapper {
+      width: 100%;
+    }
+    .location-tree-controls .location-actions {
+      width: 100%;
     }
     .location-tree-row .location-name-input {
       min-width: 12rem;
@@ -698,6 +728,25 @@
     .location-structure-row.status-frozen {
       background-color: #e3f2ff;
       border-color: #b6dcff;
+    }
+    .location-tree__children.is-collapsed {
+      display: none;
+    }
+    @media (max-width: 768px) {
+      .location-tree-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .location-tree-controls {
+        width: 100%;
+        align-items: stretch;
+      }
+      .location-tree-controls .location-actions {
+        justify-content: flex-start;
+      }
+      .location-tree-toggle {
+        align-self: flex-start;
+      }
     }
     .location-wizard-step .form-select.is-invalid { border-color: #dc3545; }
     .channel-questions-list .question-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 0.75rem; padding: 0.75rem; }
@@ -8222,7 +8271,10 @@
   const EDIT_ICON_HTML = '<i class="bi bi-pencil"></i>';
   const SAVE_ICON_HTML = '<i class="bi bi-check-lg"></i>';
   const DELETE_ICON_HTML = '<i class="bi bi-trash"></i>';
+  const COLLAPSE_ICON_HTML = '<i class="bi bi-chevron-down"></i>';
+  const EXPAND_ICON_HTML = '<i class="bi bi-chevron-right"></i>';
   const LOCATIONS_INITIAL = {{ locations | tojson }};
+  const collapsedLocationNodes = new Set();
 
   function sanitizeStatusesMap(source) {
     const result = {};
@@ -8405,6 +8457,65 @@
         delete locationsState.statuses[key];
       }
     });
+  }
+
+  function makeCollapseKey(level, ...parts) {
+    return ['collapse', level].concat(parts).join('::');
+  }
+
+  function pruneCollapsedNodes(tree) {
+    const validKeys = new Set();
+    Object.keys(tree || {}).forEach((business) => {
+      validKeys.add(makeCollapseKey('business', business));
+      const types = tree[business] || {};
+      if (types && typeof types === 'object') {
+        Object.keys(types).forEach((type) => {
+          validKeys.add(makeCollapseKey('type', business, type));
+          const cities = types[type];
+          if (cities && typeof cities === 'object' && !Array.isArray(cities)) {
+            Object.keys(cities).forEach((city) => {
+              validKeys.add(makeCollapseKey('city', business, type, city));
+            });
+          }
+        });
+      }
+    });
+    Array.from(collapsedLocationNodes).forEach((key) => {
+      if (!validKeys.has(key)) {
+        collapsedLocationNodes.delete(key);
+      }
+    });
+  }
+
+  function setupTreeToggle(button, childrenList, key) {
+    if (!(button instanceof HTMLElement) || !(childrenList instanceof HTMLElement) || !key) {
+      return;
+    }
+    button.setAttribute('data-no-toggle', 'true');
+    let isCollapsed = collapsedLocationNodes.has(key);
+
+    const setCollapsed = (nextState) => {
+      isCollapsed = nextState;
+      if (isCollapsed) {
+        collapsedLocationNodes.add(key);
+      } else {
+        collapsedLocationNodes.delete(key);
+      }
+      childrenList.classList.toggle('is-collapsed', isCollapsed);
+      button.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+      button.innerHTML = isCollapsed ? EXPAND_ICON_HTML : COLLAPSE_ICON_HTML;
+      const title = isCollapsed ? 'Развернуть ветку' : 'Свернуть ветку';
+      button.title = title;
+      button.setAttribute('aria-label', title);
+    };
+
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setCollapsed(!isCollapsed);
+    });
+
+    setCollapsed(isCollapsed);
   }
 
   function createStatusSelect(level, parts) {
@@ -8615,23 +8726,49 @@
     return meta;
   }
 
-  function createLocationTreeRow(level, { name, statusPath, onSubmit, onReset, onDelete }) {
+  function createLocationTreeRow(
+    level,
+    { name, statusPath, onSubmit, onReset, onDelete, collapsible = false }
+  ) {
     const row = document.createElement('div');
-    row.className = 'location-structure-row location-tree-row';
+    row.className = 'location-tree-row';
     row.dataset.locationLevel = level;
 
-    const statusSelect = createStatusSelect(level, statusPath);
-    row.appendChild(statusSelect);
+    let toggleButton = null;
+    if (collapsible) {
+      toggleButton = document.createElement('button');
+      toggleButton.type = 'button';
+      toggleButton.className = 'btn btn-sm btn-outline-secondary btn-icon location-tree-toggle';
+      toggleButton.innerHTML = COLLAPSE_ICON_HTML;
+      toggleButton.title = 'Свернуть ветку';
+      toggleButton.setAttribute('aria-expanded', 'true');
+      row.appendChild(toggleButton);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'location-structure-row location-tree-bubble';
+    bubble.dataset.locationLevel = level;
+    row.appendChild(bubble);
 
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'form-control form-control-sm location-name-input';
     input.value = name;
-    row.appendChild(input);
+    bubble.appendChild(input);
+
+    const controls = document.createElement('div');
+    controls.className = 'location-tree-controls';
+    row.appendChild(controls);
+
+    const statusContainer = document.createElement('div');
+    statusContainer.className = 'location-status-wrapper';
+    const statusSelect = createStatusSelect(level, statusPath);
+    statusContainer.appendChild(statusSelect);
+    controls.appendChild(statusContainer);
 
     const actions = document.createElement('div');
     actions.className = 'location-actions';
-    row.appendChild(actions);
+    controls.appendChild(actions);
 
     const editButton = document.createElement('button');
     editButton.type = 'button';
@@ -8660,11 +8797,19 @@
       onReset,
     });
 
-    const updateAppearance = () => applyStatusStyle(row, statusSelect.value);
+    const updateAppearance = () => applyStatusStyle(bubble, statusSelect.value);
     statusSelect.addEventListener('change', updateAppearance);
     updateAppearance();
 
-    return { row, input, statusSelect, actions, editButton, deleteButton };
+    return {
+      row,
+      input,
+      statusSelect,
+      actions,
+      editButton,
+      deleteButton,
+      toggleButton,
+    };
   }
 
   function createLocationLeaf(businessName, typeName, cityName, locationName) {
@@ -8702,7 +8847,10 @@
     const item = document.createElement('li');
     item.className = 'org-tree__item location-tree__item location-level-city';
 
-    const { row, input, statusSelect, actions } = createLocationTreeRow('city', {
+    const locationNames = Array.isArray(locations) ? locations : [];
+    const collapseKey = makeCollapseKey('city', businessName, typeName, cityName);
+
+    const { row, input, statusSelect, actions, toggleButton } = createLocationTreeRow('city', {
       name: cityName,
       statusPath: [businessName, typeName, cityName],
       onSubmit: (newName, meta) =>
@@ -8712,6 +8860,7 @@
         statusSelect.value = getStatus('city', businessName, typeName, cityName);
       },
       onDelete: () => removeCity(businessName, typeName, cityName),
+      collapsible: locationNames.length > 0,
     });
 
     const addLocationBtn = document.createElement('button');
@@ -8722,7 +8871,7 @@
     actions.appendChild(addLocationBtn);
 
     const meta = createLocationMeta([
-      { label: 'Локаций', value: Array.isArray(locations) ? locations.length : 0 },
+      { label: 'Локаций', value: locationNames.length },
     ]);
 
     const card = document.createElement('div');
@@ -8733,7 +8882,6 @@
     }
     item.appendChild(card);
 
-    const locationNames = Array.isArray(locations) ? locations : [];
     if (locationNames.length) {
       const childrenList = document.createElement('ul');
       childrenList.className = 'org-tree__children location-tree__children list-unstyled';
@@ -8743,6 +8891,7 @@
         );
       });
       item.appendChild(childrenList);
+      setupTreeToggle(toggleButton, childrenList, collapseKey);
     }
 
     return item;
@@ -8752,7 +8901,10 @@
     const item = document.createElement('li');
     item.className = 'org-tree__item location-tree__item location-level-type';
 
-    const { row, input, statusSelect, actions } = createLocationTreeRow('type', {
+    const cityEntries = cities && typeof cities === 'object' ? Object.entries(cities) : [];
+    const collapseKey = makeCollapseKey('type', businessName, typeName);
+
+    const { row, input, statusSelect, actions, toggleButton } = createLocationTreeRow('type', {
       name: typeName,
       statusPath: [businessName, typeName],
       onSubmit: (newName, meta) =>
@@ -8762,6 +8914,7 @@
         statusSelect.value = getStatus('type', businessName, typeName);
       },
       onDelete: () => removeType(businessName, typeName),
+      collapsible: cityEntries.length > 0,
     });
 
     const addCityBtn = document.createElement('button');
@@ -8785,7 +8938,6 @@
     }
     item.appendChild(card);
 
-    const cityEntries = cities && typeof cities === 'object' ? Object.entries(cities) : [];
     if (cityEntries.length) {
       const childrenList = document.createElement('ul');
       childrenList.className = 'org-tree__children location-tree__children list-unstyled';
@@ -8795,6 +8947,7 @@
         );
       });
       item.appendChild(childrenList);
+      setupTreeToggle(toggleButton, childrenList, collapseKey);
     }
 
     return item;
@@ -8804,7 +8957,10 @@
     const item = document.createElement('li');
     item.className = 'org-tree__item location-tree__item location-level-business';
 
-    const { row, input, statusSelect, actions } = createLocationTreeRow('business', {
+    const typeEntries = types && typeof types === 'object' ? Object.entries(types) : [];
+    const collapseKey = makeCollapseKey('business', businessName);
+
+    const { row, input, statusSelect, actions, toggleButton } = createLocationTreeRow('business', {
       name: businessName,
       statusPath: [businessName],
       onSubmit: (newName, meta) => updateBusiness(businessName, newName || businessName, meta.status),
@@ -8813,6 +8969,7 @@
         statusSelect.value = getStatus('business', businessName);
       },
       onDelete: () => removeBusiness(businessName),
+      collapsible: typeEntries.length > 0,
     });
 
     const addTypeBtn = document.createElement('button');
@@ -8837,7 +8994,6 @@
     }
     item.appendChild(card);
 
-    const typeEntries = types && typeof types === 'object' ? Object.entries(types) : [];
     if (typeEntries.length) {
       const childrenList = document.createElement('ul');
       childrenList.className = 'org-tree__children location-tree__children list-unstyled';
@@ -8845,6 +9001,7 @@
         childrenList.appendChild(createTypeNode(businessName, typeName, cities));
       });
       item.appendChild(childrenList);
+      setupTreeToggle(toggleButton, childrenList, collapseKey);
     }
 
     return item;
@@ -8859,6 +9016,7 @@
     container.classList.add('org-tree-wrapper', 'location-tree-wrapper');
 
     const tree = locationsState.tree || {};
+    pruneCollapsedNodes(tree);
     const businessNames = Object.keys(tree);
     if (!businessNames.length) {
       const placeholder = document.createElement('div');
