@@ -3016,6 +3016,8 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
           ticket.manual_responsible = (ticket.manual_responsible || '').trim();
           ticket.auto_responsible = (ticket.auto_responsible || '').trim();
           ticket.responsible_source = ticket.responsible_source || '';
+          ticket.is_blacklisted = Number(ticket.is_blacklisted || 0);
+          ticket.unblock_requested = Number(ticket.unblock_requested || 0);
           const statusLower = String(ticket.status || '').toLowerCase();
           const rawStatusLower = String(ticket.raw_status || '').toLowerCase();
 
@@ -4814,6 +4816,21 @@ function displayTicketsForCurrentPage() {
   pageTickets.forEach(t => {
   const username = t.username ? `@${t.username}` : 'нет юзернейма';
   const clientName = t.client_name || 'не задано';
+  const displayNameRaw = (t.client_name && t.client_name !== 'не задано')
+    ? t.client_name
+    : (t.username ? `@${t.username}` : `Клиент ${t.user_id}`);
+  const displayName = escapeHtml(displayNameRaw);
+  const usernameLine = escapeHtml(username);
+  const blacklistBadges = [];
+  if (Number(t.is_blacklisted)) {
+    blacklistBadges.push('<span class="badge text-bg-danger">В блэклисте</span>');
+  } else {
+    blacklistBadges.push('<span class="badge text-bg-success">Не в блэклисте</span>');
+  }
+  if (Number(t.unblock_requested)) {
+    blacklistBadges.push('<span class="badge text-bg-warning text-dark">Запрос на разблокировку</span>');
+  }
+  const blacklistInfo = `<div class="mt-1 d-flex flex-wrap gap-1">${blacklistBadges.join('')}</div>`;
 
   // СОЗДАЁМ СТРОКУ
   const row = document.createElement('tr');
@@ -4834,23 +4851,28 @@ function displayTicketsForCurrentPage() {
     String(t.created_date || ''),
     String(t.created_time || ''),
     String(t.username || ''),
-    String(clientName || '')
+    String(clientName || ''),
+    Number(t.is_blacklisted) ? 'в блэклисте' : 'не в блэклисте',
+    Number(t.unblock_requested) ? 'запрос на разблокировку' : ''
   ].join(' ').toLowerCase();
   row.dataset.search = searchIndex;
 
   const clientCell = `
   <div class="d-flex align-items-center gap-2">
-    <img src="${t.avatar_url || '/static/default-avatar.png'}" 
-         alt="" 
-         width="36" 
-         height="36" 
-         class="rounded-circle" 
+    <img src="${t.avatar_url || '/static/default-avatar.png'}"
+         alt=""
+         width="36"
+         height="36"
+         class="rounded-circle"
          style="object-fit:cover; border:1px solid rgba(0,0,0,.08)"
          onerror="this.src='/static/default-avatar.png'">
-    <span class="clickable-client" data-user-id="${t.user_id}" onclick="window.open('/client/${t.user_id}', '_blank')">${
-      (t.client_name && t.client_name !== 'не задано') ? t.client_name :
-      (t.username ? '@' + t.username : 'Клиент ' + t.user_id)
-    }</span>
+    <div class="min-w-0">
+      <div class="fw-semibold text-truncate">
+        <span class="clickable-client" data-user-id="${t.user_id}" onclick="window.open('/client/${t.user_id}', '_blank')" title="${displayName}">${displayName}</span>
+      </div>
+      <div class="text-muted small text-truncate">${usernameLine}</div>
+      ${blacklistInfo}
+    </div>
   </div>`;
 
 	let statusBadge;
@@ -5242,47 +5264,67 @@ function displayTicketsForCurrentPage() {
 							}
 							
 							// Отрисовываем заявки (используем существующую логику отрисовки)
-							pageTickets.forEach(t => {
-								const username = t.username ? `@${t.username}` : 'нет юзернейма';
-								const clientName = t.client_name || 'не задано';
+                                                        pageTickets.forEach(t => {
+                                                                const username = t.username ? `@${t.username}` : 'нет юзернейма';
+                                                                const clientName = t.client_name || 'не задано';
+                                                                const displayNameRaw = (t.client_name && t.client_name !== 'не задано')
+                                                                  ? t.client_name
+                                                                  : (t.username ? `@${t.username}` : `Клиент ${t.user_id}`);
+                                                                const displayName = escapeHtml(displayNameRaw);
+                                                                const usernameLine = escapeHtml(username);
+                                                                const blacklistBadges = [];
+                                                                if (Number(t.is_blacklisted)) {
+                                                                  blacklistBadges.push('<span class="badge text-bg-danger">В блэклисте</span>');
+                                                                } else {
+                                                                  blacklistBadges.push('<span class="badge text-bg-success">Не в блэклисте</span>');
+                                                                }
+                                                                if (Number(t.unblock_requested)) {
+                                                                  blacklistBadges.push('<span class="badge text-bg-warning text-dark">Запрос на разблокировку</span>');
+                                                                }
+                                                                const blacklistInfo = `<div class="mt-1 d-flex flex-wrap gap-1">${blacklistBadges.join('')}</div>`;
 
-								const row = document.createElement('tr');
-								
-								// Индекс для поиска (если понадобится)
-								const searchIndex = [
-									String(t.user_id || ''),
-									String(t.ticket_id || ''),
-									String(t.client_status || ''),
-									String(t.channel_name || ''),
-									String(t.business || ''),
-									String(t.city || ''),
-									String(t.location_name || ''),
-									String(t.problem || ''),
-									String(t.responsible || ''),
-									String(t.raw_status || ''),
-									String(t.status || ''),
-									String(t.created_date || ''),
-									String(t.created_time || ''),
-									String(t.username || ''),
-									String(clientName || '')
-								].join(' ').toLowerCase();
-								row.dataset.search = searchIndex;
+                                                                const row = document.createElement('tr');
 
-								// Остальная логика отрисовки остается такой же, как в displayTicketsForCurrentPage()
-								const clientCell = `
-								<div class="d-flex align-items-center gap-2">
-									<img src="${t.avatar_url || '/static/default-avatar.png'}" 
-										 alt="" 
-										 width="36" 
-										 height="36" 
-										 class="rounded-circle" 
-										 style="object-fit:cover; border:1px solid rgba(0,0,0,.08)"
-										 onerror="this.src='/static/default-avatar.png'">
-									<span class="clickable-client" data-user-id="${t.user_id}" onclick="window.open('/client/${t.user_id}', '_blank')">${
-									(t.client_name && t.client_name !== 'не задано') ? t.client_name :
-									(t.username ? '@' + t.username : 'Клиент ' + t.user_id)
-									}</span>
-								</div>`;
+                                                                // Индекс для поиска (если понадобится)
+                                                                const searchIndex = [
+                                                                        String(t.user_id || ''),
+                                                                        String(t.ticket_id || ''),
+                                                                        String(t.client_status || ''),
+                                                                        String(t.channel_name || ''),
+                                                                        String(t.business || ''),
+                                                                        String(t.city || ''),
+                                                                        String(t.location_name || ''),
+                                                                        String(t.problem || ''),
+                                                                        String(t.responsible || ''),
+                                                                        String(t.raw_status || ''),
+                                                                        String(t.status || ''),
+                                                                        String(t.created_date || ''),
+                                                                        String(t.created_time || ''),
+                                                                        String(t.username || ''),
+                                                                        String(clientName || ''),
+                                                                        Number(t.is_blacklisted) ? 'в блэклисте' : 'не в блэклисте',
+                                                                        Number(t.unblock_requested) ? 'запрос на разблокировку' : ''
+                                                                ].join(' ').toLowerCase();
+                                                                row.dataset.search = searchIndex;
+
+                                                                // Остальная логика отрисовки остается такой же, как в displayTicketsForCurrentPage()
+                                                                const clientCell = `
+                                                                <div class="d-flex align-items-center gap-2">
+                                                                        <img src="${t.avatar_url || '/static/default-avatar.png'}"
+                                                                                 alt=""
+                                                                                 width="36"
+                                                                                 height="36"
+                                                                                 class="rounded-circle"
+                                                                                 style="object-fit:cover; border:1px solid rgba(0,0,0,.08)"
+                                                                                 onerror="this.src='/static/default-avatar.png'">
+                                                                        <div class="min-w-0">
+                                                                                <div class="fw-semibold text-truncate">
+                                                                                        <span class="clickable-client" data-user-id="${t.user_id}" onclick="window.open('/client/${t.user_id}', '_blank')" title="${displayName}">${displayName}</span>
+                                                                                </div>
+                                                                                <div class="text-muted small text-truncate">${usernameLine}</div>
+                                                                                ${blacklistInfo}
+                                                                        </div>
+                                                                </div>`;
 
 								let statusBadge;
 								if (t.raw_status === 'resolved') {
