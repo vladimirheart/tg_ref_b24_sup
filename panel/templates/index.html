@@ -4824,8 +4824,6 @@ function displayTicketsForCurrentPage() {
   const blacklistBadges = [];
   if (Number(t.is_blacklisted)) {
     blacklistBadges.push('<span class="badge text-bg-danger">В блэклисте</span>');
-  } else {
-    blacklistBadges.push('<span class="badge text-bg-success">Не в блэклисте</span>');
   }
   if (Number(t.unblock_requested)) {
     blacklistBadges.push('<span class="badge text-bg-warning text-dark">Запрос на разблокировку</span>');
@@ -5272,16 +5270,17 @@ function displayTicketsForCurrentPage() {
                                                                   : (t.username ? `@${t.username}` : `Клиент ${t.user_id}`);
                                                                 const displayName = escapeHtml(displayNameRaw);
                                                                 const usernameLine = escapeHtml(username);
+                                                                const isBlacklisted = Number(t.is_blacklisted);
                                                                 const blacklistBadges = [];
-                                                                if (Number(t.is_blacklisted)) {
+                                                                if (isBlacklisted) {
                                                                   blacklistBadges.push('<span class="badge text-bg-danger">В блэклисте</span>');
-                                                                } else {
-                                                                  blacklistBadges.push('<span class="badge text-bg-success">Не в блэклисте</span>');
+                                                                  if (Number(t.unblock_requested)) {
+                                                                    blacklistBadges.push('<span class="badge text-bg-warning text-dark">Запрос на разблокировку</span>');
+                                                                  }
                                                                 }
-                                                                if (Number(t.unblock_requested)) {
-                                                                  blacklistBadges.push('<span class="badge text-bg-warning text-dark">Запрос на разблокировку</span>');
-                                                                }
-                                                                const blacklistInfo = `<div class="mt-1 d-flex flex-wrap gap-1">${blacklistBadges.join('')}</div>`;
+                                                                const blacklistInfo = isBlacklisted
+                                                                  ? `<div class="mt-1 d-flex flex-wrap gap-1">${blacklistBadges.join('')}</div>`
+                                                                  : '';
 
                                                                 const row = document.createElement('tr');
 
@@ -5302,8 +5301,8 @@ function displayTicketsForCurrentPage() {
                                                                         String(t.created_time || ''),
                                                                         String(t.username || ''),
                                                                         String(clientName || ''),
-                                                                        Number(t.is_blacklisted) ? 'в блэклисте' : 'не в блэклисте',
-                                                                        Number(t.unblock_requested) ? 'запрос на разблокировку' : ''
+                                                                        Number(t.is_blacklisted) ? 'в блэклисте' : '',
+                                                                        Number(t.is_blacklisted) && Number(t.unblock_requested) ? 'запрос на разблокировку' : ''
                                                                 ].join(' ').toLowerCase();
                                                                 row.dataset.search = searchIndex;
 
