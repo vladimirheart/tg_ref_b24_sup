@@ -180,7 +180,7 @@
     createOverlay() {
       const overlay = document.createElement('div');
       overlay.className = 'edit-guard-overlay';
-      overlay.innerHTML = '<div class="edit-guard-overlay__message">Нажмите «Редактировать», чтобы внести изменения</div>';
+      overlay.innerHTML = '';
       this.element.style.position = this.element.style.position || 'relative';
       this.element.appendChild(overlay);
       this.overlay = overlay;
