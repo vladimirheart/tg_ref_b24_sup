@@ -2,6 +2,8 @@
 
 This guide describes how to run the Spring Boot replacement for the support panel on Windows 10/11 without relying on WSL.
 
+> ℹ️  Instructions for setting `.env` and environment variables on Windows and Linux are collected in [docs/environment_variables.md](environment_variables.md).
+
 ## 1. Install prerequisites
 1. Download and install [Microsoft Build of OpenJDK 17](https://learn.microsoft.com/java/openjdk/download#openjdk-17). During installation enable the option to set `JAVA_HOME`.
 2. Install Apache Maven 3.9+ from the [official binaries](https://maven.apache.org/download.cgi) and add the `bin` directory to the `PATH`. Restart the terminal so the new PATH is applied.
