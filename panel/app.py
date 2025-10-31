@@ -40,6 +40,7 @@ from bot_settings_utils import (
     build_location_presets,
     sanitize_bot_settings,
 )
+from shared_config import shared_config_path
 def exec_with_retry(fn, retries=5, base_delay=0.15):
     for i in range(retries):
         try:
@@ -60,7 +61,7 @@ from typing import Any, Iterable
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
+SETTINGS_PATH = shared_config_path("settings.json")
 ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
 KNOWLEDGE_BASE_ATTACHMENTS_DIR = os.path.join(ATTACHMENTS_DIR, "knowledge_base")
 AVATAR_CACHE_DIR = os.path.join(ATTACHMENTS_DIR, "avatars")
@@ -68,9 +69,9 @@ AVATAR_HISTORY_DIR = os.path.join(AVATAR_CACHE_DIR, "history")
 AVATAR_CACHE_TTL_SECONDS = 15 * 60  # 15 minutes
 TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
 USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
-LOCATIONS_PATH = os.path.join(BASE_DIR, "locations.json")
+LOCATIONS_PATH = shared_config_path("locations.json")
 OBJECT_PASSPORT_DB_PATH = os.path.join(BASE_DIR, "object_passports.db")
-ORG_STRUCTURE_PATH = os.path.join(BASE_DIR, "org_structure.json")
+ORG_STRUCTURE_PATH = shared_config_path("org_structure.json")
 OBJECT_PASSPORT_UPLOADS_DIR = os.path.join(BASE_DIR, "object_passport_uploads")
 USER_PHOTOS_DIR = os.path.join(os.path.dirname(__file__), "static", "user_photos")
 ALLOWED_USER_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -3265,7 +3266,7 @@ def _collect_departments_from_locations() -> tuple[list[str], set[str]]:
     """
     Возвращает:
     - отсортированный список названий департаментов (четвёртая ветка дерева
-      locations.json: бизнес → тип → город → точка);
+      config/shared/locations.json: бизнес → тип → город → точка);
     - множество названий третьего уровня (городов/веток) для последующей
       очистки устаревших значений.
     """
@@ -3309,7 +3310,7 @@ def _collect_departments_from_locations() -> tuple[list[str], set[str]]:
 
 
 def ensure_departments_seeded():
-    """Добавляет значения департаментов на основе locations.json, если их нет."""
+    """Добавляет значения департаментов на основе config/shared/locations.json."""
 
     departments, obsolete_candidates = _collect_departments_from_locations()
     if not departments:
