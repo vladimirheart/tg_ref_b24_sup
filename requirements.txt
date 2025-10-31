@@ -11,3 +11,4 @@ pandas
 Pillow==11.3.0
 npm
 psycopg
+SQLAlchemy
