@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>База знаний</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>База знаний</h1>
+    <nav>
+        <a th:href="@{/}">Диалоги</a>
+        <a th:href="@{/analytics}">Аналитика</a>
+        <a th:href="@{/logout}">Выйти</a>
+    </nav>
+</header>
+<main>
+    <section>
+        <h2>Статьи</h2>
+        <p th:if="${articles.isEmpty()}">Нет статей.</p>
+        <ul>
+            <li th:each="article : ${articles}">
+                <a th:href="@{'/knowledge-base/' + ${article.id}}" th:text="${article.title}"></a>
+                <span th:text="${article.department}"></span>
+            </li>
+        </ul>
+        <a class="button" th:href="@{/knowledge-base/new}" th:if="${canCreate}">Новая статья</a>
+    </section>
+</main>
+</body>
+</html>
