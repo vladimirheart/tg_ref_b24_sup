@@ -43,7 +43,7 @@ $env:SPRING_DATASOURCE_PASSWORD = "panel"
 
 # Запуск бота
 cd java-bot
-mvn spring-boot:run
+.\mvnw.cmd spring-boot:run
 ```
 
 Чтобы сделать переменные постоянными, используйте `setx` или системный интерфейс «Переменные среды» (не забудьте перезапустить PowerShell).
