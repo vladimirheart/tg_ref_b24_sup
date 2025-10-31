@@ -26,12 +26,61 @@
       transition:background-color .2s ease;
     }
     .table-dark th.sortable:hover{background-color:#cce6ff!important;color:#000!important}
+
+    .client-avatar-ring{
+      position:relative;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:24px;
+      height:24px;
+      border-radius:50%;
+    }
+    .client-avatar-ring.status-has-color{
+      color:var(--status-color,#0d6efd);
+    }
+    .client-avatar-ring.status-has-color::before,
+    .client-avatar-ring.status-has-color::after{
+      content:"";
+      position:absolute;
+      inset:-3px;
+      border-radius:50%;
+      pointer-events:none;
+    }
+    .client-avatar-ring.status-has-color::before{
+      border:3px solid var(--status-color,#0d6efd);
+      box-shadow:0 0 8px rgba(0,0,0,.12);
+      z-index:1;
+    }
+    .client-avatar-ring.status-has-color::after{
+      border:3px solid var(--status-color,#0d6efd);
+      opacity:0;
+      transform:scale(.95);
+      z-index:0;
+      animation:client-avatar-pulse 2.4s ease-in-out infinite;
+    }
+    .client-avatar-ring .client-avatar-img{
+      position:relative;
+      z-index:2;
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      object-fit:cover;
+      border:1px solid rgba(0,0,0,.08);
+      background:#fff;
+    }
+    @keyframes client-avatar-pulse{
+      0%{opacity:.45;transform:scale(1)}
+      65%{opacity:0;transform:scale(1.45)}
+      100%{opacity:0;transform:scale(1.45)}
+    }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
   {% include "_sidebar.html" %}
   <main class="main-content container-fluid">
   <div class="container-fluid mt-4">
+    {% set status_colors = status_colors or {} %}
     <h2>👥 Список клиентов</h2>
 
     {% if status_filter %}
@@ -75,7 +124,12 @@
         <tr data-search="{{ c.user_id }} {{ c.username }} {{ c.client_name }} {{ c.channel_name }} {{ c.formatted_time }} {{ c.client_status }}">
           <td>
                           <div class="d-flex align-items-center gap-2">
-                                <img src="/avatar/{{ c.user_id }}" width="24" height="24" class="rounded-circle" style="object-fit:cover;border:1px solid rgba(0,0,0,.08)" alt="">
+                                {% set _status_color = status_colors.get(c.client_status) if c.client_status else None %}
+                                {% set _resolved_color = _status_color if _status_color else '#0d6efd' %}
+                                {% set _has_status = c.client_status %}
+                                <span class="client-avatar-ring{% if _has_status %} status-has-color{% endif %}"{% if _has_status %} style="--status-color: {{ _resolved_color }};"{% endif %}>
+                                  <img src="/avatar/{{ c.user_id }}" width="24" height="24" class="client-avatar-img" alt="">
+                                </span>
                                 <code>{{ c.user_id }}</code>
                           </div>
                   </td>
