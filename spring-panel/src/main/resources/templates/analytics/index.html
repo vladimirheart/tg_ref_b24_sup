@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Аналитика</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>Аналитика</h1>
+    <nav>
+        <a th:href="@{/}">Диалоги</a>
+        <a th:href="@{/knowledge-base}">База знаний</a>
+        <a th:href="@{/logout}">Выйти</a>
+    </nav>
+</header>
+<main>
+    <section>
+        <h2>Тикеты</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Бизнес</th>
+                <th>Город</th>
+                <th>Статус</th>
+                <th>Всего</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${ticketSummary}">
+                <td th:text="${row.business()}"></td>
+                <td th:text="${row.city()}"></td>
+                <td th:text="${row.status()}"></td>
+                <td th:text="${row.total()}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+    <section>
+        <h2>Клиенты</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Логин</th>
+                <th>Последний контакт</th>
+                <th>Обращений</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${clientSummary}">
+                <td th:text="${row.username()}"></td>
+                <td th:text="${#temporals.format(row.lastContact(), 'dd.MM.yyyy HH:mm')}"></td>
+                <td th:text="${row.totalTickets()}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+</body>
+</html>
