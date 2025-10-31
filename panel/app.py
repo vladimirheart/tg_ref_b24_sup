@@ -56,7 +56,7 @@ from datetime import datetime as dt, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 import io
 import mimetypes
-from typing import Any
+from typing import Any, Iterable
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -4048,6 +4048,44 @@ def ensure_auto_close_config(settings):
 
 
 # Функция для загрузки настроек
+CLIENT_STATUS_COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
+
+
+def sanitize_client_status_list(raw_values: Any) -> list[str]:
+    statuses: list[str] = []
+    if isinstance(raw_values, (list, tuple)):
+        candidates = raw_values
+    else:
+        candidates = [raw_values] if raw_values else []
+    for entry in candidates:
+        if entry is None:
+            continue
+        value = str(entry).strip()
+        if value and value not in statuses:
+            statuses.append(value)
+    return statuses
+
+
+def sanitize_client_status_colors(raw_colors: Any, *, allowed_statuses: Iterable[str] | None = None) -> dict[str, str]:
+    allowed = {status for status in (allowed_statuses or []) if isinstance(status, str) and status.strip()}
+    result: dict[str, str] = {}
+    if not isinstance(raw_colors, dict):
+        return result
+    for key, value in raw_colors.items():
+        if not isinstance(key, str):
+            continue
+        label = key.strip()
+        if not label:
+            continue
+        if allowed and label not in allowed:
+            continue
+        color = str(value or "").strip()
+        if not CLIENT_STATUS_COLOR_PATTERN.match(color):
+            continue
+        result[label] = color.lower()
+    return result
+
+
 def load_settings():
     settings = {"auto_close_hours": 24, "categories": ["Консультация"], "client_statuses": ["Новый", "Постоянный", "VIP"]}
     if os.path.exists(SETTINGS_PATH):
@@ -4056,6 +4094,10 @@ def load_settings():
                 settings.update(json.load(f))
         except:
             pass
+    settings["client_statuses"] = sanitize_client_status_list(settings.get("client_statuses"))
+    settings["client_status_colors"] = sanitize_client_status_colors(
+        settings.get("client_status_colors"), allowed_statuses=settings.get("client_statuses")
+    )
     if not isinstance(settings.get("network_profiles"), list):
         settings["network_profiles"] = []
     settings["it_connection_categories"] = normalize_it_connection_categories(
@@ -6485,11 +6527,14 @@ def clients_list():
     if status_filter:
         clients_with_time = [c for c in clients_with_time if (c.get("client_status") or "") == status_filter]
 
+    settings = load_settings()
+
     return render_template(
         "clients.html",
         clients=clients_with_time,
         blacklist_filter=bl_filter,
-        status_filter=status_filter
+        status_filter=status_filter,
+        status_colors=settings.get("client_status_colors", {}),
     )
 
 
@@ -9361,9 +9406,26 @@ def update_settings():
             settings["categories"] = [cat for cat in data.get("categories", []) if str(cat).strip()]
             settings_modified = True
 
+        updated_statuses: list[str] | None = None
         if "client_statuses" in data:
-            settings["client_statuses"] = [status for status in data.get("client_statuses", []) if str(status).strip()]
-            settings_modified = True
+            updated_statuses = sanitize_client_status_list(data.get("client_statuses"))
+            if settings.get("client_statuses") != updated_statuses:
+                settings_modified = True
+            settings["client_statuses"] = updated_statuses
+
+        if "client_status_colors" in data:
+            allowed = updated_statuses if updated_statuses is not None else settings.get("client_statuses", [])
+            colors_payload = sanitize_client_status_colors(data.get("client_status_colors"), allowed_statuses=allowed)
+            if settings.get("client_status_colors") != colors_payload:
+                settings_modified = True
+            settings["client_status_colors"] = colors_payload
+        elif updated_statuses is not None:
+            filtered_colors = sanitize_client_status_colors(
+                settings.get("client_status_colors"), allowed_statuses=updated_statuses
+            )
+            if settings.get("client_status_colors") != filtered_colors:
+                settings_modified = True
+            settings["client_status_colors"] = filtered_colors
 
         if "network_profiles" in data:
             profiles = []
