@@ -2,6 +2,10 @@ spring:
   datasource:
     url: "jdbc:sqlite:${SUPPORT_BOT_DB_PATH:bot_database.db}"
     driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
   jpa:
     hibernate:
       ddl-auto: none
