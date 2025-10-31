@@ -2,19 +2,30 @@
 :root {
   --page-min-width: 1920px;
   font-size: 80%;
+  --page-min-height: 1080px;
 }
 
 html {
   background-color: #f8f9fa;
   min-width: var(--page-min-width);
+  min-height: var(--page-min-height);
   overflow-x: auto;
+  overflow-y: auto;
 }
 
 body {
   background-color: #f8f9fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   min-width: var(--page-min-width);
+  min-height: var(--page-min-height);
   overflow-x: auto;
+  overflow-y: auto;
+}
+
+.with-sidebar,
+.sidebar-layout,
+.main-content {
+  min-height: var(--page-min-height);
 }
 
 @media (max-width: 1919.98px) {
