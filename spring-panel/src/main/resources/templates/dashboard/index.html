@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Support Panel</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>Support Panel Dashboard</h1>
+    <nav>
+        <a th:href="@{/}">Диалоги</a>
+        <a th:if="${canViewAnalytics}" th:href="@{/analytics}">Аналитика</a>
+        <a th:if="${canEditKnowledgeBase}" th:href="@{/knowledge-base}">База знаний</a>
+        <a th:href="@{/logout}">Выйти</a>
+    </nav>
+</header>
+<main>
+    <section>
+        <h2>Сводка</h2>
+        <p>Эта страница демонстрирует перенос Flask шаблонов в Thymeleaf. Здесь появятся данные о тикетах, клиентах и уведомлениях.</p>
+    </section>
+</main>
+</body>
+</html>
