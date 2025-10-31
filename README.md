@@ -49,7 +49,7 @@
 
 Spring-версия панели совместима с Windows 10/11. Подробный пошаговый гайд расположен в [`docs/windows_setup.md`](docs/windows_setup.md). Вкратце:
 
-- установите JDK 17 и Maven 3.9+;
+- установите только JDK 17 (Maven будет загружен автоматически при первом запуске скриптов `mvnw`);
 - перейдите в `spring-panel` и выполните `.\run-windows.bat` в PowerShell или `cmd.exe`;
 - по умолчанию приложение стартует на <http://localhost:8080/> с логином `admin` / `admin`.
 
