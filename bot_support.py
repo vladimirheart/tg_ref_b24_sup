@@ -82,8 +82,10 @@ from bot_settings_utils import (
     rating_scale,
     sanitize_bot_settings,
 )
+from shared_config import shared_config_path
 
 ATTACHMENTS_DIR = "attachments"
+LOCATIONS_PATH = shared_config_path("locations.json")
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(os.path.join(ATTACHMENTS_DIR, "temp"), exist_ok=True)
 
@@ -485,14 +487,14 @@ def add_history(conn, ticket_id, sender, text, ts, message_type='text', attachme
 # --- загрузка структуры локаций ---
 def load_locations():
     try:
-        with open("locations.json", "r", encoding="utf-8") as f:
+        with open(LOCATIONS_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
             if isinstance(data, dict) and "tree" in data:
                 tree = data.get("tree")
                 return tree if isinstance(tree, dict) else {}
             return data if isinstance(data, dict) else {}
     except Exception as e:
-        logging.error(f"Ошибка загрузки locations.json: {e}")
+        logging.error(f"Ошибка загрузки config/shared/locations.json: {e}")
         return {}
 LOCATIONS = load_locations()
 BUSINESS_OPTIONS = list(LOCATIONS.keys())
