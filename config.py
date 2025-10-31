@@ -6,6 +6,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from shared_config import load_shared_json, shared_config_path
+
 # Загружаем переменные окружения из .env в корне
 BASE_DIR = Path(__file__).parent.absolute()
 load_dotenv(BASE_DIR / ".env")
@@ -13,7 +15,7 @@ load_dotenv(BASE_DIR / ".env")
 # Пути к базам данных и настройкам
 DB_PATH = BASE_DIR / "tickets.db"
 USERS_DB_PATH = BASE_DIR / "users.db"
-SETTINGS_PATH = BASE_DIR / "settings.json"
+SETTINGS_PATH = shared_config_path("settings.json")
 
 
 def _normalize_database_url(raw_url: str | None) -> str:
@@ -51,8 +53,7 @@ except ValueError:
 def load_settings() -> dict:
     """Загрузка настроек из settings.json с кешированием."""
     try:
-        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return load_shared_json("settings.json")
     except Exception as exc:
         logging.error("Ошибка загрузки settings.json: %s", exc)
         return {}
