@@ -60,7 +60,18 @@ for _extra in (F_ANIMATION, F_STICKER, F_VIDEO_NOTE, F_AUDIO):
         MEDIA_FILTERS |= _extra
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
+
 from config import DB_PATH, load_settings  # Убраны TOKEN и GROUP_CHAT_ID
+from db import (
+    ClientBlacklist,
+    ClientUnblockRequest,
+    Task,
+    ensure_client_blacklist_schema,
+    ensure_client_unblock_requests_schema,
+    session_scope,
+)
 from bot_settings_utils import (
     DEFAULT_BOT_PRESET_DEFINITIONS,
     build_location_presets,
@@ -152,34 +163,7 @@ def db():
     return conn
 
 
-def ensure_client_unblock_requests_schema():
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS client_unblock_requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id TEXT NOT NULL,
-                    channel_id INTEGER,
-                    reason TEXT,
-                    created_at TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'pending',
-                    decided_at TEXT,
-                    decided_by TEXT,
-                    decision_comment TEXT
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user
-                ON client_unblock_requests(user_id)
-                """
-            )
-    except Exception as exc:
-        logging.warning("ensure_client_unblock_requests_schema failed: %s", exc)
-
-
+ensure_client_blacklist_schema()
 ensure_client_unblock_requests_schema()
 
 
@@ -207,80 +191,84 @@ def _fetch_blacklist_flags(user_id: int) -> tuple[bool, bool]:
     return is_blacklisted, unblock_requested
 
 
-def _create_unblock_request_task(conn: sqlite3.Connection, user_id: str, reason: str) -> None:
-    try:
-        row = conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM tasks").fetchone()
-        seq = row["n"] if row and "n" in row.keys() else (row[0] if row else 1)
-    except Exception:
-        seq = 1
-    title = f"Запрос разблокировки клиента {user_id}"
-    reason_block = f"<p>Комментарий: {reason}</p>" if reason else ""
-    body_html = f"<p>Клиент {user_id} запросил разблокировку.</p>{reason_block}"
-    conn.execute(
-        """
-        INSERT INTO tasks (seq, source, title, body_html, creator, tag, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (seq, "DL", title, body_html, "system", "unblock_request", "Новая"),
-    )
-
-
 def _store_unblock_request(user_id: int, reason: str, channel_id: int | None) -> None:
     now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     str_user = str(user_id)
-    channel_id_int = None
+    channel_id_int: int | None = None
     if channel_id is not None:
         try:
             channel_id_int = int(channel_id)
         except (TypeError, ValueError):
             channel_id_int = None
 
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        conn.execute(
-            """
-            INSERT INTO client_blacklist (user_id, is_blacklisted, unblock_requested, unblock_requested_at)
-            VALUES (?, 1, 1, ?)
-            ON CONFLICT(user_id) DO UPDATE SET
-                unblock_requested=1,
-                unblock_requested_at=excluded.unblock_requested_at
-            """,
-            (str_user, now_iso),
-        )
-        existing = conn.execute(
-            """
-            SELECT id FROM client_unblock_requests
-            WHERE user_id = ? AND status = 'pending'
-            ORDER BY id DESC
-            LIMIT 1
-            """,
-            (str_user,),
-        ).fetchone()
-        if existing:
-            conn.execute(
-                """
-                UPDATE client_unblock_requests
-                SET reason = ?, created_at = ?, channel_id = ?, status = 'pending',
-                    decided_at = NULL, decided_by = NULL, decision_comment = NULL
-                WHERE id = ?
-                """,
-                (reason, now_iso, channel_id_int, existing["id"] if "id" in existing.keys() else existing[0]),
-            )
-            created_new = False
-        else:
-            conn.execute(
-                """
-                INSERT INTO client_unblock_requests (user_id, channel_id, reason, created_at, status)
-                VALUES (?, ?, ?, ?, 'pending')
-                """,
-                (str_user, channel_id_int, reason, now_iso),
-            )
-            created_new = True
+    created_new = False
 
-        if created_new:
-            _create_unblock_request_task(conn, str_user, reason)
+    try:
+        with session_scope() as session:
+            blacklist = session.get(ClientBlacklist, str_user)
+            if blacklist is None:
+                session.add(
+                    ClientBlacklist(
+                        user_id=str_user,
+                        is_blacklisted=1,
+                        unblock_requested=1,
+                        unblock_requested_at=now_iso,
+                    )
+                )
+            else:
+                blacklist.is_blacklisted = 1
+                blacklist.unblock_requested = 1
+                blacklist.unblock_requested_at = now_iso
 
-        conn.commit()
+            stmt = (
+                select(ClientUnblockRequest)
+                .where(
+                    ClientUnblockRequest.user_id == str_user,
+                    ClientUnblockRequest.status == "pending",
+                )
+                .order_by(ClientUnblockRequest.id.desc())
+                .limit(1)
+            )
+            existing = session.scalars(stmt).first()
+            if existing:
+                existing.reason = reason
+                existing.created_at = now_iso
+                existing.channel_id = channel_id_int
+                existing.status = "pending"
+                existing.decided_at = None
+                existing.decided_by = None
+                existing.decision_comment = None
+            else:
+                session.add(
+                    ClientUnblockRequest(
+                        user_id=str_user,
+                        channel_id=channel_id_int,
+                        reason=reason,
+                        created_at=now_iso,
+                        status="pending",
+                    )
+                )
+                created_new = True
+
+            if created_new:
+                max_seq = session.scalar(select(func.max(Task.seq))) or 0
+                seq_value = max_seq + 1
+                title = f"Запрос разблокировки клиента {str_user}"
+                reason_block = f"<p>Комментарий: {reason}</p>" if reason else ""
+                body_html = f"<p>Клиент {str_user} запросил разблокировку.</p>{reason_block}"
+                session.add(
+                    Task(
+                        seq=seq_value,
+                        source="DL",
+                        title=title,
+                        body_html=body_html,
+                        creator="system",
+                        tag="unblock_request",
+                        status="Новая",
+                    )
+                )
+    except SQLAlchemyError as exc:
+        logging.error("Failed to store unblock request via SQLAlchemy: %s", exc)
 
 
 async def _inform_blacklisted_user(update: Update, *, pending_request: bool) -> None:
