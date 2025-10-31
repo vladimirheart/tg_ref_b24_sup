@@ -62,7 +62,7 @@ export SPRING_DATASOURCE_USERNAME="panel"
 export SPRING_DATASOURCE_PASSWORD="panel"
 
 # Запуск панели
-cd spring-panel
+./mvnw spring-boot:run
 mvn spring-boot:run
 ```
 
@@ -71,5 +71,4 @@ mvn spring-boot:run
 ## Проверка
 
 - Python: выполните `python -c "from config import TELEGRAM_BOT_TOKEN; print(TELEGRAM_BOT_TOKEN)"`.
-- Spring: запустите `mvn spring-boot:run` и убедитесь, что лог сообщает об успешном подключении к БД.
-
+- Spring: запустите `./mvnw spring-boot:run` (Linux/macOS) или `.\\mvnw.cmd spring-boot:run` (Windows) и убедитесь, что лог сообщает об успешном подключении к БД.
