@@ -10,6 +10,4 @@ numpy
 pandas
 Pillow==11.3.0
 npm
-python-docx
-html2docx
-xhtml2pdf
+psycopg
