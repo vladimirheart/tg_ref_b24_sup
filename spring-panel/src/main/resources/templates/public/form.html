@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Заявка</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<main>
+    <h1>Форма обращения</h1>
+    <form id="public-form">
+        <label>
+            Сообщение
+            <textarea name="message" required></textarea>
+        </label>
+        <button type="submit">Отправить</button>
+    </form>
+    <pre id="response"></pre>
+</main>
+<script th:inline="javascript">
+    const form = document.getElementById('public-form');
+    const output = document.getElementById('response');
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {message: form.message.value};
+        const channelId = '[[${channelId}]]';
+        const resp = await fetch(`/api/public/forms/${channelId}/sessions`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        output.textContent = await resp.text();
+    });
+</script>
+</body>
+</html>
