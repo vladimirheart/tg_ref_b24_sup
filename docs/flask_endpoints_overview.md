@@ -4,7 +4,7 @@
 This document summarizes the existing Flask routes in `panel/app.py` that we must migrate to Spring Boot. The routes are grouped by responsibility to help design controller boundaries for the new Java codebase.
 
 ## Template Rendering Endpoints
-- `GET /` – protected by `login_required` and `page_access_required("dialogs")`. Renders `index.html` with aggregated ticket statistics and settings loaded from `settings.json`.【F:panel/app.py†L5409-L5462】
+- `GET /` – protected by `login_required` and `page_access_required("dialogs")`. Renders `index.html` with aggregated ticket statistics and settings loaded from `config/shared/settings.json`.【F:panel/app.py†L5409-L5462】
 - `GET /knowledge_base`, `GET /knowledge-base` – protected by knowledge base permissions; render `knowledge_base.html` with article list pulled from SQLite.【F:panel/app.py†L6721-L6727】
 - `GET /knowledge_base/new` – renders a blank article editor using `knowledge_base_article.html` and generates a draft token.【F:panel/app.py†L6730-L6751】
 - `GET /knowledge_base/<int:article_id>` – renders an editor populated with an existing article by ID.【F:panel/app.py†L6754-L6764】
