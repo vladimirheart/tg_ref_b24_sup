@@ -6,9 +6,9 @@ This guide describes how to run the Spring Boot replacement for the support pane
 
 ## 1. Install prerequisites
 1. Download and install [Microsoft Build of OpenJDK 17](https://learn.microsoft.com/java/openjdk/download#openjdk-17). During installation enable the option to set `JAVA_HOME`.
-2. Install Apache Maven 3.9+ from the [official binaries](https://maven.apache.org/download.cgi) and add the `bin` directory to the `PATH`. Restart the terminal so the new PATH is applied.
+2. (Optional) If you already have Maven installed globally you can keep using it. Otherwise the repository now ships with cross-platform Maven Wrapper scripts that will download Maven 3.9.6 on first run.
 
-> ℹ️  If you already use a JDK manager (SDKMAN!, IntelliJ, etc.) you only need to ensure that `java -version` prints 17.x and `mvn -v` reports Maven 3.9 or newer.
+> ℹ️  If you already use a JDK manager (SDKMAN!, IntelliJ, etc.) simply ensure `java -version` prints 17.x. The helper scripts prefer the local `mvnw`/`mvnw.cmd` and fall back to a global Maven installation if present.
 
 ## 2. Clone the repository
 ```powershell
@@ -22,7 +22,7 @@ The repository ships with a helper script that works in *cmd.exe* and PowerShell
 PS> .\run-windows.bat
 ```
 
-The script will prefer the Maven Wrapper (`mvnw.cmd`) if you add it later; otherwise it calls the globally installed Maven and runs `spring-boot:run`.
+The script now bundles the Maven Wrapper (`mvnw.cmd`), so Maven will be downloaded automatically on the first run. If you have Maven installed globally it will be used as a fallback.
 
 After the dependencies download the panel becomes available at <http://localhost:8080/>. The default admin credentials are `admin` / `admin`.
 
@@ -48,7 +48,7 @@ app:
 Backslashes must be escaped when defined via environment variables or JVM system properties (e.g. `-Dapp.storage.attachments=C:\\PanelData`).
 
 ## 5. Useful commands
-- Rebuild JAR: `mvn package`
+- Rebuild JAR: `mvnw.cmd package` (or `mvn package` if Maven is installed globally)
 - Run from the compiled JAR: `java -jar target/panel-0.0.1-SNAPSHOT.jar`
 - Open the in-memory H2 console: browse to <http://localhost:8080/h2-console> and use `sa`/`sa`.
 
