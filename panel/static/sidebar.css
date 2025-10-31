@@ -7,11 +7,12 @@
 
 body.with-sidebar {
   display: block;
-  min-height: 100vh;
   margin: 0;
   background: #f8f9fa;
   padding-left: var(--sidebar-w);
   transition: padding-left .2s ease;
+  min-height: var(--page-min-height, 1080px);
+  min-height: max(100vh, var(--page-min-height, 1080px));
 }
 
 body.with-sidebar.sidebar-collapsed {
@@ -26,7 +27,8 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-layout {
   display: block;
   width: 100%;
-  min-height: 100vh;
+  min-height: var(--page-min-height, 1080px);
+  min-height: max(100vh, var(--page-min-height, 1080px));
 }
 
 .sidebar {
@@ -62,7 +64,8 @@ body.with-sidebar.sidebar-hovering {
 }
 .main-content {
   min-width: 0;
-  min-height: 100vh;
+  min-height: var(--page-min-height, 1080px);
+  min-height: max(100vh, var(--page-min-height, 1080px));
 }
 
 /* Заголовок сайдбара */
