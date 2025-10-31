@@ -560,6 +560,37 @@
       background-color: #f1f3f5;
       border-color: #dee2e6;
     }
+    .status-row {
+      align-items: center;
+    }
+    .status-row-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .status-color-preview {
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: var(--status-color, #0d6efd);
+      box-shadow: inset 0 0 0 2px #fff;
+      flex: 0 0 auto;
+    }
+    .status-color-input {
+      width: 2.75rem;
+      height: 2.75rem;
+      padding: 0;
+      border: none;
+      background: transparent;
+      flex: 0 0 auto;
+    }
+    .status-color-input:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
     .status-row .status-input[disabled] {
       background-color: #f8f9fa;
     }
@@ -8235,8 +8266,65 @@
   const STATUS_FILTER_BASE_URL = "{{ url_for('clients_list') }}";
   let CLIENT_STATUS_USAGE = {{ status_usage | tojson }} || {};
   const INITIAL_CLIENT_STATUSES = {{ settings.client_statuses | tojson }} || [];
+  const INITIAL_CLIENT_STATUS_COLORS = {{ settings.client_status_colors | tojson }} || {};
+  const STATUS_COLOR_FALLBACK = '#0d6efd';
+  let CLIENT_STATUS_COLORS = sanitizeStatusColorMap(INITIAL_CLIENT_STATUS_COLORS);
   let statusEditMode = false;
   let initialStatusesSnapshot = [];
+
+  function isValidHexColor(value) {
+    return typeof value === 'string' && /^#(?:[0-9a-f]{6})$/i.test(value.trim());
+  }
+
+  function sanitizeColorValue(value) {
+    const raw = typeof value === 'string' ? value.trim() : String(value || '');
+    return isValidHexColor(raw) ? raw.toLowerCase() : STATUS_COLOR_FALLBACK;
+  }
+
+  function sanitizeStatusColorMap(source) {
+    const map = {};
+    if (!source || typeof source !== 'object') {
+      return map;
+    }
+    Object.entries(source).forEach(([key, value]) => {
+      if (typeof key !== 'string') {
+        return;
+      }
+      const label = key.trim();
+      if (!label) {
+        return;
+      }
+      map[label] = sanitizeColorValue(value);
+    });
+    return map;
+  }
+
+  function resolveStatusColor(status) {
+    const label = typeof status === 'string' ? status.trim() : '';
+    if (label && CLIENT_STATUS_COLORS && CLIENT_STATUS_COLORS[label]) {
+      return sanitizeColorValue(CLIENT_STATUS_COLORS[label]);
+    }
+    return STATUS_COLOR_FALLBACK;
+  }
+
+  function normalizeStatusItem(entry) {
+    if (entry && typeof entry === 'object') {
+      const rawValue =
+        typeof entry.value === 'string'
+          ? entry.value
+          : typeof entry.label === 'string'
+          ? entry.label
+          : typeof entry.status === 'string'
+          ? entry.status
+          : '';
+      const value = rawValue.trim();
+      const colorSource =
+        entry.color || entry.colour || entry.hex || (value ? CLIENT_STATUS_COLORS?.[value] : '');
+      return { value, color: sanitizeColorValue(colorSource || resolveStatusColor(value)) };
+    }
+    const value = typeof entry === 'string' ? entry.trim() : '';
+    return { value, color: resolveStatusColor(value) };
+  }
 
   function buildStatusFilterLink(status) {
     const value = typeof status === 'string' ? status.trim() : '';
@@ -8249,12 +8337,17 @@
     if (!(row instanceof HTMLElement)) return;
     const input = row.querySelector('.status-input');
     const link = row.querySelector('.status-count-link');
+    const colorPreview = row.querySelector('.status-color-preview');
     if (!(input instanceof HTMLInputElement) || !(link instanceof HTMLAnchorElement)) return;
 
     const value = input.value.trim();
     const original = row.dataset.originalValue || '';
     const baseCount = Number(row.dataset.count || 0);
     let displayCount = baseCount;
+
+    if (colorPreview instanceof HTMLElement) {
+      colorPreview.title = value ? `Цвет статуса «${value}»` : 'Цвет статуса';
+    }
 
     if (!value) {
       link.textContent = '0';
@@ -8273,12 +8366,38 @@
   }
 
   function buildStatusRow(status) {
+    const { value, color } = normalizeStatusItem(status);
     const container = document.createElement('div');
-    container.className = 'list-group-item d-flex align-items-center gap-2 status-row';
-    const value = typeof status === 'string' ? status : '';
+    container.className = 'list-group-item d-flex align-items-center gap-3 status-row';
     const count = Number((CLIENT_STATUS_USAGE && CLIENT_STATUS_USAGE[value]) || 0);
     container.dataset.originalValue = value;
     container.dataset.count = String(count);
+    container.dataset.color = color;
+
+    const main = document.createElement('div');
+    main.className = 'status-row-main flex-grow-1';
+
+    const colorPreview = document.createElement('span');
+    colorPreview.className = 'status-color-preview';
+    colorPreview.style.setProperty('--status-color', color);
+    colorPreview.title = value ? `Цвет статуса «${value}»` : 'Цвет статуса';
+    main.appendChild(colorPreview);
+
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.className = 'status-color-input form-control form-control-color';
+    colorInput.value = color;
+    colorInput.disabled = !statusEditMode;
+    if (!statusEditMode) {
+      colorInput.classList.add('d-none');
+    }
+    colorInput.addEventListener('input', () => {
+      const sanitized = sanitizeColorValue(colorInput.value);
+      colorInput.value = sanitized;
+      container.dataset.color = sanitized;
+      colorPreview.style.setProperty('--status-color', sanitized);
+    });
+    main.appendChild(colorInput);
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -8287,7 +8406,9 @@
     input.disabled = !statusEditMode;
     input.placeholder = 'Новый статус';
     input.addEventListener('input', () => handleStatusInputChange(container));
-    container.appendChild(input);
+    main.appendChild(input);
+
+    container.appendChild(main);
 
     const badge = document.createElement('a');
     badge.className = 'status-count-link';
@@ -8330,6 +8451,7 @@
       const row = buildStatusRow(status);
       list.appendChild(row);
     });
+    updateStatusesEmptyState();
   }
 
   function updateStatusesEmptyState() {
@@ -8340,10 +8462,22 @@
     placeholder.classList.toggle('d-none', hasRows);
   }
 
-  function collectStatuses() {
-    return Array.from(document.querySelectorAll('#statusesList .status-input'))
-      .map((input) => input.value.trim())
-      .filter((value) => Boolean(value));
+  function collectStatusItems() {
+    return Array.from(document.querySelectorAll('#statusesList .status-row'))
+      .map((row) => {
+        const input = row.querySelector('.status-input');
+        const colorInput = row.querySelector('.status-color-input');
+        const preview = row.querySelector('.status-color-preview');
+        const value = input instanceof HTMLInputElement ? input.value.trim() : '';
+        const rawColor = colorInput instanceof HTMLInputElement ? colorInput.value : row.dataset.color;
+        const color = sanitizeColorValue(rawColor);
+        row.dataset.color = color;
+        if (preview instanceof HTMLElement) {
+          preview.style.setProperty('--status-color', color);
+        }
+        return { value, color };
+      })
+      .filter((item) => Boolean(item.value));
   }
 
   function setStatusesEditMode(enable, { restoreSnapshot = false } = {}) {
@@ -8366,8 +8500,13 @@
       const input = row.querySelector('.status-input');
       const removeBtn = row.querySelector('[data-status-remove]');
       const badge = row.querySelector('.status-count-link');
+      const colorInput = row.querySelector('.status-color-input');
       if (input instanceof HTMLInputElement) {
         input.disabled = !statusEditMode;
+      }
+      if (colorInput instanceof HTMLInputElement) {
+        colorInput.disabled = !statusEditMode;
+        colorInput.classList.toggle('d-none', !statusEditMode);
       }
       if (removeBtn instanceof HTMLElement) {
         removeBtn.classList.toggle('d-none', !statusEditMode);
@@ -8380,7 +8519,7 @@
   }
 
   function startStatusesEdit() {
-    initialStatusesSnapshot = collectStatuses();
+    initialStatusesSnapshot = collectStatusItems();
     setStatusesEditMode(true);
   }
 
@@ -8426,7 +8565,12 @@
 
   async function saveClientStatuses() {
     const saveBtn = document.getElementById('saveStatusesBtn');
-    const statuses = collectStatuses();
+    const items = collectStatusItems();
+    const statuses = items.map((item) => item.value);
+    const colors = items.reduce((acc, item) => {
+      acc[item.value] = item.color;
+      return acc;
+    }, {});
     if (!statuses.length) {
       if (confirm('Список статусов пуст. Сохранить и удалить все статусы?')) {
         // proceed
@@ -8439,14 +8583,15 @@
       const response = await fetch('/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_statuses: statuses })
+        body: JSON.stringify({ client_statuses: statuses, client_status_colors: colors })
       });
       const data = await response.json();
       if (!response.ok || data.success === false) {
         throw new Error(data.error || 'Не удалось сохранить статусы');
       }
       syncStatusUsage(statuses);
-      renderStatusesList(statuses);
+      CLIENT_STATUS_COLORS = sanitizeStatusColorMap(colors);
+      renderStatusesList(items);
       setStatusesEditMode(false);
       alert('✅ Статусы клиентов сохранены');
     } catch (error) {
@@ -8458,6 +8603,7 @@
   }
 
   function initClientStatuses() {
+    CLIENT_STATUS_COLORS = sanitizeStatusColorMap(INITIAL_CLIENT_STATUS_COLORS);
     renderStatusesList(Array.isArray(INITIAL_CLIENT_STATUSES) ? INITIAL_CLIENT_STATUSES : []);
     updateStatusesEmptyState();
     setStatusesEditMode(false);
