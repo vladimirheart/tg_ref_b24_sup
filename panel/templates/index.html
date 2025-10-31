@@ -563,6 +563,14 @@
 #historyModal .sidebar-info-panel .sidebar-scroll > * {
   flex: 0 0 auto;
 }
+#historySidebar {
+  transition: width 0.3s ease;
+}
+
+#historySidebar .sidebar-content {
+  transition: opacity 0.2s ease;
+}
+
 #historySidebar.collapsed {
   width: var(--sidebar-collapsed-width, 56px) !important;
   min-width: var(--sidebar-collapsed-width, 56px) !important;
@@ -571,10 +579,12 @@
   opacity: 0;
   pointer-events: none;
 }
-#historySidebar.collapsed:hover {
+#historySidebar.collapsed:hover,
+#historySidebar.collapsed.hovered {
   width: var(--sidebar-hover-width, 360px) !important;
 }
-#historySidebar.collapsed:hover .sidebar-content {
+#historySidebar.collapsed:hover .sidebar-content,
+#historySidebar.collapsed.hovered .sidebar-content {
   opacity: .6;
   pointer-events: auto;
 }
@@ -1942,11 +1952,11 @@ function markTicketReopenedLocally() {
                         <option value="large">Крупный</option>
                       </select>
                     </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item" id="toggleHistoryFullscreenBtn" aria-pressed="false" title="Развернуть окно истории">⛶</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item" id="inviteToDialogBtn" disabled>
                       Пригласить коллегу
                     </button>
                   </div>
+                  <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item me-2" id="toggleHistoryFullscreenBtn" aria-pressed="false" title="Развернуть окно истории">⛶</button>
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
       <div class="modal-body p-0 flex-grow-1">
@@ -8833,11 +8843,18 @@ function rememberSidebarWidth(width) {
   localStorage.setItem('historySidebarWidth', clamped);
 }
 
+let sidebarHoverHideTimeout = null;
+
 function setSidebarCollapsed(collapsed) {
   const sidebar = document.getElementById('historySidebar');
   const toggle = document.getElementById('sidebarCollapseToggle');
   const resizer = document.getElementById('historyPaneResizer');
   if (!sidebar || !toggle) return;
+
+  if (sidebarHoverHideTimeout) {
+    clearTimeout(sidebarHoverHideTimeout);
+    sidebarHoverHideTimeout = null;
+  }
 
   const storedWidth = parseFloat(
     sidebar.dataset.expandedWidth ||
@@ -8852,6 +8869,7 @@ function setSidebarCollapsed(collapsed) {
 
   if (collapsed) {
     sidebar.classList.add('collapsed');
+    sidebar.classList.remove('hovered');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.title = 'Развернуть панель';
     if (!sidebar.dataset.expandedWidth && Number.isFinite(storedWidth)) {
@@ -8860,6 +8878,7 @@ function setSidebarCollapsed(collapsed) {
     if (resizer) resizer.classList.add('invisible');
   } else {
     sidebar.classList.remove('collapsed');
+    sidebar.classList.remove('hovered');
     toggle.setAttribute('aria-expanded', 'true');
     toggle.title = 'Свернуть панель';
     if (Number.isFinite(storedWidth)) {
@@ -9141,6 +9160,29 @@ document.addEventListener('DOMContentLoaded', function() {
           rememberSidebarWidth(storedWidth);
         }
       }
+    });
+  }
+
+  const sidebarPane = document.getElementById('historySidebar');
+  if (sidebarPane) {
+    sidebarPane.addEventListener('mouseenter', () => {
+      if (!sidebarPane.classList.contains('collapsed')) return;
+      if (sidebarHoverHideTimeout) {
+        clearTimeout(sidebarHoverHideTimeout);
+        sidebarHoverHideTimeout = null;
+      }
+      sidebarPane.classList.add('hovered');
+    });
+
+    sidebarPane.addEventListener('mouseleave', () => {
+      if (!sidebarPane.classList.contains('collapsed')) return;
+      if (sidebarHoverHideTimeout) {
+        clearTimeout(sidebarHoverHideTimeout);
+      }
+      sidebarHoverHideTimeout = setTimeout(() => {
+        sidebarPane.classList.remove('hovered');
+        sidebarHoverHideTimeout = null;
+      }, 1000);
     });
   }
 
