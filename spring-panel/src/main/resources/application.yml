@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:panel;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  h2:
+    console:
+      enabled: true
+  sql:
+    init:
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+      mode: always
+  session:
+    jdbc:
+      initialize-schema: always
+  thymeleaf:
+    cache: false
+
+app:
+  security:
+    bootstrap:
+      username: admin
+      password: admin
+  storage:
+    attachments: attachments
+    knowledge-base: attachments/knowledge_base
+    avatars: attachments/avatars
