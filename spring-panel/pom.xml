@@ -111,4 +111,11 @@
             </plugin>
         </plugins>
     </build>
+
+    <repositories>
+        <repository>
+            <id>flywaydb</id>
+            <url>https://repo.flywaydb.org/repo</url>
+        </repository>
+    </repositories>
 </project>
