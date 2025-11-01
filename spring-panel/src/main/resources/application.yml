@@ -1,14 +1,6 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:panel;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: sa
   flyway:
     enabled: true
-  h2:
-    console:
-      enabled: true
   sql:
     init:
       mode: never
@@ -27,3 +19,8 @@ app:
     attachments: attachments
     knowledge-base: attachments/knowledge_base
     avatars: attachments/avatars
+  datasource:
+    sqlite:
+      path: ${APP_SQLITE_PATH:db/panel.db}
+      journal-mode: ${APP_SQLITE_JOURNAL_MODE:WAL}
+      busy-timeout-ms: ${APP_SQLITE_BUSY_TIMEOUT_MS:5000}
