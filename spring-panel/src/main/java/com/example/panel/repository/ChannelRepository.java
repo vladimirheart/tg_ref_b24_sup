@@ -10,4 +10,6 @@ public interface ChannelRepository extends JpaRepository<Channel, Long> {
     Optional<Channel> findByToken(String token);
 
     Optional<Channel> findByPublicId(String publicId);
+
+    Optional<Channel> findByPublicIdIgnoreCase(String publicId);
 }
