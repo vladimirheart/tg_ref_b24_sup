@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Transactional
@@ -158,10 +159,10 @@ public class PublicFormService {
             if (!root.isArray()) {
                 return List.of();
             }
-            int index = 0;
+            AtomicInteger index = new AtomicInteger(0);
             return objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {})
                     .stream()
-                    .map(entry -> normalizeQuestion(entry, ++index))
+                    .map(entry -> normalizeQuestion(entry, index.incrementAndGet()))
                     .sorted((a, b) -> Integer.compare(Optional.ofNullable(a.order()).orElse(0), Optional.ofNullable(b.order()).orElse(0)))
                     .toList();
         } catch (Exception ex) {
