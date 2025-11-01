@@ -103,7 +103,7 @@ class SupportPanelIntegrationTests {
 
         List<KnowledgeArticleSummary> summaries = knowledgeBaseService.listArticles();
         assertThat(summaries).hasSize(1);
-        assertThat(summaries.getFirst().title()).isEqualTo("Инструкция");
+        assertThat(summaries.get(0).title()).isEqualTo("Инструкция");
     }
 
     @Test
@@ -133,7 +133,7 @@ class SupportPanelIntegrationTests {
         List<NotificationDto> notifications = notificationService.findForUser("operator");
         assertThat(notifications).hasSize(2);
 
-        notificationService.markAsRead("operator", notifications.getFirst().id());
+        notificationService.markAsRead("operator", notifications.get(0).id());
         NotificationSummary after = notificationService.summary("operator");
         assertThat(after.unreadCount()).isEqualTo(1);
     }
