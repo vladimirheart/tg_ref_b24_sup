@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -84,7 +85,13 @@ public class AttachmentService {
     public void purgeDraftAttachments(String prefix) throws IOException {
         try (var stream = Files.list(knowledgeBaseRoot)) {
             stream.filter(path -> path.getFileName().toString().startsWith(prefix))
-                    .forEach(FileSystemUtils::deleteRecursively);
+                    .forEach(path -> {
+                        try {
+                            FileSystemUtils.deleteRecursively(path);
+                        } catch (IOException ex) {
+                            throw new UncheckedIOException("Failed to delete " + path, ex);
+                        }
+                    });
         }
     }
 
