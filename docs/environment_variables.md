@@ -14,6 +14,8 @@
 | `SPRING_DATASOURCE_URL` и `SPRING_DATASOURCE_USERNAME/PASSWORD` | подключения к СУБД для `spring-panel` | Spring панель |
 
 > ℹ️  Если значения `SPRING_DATASOURCE_*` не заданы, Spring использует встроенную H2 в памяти.
+>
+> 📌  Профиль `postgres` по умолчанию ожидает пользователя/пароль `postgres`/`postgres`. При необходимости переопределите значения через `POSTGRES_USER` и `POSTGRES_PASSWORD` или `SPRING_DATASOURCE_USERNAME`/`SPRING_DATASOURCE_PASSWORD`.
 
 ## .env в корне
 
@@ -38,8 +40,8 @@ $env:SECRET_KEY = "super-secret-key"
 
 # Maven/Spring Boot
 $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/panel"
-$env:SPRING_DATASOURCE_USERNAME = "panel"
-$env:SPRING_DATASOURCE_PASSWORD = "panel"
+$env:SPRING_DATASOURCE_USERNAME = "postgres"
+$env:SPRING_DATASOURCE_PASSWORD = "postgres"
 
 # Запуск бота
 cd java-bot
@@ -58,8 +60,8 @@ export SECRET_KEY="super-secret-key"
 
 # Maven/Spring Boot параметры
 export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/panel"
-export SPRING_DATASOURCE_USERNAME="panel"
-export SPRING_DATASOURCE_PASSWORD="panel"
+export SPRING_DATASOURCE_USERNAME="postgres"
+export SPRING_DATASOURCE_PASSWORD="postgres"
 
 # Запуск панели
 ./mvnw spring-boot:run
