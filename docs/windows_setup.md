@@ -17,7 +17,7 @@ PS> cd tg_ref_b24_sup\spring-panel
 ```
 
 ## 3. Start the application
-The repository ships with a helper script that works in *cmd.exe* and PowerShell:
+The repository ships with a helper script that works in *cmd.exe* and PowerShell. It checks for JDK 17, prefers the bundled Maven Wrapper and falls back to a global Maven installation if present:
 ```powershell
 PS> .\run-windows.bat
 ```
@@ -25,6 +25,18 @@ PS> .\run-windows.bat
 The script now bundles the Maven Wrapper (`mvnw.cmd`), so Maven will be downloaded automatically on the first run. If you have Maven installed globally it will be used as a fallback.
 
 After the dependencies download the panel becomes available at <http://localhost:8080/>. The default admin credentials are `admin` / `admin`.
+
+### JVM and application arguments
+
+To tune the JVM or pass extra Spring Boot arguments export `JAVA_OPTS` and `SPRING_OPTS` before launching:
+
+```powershell
+$env:JAVA_OPTS = "-Xmx1024m -Duser.timezone=UTC"
+$env:SPRING_OPTS = "--server.port=9090 --spring.profiles.active=prod"
+./run-windows.bat --debug
+```
+
+Both variables are optional; any additional command-line arguments are forwarded to `mvn spring-boot:run`.
 
 ## 4. Storage directories on NTFS
 Uploaded files are stored under the working directory:
@@ -35,17 +47,16 @@ attachments
 └── avatars
 ```
 
-If you prefer a different location on Windows (for example `D:\PanelData`), update `application.yml`:
+If you prefer a different location on Windows (for example `D:\PanelData`), either update `application.yml` or set environment variables before starting the panel:
 
-```yaml
-app:
-  storage:
-    attachments: D:/PanelData
-    knowledge-base: D:/PanelData/knowledge_base
-    avatars: D:/PanelData/avatars
+```powershell
+$env:APP_STORAGE_ATTACHMENTS = "D:/PanelData"
+$env:APP_STORAGE_KNOWLEDGE_BASE = "D:/PanelData/knowledge_base"
+$env:APP_STORAGE_AVATARS = "D:/PanelData/avatars"
+./run-windows.bat
 ```
 
-Backslashes must be escaped when defined via environment variables or JVM system properties (e.g. `-Dapp.storage.attachments=C:\\PanelData`).
+The Spring Boot relaxed binding automatically maps these variables to `app.storage.*`. Backslashes must be escaped when defined via JVM system properties (e.g. `-Dapp.storage.attachments=C:\\PanelData`).
 
 ## 5. Useful commands
 - Rebuild JAR: `mvnw.cmd package` (or `mvn package` if Maven is installed globally)
@@ -53,3 +64,17 @@ Backslashes must be escaped when defined via environment variables or JVM system
 - Open the in-memory H2 console: browse to <http://localhost:8080/h2-console> and use `sa`/`sa`.
 
 The application has been verified to create and normalize directories via `java.nio.file.Path`, so the same code paths work on both Windows and Linux.
+
+## 6. Quick start on Linux
+
+Linux users can reuse the same workflow without installing WSL:
+
+```bash
+cd spring-panel
+chmod +x run-linux.sh   # once after cloning
+export JAVA_OPTS="-Xmx1024m"
+export SPRING_OPTS="--server.port=9090"
+./run-linux.sh --debug
+```
+
+The script validates that Java 17 is present, uses the Maven Wrapper if available and exits cleanly on `Ctrl+C`. Storage directories can be overridden with the same `APP_STORAGE_*` variables as on Windows.
