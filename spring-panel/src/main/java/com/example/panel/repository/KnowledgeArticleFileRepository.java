@@ -8,4 +8,6 @@ import java.util.List;
 public interface KnowledgeArticleFileRepository extends JpaRepository<KnowledgeArticleFile, Long> {
 
     List<KnowledgeArticleFile> findByDraftToken(String draftToken);
+
+    List<KnowledgeArticleFile> findByArticleId(Long articleId);
 }
