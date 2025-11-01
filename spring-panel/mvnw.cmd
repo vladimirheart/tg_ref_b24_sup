@@ -16,16 +16,16 @@ IF NOT EXIST "%WRAPPER_DIR%" (
 )
 
 IF NOT EXIST "%ARCHIVE%" (
-  POWERSHELL -NoProfile -ExecutionPolicy Bypass -Command "\
-    Write-Host 'Downloading Maven %MAVEN_VERSION%...'; \
-    Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%ARCHIVE%'"
+  POWERSHELL -NoProfile -ExecutionPolicy Bypass -Command ^
+    "Write-Host 'Downloading Maven %MAVEN_VERSION%...'; ^
+     Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%ARCHIVE%'"
 )
 
 IF NOT EXIST "%ARCHIVE%" GOTO fallback_mvn
 
-POWERSHELL -NoProfile -ExecutionPolicy Bypass -Command "\
-  Write-Host 'Extracting Maven %MAVEN_VERSION%...'; \
-  Expand-Archive -Path '%ARCHIVE%' -DestinationPath '%WRAPPER_DIR%' -Force"
+POWERSHELL -NoProfile -ExecutionPolicy Bypass -Command ^
+  "Write-Host 'Extracting Maven %MAVEN_VERSION%...'; ^
+   Expand-Archive -Path '%ARCHIVE%' -DestinationPath '%WRAPPER_DIR%' -Force""
 
 :run_maven
 IF EXIST "%MAVEN_CMD%" (
