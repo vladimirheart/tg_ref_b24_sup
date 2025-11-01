@@ -15,18 +15,26 @@ if not defined JAVA_EXE (
     exit /b 1
 )
 
-for /f "tokens=3" %%V in ('"%JAVA_EXE%" -version 2^>^&1 ^| findstr /i "version"') do (
-    set "JAVA_VERSION=%%~V"
-    goto CheckJava
+set "JAVA_VERSION_FILE=%TEMP%\spring-panel-java-version.txt"
+"%JAVA_EXE%" -version 1>nul 2>"%JAVA_VERSION_FILE%"
+if errorlevel 1 (
+    echo [ERROR] Unable to determine Java version.
+    del "%JAVA_VERSION_FILE%" >nul 2>&1
+    exit /b 1
 )
-
-:CheckJava
-if not defined JAVA_VERSION (
+set /p "JAVA_VERSION_LINE=" <"%JAVA_VERSION_FILE%"
+del "%JAVA_VERSION_FILE%" >nul 2>&1
+if not defined JAVA_VERSION_LINE (
     echo [ERROR] Unable to determine Java version.
     exit /b 1
 )
+for /f "tokens=3 delims= " %%A in ("%JAVA_VERSION_LINE%") do set "JAVA_VERSION=%%~A"
 set "JAVA_VERSION=%JAVA_VERSION:\"=%"
 for /f "delims=." %%M in ("%JAVA_VERSION%") do set "JAVA_MAJOR=%%M"
+if not defined JAVA_MAJOR (
+    echo [ERROR] Unable to determine Java version.
+    exit /b 1
+)
 if not "%JAVA_MAJOR%"=="17" (
     echo [ERROR] JDK 17 is required, but %JAVA_VERSION% was detected.
     exit /b 1
