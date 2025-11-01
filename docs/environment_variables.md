@@ -30,6 +30,23 @@ SUPPORT_BOT_DB_PATH=bot_database.db
 
 `python-dotenv` автоматически загрузит файл при старте Python-сервисов.
 
+# Переопределение Postgres-профиля
+
+Профиль Spring `postgres` читает логин и пароль из переменных окружения. Достаточно
+установить их перед запуском — править `application-postgres.yml` не нужно. Можно
+использовать либо универсальные `SPRING_DATASOURCE_*`, либо короткие
+`POSTGRES_USER`/`POSTGRES_PASSWORD`.
+
+```ini
+# Пример блока в .env
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/panel
+POSTGRES_USER=panel
+POSTGRES_PASSWORD=s3cr3t
+```
+
+Spring Boot автоматически предпочтет значения из окружения, даже если в файле
+остались стандартные `postgres/postgres`.
+
 ## Windows PowerShell
 
 ```powershell
@@ -42,6 +59,14 @@ $env:SECRET_KEY = "super-secret-key"
 $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/panel"
 $env:SPRING_DATASOURCE_USERNAME = "postgres"
 $env:SPRING_DATASOURCE_PASSWORD = "postgres"
+
+# Альтернатива: короткие переменные для профиля postgres
+$env:POSTGRES_USER = "postgres"
+$env:POSTGRES_PASSWORD = "postgres"
+
+# Если забыли сохранённый пароль в текущей сессии, сбросьте переменную:
+Remove-Item Env:SPRING_DATASOURCE_PASSWORD
+Remove-Item Env:POSTGRES_PASSWORD
 
 # Запуск бота
 cd java-bot
