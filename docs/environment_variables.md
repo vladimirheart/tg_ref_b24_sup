@@ -88,12 +88,39 @@ export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/panel"
 export SPRING_DATASOURCE_USERNAME="postgres"
 export SPRING_DATASOURCE_PASSWORD="postgres"
 
+# Альтернатива с короткими переменными профиля postgres
+export POSTGRES_USER="postgres"
+export POSTGRES_PASSWORD="postgres"
+
+# Чтобы очистить пароль в текущей оболочке:
+unset SPRING_DATASOURCE_PASSWORD
+unset POSTGRES_PASSWORD
+
 # Запуск панели
 ./mvnw spring-boot:run
 mvn spring-boot:run
 ```
 
 Добавьте команды в `~/.bashrc` или `~/.zshrc`, чтобы применять их автоматически.
+
+### Если забыли пароль PostgreSQL
+
+1. Подключитесь к серверу локально под суперпользователем ОС (обычно `postgres`).
+2. Выполните:
+
+   ```bash
+   sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+   ```
+
+   Замените `'postgres'` на новый пароль и не забудьте обновить `SPRING_DATASOURCE_PASSWORD`.
+3. При необходимости создайте отдельную роль для приложения:
+
+   ```bash
+   sudo -u postgres psql -c "CREATE ROLE panel WITH LOGIN PASSWORD 'panel';"
+   sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE panel TO panel;"
+   ```
+
+   Затем установите `SPRING_DATASOURCE_USERNAME=panel` и пароль, который вы задали.
 
 ## Проверка
 
