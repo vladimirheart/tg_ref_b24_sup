@@ -2,59 +2,94 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Аналитика</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Аналитика — Support Panel</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-VHS7zS6LZPbi2sY8e+G7B1QUwpsOSJyYwcmBHQYaWV7k/akdUSHh3D1ynjGduVdA" crossorigin="anonymous">
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
-<body>
-<header>
-    <h1>Аналитика</h1>
-    <nav>
-        <a th:href="@{/}">Диалоги</a>
-        <a th:href="@{/knowledge-base}">База знаний</a>
-        <a th:href="@{/logout}">Выйти</a>
-    </nav>
-</header>
-<main>
-    <section>
-        <h2>Тикеты</h2>
-        <table>
-            <thead>
-            <tr>
-                <th>Бизнес</th>
-                <th>Город</th>
-                <th>Статус</th>
-                <th>Всего</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="row : ${ticketSummary}">
-                <td th:text="${row.business()}"></td>
-                <td th:text="${row.city()}"></td>
-                <td th:text="${row.status()}"></td>
-                <td th:text="${row.total()}"></td>
-            </tr>
-            </tbody>
-        </table>
-    </section>
-    <section>
-        <h2>Клиенты</h2>
-        <table>
-            <thead>
-            <tr>
-                <th>Логин</th>
-                <th>Последний контакт</th>
-                <th>Обращений</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="row : ${clientSummary}">
-                <td th:text="${row.username()}"></td>
-                <td th:text="${#temporals.format(row.lastContact(), 'dd.MM.yyyy HH:mm')}"></td>
-                <td th:text="${row.totalTickets()}"></td>
-            </tr>
-            </tbody>
-        </table>
-    </section>
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand" th:href="@{/}">Bender Support</a>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-light btn-sm" th:href="@{/}">Диалоги</a>
+            <a class="btn btn-outline-light btn-sm" th:href="@{/knowledge-base}">База знаний</a>
+            <a class="btn btn-outline-light btn-sm" th:href="@{/logout}">Выйти</a>
+        </div>
+    </div>
+</nav>
+<main class="container py-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Аналитика</h1>
+            <p class="text-muted mb-0">Сводка по обращениям и активности клиентов.</p>
+        </div>
+        <form method="post" th:action="@{/analytics/export}">
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+            <button class="btn btn-success" type="submit">Экспорт CSV</button>
+        </form>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="h5 mb-0">Заявки по направлениям</h2>
+                        <small class="text-muted">Группировка по бизнесу, городу и статусу.</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                        <table class="table table-striped align-middle">
+                            <thead>
+                            <tr>
+                                <th>Бизнес</th>
+                                <th>Город</th>
+                                <th>Статус</th>
+                                <th class="text-end">Количество</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:if="${#lists.isEmpty(ticketSummary)}">
+                                <td colspan="4" class="text-center text-muted py-4">Нет данных для отображения</td>
+                            </tr>
+                            <tr th:each="row : ${ticketSummary}">
+                                <td th:text="${row.business()} ?: '—'"></td>
+                                <td th:text="${row.city()} ?: '—'"></td>
+                                <td>
+                                    <span th:classappend="${row.status()} == 'resolved' ? 'badge text-bg-success' : (${row.status()} == 'pending' ? 'badge text-bg-warning' : 'badge text-bg-secondary')"
+                                          th:text="${row.status()} ?: '—'"></span>
+                                </td>
+                                <td class="text-end fw-semibold" th:text="${row.total()}"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">Активные клиенты</h2>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush" style="max-height: 420px; overflow-y: auto;">
+                        <div class="list-group-item text-muted" th:if="${#lists.isEmpty(clientSummary)}">Нет активных клиентов</div>
+                        <div class="list-group-item" th:each="client : ${clientSummary}">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-semibold" th:text="${client.username()} ?: 'Без имени'"></span>
+                                <span class="badge text-bg-primary" th:text="${client.totalTickets()}"></span>
+                            </div>
+                            <div class="text-muted small" th:text="${client.lastContact()} != null ? 'Последний контакт: ' + ${client.lastContact()} : 'Нет данных'"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-NZCbFf8gDuwZQzQ0jrISFRCGDpa2BkLomqKgJo0vvArkH5AO9M/dwZ0pniNXh9v0" crossorigin="anonymous"></script>
 </body>
 </html>
