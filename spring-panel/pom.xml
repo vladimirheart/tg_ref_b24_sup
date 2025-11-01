@@ -60,7 +60,7 @@
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-sqlite</artifactId>
+            <artifactId>flyway-database-sqlite</artifactId>
             <version>${flyway.version}</version>
             <scope>runtime</scope>
         </dependency>
@@ -112,10 +112,5 @@
         </plugins>
     </build>
 
-    <repositories>
-        <repository>
-            <id>flywaydb</id>
-            <url>https://repo.flywaydb.org/repo</url>
-        </repository>
-    </repositories>
+
 </project>
