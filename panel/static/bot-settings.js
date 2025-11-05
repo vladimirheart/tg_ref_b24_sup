@@ -88,6 +88,132 @@
     return div.innerHTML;
   }
 
+  function normalizeStringArray(raw) {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+    return raw
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => Boolean(value));
+  }
+
+  function buildDependencyValueHtml(label, values) {
+    const normalized = normalizeStringArray(values);
+    if (!normalized.length) {
+      return '';
+    }
+    const badges = normalized
+      .map((value) => `<span class="badge text-bg-light border">${html(value)}</span>`)
+      .join(' ');
+    return `
+      <div>
+        <span class="fw-semibold text-muted">${html(label)}:</span>
+        <span class="d-inline-flex flex-wrap gap-1 align-items-center ms-1">${badges}</span>
+      </div>
+    `;
+  }
+
+  function buildDependencyPathsHtml(paths) {
+    if (!Array.isArray(paths) || !paths.length) {
+      return '';
+    }
+    const LABELS = {
+      business: 'Бизнес',
+      location_type: 'Тип бизнеса',
+      city: 'Город',
+    };
+    const items = paths
+      .map((path) => {
+        if (!path || typeof path !== 'object') {
+          return '';
+        }
+        const segments = [];
+        Object.keys(LABELS).forEach((key) => {
+          const value = typeof path[key] === 'string' ? path[key].trim() : '';
+          if (value) {
+            segments.push(`${LABELS[key]}: ${value}`);
+          }
+        });
+        if (!segments.length) {
+          return '';
+        }
+        const chain = segments
+          .map((segment) => `<span>${html(segment)}</span>`)
+          .join('<span class="text-muted mx-1">→</span>');
+        return `<li>${chain}</li>`;
+      })
+      .filter(Boolean);
+    if (!items.length) {
+      return '';
+    }
+    return `
+      <div>
+        <div class="small fw-semibold text-muted">Комбинации значений:</div>
+        <ul class="small mb-0 ps-3 d-flex flex-column gap-1">${items.join('')}</ul>
+      </div>
+    `;
+  }
+
+  function buildOptionDependencyHtml(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return '<div class="text-muted small">Для этого варианта нет дополнительных зависимостей.</div>';
+    }
+    const pieces = [];
+    pieces.push(buildDependencyValueHtml('Бизнес', entry.business));
+    pieces.push(buildDependencyValueHtml('Тип бизнеса', entry.location_type));
+    pieces.push(buildDependencyValueHtml('Город', entry.city));
+    pieces.push(buildDependencyPathsHtml(entry.paths));
+    const content = pieces.filter(Boolean).join('');
+    if (!content) {
+      return '<div class="text-muted small">Для этого варианта нет дополнительных зависимостей. Он доступен без ограничений.</div>';
+    }
+    return `<div class="d-flex flex-column gap-2">${content}</div>`;
+  }
+
+  function highlightOptionRow(card, optionValue) {
+    if (!card) {
+      return;
+    }
+    const normalized = typeof optionValue === 'string' ? optionValue.trim() : '';
+    card.querySelectorAll('[data-bot-question-option-row]').forEach((row) => {
+      if (!(row instanceof HTMLElement)) {
+        return;
+      }
+      const rowValue = typeof row.dataset.optionValue === 'string' ? row.dataset.optionValue.trim() : '';
+      const isActive = normalized && rowValue === normalized;
+      row.classList.toggle('is-active', isActive);
+      if (isActive) {
+        row.setAttribute('data-bot-question-option-active', 'true');
+      } else {
+        row.removeAttribute('data-bot-question-option-active');
+      }
+    });
+  }
+
+  function showOptionDependencies(card, optionValue) {
+    if (!card) {
+      return;
+    }
+    const meta = card.__questionMeta || null;
+    const dependenciesWrapper = card.querySelector('[data-bot-question-dependencies]');
+    const titleEl = card.querySelector('[data-bot-question-dependencies-title]');
+    const contentEl = card.querySelector('[data-bot-question-dependencies-content]');
+    if (!dependenciesWrapper || !contentEl || !meta || typeof meta.optionDependencies !== 'object') {
+      return;
+    }
+    const value = typeof optionValue === 'string' ? optionValue.trim() : '';
+    if (!value) {
+      return;
+    }
+    dependenciesWrapper.classList.remove('d-none');
+    if (titleEl) {
+      titleEl.innerHTML = `Вариант: <span class="fw-normal">${html(value)}</span>`;
+    }
+    const entry = meta.optionDependencies[value] || meta.optionDependencies[optionValue] || null;
+    contentEl.innerHTML = buildOptionDependencyHtml(entry);
+    highlightOptionRow(card, value);
+  }
+
   function presetExists(group, field) {
     return Boolean(
       PRESET_GROUPS[group] &&
@@ -1217,9 +1343,16 @@ const id = ensureQuestionId(source.id);
               : '';
             const checked = excluded.has(optionValue) ? '' : ' checked';
             return `
-              <div class="form-check form-check-sm"${locationTypeAttr}${businessAttr}>
-                <input class="form-check-input" type="checkbox" value="${html(optionValue)}" data-bot-question-option${checked}>
-                <label class="form-check-label">${html(optionValue)}</label>
+              <div class="bot-question-option form-check form-check-sm"${locationTypeAttr}${businessAttr} data-bot-question-option-row="true" data-option-value="${html(optionValue)}">
+                <div class="d-flex align-items-start justify-content-between gap-2">
+                  <div class="flex-grow-1">
+                    <input class="form-check-input" type="checkbox" value="${html(optionValue)}" data-bot-question-option${checked}>
+                    <label class="form-check-label ms-2">${html(optionValue)}</label>
+                  </div>
+                  <button type="button" class="btn btn-link btn-sm px-1 text-decoration-none" data-bot-question-option-info title="Показать зависимости варианта" aria-label="Показать зависимости варианта">
+                    <i class="bi bi-diagram-3"></i>
+                  </button>
+                </div>
               </div>
             `;
           })
@@ -1286,10 +1419,19 @@ const id = ensureQuestionId(source.id);
             <div class="border rounded-3 p-3 bg-light" data-bot-question-options>
               ${optionsHtml}
             </div>
+            <div class="bot-question-dependencies mt-3 p-3 small d-none" data-bot-question-dependencies>
+              <div class="bot-question-dependencies__title small mb-2" data-bot-question-dependencies-title>
+                Выберите вариант, чтобы увидеть зависимости
+              </div>
+              <div class="small text-muted" data-bot-question-dependencies-content>
+                Нажмите на значок <i class="bi bi-diagram-3"></i> рядом с вариантом или измените его отображение.
+              </div>
+            </div>
           </div>
         </div>
       `;
       questionsContainer.appendChild(card);
+      card.__questionMeta = meta;
       if (isPreset) {
         const select = card.querySelector('[data-bot-question-preset]');
         if (select) {
@@ -1904,10 +2046,22 @@ const id = ensureQuestionId(source.id);
       const optionCheckbox = event.target.closest('[data-bot-question-option]');
       if (optionCheckbox) {
         updateOptionVisibility(index, optionCheckbox.value, !optionCheckbox.checked);
+        showOptionDependencies(card, optionCheckbox.value);
+        return;
       }
     });
 
     questionsContainer.addEventListener('click', (event) => {
+      const infoButton = event.target.closest('[data-bot-question-option-info]');
+      if (infoButton) {
+        const card = infoButton.closest('.card[data-index]');
+        if (card) {
+          const row = infoButton.closest('[data-bot-question-option-row]');
+          const optionValue = row && typeof row.dataset.optionValue === 'string' ? row.dataset.optionValue : '';
+          showOptionDependencies(card, optionValue);
+        }
+        return;
+      }
       const button = event.target.closest('[data-bot-question-action]');
       if (!button) {
         return;
