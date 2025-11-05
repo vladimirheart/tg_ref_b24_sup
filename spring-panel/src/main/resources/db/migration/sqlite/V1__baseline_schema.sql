@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     id           INTEGER PRIMARY KEY ${autoIncrement},
     channel_id   BIGINT NOT NULL REFERENCES channels(id),
     setting_key  VARCHAR(128) NOT NULL,
-    value        TEXT NOT NULL,
+    "value"      TEXT NOT NULL,
     UNIQUE(channel_id, setting_key)
 );
 
@@ -236,13 +236,13 @@ CREATE TABLE IF NOT EXISTS client_blacklist (
 CREATE TABLE IF NOT EXISTS settings_parameters (
     id          INTEGER PRIMARY KEY ${autoIncrement},
     param_type  TEXT NOT NULL,
-    value       TEXT NOT NULL,
+    "value"     TEXT NOT NULL,
     created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
     state       TEXT NOT NULL DEFAULT 'Активен',
     is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at  TEXT,
     extra_json  TEXT,
-    UNIQUE(param_type, value)
+    UNIQUE(param_type, "value")
 );
 
 CREATE TABLE IF NOT EXISTS it_equipment_catalog (
