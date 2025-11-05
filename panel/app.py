@@ -5460,6 +5460,7 @@ def index():
         resolved=resolved,
         pending=pending,
         settings=settings,
+        operator_profiles=_load_operator_profiles_for_history(),
     )
 
 # serve_media для обработки изображений:
@@ -11260,6 +11261,44 @@ def _serialize_user_row(row: sqlite3.Row) -> dict:
         "phones": _parse_user_phones(_row_value(row, "phones")),
         "is_blocked": bool(_row_value(row, "is_blocked", 0)),
     }
+
+
+def _load_operator_profiles_for_history() -> list[dict]:
+    try:
+        with get_users_db() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    u.id,
+                    u.username,
+                    u.full_name,
+                    u.role_id,
+                    COALESCE(r.name, u.role) AS role_name,
+                    u.photo,
+                    u.email
+                FROM users u
+                LEFT JOIN roles r ON r.id = u.role_id
+                ORDER BY LOWER(COALESCE(u.username, ''))
+                """,
+            ).fetchall()
+    except Exception:
+        return []
+
+    profiles: list[dict] = []
+    for row in rows:
+        profiles.append(
+            {
+                "id": _row_value(row, "id"),
+                "username": _row_value(row, "username", ""),
+                "full_name": _row_value(row, "full_name"),
+                "role": _row_value(row, "role_name", ""),
+                "role_id": _row_value(row, "role_id"),
+                "photo": _row_value(row, "photo"),
+                "email": _row_value(row, "email"),
+            }
+        )
+
+    return profiles
 
 
 def _fetch_user_summary(conn, user_id: int):
