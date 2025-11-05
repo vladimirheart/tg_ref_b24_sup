@@ -47,15 +47,21 @@ CREATE TABLE client_statuses (
                 updated_by TEXT
             );
 CREATE TABLE channels (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  token         TEXT NOT NULL UNIQUE,
-  bot_name      TEXT,              -- ?????????? ???? getMe()
-  channel_name  TEXT NOT NULL,     -- ???????? ?????????????? (???????????????????????? ?????? ???????? ????????)
-  questions_cfg TEXT,              -- JSON ?? ?????????????????????? ???????????????? ?????? ?????????? ????????????
-  max_questions INTEGER DEFAULT 0, -- ??????????????????????
-  is_active     INTEGER DEFAULT 1, -- 1=??????????????
-  created_at    TEXT DEFAULT (datetime('now'))
-, bot_username TEXT, question_template_id TEXT, rating_template_id TEXT, public_id TEXT);
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  token           TEXT NOT NULL UNIQUE,
+  bot_name        TEXT,
+  channel_name    TEXT NOT NULL,
+  questions_cfg   TEXT,
+  max_questions   INTEGER DEFAULT 0,
+  is_active       INTEGER DEFAULT 1,
+  created_at      TEXT DEFAULT (datetime('now')),
+  bot_username    TEXT,
+  question_template_id TEXT,
+  rating_template_id   TEXT,
+  public_id       TEXT,
+  platform        TEXT NOT NULL DEFAULT 'telegram',
+  platform_config TEXT
+);
 CREATE INDEX idx_tickets_channel ON tickets(channel_id);
 CREATE INDEX idx_messages_channel ON messages(channel_id);
 CREATE INDEX idx_history_ticket_channel ON chat_history(ticket_id, channel_id);
@@ -351,7 +357,7 @@ The following tables summarize how the legacy tables align with the new JPA enti
 
 | SQLite table | Purpose | JPA entities |
 | --- | --- | --- |
-| `channels` | Telegram channel metadata | `Channel`, `AppSetting` (FK) |
+| `channels` | Bot channel metadata (Telegram, VK, …) | `Channel`, `AppSetting` (FK) |
 | `tickets` | Ticket status and resolution info | `Ticket`, `TicketSpan`, `TicketActive`, `TicketResponsible` |
 | `messages` | Original ticket payload | `Message` |
 | `chat_history` | Conversation history | `ChatHistory`, `BotChatHistory` (structure reused) |
@@ -380,7 +386,7 @@ The following tables summarize how the legacy tables align with the new JPA enti
 
 | SQLite table | Purpose | JPA entities |
 | --- | --- | --- |
-| `channels` | Telegram channels the bot may post to | `Channel` |
+| `channels` | Bot channels (Telegram, VK) managed by CRM | `Channel` |
 | `client_blacklist` | Blacklisted clients | `ClientBlacklist` |
 | `client_unblock_requests` | Requests to unblock | `ClientUnblockRequest` |
 | `chat_history` | Message audit trail | (accessed via repositories for analytics) |
