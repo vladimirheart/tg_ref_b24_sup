@@ -11,7 +11,7 @@ spring:
       ddl-auto: none
   flyway:
     locations:
-      - classpath:db/migration
+      - classpath:db/migration/postgresql
   sql:
     init:
       mode: never
