@@ -250,13 +250,14 @@ body {
   z-index: 9999 !important;
 }
 
-/* Убедитесь, что модальное окно имеет правильный z-index */
+/* Убедитесь, что модальные окна остаются поверх остального интерфейса,
+   сохраняя корректный порядок наложения для вложенных окон */
 .modal {
-  z-index: 99999;
+  z-index: var(--bs-modal-zindex, 1055);
 }
 
 .modal-backdrop {
-  z-index: 99998;
+  z-index: var(--bs-backdrop-zindex, 1050);
 }
 .category-selector .dropdown-menu {
   padding: 0.5rem;
@@ -287,7 +288,6 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 
 /* Плавное появление и скрытие модальных окон */
 .modal-backdrop {
-  z-index: 1040;
   transition: opacity 0.25s ease;
 }
 
