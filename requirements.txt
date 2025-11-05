@@ -12,3 +12,4 @@ Pillow==11.3.0
 npm
 psycopg
 SQLAlchemy
+vk-api>=11.9.1
