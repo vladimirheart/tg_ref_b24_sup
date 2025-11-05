@@ -93,6 +93,31 @@ os.makedirs(os.path.join(ATTACHMENTS_DIR, "temp"), exist_ok=True)
 _channel_id_cache = {}
 
 
+def ensure_channel_platform_columns():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cols = {r[1] for r in cur.execute("PRAGMA table_info(channels)").fetchall()}
+        if "platform" not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN platform TEXT NOT NULL DEFAULT 'telegram'")
+        if "platform_config" not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN platform_config TEXT")
+        cur.execute(
+            "UPDATE channels SET platform = COALESCE(NULLIF(TRIM(platform), ''), 'telegram')"
+        )
+        cur.execute(
+            "UPDATE channels SET platform_config = COALESCE(platform_config, '{}')"
+        )
+        conn.commit()
+    except Exception as exc:
+        logging.warning("ensure_channel_platform_columns failed: %s", exc)
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 def _generate_channel_public_id(cur: sqlite3.Cursor, used: set[str] | None = None) -> str:
     used_ids = set(used or set())
     while True:
@@ -150,6 +175,7 @@ def ensure_channel_public_ids():
             pass
 
 
+ensure_channel_platform_columns()
 ensure_channel_public_ids()
 
 # === channels & db helpers ===
@@ -2005,11 +2031,16 @@ def is_group_update(update: Update) -> bool:
 
 
 # --- функции для запуска нескольких ботов ---
-def iter_active_channels():
-    """Генератор активных каналов из БД."""
+def iter_active_channels(platform: str | None = None):
+    """Генератор активных каналов из БД с фильтрацией по платформе."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    rows = conn.execute("SELECT id, token FROM channels WHERE is_active = 1").fetchall()
+    query = "SELECT id, token, platform, platform_config FROM channels WHERE is_active = 1"
+    params: list[str] = []
+    if platform:
+        query += " AND LOWER(COALESCE(platform, 'telegram')) = ?"
+        params.append(platform.lower())
+    rows = conn.execute(query, params).fetchall()
     conn.close()
     return rows
 
@@ -2026,7 +2057,7 @@ async def run_all_bots():
             conn.commit()
 
     apps = []
-    active_channels = iter_active_channels()
+    active_channels = iter_active_channels(platform="telegram")
     if not active_channels:
         print("❌ Нет активных каналов в базе данных.")
         return
