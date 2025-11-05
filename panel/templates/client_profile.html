@@ -16,6 +16,9 @@
       margin-bottom: 6px;
       max-width: 80%;
       word-wrap: break-word;
+      display: flex;
+      flex-direction: column;
+      gap: 0; /* убираем зазор между автором и текстом сообщения */
     }
         /* ↑ Увеличение текста и эмодзи в пузырях сообщений ~в 1.5 раза */
         .chat-bubble {
@@ -36,6 +39,9 @@
 
     .chat-bubble-with-avatar .chat-bubble-content {
       flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
     }
 
     .chat-bubble-avatar-btn {
@@ -100,6 +106,10 @@
     /* ✅ Чёрный шрифт */
     .chat-bubble p, .chat-bubble small, .chat-bubble strong {
       color: #000 !important;
+    }
+
+    .chat-bubble .msg-text {
+      margin-top: 0;
     }
 
     /* ✅ Поле ввода и кнопка */
@@ -854,7 +864,7 @@ function createMediaHtml(ticket_id, mediaInfo) {
       const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString('ru-RU') : '';
 
       const isTextMessage = msg.message && (!msg.message_type || msg.message_type === 'text');
-      const textHtml = isTextMessage ? `<p class="mb-0">${msg.message.replace(/\n/g,'<br>')}</p>` : '';
+      const textHtml = isTextMessage ? `<p class="msg-text mb-0">${msg.message.replace(/\n/g,'<br>')}</p>` : '';
       const hasMedia = msg.message_type && msg.message_type !== 'text' && msg.attachment;
       const mediaHtml = hasMedia
         ? createMediaHtml(ticketId, { message_type: msg.message_type, attachment: msg.attachment, text: msg.message || '' })
