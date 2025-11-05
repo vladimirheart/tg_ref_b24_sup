@@ -2609,48 +2609,66 @@
                 role="tabpanel"
                 aria-labelledby="channels-manage-tab"
               >
-                <div class="card mb-3">
-                  <div class="card-header">Добавить канал</div>
+                <div class="card mb-4 shadow-sm">
                   <div class="card-body">
-                    <div class="row g-3 align-items-end">
-                      <div class="col-lg-4">
-                        <input id="ch_token" class="form-control" placeholder="Токен бота (BotFather)">
+                    <h5 class="card-title">Добавить канал</h5>
+                    <div class="row g-2 align-items-end">
+                      <div class="col-md-4">
+                        <label class="form-label">Токен бота</label>
+                        <input id="new_token" class="form-control" placeholder="Токен из BotFather">
                       </div>
-                      <div class="col-lg-3">
-                        <input id="ch_name" class="form-control" placeholder="Имя канала (произвольное)">
+                      <div class="col-md-3">
+                        <label class="form-label">Название в панели</label>
+                        <input id="new_channel_name" class="form-control" placeholder="Например: Доставка">
                       </div>
-                      <div class="col-lg-3">
-                        <label class="form-label" for="ch_questions">Список вопросов</label>
-                        <select id="ch_questions" class="form-select"></select>
-                        <div class="form-text">Берётся из вкладки «Шаблоны».</div>
+                      <div class="col-md-2">
+                        <label class="form-label">Платформа</label>
+                        <select id="new_platform" class="form-select">
+                          <option value="telegram" selected>Telegram</option>
+                          <option value="vk">VK</option>
+                        </select>
                       </div>
-                      <div class="col-lg-2">
-                        <label class="form-label" for="ch_rating">Система оценок</label>
-                        <select id="ch_rating" class="form-select"></select>
+                      <div class="col-md-2">
+                        <label class="form-label">Лимит вопросов</label>
+                        <input id="new_max_questions" type="number" min="0" value="0" class="form-control">
+                        <div class="form-text">0 — без ограничений</div>
                       </div>
-                      <div class="col-12 d-grid mt-2 mt-lg-0">
-                        <button class="btn btn-primary" onclick="addChannel()">Добавить</button>
+                      <div class="col-md-3 d-grid">
+                        <button class="btn btn-primary" type="button" onclick="addChannel()">Добавить канал</button>
+                      </div>
+                      <div class="col-12 col-md-4" id="vk_group_id_container" style="display: none;">
+                        <label class="form-label">ID сообщества VK</label>
+                        <input id="new_vk_group_id" class="form-control" placeholder="Например: 123456789">
+                        <div class="form-text">Найдите в настройках сообщества → Работа с API.</div>
+                        <label class="form-label mt-3">Код подтверждения Callback API</label>
+                        <input id="new_vk_confirmation" class="form-control" placeholder="Строка из настроек Callback API">
+                        <label class="form-label mt-3">Секретный ключ (опционально)</label>
+                        <input id="new_vk_secret" class="form-control" placeholder="Если задан в VK">
                       </div>
                     </div>
-                    <div class="form-text mt-2">Имя бота подтянется автоматически через Telegram <code>getMe</code>.</div>
+                    <div class="text-muted small mt-2">Имя бота определяется автоматически при проверке токена (Telegram <code>getMe</code> или VK API).</div>
                   </div>
                 </div>
 
-                <div class="table-responsive">
-                  <table class="table table-striped align-middle">
-                    <thead>
+                <div class="table-responsive shadow-sm">
+                  <table class="table align-middle mb-0">
+                    <thead class="table-light">
                       <tr>
-                        <th>ID</th>
-                        <th>Внутреннее имя канала</th>
-                        <th>Бот</th>
-                        <th>Токен</th>
-                        <th>Активен</th>
-                        <th>Список вопросов</th>
-                        <th>Система оценок</th>
-                        <th></th>
+                        <th style="width: 6%">ID</th>
+                        <th style="width: 22%">Канал и бот</th>
+                        <th style="width: 18%">Название для панели</th>
+                        <th style="width: 12%">Платформа</th>
+                        <th style="width: 12%" class="text-center">Статус</th>
+                        <th style="width: 12%">Лимит</th>
+                        <th style="width: 14%">Вопросы</th>
+                        <th style="width: 4%"></th>
                       </tr>
                     </thead>
-                    <tbody id="channelsBody"></tbody>
+                    <tbody id="channelsBody">
+                      <tr>
+                        <td colspan="8" class="text-center text-muted py-4">Загрузка каналов…</td>
+                      </tr>
+                    </tbody>
                   </table>
                 </div>
               </div>
@@ -2727,13 +2745,98 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
           </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="vkWebhookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">VK: настройки вебхука</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">ID сообщества (group_id)</label>
+            <input type="number" min="0" class="form-control" id="vkGroupIdInput">
+            <div class="form-text">Найдите числовой идентификатор в настройках сообщества.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Код подтверждения Callback API</label>
+            <input type="text" class="form-control" id="vkConfirmationInput" placeholder="Например: 123abc">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Секретный ключ (опционально)</label>
+            <input type="text" class="form-control" id="vkSecretInput" placeholder="Будет сверяться с параметром secret">
+          </div>
+          <div class="alert alert-info small">
+            Укажите адрес для Callback API вида <code>https://example.com/webhooks/vk/&lt;group_id&gt;</code>. Перед запуском сервера вызовите <code>python vk_webhook_support.py</code>.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" id="vkWebhookSaveBtn">Сохранить</button>
         </div>
       </div>
     </div>
-
-    <!-- Сохранить -->
-    <button class="btn btn-primary mt-4" onclick="saveSettings()">Сохранить настройки</button>
   </div>
+
+  <div class="modal fade" id="questionsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Настройка вопросов для канала <span id="questionsChannelLabel" class="text-primary"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Лимит вопросов за диалог</label>
+              <input id="questionsLimit" type="number" min="0" class="form-control" value="0">
+              <div class="form-text">0 — без ограничения.</div>
+            </div>
+            <div class="col-md-8">
+              <div class="alert alert-info py-2 mb-0 small">
+                Сформируйте последовательность вопросов, которые бот задаёт пользователю. Для типа <strong>select</strong> перечислите варианты через запятую.
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive border rounded">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 18%">Ключ</th>
+                  <th style="width: 32%">Текст вопроса</th>
+                  <th style="width: 15%">Тип</th>
+                  <th style="width: 25%">Опции (для select)</th>
+                  <th style="width: 6%" class="text-center">Обяз.</th>
+                  <th style="width: 4%"></th>
+                </tr>
+              </thead>
+              <tbody id="questionsTableBody"></tbody>
+            </table>
+          </div>
+          <button id="addQuestionBtn" type="button" class="btn btn-outline-primary mt-2">+ Добавить вопрос</button>
+
+          <div class="mt-4">
+            <label class="form-label">Дополнительные настройки (JSON) <span id="questionsExtraBadge" class="badge bg-secondary" hidden>используется</span></label>
+            <textarea id="questionsAdvancedJson" class="form-control" rows="5" placeholder='Например: { "feedback": { ... } }'></textarea>
+            <div class="form-text">Задайте редкие параметры (feedback, prompts и т.п.). Оставьте пустым, если дополнительные сценарии не нужны.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" id="saveQuestionsBtn">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Сохранить -->
+  <button class="btn btn-primary mt-4" onclick="saveSettings()">Сохранить настройки</button>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='modal-helpers.js') }}"></script>
@@ -11022,452 +11125,646 @@
     initTimeMetricsControls();
     initLocationWizard();
     buildLocationsTree();
-    loadChannels(); // <— добавили
+    initChannelsManagement();
     loadParameters();
     renderNetworkProfiles();
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('open') === 'channels') {
+        const channelsModalEl = document.getElementById('channelsModal');
+        if (channelsModalEl && typeof bootstrap !== 'undefined') {
+          bootstrap.Modal.getOrCreateInstance(channelsModalEl).show();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to process URL parameters', e);
+    }
   });
 
   // === КАНАЛЫ (боты) ===
-  const CHANNEL_STATES = new Map();
-  let BOT_QUESTION_TEMPLATE_OPTIONS = [];
-  let BOT_RATING_TEMPLATE_OPTIONS = [];
-  let BOT_ACTIVE_QUESTION_TEMPLATE_ID = null;
-  let BOT_ACTIVE_RATING_TEMPLATE_ID = null;
+  const channelsBody = document.getElementById('channelsBody');
 
-  const newChannelQuestionSelect = document.getElementById('ch_questions');
-  const newChannelRatingSelect = document.getElementById('ch_rating');
+  const questionsState = {
+    channelId: null,
+    channelName: '',
+    questions: [],
+    limit: 0,
+    extra: {},
+  };
 
-  function maskToken(tok) {
-    if (!tok) return '';
-    return tok.replace(/^(.{10}).+(.{4})$/, '$1…$2');
+  const vkWebhookState = {
+    channelId: null,
+    groupId: null,
+    confirmationToken: '',
+    secret: '',
+  };
+
+  let channelsInitialized = false;
+
+  function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
-  function normalizeTemplateId(value, options, fallback) {
-    if (typeof value === 'string' && value && options.some((opt) => opt.id === value)) {
-      return value;
-    }
-    if (typeof fallback === 'string' && fallback && options.some((opt) => opt.id === fallback)) {
-      return fallback;
-    }
-    return options.length ? options[0].id : null;
-  }
-
-  function buildQuestionTemplateLabel(template) {
-    const name = template?.name ? String(template.name).trim() : 'Шаблон вопросов';
-    let count = null;
-    if (Number.isFinite(template?.questionsCount)) {
-      count = template.questionsCount;
-    } else if (Array.isArray(template?.questionFlow)) {
-      count = template.questionFlow.length;
-    }
-    if (!Number.isFinite(count)) {
-      return name;
-    }
-    const suffix = count === 1 ? '1 вопрос' : `${count} вопросов`;
-    return `${name} · ${suffix}`;
-  }
-
-  function buildRatingTemplateLabel(template) {
-    const name = template?.name ? String(template.name).trim() : 'Шаблон оценок';
-    const scale = Number.isFinite(template?.scaleSize)
-      ? template.scaleSize
-      : Number.isFinite(template?.scale_size)
-        ? template.scale_size
-        : null;
-    if (!Number.isFinite(scale) || scale <= 0) {
-      return name;
-    }
-    return `${name} · шкала 1–${scale}`;
-  }
-
-  function populateTemplateSelect(select, options, selectedId) {
-    if (!(select instanceof HTMLSelectElement)) {
-      return;
-    }
-    const previousValue = typeof selectedId === 'string' ? selectedId : select.value;
-    select.innerHTML = '';
-    if (!Array.isArray(options) || !options.length) {
-      const option = document.createElement('option');
-      option.value = '';
-      option.textContent = 'Нет доступных шаблонов';
-      select.appendChild(option);
-      select.disabled = true;
-      select.value = '';
-      return;
-    }
-    select.disabled = false;
-    options.forEach((optionData) => {
-      const option = document.createElement('option');
-      option.value = optionData.id;
-      option.textContent = optionData.label || optionData.name || optionData.id;
-      if (optionData.title) {
-        option.title = optionData.title;
-      }
-      select.appendChild(option);
-    });
-    const normalized = normalizeTemplateId(previousValue, options, options[0]?.id || '');
-    select.value = normalized || options[0].id;
-  }
-
-  function updateNewChannelSelects() {
-    populateTemplateSelect(newChannelQuestionSelect, BOT_QUESTION_TEMPLATE_OPTIONS, BOT_ACTIVE_QUESTION_TEMPLATE_ID);
-    populateTemplateSelect(newChannelRatingSelect, BOT_RATING_TEMPLATE_OPTIONS, BOT_ACTIVE_RATING_TEMPLATE_ID);
-  }
-
-  function normalizeAllChannelStates() {
-    CHANNEL_STATES.forEach((state, id) => {
-      state.questionTemplateId = normalizeTemplateId(state.questionTemplateId, BOT_QUESTION_TEMPLATE_OPTIONS, BOT_ACTIVE_QUESTION_TEMPLATE_ID);
-      state.ratingTemplateId = normalizeTemplateId(state.ratingTemplateId, BOT_RATING_TEMPLATE_OPTIONS, BOT_ACTIVE_RATING_TEMPLATE_ID);
-      const rowEl = document.querySelector(`tr[data-channel-id="${id}"]`);
-      if (!rowEl) {
-        return;
-      }
-      const questionSelect = rowEl.querySelector('[data-role="channel-question-template"]');
-      if (questionSelect) {
-        populateTemplateSelect(questionSelect, BOT_QUESTION_TEMPLATE_OPTIONS, state.questionTemplateId);
-      }
-      const ratingSelect = rowEl.querySelector('[data-role="channel-rating-template"]');
-      if (ratingSelect) {
-        populateTemplateSelect(ratingSelect, BOT_RATING_TEMPLATE_OPTIONS, state.ratingTemplateId);
-      }
-    });
-  }
-
-  function handleBotSettingsSnapshot(snapshot) {
-    const questionTemplates = Array.isArray(snapshot?.questionTemplates) ? snapshot.questionTemplates : [];
-    BOT_QUESTION_TEMPLATE_OPTIONS = questionTemplates
-      .map((template) => ({
-        id: template?.id,
-        name: template?.name || 'Шаблон вопросов',
-        label: buildQuestionTemplateLabel(template),
-        title: template?.description || '',
-        questionsCount: template?.questionsCount,
-      }))
-      .filter((item) => typeof item.id === 'string' && item.id);
-    BOT_ACTIVE_QUESTION_TEMPLATE_ID =
-      typeof snapshot?.activeQuestionTemplateId === 'string' && snapshot.activeQuestionTemplateId.trim()
-        ? snapshot.activeQuestionTemplateId.trim()
-        : (BOT_QUESTION_TEMPLATE_OPTIONS[0]?.id || null);
-
-    const ratingTemplates = Array.isArray(snapshot?.ratingTemplates) ? snapshot.ratingTemplates : [];
-    BOT_RATING_TEMPLATE_OPTIONS = ratingTemplates
-      .map((template) => {
-        const scale = Number.isFinite(template?.scaleSize)
-          ? template.scaleSize
-          : Number.isFinite(template?.scale_size)
-            ? template.scale_size
-            : null;
-        return {
-          id: template?.id,
-          name: template?.name || 'Шаблон оценок',
-          label: buildRatingTemplateLabel({ ...template, scaleSize: scale }),
-          title: template?.description || '',
-          scaleSize: scale,
-        };
-      })
-      .filter((item) => typeof item.id === 'string' && item.id);
-    BOT_ACTIVE_RATING_TEMPLATE_ID =
-      typeof snapshot?.activeRatingTemplateId === 'string' && snapshot.activeRatingTemplateId.trim()
-        ? snapshot.activeRatingTemplateId.trim()
-        : (BOT_RATING_TEMPLATE_OPTIONS[0]?.id || null);
-
-    updateNewChannelSelects();
-    normalizeAllChannelStates();
-  }
-
-  window.addEventListener('bot-settings:ready', (event) => {
-    handleBotSettingsSnapshot(event.detail || {});
-  });
-  window.addEventListener('bot-settings:change', (event) => {
-    handleBotSettingsSnapshot(event.detail || {});
-  });
-  if (window.BotSettingsBridge && typeof window.BotSettingsBridge.getSnapshot === 'function') {
+  function openVkSettings(id) {
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (!row) return;
+    const platformConfigRaw = row.dataset.platformConfig || '{}';
+    let platformConfig = {};
     try {
-      const snapshot = window.BotSettingsBridge.getSnapshot();
-      if (snapshot) {
-        handleBotSettingsSnapshot(snapshot);
-      }
+      platformConfig = JSON.parse(platformConfigRaw);
     } catch (error) {
-      console.error('Не удалось получить настройки ботов:', error);
+      platformConfig = {};
+    }
+    const groupId = platformConfig.group_id ?? platformConfig.groupId ?? null;
+    const confirmationToken = platformConfig.confirmation_token ?? platformConfig.confirmationToken ?? '';
+    const secret = platformConfig.secret ?? platformConfig.callback_secret ?? '';
+    vkWebhookState.channelId = id;
+    vkWebhookState.groupId = groupId;
+    vkWebhookState.confirmationToken = confirmationToken;
+    vkWebhookState.secret = secret;
+
+    const groupInput = document.getElementById('vkGroupIdInput');
+    const confirmationInput = document.getElementById('vkConfirmationInput');
+    const secretInput = document.getElementById('vkSecretInput');
+    if (groupInput) groupInput.value = groupId || '';
+    if (confirmationInput) confirmationInput.value = confirmationToken || '';
+    if (secretInput) secretInput.value = secret || '';
+
+    const modalEl = document.getElementById('vkWebhookModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
   }
 
-  function parseChannelState(row) {
-    const state = { questionTemplateId: null, ratingTemplateId: null };
-    let cfg = {};
-    const rawCfg = row.questions_cfg;
-    if (typeof rawCfg === 'string' && rawCfg.trim()) {
-      try {
-        cfg = JSON.parse(rawCfg);
-      } catch (error) {
-        cfg = {};
+  async function saveVkWebhookSettings() {
+    if (vkWebhookState.channelId === null) return;
+    const groupInput = document.getElementById('vkGroupIdInput');
+    const confirmationInput = document.getElementById('vkConfirmationInput');
+    const secretInput = document.getElementById('vkSecretInput');
+    const groupIdVal = groupInput?.value?.trim();
+    const confirmationVal = confirmationInput?.value?.trim();
+    const secretVal = secretInput?.value?.trim();
+
+    let groupId = parseInt(groupIdVal, 10);
+    if (!Number.isFinite(groupId) || groupId <= 0) {
+      alert('group_id должен быть положительным числом.');
+      return;
+    }
+    if (!confirmationVal) {
+      alert('Укажите код подтверждения Callback API.');
+      return;
+    }
+
+    const payload = {
+      platform_config: {
+        group_id: groupId,
+        confirmation_token: confirmationVal,
+      },
+    };
+    payload.platform_config.secret = secretVal || null;
+
+    try {
+      const resp = await fetch(`/api/channels/${vkWebhookState.channelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + resp.status));
       }
-    } else if (rawCfg && typeof rawCfg === 'object') {
-      cfg = rawCfg;
+
+      const row = document.querySelector(`tr[data-id="${vkWebhookState.channelId}"]`);
+      if (row) {
+        const existing = row.dataset.platformConfig ? JSON.parse(row.dataset.platformConfig) : {};
+        const updated = Object.assign({}, existing, payload.platform_config);
+        if (!updated.secret) {
+          delete updated.secret;
+        }
+        row.dataset.platformConfig = JSON.stringify(updated);
+        const platformCell = row.querySelector('td:nth-child(4)');
+        if (platformCell) {
+          const infoEl = platformCell.querySelector('.small.text-muted');
+          if (infoEl) {
+            infoEl.textContent = `group_id: ${groupId}`;
+          }
+        }
+      }
+
+      const modalEl = document.getElementById('vkWebhookModal');
+      if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal?.hide();
+      }
+      alert('Настройки вебхука сохранены.');
+    } catch (error) {
+      alert('Не удалось сохранить настройки вебхука: ' + error.message);
     }
-    const questionCandidate = (row.question_template_id || cfg.question_template_id || cfg.questionTemplateId || '').trim();
-    const ratingCandidate = (row.rating_template_id || cfg.rating_template_id || cfg.ratingTemplateId || '').trim();
-    state.questionTemplateId = questionCandidate || null;
-    state.ratingTemplateId = ratingCandidate || null;
-    return state;
   }
 
-  function createChannelRow(row) {
-    const tr = document.createElement('tr');
-    tr.dataset.channelId = row.id;
+  function maskToken(token) {
+    const str = String(token || '').trim();
+    if (!str) return '—';
+    if (str.length <= 10) return str;
+    return `${str.slice(0, 6)}…${str.slice(-4)}`;
+  }
 
-    const idCell = document.createElement('td');
-    idCell.textContent = row.id;
-    tr.appendChild(idCell);
+  function pluralize(count, forms) {
+    const n = Math.abs(count) % 100;
+    const n1 = n % 10;
+    if (n > 10 && n < 20) return forms[2];
+    if (n1 > 1 && n1 < 5) return forms[1];
+    if (n1 === 1) return forms[0];
+    return forms[2];
+  }
 
-    const nameCell = document.createElement('td');
-    const nameInput = document.createElement('input');
-    nameInput.className = 'form-control form-control-sm';
-    nameInput.value = row.channel_name || '';
-    nameInput.dataset.field = 'channel_name';
-    nameCell.appendChild(nameInput);
-    tr.appendChild(nameCell);
-
-    const botCell = document.createElement('td');
-    const botName = ((row.bot_name || '').trim()) || '—';
-    const botNameEl = document.createElement('div');
-    botNameEl.className = 'fw-medium';
-    botNameEl.textContent = botName;
-    botCell.appendChild(botNameEl);
-    if (row.bot_username) {
-      const usernameEl = document.createElement('div');
-      usernameEl.className = 'text-muted small';
-      usernameEl.textContent = `@${row.bot_username}`;
-      botCell.appendChild(usernameEl);
+  function normalizeQuestion(raw) {
+    if (typeof raw === 'string') {
+      return { key: '', label: raw, type: 'text', options: [], required: false };
     }
-    tr.appendChild(botCell);
+    const obj = Object.assign({ key: '', label: '', type: 'text', options: [], required: false }, raw || {});
+    obj.label = String(obj.label || '').trim();
+    obj.key = String(obj.key || '').trim();
+    obj.type = ['text', 'select', 'number'].includes(obj.type) ? obj.type : 'text';
+    obj.options = Array.isArray(obj.options) ? obj.options.map(String) : [];
+    obj.required = Boolean(obj.required);
+    return obj;
+  }
 
-    const tokenCell = document.createElement('td');
-    const tokenCode = document.createElement('code');
-    tokenCode.textContent = maskToken(row.token || '');
-    tokenCell.appendChild(tokenCode);
-    tr.appendChild(tokenCell);
+  function normalizeConfig(rawConfig, fallbackLimit = 0) {
+    let cfg = {};
+    if (typeof rawConfig === 'string' && rawConfig.trim()) {
+      try { cfg = JSON.parse(rawConfig); } catch (e) { cfg = {}; }
+    } else if (rawConfig && typeof rawConfig === 'object') {
+      cfg = Object.assign({}, rawConfig);
+    }
+    const questions = Array.isArray(cfg.questions) ? cfg.questions.map(normalizeQuestion).filter((q) => q.label) : [];
+    let limit = Number(cfg.per_dialog_limit);
+    if (!Number.isFinite(limit) || limit < 0) limit = Number(fallbackLimit) || 0;
+    const extra = Object.assign({}, cfg);
+    delete extra.questions;
+    delete extra.per_dialog_limit;
+    return { questions, limit, extra };
+  }
 
-    const activeCell = document.createElement('td');
-    const switchWrapper = document.createElement('div');
-    switchWrapper.className = 'form-check form-switch';
-    const switchInput = document.createElement('input');
-    switchInput.className = 'form-check-input';
-    switchInput.type = 'checkbox';
-    switchInput.dataset.field = 'is_active';
-    switchInput.checked = !!row.is_active;
-    switchWrapper.appendChild(switchInput);
-    activeCell.appendChild(switchWrapper);
-    tr.appendChild(activeCell);
+  function buildSummary(questions, limit, extra) {
+    const parts = [];
+    const count = questions.length;
+    parts.push(count ? `${count} ${pluralize(count, ['вопрос', 'вопроса', 'вопросов'])}` : 'Нет вопросов');
+    if (limit) parts.push(`лимит ${limit}`);
+    if (extra && Object.keys(extra).length) parts.push('есть доп. настройки');
+    return parts.join(' • ');
+  }
 
-    const state = CHANNEL_STATES.get(row.id);
+  function parsePlatformConfig(raw) {
+    if (!raw) return {};
+    if (typeof raw === 'string') {
+      try {
+        const value = JSON.parse(raw);
+        return value && typeof value === 'object' ? value : {};
+      } catch (e) {
+        return {};
+      }
+    }
+    if (typeof raw === 'object') {
+      return Object.assign({}, raw);
+    }
+    return {};
+  }
 
-    const questionsCell = document.createElement('td');
-    const questionsSelect = document.createElement('select');
-    questionsSelect.className = 'form-select form-select-sm';
-    questionsSelect.dataset.role = 'channel-question-template';
-    populateTemplateSelect(questionsSelect, BOT_QUESTION_TEMPLATE_OPTIONS, state?.questionTemplateId);
-    questionsSelect.addEventListener('change', () => {
-      if (!state) return;
-      state.questionTemplateId = normalizeTemplateId(questionsSelect.value, BOT_QUESTION_TEMPLATE_OPTIONS, BOT_ACTIVE_QUESTION_TEMPLATE_ID);
-      populateTemplateSelect(questionsSelect, BOT_QUESTION_TEMPLATE_OPTIONS, state.questionTemplateId);
+  function renderChannels(rows) {
+    if (!channelsBody) return;
+    channelsBody.innerHTML = '';
+    if (!rows.length) {
+      channelsBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
+      return;
+    }
+    rows.forEach((row) => {
+      const { questions, limit, extra } = normalizeConfig(row.questions_cfg, row.max_questions);
+      const configForDataset = Object.assign({}, extra, { questions, per_dialog_limit: limit });
+      const platform = String(row.platform || 'telegram').toLowerCase();
+      const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
+      const platformConfig = parsePlatformConfig(row.platform_config);
+      const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId) : null;
+      const tr = document.createElement('tr');
+      tr.dataset.id = row.id;
+      tr.dataset.config = JSON.stringify(configForDataset);
+      tr.dataset.limit = String(limit || 0);
+      tr.dataset.platform = platform;
+      tr.dataset.platformConfig = JSON.stringify(platformConfig);
+      tr.innerHTML = `
+        <td class="fw-semibold">#${row.id}</td>
+        <td>
+          <div class="fw-medium">${escapeHtml(row.channel_name || '—')}</div>
+          <div class="text-muted small">
+            Бот: ${escapeHtml(row.bot_name || '—')}${row.bot_username ? ` (@${escapeHtml(row.bot_username)})` : ''}
+          </div>
+          <div class="text-muted small">Токен: ${escapeHtml(maskToken(row.token))}</div>
+          <div class="text-muted small">ID для форм: <span class="font-monospace">${escapeHtml(row.public_id || '—')}</span></div>
+        </td>
+        <td>
+          <input class="form-control form-control-sm" data-field="channel_name" value="${escapeHtml(row.channel_name || '')}">
+        </td>
+        <td>
+          <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
+          ${vkGroupId ? `<div class="small text-muted">group_id: ${escapeHtml(String(vkGroupId))}</div>` : ''}
+          ${platform === 'vk'
+            ? `<button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="openVkSettings(${row.id})">Настроить вебхук…</button>`
+            : ''}
+        </td>
+        <td class="text-center align-middle">
+          <div class="form-check form-switch d-inline-flex align-items-center gap-2">
+            <input class="form-check-input" type="checkbox" data-field="is_active" ${row.is_active ? 'checked' : ''}>
+            <label class="form-check-label small" data-status-label>${row.is_active ? 'Активен' : 'Выключен'}</label>
+          </div>
+        </td>
+        <td style="max-width: 160px;">
+          <input type="number" min="0" class="form-control form-control-sm" data-field="max_questions" value="${limit || 0}">
+          <div class="form-text small">0 — без лимита</div>
+        </td>
+        <td>
+          <div class="small text-muted mb-2" data-summary>${buildSummary(questions, limit, extra)}</div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openQuestionsEditor(${row.id})">Настроить…</button>
+        </td>
+        <td class="text-nowrap">
+          <button type="button" class="btn btn-sm btn-success me-2" onclick="saveChannel(${row.id})">Сохранить</button>
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeChannel(${row.id})">Удалить</button>
+        </td>
+      `;
+
+      const statusSwitch = tr.querySelector('[data-field="is_active"]');
+      const statusLabel = tr.querySelector('[data-status-label]');
+      if (statusSwitch && statusLabel) {
+        statusSwitch.addEventListener('change', () => {
+          statusLabel.textContent = statusSwitch.checked ? 'Активен' : 'Выключен';
+        });
+      }
+
+      channelsBody.appendChild(tr);
     });
-    questionsCell.appendChild(questionsSelect);
-    tr.appendChild(questionsCell);
-
-    const ratingCell = document.createElement('td');
-    const ratingSelect = document.createElement('select');
-    ratingSelect.className = 'form-select form-select-sm';
-    ratingSelect.dataset.role = 'channel-rating-template';
-    populateTemplateSelect(ratingSelect, BOT_RATING_TEMPLATE_OPTIONS, state?.ratingTemplateId);
-    ratingSelect.addEventListener('change', () => {
-      if (!state) return;
-      state.ratingTemplateId = normalizeTemplateId(ratingSelect.value, BOT_RATING_TEMPLATE_OPTIONS, BOT_ACTIVE_RATING_TEMPLATE_ID);
-      populateTemplateSelect(ratingSelect, BOT_RATING_TEMPLATE_OPTIONS, state.ratingTemplateId);
-    });
-    ratingCell.appendChild(ratingSelect);
-    tr.appendChild(ratingCell);
-
-    const actionsCell = document.createElement('td');
-    actionsCell.className = 'text-nowrap';
-    const saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'btn btn-sm btn-success me-2';
-    saveBtn.textContent = '💾 Сохранить';
-    saveBtn.addEventListener('click', () => saveChannel(row.id));
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'btn btn-sm btn-outline-danger';
-    deleteBtn.textContent = '🗑 Удалить';
-    deleteBtn.addEventListener('click', () => removeChannel(row.id));
-    actionsCell.appendChild(saveBtn);
-    actionsCell.appendChild(deleteBtn);
-    tr.appendChild(actionsCell);
-
-    return tr;
   }
 
   async function loadChannels() {
+    if (!channelsBody) return;
     try {
-      const response = await fetch('/api/channels');
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const rows = await response.json();
-      const tbody = document.getElementById('channelsBody');
-      tbody.innerHTML = '';
-      CHANNEL_STATES.clear();
-      if (!Array.isArray(rows) || !rows.length) {
-        const empty = document.createElement('tr');
-        empty.innerHTML = '<td colspan="8" class="text-center text-muted py-4">Каналы ещё не добавлены</td>';
-        tbody.appendChild(empty);
-        return;
-      }
-      rows.forEach((row) => {
-        const state = parseChannelState(row);
-        CHANNEL_STATES.set(row.id, state);
-        const tr = createChannelRow(row);
-        tbody.appendChild(tr);
-      });
-      normalizeAllChannelStates();
+      const resp = await fetch('/api/channels');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const rows = await resp.json();
+      renderChannels(Array.isArray(rows) ? rows : []);
     } catch (error) {
       alert('Не удалось загрузить каналы: ' + error.message);
     }
   }
 
   async function addChannel() {
-    const token = document.getElementById('ch_token').value.trim();
-    const channelName = document.getElementById('ch_name').value.trim() || 'Канал';
-    const questionTemplateId = normalizeTemplateId(newChannelQuestionSelect?.value, BOT_QUESTION_TEMPLATE_OPTIONS, BOT_ACTIVE_QUESTION_TEMPLATE_ID);
-    const ratingTemplateId = normalizeTemplateId(newChannelRatingSelect?.value, BOT_RATING_TEMPLATE_OPTIONS, BOT_ACTIVE_RATING_TEMPLATE_ID);
+    const tokenInput = document.getElementById('new_token');
+    const nameInput = document.getElementById('new_channel_name');
+    const platformSelect = document.getElementById('new_platform');
+    const limitInput = document.getElementById('new_max_questions');
+    const vkGroupInput = document.getElementById('new_vk_group_id');
+    const vkConfirmInput = document.getElementById('new_vk_confirmation');
+    const vkSecretInput = document.getElementById('new_vk_secret');
+
+    const token = tokenInput?.value?.trim();
+    const channelName = nameInput?.value?.trim();
+    const platform = platformSelect?.value || 'telegram';
+    const limit = Number.parseInt(limitInput?.value || '0', 10) || 0;
 
     if (!token) {
-      alert('Укажите токен');
+      alert('Укажите токен бота.');
       return;
     }
-    if (!questionTemplateId) {
-      alert('Создайте и выберите шаблон вопросов на вкладке «Шаблоны» блока «Каналы (боты)».');
+    if (!channelName) {
+      alert('Укажите название канала.');
       return;
     }
-    if (!ratingTemplateId) {
-      alert('Создайте и выберите систему оценок на вкладке «Шаблоны» блока «Каналы (боты)».');
-      return;
+
+    const payload = {
+      token,
+      channel_name: channelName,
+      max_questions: limit,
+      platform,
+    };
+
+    if (platform === 'vk') {
+      const groupId = Number.parseInt(vkGroupInput?.value || '0', 10);
+      const confirmation = vkConfirmInput?.value?.trim();
+      if (!Number.isFinite(groupId) || groupId <= 0) {
+        alert('Укажите корректный ID сообщества VK.');
+        return;
+      }
+      if (!confirmation) {
+        alert('Укажите код подтверждения Callback API.');
+        return;
+      }
+      payload.platform_config = {
+        group_id: groupId,
+        confirmation_token: confirmation,
+      };
+      const secret = vkSecretInput?.value?.trim();
+      if (secret) {
+        payload.platform_config.secret = secret;
+      }
     }
+
     try {
-      const response = await fetch('/api/channels', {
+      const resp = await fetch('/api/channels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          channel_name: channelName,
-          is_active: true,
-          question_template_id: questionTemplateId,
-          rating_template_id: ratingTemplateId,
-          questions_cfg: {
-            question_template_id: questionTemplateId,
-            rating_template_id: ratingTemplateId,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || ('HTTP ' + response.status));
+      const data = await resp.json();
+      if (!resp.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + resp.status));
       }
-      document.getElementById('ch_token').value = '';
-      document.getElementById('ch_name').value = '';
-      updateNewChannelSelects();
-        await loadChannels();
-      } catch (error) {
-        showAppModalMessage({
-          title: 'Ошибка добавления',
-          message: error.message,
-          variant: 'danger',
-        });
-      }
+      if (tokenInput) tokenInput.value = '';
+      if (nameInput) nameInput.value = '';
+      if (limitInput) limitInput.value = '0';
+      if (vkGroupInput) vkGroupInput.value = '';
+      if (vkConfirmInput) vkConfirmInput.value = '';
+      if (vkSecretInput) vkSecretInput.value = '';
+      loadChannels();
+    } catch (error) {
+      alert('Ошибка добавления канала: ' + error.message);
+    }
   }
 
   async function saveChannel(id) {
-    const rowEl = document.querySelector(`tr[data-channel-id="${id}"]`);
-    const state = CHANNEL_STATES.get(id);
-    if (!rowEl || !state) return;
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (!row) return;
+    const nameInput = row.querySelector('[data-field="channel_name"]');
+    const activeInput = row.querySelector('[data-field="is_active"]');
+    const limitInput = row.querySelector('[data-field="max_questions"]');
 
-    const nameEl = rowEl.querySelector('[data-field="channel_name"]');
-    const activeEl = rowEl.querySelector('[data-field="is_active"]');
-    const questionSelect = rowEl.querySelector('[data-role="channel-question-template"]');
-    const ratingSelect = rowEl.querySelector('[data-role="channel-rating-template"]');
+    const channelName = (nameInput?.value || '').trim();
+    if (!channelName) {
+      alert('Укажите имя канала.');
+      return;
+    }
 
-    const channelName = (nameEl?.value || '').trim();
-      if (!channelName) {
-        showAppModalMessage({
-          title: 'Не указано имя',
-          message: 'Укажите имя канала.',
-          variant: 'warning',
-        });
-        return;
-      }
+    const maxQuestions = Number.parseInt(limitInput?.value || '0', 10);
+    if (!Number.isFinite(maxQuestions) || maxQuestions < 0) {
+      alert('Лимит вопросов должен быть неотрицательным числом.');
+      return;
+    }
 
-    state.questionTemplateId = normalizeTemplateId(questionSelect?.value, BOT_QUESTION_TEMPLATE_OPTIONS, BOT_ACTIVE_QUESTION_TEMPLATE_ID);
-    state.ratingTemplateId = normalizeTemplateId(ratingSelect?.value, BOT_RATING_TEMPLATE_OPTIONS, BOT_ACTIVE_RATING_TEMPLATE_ID);
+    let payloadConfig = {};
+    try {
+      payloadConfig = row.dataset.config ? JSON.parse(row.dataset.config) : {};
+    } catch (e) {
+      payloadConfig = {};
+    }
 
     const body = {
       channel_name: channelName,
-      is_active: activeEl?.checked ? 1 : 0,
-      question_template_id: state.questionTemplateId,
-      rating_template_id: state.ratingTemplateId,
-      questions_cfg: {
-        question_template_id: state.questionTemplateId,
-        rating_template_id: state.ratingTemplateId,
-      },
+      is_active: activeInput?.checked ? 1 : 0,
+      max_questions: maxQuestions,
+      questions_cfg: payloadConfig,
     };
 
     try {
-      const response = await fetch(`/api/channels/${id}`, {
+      const resp = await fetch(`/api/channels/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || ('HTTP ' + response.status));
+      const data = await resp.json();
+      if (!resp.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + resp.status));
       }
-        showAppModalMessage({
-          title: 'Канал сохранён',
-          message: 'Настройки канала сохранены.',
-          variant: 'success',
-        });
-        await loadChannels();
-      } catch (error) {
-        showAppModalMessage({
-          title: 'Ошибка сохранения',
-          message: error.message,
-          variant: 'danger',
-        });
-      }
-    }
-
-    async function removeChannel(id) {
-      const confirmed = await showConfirmActionModal({
-        title: 'Удаление канала',
-        message: 'Удалить канал?',
-        confirmText: 'Удалить',
-        confirmVariant: 'danger',
-        icon: '🗑️',
-      });
-      if (!confirmed) return;
+      alert('Настройки канала сохранены.');
       try {
-        const response = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
-        const data = await response.json();
-        if (!response.ok || data.success === false) {
-          throw new Error(data.error || ('HTTP ' + response.status));
-        }
-        CHANNEL_STATES.delete(id);
-        await loadChannels();
+        const cfg = row.dataset.config ? JSON.parse(row.dataset.config) : {};
+        const { questions, extra } = normalizeConfig(cfg, maxQuestions);
+        const summaryEl = row.querySelector('[data-summary]');
+        if (summaryEl) summaryEl.textContent = buildSummary(questions, maxQuestions, extra);
+      } catch (e) {
+        // ignored
+      }
+    } catch (error) {
+      alert('Ошибка сохранения: ' + error.message);
+    }
+  }
+
+  async function removeChannel(id) {
+    if (!confirm('Удалить канал? Действие необратимо.')) return;
+    try {
+      const resp = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
+      const data = await resp.json();
+      if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+      await loadChannels();
+    } catch (error) {
+      alert('Ошибка удаления: ' + error.message);
+    }
+  }
+
+  function renderQuestionsList() {
+    const body = document.getElementById('questionsTableBody');
+    if (!body) return;
+    body.innerHTML = '';
+    if (!questionsState.questions.length) {
+      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Добавьте первый вопрос</td></tr>';
+      return;
+    }
+    questionsState.questions.forEach((q, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="key" value="${escapeHtml(q.key)}"></td>
+        <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="label" value="${escapeHtml(q.label)}" placeholder="Например: Уточните номер заказа"></td>
+        <td>
+          <select class="form-select form-select-sm" data-idx="${index}" data-field="type">
+            <option value="text" ${q.type === 'text' ? 'selected' : ''}>text</option>
+            <option value="select" ${q.type === 'select' ? 'selected' : ''}>select</option>
+            <option value="number" ${q.type === 'number' ? 'selected' : ''}>number</option>
+          </select>
+        </td>
+        <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="options" value="${escapeHtml((q.options || []).join(', '))}" placeholder="Варианты для select"></td>
+        <td class="text-center"><input type="checkbox" class="form-check-input" data-idx="${index}" data-field="required" ${q.required ? 'checked' : ''}></td>
+        <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-remove-question="${index}">×</button></td>
+      `;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('input[data-field], select[data-field]').forEach((input) => {
+      input.addEventListener('input', handleQuestionChange);
+      input.addEventListener('change', handleQuestionChange);
+    });
+    body.querySelectorAll('button[data-remove-question]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.removeQuestion, 10);
+        questionsState.questions.splice(idx, 1);
+        renderQuestionsList();
+      });
+    });
+  }
+
+  function handleQuestionChange(event) {
+    const el = event.currentTarget;
+    const idx = parseInt(el.dataset.idx, 10);
+    const field = el.dataset.field;
+    if (Number.isNaN(idx) || !questionsState.questions[idx]) return;
+    if (field === 'required') {
+      questionsState.questions[idx][field] = el.checked;
+    } else if (field === 'options') {
+      questionsState.questions[idx].options = String(el.value || '')
+        .split(',')
+        .map((opt) => opt.trim())
+        .filter(Boolean);
+    } else {
+      questionsState.questions[idx][field] = String(el.value || '');
+    }
+  }
+
+  function updateExtraBadge() {
+    const badge = document.getElementById('questionsExtraBadge');
+    if (!badge) return;
+    badge.hidden = !questionsState.extra || !Object.keys(questionsState.extra).length;
+  }
+
+  async function openQuestionsEditor(id) {
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (!row) return;
+    const nameInput = row.querySelector('[data-field="channel_name"]');
+    questionsState.channelId = id;
+    questionsState.channelName = (nameInput?.value || '').trim() || `#${id}`;
+    let rawConfig = row.dataset.config;
+    if (!rawConfig) {
+      try {
+        const resp = await fetch(`/api/channels/${id}`);
+        const data = await resp.json();
+        if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+        rawConfig = data.channel?.questions_cfg || '{}';
+        row.dataset.config = rawConfig;
       } catch (error) {
-        showAppModalMessage({
-          title: 'Ошибка удаления',
-          message: error.message,
-          variant: 'danger',
-        });
+        alert('Не удалось получить конфигурацию вопросов: ' + error.message);
+        return;
       }
     }
+    const { questions, limit, extra } = normalizeConfig(rawConfig, row.dataset.limit || 0);
+    questionsState.questions = questions.slice();
+    questionsState.limit = limit;
+    questionsState.extra = extra;
+
+    const labelEl = document.getElementById('questionsChannelLabel');
+    if (labelEl) labelEl.textContent = `${questionsState.channelName} (#${id})`;
+    const limitEl = document.getElementById('questionsLimit');
+    if (limitEl) limitEl.value = limit || 0;
+    const extraEl = document.getElementById('questionsAdvancedJson');
+    if (extraEl) extraEl.value = Object.keys(extra || {}).length ? JSON.stringify(extra, null, 2) : '';
+    updateExtraBadge();
+    renderQuestionsList();
+
+    const modalEl = document.getElementById('questionsModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  function addQuestionRow() {
+    questionsState.questions.push({ key: '', label: '', type: 'text', options: [], required: false });
+    renderQuestionsList();
+  }
+
+  async function saveQuestionsConfig() {
+    const limitInput = document.getElementById('questionsLimit');
+    const extraTextarea = document.getElementById('questionsAdvancedJson');
+    const limit = parseInt(limitInput?.value || '0', 10);
+    if (Number.isNaN(limit) || limit < 0) {
+      alert('Лимит вопросов должен быть неотрицательным числом.');
+      return;
+    }
+    let extra = {};
+    const extraRaw = (extraTextarea?.value || '').trim();
+    if (extraRaw) {
+      try {
+        extra = JSON.parse(extraRaw);
+      } catch (error) {
+        alert('Дополнительные настройки должны быть валидным JSON: ' + error.message);
+        return;
+      }
+    }
+    const cleanedQuestions = questionsState.questions
+      .map(normalizeQuestion)
+      .filter((q) => q.label.trim().length);
+    const payloadConfig = Object.assign({}, extra, {
+      per_dialog_limit: limit,
+      questions: cleanedQuestions,
+    });
+    try {
+      const resp = await fetch(`/api/channels/${questionsState.channelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questions_cfg: payloadConfig, max_questions: limit }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
+      const row = document.querySelector(`tr[data-id="${questionsState.channelId}"]`);
+      if (row) {
+        row.dataset.config = JSON.stringify(payloadConfig);
+        row.dataset.limit = String(limit || 0);
+        const limitInputRow = row.querySelector('[data-field="max_questions"]');
+        if (limitInputRow) limitInputRow.value = limit || 0;
+        const summaryEl = row.querySelector('[data-summary]');
+        if (summaryEl) summaryEl.textContent = buildSummary(cleanedQuestions, limit, extra);
+      }
+      updateExtraBadge();
+      const modalEl = document.getElementById('questionsModal');
+      if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal?.hide();
+      }
+      alert('Настройки вопросов сохранены.');
+    } catch (error) {
+      alert('Не удалось сохранить вопросы: ' + error.message);
+    }
+  }
+
+  function toggleVkGroupField() {
+    const platformSelect = document.getElementById('new_platform');
+    const container = document.getElementById('vk_group_id_container');
+    if (!platformSelect || !container) return;
+    container.style.display = platformSelect.value === 'vk' ? '' : 'none';
+  }
+
+  function initChannelsManagement() {
+    if (channelsInitialized) return;
+    channelsInitialized = true;
+    toggleVkGroupField();
+    loadChannels();
+
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+    const saveQuestionsBtn = document.getElementById('saveQuestionsBtn');
+    const vkSaveBtn = document.getElementById('vkWebhookSaveBtn');
+    const extraTextarea = document.getElementById('questionsAdvancedJson');
+    const platformSelect = document.getElementById('new_platform');
+
+    addQuestionBtn?.addEventListener('click', addQuestionRow);
+    saveQuestionsBtn?.addEventListener('click', saveQuestionsConfig);
+    vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
+    extraTextarea?.addEventListener('input', () => {
+      try {
+        const value = extraTextarea.value.trim();
+        questionsState.extra = value ? JSON.parse(value) : {};
+      } catch (e) {
+        // ignore parse errors while typing
+      }
+      updateExtraBadge();
+    });
+    platformSelect?.addEventListener('change', toggleVkGroupField);
+  }
+
+  window.addChannel = addChannel;
+  window.saveChannel = saveChannel;
+  window.removeChannel = removeChannel;
+  window.openQuestionsEditor = openQuestionsEditor;
+  window.openVkSettings = openVkSettings;
+
   </script>
 </main>
   <script src="{{ url_for('static', filename='input-settings.js') }}"></script>
