@@ -116,8 +116,8 @@
   }
 
   .chat-bubble {
-    padding: 12px 16px;
-    border-radius: 12px;
+    padding: var(--history-bubble-padding-block, 12px) var(--history-bubble-padding-inline, 16px);
+    border-radius: var(--history-bubble-radius, 12px);
     margin-bottom: 0;
     max-width: 100%;
     word-wrap: break-word;
@@ -125,7 +125,7 @@
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--history-bubble-gap, 6px);
   }
   /* Имя отправителя - делаем немного крупнее */
   .chat-bubble strong {
@@ -733,7 +733,7 @@
 #historyModal .chat-entry {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--history-chat-gap, 12px);
   width: 100%;
 }
 
@@ -747,7 +747,7 @@
 }
 
 #historyModal .chat-entry + .chat-entry {
-  margin-top: 12px;
+  margin-top: var(--history-chat-gap, 12px);
 }
 
 #historyModal .message-avatar {
@@ -757,13 +757,13 @@
   cursor: pointer;
   flex: 0 0 auto;
   border-radius: 50%;
-  width: 48px;
-  height: 48px;
+  width: var(--history-avatar-size, 48px);
+  height: var(--history-avatar-size, 48px);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-top: 12px;
+  margin-top: calc(var(--history-avatar-size, 48px) * 0.25);
   align-self: flex-start;
 }
 
@@ -874,8 +874,9 @@
 
 /* === История: разные шрифты для времени, автора и текста === */
 #historyModal .chat-bubble {
-  gap: 0; /* убираем «зазор» между автором и самим сообщением */
-  padding-top: 12px;
+  gap: var(--history-bubble-gap, 0); /* убираем «зазор» между автором и самим сообщением */
+  padding-top: var(--history-bubble-padding-block, 12px);
+  padding-bottom: var(--history-bubble-padding-block, 12px);
 }
 
 #historyModal .chat-bubble .bubble-header {
@@ -1220,12 +1221,17 @@
   min-width: 140px;
 }
 #historyContent {
+  --history-font-base: 16;
   --history-font-scale: 1;
-  font-size: calc(1rem * var(--history-font-scale));
+  --history-font-size: calc(var(--history-font-base) * var(--history-font-scale));
+  --history-avatar-size: 48px;
+  --history-chat-gap: 12px;
+  --history-bubble-padding-block: 12px;
+  --history-bubble-padding-inline: 16px;
+  --history-bubble-radius: 12px;
+  --history-bubble-gap: 0px;
+  font-size: calc(var(--history-font-size) * 1px);
 }
-#historyContent.font-size-small { --history-font-scale: 0.9; }
-#historyContent.font-size-medium { --history-font-scale: 1; }
-#historyContent.font-size-large { --history-font-scale: 1.2; }
 #activeDialogsBlock { display: none; }
 #activeDialogsBlock.show { display: block; }
 #activeDialogList .status-heading {
@@ -1956,13 +1962,26 @@ function markTicketReopenedLocally() {
                       <select id="dialogResponsibleSelect" class="form-select form-select-sm w-auto"></select>
                       <button type="button" class="btn btn-outline-primary btn-sm" id="assignResponsibleBtn">Назначить</button>
                     </div>
-                    <div class="header-meta-item d-flex align-items-center gap-2">
+                    <div class="header-meta-item d-flex align-items-center gap-2 flex-wrap">
                       <label for="historyFontSizeControl" class="form-label mb-0 small text-muted">Размер текста</label>
-                      <select id="historyFontSizeControl" class="form-select form-select-sm w-auto">
-                        <option value="small">Мелкий</option>
-                        <option value="medium" selected>Обычный</option>
-                        <option value="large">Крупный</option>
-                      </select>
+                      <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <select id="historyFontPresetControl" class="form-select form-select-sm w-auto">
+                          <option value="small">Мелкий</option>
+                          <option value="medium" selected>Обычный</option>
+                          <option value="large">Крупный</option>
+                          <option value="custom">Произвольный</option>
+                        </select>
+                        <input
+                          type="number"
+                          id="historyFontSizeControl"
+                          class="form-control form-control-sm w-auto"
+                          min="8"
+                          max="18"
+                          step="1"
+                          value="16"
+                          aria-label="Размер текста в пикселях"
+                        >
+                      </div>
                     </div>
                     <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item" id="inviteToDialogBtn" disabled>
                       Пригласить коллегу
@@ -2061,7 +2080,7 @@ function markTicketReopenedLocally() {
             <div class="col-md-8 history-pane">
               <div class="d-flex flex-column flex-fill min-height-0">
                 <!-- Блок переписки -->
-                <div class="chat-container flex-grow-1 min-height-0 font-size-medium" id="historyContent"></div>
+                <div class="chat-container flex-grow-1 min-height-0" id="historyContent"></div>
 
                 <div class="history-composer mt-auto border-top bg-light">
                   <div class="input-group-send w-100">
@@ -9039,25 +9058,66 @@ window.addEventListener('resize', function() {
   }
 });
 
+const HISTORY_FONT_DEFAULT = 16;
+const HISTORY_FONT_MIN = 8;
+const HISTORY_FONT_MAX = 18;
+const HISTORY_FONT_PRESETS = {
+  small: 14,
+  medium: 16,
+  large: 18,
+};
+
+function clampHistoryFontSize(value) {
+  const numeric = Number.isFinite(value) ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return HISTORY_FONT_DEFAULT;
+  }
+  return Math.min(HISTORY_FONT_MAX, Math.max(HISTORY_FONT_MIN, Math.round(numeric)));
+}
+
+function resolveHistoryFontPreset(size) {
+  return (
+    Object.entries(HISTORY_FONT_PRESETS).find(([, presetSize]) => presetSize === size)?.[0] ||
+    'custom'
+  );
+}
+
 function applyHistoryFontSize(size) {
   const historyContent = document.getElementById('historyContent');
   if (!historyContent) {
-    return;
+    return HISTORY_FONT_DEFAULT;
   }
 
-  const allowedSizes = ['small', 'medium', 'large'];
-  const normalizedSize = allowedSizes.includes(size) ? size : 'medium';
+  const clamped = clampHistoryFontSize(size);
+  const scale = clamped / HISTORY_FONT_DEFAULT;
 
-  allowedSizes.forEach((item) => {
-    historyContent.classList.remove(`font-size-${item}`);
-  });
+  const toPx = (base) => `${(base * scale).toFixed(2)}px`;
 
-  historyContent.classList.add(`font-size-${normalizedSize}`);
+  historyContent.style.setProperty('--history-font-scale', String(scale));
+  historyContent.style.setProperty('--history-font-size', String(clamped));
+  historyContent.style.setProperty('--history-avatar-size', toPx(48));
+  historyContent.style.setProperty('--history-chat-gap', toPx(12));
+  historyContent.style.setProperty('--history-bubble-padding-block', toPx(12));
+  historyContent.style.setProperty('--history-bubble-padding-inline', toPx(16));
+  historyContent.style.setProperty('--history-bubble-radius', toPx(12));
+  const bubbleGap = Math.max(0, (scale - 1) * 12);
+  historyContent.style.setProperty('--history-bubble-gap', `${bubbleGap.toFixed(2)}px`);
+  historyContent.dataset.fontSize = String(clamped);
 
-  const fontSelect = document.getElementById('historyFontSizeControl');
-  if (fontSelect && fontSelect.value !== normalizedSize) {
-    fontSelect.value = normalizedSize;
+  const fontInput = document.getElementById('historyFontSizeControl');
+  if (fontInput && Number(fontInput.value) !== clamped) {
+    fontInput.value = String(clamped);
   }
+
+  const presetSelect = document.getElementById('historyFontPresetControl');
+  if (presetSelect) {
+    const resolvedPreset = resolveHistoryFontPreset(clamped);
+    if (presetSelect.value !== resolvedPreset) {
+      presetSelect.value = resolvedPreset;
+    }
+  }
+
+  return clamped;
 }
 
 // Инициализация при загрузке страницы
@@ -9067,18 +9127,63 @@ document.addEventListener('DOMContentLoaded', function() {
     unreadCountByTicket = JSON.parse(savedUnread);
   }
 
-  const savedFont = localStorage.getItem('historyFontSize') || 'medium';
-  applyHistoryFontSize(savedFont);
+  const savedFont = localStorage.getItem('historyFontSize');
+  const resolvedSavedFont = (() => {
+    if (!savedFont) {
+      return HISTORY_FONT_DEFAULT;
+    
 
-  const fontSelect = document.getElementById('historyFontSizeControl');
-  if (fontSelect) {
-    if (['small','medium','large'].includes(savedFont)) {
-      fontSelect.value = savedFont;
+    if (savedFont in HISTORY_FONT_PRESETS) {
+      return HISTORY_FONT_PRESETS[savedFont];
     }
-    fontSelect.addEventListener('change', (event) => {
-      const value = event.target.value;
-      applyHistoryFontSize(value);
-      localStorage.setItem('historyFontSize', value);
+
+    const parsed = parseInt(savedFont, 10);
+    return Number.isFinite(parsed) ? parsed : HISTORY_FONT_DEFAULT;
+  })();
+
+  const initialFontSize = applyHistoryFontSize(resolvedSavedFont);
+
+  const fontInput = document.getElementById('historyFontSizeControl');
+  if (fontInput) {
+    fontInput.value = String(initialFontSize);
+    const syncSize = (value) => {
+      const applied = applyHistoryFontSize(value);
+      localStorage.setItem('historyFontSize', String(applied));
+    };
+
+    fontInput.addEventListener('input', (event) => {
+      const raw = parseInt(event.target.value, 10);
+      if (!Number.isFinite(raw)) {
+        return;
+      }
+
+      if (raw >= HISTORY_FONT_MIN && raw <= HISTORY_FONT_MAX) {
+        syncSize(raw);
+      }
+    });
+
+    fontInput.addEventListener('blur', (event) => {
+      const raw = parseInt(event.target.value, 10);
+      const applied = clampHistoryFontSize(raw);
+      event.target.value = String(applied);
+      syncSize(applied);
+    });
+  }
+
+  const fontPresetSelect = document.getElementById('historyFontPresetControl');
+  if (fontPresetSelect) {
+    fontPresetSelect.addEventListener('change', (event) => {
+      const preset = event.target.value;
+      if (preset in HISTORY_FONT_PRESETS) {
+        const applied = applyHistoryFontSize(HISTORY_FONT_PRESETS[preset]);
+        localStorage.setItem('historyFontSize', String(applied));
+      } else {
+        const inputEl = document.getElementById('historyFontSizeControl');
+        if (inputEl) {
+          inputEl.focus();
+          inputEl.select();
+        }
+      }
     });
   }
 
