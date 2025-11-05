@@ -1,4 +1,9 @@
-"""VK bot integration for the support CRM."""
+"""VK bot integration for the support CRM.
+
+This module contains the common logic for processing dialogs with users, a
+long-poll runner (legacy mode) and can be reused by other entry points such as
+webhook handlers.
+"""
 from __future__ import annotations
 
 import json
@@ -61,18 +66,17 @@ class ConversationState:
         return None
 
 
-class VkBotRunner:
-    def __init__(self, channel_id: int, token: str, group_id: int):
+class VkConversationManager:
+    """Stateful helper that encapsulates the dialog logic for VK bots."""
+
+    def __init__(self, channel_id: int, api, *, group_id: Optional[int] = None):
         self.channel_id = channel_id
-        self.token = token
+        self.api = api
         self.group_id = group_id
-        self.session = VkApi(token=token)
-        self.api = self.session.get_api()
-        self.longpoll = VkBotLongPoll(self.session, group_id)
         self.conversations: Dict[int, ConversationState] = {}
-        self._stop_event = threading.Event()
         self.question_flow = self._load_question_flow()
 
+    # --- Configuration -----------------------------------------------------
     def _load_question_flow(self) -> List[dict]:
         cfg = get_questions_cfg(self.channel_id)
         questions = cfg.get("questions") if isinstance(cfg, dict) else []
@@ -83,24 +87,13 @@ class VkBotRunner:
                     prepared.append(dict(question))
         return prepared
 
-    def stop(self) -> None:
-        self._stop_event.set()
+    def reload_questions(self) -> None:
+        """Reloads question flow from DB (used for hot reconfiguration)."""
 
-    def run(self) -> None:
-        logger.info("Запуск VK-бота для канала %s (group_id=%s)", self.channel_id, self.group_id)
-        while not self._stop_event.is_set():
-            try:
-                for event in self.longpoll.check():
-                    if self._stop_event.is_set():
-                        break
-                    if event.type == VkBotEventType.MESSAGE_NEW:
-                        self._handle_new_message(event.message)
-            except Exception as exc:
-                logger.error("VK longpoll error for channel %s: %s", self.channel_id, exc)
-                time.sleep(5)
+        self.question_flow = self._load_question_flow()
 
-    # --- Conversation handling -------------------------------------------------
-    def _handle_new_message(self, message: dict) -> None:
+    # --- Public API --------------------------------------------------------
+    def handle_message(self, message: dict) -> None:
         user_id = message.get("from_id")
         peer_id = message.get("peer_id")
         if not user_id or peer_id != user_id:
@@ -471,6 +464,36 @@ class VkBotRunner:
             self.api.messages.send(**payload)
         except Exception as exc:
             logger.error("Не удалось отправить сообщение пользователю %s: %s", user_id, exc)
+
+
+class VkBotRunner:
+    """Legacy runner that uses long-poll API."""
+
+    def __init__(self, channel_id: int, token: str, group_id: int):
+        self.channel_id = channel_id
+        self.token = token
+        self.group_id = group_id
+        self.session = VkApi(token=token)
+        self.api = self.session.get_api()
+        self.manager = VkConversationManager(channel_id, self.api, group_id=group_id)
+        self.longpoll = VkBotLongPoll(self.session, group_id)
+        self._stop_event = threading.Event()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+
+    def run(self) -> None:
+        logger.info("Запуск VK-бота для канала %s (group_id=%s)", self.channel_id, self.group_id)
+        while not self._stop_event.is_set():
+            try:
+                for event in self.longpoll.check():
+                    if self._stop_event.is_set():
+                        break
+                    if event.type == VkBotEventType.MESSAGE_NEW:
+                        self.manager.handle_message(event.message)
+            except Exception as exc:
+                logger.error("VK longpoll error for channel %s: %s", self.channel_id, exc)
+                time.sleep(5)
 
 
 def run_all_vk_bots() -> None:
