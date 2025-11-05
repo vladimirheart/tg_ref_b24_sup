@@ -75,15 +75,6 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id);
 
-CREATE OR REPLACE VIEW client_stats AS
-SELECT
-    COALESCE(m.username, '') AS username,
-    MAX(COALESCE(ch.timestamp, m.created_at)) AS last_contact,
-    COUNT(DISTINCT m.ticket_id) AS tickets
-FROM messages m
-LEFT JOIN chat_history ch ON ch.ticket_id = m.ticket_id
-GROUP BY COALESCE(m.username, '');
-
 CREATE TABLE IF NOT EXISTS chat_history (
     id            INTEGER PRIMARY KEY ${autoIncrement},
     user_id       BIGINT,
@@ -104,6 +95,15 @@ CREATE INDEX IF NOT EXISTS idx_history_ticket_channel
     ON chat_history(ticket_id, channel_id);
 CREATE INDEX IF NOT EXISTS idx_history_channel_time
     ON chat_history(channel_id, timestamp);
+
+CREATE OR REPLACE VIEW client_stats AS
+SELECT
+    COALESCE(m.username, '') AS username,
+    MAX(COALESCE(ch.timestamp, m.created_at)) AS last_contact,
+    COUNT(DISTINCT m.ticket_id) AS tickets
+FROM messages m
+LEFT JOIN chat_history ch ON ch.ticket_id = m.ticket_id
+GROUP BY COALESCE(m.username, '');
 
 CREATE TABLE IF NOT EXISTS feedbacks (
     id        INTEGER PRIMARY KEY ${autoIncrement},
