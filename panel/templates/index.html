@@ -874,8 +874,20 @@
 
 /* === История: разные шрифты для времени, автора и текста === */
 #historyModal .chat-bubble {
-  gap: 9px;
+  gap: 0; /* убираем «зазор» между автором и самим сообщением */
   padding-top: 12px;
+}
+
+#historyModal .chat-bubble .bubble-header {
+  margin-bottom: 0;
+}
+
+#historyModal .chat-bubble .msg-text {
+  margin-top: 0;
+}
+
+#historyModal .chat-bubble .reply-preview {
+  margin-top: 0.5rem;
 }
 
 #historyModal .chat-bubble > .bubble-header {
