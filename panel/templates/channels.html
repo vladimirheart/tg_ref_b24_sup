@@ -46,6 +46,10 @@
               <label class="form-label">ID сообщества VK</label>
               <input id="new_vk_group_id" class="form-control" placeholder="Например: 123456789">
               <div class="form-text">Найдите в настройках сообщества → Работа с API.</div>
+              <label class="form-label mt-3">Код подтверждения Callback API</label>
+              <input id="new_vk_confirmation" class="form-control" placeholder="Строка из настроек Callback API">
+              <label class="form-label mt-3">Секретный ключ (опционально)</label>
+              <input id="new_vk_secret" class="form-control" placeholder="Если задан в VK">
             </div>
           </div>
           <div class="text-muted small mt-2">Имя бота определяется автоматически при проверке токена (Telegram <code>getMe</code> или VK API).</div>
@@ -72,6 +76,40 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="modal fade" id="vkWebhookModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">VK: настройки вебхука</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">ID сообщества (group_id)</label>
+              <input type="number" min="0" class="form-control" id="vkGroupIdInput">
+              <div class="form-text">Найдите числовой идентификатор в настройках сообщества.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Код подтверждения Callback API</label>
+              <input type="text" class="form-control" id="vkConfirmationInput" placeholder="Например: 123abc">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Секретный ключ (опционально)</label>
+              <input type="text" class="form-control" id="vkSecretInput" placeholder="Будет сверяться с параметром secret">
+            </div>
+            <div class="alert alert-info small">
+              Укажите адрес для Callback API вида <code>https://example.com/webhooks/vk/&lt;group_id&gt;</code>. Перед запуском
+              сервера вызовите <code>python vk_webhook_support.py</code>.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" id="vkWebhookSaveBtn">Сохранить</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -138,6 +176,13 @@
         extra: {}
       };
 
+      const vkWebhookState = {
+        channelId: null,
+        groupId: null,
+        confirmationToken: '',
+        secret: ''
+      };
+
       function escapeHtml(value) {
         if (value === null || value === undefined) return '';
         return String(value)
@@ -146,6 +191,97 @@
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#039;');
+      }
+
+      function openVkSettings(id) {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (!row) return;
+        const platformConfigRaw = row.dataset.platformConfig || '{}';
+        let platformConfig = {};
+        try {
+          platformConfig = JSON.parse(platformConfigRaw);
+        } catch (error) {
+          platformConfig = {};
+        }
+        const groupId = platformConfig.group_id ?? platformConfig.groupId ?? null;
+        const confirmationToken = platformConfig.confirmation_token ?? platformConfig.confirmationToken ?? '';
+        const secret = platformConfig.secret ?? platformConfig.callback_secret ?? '';
+        vkWebhookState.channelId = id;
+        vkWebhookState.groupId = groupId;
+        vkWebhookState.confirmationToken = confirmationToken;
+        vkWebhookState.secret = secret;
+
+        document.getElementById('vkGroupIdInput').value = groupId || '';
+        document.getElementById('vkConfirmationInput').value = confirmationToken || '';
+        document.getElementById('vkSecretInput').value = secret || '';
+
+        const modalEl = document.getElementById('vkWebhookModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      }
+
+      async function saveVkWebhookSettings() {
+        if (vkWebhookState.channelId === null) return;
+        const groupInput = document.getElementById('vkGroupIdInput');
+        const confirmationInput = document.getElementById('vkConfirmationInput');
+        const secretInput = document.getElementById('vkSecretInput');
+        const groupIdVal = groupInput?.value?.trim();
+        const confirmationVal = confirmationInput?.value?.trim();
+        const secretVal = secretInput?.value?.trim();
+
+        let groupId = parseInt(groupIdVal, 10);
+        if (!Number.isFinite(groupId) || groupId <= 0) {
+          alert('group_id должен быть положительным числом.');
+          return;
+        }
+        if (!confirmationVal) {
+          alert('Укажите код подтверждения Callback API.');
+          return;
+        }
+
+        const payload = {
+          platform_config: {
+            group_id: groupId,
+            confirmation_token: confirmationVal
+          }
+        };
+        payload.platform_config.secret = secretVal || null;
+
+        try {
+          const resp = await fetch(`/api/channels/${vkWebhookState.channelId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await resp.json();
+          if (!resp.ok || data.success === false) {
+            throw new Error(data.error || ('HTTP ' + resp.status));
+          }
+
+          const row = document.querySelector(`tr[data-id="${vkWebhookState.channelId}"]`);
+          if (row) {
+            const existing = row.dataset.platformConfig ? JSON.parse(row.dataset.platformConfig) : {};
+            const updated = Object.assign({}, existing, payload.platform_config);
+            if (!updated.secret) {
+              delete updated.secret;
+            }
+            row.dataset.platformConfig = JSON.stringify(updated);
+            const platformCell = row.querySelector('td:nth-child(4)');
+            if (platformCell) {
+              const infoEl = platformCell.querySelector('.small.text-muted');
+              if (infoEl) {
+                infoEl.textContent = `group_id: ${groupId}`;
+              }
+            }
+          }
+
+          const modalEl = document.getElementById('vkWebhookModal');
+          const modal = bootstrap.Modal.getInstance(modalEl);
+          modal?.hide();
+          alert('Настройки вебхука сохранены.');
+        } catch (error) {
+          alert('Не удалось сохранить настройки вебхука: ' + error.message);
+        }
       }
 
       function maskToken(token) {
@@ -253,6 +389,9 @@
             <td>
               <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
               ${vkGroupId ? `<div class="small text-muted">group_id: ${escapeHtml(String(vkGroupId))}</div>` : ''}
+              ${platform === 'vk'
+                ? `<button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="openVkSettings(${row.id})">Настроить вебхук…</button>`
+                : ''}
             </td>
             <td class="text-center align-middle">
               <div class="form-check form-switch d-inline-flex align-items-center gap-2">
@@ -305,6 +444,10 @@
         const platform = platformSelect?.value || 'telegram';
         const vkGroupInput = document.getElementById('new_vk_group_id');
         const vkGroupIdRaw = vkGroupInput?.value.trim();
+        const vkConfirmationInput = document.getElementById('new_vk_confirmation');
+        const vkConfirmationRaw = vkConfirmationInput?.value.trim();
+        const vkSecretInput = document.getElementById('new_vk_secret');
+        const vkSecretRaw = vkSecretInput?.value.trim();
         if (!token || !channelName) {
           alert('Укажите токен и название канала.');
           return;
@@ -315,12 +458,17 @@
             alert('Укажите ID сообщества VK.');
             return;
           }
+          if (!vkConfirmationRaw) {
+            alert('Укажите код подтверждения Callback API.');
+            return;
+          }
           const groupId = parseInt(vkGroupIdRaw, 10);
           if (!Number.isFinite(groupId) || groupId <= 0) {
             alert('ID сообщества VK должен быть положительным числом.');
             return;
           }
-          payload.platform_config = { group_id: groupId };
+          payload.platform_config = { group_id: groupId, confirmation_token: vkConfirmationRaw };
+          if (vkSecretRaw) payload.platform_config.secret = vkSecretRaw;
         }
         try {
           const resp = await fetch('/api/channels', {
@@ -334,6 +482,8 @@
           document.getElementById('new_channel_name').value = '';
           document.getElementById('new_max_questions').value = '0';
           if (vkGroupInput) vkGroupInput.value = '';
+          if (vkConfirmationInput) vkConfirmationInput.value = '';
+          if (vkSecretInput) vkSecretInput.value = '';
           if (platformSelect) {
             platformSelect.value = 'telegram';
             toggleVkGroupField();
@@ -554,6 +704,7 @@
 
       document.getElementById('addQuestionBtn').addEventListener('click', addQuestionRow);
       document.getElementById('saveQuestionsBtn').addEventListener('click', saveQuestionsConfig);
+      document.getElementById('vkWebhookSaveBtn').addEventListener('click', saveVkWebhookSettings);
       document.getElementById('questionsAdvancedJson').addEventListener('input', () => {
         try {
           const value = document.getElementById('questionsAdvancedJson').value.trim();
@@ -575,6 +726,7 @@
       window.saveChannel = saveChannel;
       window.removeChannel = removeChannel;
       window.openQuestionsEditor = openQuestionsEditor;
+      window.openVkSettings = openVkSettings;
     </script>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
