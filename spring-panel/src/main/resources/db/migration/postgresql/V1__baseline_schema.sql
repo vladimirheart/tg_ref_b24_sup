@@ -161,11 +161,11 @@ CREATE TABLE IF NOT EXISTS pending_feedback_requests (
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
-    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    channel_id BIGINT NOT NULL REFERENCES channels(id),
-    key        VARCHAR(128) NOT NULL,
-    value      TEXT NOT NULL,
-    UNIQUE(channel_id, key)
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    channel_id   BIGINT NOT NULL REFERENCES channels(id),
+    setting_key  VARCHAR(128) NOT NULL,
+    value        TEXT NOT NULL,
+    UNIQUE(channel_id, setting_key)
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
