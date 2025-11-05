@@ -167,14 +167,16 @@
     if (!content) {
       return '<div class="text-muted small">Для этого варианта нет дополнительных зависимостей. Он доступен без ограничений.</div>';
     }
-    return `<div class="d-flex flex-column gap-2">${content}</div>`;
+    const intro = '<div class="small text-muted">Этот вариант увидит клиент, если выполнены условия:</div>';
+    return `<div class="d-flex flex-column gap-2">${intro}${content}</div>`;
   }
 
   function highlightOptionRow(card, optionValue) {
     if (!card) {
-      return;
+      return null;
     }
     const normalized = typeof optionValue === 'string' ? optionValue.trim() : '';
+    let activeRow = null;
     card.querySelectorAll('[data-bot-question-option-row]').forEach((row) => {
       if (!(row instanceof HTMLElement)) {
         return;
@@ -184,10 +186,17 @@
       row.classList.toggle('is-active', isActive);
       if (isActive) {
         row.setAttribute('data-bot-question-option-active', 'true');
+        activeRow = row;
       } else {
         row.removeAttribute('data-bot-question-option-active');
+        const details = row.querySelector('[data-bot-question-option-dependencies]');
+        if (details) {
+          details.classList.add('d-none');
+          details.innerHTML = '';
+        }
       }
     });
+    return activeRow;
   }
 
   function showOptionDependencies(card, optionValue) {
@@ -195,23 +204,29 @@
       return;
     }
     const meta = card.__questionMeta || null;
-    const dependenciesWrapper = card.querySelector('[data-bot-question-dependencies]');
-    const titleEl = card.querySelector('[data-bot-question-dependencies-title]');
-    const contentEl = card.querySelector('[data-bot-question-dependencies-content]');
-    if (!dependenciesWrapper || !contentEl || !meta || typeof meta.optionDependencies !== 'object') {
+    if (!meta || typeof meta.optionDependencies !== 'object') {
       return;
     }
     const value = typeof optionValue === 'string' ? optionValue.trim() : '';
     if (!value) {
       return;
     }
-    dependenciesWrapper.classList.remove('d-none');
-    if (titleEl) {
-      titleEl.innerHTML = `Вариант: <span class="fw-normal">${html(value)}</span>`;
+    const activeRow = highlightOptionRow(card, value);
+    if (!activeRow) {
+      return;
+    }
+    const container = activeRow.querySelector('[data-bot-question-option-dependencies]');
+    if (!container) {
+      return;
     }
     const entry = meta.optionDependencies[value] || meta.optionDependencies[optionValue] || null;
-    contentEl.innerHTML = buildOptionDependencyHtml(entry);
-    highlightOptionRow(card, value);
+    container.innerHTML = `
+      <div class="bot-question-option__dependencies-title small fw-semibold text-primary">
+        Вариант: <span class="fw-normal text-body">${html(value)}</span>
+      </div>
+      ${buildOptionDependencyHtml(entry)}
+    `;
+    container.classList.remove('d-none');
   }
 
   function presetExists(group, field) {
@@ -1155,6 +1170,78 @@ const id = ensureQuestionId(source.id);
     summaryEl.textContent = `Скрыто: ${excluded.length} из ${options.length}`;
   }
 
+  function renderQuestionPreview(card, question, meta) {
+    if (!card) {
+      return;
+    }
+    const previewEl = card.querySelector('[data-bot-question-preview]');
+    if (!previewEl) {
+      return;
+    }
+    const titleEl = previewEl.querySelector('[data-bot-question-preview-title]');
+    const descriptionEl = previewEl.querySelector('[data-bot-question-preview-description]');
+    const optionsEl = previewEl.querySelector('[data-bot-question-preview-options]');
+    const hintEl = previewEl.querySelector('[data-bot-question-preview-hint]');
+    const text = question && typeof question.text === 'string' ? question.text.trim() : '';
+    if (titleEl) {
+      titleEl.textContent = text || 'Текст вопроса пока не задан';
+      titleEl.classList.toggle('text-muted', !text);
+    }
+    if (!question || question.type !== 'preset' || !meta) {
+      if (descriptionEl) {
+        descriptionEl.textContent = 'Клиент введёт ответ в свободной форме.';
+      }
+      if (optionsEl) {
+        optionsEl.innerHTML = '';
+        optionsEl.classList.add('d-none');
+      }
+      if (hintEl) {
+        hintEl.classList.add('d-none');
+        hintEl.textContent = '';
+      }
+      return;
+    }
+    const options = Array.isArray(meta.options) ? meta.options : [];
+    const excludedValues = Array.isArray(question.excludedOptions)
+      ? question.excludedOptions
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter((value) => value)
+      : [];
+    const hiddenSet = new Set(excludedValues);
+    const visibleOptions = options.filter((value) => !hiddenSet.has(value));
+    if (descriptionEl) {
+      descriptionEl.textContent = visibleOptions.length
+        ? 'Клиент увидит следующие варианты ответа:'
+        : 'Сейчас ни один вариант не отображается клиенту.';
+    }
+    if (optionsEl) {
+      if (visibleOptions.length) {
+        const badges = visibleOptions
+          .slice(0, 12)
+          .map((value) => `<span class="badge rounded-pill text-bg-light border bot-question-preview__badge">${html(value)}</span>`);
+        if (visibleOptions.length > 12) {
+          badges.push(
+            `<span class="badge rounded-pill text-bg-light border bot-question-preview__badge">+${visibleOptions.length - 12} ещё</span>`,
+          );
+        }
+        optionsEl.innerHTML = badges.join(' ');
+      } else {
+        optionsEl.innerHTML = '<span class="text-muted small">Варианты будут скрыты до изменения настроек.</span>';
+      }
+      optionsEl.classList.remove('d-none');
+    }
+    if (hintEl) {
+      const hasDependencies = meta.optionDependencies && Object.keys(meta.optionDependencies).length > 0;
+      if (hasDependencies) {
+        hintEl.textContent = 'Нажмите на иконку рядом с вариантом, чтобы увидеть условия его показа для клиента.';
+        hintEl.classList.remove('d-none');
+      } else {
+        hintEl.classList.add('d-none');
+        hintEl.textContent = '';
+      }
+    }
+  }
+
   function collectDependencyValues(optionDependencies) {
     const values = {
       business: new Set(),
@@ -1343,16 +1430,17 @@ const id = ensureQuestionId(source.id);
               : '';
             const checked = excluded.has(optionValue) ? '' : ' checked';
             return `
-              <div class="bot-question-option form-check form-check-sm"${locationTypeAttr}${businessAttr} data-bot-question-option-row="true" data-option-value="${html(optionValue)}">
-                <div class="d-flex align-items-start justify-content-between gap-2">
-                  <div class="flex-grow-1">
-                    <input class="form-check-input" type="checkbox" value="${html(optionValue)}" data-bot-question-option${checked}>
-                    <label class="form-check-label ms-2">${html(optionValue)}</label>
+              <div class="bot-question-option form-check form-check-sm py-2 px-3 mb-2"${locationTypeAttr}${businessAttr} data-bot-question-option-row="true" data-option-value="${html(optionValue)}">
+                <div class="d-flex align-items-start justify-content-between gap-2 bot-question-option__header">
+                  <div class="flex-grow-1 d-flex align-items-start gap-2">
+                    <input class="form-check-input mt-1" type="checkbox" value="${html(optionValue)}" data-bot-question-option${checked}>
+                    <label class="form-check-label">${html(optionValue)}</label>
                   </div>
                   <button type="button" class="btn btn-link btn-sm px-1 text-decoration-none" data-bot-question-option-info title="Показать зависимости варианта" aria-label="Показать зависимости варианта">
                     <i class="bi bi-diagram-3"></i>
                   </button>
                 </div>
+                <div class="bot-question-option__dependencies small text-muted mt-2 d-none" data-bot-question-option-dependencies></div>
               </div>
             `;
           })
@@ -1416,16 +1504,20 @@ const id = ensureQuestionId(source.id);
               </div>
               ${filtersHtml}
             </div>
+            <div class="small text-muted mb-2">
+              Отметьте галочкой варианты, которые увидит клиент. Нажмите на значок <i class="bi bi-diagram-3"></i>, чтобы увидеть условия показа конкретного варианта.
+            </div>
             <div class="border rounded-3 p-3 bg-light" data-bot-question-options>
               ${optionsHtml}
             </div>
-            <div class="bot-question-dependencies mt-3 p-3 small d-none" data-bot-question-dependencies>
-              <div class="bot-question-dependencies__title small mb-2" data-bot-question-dependencies-title>
-                Выберите вариант, чтобы увидеть зависимости
-              </div>
-              <div class="small text-muted" data-bot-question-dependencies-content>
-                Нажмите на значок <i class="bi bi-diagram-3"></i> рядом с вариантом или измените его отображение.
-              </div>
+          </div>
+          <div class="mt-3" data-bot-question-preview-wrapper>
+            <div class="bot-question-preview alert alert-light border mb-0" data-bot-question-preview>
+              <div class="small text-uppercase text-muted fw-semibold mb-2">Как увидит клиент</div>
+              <div class="fw-semibold" data-bot-question-preview-title></div>
+              <div class="small text-muted mt-2" data-bot-question-preview-description></div>
+              <div class="d-flex flex-wrap gap-2 mt-2" data-bot-question-preview-options></div>
+              <div class="small text-muted mt-2 d-none" data-bot-question-preview-hint></div>
             </div>
           </div>
         </div>
@@ -1452,6 +1544,7 @@ const id = ensureQuestionId(source.id);
       });
       applyQuestionFilters(card);
       renderHiddenSummary(card, question, meta);
+      renderQuestionPreview(card, question, meta);
     });
     renderPresetHints();
   }
@@ -1718,8 +1811,13 @@ const id = ensureQuestionId(source.id);
     }
     question.excludedOptions = Array.from(set);
     const card = questionsContainer ? questionsContainer.querySelector(`.card[data-index="${index}"]`) : null;
-    const meta = question.preset ? getPresetMeta(question.preset.group, question.preset.field) : null;
+    const meta = card && card.__questionMeta
+      ? card.__questionMeta
+      : question.preset
+        ? getPresetMeta(question.preset.group, question.preset.field)
+        : null;
     renderHiddenSummary(card, question, meta);
+    renderQuestionPreview(card, question, meta);
   }
 
   function resetState() {
@@ -1996,7 +2094,10 @@ const id = ensureQuestionId(source.id);
       }
       const index = Number.parseInt(card.dataset.index, 10);
       if (Number.isFinite(index) && editorState.questionFlow[index]) {
-        editorState.questionFlow[index].text = input.value;
+        const question = editorState.questionFlow[index];
+        question.text = input.value;
+        const meta = card.__questionMeta || (question.preset ? getPresetMeta(question.preset.group, question.preset.field) : null);
+        renderQuestionPreview(card, question, meta);
       }
     });
 
