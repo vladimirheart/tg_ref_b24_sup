@@ -30,6 +30,10 @@ import hashlib
 from pathlib import Path
 import secrets
 from functools import wraps
+from typing import Any, Iterable
+
+from vk_api import VkApi
+from vk_api.exceptions import VkApiError
 
 PARENT_DIR = Path(__file__).resolve().parent.parent
 if str(PARENT_DIR) not in sys.path:
@@ -3456,6 +3460,10 @@ def ensure_channels_schema():
             cur.execute("ALTER TABLE channels ADD COLUMN rating_template_id TEXT")
         if 'public_id' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN public_id TEXT")
+        if 'platform' not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN platform TEXT NOT NULL DEFAULT 'telegram'")
+        if 'platform_config' not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN platform_config TEXT")
         existing_ids = set()
         try:
             rows = cur.execute("SELECT id, public_id FROM channels").fetchall()
@@ -3487,6 +3495,18 @@ def ensure_channels_schema():
             )
         except Exception:
             pass
+        try:
+            cur.execute(
+                "UPDATE channels SET platform = COALESCE(NULLIF(TRIM(platform), ''), 'telegram')"
+            )
+        except Exception:
+            pass
+        try:
+            cur.execute(
+                "UPDATE channels SET platform_config = COALESCE(platform_config, '{}')"
+            )
+        except Exception:
+            pass
         conn.commit()
     except Exception as e:
         print(f"ensure_channels_schema: {e}")
@@ -3509,7 +3529,7 @@ def _load_sanitized_bot_settings_payload():
     source = settings_payload.get("bot_settings") if isinstance(settings_payload, dict) else None
     return sanitize_bot_settings(source, definitions=definitions)
 
-def _fetch_bot_identity(token: str) -> tuple[str, str]:
+def _fetch_telegram_bot_identity(token: str) -> tuple[str, str]:
     if not token:
         raise ValueError("Пустой токен")
     response = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=10)
@@ -3525,19 +3545,79 @@ def _fetch_bot_identity(token: str) -> tuple[str, str]:
     return display_name, username
 
 
+def _parse_platform(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    return raw or "telegram"
+
+
+def _parse_platform_config(raw_config) -> dict:
+    if isinstance(raw_config, str) and raw_config.strip():
+        try:
+            parsed = json.loads(raw_config)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    if isinstance(raw_config, dict):
+        return dict(raw_config)
+    return {}
+
+
+def _extract_vk_group_id(config: dict) -> int | None:
+    if not isinstance(config, dict):
+        return None
+    group_id = config.get("group_id") or config.get("groupId")
+    try:
+        return int(group_id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _fetch_vk_bot_identity(token: str, *, group_id: int) -> tuple[str, str]:
+    if not token:
+        raise ValueError("Пустой токен")
+    if not group_id:
+        raise ValueError("ID сообщества VK обязателен")
+    session = VkApi(token=token)
+    api = session.get_api()
+    try:
+        api.groups.getLongPollServer(group_id=group_id)
+    except VkApiError as exc:
+        raise ValueError(f"Ошибка проверки long poll: {exc}") from exc
+    try:
+        info = api.groups.getById(group_id=group_id)
+    except VkApiError as exc:
+        raise ValueError(f"Не удалось получить данные сообщества: {exc}") from exc
+    group = (info or [{}])[0] if isinstance(info, list) else (info or {})
+    name = str(group.get("name") or "").strip()
+    screen_name = str(group.get("screen_name") or "").strip()
+    if not screen_name and group_id:
+        screen_name = f"club{group_id}"
+    display_name = name or screen_name or f"VK Group {group_id}"
+    username = screen_name or f"club{group_id}"
+    return display_name, username
+
+
 def _refresh_bot_identity_if_needed(conn: sqlite3.Connection, channel_row: dict) -> dict:
     if not channel_row:
         return channel_row
     token = (channel_row.get("token") or "").strip()
     if not token:
         return channel_row
+    platform = _parse_platform(channel_row.get("platform"))
+    platform_config = _parse_platform_config(channel_row.get("platform_config"))
     existing_name = (channel_row.get("bot_name") or "").strip()
     existing_username = (channel_row.get("bot_username") or "").strip()
     needs_refresh = (not existing_name) or (not existing_username) or (existing_name == existing_username)
     if not needs_refresh:
         return channel_row
     try:
-        display_name, username = _fetch_bot_identity(token)
+        if platform == "vk":
+            group_id = _extract_vk_group_id(platform_config)
+            if not group_id:
+                raise ValueError("Не указан group_id для VK-бота")
+            display_name, username = _fetch_vk_bot_identity(token, group_id=group_id)
+        else:
+            display_name, username = _fetch_telegram_bot_identity(token)
     except Exception as exc:
         logging.warning("Не удалось обновить имя бота #%s: %s", channel_row.get("id"), exc)
         return channel_row
@@ -9239,12 +9319,25 @@ def api_channels_create():
     is_active = 1 if data.get("is_active", True) else 0
     question_template_id = (data.get("question_template_id") or "").strip()
     rating_template_id = (data.get("rating_template_id") or "").strip()
+    platform = _parse_platform(data.get("platform"))
+    if platform not in {"telegram", "vk"}:
+        return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
+    platform_config = _parse_platform_config(data.get("platform_config"))
 
     if not token or not channel_name:
         return jsonify({"success": False, "error": "token и channel_name обязательны"}), 400
 
     try:
-        bot_display_name, bot_username = _fetch_bot_identity(token)
+        if platform == "vk":
+            group_id = data.get("vk_group_id") or data.get("group_id") or platform_config.get("group_id")
+            try:
+                group_id_int = int(group_id)
+            except (TypeError, ValueError):
+                return jsonify({"success": False, "error": "Укажите числовой group_id сообщества VK"}), 400
+            platform_config["group_id"] = group_id_int
+            bot_display_name, bot_username = _fetch_vk_bot_identity(token, group_id=group_id_int)
+        else:
+            bot_display_name, bot_username = _fetch_telegram_bot_identity(token)
     except Exception as e:
         return jsonify({"success": False, "error": f"Ошибка проверки токена: {e}"}), 400
 
@@ -9301,8 +9394,8 @@ def api_channels_create():
     public_id = _generate_unique_channel_public_id(cur)
     cur.execute(
         """
-        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id, public_id)
-        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id, :public_id)
+        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id, public_id, platform, platform_config)
+        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id, :public_id, :platform, :platform_config)
         """,
         {
             "token": token,
@@ -9315,6 +9408,8 @@ def api_channels_create():
             "question_template_id": question_template_id,
             "rating_template_id": rating_template_id,
             "public_id": public_id,
+            "platform": platform,
+            "platform_config": json.dumps(platform_config, ensure_ascii=False),
         },
     )
     conn.commit()
@@ -9332,6 +9427,22 @@ def api_channels_update(channel_id):
         value = data.get("rating_template_id")
         data["rating_template_id"] = value.strip() if isinstance(value, str) else value
     fields, params = [], {"id": channel_id}
+    if "platform" in data:
+        platform_value = _parse_platform(data.get("platform"))
+        if platform_value not in {"telegram", "vk"}:
+            return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
+        fields.append("platform = :platform")
+        params["platform"] = platform_value
+    if "platform_config" in data:
+        config_dict = _parse_platform_config(data.get("platform_config"))
+        group_id = config_dict.get("group_id")
+        if group_id is not None:
+            try:
+                config_dict["group_id"] = int(group_id)
+            except (TypeError, ValueError):
+                return jsonify({"success": False, "error": "group_id должен быть числом"}), 400
+        fields.append("platform_config = :platform_config")
+        params["platform_config"] = json.dumps(config_dict, ensure_ascii=False)
     for k in ("channel_name", "questions_cfg", "max_questions", "is_active", "question_template_id", "rating_template_id"):
         if k in data:
             fields.append(f"{k} = :{k}")
