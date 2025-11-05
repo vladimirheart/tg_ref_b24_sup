@@ -549,3 +549,45 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
     height: 140px;
   }
 }
+
+.bot-question-option {
+  background-color: #ffffff;
+  border: 1px solid rgba(13, 110, 253, 0.12);
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.bot-question-option__header .form-check-input {
+  flex-shrink: 0;
+}
+
+.bot-question-option[data-bot-question-option-active='true'] {
+  border-color: rgba(13, 110, 253, 0.45);
+  box-shadow: 0 0.75rem 1.25rem rgba(13, 110, 253, 0.12);
+  background-color: rgba(13, 110, 253, 0.05);
+}
+
+.bot-question-option__dependencies {
+  background: rgba(13, 110, 253, 0.04);
+  border-left: 3px solid rgba(13, 110, 253, 0.35);
+  border-radius: 0.5rem;
+  margin-left: 1.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.bot-question-option__dependencies-title {
+  color: #0d6efd;
+}
+
+.bot-question-preview {
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.04));
+  border-color: rgba(13, 110, 253, 0.18) !important;
+  border-radius: 1rem;
+}
+
+.bot-question-preview__badge {
+  font-weight: 500;
+  background: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+  border-color: rgba(13, 110, 253, 0.25) !important;
+}
