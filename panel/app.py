@@ -6260,6 +6260,13 @@ def tickets_list():
             row['responsible_source'] = responsible_info['source'] or ''
             row['responsible_assigned_at'] = _coerce_to_iso(responsible_info['assigned_at'])
             row['responsible_assigned_by'] = (responsible_info['assigned_by'] or '').strip() if responsible_info['assigned_by'] else ''
+            photo = _resolve_operator_photo(row['responsible']) or _resolve_operator_photo(row['manual_responsible'])
+            if not photo:
+                photo = _resolve_operator_photo(row['auto_responsible'])
+            if photo:
+                row['responsible_avatar'] = photo
+                row['responsible_avatar_url'] = photo
+                row['responsible_avatar_full_url'] = photo
             row['is_blacklisted'] = int(row.get('is_blacklisted') or 0)
             row['unblock_requested'] = int(row.get('unblock_requested') or 0)
             result.append(row)
@@ -6412,6 +6419,16 @@ def get_ticket(ticket_id):
     ticket["responsible_source"] = responsible_info["source"] or ""
     ticket["responsible_assigned_at"] = _coerce_to_iso(responsible_info["assigned_at"])
     ticket["responsible_assigned_by"] = responsible_info["assigned_by"] or ""
+
+    responsible_photo = (
+        _resolve_operator_photo(ticket["responsible"]) or
+        _resolve_operator_photo(ticket["manual_responsible"]) or
+        _resolve_operator_photo(ticket["auto_responsible"])
+    )
+    if responsible_photo:
+        ticket["responsible_avatar"] = responsible_photo
+        ticket["responsible_avatar_url"] = responsible_photo
+        ticket["responsible_avatar_full_url"] = responsible_photo
 
     conn.close()
     return jsonify(ticket)
@@ -9083,7 +9100,13 @@ def api_ticket_responsible(ticket_id):
 
         info = _resolve_ticket_responsible(cur, ticket_id, ticket_row['channel_id'])
 
-    return jsonify({
+    responsible_photo = (
+        _resolve_operator_photo(info.get('responsible')) or
+        _resolve_operator_photo(info.get('manual')) or
+        _resolve_operator_photo(info.get('auto'))
+    )
+
+    payload = {
         'success': True,
         'responsible': (info['responsible'] or '').strip(),
         'manual': (info['manual'] or '').strip(),
@@ -9091,7 +9114,13 @@ def api_ticket_responsible(ticket_id):
         'source': info['source'] or '',
         'responsible_assigned_at': _coerce_to_iso(info['assigned_at']),
         'responsible_assigned_by': info['assigned_by'] or '',
-    })
+    }
+    if responsible_photo:
+        payload['responsible_avatar'] = responsible_photo
+        payload['responsible_avatar_url'] = responsible_photo
+        payload['responsible_avatar_full_url'] = responsible_photo
+
+    return jsonify(payload)
 
 @app.route('/api/notifications/unread_count')
 @login_required_api
@@ -11299,6 +11328,90 @@ def _load_operator_profiles_for_history() -> list[dict]:
         )
 
     return profiles
+
+
+ZERO_WIDTH_RE = re.compile("[\u200b\u200c\u200d\ufeff]")
+
+
+def _normalize_operator_key_py(value: str | int | None) -> str:
+    """Normalize operator identifier to match against cached profiles."""
+
+    if value is None:
+        return ""
+
+    text = str(value)
+    if not text:
+        return ""
+
+    text = ZERO_WIDTH_RE.sub("", text)
+    text = text.lstrip("@")
+    text = re.sub(r"\s+", " ", text)
+    text = text.strip().lower()
+    return text
+
+
+def _build_operator_profile_index_py(profiles: list[dict]) -> dict[str, dict]:
+    index: dict[str, dict] = {}
+
+    def register(key: str | int | None, profile: dict) -> None:
+        normalized = _normalize_operator_key_py(key)
+        if normalized and normalized not in index:
+            index[normalized] = profile
+        collapsed = normalized.replace(" ", "") if normalized else ""
+        if collapsed and collapsed not in index:
+            index[collapsed] = profile
+
+    for profile in profiles or []:
+        if not isinstance(profile, dict):
+            continue
+        register(profile.get("username"), profile)
+        username = profile.get("username")
+        if isinstance(username, str) and "@" in username:
+            register(username.split("@", 1)[0], profile)
+        register(profile.get("full_name"), profile)
+        register(profile.get("display_name"), profile)
+        register(profile.get("name"), profile)
+        register(profile.get("login"), profile)
+        register(profile.get("operator_login"), profile)
+        register(profile.get("user_login"), profile)
+        register(profile.get("email"), profile)
+        if profile.get("id") is not None:
+            register(profile["id"], profile)
+        role = profile.get("role") or profile.get("role_name")
+        if isinstance(role, str) and role.strip().lower() == "admin":
+            register("admin", profile)
+
+    return index
+
+
+def _get_operator_profile_index_cached() -> dict[str, dict]:
+    """Return cached operator profile index for the current request."""
+
+    cached = getattr(g, "_operator_profile_index", None)
+    if cached is not None:
+        return cached
+
+    profiles = _load_operator_profiles_for_history()
+    index = _build_operator_profile_index_py(profiles)
+    g._operator_profile_index = index
+    g._operator_profiles_for_history = profiles
+    return index
+
+
+def _lookup_operator_profile(label: str | None) -> dict | None:
+    index = _get_operator_profile_index_cached()
+    normalized = _normalize_operator_key_py(label)
+    if not normalized:
+        return None
+    return index.get(normalized)
+
+
+def _resolve_operator_photo(label: str | None) -> str | None:
+    profile = _lookup_operator_profile(label)
+    if not profile:
+        return None
+    photo = (profile.get("photo") or "").strip()
+    return photo or None
 
 
 def _fetch_user_summary(conn, user_id: int):
