@@ -1,7 +1,7 @@
 -- Baseline schema reproducing the SQLite structure for the legacy support panel.
 
 CREATE TABLE IF NOT EXISTS users (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          INTEGER PRIMARY KEY ${autoIncrement},
     username    VARCHAR(255) NOT NULL UNIQUE,
     password    TEXT NOT NULL,
     enabled     BOOLEAN NOT NULL DEFAULT TRUE,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS user_authorities (
 CREATE INDEX IF NOT EXISTS idx_user_authorities_user ON user_authorities(user_id);
 
 CREATE TABLE IF NOT EXISTS channels (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    id              INTEGER PRIMARY KEY ${autoIncrement},
     token           VARCHAR(255) NOT NULL UNIQUE,
     bot_name        TEXT,
     channel_name    TEXT NOT NULL,
@@ -85,7 +85,7 @@ LEFT JOIN chat_history ch ON ch.ticket_id = m.ticket_id
 GROUP BY COALESCE(m.username, '');
 
 CREATE TABLE IF NOT EXISTS chat_history (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    id            INTEGER PRIMARY KEY ${autoIncrement},
     user_id       BIGINT,
     sender        TEXT,
     message       TEXT,
@@ -106,7 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_history_channel_time
     ON chat_history(channel_id, timestamp);
 
 CREATE TABLE IF NOT EXISTS feedbacks (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        INTEGER PRIMARY KEY ${autoIncrement},
     user_id   BIGINT,
     rating    INTEGER,
     timestamp TEXT
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS client_statuses (
 );
 
 CREATE TABLE IF NOT EXISTS client_usernames (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        INTEGER PRIMARY KEY ${autoIncrement},
     user_id   BIGINT NOT NULL,
     username  VARCHAR(255) NOT NULL,
     seen_at   TEXT NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS client_usernames (
 );
 
 CREATE TABLE IF NOT EXISTS client_phones (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          INTEGER PRIMARY KEY ${autoIncrement},
     user_id     BIGINT NOT NULL,
     phone       TEXT NOT NULL,
     label       TEXT,
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS client_phones (
 );
 
 CREATE TABLE IF NOT EXISTS ticket_spans (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    id               INTEGER PRIMARY KEY ${autoIncrement},
     ticket_id        VARCHAR(255) NOT NULL,
     span_no          INTEGER NOT NULL,
     started_at       TEXT NOT NULL,
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS ticket_spans (
 );
 
 CREATE TABLE IF NOT EXISTS pending_feedback_requests (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          INTEGER PRIMARY KEY ${autoIncrement},
     user_id     BIGINT NOT NULL,
     channel_id  BIGINT NOT NULL,
     ticket_id   VARCHAR(255),
@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS pending_feedback_requests (
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         INTEGER PRIMARY KEY ${autoIncrement},
     channel_id BIGINT NOT NULL REFERENCES channels(id),
     key        VARCHAR(128) NOT NULL,
     value      TEXT NOT NULL,
@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    id               INTEGER PRIMARY KEY ${autoIncrement},
     seq              BIGINT NOT NULL,
     source           TEXT,
     title            TEXT,
@@ -202,14 +202,14 @@ CREATE TABLE IF NOT EXISTS task_links (
 );
 
 CREATE TABLE IF NOT EXISTS task_people (
-    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    id      INTEGER PRIMARY KEY ${autoIncrement},
     task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
     role    TEXT,
     identity TEXT
 );
 
 CREATE TABLE IF NOT EXISTS task_comments (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id        INTEGER PRIMARY KEY ${autoIncrement},
     task_id   BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     author    TEXT,
     html      TEXT,
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS task_comments (
 );
 
 CREATE TABLE IF NOT EXISTS task_history (
-    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    id      INTEGER PRIMARY KEY ${autoIncrement},
     task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     at      TEXT DEFAULT CURRENT_TIMESTAMP,
     text    TEXT
@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS client_blacklist (
 );
 
 CREATE TABLE IF NOT EXISTS settings_parameters (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          INTEGER PRIMARY KEY ${autoIncrement},
     param_type  TEXT NOT NULL,
     value       TEXT NOT NULL,
     created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS settings_parameters (
 );
 
 CREATE TABLE IF NOT EXISTS it_equipment_catalog (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    id                INTEGER PRIMARY KEY ${autoIncrement},
     equipment_type    TEXT NOT NULL,
     equipment_vendor  TEXT NOT NULL,
     equipment_model   TEXT NOT NULL,
@@ -258,7 +258,7 @@ CREATE TABLE IF NOT EXISTS it_equipment_catalog (
 );
 
 CREATE TABLE IF NOT EXISTS knowledge_articles (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    id                INTEGER PRIMARY KEY ${autoIncrement},
     title             TEXT NOT NULL,
     department        TEXT,
     article_type      TEXT,
@@ -274,7 +274,7 @@ CREATE TABLE IF NOT EXISTS knowledge_articles (
 );
 
 CREATE TABLE IF NOT EXISTS knowledge_article_files (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    id             INTEGER PRIMARY KEY ${autoIncrement},
     article_id     BIGINT REFERENCES knowledge_articles(id) ON DELETE CASCADE,
     draft_token    VARCHAR(255),
     stored_path    TEXT NOT NULL,
@@ -290,7 +290,7 @@ CREATE INDEX IF NOT EXISTS idx_kb_files_draft
     ON knowledge_article_files(draft_token);
 
 CREATE TABLE IF NOT EXISTS web_form_sessions (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    id             INTEGER PRIMARY KEY ${autoIncrement},
     token          VARCHAR(255) NOT NULL UNIQUE,
     ticket_id      VARCHAR(255) NOT NULL,
     channel_id     BIGINT NOT NULL,
@@ -311,7 +311,7 @@ CREATE TABLE IF NOT EXISTS ticket_responsibles (
 );
 
 CREATE TABLE IF NOT EXISTS client_unblock_requests (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    id               INTEGER PRIMARY KEY ${autoIncrement},
     user_id          VARCHAR(255) NOT NULL,
     channel_id       BIGINT,
     reason           TEXT,
@@ -326,7 +326,7 @@ CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user
     ON client_unblock_requests(user_id);
 
 CREATE TABLE IF NOT EXISTS client_avatar_history (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    id             INTEGER PRIMARY KEY ${autoIncrement},
     user_id        BIGINT NOT NULL,
     fingerprint    VARCHAR(255) NOT NULL,
     source         TEXT NOT NULL,
@@ -349,7 +349,7 @@ CREATE INDEX IF NOT EXISTS idx_client_avatar_history_last_seen
     ON client_avatar_history(last_seen_at);
 
 CREATE TABLE IF NOT EXISTS notifications (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    id            INTEGER PRIMARY KEY ${autoIncrement},
     user_identity TEXT NOT NULL,
     text          TEXT NOT NULL,
     url           TEXT,
@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS bot_users (
 );
 
 CREATE TABLE IF NOT EXISTS bot_chat_history (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    id            INTEGER PRIMARY KEY ${autoIncrement},
     user_id       BIGINT REFERENCES bot_users(user_id),
     message       TEXT,
     timestamp     TEXT,
@@ -375,7 +375,7 @@ CREATE TABLE IF NOT EXISTS bot_chat_history (
 );
 
 CREATE TABLE IF NOT EXISTS applications (
-    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    id                 INTEGER PRIMARY KEY ${autoIncrement},
     user_id            BIGINT REFERENCES bot_users(user_id),
     problem_description TEXT,
     photo_path         TEXT,
@@ -386,7 +386,7 @@ CREATE TABLE IF NOT EXISTS applications (
 );
 
 CREATE TABLE IF NOT EXISTS roles (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    id           INTEGER PRIMARY KEY ${autoIncrement},
     name         VARCHAR(255) UNIQUE NOT NULL,
     description  TEXT,
     permissions  TEXT NOT NULL DEFAULT '{}'
@@ -395,7 +395,7 @@ CREATE TABLE IF NOT EXISTS roles (
 CREATE INDEX IF NOT EXISTS idx_roles_name ON roles(name);
 
 CREATE TABLE IF NOT EXISTS panel_users (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    id                INTEGER PRIMARY KEY ${autoIncrement},
     username          VARCHAR(255) NOT NULL UNIQUE,
     password          TEXT,
     password_hash     TEXT,
