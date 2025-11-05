@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='bender-icon.svg') }}" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css', v='2') }}" rel="stylesheet" />
 </head>
 <body class="with-sidebar sidebar-pinned">
   {% include "_sidebar.html" %}
@@ -28,6 +28,13 @@
               <input id="new_channel_name" class="form-control" placeholder="Например: Доставка">
             </div>
             <div class="col-md-2">
+              <label class="form-label">Платформа</label>
+              <select id="new_platform" class="form-select">
+                <option value="telegram" selected>Telegram</option>
+                <option value="vk">VK</option>
+              </select>
+            </div>
+            <div class="col-md-2">
               <label class="form-label">Лимит вопросов</label>
               <input id="new_max_questions" type="number" min="0" value="0" class="form-control">
               <div class="form-text">0 — без ограничений</div>
@@ -35,8 +42,13 @@
             <div class="col-md-3 d-grid">
               <button class="btn btn-primary" type="button" onclick="addChannel()">Добавить канал</button>
             </div>
+            <div class="col-12 col-md-4" id="vk_group_id_container" style="display: none;">
+              <label class="form-label">ID сообщества VK</label>
+              <input id="new_vk_group_id" class="form-control" placeholder="Например: 123456789">
+              <div class="form-text">Найдите в настройках сообщества → Работа с API.</div>
+            </div>
           </div>
-          <div class="text-muted small mt-2">Имя бота подтягивается автоматически при валидации токена (метод Telegram <code>getMe</code>).</div>
+          <div class="text-muted small mt-2">Имя бота определяется автоматически при проверке токена (Telegram <code>getMe</code> или VK API).</div>
         </div>
       </div>
 
@@ -45,17 +57,18 @@
           <thead class="table-light">
             <tr>
               <th style="width: 6%">ID</th>
-              <th style="width: 20%">Канал и бот</th>
+              <th style="width: 22%">Канал и бот</th>
               <th style="width: 18%">Название для панели</th>
-              <th style="width: 14%" class="text-center">Статус</th>
-              <th style="width: 14%">Лимит</th>
-              <th style="width: 20%">Вопросы</th>
-              <th style="width: 8%"></th>
+              <th style="width: 12%">Платформа</th>
+              <th style="width: 12%" class="text-center">Статус</th>
+              <th style="width: 12%">Лимит</th>
+              <th style="width: 14%">Вопросы</th>
+              <th style="width: 4%"></th>
             </tr>
           </thead>
           <tbody id="channelsBody">
             <tr>
-              <td colspan="7" class="text-center text-muted py-4">Загрузка каналов…</td>
+              <td colspan="8" class="text-center text-muted py-4">Загрузка каналов…</td>
             </tr>
           </tbody>
         </table>
@@ -189,19 +202,41 @@
         return parts.join(' • ');
       }
 
+      function parsePlatformConfig(raw) {
+        if (!raw) return {};
+        if (typeof raw === 'string') {
+          try {
+            const value = JSON.parse(raw);
+            return value && typeof value === 'object' ? value : {};
+          } catch (e) {
+            return {};
+          }
+        }
+        if (typeof raw === 'object') {
+          return Object.assign({}, raw);
+        }
+        return {};
+      }
+
       function renderChannels(rows) {
         channelsBody.innerHTML = '';
         if (!rows.length) {
-          channelsBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
+          channelsBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
           return;
         }
         rows.forEach((row) => {
           const { questions, limit, extra } = normalizeConfig(row.questions_cfg, row.max_questions);
           const configForDataset = Object.assign({}, extra, { questions, per_dialog_limit: limit });
+          const platform = String(row.platform || 'telegram').toLowerCase();
+          const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
+          const platformConfig = parsePlatformConfig(row.platform_config);
+          const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId) : null;
           const tr = document.createElement('tr');
           tr.dataset.id = row.id;
           tr.dataset.config = JSON.stringify(configForDataset);
           tr.dataset.limit = String(limit || 0);
+          tr.dataset.platform = platform;
+          tr.dataset.platformConfig = JSON.stringify(platformConfig);
           tr.innerHTML = `
             <td class="fw-semibold">#${row.id}</td>
             <td>
@@ -214,6 +249,10 @@
             </td>
             <td>
               <input class="form-control form-control-sm" data-field="channel_name" value="${escapeHtml(row.channel_name || '')}">
+            </td>
+            <td>
+              <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
+              ${vkGroupId ? `<div class="small text-muted">group_id: ${escapeHtml(String(vkGroupId))}</div>` : ''}
             </td>
             <td class="text-center align-middle">
               <div class="form-check form-switch d-inline-flex align-items-center gap-2">
@@ -262,21 +301,43 @@
         const token = document.getElementById('new_token').value.trim();
         const channelName = document.getElementById('new_channel_name').value.trim();
         const maxQuestions = parseInt(document.getElementById('new_max_questions').value || '0', 10);
+        const platformSelect = document.getElementById('new_platform');
+        const platform = platformSelect?.value || 'telegram';
+        const vkGroupInput = document.getElementById('new_vk_group_id');
+        const vkGroupIdRaw = vkGroupInput?.value.trim();
         if (!token || !channelName) {
           alert('Укажите токен и название канала.');
           return;
+        }
+        const payload = { token, channel_name: channelName, max_questions: maxQuestions, is_active: true, platform };
+        if (platform === 'vk') {
+          if (!vkGroupIdRaw) {
+            alert('Укажите ID сообщества VK.');
+            return;
+          }
+          const groupId = parseInt(vkGroupIdRaw, 10);
+          if (!Number.isFinite(groupId) || groupId <= 0) {
+            alert('ID сообщества VK должен быть положительным числом.');
+            return;
+          }
+          payload.platform_config = { group_id: groupId };
         }
         try {
           const resp = await fetch('/api/channels', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, channel_name: channelName, max_questions: maxQuestions, is_active: true })
+            body: JSON.stringify(payload)
           });
           const data = await resp.json();
           if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
           document.getElementById('new_token').value = '';
           document.getElementById('new_channel_name').value = '';
           document.getElementById('new_max_questions').value = '0';
+          if (vkGroupInput) vkGroupInput.value = '';
+          if (platformSelect) {
+            platformSelect.value = 'telegram';
+            toggleVkGroupField();
+          }
           await loadChannels();
           alert('Канал добавлен.');
         } catch (error) {
@@ -484,6 +545,13 @@
         }
       }
 
+      function toggleVkGroupField() {
+        const platformSelect = document.getElementById('new_platform');
+        const container = document.getElementById('vk_group_id_container');
+        if (!platformSelect || !container) return;
+        container.style.display = platformSelect.value === 'vk' ? '' : 'none';
+      }
+
       document.getElementById('addQuestionBtn').addEventListener('click', addQuestionRow);
       document.getElementById('saveQuestionsBtn').addEventListener('click', saveQuestionsConfig);
       document.getElementById('questionsAdvancedJson').addEventListener('input', () => {
@@ -496,7 +564,12 @@
         updateExtraBadge();
       });
 
-      document.addEventListener('DOMContentLoaded', loadChannels);
+      document.getElementById('new_platform')?.addEventListener('change', toggleVkGroupField);
+
+      document.addEventListener('DOMContentLoaded', () => {
+        toggleVkGroupField();
+        loadChannels();
+      });
 
       window.addChannel = addChannel;
       window.saveChannel = saveChannel;
