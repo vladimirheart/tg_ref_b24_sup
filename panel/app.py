@@ -9288,10 +9288,7 @@ def api_notify_read(nid):
 @login_required
 @page_access_required("channels")
 def channels_page():
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM channels ORDER BY id DESC").fetchall()
-    conn.close()
-    return render_template("channels.html", channels=rows)
+    return redirect(url_for("settings_page", open="channels"))
 
 @app.route("/api/channels", methods=["GET"])
 @login_required
