@@ -3134,7 +3134,7 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
                 || null;
         }
 
-        function updateTicketResponsible(ticketId, effective, source = '', manual = '', autoValue = '', assignedAt = null, assignedBy = '') {
+        function updateTicketResponsible(ticketId, effective, source = '', manual = '', autoValue = '', assignedAt = null, assignedBy = '', avatar = '') {
           const normalizedId = String(ticketId);
 
           const apply = (ticket) => {
@@ -3143,6 +3143,18 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
             ticket.responsible_source = source || '';
             ticket.manual_responsible = (manual || '').trim();
             ticket.auto_responsible = (autoValue || '').trim();
+            if (avatar !== undefined) {
+              const cleanAvatar = (avatar || '').trim();
+              if (cleanAvatar) {
+                ticket.responsible_avatar = cleanAvatar;
+                ticket.responsible_avatar_url = cleanAvatar;
+                ticket.responsible_avatar_full_url = cleanAvatar;
+              } else {
+                delete ticket.responsible_avatar;
+                delete ticket.responsible_avatar_url;
+                delete ticket.responsible_avatar_full_url;
+              }
+            }
             if (assignedAt !== undefined) {
               ticket.responsible_assigned_at = assignedAt;
             }
@@ -4544,7 +4556,8 @@ async function assignResponsibleFromControl() {
       responsibleControlState.manual,
       responsibleControlState.auto,
       data.responsible_assigned_at || null,
-      data.responsible_assigned_by || ''
+      data.responsible_assigned_by || '',
+      data.responsible_avatar || data.responsible_avatar_url || data.responsible_avatar_full_url || ''
     );
   } catch (error) {
     console.error('assignResponsibleFromControl failed', error);
