@@ -1097,6 +1097,30 @@ def _current_user_id() -> int | None:
     return session.get("user_id")
 
 
+def _current_operator_label(default: str = "Bender") -> str:
+    """Return a human readable label for the authenticated operator."""
+
+    candidates: list[str] = []
+
+    user_row = getattr(g, "current_user", None)
+    if user_row is not None:
+        for key in ("full_name", "display_name", "username", "email"):
+            value = _row_value(user_row, key, "")
+            if isinstance(value, str):
+                label = value.strip()
+                if label:
+                    candidates.append(label)
+
+    for key in ("user_email", "username", "user"):
+        value = session.get(key)
+        if isinstance(value, str):
+            label = value.strip()
+            if label:
+                candidates.append(label)
+
+    return next(iter(candidates), default)
+
+
 def _can_edit_user_profile(user_id: int) -> bool:
     current_id = _current_user_id()
     if current_id is not None and current_id == user_id:
@@ -6516,8 +6540,10 @@ def clients_list():
             JOIN tickets t ON m.ticket_id = t.ticket_id
             LEFT JOIN (
                 SELECT ticket_id, MIN(timestamp) as first_response_time
-                FROM chat_history 
-                WHERE sender = 'support'
+                FROM chat_history
+                WHERE sender IS NOT NULL
+                  AND TRIM(sender) != ''
+                  AND LOWER(sender) NOT IN ('user', 'клиент', 'client', 'customer', 'пользователь')
                 GROUP BY ticket_id
             ) ch ON t.ticket_id = ch.ticket_id
             WHERE m.user_id = ?
@@ -7450,8 +7476,10 @@ def api_dashboard_data():
             JOIN messages m ON t.ticket_id = m.ticket_id
             LEFT JOIN (
                 SELECT ticket_id, MIN(timestamp) as first_response_time
-                FROM chat_history 
-                WHERE sender = 'support'
+                FROM chat_history
+                WHERE sender IS NOT NULL
+                  AND TRIM(sender) != ''
+                  AND LOWER(sender) NOT IN ('user', 'клиент', 'client', 'customer', 'пользователь')
                 GROUP BY ticket_id
             ) ch ON t.ticket_id = ch.ticket_id
             WHERE t.resolved_by IS NOT NULL AND t.resolved_by != ''
@@ -12219,11 +12247,13 @@ def reply():
         if not ticket_id:
             return jsonify(success=False, error="ticket_id is required"), 400
 
-        admin    = (data.get('admin') or 'Bender').strip()
         text     = _fix_surrogates((data.get('text') or '').strip())
         reply_to = data.get('reply_to_tg_id')  # может быть None
         if not text:
             return jsonify(success=False, error='Пустой текст')
+
+        operator_label = _current_operator_label()
+        safe_operator_label = html.escape(operator_label, quote=False)
 
         # 0) если тикет был закрыт — переоткрываем (с лимитом: не более 3 раз)
         reopened = reopen_ticket_if_needed(ticket_id)  # True | "LIMIT_EXCEEDED" | False
@@ -12234,7 +12264,7 @@ def reply():
         # 1) шлём клиенту (reply_to — если был выбран пузырь)
         ok, info = send_telegram_message(
             chat_id=user_id,
-            text=f"От: {admin}\n\n{text}",
+            text=f"От: {safe_operator_label}\n\n{text}",
             parse_mode='HTML',
             reply_to_message_id=int(reply_to) if reply_to else None,
             allow_sending_without_reply=True
@@ -12282,7 +12312,7 @@ def reply():
             """, (
                 user_id,
                 ticket_id,
-                admin if admin else 'Bender',
+                operator_label,
                 text,
                 now_utc,
                 tg_msg_id,
@@ -12317,12 +12347,14 @@ def reply_file():
     try:
         user_id   = int(request.form.get('user_id', 0))
         ticket_id = (request.form.get('ticket_id') or '').strip()
-        admin     = (request.form.get('admin') or 'Bender').strip()
         reply_to  = request.form.get('reply_to_tg_id')  # может быть None
 
         f = request.files.get('file')
         if not user_id or not ticket_id or not f:
             return jsonify(success=False, error='bad params'), 400
+
+        operator_label = _current_operator_label()
+        safe_operator_label = html.escape(operator_label, quote=False)
 
         from zoneinfo import ZoneInfo
         now_utc = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
@@ -12397,7 +12429,7 @@ def reply_file():
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}"
         payload = {'chat_id': user_id}
         if method != 'sendSticker':
-            payload['caption'] = f"От: {admin}"
+            payload['caption'] = f"От: {safe_operator_label}"
             payload['parse_mode'] = 'HTML'
         if reply_to:
             payload['reply_to_message_id'] = int(reply_to)
@@ -12420,8 +12452,19 @@ def reply_file():
                     INSERT INTO chat_history (
                         user_id, ticket_id, sender, message, timestamp, message_type,
                         attachment, tg_message_id, reply_to_tg_id, channel_id
-                    ) VALUES (?, ?, 'support', ?, ?, ?, ?, ?, ?, ?)
-                """, (user_id, ticket_id, f"От: {admin}", now_utc, message_type, save_path, tg_msg_id, reply_to, channel_id))
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    user_id,
+                    ticket_id,
+                    operator_label,
+                    f"От: {operator_label}",
+                    now_utc,
+                    message_type,
+                    save_path,
+                    tg_msg_id,
+                    reply_to,
+                    channel_id,
+                ))
         exec_with_retry(_insert)
 
         # ✅ обновляем статус тикета (финальное подтверждение)
@@ -12445,7 +12488,7 @@ def close_ticket():
     data = request.json
     user_id   = int(data["user_id"])
     ticket_id = data["ticket_id"]
-    admin_name = (data.get("admin") or "Bender").strip()
+    admin_name = _current_operator_label()
     category   = data.get("category", "Без категории")
 
     try:
