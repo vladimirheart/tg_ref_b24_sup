@@ -2284,6 +2284,7 @@ function markTicketReopenedLocally() {
     <script src="{{ url_for('static', filename='modal-helpers.js') }}"></script>
     <script>
     window.settings = {{ settings | tojson | safe }};
+    window.initialOperatorProfiles = {{ operator_profiles | tojson | safe }};
     if (!window.settings || typeof window.settings !== 'object') {
       window.settings = {};
     }
@@ -2634,6 +2635,17 @@ let cachedAdminUsers = null;
           if (window.operatorProfileIndex && window.operatorProfileIndex instanceof Map) {
             return window.operatorProfileIndex;
           }
+
+          const initialProfiles = Array.isArray(window.initialOperatorProfiles)
+            ? window.initialOperatorProfiles
+            : null;
+          if (initialProfiles && initialProfiles.length) {
+            window.operatorProfiles = initialProfiles;
+            window.operatorProfileIndex = buildOperatorProfileIndex(initialProfiles);
+            window.initialOperatorProfiles = null;
+            return window.operatorProfileIndex;
+          }
+
           if (!operatorProfilesPromise) {
             operatorProfilesPromise = (async () => {
               let profiles = [];
