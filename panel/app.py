@@ -23,7 +23,7 @@ import re
 import unicodedata
 import time, sqlite3
 import html
-from uuid import uuid4
+from uuid import uuid4, uuid5, NAMESPACE_URL
 import sys
 import shutil
 import hashlib
@@ -45,6 +45,18 @@ from bot_settings_utils import (
     sanitize_bot_settings,
 )
 from shared_config import shared_config_path
+
+
+def generate_client_panel_id(user_id: Any) -> str:
+    """Возвращает стабильный уникальный идентификатор клиента для отображения в панели."""
+    base = f"client:{user_id}"
+    try:
+        return f"CL-{uuid5(NAMESPACE_URL, base).hex[:8].upper()}"
+    except Exception:
+        # В редком случае некорректного user_id используем случайный, чтобы не падать.
+        return f"CL-{uuid4().hex[:8].upper()}"
+
+
 def exec_with_retry(fn, retries=5, base_delay=0.15):
     for i in range(retries):
         try:
@@ -61,7 +73,6 @@ from datetime import datetime as dt, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 import io
 import mimetypes
-from typing import Any, Iterable
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -5568,6 +5579,7 @@ def index():
         pending=pending,
         settings=settings,
         operator_profiles=_load_operator_profiles_for_history(),
+        status_colors=settings.get("client_status_colors", {}),
     )
 
 # serve_media для обработки изображений:
@@ -6639,6 +6651,7 @@ def clients_list():
         client_dict['total_minutes'] = total_minutes
         client_dict['formatted_time'] = format_time_duration(total_minutes)
         client_dict['client_status'] = status_map.get(user_id, "")
+        client_dict['panel_id'] = generate_client_panel_id(user_id)
 
         # статусы блэклиста
         is_bl, unb = blmap.get(str(user_id), (0, 0))
@@ -7940,8 +7953,25 @@ def _prepare_client_analytics(conn):
     )
     rows = cur.fetchall()
 
-    expanded_rows = []
+    client_options: dict[int, dict[str, str]] = {}
+    base_rows: list[dict[str, Any]] = []
     for row in rows:
+        row_dict = dict(row)
+        user_id = row_dict["user_id"]
+        panel_id = generate_client_panel_id(user_id)
+        row_dict["panel_id"] = panel_id
+        base_rows.append(row_dict)
+
+        if user_id not in client_options:
+            label = row_dict.get("client_name") or row_dict.get("username") or str(user_id)
+            client_options[user_id] = {
+                "value": str(user_id),
+                "label": label,
+                "panel_id": panel_id,
+            }
+
+    expanded_rows = []
+    for row in base_rows:
         categories_raw = row["category"] or ""
         parts = [part.strip() for part in categories_raw.split(",") if part.strip()]
         if not parts:
@@ -7975,6 +8005,11 @@ def _prepare_client_analytics(conn):
     cur.execute("SELECT DISTINCT status FROM tickets WHERE status IS NOT NULL")
     statuses = [row["status"] for row in cur.fetchall()]
 
+    sorted_client_options = sorted(
+        client_options.values(),
+        key=lambda item: (item["label"] or "").lower()
+    )
+
     filters = {
         "businesses": businesses,
         "location_types": location_types,
@@ -7982,6 +8017,7 @@ def _prepare_client_analytics(conn):
         "locations": locations,
         "categories": categories,
         "statuses": statuses,
+        "clients": sorted_client_options,
     }
     return expanded_rows, total_tickets, filters
 
@@ -8136,19 +8172,25 @@ def export_analytics_clients():
                 placeholders = ','.join(['?'] * len(filters['location']))
                 where_conditions.append(f"m.location_name IN ({placeholders})")
                 params.extend(filters['location'])
-            
+
             # Фильтры по категории
             if filters.get('category') and filters['category']:
                 placeholders = ','.join(['?'] * len(filters['category']))
                 where_conditions.append(f"m.category IN ({placeholders})")
                 params.extend(filters['category'])
-            
+
             # Фильтры по статусу
             if filters.get('status') and filters['status']:
                 placeholders = ','.join(['?'] * len(filters['status']))
                 where_conditions.append(f"t.status IN ({placeholders})")
                 params.extend(filters['status'])
-            
+
+            # Фильтр по конкретным клиентам
+            if filters.get('client') and filters['client']:
+                placeholders = ','.join(['?'] * len(filters['client']))
+                where_conditions.append(f"m.user_id IN ({placeholders})")
+                params.extend(filters['client'])
+
             # Фильтр по количеству заявок
             if filters.get('ticketCount'):
                 if filters['ticketCount'] == 'custom' and filters.get('customTicketValue'):
@@ -8159,21 +8201,21 @@ def export_analytics_clients():
                     min_count = int(filters['ticketCount'])
                     where_conditions.append("COUNT(DISTINCT m.user_id) >= ?")
                     params.append(min_count)
-        
+
         if where_conditions:
             query += " AND " + " AND ".join(where_conditions)
-        
+
         query += " GROUP BY m.business, m.location_type, m.city, m.location_name, m.category, t.status"
-        
+
         cur.execute(query, params)
         rows = cur.fetchall()
-        
+
         conn.close()
-        
+
         # Формируем данные для экспорта
         export_data = []
         headers = ['Бизнес', 'Тип локации', 'Город', 'Локация', 'Категория', 'Статус', 'Количество клиентов']
-        
+
         for row in rows:
             export_data.append([
                 row['business'] or '',
@@ -8184,45 +8226,45 @@ def export_analytics_clients():
                 row['status'] or '',
                 row['cnt']
             ])
-        
+
         # Экспорт в выбранном формате
         if format_type == 'csv':
             import csv
             import io
-            
+
             output = io.StringIO()
             writer = csv.writer(output)
-            
+
             # Заголовки
             writer.writerow(headers)
-            
+
             # Данные
             writer.writerows(export_data)
-            
+
             response = Response(output.getvalue(), mimetype='text/csv')
             response.headers['Content-Disposition'] = 'attachment; filename=clients_analytics_export.csv'
-            
+
         else:  # xlsx используя openpyxl напрямую
             from openpyxl import Workbook
             from openpyxl.styles import Font
             from io import BytesIO
-            
+
             output = BytesIO()
-            
+
             wb = Workbook()
             ws = wb.active
             ws.title = "Аналитика клиентов"
-            
+
             # Заголовки с жирным шрифтом
             for col_idx, header in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col_idx, value=header)
                 cell.font = Font(bold=True)
-            
+
             # Данные
             for row_idx, row_data in enumerate(export_data, 2):
                 for col_idx, value in enumerate(row_data, 1):
                     ws.cell(row=row_idx, column=col_idx, value=value)
-            
+
             # Авто-ширина колонок
             for column in ws.columns:
                 max_length = 0
@@ -8235,15 +8277,15 @@ def export_analytics_clients():
                         pass
                 adjusted_width = min(max_length + 2, 50)
                 ws.column_dimensions[column_letter].width = adjusted_width
-            
+
             wb.save(output)
             output.seek(0)
-            
+
             response = Response(output.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response.headers['Content-Disposition'] = 'attachment; filename=clients_analytics_export.xlsx'
-        
+
         return response
-        
+
     except Exception as e:
         print(f"Ошибка при экспорте аналитики клиентов: {e}")
         import traceback
@@ -8258,10 +8300,10 @@ def export_analytics():
         format_type = data.get("format", "xlsx")
         filters = data.get("filters", {})
         export_filtered = data.get("exportFiltered", False)
-        
+
         conn = get_db()
         cur = conn.cursor()
-        
+
         # Базовый запрос
         query = """
             SELECT 
@@ -8275,48 +8317,48 @@ def export_analytics():
             FROM messages 
             JOIN tickets USING(ticket_id)
         """
-        
+
         # Применяем фильтры если нужно
         where_conditions = []
         params = []
-        
+
         if export_filtered and filters:
             if filters.get('business') and filters['business']:
                 where_conditions.append("business IN ({})".format(','.join(['?'] * len(filters['business']))))
                 params.extend(filters['business'])
-            
+
             if filters.get('location_type') and filters['location_type']:
                 where_conditions.append("location_type IN ({})".format(','.join(['?'] * len(filters['location_type']))))
                 params.extend(filters['location_type'])
-            
+
             if filters.get('city') and filters['city']:
                 where_conditions.append("city IN ({})".format(','.join(['?'] * len(filters['city']))))
                 params.extend(filters['city'])
-            
+
             if filters.get('location') and filters['location']:
                 where_conditions.append("location_name IN ({})".format(','.join(['?'] * len(filters['location']))))
                 params.extend(filters['location'])
-            
+
             if filters.get('category') and filters['category']:
                 where_conditions.append("category IN ({})".format(','.join(['?'] * len(filters['category']))))
                 params.extend(filters['category'])
-            
+
             if filters.get('status') and filters['status']:
                 where_conditions.append("status IN ({})".format(','.join(['?'] * len(filters['status']))))
                 params.extend(filters['status'])
-        
+
         if where_conditions:
             query += " WHERE " + " AND ".join(where_conditions)
-        
+
         query += " GROUP BY business, location_type, city, location_name, category, status"
-        
+
         cur.execute(query, params)
         rows = cur.fetchall()
-        
+
         # Формируем данные для экспорта
         export_data = []
         headers = ['Бизнес', 'Тип локации', 'Город', 'Локация', 'Категория', 'Статус', 'Количество']
-        
+
         for row in rows:
             export_data.append([
                 row['business'] or '',
@@ -8327,47 +8369,47 @@ def export_analytics():
                 row['status'] or '',
                 row['cnt']
             ])
-        
+
         conn.close()
-        
+
         # Экспорт в выбранном формате
         if format_type == 'csv':
             import csv
             import io
-            
+
             output = io.StringIO()
             writer = csv.writer(output)
-            
+
             # Заголовки
             writer.writerow(headers)
-            
+
             # Данные
             writer.writerows(export_data)
-            
+
             response = Response(output.getvalue(), mimetype='text/csv')
             response.headers['Content-Disposition'] = 'attachment; filename=analytics_export.csv'
-            
+
         else:  # xlsx используя openpyxl напрямую
             from openpyxl import Workbook
             from openpyxl.styles import Font
             from io import BytesIO
-            
+
             output = BytesIO()
-            
+
             wb = Workbook()
             ws = wb.active
             ws.title = "Аналитика"
-            
+
             # Заголовки с жирным шрифтом
             for col_idx, header in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col_idx, value=header)
                 cell.font = Font(bold=True)
-            
+
             # Данные
             for row_idx, row_data in enumerate(export_data, 2):
                 for col_idx, value in enumerate(row_data, 1):
                     ws.cell(row=row_idx, column=col_idx, value=value)
-            
+
             # Авто-ширина колонок
             for column in ws.columns:
                 max_length = 0
@@ -8380,15 +8422,15 @@ def export_analytics():
                         pass
                 adjusted_width = min(max_length + 2, 50)
                 ws.column_dimensions[column_letter].width = adjusted_width
-            
+
             wb.save(output)
             output.seek(0)
-            
+
             response = Response(output.read(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response.headers['Content-Disposition'] = 'attachment; filename=analytics_export.xlsx'
-        
+
         return response
-        
+
     except Exception as e:
         print(f"Ошибка при экспорте аналитики: {e}")
         import traceback
@@ -8430,7 +8472,7 @@ def dashboard():
     city_data = {row['city'] if row['city'] is not None else 'не указан': row['cnt'] for row in city_rows}
 
     conn.close()
-    
+
     return render_template("dashboard.html", 
                          status_data=status_data, 
                          category_data=category_data,
