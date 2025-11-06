@@ -212,7 +212,7 @@ function syncSelect2CheckboxState(event) {
 }
 
 function initSelect2WithCheckboxes(elements, options = {}) {
-    if (typeof window === 'undefined' || !window.jQuery) return;W
+    if (typeof window === 'undefined' || !window.jQuery) return;
     const $ = window.jQuery;
     const $elements = elements && elements.jquery ? elements : $(elements);
     if (!$elements.length) return;
