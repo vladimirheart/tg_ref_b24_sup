@@ -9,7 +9,7 @@
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css', v='2') }}" rel="stylesheet" />
   <style>
     .analytics-nav .nav-link { font-weight: 600; }
     .analytics-nav .nav-link .tab-icon { margin-right: 0.25rem; }
@@ -196,6 +196,7 @@
             <table class="table table-striped table-hover mb-0" id="clientAnalyticsTable">
               <thead class="table-dark">
                 <tr>
+                  <th class="sortable" data-client-sort="panel_id">ID клиента ↕</th>
                   <th class="sortable" data-client-sort="client_name">Клиент ↕</th>
                   <th class="sortable" data-client-sort="username">Telegram ↕</th>
                   <th class="sortable" data-client-sort="business">Бизнес ↕</th>
@@ -211,6 +212,7 @@
                 {% for c in client_stats %}
                 <tr class="client-row"
                   data-client-id="{{ c.user_id }}"
+                  data-client-panel-id="{{ c.panel_id }}"
                   data-client-name="{{ c.client_name or '' }}"
                   data-client-username="{{ c.username or '' }}"
                   data-client-business="{{ c.business or '' }}"
@@ -221,6 +223,7 @@
                   data-client-status="{{ c.status or '' }}"
                   data-client-tickets="{{ c.tickets }}"
                 >
+                  <td><code>{{ c.panel_id }}</code></td>
                   <td>
                     <div class="name-block">
                       <div class="db-name">{{ c.client_name or '—' }}</div>
@@ -388,7 +391,15 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body">
-          <div class="row filter-row">
+            <div class="row filter-row">
+            <div class="col-md-6 mb-3">
+              <label>Клиент</label>
+              <select class="form-select client-filter-select" id="clientFilterClient" multiple>
+                {% for client in client_filters.clients %}
+                <option value="{{ client.value }}">{{ client.label }}{% if client.panel_id %} — {{ client.panel_id }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
             <div class="col-md-4 mb-3">
               <label>Бизнес</label>
               <select class="form-select client-filter-select" id="clientFilterBusiness" multiple>
@@ -795,6 +806,7 @@
       const visibleCounter = document.getElementById('clientVisibleRecordsCount');
       const totalCounter = document.getElementById('clientTotalRecordsCount');
       const filterState = {
+        client: [],
         business: [],
         location_type: [],
         city: [],
@@ -809,6 +821,7 @@
 
       function passes(row) {
         const checks = [
+          { key: 'client', attr: 'clientId' },
           { key: 'business', attr: 'clientBusiness' },
           { key: 'location_type', attr: 'clientLocationType' },
           { key: 'city', attr: 'clientCity' },
@@ -818,10 +831,27 @@
         ];
         for (const check of checks) {
           const values = filterState[check.key];
-          if (values && values.length) {
-            const value = normalize(row.dataset[check.attr] || '');
-            if (!values.some((item) => normalize(item) === value)) return false;
+          if (!values || !values.length) continue;
+
+          if (check.key === 'client') {
+            const candidates = [
+              normalize(row.dataset.clientId || ''),
+              normalize(row.dataset.clientPanelId || ''),
+            ].filter(Boolean);
+
+            if (!candidates.length) return false;
+
+            const matchesClient = values.some((item) => {
+              const norm = normalize(item);
+              return norm && candidates.includes(norm);
+            });
+
+            if (!matchesClient) return false;
+            continue;
           }
+
+          const value = normalize(row.dataset[check.attr] || '');
+          if (!values.some((item) => normalize(item) === value)) return false;
         }
         return true;
       }
@@ -845,6 +875,8 @@
 
       function refreshBadges() {
         const parts = [];
+        const clientLabels = getSelectedLabels('#clientFilterClient');
+        parts.push(buildBadge('Клиент', clientLabels));
         parts.push(buildBadge('Бизнес', filterState.business));
         parts.push(buildBadge('Тип локации', filterState.location_type));
         parts.push(buildBadge('Город', filterState.city));
@@ -858,7 +890,20 @@
         return $(selector).val() || [];
       }
 
+      function getSelectedLabels(selector) {
+        const element = document.querySelector(selector);
+        if (!element) return [];
+        if (window.jQuery && typeof $(element).select2 === 'function') {
+          const data = $(element).select2('data') || [];
+          return data.map((item) => item.text).filter((text) => text && text.trim());
+        }
+        return Array.from(element.selectedOptions || [])
+          .map((option) => option.textContent.trim())
+          .filter(Boolean);
+      }
+
       function syncState() {
+        filterState.client = collect('#clientFilterClient');
         filterState.business = collect('#clientFilterBusiness');
         filterState.location_type = collect('#clientFilterLocationType');
         filterState.city = collect('#clientFilterCity');
@@ -943,6 +988,7 @@
 
       const headers = document.querySelectorAll('[data-client-sort]');
       const datasetMap = {
+        panel_id: 'clientPanelId',
         client_name: 'clientName',
         username: 'clientUsername',
         business: 'clientBusiness',
