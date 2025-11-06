@@ -73,6 +73,7 @@ from datetime import datetime as dt, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 import io
 import mimetypes
+from collections import Counter
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -7218,23 +7219,28 @@ def client_profile(user_id):
 
     # Все заявки
     cur.execute("""
-        SELECT 
+        SELECT
             m.ticket_id,
+            m.user_id,
+            m.username AS username,
+            m.client_name AS client_name,
             m.business,
             m.city,
+            m.location_type,
             m.location_name,
             m.problem,
             m.created_at,
             t.status,
             t.resolved_by,
-            CASE 
+            CASE
                 WHEN t.resolved_at IS NOT NULL THEN datetime(t.resolved_at)
-                ELSE NULL 
+                ELSE NULL
             END AS resolved_at,
             m.created_date,
             m.created_time,
             m.category,
-            m.client_status
+            m.client_status,
+            m.channel_id
         FROM messages m
         LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
         WHERE m.user_id = ?
@@ -7242,25 +7248,35 @@ def client_profile(user_id):
     """, (user_id,))
     tickets = cur.fetchall()  # ✅ tickets — всегда определён
 
-    # Добавляем время активности
-    ticket_list = []
+    # Добавляем время активности и собираем используемые каналы
+    ticket_list: list[dict[str, Any]] = []
+    channel_ids: set[int] = set()
     for t in tickets:
         row = dict(t)
-        if row['status'] == 'resolved' and row['resolved_at'] and row['created_date'] and row['created_time']:
+        status_value = row.get('status')
+        if (
+            status_value == 'resolved'
+            and row.get('resolved_at')
+            and row.get('created_date')
+            and row.get('created_time')
+        ):
             try:
                 start = dt.fromisoformat(f"{row['created_date']} {row['created_time']}")
                 end = dt.fromisoformat(row['resolved_at'])
                 row['duration_minutes'] = int((end - start).total_seconds() // 60)
-            except Exception as e:
-                print(f"Ошибка расчёта времени: {e}")
+            except Exception as exc:
+                print(f"Ошибка расчёта времени: {exc}")
                 row['duration_minutes'] = None
         else:
             row['duration_minutes'] = None
+        channel_id = row.get('channel_id')
+        if channel_id:
+            channel_ids.add(channel_id)
         ticket_list.append(row)
 
     # Статистика
     cur.execute("""
-        SELECT 
+        SELECT
             COUNT(*) as total,
             SUM(CASE WHEN t.status = 'resolved' THEN 1 ELSE 0 END) as resolved,
             SUM(CASE WHEN t.status != 'resolved' THEN 1 ELSE 0 END) as pending
@@ -7268,16 +7284,44 @@ def client_profile(user_id):
         LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
         WHERE m.user_id = ?
     """, (user_id,))
-    stats = cur.fetchone()
+    stats_row = cur.fetchone()
+    stats = {'total': 0, 'resolved': 0, 'pending': 0}
+    if stats_row:
+        stats_raw = dict(stats_row)
+        for key in stats:
+            value = stats_raw.get(key)
+            stats[key] = int(value) if value is not None else 0
 
     # Оценки (если есть таблица feedbacks)
     try:
         cur.execute("""
             SELECT rating, timestamp FROM feedbacks WHERE user_id = ? ORDER BY timestamp DESC
         """, (user_id,))
-        feedbacks = cur.fetchall()
-    except:
-        feedbacks = []
+        feedback_rows = cur.fetchall()
+    except Exception:
+        feedback_rows = []
+
+    feedbacks: list[dict[str, Any]] = []
+    ratings: list[float] = []
+    for row in feedback_rows:
+        item = dict(row)
+        rating_raw = item.get('rating')
+        try:
+            if rating_raw is not None:
+                ratings.append(float(rating_raw))
+        except (TypeError, ValueError):
+            pass
+        timestamp_raw = item.get('timestamp')
+        if timestamp_raw:
+            timestamp_text = str(timestamp_raw)
+            if hasattr(timestamp_raw, 'isoformat'):
+                timestamp_text = timestamp_raw.isoformat()
+            item['timestamp_display'] = timestamp_text.split('.')[0].replace('T', ' ')
+        else:
+            item['timestamp_display'] = '—'
+        feedbacks.append(item)
+
+    avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
 
     # Получаем статус клиента из базы данных
     cur.execute("SELECT status FROM client_statuses WHERE user_id = ?", (user_id,))
@@ -7356,7 +7400,69 @@ def client_profile(user_id):
             item["decided_at_display"] = None
         unblock_requests.append(item)
 
+    channel_details: dict[int, dict[str, Any]] = {}
+    if channel_ids:
+        placeholders = ",".join(["?"] * len(channel_ids))
+        cur.execute(
+            f"SELECT id, channel_name, bot_name, platform FROM channels WHERE id IN ({placeholders})",
+            tuple(channel_ids),
+        )
+        for channel_row in cur.fetchall():
+            channel_details[channel_row["id"]] = dict(channel_row)
+
+    for row in ticket_list:
+        channel_info = channel_details.get(row.get('channel_id'))
+        if channel_info:
+            channel_name = channel_info.get('channel_name') or channel_info.get('bot_name')
+            row['channel_name'] = channel_name
+            row['channel_platform'] = channel_info.get('platform')
+
     conn.close()
+
+    category_counter: Counter[str] = Counter()
+    location_counter: Counter[str] = Counter()
+    for row in ticket_list:
+        category_value = (row.get('category') or '').strip()
+        if category_value:
+            category_counter[category_value] += 1
+        city_value = (row.get('city') or '').strip()
+        location_value = (row.get('location_name') or 'Без названия').strip()
+        location_label = f"{city_value} — {location_value}" if city_value else location_value
+        location_counter[location_label] += 1
+
+    category_stats = [
+        {"label": label, "count": count}
+        for label, count in sorted(category_counter.items(), key=lambda item: (-item[1], item[0]))
+    ]
+    location_stats = [
+        {"label": label, "count": count}
+        for label, count in sorted(location_counter.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+    vk_profile = None
+    vk_tickets = [row for row in ticket_list if (row.get('channel_platform') or '').lower() == 'vk']
+    if vk_tickets:
+        latest_vk = vk_tickets[0]
+        screen_name_raw = (latest_vk.get('username') or '').strip()
+        screen_name_clean = screen_name_raw.lstrip('@')
+        profile_url = ''
+        if screen_name_clean:
+            if screen_name_clean.startswith('http'):
+                profile_url = screen_name_clean
+            else:
+                profile_url = f"https://vk.com/{screen_name_clean}"
+        channel_info = channel_details.get(latest_vk.get('channel_id')) if channel_details else None
+        channel_name = None
+        if channel_info:
+            channel_name = channel_info.get('channel_name') or channel_info.get('bot_name')
+        full_name_clean = (latest_vk.get('client_name') or '').strip() or None
+        vk_profile = {
+            'user_id': latest_vk.get('user_id'),
+            'screen_name': screen_name_clean or None,
+            'full_name': full_name_clean,
+            'profile_url': profile_url or None,
+            'channel_name': channel_name,
+        }
 
     settings = {"categories": ["Консультация", "Другое"]}
     if os.path.exists(SETTINGS_PATH):
@@ -7371,8 +7477,12 @@ def client_profile(user_id):
         "client_profile.html",
         client=dict(info),
         tickets=ticket_list,
-        stats=dict(stats),
-        feedbacks=[dict(f) for f in feedbacks],
+        stats=stats,
+        feedbacks=feedbacks,
+        avg_rating=avg_rating,
+        category_stats=category_stats,
+        location_stats=location_stats,
+        vk_profile=vk_profile,
         datetime=dt,
         settings=settings,
         client_status=client_status,
