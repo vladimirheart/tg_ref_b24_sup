@@ -197,7 +197,34 @@
       text-decoration: none;
       background-color: #f0f8ff;
     }
-	
+
+    .searchable-collapse .card-header button {
+      width: 100%;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: #0d6efd;
+    }
+
+    .searchable-collapse .card-header button:hover {
+      background-color: rgba(13, 110, 253, 0.08);
+      text-decoration: none;
+    }
+
+    .searchable-collapse .card-header button::after {
+      content: '\25BC';
+      float: right;
+      transition: transform 0.2s ease;
+    }
+
+    .searchable-collapse .card-header button[aria-expanded="true"]::after {
+      transform: rotate(-180deg);
+    }
+
+    .searchable-group.d-none {
+      display: none !important;
+    }
+
 	/* Twemoji: делаем эмодзи размером с текст */
 	img.emoji {
 	  height: 1em;
@@ -247,10 +274,10 @@
     <div class="card mb-4">
       <div class="card-body">
         <h5>Основная информация</h5>
-		<div class="d-flex align-items-center gap-3 mb-3">
-			  <img id="clientAvatarProfile"
-				 src="/avatar/{{ client.user_id }}"
-				 data-src="{{ client.photo_url or '' }}"
+                <div class="d-flex align-items-center gap-3 mb-3">
+                          <img id="clientAvatarProfile"
+                                 src="/avatar/{{ client.user_id }}"
+                                 data-src="{{ client.photo_url or '' }}"
 				 data-fullsrc="/avatar/{{ client.user_id }}?full=1"
 				 width="72" height="72"
 				 class="rounded-circle"
@@ -284,8 +311,41 @@
                                         <span class="badge text-bg-secondary">Нет</span>
                                   {% endif %}
                                 </p>
-			  </div>
-		</div>
+                          </div>
+                </div>
+                {% if avg_rating is not none or vk_profile %}
+                <div class="row row-cols-1 row-cols-md-2 g-3 mt-3">
+                  {% if avg_rating is not none %}
+                  <div class="col">
+                    <div class="border rounded p-3 bg-light h-100">
+                      <div class="small text-muted text-uppercase fw-semibold mb-1">Средняя оценка диалогов</div>
+                      <div class="d-flex align-items-baseline gap-2">
+                        <span class="display-6 mb-0">{{ avg_rating|round(2) }}</span>
+                        <span class="text-muted">из 5</span>
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+                  {% if vk_profile %}
+                  <div class="col">
+                    <div class="border rounded p-3 h-100">
+                      <div class="small text-muted text-uppercase fw-semibold mb-1">Данные VK</div>
+                      <div><strong>ID VK:</strong> <code>{{ vk_profile.user_id }}</code></div>
+                      <div><strong>Screen name:</strong> {{ vk_profile.screen_name or '—' }}</div>
+                      <div><strong>Имя:</strong> {{ vk_profile.full_name or '—' }}</div>
+                      <div><strong>Канал:</strong> {{ vk_profile.channel_name or '—' }}</div>
+                      <div><strong>Профиль:</strong>
+                        {% if vk_profile.profile_url %}
+                          <a href="{{ vk_profile.profile_url }}" target="_blank" rel="noopener" class="link-primary">{{ vk_profile.profile_url }}</a>
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+                {% endif %}
                 <div class="mt-3">
                   <h6 class="fw-semibold mb-2">История фотографий</h6>
                   <div id="avatarHistory" class="d-flex flex-column gap-2"></div>
@@ -468,99 +528,211 @@
       </div>
     </div>
 
-    <!-- Аналитика по темам и локациям -->
-    <h4>📈 Аналитика по обращениям</h4>
-    <div class="card mb-4">
-      <div class="card-body">
-        <h6>Темы обращений</h6>
-        <ul class="list-group mb-3">
-          {% set categories = {} %}
-          {% for t in tickets %}
-            {% if t.category %}
-              {% if t.category not in categories %}
-                {% set _ = categories.update({t.category: 1}) %}
-              {% else %}
-                {% set _ = categories.update({t.category: categories[t.category] + 1}) %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-          {% for cat, cnt in categories.items() %}
-          <li class="list-group-item d-flex justify-content-between">
-            <span>{{ cat }}</span>
-            <span class="badge bg-info">{{ cnt }}</span>
-          </li>
-          {% endfor %}
-        </ul>
-
-        <h6>Локации</h6>
-        <ul class="list-group">
-          {% set locations = {} %}
-          {% for t in tickets %}
-            {% set loc = t.city + ' — ' + (t.location_name or 'Без названия') %}
-            {% if loc not in locations %}
-              {% set _ = locations.update({loc: 1}) %}
-            {% else %}
-              {% set _ = locations.update({loc: locations[loc] + 1}) %}
-            {% endif %}
-          {% endfor %}
-          {% for loc, cnt in locations.items() %}
-          <li class="list-group-item d-flex justify-content-between">
-            <span>{{ loc }}</span>
-            <span class="badge bg-secondary">{{ cnt }}</span>
-          </li>
-          {% endfor %}
-        </ul>
+    <div class="card mb-4 searchable-collapse">
+      <div class="card-header p-0">
+        <button class="btn btn-link text-decoration-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clientAnalyticsCollapse" aria-expanded="false">
+          📈 Аналитика по обращениям
+        </button>
       </div>
-    </div>
-
-    <!-- Оценки -->
-    {% if feedbacks %}
-    <h4>⭐ Оценки диалогов</h4>
-    <div class="card mb-4">
-      <div class="card-body">
-        <ul class="list-group">
-          {% for f in feedbacks %}
-          <li class="list-group-item feedback-item">
-            <strong>{{ f.rating }} из 5</strong> — {{ f.timestamp.split('.')[0] }}
-          </li>
-          {% endfor %}
-        </ul>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Заявки -->
-    <h4>📋 Заявки клиента</h4>
-    <div class="accordion" id="ticketsAccordion">
-      {% for t in tickets %}
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ t.ticket_id }}">
-            {{ t.ticket_id }} — {{ t.business }} ({{ t.city }})
-          </button>
-        </h2>
-        <div id="collapse-{{ t.ticket_id }}" class="accordion-collapse collapse" data-bs-parent="#ticketsAccordion">
-          <div class="accordion-body">
-            <p><strong>Проблема:</strong> {{ t.problem }}</p>
-            <p><strong>Категория:</strong> {{ t.category or '—' }}</p>
-            <p><strong>Дата создания:</strong> {{ t.created_date }} {{ t.created_time }}</p>
-            {% if t.status == 'resolved' and t.resolved_at %}
-              <p><strong>Завершена:</strong> {{ t.resolved_at }} <strong>кем:</strong> {{ t.resolved_by or 'автоматически' }}</p>
-              {% if t.duration_minutes is not none %}
-                <p><strong>Время активности:</strong> {{ t.duration_minutes }} мин</p>
-              {% endif %}
-            {% else %}
-              <p><strong>Статус:</strong> <span class="badge bg-warning text-dark">⏳ В обработке</span></p>
-            {% endif %}
-            <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory({{ client.user_id }}, '{{ t.ticket_id }}')">
-              Показать историю
-            </button>
+      <div id="clientAnalyticsCollapse" class="collapse">
+        <div class="card-body">
+          {% if category_stats or location_stats %}
+          <div class="mb-3">
+            <input type="search" class="form-control form-control-sm" id="clientAnalyticsSearch" placeholder="Поиск по темам и локациям">
           </div>
+          <div id="clientAnalyticsList">
+            <div class="searchable-group mb-3" data-group-container="categories">
+              <div class="small text-muted text-uppercase fw-semibold mb-2">Темы обращений</div>
+              <div class="list-group list-group-flush">
+                {% for item in category_stats %}
+                <div class="list-group-item d-flex justify-content-between align-items-center" data-search-value="{{ item.label }}" data-group-key="categories">
+                  <span>{{ item.label }}</span>
+                  <span class="badge bg-info">{{ item.count }}</span>
+                </div>
+                {% else %}
+                <div class="list-group-item text-muted">Темы не найдены</div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="searchable-group" data-group-container="locations">
+              <div class="small text-muted text-uppercase fw-semibold mb-2">Локации</div>
+              <div class="list-group list-group-flush">
+                {% for item in location_stats %}
+                <div class="list-group-item d-flex justify-content-between align-items-center" data-search-value="{{ item.label }}" data-group-key="locations">
+                  <span>{{ item.label }}</span>
+                  <span class="badge bg-secondary">{{ item.count }}</span>
+                </div>
+                {% else %}
+                <div class="list-group-item text-muted">Локации не найдены</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <div class="text-muted small mt-3" id="clientAnalyticsEmpty" style="display: none;">Совпадений не найдено.</div>
+          {% else %}
+          <p class="text-muted mb-0">Недостаточно данных для аналитики.</p>
+          {% endif %}
         </div>
       </div>
-      {% endfor %}
+    </div>
+
+    <div class="card mb-4 searchable-collapse">
+      <div class="card-header p-0">
+        <button class="btn btn-link text-decoration-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clientFeedbackCollapse" aria-expanded="false">
+          ⭐ Оценки диалогов
+        </button>
+      </div>
+      <div id="clientFeedbackCollapse" class="collapse">
+        <div class="card-body">
+          {% if feedbacks %}
+          <div class="mb-3">
+            <input type="search" class="form-control form-control-sm" id="clientFeedbackSearch" placeholder="Поиск по оценкам">
+          </div>
+          <ul class="list-group" id="clientFeedbackList">
+            {% for f in feedbacks %}
+            <li class="list-group-item feedback-item" data-search-value="{{ f.rating }} {{ f.timestamp_display or '' }}">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <strong>{{ f.rating }} из 5</strong>
+                <span class="text-muted small">{{ f.timestamp_display or '—' }}</span>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          <div class="text-muted small mt-3" id="clientFeedbackEmpty" style="display: none;">Совпадений не найдено.</div>
+          {% else %}
+          <p class="text-muted mb-0">Оценок пока нет.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4 searchable-collapse">
+      <div class="card-header p-0">
+        <button class="btn btn-link text-decoration-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clientTicketsCollapse" aria-expanded="false">
+          📋 Заявки клиента
+        </button>
+      </div>
+      <div id="clientTicketsCollapse" class="collapse">
+        <div class="card-body">
+          {% if tickets %}
+          <div class="mb-3">
+            <input type="search" class="form-control form-control-sm" id="clientTicketsSearch" placeholder="Поиск по заявкам">
+          </div>
+          <div class="accordion" id="clientTicketsAccordion">
+            {% for t in tickets %}
+            <div class="accordion-item" data-search-value="{{ t.ticket_id }} {{ t.business or '' }} {{ t.city or '' }} {{ t.location_name or '' }} {{ t.problem or '' }} {{ t.status or '' }} {{ t.channel_name or '' }}">
+              <h2 class="accordion-header" id="ticket-heading-{{ loop.index }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ticket-collapse-{{ loop.index }}" aria-expanded="false" aria-controls="ticket-collapse-{{ loop.index }}">
+                  {{ t.ticket_id }} — {{ t.business or '—' }}{% if t.city %} ({{ t.city }}){% endif %}
+                </button>
+              </h2>
+              <div id="ticket-collapse-{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#clientTicketsAccordion">
+                <div class="accordion-body">
+                  <p><strong>Проблема:</strong> {{ t.problem }}</p>
+                  <p><strong>Категория:</strong> {{ t.category or '—' }}</p>
+                  <p><strong>Дата создания:</strong> {{ t.created_date }} {{ t.created_time }}</p>
+                  {% if t.channel_name or t.channel_platform %}
+                  <p><strong>Канал:</strong> {{ t.channel_name or '—' }}{% if t.channel_platform %} <span class="badge text-bg-light border ms-1 text-uppercase">{{ t.channel_platform }}</span>{% endif %}</p>
+                  {% endif %}
+                  {% if t.status == 'resolved' and t.resolved_at %}
+                    <p><strong>Завершена:</strong> {{ t.resolved_at }} <strong>кем:</strong> {{ t.resolved_by or 'автоматически' }}</p>
+                    {% if t.duration_minutes is not none %}
+                      <p><strong>Время активности:</strong> {{ t.duration_minutes }} мин</p>
+                    {% endif %}
+                  {% else %}
+                    <p><strong>Статус:</strong> <span class="badge bg-warning text-dark">⏳ В обработке</span></p>
+                  {% endif %}
+                  <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory({{ client.user_id }}, '{{ t.ticket_id }}')">
+                    Показать историю
+                  </button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="text-muted small mt-3" id="clientTicketsEmpty" style="display: none;">Совпадений не найдено.</div>
+          {% else %}
+          <p class="text-muted mb-0">Заявок не найдено.</p>
+          {% endif %}
+        </div>
+      </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      function initSearch(inputId, selector, options = {}) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const items = Array.from(document.querySelectorAll(selector));
+        if (!items.length) return;
+
+        const groupContainers = {};
+        if (options.groupContainerSelector) {
+          document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
+            const key = el.dataset.groupContainer;
+            if (key) groupContainers[key] = el;
+          });
+        }
+
+        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
+
+        const applyFilter = () => {
+          const query = input.value.trim().toLowerCase();
+          let visibleCount = 0;
+          const visibleByGroup = {};
+          items.forEach((item) => {
+            const value = (item.dataset.searchValue || '').toLowerCase();
+            const groupKey = item.dataset.groupKey || '';
+            const matches = !query || value.includes(query);
+            item.classList.toggle('d-none', !matches);
+            if (matches) {
+              visibleCount += 1;
+              visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
+            }
+          });
+
+          Object.entries(groupContainers).forEach(([key, container]) => {
+            const hasVisible = (visibleByGroup[key] || 0) > 0;
+            container.classList.toggle('d-none', !hasVisible);
+          });
+
+          if (emptyIndicator) {
+            emptyIndicator.style.display = visibleCount ? 'none' : '';
+          }
+        };
+
+        input.addEventListener('input', applyFilter);
+        applyFilter();
+      }
+
+      initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
+        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
+        emptyIndicatorId: 'clientAnalyticsEmpty',
+      });
+      initSearch('clientFeedbackSearch', '#clientFeedbackList [data-search-value]', {
+        emptyIndicatorId: 'clientFeedbackEmpty',
+      });
+      initSearch('clientTicketsSearch', '#clientTicketsAccordion .accordion-item', {
+        emptyIndicatorId: 'clientTicketsEmpty',
+      });
+
+      const ticketSearchInput = document.getElementById('clientTicketsSearch');
+      if (ticketSearchInput) {
+        ticketSearchInput.addEventListener('input', () => {
+          document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
+            if (item.classList.contains('d-none')) {
+              const collapseEl = item.querySelector('.accordion-collapse');
+              if (collapseEl && collapseEl.classList.contains('show') && window.bootstrap && window.bootstrap.Collapse) {
+                const instance = window.bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                instance.hide();
+              }
+            }
+          });
+        });
+      }
+    });
+  </script>
 
   <!-- Модальное окно: редактирование имени -->
   <div class="modal fade" id="editClientNameModal" tabindex="-1">
