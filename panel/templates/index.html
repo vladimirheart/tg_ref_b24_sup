@@ -1271,6 +1271,7 @@
   --history-font-scale: 1;
   --history-font-size: calc(var(--history-font-base) * var(--history-font-scale));
   --history-avatar-size: 48px;
+  --history-avatar-ring-width: 4px;
   --history-chat-gap: 12px;
   --history-bubble-padding-block: 12px;
   --history-bubble-padding-inline: 16px;
@@ -1806,7 +1807,7 @@ function markTicketReopenedLocally() {
 			<div class="row filter-row">
 			  <div class="col-md-6 mb-3">
 				<label>Статус заявки</label>
-                                <select class="form-select filter-select" id="filterStatusModal" multiple>
+                                <select class="form-select filter-select" id="filterStatusModal" multiple data-placeholder="Все статусы">
                                   <option value="">Все статусы</option>
                                   <option value="pending">В обработке</option>
                                   <option value="resolved">Решено</option>
@@ -1815,35 +1816,35 @@ function markTicketReopenedLocally() {
                                   <option value="Ожидает клиента">Ожидает клиента</option>
                                 </select>
 			  </div>
-			  <div class="col-md-6 mb-3">
-				<label>ID клиента</label>
-				<input type="text" class="form-control" id="filterUserModal" placeholder="Введите ID">
-			  </div>
-			  <div class="col-md-6 mb-3">
-				<label>ID заявки</label>
-				<input type="text" class="form-control" id="filterTicketIdModal" placeholder="Введите ID заявки">
-			  </div>
+                          <div class="col-md-6 mb-3">
+                                <label>ID клиента</label>
+                                <input type="text" class="form-control" id="filterUserModal" placeholder="Введите ID">
+                          </div>
+                          <div class="col-md-6 mb-3">
+                                <label>ID заявки</label>
+                                <input type="text" class="form-control" id="filterTicketIdModal" placeholder="Введите ID заявки">
+                          </div>
                           <div class="col-md-6 mb-3">
                                 <label>Бизнес</label>
-                                <select class="form-select filter-select" id="filterBusinessModal" multiple>
+                                <select class="form-select filter-select" id="filterBusinessModal" multiple data-placeholder="Все бизнесы">
                                   <option value="">Все бизнесы</option>
                                 </select>
                           </div>
                           <div class="col-md-6 mb-3">
                                 <label>Локация</label>
-                                <select class="form-select filter-select" id="filterLocationModal" multiple>
+                                <select class="form-select filter-select" id="filterLocationModal" multiple data-placeholder="Все локации">
                                   <option value="">Все локации</option>
                                 </select>
                           </div>
                           <div class="col-md-6 mb-3">
                                 <label>Статус клиента</label>
-                                <select class="form-select filter-select" id="filterClientStatusModal" multiple>
+                                <select class="form-select filter-select" id="filterClientStatusModal" multiple data-placeholder="Все статусы клиентов">
                                   <option value="">Все статусы клиентов</option>
                                 </select>
                           </div>
                           <div class="col-md-6 mb-3">
                                 <label>Ответственный</label>
-                                <select class="form-select filter-select" id="filterResponsibleModal" multiple>
+                                <select class="form-select filter-select" id="filterResponsibleModal" multiple data-placeholder="Все ответственные">
                                   <option value="">Все ответственные</option>
                                 </select>
                           </div>
@@ -9365,6 +9366,7 @@ function applyHistoryFontSize(size) {
   historyContent.style.setProperty('--history-font-scale', String(scale));
   historyContent.style.setProperty('--history-font-size', String(clamped));
   historyContent.style.setProperty('--history-avatar-size', toPx(48));
+  historyContent.style.setProperty('--history-avatar-ring-width', toPx(4));
   historyContent.style.setProperty('--history-chat-gap', toPx(12));
   historyContent.style.setProperty('--history-bubble-padding-block', toPx(12));
   historyContent.style.setProperty('--history-bubble-padding-inline', toPx(16));
@@ -9400,7 +9402,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const resolvedSavedFont = (() => {
     if (!savedFont) {
       return HISTORY_FONT_DEFAULT;
-    
+    }
 
     if (savedFont in HISTORY_FONT_PRESETS) {
       return HISTORY_FONT_PRESETS[savedFont];
