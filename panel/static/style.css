@@ -198,6 +198,30 @@ body {
   word-break: break-word;
 }
 
+.select2-checkbox-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.select2-checkbox-option .form-check-input {
+  pointer-events: none;
+  margin: 0;
+}
+
+.select2-checkbox-label {
+  flex: 1 1 auto;
+  font-size: 0.95em;
+}
+
+.client-analytics-row {
+  cursor: pointer;
+}
+
+.client-analytics-row:hover {
+  background-color: rgba(13, 110, 253, 0.08);
+}
+
 @media (max-width: 576px) {
   .chat-bubble {
     max-width: 95%;
