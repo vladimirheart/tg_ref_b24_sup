@@ -3441,7 +3441,8 @@ def ensure_channels_schema():
         cur = conn.cursor()
         cols = {r['name'] for r in cur.execute("PRAGMA table_info(channels)").fetchall()}
         # ожидаемые поля: id, token, bot_name, bot_username, channel_name,
-        # questions_cfg, max_questions, is_active, question_template_id, rating_template_id
+        # questions_cfg, max_questions, is_active, question_template_id, rating_template_id,
+        # auto_action_template_id
         if 'bot_name' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN bot_name TEXT")
         if 'bot_username' not in cols:
@@ -3458,6 +3459,8 @@ def ensure_channels_schema():
             cur.execute("ALTER TABLE channels ADD COLUMN question_template_id TEXT")
         if 'rating_template_id' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN rating_template_id TEXT")
+        if 'auto_action_template_id' not in cols:
+            cur.execute("ALTER TABLE channels ADD COLUMN auto_action_template_id TEXT")
         if 'public_id' not in cols:
             cur.execute("ALTER TABLE channels ADD COLUMN public_id TEXT")
         if 'platform' not in cols:
@@ -9316,13 +9319,16 @@ def api_channels_create():
     is_active = 1 if data.get("is_active", True) else 0
     question_template_id = (data.get("question_template_id") or "").strip()
     rating_template_id = (data.get("rating_template_id") or "").strip()
+    auto_action_template_id = (data.get("auto_action_template_id") or "").strip()
     platform = _parse_platform(data.get("platform"))
     if platform not in {"telegram", "vk"}:
         return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
     platform_config = _parse_platform_config(data.get("platform_config"))
 
-    if not token or not channel_name:
-        return jsonify({"success": False, "error": "token и channel_name обязательны"}), 400
+    if not channel_name:
+        return jsonify({"success": False, "error": "Укажите название канала"}), 400
+    if platform != "vk" and not token:
+        return jsonify({"success": False, "error": "Токен обязателен для Telegram"}), 400
 
     try:
         if platform == "vk":
@@ -9332,13 +9338,35 @@ def api_channels_create():
             except (TypeError, ValueError):
                 return jsonify({"success": False, "error": "Укажите числовой group_id сообщества VK"}), 400
             platform_config["group_id"] = group_id_int
-            bot_display_name, bot_username = _fetch_vk_bot_identity(token, group_id=group_id_int)
+            confirmation_token = (
+                data.get("confirmation_token")
+                or data.get("vk_confirmation")
+                or platform_config.get("confirmation_token")
+                or platform_config.get("confirmationToken")
+            )
+            confirmation_token = (confirmation_token or "").strip()
+            if not confirmation_token:
+                return jsonify({"success": False, "error": "Укажите код подтверждения Callback API"}), 400
+            platform_config["confirmation_token"] = confirmation_token
+            secret = (
+                data.get("secret")
+                or data.get("vk_secret")
+                or platform_config.get("secret")
+            )
+            if secret:
+                platform_config["secret"] = str(secret).strip()
+            if token:
+                bot_display_name, bot_username = _fetch_vk_bot_identity(token, group_id=group_id_int)
+            else:
+                bot_username = f"club{group_id_int}"
+                bot_display_name = f"VK группа {group_id_int}"
         else:
             bot_display_name, bot_username = _fetch_telegram_bot_identity(token)
     except Exception as e:
         return jsonify({"success": False, "error": f"Ошибка проверки токена: {e}"}), 400
 
     bot_settings = _load_sanitized_bot_settings_payload()
+    settings_payload = load_settings()
     question_templates = bot_settings.get("question_templates") or []
     question_ids = {tpl.get("id") for tpl in question_templates if isinstance(tpl, dict) and tpl.get("id")}
     default_question_template_id = (
@@ -9354,6 +9382,18 @@ def api_channels_create():
         if isinstance(bot_settings.get("active_rating_template_id"), str)
         else None
     ) or (next(iter(rating_ids)) if rating_ids else None)
+
+    auto_close_config = settings_payload.get("auto_close_config") if isinstance(settings_payload, dict) else {}
+    auto_templates = [
+        tpl for tpl in (auto_close_config.get("templates") or [])
+        if isinstance(tpl, dict) and tpl.get("id")
+    ]
+    auto_template_ids = {tpl.get("id"): tpl for tpl in auto_templates}
+    default_auto_template_id = auto_close_config.get("active_template_id")
+    if not isinstance(default_auto_template_id, str) or default_auto_template_id not in auto_template_ids:
+        default_auto_template_id = next(iter(auto_template_ids.keys()), None)
+    if auto_action_template_id not in auto_template_ids:
+        auto_action_template_id = default_auto_template_id or ""
 
     if isinstance(raw_questions_cfg, str):
         try:
@@ -9391,8 +9431,8 @@ def api_channels_create():
     public_id = _generate_unique_channel_public_id(cur)
     cur.execute(
         """
-        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id, public_id, platform, platform_config)
-        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id, :public_id, :platform, :platform_config)
+        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id, auto_action_template_id, public_id, platform, platform_config)
+        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id, :auto_action_template_id, :public_id, :platform, :platform_config)
         """,
         {
             "token": token,
@@ -9404,6 +9444,7 @@ def api_channels_create():
             "is_active": is_active,
             "question_template_id": question_template_id,
             "rating_template_id": rating_template_id,
+            "auto_action_template_id": auto_action_template_id or None,
             "public_id": public_id,
             "platform": platform,
             "platform_config": json.dumps(platform_config, ensure_ascii=False),
@@ -9423,6 +9464,19 @@ def api_channels_update(channel_id):
     if "rating_template_id" in data:
         value = data.get("rating_template_id")
         data["rating_template_id"] = value.strip() if isinstance(value, str) else value
+    settings_payload = load_settings()
+    auto_close_config = settings_payload.get("auto_close_config") if isinstance(settings_payload, dict) else {}
+    auto_action_ids = {
+        tpl.get("id")
+        for tpl in (auto_close_config.get("templates") or [])
+        if isinstance(tpl, dict) and tpl.get("id")
+    }
+    if "auto_action_template_id" in data:
+        raw_value = data.get("auto_action_template_id")
+        cleaned = raw_value.strip() if isinstance(raw_value, str) else ""
+        if cleaned and cleaned not in auto_action_ids:
+            return jsonify({"success": False, "error": "Некорректный шаблон автоматических действий"}), 400
+        data["auto_action_template_id"] = cleaned or None
     fields, params = [], {"id": channel_id}
     if "platform" in data:
         platform_value = _parse_platform(data.get("platform"))
@@ -9440,7 +9494,7 @@ def api_channels_update(channel_id):
                 return jsonify({"success": False, "error": "group_id должен быть числом"}), 400
         fields.append("platform_config = :platform_config")
         params["platform_config"] = json.dumps(config_dict, ensure_ascii=False)
-    for k in ("channel_name", "questions_cfg", "max_questions", "is_active", "question_template_id", "rating_template_id"):
+    for k in ("channel_name", "questions_cfg", "max_questions", "is_active", "question_template_id", "rating_template_id", "auto_action_template_id"):
         if k in data:
             fields.append(f"{k} = :{k}")
             params[k] = json.dumps(data[k], ensure_ascii=False) if k == "questions_cfg" else data[k]
