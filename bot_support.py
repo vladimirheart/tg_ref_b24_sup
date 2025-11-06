@@ -1868,34 +1868,140 @@ def insert_phone_if_new(conn, user_id:int, phone:str, source:str, label:str=None
 
 # --- автоматическое закрытие ---
 def auto_close_inactive():
-    with sqlite3.connect(DB_PATH) as conn:
-        hours = SETTINGS.get("auto_close_hours", 24)
-        cutoff = datetime.now() - datetime.timedelta(hours=hours)
-        inactive_tickets = conn.execute("""
-            SELECT t.user_id, t.ticket_id, t.channel_id
-            FROM tickets t
-            WHERE t.status = 'pending'
-              AND t.ticket_id NOT IN (
-                SELECT DISTINCT ticket_id
-                FROM chat_history
-                WHERE timestamp > ?
-              )
-        """, (cutoff.isoformat(),)).fetchall()
+    settings = SETTINGS if isinstance(SETTINGS, dict) else {}
+    auto_close_config = settings.get("auto_close_config")
+    templates_source = []
+    if isinstance(auto_close_config, dict):
+        raw_templates = auto_close_config.get("templates")
+        if isinstance(raw_templates, list):
+            templates_source = raw_templates
 
-        now_iso = datetime.now().isoformat()
-        for user_id, ticket_id, channel_id in inactive_tickets:
-            # 1) Закрываем тикет
+    def _coerce_positive_int(value: object, default: int) -> int:
+        try:
+            number = int(float(value))
+        except (TypeError, ValueError):
+            return default
+        return number if number > 0 else default
+
+    template_hours: dict[str, int] = {}
+    for item in templates_source:
+        if not isinstance(item, dict):
+            continue
+        template_id = str(item.get("id") or "").strip()
+        if not template_id:
+            continue
+        hours_value = _coerce_positive_int(item.get("hours"), 0)
+        if hours_value <= 0:
+            continue
+        template_hours[template_id] = hours_value
+
+    fallback_hours = _coerce_positive_int(settings.get("auto_close_hours"), 24)
+    default_template_id = ""
+    if isinstance(auto_close_config, dict):
+        default_template_id = str(auto_close_config.get("active_template_id") or "").strip()
+    default_hours = template_hours.get(default_template_id)
+    if not isinstance(default_hours, int) or default_hours <= 0:
+        default_hours = fallback_hours
+
+    def resolve_hours(template_id: object) -> int:
+        template_key = str(template_id or "").strip()
+        hours = template_hours.get(template_key)
+        if isinstance(hours, int) and hours > 0:
+            return hours
+        return default_hours
+
+    def parse_timestamp(raw_value: object) -> datetime | None:
+        if not isinstance(raw_value, str):
+            return None
+        value = raw_value.strip()
+        if not value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            if value.endswith("Z"):
+                try:
+                    parsed = datetime.fromisoformat(value[:-1] + "+00:00")
+                except ValueError:
+                    parsed = None
+            else:
+                parsed = None
+            if parsed is None:
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+                    try:
+                        parsed = datetime.strptime(value, fmt)
+                        break
+                    except ValueError:
+                        continue
+        if parsed is None:
+            return None
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        channel_rows = conn.execute(
+            "SELECT id, auto_action_template_id FROM channels"
+        ).fetchall()
+        channel_hours = {
+            row["id"]: resolve_hours(row["auto_action_template_id"])
+            for row in channel_rows
+            if row["id"] is not None
+        }
+
+        tickets = conn.execute(
+            """
+            SELECT t.user_id, t.ticket_id, t.channel_id, MAX(h.timestamp) AS last_activity
+            FROM tickets t
+            LEFT JOIN chat_history h ON h.ticket_id = t.ticket_id
+            WHERE t.status = 'pending'
+            GROUP BY t.user_id, t.ticket_id, t.channel_id
+            """
+        ).fetchall()
+
+        now_moment = datetime.now()
+        now_iso = now_moment.isoformat()
+        to_close: list[tuple[int, str, int | None, int]] = []
+
+        for row in tickets:
+            channel_id = row["channel_id"]
+            hours_limit = channel_hours.get(channel_id, default_hours)
+            if not isinstance(hours_limit, int) or hours_limit <= 0:
+                continue
+
+            last_activity = parse_timestamp(row["last_activity"])
+            if last_activity is not None and last_activity > now_moment:
+                continue
+            if last_activity is not None:
+                inactive_seconds = (now_moment - last_activity).total_seconds()
+                if inactive_seconds < hours_limit * 3600:
+                    continue
+
+            to_close.append((row["user_id"], row["ticket_id"], channel_id, hours_limit))
+
+        for user_id, ticket_id, channel_id, hours_limit in to_close:
             conn.execute(
                 "UPDATE tickets SET status = 'resolved', resolved_at = ?, resolved_by = 'Авто-система' WHERE ticket_id = ?",
                 (now_iso, ticket_id),
             )
-            # 2) На всякий случай явно создаём «ожидание оценки» (если триггер уже сработал — INSERT OR IGNORE не создаст дубль)
-            conn.execute("""
+            if channel_id is None:
+                continue
+            conn.execute(
+                """
                 INSERT OR IGNORE INTO pending_feedback_requests(
                     user_id, channel_id, ticket_id, source, created_at, expires_at
                 ) VALUES(?, ?, ?, 'auto_close', ?, datetime('now', '+5 minutes'))
-            """, (user_id, channel_id, ticket_id, now_iso))
-            logging.info(f"Авто-закрытие тикета {ticket_id} пользователя {user_id}")
+                """,
+                (user_id, channel_id, ticket_id, now_iso),
+            )
+            logging.info(
+                "Авто-закрытие тикета %s пользователя %s (канал %s, таймаут %s ч)",
+                ticket_id,
+                user_id,
+                channel_id if channel_id is not None else "—",
+                hours_limit,
+            )
 
         conn.commit()
 
