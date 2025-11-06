@@ -2612,41 +2612,66 @@
                 <div class="card mb-4 shadow-sm">
                   <div class="card-body">
                     <h5 class="card-title">Добавить канал</h5>
-                    <div class="row g-2 align-items-end">
-                      <div class="col-md-4">
-                        <label class="form-label">Токен бота</label>
+                    <div class="row g-3 align-items-end">
+                      <div class="col-12 col-md-4 col-xl-3" id="token_field_container">
+                        <label class="form-label" for="new_token">Токен бота</label>
                         <input id="new_token" class="form-control" placeholder="Токен из BotFather">
+                        <div class="form-text">Проверяется автоматически для Telegram.</div>
                       </div>
-                      <div class="col-md-3">
-                        <label class="form-label">Название в панели</label>
+                      <div class="col-12 col-md-4 col-xl-3">
+                        <label class="form-label" for="new_channel_name">Название в панели</label>
                         <input id="new_channel_name" class="form-control" placeholder="Например: Доставка">
+                        <div class="form-text">Отображается в списке обращений клиентов.</div>
                       </div>
-                      <div class="col-md-2">
-                        <label class="form-label">Платформа</label>
+                      <div class="col-12 col-md-4 col-xl-2">
+                        <label class="form-label" for="new_platform">Платформа</label>
                         <select id="new_platform" class="form-select">
                           <option value="telegram" selected>Telegram</option>
                           <option value="vk">VK</option>
                         </select>
                       </div>
-                      <div class="col-md-2">
-                        <label class="form-label">Лимит вопросов</label>
-                        <input id="new_max_questions" type="number" min="0" value="0" class="form-control">
-                        <div class="form-text">0 — без ограничений</div>
+                      <div class="col-12 col-md-4 col-xl-3">
+                        <label class="form-label" for="new_question_template">Шаблон вопросов</label>
+                        <select id="new_question_template" class="form-select"></select>
                       </div>
-                      <div class="col-md-3 d-grid">
+                      <div class="col-12 col-md-4 col-xl-3">
+                        <label class="form-label" for="new_rating_template">Система оценок</label>
+                        <select id="new_rating_template" class="form-select"></select>
+                      </div>
+                      <div class="col-12 col-md-4 col-xl-3">
+                        <label class="form-label" for="new_auto_action_template">Автоматические действия</label>
+                        <select id="new_auto_action_template" class="form-select"></select>
+                      </div>
+                      <div class="col-12 col-xl-2 d-grid ms-xl-auto">
                         <button class="btn btn-primary" type="button" onclick="addChannel()">Добавить канал</button>
                       </div>
-                      <div class="col-12 col-md-4" id="vk_group_id_container" style="display: none;">
-                        <label class="form-label">ID сообщества VK</label>
-                        <input id="new_vk_group_id" class="form-control" placeholder="Например: 123456789">
-                        <div class="form-text">Найдите в настройках сообщества → Работа с API.</div>
-                        <label class="form-label mt-3">Код подтверждения Callback API</label>
-                        <input id="new_vk_confirmation" class="form-control" placeholder="Строка из настроек Callback API">
-                        <label class="form-label mt-3">Секретный ключ (опционально)</label>
-                        <input id="new_vk_secret" class="form-control" placeholder="Если задан в VK">
+                      <div class="col-12" id="vk_group_id_container" style="display: none;">
+                        <div class="row g-3">
+                          <div class="col-12 col-md-4 col-xl-3">
+                            <label class="form-label" for="new_vk_group_id">ID сообщества VK</label>
+                            <input id="new_vk_group_id" class="form-control" placeholder="Например: 123456789">
+                            <div class="form-text">Найдите в настройках сообщества → Работа с API.</div>
+                          </div>
+                          <div class="col-12 col-md-4 col-xl-3">
+                            <label class="form-label" for="new_vk_confirmation">Код подтверждения Callback API</label>
+                            <input id="new_vk_confirmation" class="form-control" placeholder="Строка из настроек Callback API">
+                          </div>
+                          <div class="col-12 col-md-4 col-xl-3">
+                            <label class="form-label" for="new_vk_secret">Секретный ключ (опционально)</label>
+                            <input id="new_vk_secret" class="form-control" placeholder="Если задан в VK">
+                          </div>
+                        </div>
+                        <div class="alert alert-info small mt-3 mb-0" role="alert">
+                          <div class="fw-semibold mb-1">Настройка VK Callback API</div>
+                          <ol class="mb-0 ps-3">
+                            <li>В сообществе откройте «Работа с API» → «Callback API» и укажите адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
+                            <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы включить проверку запросов.</li>
+                            <li>Активируйте события сообщений и перед запуском сервиса выполните <code>python vk_webhook_support.py</code>.</li>
+                          </ol>
+                        </div>
                       </div>
                     </div>
-                    <div class="text-muted small mt-2">Имя бота определяется автоматически при проверке токена (Telegram <code>getMe</code> или VK API).</div>
+                    <div class="text-muted small mt-2">Для Telegram токен проверяется через <code>getMe</code>. Для VK можно использовать Callback API без токена.</div>
                   </div>
                 </div>
 
@@ -2655,18 +2680,19 @@
                     <thead class="table-light">
                       <tr>
                         <th style="width: 6%">ID</th>
-                        <th style="width: 22%">Канал и бот</th>
-                        <th style="width: 18%">Название для панели</th>
+                        <th style="width: 20%">Канал и бот</th>
+                        <th style="width: 16%">Название для панели</th>
                         <th style="width: 12%">Платформа</th>
-                        <th style="width: 12%" class="text-center">Статус</th>
-                        <th style="width: 12%">Лимит</th>
-                        <th style="width: 14%">Вопросы</th>
-                        <th style="width: 4%"></th>
+                        <th style="width: 10%" class="text-center">Статус</th>
+                        <th style="width: 16%">Шаблон вопросов</th>
+                        <th style="width: 14%">Система оценок</th>
+                        <th style="width: 16%">Автоматические действия</th>
+                        <th style="width: 6%"></th>
                       </tr>
                     </thead>
                     <tbody id="channelsBody">
                       <tr>
-                        <td colspan="8" class="text-center text-muted py-4">Загрузка каналов…</td>
+                        <td colspan="9" class="text-center text-muted py-4">Загрузка каналов…</td>
                       </tr>
                     </tbody>
                   </table>
@@ -2771,64 +2797,17 @@
             <input type="text" class="form-control" id="vkSecretInput" placeholder="Будет сверяться с параметром secret">
           </div>
           <div class="alert alert-info small">
-            Укажите адрес для Callback API вида <code>https://example.com/webhooks/vk/&lt;group_id&gt;</code>. Перед запуском сервера вызовите <code>python vk_webhook_support.py</code>.
+            <div class="fw-semibold mb-1">Как подключить Callback API</div>
+            <ol class="mb-0 ps-3">
+              <li>В разделе «Работа с API» → «Callback API» задайте адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
+              <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы проверять исходящие запросы.</li>
+              <li>Включите события сообщений и перед запуском сервиса выполните <code>python vk_webhook_support.py</code>.</li>
+            </ol>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
           <button type="button" class="btn btn-primary" id="vkWebhookSaveBtn">Сохранить</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="questionsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Настройка вопросов для канала <span id="questionsChannelLabel" class="text-primary"></span></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-        </div>
-        <div class="modal-body">
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
-              <label class="form-label">Лимит вопросов за диалог</label>
-              <input id="questionsLimit" type="number" min="0" class="form-control" value="0">
-              <div class="form-text">0 — без ограничения.</div>
-            </div>
-            <div class="col-md-8">
-              <div class="alert alert-info py-2 mb-0 small">
-                Сформируйте последовательность вопросов, которые бот задаёт пользователю. Для типа <strong>select</strong> перечислите варианты через запятую.
-              </div>
-            </div>
-          </div>
-
-          <div class="table-responsive border rounded">
-            <table class="table table-sm align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="width: 18%">Ключ</th>
-                  <th style="width: 32%">Текст вопроса</th>
-                  <th style="width: 15%">Тип</th>
-                  <th style="width: 25%">Опции (для select)</th>
-                  <th style="width: 6%" class="text-center">Обяз.</th>
-                  <th style="width: 4%"></th>
-                </tr>
-              </thead>
-              <tbody id="questionsTableBody"></tbody>
-            </table>
-          </div>
-          <button id="addQuestionBtn" type="button" class="btn btn-outline-primary mt-2">+ Добавить вопрос</button>
-
-          <div class="mt-4">
-            <label class="form-label">Дополнительные настройки (JSON) <span id="questionsExtraBadge" class="badge bg-secondary" hidden>используется</span></label>
-            <textarea id="questionsAdvancedJson" class="form-control" rows="5" placeholder='Например: { "feedback": { ... } }'></textarea>
-            <div class="form-text">Задайте редкие параметры (feedback, prompts и т.п.). Оставьте пустым, если дополнительные сценарии не нужны.</div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-          <button type="button" class="btn btn-primary" id="saveQuestionsBtn">Сохранить</button>
         </div>
       </div>
     </div>
@@ -11145,14 +11124,6 @@
   // === КАНАЛЫ (боты) ===
   const channelsBody = document.getElementById('channelsBody');
 
-  const questionsState = {
-    channelId: null,
-    channelName: '',
-    questions: [],
-    limit: 0,
-    extra: {},
-  };
-
   const vkWebhookState = {
     channelId: null,
     groupId: null,
@@ -11285,42 +11256,168 @@
     return forms[2];
   }
 
-  function normalizeQuestion(raw) {
-    if (typeof raw === 'string') {
-      return { key: '', label: raw, type: 'text', options: [], required: false };
+  const BOT_SETTINGS_DATA = BOT_SETTINGS_INITIAL && typeof BOT_SETTINGS_INITIAL === 'object' ? BOT_SETTINGS_INITIAL : {};
+  const QUESTION_TEMPLATES = Array.isArray(BOT_SETTINGS_DATA.question_templates)
+    ? BOT_SETTINGS_DATA.question_templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
+    : [];
+  const QUESTION_TEMPLATE_MAP = new Map(
+    QUESTION_TEMPLATES.map((tpl) => [String(tpl.id || '').trim(), tpl])
+  );
+  const DEFAULT_QUESTION_TEMPLATE_ID = (() => {
+    const raw = typeof BOT_SETTINGS_DATA.active_template_id === 'string'
+      ? BOT_SETTINGS_DATA.active_template_id.trim()
+      : '';
+    if (raw && QUESTION_TEMPLATE_MAP.has(raw)) {
+      return raw;
     }
-    const obj = Object.assign({ key: '', label: '', type: 'text', options: [], required: false }, raw || {});
-    obj.label = String(obj.label || '').trim();
-    obj.key = String(obj.key || '').trim();
-    obj.type = ['text', 'select', 'number'].includes(obj.type) ? obj.type : 'text';
-    obj.options = Array.isArray(obj.options) ? obj.options.map(String) : [];
-    obj.required = Boolean(obj.required);
-    return obj;
+    const first = QUESTION_TEMPLATES.find((tpl) => tpl && tpl.id);
+    return first ? String(first.id).trim() : '';
+  })();
+
+  const RATING_TEMPLATES = Array.isArray(BOT_SETTINGS_DATA.rating_templates)
+    ? BOT_SETTINGS_DATA.rating_templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
+    : [];
+  const RATING_TEMPLATE_MAP = new Map(
+    RATING_TEMPLATES.map((tpl) => [String(tpl.id || '').trim(), tpl])
+  );
+  const DEFAULT_RATING_TEMPLATE_ID = (() => {
+    const raw = typeof BOT_SETTINGS_DATA.active_rating_template_id === 'string'
+      ? BOT_SETTINGS_DATA.active_rating_template_id.trim()
+      : '';
+    if (raw && RATING_TEMPLATE_MAP.has(raw)) {
+      return raw;
+    }
+    const first = RATING_TEMPLATES.find((tpl) => tpl && tpl.id);
+    return first ? String(first.id).trim() : '';
+  })();
+
+  const AUTO_ACTION_TEMPLATES = Array.isArray(AUTO_CLOSE_CONFIG.templates)
+    ? AUTO_CLOSE_CONFIG.templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
+    : [];
+  const AUTO_ACTION_TEMPLATE_MAP = new Map(
+    AUTO_ACTION_TEMPLATES.map((tpl) => [String(tpl.id || '').trim(), tpl])
+  );
+  const DEFAULT_AUTO_ACTION_TEMPLATE_ID = (() => {
+    const raw = typeof AUTO_CLOSE_CONFIG.active_template_id === 'string'
+      ? AUTO_CLOSE_CONFIG.active_template_id.trim()
+      : '';
+    if (raw && AUTO_ACTION_TEMPLATE_MAP.has(raw)) {
+      return raw;
+    }
+    const first = AUTO_ACTION_TEMPLATES.find((tpl) => tpl && tpl.id);
+    return first ? String(first.id).trim() : '';
+  })();
+
+  function sanitizeTemplateId(raw, map, fallback) {
+    const value = typeof raw === 'string' ? raw.trim() : '';
+    if (value && map.has(value)) {
+      return value;
+    }
+    return fallback || '';
   }
 
-  function normalizeConfig(rawConfig, fallbackLimit = 0) {
-    let cfg = {};
-    if (typeof rawConfig === 'string' && rawConfig.trim()) {
-      try { cfg = JSON.parse(rawConfig); } catch (e) { cfg = {}; }
-    } else if (rawConfig && typeof rawConfig === 'object') {
-      cfg = Object.assign({}, rawConfig);
+  function buildTemplateOptions(templates, selectedId) {
+    if (!templates.length) {
+      return '<option value="" selected>Нет доступных шаблонов</option>';
     }
-    const questions = Array.isArray(cfg.questions) ? cfg.questions.map(normalizeQuestion).filter((q) => q.label) : [];
-    let limit = Number(cfg.per_dialog_limit);
-    if (!Number.isFinite(limit) || limit < 0) limit = Number(fallbackLimit) || 0;
-    const extra = Object.assign({}, cfg);
-    delete extra.questions;
-    delete extra.per_dialog_limit;
-    return { questions, limit, extra };
+    return templates
+      .map((tpl) => {
+        const id = String(tpl.id || '').trim();
+        if (!id) {
+          return '';
+        }
+        const name = tpl.name ? String(tpl.name).trim() : id;
+        const selected = id === selectedId ? ' selected' : '';
+        return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(name || id)}</option>`;
+      })
+      .filter(Boolean)
+      .join('');
   }
 
-  function buildSummary(questions, limit, extra) {
-    const parts = [];
-    const count = questions.length;
-    parts.push(count ? `${count} ${pluralize(count, ['вопрос', 'вопроса', 'вопросов'])}` : 'Нет вопросов');
-    if (limit) parts.push(`лимит ${limit}`);
-    if (extra && Object.keys(extra).length) parts.push('есть доп. настройки');
-    return parts.join(' • ');
+  function getQuestionTemplateSummary(id) {
+    if (!QUESTION_TEMPLATE_MAP.size) {
+      return 'Нет доступных шаблонов';
+    }
+    const templateId = sanitizeTemplateId(id, QUESTION_TEMPLATE_MAP, DEFAULT_QUESTION_TEMPLATE_ID);
+    const template = QUESTION_TEMPLATE_MAP.get(templateId);
+    if (!template) {
+      return 'Шаблон не выбран';
+    }
+    const flow = Array.isArray(template.question_flow)
+      ? template.question_flow
+      : Array.isArray(template.questions)
+        ? template.questions
+        : [];
+    const count = flow.length;
+    const base = count
+      ? `${count} ${pluralize(count, ['вопрос', 'вопроса', 'вопросов'])}`
+      : 'Без вопросов';
+    const description = typeof template.description === 'string' && template.description.trim()
+      ? template.description.trim()
+      : '';
+    return description ? `${base} • ${description}` : base;
+  }
+
+  function getRatingTemplateSummary(id) {
+    if (!RATING_TEMPLATE_MAP.size) {
+      return 'Нет доступных шаблонов';
+    }
+    const templateId = sanitizeTemplateId(id, RATING_TEMPLATE_MAP, DEFAULT_RATING_TEMPLATE_ID);
+    const template = RATING_TEMPLATE_MAP.get(templateId);
+    if (!template) {
+      return 'Шаблон не выбран';
+    }
+    const scale = Number.parseInt(template.scale_size, 10)
+      || (Array.isArray(template.responses) ? template.responses.length : 0)
+      || 0;
+    const base = scale > 1 ? `Шкала 1–${scale}` : 'Единая оценка';
+    const prompt = typeof template.prompt_text === 'string' && template.prompt_text.trim()
+      ? template.prompt_text.trim()
+      : '';
+    return prompt ? `${base} • ${prompt}` : base;
+  }
+
+  function getAutoActionTemplateSummary(id) {
+    if (!AUTO_ACTION_TEMPLATE_MAP.size) {
+      return 'Нет доступных шаблонов';
+    }
+    const templateId = sanitizeTemplateId(id, AUTO_ACTION_TEMPLATE_MAP, DEFAULT_AUTO_ACTION_TEMPLATE_ID);
+    const template = AUTO_ACTION_TEMPLATE_MAP.get(templateId);
+    if (!template) {
+      return 'Шаблон не выбран';
+    }
+    const hours = Number.parseInt(template.hours, 10);
+    const hasHours = Number.isFinite(hours) && hours > 0;
+    const base = hasHours
+      ? `Автозакрытие через ${hours} ${pluralize(hours, ['час', 'часа', 'часов'])}`
+      : 'Автозакрытие отключено';
+    const description = typeof template.description === 'string' && template.description.trim()
+      ? template.description.trim()
+      : '';
+    return description ? `${base} • ${description}` : base;
+  }
+
+  const TEMPLATE_SUMMARY_BUILDERS = {
+    question_template_id: getQuestionTemplateSummary,
+    rating_template_id: getRatingTemplateSummary,
+    auto_action_template_id: getAutoActionTemplateSummary,
+  };
+
+  function attachTemplateSummary(selectEl) {
+    if (!(selectEl instanceof HTMLSelectElement)) {
+      return;
+    }
+    const field = selectEl.dataset.field;
+    const builder = TEMPLATE_SUMMARY_BUILDERS[field];
+    const summaryEl = selectEl.closest('td')?.querySelector(`[data-template-summary="${field}"]`);
+    if (typeof builder !== 'function' || !summaryEl) {
+      return;
+    }
+    const update = () => {
+      summaryEl.textContent = builder(selectEl.value || '');
+    };
+    update();
+    selectEl.addEventListener('change', update);
   }
 
   function parsePlatformConfig(raw) {
@@ -11343,20 +11440,20 @@
     if (!channelsBody) return;
     channelsBody.innerHTML = '';
     if (!rows.length) {
-      channelsBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
+      channelsBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
       return;
     }
     rows.forEach((row) => {
-      const { questions, limit, extra } = normalizeConfig(row.questions_cfg, row.max_questions);
-      const configForDataset = Object.assign({}, extra, { questions, per_dialog_limit: limit });
       const platform = String(row.platform || 'telegram').toLowerCase();
       const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
       const platformConfig = parsePlatformConfig(row.platform_config);
       const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId) : null;
+      const questionTemplateId = sanitizeTemplateId(row.question_template_id, QUESTION_TEMPLATE_MAP, DEFAULT_QUESTION_TEMPLATE_ID);
+      const ratingTemplateId = sanitizeTemplateId(row.rating_template_id, RATING_TEMPLATE_MAP, DEFAULT_RATING_TEMPLATE_ID);
+      const autoTemplateId = sanitizeTemplateId(row.auto_action_template_id, AUTO_ACTION_TEMPLATE_MAP, DEFAULT_AUTO_ACTION_TEMPLATE_ID);
+
       const tr = document.createElement('tr');
       tr.dataset.id = row.id;
-      tr.dataset.config = JSON.stringify(configForDataset);
-      tr.dataset.limit = String(limit || 0);
       tr.dataset.platform = platform;
       tr.dataset.platformConfig = JSON.stringify(platformConfig);
       tr.innerHTML = `
@@ -11385,13 +11482,29 @@
             <label class="form-check-label small" data-status-label>${row.is_active ? 'Активен' : 'Выключен'}</label>
           </div>
         </td>
-        <td style="max-width: 160px;">
-          <input type="number" min="0" class="form-control form-control-sm" data-field="max_questions" value="${limit || 0}">
-          <div class="form-text small">0 — без лимита</div>
+        <td>
+          <div class="d-flex flex-column gap-1">
+            <select class="form-select form-select-sm" data-field="question_template_id" ${QUESTION_TEMPLATES.length ? '' : 'disabled'}>
+              ${buildTemplateOptions(QUESTION_TEMPLATES, questionTemplateId)}
+            </select>
+            <div class="form-text small" data-template-summary="question_template_id">${escapeHtml(getQuestionTemplateSummary(questionTemplateId))}</div>
+          </div>
         </td>
         <td>
-          <div class="small text-muted mb-2" data-summary>${buildSummary(questions, limit, extra)}</div>
-          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openQuestionsEditor(${row.id})">Настроить…</button>
+          <div class="d-flex flex-column gap-1">
+            <select class="form-select form-select-sm" data-field="rating_template_id" ${RATING_TEMPLATES.length ? '' : 'disabled'}>
+              ${buildTemplateOptions(RATING_TEMPLATES, ratingTemplateId)}
+            </select>
+            <div class="form-text small" data-template-summary="rating_template_id">${escapeHtml(getRatingTemplateSummary(ratingTemplateId))}</div>
+          </div>
+        </td>
+        <td>
+          <div class="d-flex flex-column gap-1">
+            <select class="form-select form-select-sm" data-field="auto_action_template_id" ${AUTO_ACTION_TEMPLATES.length ? '' : 'disabled'}>
+              ${buildTemplateOptions(AUTO_ACTION_TEMPLATES, autoTemplateId)}
+            </select>
+            <div class="form-text small" data-template-summary="auto_action_template_id">${escapeHtml(getAutoActionTemplateSummary(autoTemplateId))}</div>
+          </div>
         </td>
         <td class="text-nowrap">
           <button type="button" class="btn btn-sm btn-success me-2" onclick="saveChannel(${row.id})">Сохранить</button>
@@ -11407,6 +11520,7 @@
         });
       }
 
+      tr.querySelectorAll('select[data-field]').forEach(attachTemplateSummary);
       channelsBody.appendChild(tr);
     });
   }
@@ -11427,35 +11541,43 @@
     const tokenInput = document.getElementById('new_token');
     const nameInput = document.getElementById('new_channel_name');
     const platformSelect = document.getElementById('new_platform');
-    const limitInput = document.getElementById('new_max_questions');
+    const questionSelect = document.getElementById('new_question_template');
+    const ratingSelect = document.getElementById('new_rating_template');
+    const autoSelect = document.getElementById('new_auto_action_template');
     const vkGroupInput = document.getElementById('new_vk_group_id');
     const vkConfirmInput = document.getElementById('new_vk_confirmation');
     const vkSecretInput = document.getElementById('new_vk_secret');
 
-    const token = tokenInput?.value?.trim();
-    const channelName = nameInput?.value?.trim();
     const platform = platformSelect?.value || 'telegram';
-    const limit = Number.parseInt(limitInput?.value || '0', 10) || 0;
+    const token = tokenInput?.value?.trim() || '';
+    const channelName = nameInput?.value?.trim() || '';
 
-    if (!token) {
-      alert('Укажите токен бота.');
-      return;
-    }
     if (!channelName) {
       alert('Укажите название канала.');
+      return;
+    }
+    if (platform !== 'vk' && !token) {
+      alert('Для Telegram необходим токен бота.');
       return;
     }
 
     const payload = {
       token,
       channel_name: channelName,
-      max_questions: limit,
       platform,
+      is_active: true,
     };
+
+    const questionTemplateId = questionSelect?.value || '';
+    const ratingTemplateId = ratingSelect?.value || '';
+    const autoTemplateId = autoSelect?.value || '';
+    if (questionTemplateId) payload.question_template_id = questionTemplateId;
+    if (ratingTemplateId) payload.rating_template_id = ratingTemplateId;
+    if (autoTemplateId) payload.auto_action_template_id = autoTemplateId;
 
     if (platform === 'vk') {
       const groupId = Number.parseInt(vkGroupInput?.value || '0', 10);
-      const confirmation = vkConfirmInput?.value?.trim();
+      const confirmation = vkConfirmInput?.value?.trim() || '';
       if (!Number.isFinite(groupId) || groupId <= 0) {
         alert('Укажите корректный ID сообщества VK.');
         return;
@@ -11464,10 +11586,7 @@
         alert('Укажите код подтверждения Callback API.');
         return;
       }
-      payload.platform_config = {
-        group_id: groupId,
-        confirmation_token: confirmation,
-      };
+      payload.platform_config = { group_id: groupId, confirmation_token: confirmation };
       const secret = vkSecretInput?.value?.trim();
       if (secret) {
         payload.platform_config.secret = secret;
@@ -11486,10 +11605,18 @@
       }
       if (tokenInput) tokenInput.value = '';
       if (nameInput) nameInput.value = '';
-      if (limitInput) limitInput.value = '0';
       if (vkGroupInput) vkGroupInput.value = '';
       if (vkConfirmInput) vkConfirmInput.value = '';
       if (vkSecretInput) vkSecretInput.value = '';
+      if (questionSelect && !questionSelect.disabled) {
+        questionSelect.value = DEFAULT_QUESTION_TEMPLATE_ID;
+      }
+      if (ratingSelect && !ratingSelect.disabled) {
+        ratingSelect.value = DEFAULT_RATING_TEMPLATE_ID;
+      }
+      if (autoSelect && !autoSelect.disabled) {
+        autoSelect.value = DEFAULT_AUTO_ACTION_TEMPLATE_ID;
+      }
       loadChannels();
     } catch (error) {
       alert('Ошибка добавления канала: ' + error.message);
@@ -11501,7 +11628,9 @@
     if (!row) return;
     const nameInput = row.querySelector('[data-field="channel_name"]');
     const activeInput = row.querySelector('[data-field="is_active"]');
-    const limitInput = row.querySelector('[data-field="max_questions"]');
+    const questionSelect = row.querySelector('[data-field="question_template_id"]');
+    const ratingSelect = row.querySelector('[data-field="rating_template_id"]');
+    const autoSelect = row.querySelector('[data-field="auto_action_template_id"]');
 
     const channelName = (nameInput?.value || '').trim();
     if (!channelName) {
@@ -11509,25 +11638,28 @@
       return;
     }
 
-    const maxQuestions = Number.parseInt(limitInput?.value || '0', 10);
-    if (!Number.isFinite(maxQuestions) || maxQuestions < 0) {
-      alert('Лимит вопросов должен быть неотрицательным числом.');
-      return;
-    }
-
-    let payloadConfig = {};
-    try {
-      payloadConfig = row.dataset.config ? JSON.parse(row.dataset.config) : {};
-    } catch (e) {
-      payloadConfig = {};
-    }
-
     const body = {
       channel_name: channelName,
       is_active: activeInput?.checked ? 1 : 0,
-      max_questions: maxQuestions,
-      questions_cfg: payloadConfig,
     };
+
+    const configPayload = {};
+    if (questionSelect && !questionSelect.disabled) {
+      const value = questionSelect.value || '';
+      body.question_template_id = value;
+      if (value) configPayload.question_template_id = value;
+    }
+    if (ratingSelect && !ratingSelect.disabled) {
+      const value = ratingSelect.value || '';
+      body.rating_template_id = value;
+      if (value) configPayload.rating_template_id = value;
+    }
+    if (autoSelect && !autoSelect.disabled) {
+      body.auto_action_template_id = autoSelect.value || '';
+    }
+    if (Object.keys(configPayload).length) {
+      body.questions_cfg = configPayload;
+    }
 
     try {
       const resp = await fetch(`/api/channels/${id}`, {
@@ -11540,14 +11672,7 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
       alert('Настройки канала сохранены.');
-      try {
-        const cfg = row.dataset.config ? JSON.parse(row.dataset.config) : {};
-        const { questions, extra } = normalizeConfig(cfg, maxQuestions);
-        const summaryEl = row.querySelector('[data-summary]');
-        if (summaryEl) summaryEl.textContent = buildSummary(questions, maxQuestions, extra);
-      } catch (e) {
-        // ignored
-      }
+      loadChannels();
     } catch (error) {
       alert('Ошибка сохранения: ' + error.message);
     }
@@ -11565,204 +11690,53 @@
     }
   }
 
-  function renderQuestionsList() {
-    const body = document.getElementById('questionsTableBody');
-    if (!body) return;
-    body.innerHTML = '';
-    if (!questionsState.questions.length) {
-      body.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Добавьте первый вопрос</td></tr>';
-      return;
+  function populateAddChannelTemplateSelects() {
+    const questionSelect = document.getElementById('new_question_template');
+    if (questionSelect) {
+      questionSelect.innerHTML = buildTemplateOptions(QUESTION_TEMPLATES, DEFAULT_QUESTION_TEMPLATE_ID);
+      questionSelect.disabled = !QUESTION_TEMPLATES.length;
     }
-    questionsState.questions.forEach((q, index) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="key" value="${escapeHtml(q.key)}"></td>
-        <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="label" value="${escapeHtml(q.label)}" placeholder="Например: Уточните номер заказа"></td>
-        <td>
-          <select class="form-select form-select-sm" data-idx="${index}" data-field="type">
-            <option value="text" ${q.type === 'text' ? 'selected' : ''}>text</option>
-            <option value="select" ${q.type === 'select' ? 'selected' : ''}>select</option>
-            <option value="number" ${q.type === 'number' ? 'selected' : ''}>number</option>
-          </select>
-        </td>
-        <td><input type="text" class="form-control form-control-sm" data-idx="${index}" data-field="options" value="${escapeHtml((q.options || []).join(', '))}" placeholder="Варианты для select"></td>
-        <td class="text-center"><input type="checkbox" class="form-check-input" data-idx="${index}" data-field="required" ${q.required ? 'checked' : ''}></td>
-        <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-remove-question="${index}">×</button></td>
-      `;
-      body.appendChild(tr);
-    });
-    body.querySelectorAll('input[data-field], select[data-field]').forEach((input) => {
-      input.addEventListener('input', handleQuestionChange);
-      input.addEventListener('change', handleQuestionChange);
-    });
-    body.querySelectorAll('button[data-remove-question]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.removeQuestion, 10);
-        questionsState.questions.splice(idx, 1);
-        renderQuestionsList();
-      });
-    });
-  }
-
-  function handleQuestionChange(event) {
-    const el = event.currentTarget;
-    const idx = parseInt(el.dataset.idx, 10);
-    const field = el.dataset.field;
-    if (Number.isNaN(idx) || !questionsState.questions[idx]) return;
-    if (field === 'required') {
-      questionsState.questions[idx][field] = el.checked;
-    } else if (field === 'options') {
-      questionsState.questions[idx].options = String(el.value || '')
-        .split(',')
-        .map((opt) => opt.trim())
-        .filter(Boolean);
-    } else {
-      questionsState.questions[idx][field] = String(el.value || '');
+    const ratingSelect = document.getElementById('new_rating_template');
+    if (ratingSelect) {
+      ratingSelect.innerHTML = buildTemplateOptions(RATING_TEMPLATES, DEFAULT_RATING_TEMPLATE_ID);
+      ratingSelect.disabled = !RATING_TEMPLATES.length;
+    }
+    const autoSelect = document.getElementById('new_auto_action_template');
+    if (autoSelect) {
+      autoSelect.innerHTML = buildTemplateOptions(AUTO_ACTION_TEMPLATES, DEFAULT_AUTO_ACTION_TEMPLATE_ID);
+      autoSelect.disabled = !AUTO_ACTION_TEMPLATES.length;
     }
   }
 
-  function updateExtraBadge() {
-    const badge = document.getElementById('questionsExtraBadge');
-    if (!badge) return;
-    badge.hidden = !questionsState.extra || !Object.keys(questionsState.extra).length;
-  }
-
-  async function openQuestionsEditor(id) {
-    const row = document.querySelector(`tr[data-id="${id}"]`);
-    if (!row) return;
-    const nameInput = row.querySelector('[data-field="channel_name"]');
-    questionsState.channelId = id;
-    questionsState.channelName = (nameInput?.value || '').trim() || `#${id}`;
-    let rawConfig = row.dataset.config;
-    if (!rawConfig) {
-      try {
-        const resp = await fetch(`/api/channels/${id}`);
-        const data = await resp.json();
-        if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
-        rawConfig = data.channel?.questions_cfg || '{}';
-        row.dataset.config = rawConfig;
-      } catch (error) {
-        alert('Не удалось получить конфигурацию вопросов: ' + error.message);
-        return;
-      }
-    }
-    const { questions, limit, extra } = normalizeConfig(rawConfig, row.dataset.limit || 0);
-    questionsState.questions = questions.slice();
-    questionsState.limit = limit;
-    questionsState.extra = extra;
-
-    const labelEl = document.getElementById('questionsChannelLabel');
-    if (labelEl) labelEl.textContent = `${questionsState.channelName} (#${id})`;
-    const limitEl = document.getElementById('questionsLimit');
-    if (limitEl) limitEl.value = limit || 0;
-    const extraEl = document.getElementById('questionsAdvancedJson');
-    if (extraEl) extraEl.value = Object.keys(extra || {}).length ? JSON.stringify(extra, null, 2) : '';
-    updateExtraBadge();
-    renderQuestionsList();
-
-    const modalEl = document.getElementById('questionsModal');
-    if (modalEl && typeof bootstrap !== 'undefined') {
-      bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    }
-  }
-
-  function addQuestionRow() {
-    questionsState.questions.push({ key: '', label: '', type: 'text', options: [], required: false });
-    renderQuestionsList();
-  }
-
-  async function saveQuestionsConfig() {
-    const limitInput = document.getElementById('questionsLimit');
-    const extraTextarea = document.getElementById('questionsAdvancedJson');
-    const limit = parseInt(limitInput?.value || '0', 10);
-    if (Number.isNaN(limit) || limit < 0) {
-      alert('Лимит вопросов должен быть неотрицательным числом.');
-      return;
-    }
-    let extra = {};
-    const extraRaw = (extraTextarea?.value || '').trim();
-    if (extraRaw) {
-      try {
-        extra = JSON.parse(extraRaw);
-      } catch (error) {
-        alert('Дополнительные настройки должны быть валидным JSON: ' + error.message);
-        return;
-      }
-    }
-    const cleanedQuestions = questionsState.questions
-      .map(normalizeQuestion)
-      .filter((q) => q.label.trim().length);
-    const payloadConfig = Object.assign({}, extra, {
-      per_dialog_limit: limit,
-      questions: cleanedQuestions,
-    });
-    try {
-      const resp = await fetch(`/api/channels/${questionsState.channelId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questions_cfg: payloadConfig, max_questions: limit }),
-      });
-      const data = await resp.json();
-      if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
-      const row = document.querySelector(`tr[data-id="${questionsState.channelId}"]`);
-      if (row) {
-        row.dataset.config = JSON.stringify(payloadConfig);
-        row.dataset.limit = String(limit || 0);
-        const limitInputRow = row.querySelector('[data-field="max_questions"]');
-        if (limitInputRow) limitInputRow.value = limit || 0;
-        const summaryEl = row.querySelector('[data-summary]');
-        if (summaryEl) summaryEl.textContent = buildSummary(cleanedQuestions, limit, extra);
-      }
-      updateExtraBadge();
-      const modalEl = document.getElementById('questionsModal');
-      if (modalEl && typeof bootstrap !== 'undefined') {
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        modal?.hide();
-      }
-      alert('Настройки вопросов сохранены.');
-    } catch (error) {
-      alert('Не удалось сохранить вопросы: ' + error.message);
-    }
-  }
-
-  function toggleVkGroupField() {
+  function togglePlatformFields() {
     const platformSelect = document.getElementById('new_platform');
-    const container = document.getElementById('vk_group_id_container');
-    if (!platformSelect || !container) return;
-    container.style.display = platformSelect.value === 'vk' ? '' : 'none';
+    const tokenContainer = document.getElementById('token_field_container');
+    const vkContainer = document.getElementById('vk_group_id_container');
+    const platform = platformSelect?.value || 'telegram';
+    if (tokenContainer) {
+      tokenContainer.classList.toggle('d-none', platform === 'vk');
+    }
+    if (vkContainer) {
+      vkContainer.style.display = platform === 'vk' ? '' : 'none';
+    }
   }
 
   function initChannelsManagement() {
     if (channelsInitialized) return;
     channelsInitialized = true;
-    toggleVkGroupField();
+    populateAddChannelTemplateSelects();
+    togglePlatformFields();
     loadChannels();
 
-    const addQuestionBtn = document.getElementById('addQuestionBtn');
-    const saveQuestionsBtn = document.getElementById('saveQuestionsBtn');
-    const vkSaveBtn = document.getElementById('vkWebhookSaveBtn');
-    const extraTextarea = document.getElementById('questionsAdvancedJson');
     const platformSelect = document.getElementById('new_platform');
-
-    addQuestionBtn?.addEventListener('click', addQuestionRow);
-    saveQuestionsBtn?.addEventListener('click', saveQuestionsConfig);
+    const vkSaveBtn = document.getElementById('vkWebhookSaveBtn');
+    platformSelect?.addEventListener('change', togglePlatformFields);
     vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
-    extraTextarea?.addEventListener('input', () => {
-      try {
-        const value = extraTextarea.value.trim();
-        questionsState.extra = value ? JSON.parse(value) : {};
-      } catch (e) {
-        // ignore parse errors while typing
-      }
-      updateExtraBadge();
-    });
-    platformSelect?.addEventListener('change', toggleVkGroupField);
   }
 
   window.addChannel = addChannel;
   window.saveChannel = saveChannel;
   window.removeChannel = removeChannel;
-  window.openQuestionsEditor = openQuestionsEditor;
   window.openVkSettings = openVkSettings;
 
   </script>
