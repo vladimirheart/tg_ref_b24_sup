@@ -8986,15 +8986,21 @@ if (assignResponsibleBtn) {
 
         // Инициализация при загрузке страницы
                 document.addEventListener('DOMContentLoaded', function() {
-                  if (window.jQuery && typeof window.jQuery.fn.select2 === 'function') {
+                  if (window.initSelect2WithCheckboxes && window.jQuery) {
                         const $filtersModal = window.jQuery('#filtersModal');
                         const $filterSelects = window.jQuery('#filtersModal .filter-select');
                         if ($filterSelects.length) {
-                          $filterSelects.select2({
+                          window.initSelect2WithCheckboxes($filterSelects, { dropdownParent: $filtersModal });
+                        }
+                  } else if (window.jQuery && typeof window.jQuery.fn.select2 === 'function') {
+                        const $filtersModalFallback = window.jQuery('#filtersModal');
+                        const $filterSelectsFallback = window.jQuery('#filtersModal .filter-select');
+                        if ($filterSelectsFallback.length) {
+                          $filterSelectsFallback.select2({
                                 placeholder: 'Выберите...',
                                 allowClear: true,
                                 language: 'ru',
-                                dropdownParent: $filtersModal
+                                dropdownParent: $filtersModalFallback
                           });
                         }
                   }
