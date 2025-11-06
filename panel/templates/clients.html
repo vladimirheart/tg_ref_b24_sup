@@ -69,6 +69,10 @@
       border:1px solid rgba(0,0,0,.08);
       background:#fff;
     }
+    .client-panel-id{
+      font-size:0.7rem;
+      letter-spacing:0.02em;
+    }
     @keyframes client-avatar-pulse{
       0%{opacity:.45;transform:scale(1)}
       65%{opacity:0;transform:scale(1.45)}
@@ -121,7 +125,7 @@
       </thead>
       <tbody>
         {% for c in clients %}
-        <tr data-search="{{ c.user_id }} {{ c.username }} {{ c.client_name }} {{ c.channel_name }} {{ c.formatted_time }} {{ c.client_status }}">
+        <tr data-search="{{ c.user_id }} {{ c.panel_id }} {{ c.username }} {{ c.client_name }} {{ c.channel_name }} {{ c.formatted_time }} {{ c.client_status }}">
           <td>
                           <div class="d-flex align-items-center gap-2">
                                 {% set _status_color = status_colors.get(c.client_status) if c.client_status else None %}
@@ -130,7 +134,10 @@
                                 <span class="client-avatar-ring{% if _has_status %} status-has-color{% endif %}"{% if _has_status %} style="--status-color: {{ _resolved_color }};"{% endif %}>
                                   <img src="/avatar/{{ c.user_id }}" width="24" height="24" class="client-avatar-img" alt="">
                                 </span>
-                                <code>{{ c.user_id }}</code>
+                                <div class="d-flex flex-column">
+                                  <span class="badge text-bg-primary client-panel-id">{{ c.panel_id }}</span>
+                                  <code>{{ c.user_id }}</code>
+                                </div>
                           </div>
                   </td>
                   <td>{{ c.username or '—' }}</td>
