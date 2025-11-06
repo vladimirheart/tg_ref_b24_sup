@@ -170,6 +170,91 @@ function initializeSelect2(selectorOrElements, options = {}) {
     }
 }
 
+function select2CheckboxTemplate(data) {
+    if (!data || !data.id) {
+        return data && data.text ? data.text : '';
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'select2-checkbox-option';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.disabled = true;
+    checkbox.checked = Boolean(data.selected);
+    checkbox.className = 'form-check-input';
+
+    const label = document.createElement('span');
+    label.className = 'select2-checkbox-label';
+    label.textContent = data.text || '';
+
+    wrapper.appendChild(checkbox);
+    wrapper.appendChild(label);
+
+    return wrapper;
+}
+
+function select2SelectionTemplate(data) {
+    if (!data) return '';
+    return data.text || data.id || '';
+}
+
+function syncSelect2CheckboxState(event) {
+    if (!event || !event.params || !event.params.data) return;
+    const resultId = event.params.data._resultId;
+    if (!resultId) return;
+    const optionEl = document.getElementById(resultId);
+    if (!optionEl) return;
+    const checkbox = optionEl.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+        checkbox.checked = event.type === 'select2:select';
+    }
+}
+
+function initSelect2WithCheckboxes(elements, options = {}) {
+    if (typeof window === 'undefined' || !window.jQuery) return;W
+    const $ = window.jQuery;
+    const $elements = elements && elements.jquery ? elements : $(elements);
+    if (!$elements.length) return;
+
+    const baseOptions = {
+        width: '100%',
+        allowClear: true,
+        language: 'ru'
+    };
+
+    $elements.each(function initSelect2Instance() {
+        const $select = $(this);
+        const isMultiple = Boolean($select.prop('multiple'));
+        const config = {
+            ...baseOptions,
+            placeholder: $select.attr('data-placeholder') || $select.attr('placeholder') || 'Выберите...'
+        };
+
+        if (options.dropdownParent) {
+            config.dropdownParent = options.dropdownParent;
+        }
+
+        if (isMultiple) {
+            config.closeOnSelect = false;
+            config.templateResult = select2CheckboxTemplate;
+            config.templateSelection = select2SelectionTemplate;
+        }
+
+        if (options.extraConfig && typeof options.extraConfig === 'object') {
+            Object.assign(config, options.extraConfig);
+        }
+
+        $select.select2(config);
+
+        if (isMultiple) {
+            $select.on('select2:select select2:unselect', syncSelect2CheckboxState);
+        }
+    });
+}
+
+window.initSelect2WithCheckboxes = initSelect2WithCheckboxes;
+
 // Функция для создания бейджа фильтра
 function createFilterBadge(label, value, filterKey, filterValue = null) {
     const badge = document.createElement('span');
