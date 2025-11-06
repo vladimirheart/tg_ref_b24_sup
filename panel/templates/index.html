@@ -819,6 +819,48 @@
   object-fit: cover;
 }
 
+.tickets-client-avatar {
+  position: relative;
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.tickets-client-avatar::before,
+.tickets-client-avatar::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--client-avatar-ring-width, 3px));
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.tickets-client-avatar--colored::before {
+  opacity: 1;
+  border: var(--client-avatar-ring-width, 3px) solid var(--status-color, #0d6efd);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.12);
+}
+
+.tickets-client-avatar--colored::after {
+  border: var(--client-avatar-ring-width, 3px) solid var(--status-color, #0d6efd);
+  animation: client-status-avatar-pulse 2.4s ease-in-out infinite;
+}
+
+.tickets-client-avatar img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
 #historyModal .message-avatar:focus-visible {
   outline: 2px solid var(--bs-primary);
   outline-offset: 2px;
@@ -2512,6 +2554,8 @@ function markTicketReopenedLocally() {
 
     function populateModalFilterSelects(tickets) {
       const options = extractFilterOptionsFromTickets(tickets);
+      const filtersModalEl = document.getElementById('filtersModal');
+      const modalIsOpen = !!(filtersModalEl && filtersModalEl.classList.contains('show'));
 
       Object.entries(filterSelectConfig).forEach(([key, config]) => {
         const select = document.getElementById(config.modalId);
@@ -2519,9 +2563,18 @@ function markTicketReopenedLocally() {
 
         const inlineId = config.modalId.replace('Modal', '');
         const inlineEl = document.getElementById(inlineId);
-        const storedValues = inlineEl && inlineEl.dataset.multiple === 'true'
+
+        const inlineStoredValues = inlineEl && inlineEl.dataset.multiple === 'true'
           ? parseStoredMultiValue(inlineEl.value)
           : (inlineEl && normalizeFilterValue(inlineEl.value) ? [normalizeFilterValue(inlineEl.value)] : []);
+
+        const currentModalValues = select.multiple
+          ? Array.from(select.selectedOptions || [])
+              .map(option => normalizeFilterValue(option.value))
+              .filter(Boolean)
+          : (normalizeFilterValue(select.value) ? [normalizeFilterValue(select.value)] : []);
+
+        const storedValues = modalIsOpen ? currentModalValues : inlineStoredValues;
 
         select.innerHTML = '';
 
@@ -2575,7 +2628,13 @@ function markTicketReopenedLocally() {
         }
 
         if (window.jQuery && typeof window.jQuery.fn.select2 === 'function' && window.jQuery(select).data('select2')) {
-          window.jQuery(select).trigger('change.select2');
+          const $select = window.jQuery(select);
+          if (select.multiple) {
+            $select.val(storedValues.length ? storedValues : null);
+          } else {
+            $select.val(storedValues.length ? storedValues[0] : '');
+          }
+          $select.trigger('change.select2');
         }
       });
     }
@@ -5238,15 +5297,25 @@ function displayTicketsForCurrentPage() {
   ].join(' ').toLowerCase();
   row.dataset.search = searchIndex;
 
+  const statusColor = resolveClientStatusColor(t.client_status || '');
+  const avatarClasses = ['tickets-client-avatar'];
+  if (statusColor) {
+    avatarClasses.push('tickets-client-avatar--colored');
+  }
+  const avatarStyle = statusColor ? ` style="--status-color: ${escapeHtml(statusColor)};"` : '';
+  const clientAvatar = `
+    <span class="${avatarClasses.join(' ')}"${avatarStyle}>
+      <img src="${t.avatar_url || '/static/default-avatar.png'}"
+           alt=""
+           width="36"
+           height="36"
+           class="rounded-circle"
+           onerror="this.src='/static/default-avatar.png'">
+    </span>`;
+
   const clientCell = `
   <div class="d-flex align-items-center gap-2">
-    <img src="${t.avatar_url || '/static/default-avatar.png'}"
-         alt=""
-         width="36"
-         height="36"
-         class="rounded-circle"
-         style="object-fit:cover; border:1px solid rgba(0,0,0,.08)"
-         onerror="this.src='/static/default-avatar.png'">
+    ${clientAvatar}
     <div class="min-w-0">
       <div class="fw-semibold text-truncate">
         <span class="clickable-client" data-user-id="${t.user_id}" onclick="window.open('/client/${t.user_id}', '_blank')" title="${displayName}">${displayName}</span>
@@ -5723,16 +5792,26 @@ function displayTicketsForCurrentPage() {
                                                                 ].join(' ').toLowerCase();
                                                                 row.dataset.search = searchIndex;
 
+                                                                const statusColor = resolveClientStatusColor(t.client_status || '');
+                                                                const avatarClasses = ['tickets-client-avatar'];
+                                                                if (statusColor) {
+                                                                  avatarClasses.push('tickets-client-avatar--colored');
+                                                                }
+                                                                const avatarStyle = statusColor ? ` style="--status-color: ${escapeHtml(statusColor)};"` : '';
+                                                                const clientAvatar = `
+                                                                  <span class="${avatarClasses.join(' ')}"${avatarStyle}>
+                                                                    <img src="${t.avatar_url || '/static/default-avatar.png'}"
+                                                                         alt=""
+                                                                         width="36"
+                                                                         height="36"
+                                                                         class="rounded-circle"
+                                                                         onerror="this.src='/static/default-avatar.png'">
+                                                                  </span>`;
+
                                                                 // Остальная логика отрисовки остается такой же, как в displayTicketsForCurrentPage()
                                                                 const clientCell = `
                                                                 <div class="d-flex align-items-center gap-2">
-                                                                        <img src="${t.avatar_url || '/static/default-avatar.png'}"
-                                                                                 alt=""
-                                                                                 width="36"
-                                                                                 height="36"
-                                                                                 class="rounded-circle"
-                                                                                 style="object-fit:cover; border:1px solid rgba(0,0,0,.08)"
-                                                                                 onerror="this.src='/static/default-avatar.png'">
+                                                                        ${clientAvatar}
                                                                         <div class="min-w-0">
                                                                                 <div class="fw-semibold text-truncate">
                                                                                         <span class="clickable-client" data-user-id="${t.user_id}" onclick="window.open('/client/${t.user_id}', '_blank')" title="${displayName}">${displayName}</span>
