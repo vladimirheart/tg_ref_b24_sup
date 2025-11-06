@@ -210,7 +210,7 @@
               </thead>
               <tbody>
                 {% for c in client_stats %}
-                <tr class="client-row"
+                <tr class="client-row client-analytics-row"
                   data-client-id="{{ c.user_id }}"
                   data-client-panel-id="{{ c.panel_id }}"
                   data-client-name="{{ c.client_name or '' }}"
@@ -222,6 +222,7 @@
                   data-client-category="{{ c.category or '' }}"
                   data-client-status="{{ c.status or '' }}"
                   data-client-tickets="{{ c.tickets }}"
+                  data-profile-url="/client/{{ c.user_id }}"
                 >
                   <td><code>{{ c.panel_id }}</code></td>
                   <td>
@@ -248,8 +249,25 @@
               </tbody>
             </table>
           </div>
-          <div class="clients-counter" id="clientRecordsCounter">
-            Всего записей: <span id="clientTotalRecordsCount">{{ client_stats | length }}</span>, показано <span id="clientVisibleRecordsCount">{{ client_stats | length }}</span>
+          <div class="clients-counter d-flex flex-wrap align-items-center gap-3" id="clientRecordsCounter">
+            <div>Всего записей: <span id="clientTotalRecordsCount">{{ client_stats | length }}</span></div>
+            <div>Отфильтровано: <span id="clientFilteredRecordsCount">{{ client_stats | length }}</span></div>
+            <div>На странице: <span id="clientVisibleRecordsCount">{{ client_stats | length }}</span></div>
+            <div class="d-flex align-items-center gap-2 ms-auto">
+              <label for="clientPageSizeSelect" class="form-label mb-0">Записей на странице:</label>
+              <select class="form-select form-select-sm" id="clientPageSizeSelect">
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mt-2" id="clientPaginationWrapper" style="display: none;">
+            <nav aria-label="Навигация по таблице клиентов">
+              <ul class="pagination pagination-sm mb-0" id="clientPagination"></ul>
+            </nav>
           </div>
         </div>
       </div>
@@ -804,7 +822,11 @@
       const filterModal = document.getElementById('clientFiltersModal');
       const badgesContainer = document.getElementById('clientActiveFiltersBadges');
       const visibleCounter = document.getElementById('clientVisibleRecordsCount');
+      const filteredCounter = document.getElementById('clientFilteredRecordsCount');
       const totalCounter = document.getElementById('clientTotalRecordsCount');
+      const pageSizeSelect = document.getElementById('clientPageSizeSelect');
+      const paginationWrapper = document.getElementById('clientPaginationWrapper');
+      const paginationContainer = document.getElementById('clientPagination');
       const filterState = {
         client: [],
         business: [],
@@ -814,6 +836,8 @@
         category: [],
         status: [],
       };
+      let currentPage = 1;
+      let pageSize = Number(pageSizeSelect?.value || 50);
 
       function normalize(value) {
         return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -857,15 +881,97 @@
       }
 
       function updateCounters() {
-        if (visibleCounter) visibleCounter.textContent = filteredRows.length;
         if (totalCounter) totalCounter.textContent = rows.length;
+        if (filteredCounter) filteredCounter.textContent = filteredRows.length;
+        if (visibleCounter) {
+          const startIndex = (currentPage - 1) * pageSize;
+          const remaining = filteredRows.length - startIndex;
+          const visibleCount = remaining > 0 ? Math.min(remaining, pageSize) : 0;
+          visibleCounter.textContent = visibleCount;
+        }
+      }
+
+      function refreshView() {
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        rows.forEach((row) => row.classList.add('d-none'));
+        filteredRows.forEach((row, index) => {
+          const shouldShow = index >= startIndex && index < endIndex;
+          row.classList.toggle('d-none', !shouldShow);
+        });
+        updateCounters();
+        renderPagination();
       }
 
       function applyFilters() {
         filteredRows = rows.filter(passes);
-        rows.forEach((row) => (row.style.display = 'none'));
-        filteredRows.forEach((row) => (row.style.display = ''));
-        updateCounters();
+        currentPage = 1;
+        refreshView();
+      }
+
+      function createPageItem(label, targetPage, disabled, active) {
+        const li = document.createElement('li');
+        li.className = 'page-item';
+        if (disabled) li.classList.add('disabled');
+        if (active) li.classList.add('active');
+        const link = document.createElement('a');
+        link.className = 'page-link';
+        link.href = '#';
+        link.textContent = label;
+        if (!disabled) {
+          link.dataset.page = String(targetPage);
+        }
+        li.appendChild(link);
+        return li;
+      }
+
+      function createEllipsisItem() {
+        const li = document.createElement('li');
+        li.className = 'page-item disabled';
+        const span = document.createElement('span');
+        span.className = 'page-link';
+        span.textContent = '…';
+        li.appendChild(span);
+        return li;
+      }
+
+      function buildPageSet(totalPages, activePage) {
+        const pages = new Set([1, totalPages, activePage, activePage - 1, activePage + 1]);
+        if (activePage <= 3) {
+          pages.add(2);
+          pages.add(3);
+        }
+        if (activePage >= totalPages - 2) {
+          pages.add(totalPages - 1);
+          pages.add(totalPages - 2);
+        }
+        return Array.from(pages)
+          .filter((page) => Number.isFinite(page) && page >= 1 && page <= totalPages)
+          .sort((a, b) => a - b);
+      }
+
+      function renderPagination() {
+        if (!paginationContainer) return;
+        const totalPages = Math.max(1, Math.ceil(Math.max(filteredRows.length, 0) / Math.max(pageSize, 1)));
+        paginationContainer.innerHTML = '';
+        if (paginationWrapper) {
+          paginationWrapper.style.display = totalPages > 1 ? '' : 'none';
+        }
+        if (totalPages <= 1) return;
+
+        const fragment = document.createDocumentFragment();
+        fragment.appendChild(createPageItem('«', currentPage - 1, currentPage === 1, false));
+        const pages = buildPageSet(totalPages, currentPage);
+        let prevPage = null;
+        pages.forEach((page) => {
+          if (prevPage && page - prevPage > 1) {
+            fragment.appendChild(createEllipsisItem());
+          }
+          fragment.appendChild(createPageItem(String(page), page, false, page === currentPage));
+          prevPage = page;
+        });
+        fragment.appendChild(createPageItem('»', currentPage + 1, currentPage === totalPages, false));
+        paginationContainer.appendChild(fragment);
       }
 
       function buildBadge(label, values) {
@@ -919,7 +1025,11 @@
         applyFilters();
       }
 
-      $(filterSelects).select2({ placeholder: 'Выберите...', allowClear: true, language: 'ru', dropdownParent: $(filterModal) });
+      if (window.initSelect2WithCheckboxes && window.jQuery) {
+        window.initSelect2WithCheckboxes(filterSelects, { dropdownParent: $(filterModal) });
+      } else {
+        $(filterSelects).select2({ placeholder: 'Выберите...', allowClear: true, language: 'ru', dropdownParent: $(filterModal) });
+      }
 
       if (document.getElementById('clientApplyFiltersBtn')) {
         document.getElementById('clientApplyFiltersBtn').addEventListener('click', () => {
@@ -935,6 +1045,45 @@
         document.getElementById('clientResetFiltersBtn').addEventListener('click', () => {
           resetFilters();
         });
+      }
+
+      if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', () => {
+          const parsed = Number(pageSizeSelect.value || 50);
+          pageSize = Number.isFinite(parsed) && parsed > 0 ? parsed : 50;
+          currentPage = 1;
+          refreshView();
+        });
+      }
+
+      if (paginationContainer) {
+        paginationContainer.addEventListener('click', (event) => {
+          const link = event.target.closest('[data-page]');
+          if (!link) return;
+          event.preventDefault();
+          const requested = Number(link.dataset.page);
+          if (!Number.isFinite(requested)) return;
+          const totalPages = Math.max(1, Math.ceil(Math.max(filteredRows.length, 0) / Math.max(pageSize, 1)));
+          const safePage = Math.min(Math.max(requested, 1), totalPages);
+          if (safePage === currentPage) return;
+          currentPage = safePage;
+          refreshView();
+        });
+      }
+
+      if (table) {
+        const tbody = table.querySelector('tbody');
+        if (tbody) {
+          tbody.addEventListener('click', (event) => {
+            if (event.target.closest('a, button')) return;
+            const row = event.target.closest('tr.client-row');
+            if (!row) return;
+            const url = row.dataset.profileUrl;
+            if (url) {
+              window.open(url, '_blank');
+            }
+          });
+        }
       }
 
       const clientExportAll = document.getElementById('clientExportAll');
@@ -1023,9 +1172,8 @@
             return 0;
           });
           filteredRows = sorted;
-          filteredRows.forEach((row) => (row.style.display = 'none'));
-          filteredRows.forEach((row) => (row.style.display = ''));
-          updateCounters();
+          currentPage = 1;
+          refreshView();
         });
       });
 
