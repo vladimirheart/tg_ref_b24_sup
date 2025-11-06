@@ -1438,6 +1438,20 @@
   border: 2px solid #fff;
   box-shadow: 0 0 0 1px #dc3545;
 }
+
+/* Подсветка новых заявок */
+#ticketsBody tr.ticket-row-new > td {
+  background-color: rgba(13, 110, 253, 0.08);
+  transition: background-color 0.2s ease;
+}
+
+#ticketsBody tr.ticket-row-new:hover > td {
+  background-color: rgba(13, 110, 253, 0.16);
+}
+
+#ticketsBody tr.ticket-row-new > td:first-child {
+  border-left: 4px solid rgba(13, 110, 253, 0.65);
+}
 .filter-badge {
   margin-right: 5px;
   margin-bottom: 5px;
@@ -1776,34 +1790,46 @@ function markTicketReopenedLocally() {
 
   <div class="container-fluid mt-4">
     <!-- Добавляем кнопку Фильтры и перемещаем Поиск -->
-	<div class="d-flex justify-content-between align-items-center mb-3">
-	  <h2>Список заявок</h2>
-	  <div class="d-flex align-items-center">
-		<!-- Поиск - теперь слева от кнопки Фильтры -->
-		<div class="input-group me-2" style="width: 250px;">
-		  <span class="input-group-text">🔍</span>
-		  <input type="text" id="searchInput" class="form-control" placeholder="Поиск...">
-		</div>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+          <div class="d-flex flex-column">
+            <h2 class="mb-2 mb-lg-0">Список заявок</h2>
+            <div class="nav nav-pills gap-2 flex-wrap" id="ticketsViewTabs" role="tablist">
+              <button type="button" class="nav-link active" data-view-target="all" aria-selected="true">
+                Все заявки
+                <span class="badge bg-light text-muted ms-2" id="ticketsViewAllCount">0</span>
+              </button>
+              <button type="button" class="nav-link" data-view-target="active" aria-selected="false">
+                Не закрытые заявки
+                <span class="badge bg-light text-muted ms-2" id="ticketsViewActiveCount">0</span>
+              </button>
+            </div>
+          </div>
+          <div class="d-flex align-items-center flex-wrap gap-2" id="ticketsViewControls">
+                <!-- Поиск - теперь слева от кнопки Фильтры -->
+                <div class="input-group" style="width: 250px;" data-view-all-only>
+                  <span class="input-group-text">🔍</span>
+                  <input type="text" id="searchInput" class="form-control" placeholder="Поиск...">
+                </div>
 
-		<!-- Кнопка Фильтры -->
-                <button id="filtersToggleBtn" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#filtersModal">
+                <!-- Кнопка Фильтры -->
+                <button id="filtersToggleBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filtersModal" data-view-all-only>
                   <i class="bi bi-funnel"></i> Фильтры
                   <span id="filtersActiveBadge" class="badge bg-warning text-dark ms-2" style="display: none;"></span>
                 </button>
 
-		<!-- Кнопка сброса фильтров -->
-		<button class="btn btn-outline-secondary me-2" onclick="resetFilters()" title="Сбросить все фильтры">
-		  🗑️ Сбросить
-		</button>
+                <!-- Кнопка сброса фильтров -->
+                <button class="btn btn-outline-secondary" onclick="resetFilters()" title="Сбросить все фильтры" data-view-all-only>
+                  🗑️ Сбросить
+                </button
 
-		<!-- Остальные кнопки -->
-		<button class="btn btn-outline-secondary me-2" onclick="toggleColumnSettings()">
-		  ⚙️ Столбцы
-		</button>
+                <!-- Остальные кнопки -->
+                <button class="btn btn-outline-secondary" onclick="toggleColumnSettings()">
+                  ⚙️ Столбцы
+                </button>
 
-		<select id="tzSelect" class="form-select ms-2" style="width: 220px; display: inline-block;">
-		  <option value="browser">Часовой пояс браузера</option>
-		  <option value="Europe/Moscow">Europe/Moscow (GMT+3)</option>
+                <select id="tzSelect" class="form-select" style="width: 220px; display: inline-block;">
+                  <option value="browser">Часовой пояс браузера</option>
+                  <option value="Europe/Moscow">Europe/Moscow (GMT+3)</option>
 		  <option value="Asia/Almaty">Asia/Almaty (GMT+6)</option>
 		  <option value="Asia/Novosibirsk">Asia/Novosibirsk (GMT+7)</option>
 		  <option value="Asia/Yekaterinburg">Asia/Yekaterinburg (GMT+5)</option>
@@ -2458,10 +2484,59 @@ function markTicketReopenedLocally() {
   </script>
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
   <script>
-        const savedPage = parseInt(localStorage.getItem('ticketsCurrentPage') || '1', 10);
-        let currentPage = Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1;
+        const VIEW_ALL = 'all';
+        const VIEW_ACTIVE = 'active';
+        const VIEW_STORAGE_KEY = 'ticketsSelectedView';
+        const VIEW_PAGE_STORAGE = {
+          [VIEW_ALL]: 'ticketsCurrentPage',
+          [VIEW_ACTIVE]: 'ticketsActivePage'
+        };
+        const TICKET_INVITE_FIELD_NAMES = [
+          'invited',
+          'invited_users',
+          'invitedOperators',
+          'invitedUsers',
+          'invited_supports',
+          'invitedOperatorsList',
+          'invited_users_list',
+          'invited_list',
+          'invites',
+          'invitees',
+          'participants',
+          'participants_list',
+          'participantsList',
+          'collaborators',
+          'collaborator_list',
+          'team',
+          'helpers',
+          'watchers',
+          'followers',
+          'assignees',
+          'active_supports',
+          'active_participants',
+          'operators',
+          'support_participants',
+          'support_team',
+          'co_workers',
+          'shared_with',
+          'sharedUsers',
+          'shared_users',
+          'sharedOperators'
+        ];
+
+        let currentView = localStorage.getItem(VIEW_STORAGE_KEY) === VIEW_ACTIVE ? VIEW_ACTIVE : VIEW_ALL;
+
+        function getSavedPageForView(view) {
+          const storageKey = VIEW_PAGE_STORAGE[view] || VIEW_PAGE_STORAGE[VIEW_ALL];
+          const raw = localStorage.getItem(storageKey) || '1';
+          const parsed = parseInt(raw, 10);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+        }
+
+        let currentPage = getSavedPageForView(currentView);
         let totalPages = 1;
         let allTickets = [];
+        let activeViewTickets = [];
         const pageParams = new URLSearchParams(window.location.search || '');
         window.initialClientStatusFilter = pageParams.get('client_status');
         window.initialClientStatusFilterApplied = false;
@@ -2674,11 +2749,293 @@ function markTicketReopenedLocally() {
       effective: '',
       source: ''
     };
-                function persistCurrentPageIfUnfiltered() {
-          if (!window.filteredTickets) {
-                localStorage.setItem('ticketsCurrentPage', String(currentPage));
+                function getViewPageStorageKey(view = currentView) {
+          return VIEW_PAGE_STORAGE[view] || VIEW_PAGE_STORAGE[VIEW_ALL];
+        }
+
+        function persistCurrentPageIfUnfiltered() {
+          if (currentView === VIEW_ALL && window.filteredTickets) {
+                return;
+          }
+          const key = getViewPageStorageKey();
+          localStorage.setItem(key, String(currentPage));
+        }
+
+        function getTicketsSourceForView(view = currentView) {
+          return view === VIEW_ACTIVE ? activeViewTickets : allTickets;
+        }
+
+        function getTicketsToDisplay() {
+          if (currentView === VIEW_ALL && window.filteredTickets) {
+            return window.filteredTickets;
+          }
+          return getTicketsSourceForView();
+        }
+
+        function normalizeTicketStatus(value) {
+          return typeof value === 'string' ? value.trim().toLowerCase() : '';
+        }
+
+        function isTicketResolved(ticket) {
+          if (!ticket) return false;
+          const status = normalizeTicketStatus(ticket.status);
+          const rawStatus = normalizeTicketStatus(ticket.raw_status);
+          if (!status && !rawStatus) return false;
+          return rawStatus === 'resolved'
+            || rawStatus === 'closed'
+            || status.includes('решен')
+            || status.includes('закрыт');
+        }
+
+        function isTicketNew(ticket) {
+          return normalizeTicketStatus(ticket?.status) === 'новая';
+        }
+
+        let currentOperatorAliasCache = null;
+
+        function getCurrentOperatorAliasSet() {
+          if (currentOperatorAliasCache) {
+            return currentOperatorAliasCache;
+          }
+
+          const aliases = new Set();
+          const register = (value) => {
+            const normalized = normalizeOperatorKey(value);
+            if (!normalized) return;
+            aliases.add(normalized);
+            const collapsed = normalized.replace(/\s+/g, '');
+            if (collapsed && collapsed !== normalized) {
+              aliases.add(collapsed);
+            }
+          };
+
+          if (typeof CURRENT_OPERATOR === 'string' && CURRENT_OPERATOR.trim()) {
+            register(CURRENT_OPERATOR);
+            const trimmed = CURRENT_OPERATOR.trim();
+            if (trimmed.includes('@')) {
+              register(trimmed.split('@')[0]);
+            }
+          }
+
+          const aliasSources = [
+            window.settings?.operator_aliases,
+            window.settings?.operatorAliases
+          ];
+          aliasSources.forEach(source => {
+            if (!source) return;
+            if (Array.isArray(source)) {
+              source.forEach(register);
+            } else if (typeof source === 'string') {
+              source.split(/[,;]+/).forEach(register);
+            } else if (typeof source === 'object') {
+              Object.values(source).forEach(register);
+            }
+          });
+
+          currentOperatorAliasCache = aliases;
+          return currentOperatorAliasCache;
+        }
+
+        function collectOperatorCandidates(target, accumulator) {
+          if (target === null || target === undefined) {
+            return;
+          }
+          if (!accumulator) {
+            accumulator = [];
+          }
+
+          if (Array.isArray(target)) {
+            target.forEach(item => collectOperatorCandidates(item, accumulator));
+            return accumulator;
+          }
+
+          if (typeof target === 'object') {
+            Object.values(target).forEach(item => collectOperatorCandidates(item, accumulator));
+            return accumulator;
+          }
+
+          if (typeof target === 'string') {
+            target.split(/[,;]+/).forEach(part => {
+              const value = part.trim();
+              if (value) accumulator.push(value);
+            });
+            return accumulator;
+          }
+
+          accumulator.push(target);
+          return accumulator;
+        }
+
+        function matchOperatorCandidates(candidates) {
+          const aliases = getCurrentOperatorAliasSet();
+          if (!aliases.size || !Array.isArray(candidates)) {
+            return false;
+          }
+          return candidates.some(candidate => {
+            const normalized = normalizeOperatorKey(candidate);
+            if (!normalized) return false;
+            if (aliases.has(normalized)) return true;
+            const collapsed = normalized.replace(/\s+/g, '');
+            return collapsed && aliases.has(collapsed);
+          });
+        }
+
+        function ticketAssignedToCurrentOperator(ticket) {
+          if (!ticket) return false;
+          const fields = [
+            ticket.responsible,
+            ticket.manual_responsible,
+            ticket.auto_responsible,
+            ticket.current_responsible,
+            ticket.assignee,
+            ticket.assigned_to,
+            ticket.assigned,
+            ticket.operator
+          ];
+          const candidates = collectOperatorCandidates(fields, []);
+          return matchOperatorCandidates(candidates);
+        }
+
+        function ticketInvitesCurrentOperator(ticket) {
+          if (!ticket) return false;
+          const fields = TICKET_INVITE_FIELD_NAMES.map(name => ticket[name]);
+          const candidates = collectOperatorCandidates(fields, []);
+          return matchOperatorCandidates(candidates);
+        }
+
+        function computeActiveTickets(sourceTickets = []) {
+          if (!Array.isArray(sourceTickets) || !sourceTickets.length) {
+            return [];
+          }
+
+          const included = [];
+          const seen = new Set();
+
+          sourceTickets.forEach(ticket => {
+            if (!ticket || isTicketResolved(ticket)) return;
+            const ticketId = String(ticket.ticket_id ?? ticket.ticketId ?? '');
+            if (!ticketId || seen.has(ticketId)) return;
+
+            const include = isTicketNew(ticket)
+              || ticketAssignedToCurrentOperator(ticket)
+              || ticketInvitesCurrentOperator(ticket);
+
+            if (!include) return;
+
+            included.push(ticket);
+            seen.add(ticketId);
+          });
+
+          return included;
+        }
+
+        function recomputeActiveViewTickets() {
+          activeViewTickets = computeActiveTickets(allTickets);
+        }
+
+        function updateViewCounters() {
+          const allCountEl = document.getElementById('ticketsViewAllCount');
+          if (allCountEl) {
+            allCountEl.textContent = String(allTickets.length || 0);
+          }
+          const activeCountEl = document.getElementById('ticketsViewActiveCount');
+          if (activeCountEl) {
+            activeCountEl.textContent = String(activeViewTickets.length || 0);
           }
         }
+
+        function syncViewSpecificUI() {
+          document.querySelectorAll('[data-view-target]').forEach(btn => {
+            if (!(btn instanceof HTMLElement)) return;
+            const targetView = btn.getAttribute('data-view-target') === VIEW_ACTIVE ? VIEW_ACTIVE : VIEW_ALL;
+            const isActive = targetView === currentView;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+
+          document.querySelectorAll('[data-view-all-only]').forEach(el => {
+            if (!(el instanceof HTMLElement)) return;
+            const hidden = currentView !== VIEW_ALL;
+            el.classList.toggle('d-none', hidden);
+            if (hidden) {
+              el.setAttribute('aria-hidden', 'true');
+            } else {
+              el.removeAttribute('aria-hidden');
+            }
+          });
+
+          const filtersBadge = document.getElementById('filtersActiveBadge');
+          if (filtersBadge && currentView !== VIEW_ALL) {
+            filtersBadge.style.display = 'none';
+            filtersBadge.textContent = '';
+          }
+
+          if (currentView === VIEW_ALL) {
+            updateFiltersIndicator(countActiveFilters(collectInlineFilterValues()));
+          }
+        }
+
+        function refreshTicketsForCurrentView(options = {}) {
+          const preserveFilters = options.preserveFilters !== false;
+          if (currentView === VIEW_ALL) {
+            if (filtersCurrentlyActive && preserveFilters) {
+              applyFilters({ preservePage: true });
+            } else {
+              const tickets = getTicketsToDisplay();
+              totalPages = ensureCurrentPageBounds(tickets.length);
+              persistCurrentPageIfUnfiltered();
+              displayTicketsForCurrentPage();
+              updatePagination();
+            }
+            return;
+          }
+
+          const activeTickets = getTicketsSourceForView(VIEW_ACTIVE);
+          totalPages = ensureCurrentPageBounds(activeTickets.length);
+          persistCurrentPageIfUnfiltered();
+          displayTicketsForCurrentPage();
+          updatePagination();
+        }
+
+        function setCurrentView(view, options = {}) {
+          const normalized = view === VIEW_ACTIVE ? VIEW_ACTIVE : VIEW_ALL;
+          const force = options.force === true;
+          const skipPersist = options.skipPersist === true;
+          const skipRender = options.skipRender === true;
+
+          if (!force && normalized === currentView) {
+            if (!skipRender) {
+              syncViewSpecificUI();
+            }
+            return;
+          }
+
+          currentView = normalized;
+          if (!skipPersist) {
+            localStorage.setItem(VIEW_STORAGE_KEY, currentView);
+          }
+
+          currentPage = getSavedPageForView(currentView);
+          syncViewSpecificUI();
+
+          if (skipRender) {
+            return;
+          }
+
+          refreshTicketsForCurrentView({ preserveFilters: options.preserveFilters });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          const tabButtons = document.querySelectorAll('[data-view-target]');
+          tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+              const targetView = btn.getAttribute('data-view-target');
+              setCurrentView(targetView);
+            });
+          });
+
+          setCurrentView(currentView, { force: true, skipRender: true, skipPersist: true });
+        });
 
         function ensureCurrentPageBounds(totalItems) {
           const maxPage = Math.max(1, Math.ceil(totalItems / currentPageSize) || 1);
@@ -3422,13 +3779,9 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
             }
           }
 
-          if (filtersCurrentlyActive && window.filteredTickets) {
-            displayTicketsForCurrentPageFiltered();
-            updatePaginationFiltered();
-          } else {
-            displayTicketsForCurrentPage();
-            updatePagination();
-          }
+          recomputeActiveViewTickets();
+          updateViewCounters();
+          refreshTicketsForCurrentView({ preserveFilters: currentView === VIEW_ALL });
         }
 
         function toBool(value) {
@@ -5189,6 +5542,8 @@ function initColumnResize() {
                         // Сохраняем все заявки для пагинации
                         allTickets = tickets;
                         populateModalFilterSelects(allTickets);
+                        recomputeActiveViewTickets();
+                        updateViewCounters();
 
                         if (historyModalIsOpen && currentUserId && currentTicketId) {
                                 renderClientTicketsList(currentUserId, currentTicketId);
@@ -5215,15 +5570,10 @@ function initColumnResize() {
                                 }
                         }
 
-                        if (window.initialClientStatusFilter && !window.initialClientStatusFilterApplied) {
+                        if (currentView === VIEW_ALL && window.initialClientStatusFilter && !window.initialClientStatusFilterApplied) {
                                 applyInitialClientStatusFilter();
-                        } else if (filtersCurrentlyActive) {
-                                applyFilters({ preservePage: true });
                         } else {
-                                // Иначе отображаем все заявки как обычно
-                                totalPages = Math.ceil(allTickets.length / currentPageSize);
-                                displayTicketsForCurrentPage();
-                                updatePagination();
+                                refreshTicketsForCurrentView({ preserveFilters: currentView === VIEW_ALL });
                         }
 
                         refreshUnreadIndicators();
@@ -5234,28 +5584,13 @@ function initColumnResize() {
         }
 
 // === Отображение заявок для текущей страницы ===
-function displayTicketsForCurrentPage() {
-  const container = document.getElementById('ticketsBody');
-  if (!container) return;
-
-  container.innerHTML = '';
-
-  totalPages = ensureCurrentPageBounds(allTickets.length);
-  persistCurrentPageIfUnfiltered();
-
-  // Рассчитываем индексы для текущей страницы
-  const startIndex = (currentPage - 1) * currentPageSize;
-  const endIndex = Math.min(startIndex + currentPageSize, allTickets.length);
-  
-  // Получаем заявки для текучной страницы
-  const pageTickets = allTickets.slice(startIndex, endIndex);
-  
-  if (pageTickets.length === 0) {
+function renderTicketsPageRows(tickets, container) {
+  if (!Array.isArray(tickets) || tickets.length === 0) {
     container.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-3">Нет заявок для отображения</td></tr>';
     return;
   }
-  
-  pageTickets.forEach(t => {
+
+  tickets.forEach(t => {
   const username = t.username ? `@${t.username}` : 'нет юзернейма';
   const clientName = t.client_name || 'не задано';
   const displayNameRaw = (t.client_name && t.client_name !== 'не задано')
@@ -5327,12 +5662,12 @@ function displayTicketsForCurrentPage() {
 
 	let statusBadge;
 
-	if (t.raw_status === 'resolved') {
-	  statusBadge = `<span class="badge bg-success">✅ Решено</span>`;
-	} else {
-	  if (t.status === 'Новая') {
-		statusBadge = `<span class="badge bg-secondary">🆕 Новая</span>`;
-	  } else if (t.status === 'Ожидает реакции') {
+        if (t.raw_status === 'resolved') {
+          statusBadge = `<span class="badge bg-success">✅ Решено</span>`;
+        } else {
+          if (t.status === 'Новая') {
+                statusBadge = `<span class="badge bg-secondary">🆕 Новая</span>`;
+          } else if (t.status === 'Ожидает реакции') {
 		statusBadge = `<span class="badge bg-danger">⏳ Ожидает реакции</span>`;
 	  } else {
 		statusBadge = `<span class="badge bg-info text-dark">⏳ Ожидает клиента</span>`;
@@ -5408,25 +5743,46 @@ function displayTicketsForCurrentPage() {
                 rowHTML += `<td>${dt.date}</td>`;
                 rowHTML += `<td>${dt.time}</td>`;
         rowHTML += `<td class="actions-cell">${actionBtns}</td>`;
-	row.innerHTML = rowHTML;
-	container.appendChild(row);
-		// --- ВОССТАНОВЛЕНИЕ СЧЁТЧИКА НЕПРОЧИТАННЫХ ПРИ ОТРИСОВКЕ ---
-		let unread = 0;
-		const lastRead = lastReadAtByTicket[t.ticket_id] || 0;
-		if (unreadCountByTicket[t.ticket_id] !== undefined) {
-		  unread = unreadCountByTicket[t.ticket_id];
-		} else {
-		  // Если вообще нет данных — считаем 0
-		  unread = 0;
-		}
+        row.dataset.ticketId = String(t.ticket_id || '');
+        row.dataset.userId = String(t.user_id || '');
+        row.dataset.status = t.status || '';
+        if (isTicketNew(t)) {
+          row.classList.add('ticket-row-new');
+        }
 
-                setTicketUnread(t.ticket_id, unread);
-                scheduleUnreadUpdate(t);
-                });
-	parseEmojis(document.getElementById('ticketsBody'));
-		applyColumnSettingsFromState();
-		initColumnResize(); // Инициализируем resize после обновления таблицы
-		}
+        row.innerHTML = rowHTML;
+        container.appendChild(row);
+
+        let unread = 0;
+        if (unreadCountByTicket[t.ticket_id] !== undefined) {
+          unread = unreadCountByTicket[t.ticket_id];
+        }
+
+        setTicketUnread(t.ticket_id, unread);
+        scheduleUnreadUpdate(t);
+        });
+
+  parseEmojis(container);
+  applyColumnSettingsFromState();
+  initColumnResize();
+}
+
+function displayTicketsForCurrentPage() {
+  const container = document.getElementById('ticketsBody');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  const tickets = getTicketsToDisplay();
+  totalPages = ensureCurrentPageBounds(tickets.length);
+  persistCurrentPageIfUnfiltered();
+
+  const startIndex = (currentPage - 1) * currentPageSize;
+  const endIndex = Math.min(startIndex + currentPageSize, tickets.length);
+  const pageTickets = tickets.slice(startIndex, endIndex);
+
+  renderTicketsPageRows(pageTickets, container);
+}
 
 
 	// === Обновление пагинации ===
@@ -5480,10 +5836,10 @@ function displayTicketsForCurrentPage() {
                                   currentPageSize = parseInt(this.value);
                                   localStorage.setItem('pageSize', currentPageSize);
                                   currentPage = 1; // Сбрасываем на первую страницу
-                                  const sourceLength = window.filteredTickets ? window.filteredTickets.length : allTickets.length;
-                                  totalPages = ensureCurrentPageBounds(sourceLength);
+                                  const ticketsForView = getTicketsToDisplay();
+                                  totalPages = ensureCurrentPageBounds(ticketsForView.length);
                                   persistCurrentPageIfUnfiltered();
-                                  if (window.filteredTickets) {
+                                  if (currentView === VIEW_ALL && window.filteredTickets) {
                                         displayTicketsForCurrentPageFiltered();
                                         updatePaginationFiltered();
                                   } else {
@@ -5646,7 +6002,11 @@ function displayTicketsForCurrentPage() {
         return source.includes(filterValue);
                                                 }
 
-						function applyFilters(optionsOrEvent = {}) {
+                                                function applyFilters(optionsOrEvent = {}) {
+        if (currentView !== VIEW_ALL) {
+                console.warn('Фильтры недоступны в текущем режиме просмотра.');
+                return;
+        }
         let options = {};
         if (optionsOrEvent && typeof optionsOrEvent === 'object' && typeof optionsOrEvent.preventDefault === 'function') {
                 optionsOrEvent.preventDefault();
@@ -5725,238 +6085,17 @@ function displayTicketsForCurrentPage() {
 						}
 
 						function displayTicketsForCurrentPageFiltered() {
-                                                        const container = document.getElementById('ticketsBody');
-                                                        if (!container) return;
-
-                                                        container.innerHTML = '';
-
-                                                        // Используем отфильтрованные данные
-                                                        const ticketsToDisplay = window.filteredTickets || allTickets;
-
-                                                        totalPages = ensureCurrentPageBounds(ticketsToDisplay.length);
-
-                                                        // Рассчитываем индексы для текущей страницы
-                                                        const startIndex = (currentPage - 1) * currentPageSize;
-                                                        const endIndex = Math.min(startIndex + currentPageSize, ticketsToDisplay.length);
-							
-							// Получаем заявки для текущей страницы
-							const pageTickets = ticketsToDisplay.slice(startIndex, endIndex);
-							
-							if (pageTickets.length === 0) {
-								container.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-3">Нет заявок для отображения</td></tr>';
-								return;
-							}
-							
-							// Отрисовываем заявки (используем существующую логику отрисовки)
-                                                        pageTickets.forEach(t => {
-                                                                const username = t.username ? `@${t.username}` : 'нет юзернейма';
-                                                                const clientName = t.client_name || 'не задано';
-                                                                const displayNameRaw = (t.client_name && t.client_name !== 'не задано')
-                                                                  ? t.client_name
-                                                                  : (t.username ? `@${t.username}` : `Клиент ${t.user_id}`);
-                                                                const displayName = escapeHtml(displayNameRaw);
-                                                                const usernameLine = escapeHtml(username);
-                                                                const isBlacklisted = Number(t.is_blacklisted);
-                                                                const blacklistBadges = [];
-                                                                if (isBlacklisted) {
-                                                                  blacklistBadges.push('<span class="badge text-bg-danger">В блэклисте</span>');
-                                                                  if (Number(t.unblock_requested)) {
-                                                                    blacklistBadges.push('<span class="badge text-bg-warning text-dark">Запрос на разблокировку</span>');
-                                                                  }
-                                                                }
-                                                                const blacklistInfo = isBlacklisted
-                                                                  ? `<div class="mt-1 d-flex flex-wrap gap-1">${blacklistBadges.join('')}</div>`
-                                                                  : '';
-
-                                                                const row = document.createElement('tr');
-
-                                                                // Индекс для поиска (если понадобится)
-                                                                const searchIndex = [
-                                                                        String(t.user_id || ''),
-                                                                        String(t.ticket_id || ''),
-                                                                        String(t.client_status || ''),
-                                                                        String(t.channel_name || ''),
-                                                                        String(t.business || ''),
-                                                                        String(t.city || ''),
-                                                                        String(t.location_name || ''),
-                                                                        String(t.problem || ''),
-                                                                        String(t.responsible || ''),
-                                                                        String(t.raw_status || ''),
-                                                                        String(t.status || ''),
-                                                                        String(t.created_date || ''),
-                                                                        String(t.created_time || ''),
-                                                                        String(t.username || ''),
-                                                                        String(clientName || ''),
-                                                                        Number(t.is_blacklisted) ? 'в блэклисте' : '',
-                                                                        Number(t.is_blacklisted) && Number(t.unblock_requested) ? 'запрос на разблокировку' : ''
-                                                                ].join(' ').toLowerCase();
-                                                                row.dataset.search = searchIndex;
-
-                                                                const statusColor = resolveClientStatusColor(t.client_status || '');
-                                                                const avatarClasses = ['tickets-client-avatar'];
-                                                                if (statusColor) {
-                                                                  avatarClasses.push('tickets-client-avatar--colored');
-                                                                }
-                                                                const avatarStyle = statusColor ? ` style="--status-color: ${escapeHtml(statusColor)};"` : '';
-                                                                const clientAvatar = `
-                                                                  <span class="${avatarClasses.join(' ')}"${avatarStyle}>
-                                                                    <img src="${t.avatar_url || '/static/default-avatar.png'}"
-                                                                         alt=""
-                                                                         width="36"
-                                                                         height="36"
-                                                                         class="rounded-circle"
-                                                                         onerror="this.src='/static/default-avatar.png'">
-                                                                  </span>`;
-
-                                                                // Остальная логика отрисовки остается такой же, как в displayTicketsForCurrentPage()
-                                                                const clientCell = `
-                                                                <div class="d-flex align-items-center gap-2">
-                                                                        ${clientAvatar}
-                                                                        <div class="min-w-0">
-                                                                                <div class="fw-semibold text-truncate">
-                                                                                        <span class="clickable-client" data-user-id="${t.user_id}" onclick="window.open('/client/${t.user_id}', '_blank')" title="${displayName}">${displayName}</span>
-                                                                                </div>
-                                                                                <div class="text-muted small text-truncate">${usernameLine}</div>
-                                                                                ${blacklistInfo}
-                                                                        </div>
-                                                                </div>`;
-
-								let statusBadge;
-								if (t.raw_status === 'resolved') {
-									statusBadge = `<span class="badge bg-success">✅ Решено</span>`;
-								} else {
-									if (t.status === 'Новая') {
-										statusBadge = `<span class="badge bg-secondary">🆕 Новая</span>`;
-									} else if (t.status === 'Ожидает реакции') {
-										statusBadge = `<span class="badge bg-danger">⏳ Ожидает реакции</span>`;
-									} else {
-										statusBadge = `<span class="badge bg-info text-dark">⏳ Ожидает клиента</span>`;
-									}
-								}
-
-								const unreadBadge = `<span class="badge bg-danger me-1 unread-badge" data-ticket="${t.ticket_id}" style="display:none;">0</span>`;
-								statusBadge = unreadBadge + statusBadge;
-
-								let businessClass = '';
-								if (t.business === 'СушиВесла') businessClass = 'business-sushi';
-								else if (t.business === 'БлинБери') businessClass = 'business-blin';
-
-                                                                const createTaskBtn = (t.linked_task_id)
-                                                                        ? `<button type="button" class="btn btn-sm btn-outline-primary open-task-btn" data-task-id="${t.linked_task_id}">
-                                                                           №DL_${t.linked_task_id}
-                                                                         </button>`
-                                                                        : `<button type="button" class="btn btn-sm btn-outline-primary create-task-btn"
-                                                                           data-problem="${(t.problem||'').replace(/"/g,'&quot;')}"
-                                                                           data-location="${(t.location_name||t.city||'').replace(/"/g,'&quot;')}"
-                                                                           data-ticket="${t.ticket_id}">
-                                                                           Создать задачу
-                                                                         </button>`
-
-								                                                                  const businessValue = t.business || '—';
-                                                                  const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
-                                                                  const historyButton = `
-                                                                    <button
-                                                                      type="button"
-                                                                      class="btn btn-sm btn-outline-secondary action-icon"
-                                                                      title="История переписки"
-                                                                      onclick="loadHistory(${t.user_id}, '${t.ticket_id}')"
-                                                                    >
-                                                                      <span aria-hidden="true">📜</span>
-                                                                      <span class="visually-hidden">История</span>
-                                                                    </button>`;
-                                                                  const closeButton = (t.raw_status !== 'resolved')
-                                                                          ? `
-                                                                            <button
-                                                                              type="button"
-                                                                              class="btn btn-sm btn-danger action-icon"
-                                                                              title="Закрыть заявку"
-                                                                              onclick="confirmClose(${t.user_id}, '${t.ticket_id}')"
-                                                                            >
-                                                                              <span aria-hidden="true">🛑</span>
-                                                                              <span class="visually-hidden">Закрыть</span>
-                                                                            </button>`
-                                                                          : '';
-                                                                  const actionBtns = `<div class="actions-layout">${historyButton}${closeButton}${createTaskBtn}</div>`;
-
-                                                                  let rowHTML = '';
-                                                                  rowHTML += `<td>${clientCell}</td>`;
-                                                                  rowHTML += `<td>${t.client_status || '—'}</td>`;
-                                                                  rowHTML += `<td>${t.channel_name || '—'}</td>`;
-                                                                  rowHTML += `<td><code>${t.ticket_id}</code></td>`;
-                                                                  rowHTML += `<td class="business-cell ${businessClass}">${businessValue}</td>`;
-                                                                  rowHTML += `<td>${t.city}<br><small>${t.location_name}</small></td>`;
-                                                                  rowHTML += `<td>${t.problem}</td>`;
-                                                                  rowHTML += `<td>${responsibleDisplay}</td>`;
-                                                                  rowHTML += `<td>${statusBadge}</td>`;
-                                                                  const dt = displayTicketDateTime(t);
-                                                                          rowHTML += `<td>${dt.date}</td>`;
-                                                                          rowHTML += `<td>${dt.time}</td>`;
-                                                                  rowHTML += `<td class="actions-cell">${actionBtns}</td>`;
-								row.innerHTML = rowHTML;
-								container.appendChild(row);
-
-								// Восстановление счетчика непрочитанных
-								let unread = 0;
-								const lastRead = lastReadAtByTicket[t.ticket_id] || 0;
-								if (unreadCountByTicket[t.ticket_id] !== undefined) {
-									unread = unreadCountByTicket[t.ticket_id];
-								} else {
-									unread = 0;
-								}
-								setTicketUnread(t.ticket_id, unread);
-							});
-							
-							parseEmojis(document.getElementById('ticketsBody'));
-							applyColumnSettingsFromState();
-							initColumnResize();
+						        displayTicketsForCurrentPage();
 						}
 
 						// === Обновление пагинации для отфильтрованных данных ===
 						function updatePaginationFiltered() {
-							const paginationContainer = document.getElementById('pagination');
-							if (!paginationContainer) return;
-							
-							paginationContainer.innerHTML = '';
-							
-                                                        const ticketsToDisplay = window.filteredTickets || allTickets;
-                                                        totalPages = ensureCurrentPageBounds(ticketsToDisplay.length);
-							
-							if (totalPages <= 1) return;
-							
-							// Кнопка "Назад"
-							const prevLi = document.createElement('li');
-							prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-							prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePageFiltered(${currentPage - 1})">&laquo;</a>`;
-							paginationContainer.appendChild(prevLi);
-							
-							// Нумерация страниц
-							const startPage = Math.max(1, currentPage - 2);
-							const endPage = Math.min(totalPages, startPage + 4);
-							
-							for (let i = startPage; i <= endPage; i++) {
-								const pageLi = document.createElement('li');
-								pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
-								pageLi.innerHTML = `<a class="page-link" href="#" onclick="changePageFiltered(${i})">${i}</a>`;
-								paginationContainer.appendChild(pageLi);
-							}
-							
-							// Кнопка "Вперед"
-							const nextLi = document.createElement('li');
-							nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-							nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePageFiltered(${currentPage + 1})">&raquo;</a>`;
-							paginationContainer.appendChild(nextLi);
+						        updatePagination();
 						}
 
 						// === Смена страницы для отфильтрованных данных ===
 						function changePageFiltered(page) {
-							if (page < 1 || page > totalPages) return;
-							
-							currentPage = page;
-							displayTicketsForCurrentPageFiltered();
-							updatePaginationFiltered();
-							
-							// Прокручиваем к верху таблицы
-							document.querySelector('.table-responsive').scrollIntoView({ behavior: 'smooth' });
+						        changePage(page);
 						}
 
 						// === Сброс фильтров ===
@@ -6005,7 +6144,7 @@ function displayTicketsForCurrentPage() {
                                                           filtersCurrentlyActive = false;
                                                           window.filteredTickets = null;
                                                           updateFiltersIndicator(0);
-                                                          totalPages = ensureCurrentPageBounds(allTickets.length);
+                                                          totalPages = ensureCurrentPageBounds(getTicketsSourceForView().length);
                                                           persistCurrentPageIfUnfiltered();
                                                           displayTicketsForCurrentPage();
                                                           updatePagination();
@@ -6394,6 +6533,9 @@ function displayTicketsForCurrentPage() {
                         const ticketsFromServer = normalizeTicketsFromServer(Array.isArray(ticketsRaw) ? ticketsRaw : []);
                         allTickets = ticketsFromServer;
                         populateModalFilterSelects(allTickets);
+                        recomputeActiveViewTickets();
+                        updateViewCounters();
+                        refreshTicketsForCurrentView({ preserveFilters: currentView === VIEW_ALL });
 
                                 const qs = new URLSearchParams({
                                         user_id: String(user_id),
@@ -7992,11 +8134,15 @@ function displayTicketsForCurrentPage() {
 		}
 	  }
 	  
-	  // Всегда обновляем DOM
-	  updateTicketStatusInTable(ticketId, newStatus);
-	  
-	  return true;
-	}
+          // Всегда обновляем DOM
+          updateTicketStatusInTable(ticketId, newStatus);
+
+          recomputeActiveViewTickets();
+          updateViewCounters();
+          refreshTicketsForCurrentView({ preserveFilters: currentView === VIEW_ALL });
+
+          return true;
+        }
 
 	// Функция для принудительной проверки и обновления статуса
 	function forceUpdateTicketStatus(ticketId, expectedNewStatus = 'Ожидает клиента') {
@@ -8036,7 +8182,11 @@ function displayTicketsForCurrentPage() {
                     }
                   }
             }
-	  
+
+            recomputeActiveViewTickets();
+            updateViewCounters();
+            refreshTicketsForCurrentView({ preserveFilters: currentView === VIEW_ALL });
+
 	  // Немедленно обновляем отображение
 	  updateTicketStatusInTable(ticketId, expectedNewStatus);
 	  
