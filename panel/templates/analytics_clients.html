@@ -9,7 +9,7 @@
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
-  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css', v='2') }}" rel="stylesheet" />
   <style>
 	  /* Статичный верхний бар */
 	.navbar{
@@ -208,7 +208,8 @@
     <!-- Таблица клиентов -->
     <h4>📋 Все записи клиентов</h4> <!-- Уточнил заголовок -->
     <div class="table-container">
-      <table class="table table-striped table-hover" id="clientsTable"> <!-- Используем clients -->
+      <div class="table-responsive" data-column-reorder-container>
+      <table class="table table-striped table-hover" id="clientsTable" data-column-reorderable data-reorder-key="analytics_clients"> <!-- Используем clients -->
         <thead class="table-dark">
 		  <tr>
 			<th class="sortable" data-sort="client">Клиент ↕</th>
@@ -264,6 +265,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
     <!-- Пагинация и счетчик -->
     <div class="d-flex justify-content-between align-items-center mt-3">
