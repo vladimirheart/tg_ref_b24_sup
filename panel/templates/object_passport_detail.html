@@ -2666,9 +2666,9 @@
       items.forEach((item) => {
         const tr = document.createElement('tr');
         const ticketId = item.ticket_id || '';
-        const ticketLink = ticketId ? `/tickets/${encodeURIComponent(ticketId)}` : '';
+        const ticketLink = ticketId ? `/#open=ticket:${encodeURIComponent(ticketId)}` : '';
         const ticketCell = ticketLink
-          ? `<a href="${ticketLink}" target="_blank" class="link-primary text-decoration-none">${escapeHtml(ticketId)}</a>`
+          ? `<a href="${ticketLink}" target="_blank" rel="noopener" class="link-primary text-decoration-none">${escapeHtml(ticketId)}</a>`
           : `<span>${escapeHtml(ticketId)}</span>`;
         tr.innerHTML = `
           <td>${ticketCell}</td>
@@ -2681,7 +2681,7 @@
           tr.classList.add('table-row-link');
           tr.addEventListener('click', (event) => {
             if (event.target.closest('a')) return;
-            window.open(ticketLink, '_blank');
+            window.open(ticketLink, '_blank', 'noopener');
           });
         }
         casesTableBody.appendChild(tr);
