@@ -7,6 +7,14 @@
   const bellBtn = document.getElementById('bellBtn');
   const bellBadge = document.getElementById('notify-count');
   const root = document.body;
+  const changePasswordBtn = sidebar.querySelector('[data-sidebar-change-password]');
+  const changePasswordModalEl = document.querySelector('[data-sidebar-password-modal]');
+  const changePasswordForm = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-form]') : null;
+  const changePasswordError = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-error]') : null;
+  const changePasswordSuccess = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-success]') : null;
+  const changePasswordSpinner = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-spinner]') : null;
+  const changePasswordSubmitText = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-submit-text]') : null;
+  let changePasswordModalInstance = null;
 
   const LS_KEY_PIN = 'sidebarPinned';
   let pinned = localStorage.getItem(LS_KEY_PIN) === '1';
@@ -71,11 +79,13 @@
   const nav = sidebar.querySelector('.sidebar-nav');
   const ORDER_STORAGE_KEY = 'sidebarNavOrder';
   const DEFAULT_ORDER = ['dialogs', 'tasks', 'clients', 'object_passports', 'knowledge_base', 'dashboard', 'analytics', 'settings'];
-  const NAV_TITLE_DEFAULT = 'Нажмите на иконку «⇅», чтобы изменить расположение страниц';
+  const NAV_TITLE_DEFAULT = '';
   const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
+  const NAV_ORDER_HINT = 'Нажмите на иконку «⇅», чтобы изменить расположение страниц';
   const resetOrderBtn = document.getElementById('resetSidebarOrderBtn');
   const editOrderBtn = document.getElementById('editSidebarOrderBtn');
   let isEditingOrder = false;
+  let orderHintShown = false;
 
   function getNavLinks() {
     if (!nav) return [];
@@ -248,7 +258,11 @@
       editOrderBtn.setAttribute('title', label);
     }
     if (nav) {
-      nav.setAttribute('title', isEditingOrder ? NAV_TITLE_EDITING : NAV_TITLE_DEFAULT);
+      if (isEditingOrder && NAV_TITLE_EDITING) {
+        nav.setAttribute('title', NAV_TITLE_EDITING);
+      } else {
+        nav.removeAttribute('title');
+      }
     }
   }
 
@@ -258,6 +272,12 @@
     isEditingOrder = nextState;
     applyDraggableState(isEditingOrder);
     updateEditOrderButton();
+    if (isEditingOrder && !orderHintShown) {
+      orderHintShown = true;
+      if (typeof showNotificationToast === 'function') {
+        showNotificationToast(NAV_ORDER_HINT);
+      }
+    }
     if (!isEditingOrder) {
       const dragging = nav ? nav.querySelector('.nav-link.dragging') : null;
       if (dragging) dragging.classList.remove('dragging');
@@ -287,6 +307,118 @@
   if (editOrderBtn) {
     editOrderBtn.addEventListener('click', () => {
       setEditingOrder(!isEditingOrder);
+    });
+  }
+
+  function togglePasswordMessage(element, message) {
+    if (!element) return;
+    if (message) {
+      element.textContent = message;
+      element.classList.remove('d-none');
+    } else {
+      element.textContent = '';
+      element.classList.add('d-none');
+    }
+  }
+
+  function resetChangePasswordState() {
+    if (changePasswordForm) {
+      changePasswordForm.reset();
+    }
+    togglePasswordMessage(changePasswordError, '');
+    togglePasswordMessage(changePasswordSuccess, '');
+    if (changePasswordSpinner) changePasswordSpinner.classList.add('d-none');
+    if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'Сменить пароль';
+  }
+
+  function ensureChangePasswordModal() {
+    if (!changePasswordModalEl || !window.bootstrap) return null;
+    if (!changePasswordModalInstance) {
+      changePasswordModalInstance = window.bootstrap.Modal.getOrCreateInstance(changePasswordModalEl, {
+        backdrop: 'static',
+      });
+    }
+    return changePasswordModalInstance;
+  }
+
+  if (changePasswordModalEl) {
+    changePasswordModalEl.addEventListener('hidden.bs.modal', () => {
+      resetChangePasswordState();
+    });
+  }
+
+  if (changePasswordBtn) {
+    changePasswordBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      const modal = ensureChangePasswordModal();
+      if (modal) {
+        resetChangePasswordState();
+        modal.show();
+      }
+    });
+  }
+
+  if (changePasswordForm) {
+    changePasswordForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      togglePasswordMessage(changePasswordError, '');
+      togglePasswordMessage(changePasswordSuccess, '');
+
+      const formData = new FormData(changePasswordForm);
+      const currentPassword = (formData.get('current_password') || '').toString().trim();
+      const newPassword = (formData.get('new_password') || '').toString().trim();
+      const confirmPassword = (formData.get('confirm_password') || '').toString().trim();
+
+      if (!currentPassword) {
+        togglePasswordMessage(changePasswordError, 'Укажите текущий пароль.');
+        return;
+      }
+      if (!newPassword) {
+        togglePasswordMessage(changePasswordError, 'Новый пароль не может быть пустым.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        togglePasswordMessage(changePasswordError, 'Новый пароль и подтверждение не совпадают.');
+        return;
+      }
+
+      if (changePasswordSpinner) changePasswordSpinner.classList.remove('d-none');
+      if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'Сохранение...';
+
+      try {
+        const response = await fetch('/profile/password', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword,
+            confirm_password: confirmPassword,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+          const message = payload && payload.error ? payload.error : 'Не удалось изменить пароль.';
+          togglePasswordMessage(changePasswordError, message);
+          return;
+        }
+        togglePasswordMessage(changePasswordSuccess, payload.message || 'Пароль успешно обновлён.');
+        if (changePasswordSpinner) changePasswordSpinner.classList.add('d-none');
+        if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'Готово';
+        const modal = ensureChangePasswordModal();
+        if (modal) {
+          setTimeout(() => {
+            modal.hide();
+          }, 1400);
+        }
+      } catch (error) {
+        togglePasswordMessage(changePasswordError, 'Ошибка соединения. Попробуйте позже.');
+      } finally {
+        if (changePasswordSpinner) changePasswordSpinner.classList.add('d-none');
+        if (changePasswordSubmitText && changePasswordSubmitText.textContent !== 'Готово') {
+          changePasswordSubmitText.textContent = 'Сменить пароль';
+        }
+      }
     });
   }
 
