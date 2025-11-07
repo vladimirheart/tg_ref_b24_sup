@@ -2844,6 +2844,14 @@ def ensure_tasks_schema():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS ticket_participants(
+            ticket_id TEXT NOT NULL,
+            user TEXT NOT NULL,
+            joined_at TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY(ticket_id, user)
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS task_links(
             task_id   INTEGER NOT NULL,
             ticket_id TEXT    NOT NULL,
@@ -4732,6 +4740,57 @@ def _build_answers_summary(config: dict, answers: dict[str, str]) -> list[str]:
     return summary
 
 
+def _add_ticket_participants(conn, ticket_id: str, *users: str | None) -> None:
+    if not conn or not ticket_id:
+        return
+    sanitized = {
+        str(user).strip()
+        for user in users
+        if isinstance(user, str) and str(user).strip()
+    }
+    if not sanitized:
+        return
+    for user in sanitized:
+        try:
+            exec_with_retry(
+                lambda: conn.execute(
+                    "INSERT OR IGNORE INTO ticket_participants(ticket_id, user) VALUES(?, ?)",
+                    (ticket_id, user),
+                )
+            )
+        except Exception:
+            continue
+
+
+def _get_ticket_participants(conn, ticket_id: str) -> set[str]:
+    participants: set[str] = set()
+    if not conn or not ticket_id:
+        return participants
+    try:
+        rows = exec_with_retry(
+            lambda: conn.execute(
+                "SELECT user FROM ticket_participants WHERE ticket_id = ?",
+                (ticket_id,),
+            )
+        ).fetchall()
+    except Exception:
+        return participants
+    for row in rows:
+        value = None
+        if isinstance(row, sqlite3.Row):
+            try:
+                value = row["user"]
+            except Exception:
+                value = None
+        else:
+            value = row[0] if row else None
+        if value:
+            text = str(value).strip()
+            if text:
+                participants.add(text)
+    return participants
+
+
 def _insert_ticket_message(
     conn,
     *,
@@ -4786,26 +4845,31 @@ def _insert_ticket_message(
         )
     )
 
+    sender_label = (updated_by or "").strip().lower()
+    if sender_label and sender_label not in {"web_form", "system", "bot"}:
+        _add_ticket_participants(conn, ticket_id, updated_by)
+
     try:
-        row = exec_with_retry(
-            lambda: conn.execute(
-                "SELECT user FROM ticket_active WHERE ticket_id=? ORDER BY last_seen DESC LIMIT 1",
-                (ticket_id,),
-            )
-        ).fetchone()
-        target_user = row["user"] if row else None
-        if target_user:
-            exec_with_retry(
+        participants = _get_ticket_participants(conn, ticket_id)
+        sender = (updated_by or "").strip()
+        if sender:
+            participants.discard(sender)
+        if not participants:
+            row = exec_with_retry(
                 lambda: conn.execute(
-                    "INSERT INTO notifications(user, text, url) VALUES(?, ?, ?)",
-                    (
-                        target_user,
-                        f"Новое сообщение в диалоге {ticket_id}",
-                        f"/#open=ticket:{ticket_id}",
-                    ),
+                    "SELECT user FROM ticket_active WHERE ticket_id=? ORDER BY last_seen DESC LIMIT 1",
+                    (ticket_id,),
                 )
-            )
-        else:
+            ).fetchone()
+            target_user = None
+            if row is not None:
+                try:
+                    target_user = (row["user"] if isinstance(row, sqlite3.Row) else row[0])
+                except Exception:
+                    target_user = None
+            if target_user:
+                participants.add(str(target_user).strip())
+        if not participants:
             exec_with_retry(
                 lambda: conn.execute(
                     "INSERT INTO notifications(user, text, url) VALUES(?, ?, ?)",
@@ -4816,6 +4880,20 @@ def _insert_ticket_message(
                     ),
                 )
             )
+        else:
+            for user in participants:
+                if not user:
+                    continue
+                exec_with_retry(
+                    lambda u=user: conn.execute(
+                        "INSERT INTO notifications(user, text, url) VALUES(?, ?, ?)",
+                        (
+                            u,
+                            f"Новое сообщение в диалоге {ticket_id}",
+                            f"/#open=ticket:{ticket_id}",
+                        ),
+                    )
+                )
     except Exception:
         pass
 
@@ -7463,6 +7541,46 @@ def client_profile(user_id):
             'profile_url': profile_url or None,
             'channel_name': channel_name,
         }
+        token = ''
+        if channel_info:
+            token = (channel_info.get('token') or '').strip()
+        vk_user_id = str(latest_vk.get('user_id') or '').strip()
+        if token and vk_user_id:
+            try:
+                session = VkApi(token=token)
+                api = session.get_api()
+                response = api.users.get(
+                    user_ids=vk_user_id,
+                    fields='photo_max_orig,city,status,domain,sex,bdate,followers_count',
+                )
+                vk_user = (response or [{}])[0] if isinstance(response, list) else (response or {})
+                if isinstance(vk_user, dict):
+                    photo = str(vk_user.get('photo_max_orig') or '').strip() or None
+                    status_text = (vk_user.get('status') or '').strip() or None
+                    bdate = (vk_user.get('bdate') or '').strip() or None
+                    followers = vk_user.get('followers_count')
+                    city_data = vk_user.get('city') if isinstance(vk_user.get('city'), dict) else None
+                    city_title = None
+                    if isinstance(city_data, dict):
+                        city_title = (city_data.get('title') or '').strip() or None
+                    sex_code = vk_user.get('sex')
+                    sex_label = None
+                    if sex_code == 1:
+                        sex_label = 'Женский'
+                    elif sex_code == 2:
+                        sex_label = 'Мужской'
+                    vk_profile.update(
+                        {
+                            'photo_url': photo,
+                            'status_text': status_text,
+                            'bdate': bdate,
+                            'followers_count': followers if isinstance(followers, int) else None,
+                            'city': city_title,
+                            'sex_label': sex_label,
+                        }
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logging.debug("VK profile lookup failed: %s", exc)
 
     settings = {"categories": ["Консультация", "Другое"]}
     if os.path.exists(SETTINGS_PATH):
@@ -9275,6 +9393,7 @@ def api_ticket_set_active(ticket_id):
             INSERT INTO ticket_active(ticket_id, user, last_seen) VALUES(?,?,datetime('now'))
             ON CONFLICT(ticket_id) DO UPDATE SET user=excluded.user, last_seen=datetime('now')
         """, (ticket_id, user))
+        _add_ticket_participants(conn, ticket_id, user)
     return jsonify({'ok': True})
 
 @app.route('/api/admin/users', methods=['GET'])
@@ -9326,6 +9445,12 @@ def api_ticket_invite(ticket_id):
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 500
 
+    try:
+        with get_db() as conn:
+            _add_ticket_participants(conn, ticket_id, invitee)
+    except Exception:
+        pass
+
     return jsonify({'success': True})
 
 
@@ -9358,6 +9483,7 @@ def api_ticket_responsible(ticket_id):
                 """,
                 (ticket_id, responsible, current_user),
             )
+            _add_ticket_participants(conn, ticket_id, responsible, current_user)
         else:
             cur.execute("DELETE FROM ticket_responsibles WHERE ticket_id = ?", (ticket_id,))
 
@@ -12119,6 +12245,41 @@ def get_user_password(user_id):
     if not password_value:
         return jsonify({"success": False, "error": "Пароль недоступен"}), 404
     return jsonify({"success": True, "password": password_value})
+
+
+@app.route("/profile/password", methods=["POST"])
+@login_required_api
+def update_profile_password():
+    user_row = getattr(g, "current_user", None)
+    if not user_row:
+        abort(403)
+
+    data = request.get_json(force=True, silent=True) or {}
+    current_password = (data.get("current_password") or "").strip()
+    new_password = (data.get("new_password") or "").strip()
+    confirm_password = (data.get("confirm_password") or data.get("new_password_confirm") or "").strip()
+
+    if not current_password:
+        return jsonify({"success": False, "error": "Укажите текущий пароль"}), 400
+    if not new_password:
+        return jsonify({"success": False, "error": "Новый пароль не может быть пустым"}), 400
+    if new_password != confirm_password:
+        return jsonify({"success": False, "error": "Пароли не совпадают"}), 400
+    if not _check_user_password(user_row, current_password):
+        return jsonify({"success": False, "error": "Неверный текущий пароль"}), 400
+
+    user_id = _row_value(user_row, "id")
+    if not user_id:
+        abort(403)
+
+    try:
+        with get_users_db() as conn:
+            _set_user_password(conn, user_id, new_password)
+            conn.commit()
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+    return jsonify({"success": True, "message": "Пароль успешно обновлён"})
 
 
 @app.route("/roles", methods=["GET"])
