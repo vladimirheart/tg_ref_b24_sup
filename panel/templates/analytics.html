@@ -21,7 +21,6 @@
     .stats-card { transition: transform 0.2s; }
     .stats-card:hover { transform: translateY(-2px); }
     .table-container-wrapper { border: 1px solid #dee2e6; border-radius: 0.5rem; overflow: hidden; margin-top: 1rem; }
-    .table-container-wrapper .table-header { max-height: 52px; overflow: hidden; }
     .table-container-wrapper .table-body { max-height: 600px; overflow-y: auto; }
     .sortable { cursor: pointer; position: relative; }
     .table-dark th.sortable { background-color: #003366 !important; color: #fff !important; font-weight: bold; transition: background-color 0.2s ease; }
@@ -120,9 +119,9 @@
               </div>
             </div>
           </div>
-          <div class="table-container-wrapper">
-            <div class="table-header">
-              <table class="table table-striped table-hover mb-0" style="width: 100%; table-layout: fixed;">
+          <div class="table-container-wrapper" data-column-reorder-container>
+            <div class="table-body">
+              <table class="table table-striped table-hover" id="ticketAnalyticsTable" style="width: 100%; table-layout: fixed;" data-column-reorderable data-reorder-key="analytics:tickets">
                 <thead class="table-dark">
                   <tr>
                     <th class="sortable" data-ticket-sort="business" style="width: 15%;">Бизнес ↕</th>
@@ -134,10 +133,6 @@
                     <th class="sortable" data-ticket-sort="cnt" style="width: 10%;">Количество ↕</th>
                   </tr>
                 </thead>
-              </table>
-            </div>
-            <div class="table-body">
-              <table class="table table-striped table-hover" id="ticketAnalyticsTable" style="width: 100%; table-layout: fixed;">
                 <tbody>
                   {% for s in ticket_stats %}
                   <tr
@@ -192,8 +187,8 @@
             </div>
           </div>
           <div class="active-filters-container" id="clientActiveFiltersBadges"></div>
-          <div class="client-table-container border rounded">
-            <table class="table table-striped table-hover mb-0" id="clientAnalyticsTable">
+          <div class="client-table-container border rounded" data-column-reorder-container>
+            <table class="table table-striped table-hover mb-0" id="clientAnalyticsTable" data-column-reorderable data-reorder-key="analytics:clients">
               <thead class="table-dark">
                 <tr>
                   <th class="sortable" data-client-sort="panel_id">ID клиента ↕</th>
