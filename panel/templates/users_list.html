@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Пользователи паниели и настройки доступа — Bender</title>
+  <title>Пользователи панели и настройки доступа — Bender</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='bender-icon.svg') }}" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
@@ -54,7 +54,8 @@
               <div class="text-danger small mb-3 d-none" data-auth-user-create-error></div>
 
               <div class="table-responsive">
-                <table class="table table-sm align-middle" data-auth-users-table>
+                <div class="table-responsive" data-column-reorder-container>
+                <table class="table table-sm align-middle" data-auth-users-table data-column-reorderable data-reorder-key="users:list">
                   <thead>
                     <tr>
                       <th style="width: 30%">Логин</th>
@@ -65,6 +66,7 @@
                   </thead>
                   <tbody data-auth-users-body></tbody>
                 </table>
+                </div>
               </div>
               <div class="alert alert-info mt-3 d-none" data-auth-users-empty>Пользователи не найдены.</div>
             </div>
