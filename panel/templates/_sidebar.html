@@ -16,7 +16,7 @@
     </div>
   </div>
 
-  <nav class="sidebar-nav" aria-label="Основная навигация" title="Нажмите на иконку «⇅», чтобы изменить расположение страниц">
+  <nav class="sidebar-nav" aria-label="Основная навигация">
     <a href="/" class="nav-link" data-page-key="dialogs">
       <span class="icon">💬</span><span class="label">Диалоги</span>
     </a>
@@ -54,10 +54,49 @@
         <span class="icon" aria-hidden="true">⇅</span>
       </button>
     </div>
+    <button type="button" class="sidebar-account-btn" data-sidebar-change-password>
+      <span class="icon" aria-hidden="true">🔐</span>
+      <span class="label">Сменить пароль</span>
+    </button>
     <a href="{{ url_for('logout') }}" class="sidebar-logout-btn" role="button">
       <span class="icon" aria-hidden="true">🚪</span>
       <span class="label">Выйти</span>
     </a>
+  </div>
+</div>
+
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true" data-sidebar-password-modal>
+  <div class="modal-dialog">
+    <form class="modal-content" data-change-password-form>
+      <div class="modal-header">
+        <h5 class="modal-title">Смена пароля</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger d-none" data-change-password-error role="alert"></div>
+        <div class="alert alert-success d-none" data-change-password-success role="alert"></div>
+        <div class="mb-3">
+          <label class="form-label" for="changePasswordCurrent">Текущий пароль</label>
+          <input type="password" class="form-control" id="changePasswordCurrent" name="current_password" autocomplete="current-password" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="changePasswordNew">Новый пароль</label>
+          <input type="password" class="form-control" id="changePasswordNew" name="new_password" autocomplete="new-password" required minlength="8">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="changePasswordConfirm">Повторите новый пароль</label>
+          <input type="password" class="form-control" id="changePasswordConfirm" name="confirm_password" autocomplete="new-password" required>
+        </div>
+        <p class="text-muted small mb-0">Пароль должен соответствовать корпоративной политике безопасности.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="submit" class="btn btn-primary" data-change-password-submit>
+          <span data-change-password-submit-text>Сменить пароль</span>
+          <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" data-change-password-spinner></span>
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -89,6 +128,7 @@
   }
 </style>
 
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script>
   (function setupModalAnimations() {
     if (window.__modalAnimationsInitialized) {
@@ -164,3 +204,4 @@
   })();
 </script>
 <script src="{{ url_for('static', filename='auto-copy.js') }}" defer></script>
+<script src="{{ url_for('static', filename='column-reorder.js') }}" defer></script>
