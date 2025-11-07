@@ -890,7 +890,7 @@
           <div class="card-body">
             <div class="tile-icon">🤖</div>
             <h5 class="card-title">Каналы (боты)</h5>
-            <p class="card-text text-muted">Управляйте подключёнными Telegram-ботами.</p>
+            <p class="card-text text-muted">Подключайте и управляйте ботами в Telegram и VK.</p>
           </div>
         </div>
       </div>
@@ -2656,6 +2656,28 @@
                 <div class="card mb-4 shadow-sm">
                   <div class="card-body">
                     <h5 class="card-title">Добавить канал</h5>
+                    <div class="alert alert-light border mb-4" role="alert">
+                      <h6 class="fw-semibold mb-2">Как подключить интеграцию</h6>
+                      <div class="row g-4">
+                        <div class="col-12 col-lg-6">
+                          <div class="text-uppercase small text-muted fw-semibold mb-2">Telegram</div>
+                          <ol class="mb-0 ps-3 small text-body-secondary d-flex flex-column gap-1">
+                            <li>Создайте бота через @BotFather и получите токен.</li>
+                            <li>Скопируйте токен в поле «Токен бота» и заполните название канала.</li>
+                            <li>Выберите нужный шаблон вопросов и нажмите «Добавить канал».</li>
+                          </ol>
+                        </div>
+                        <div class="col-12 col-lg-6">
+                          <div class="text-uppercase small text-muted fw-semibold mb-2">VK</div>
+                          <ol class="mb-0 ps-3 small text-body-secondary d-flex flex-column gap-1">
+                            <li>Включите в сообществе раздел «Работа с API» → «Callback API».</li>
+                            <li>Укажите адрес <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code> и получите код подтверждения.</li>
+                            <li>Введите ID сообщества, код подтверждения и секретный ключ (если задан) в форму ниже.</li>
+                          </ol>
+                        </div>
+                      </div>
+                      <div class="small text-muted mt-3 mb-0">Для VK используется Callback API. После настройки запустите сервис <code>python vk_webhook_support.py</code>.</div>
+                    </div>
                     <div class="row g-3 align-items-end">
                       <div class="col-12 col-md-4 col-xl-3" id="token_field_container">
                         <label class="form-label" for="new_token">Токен бота</label>
