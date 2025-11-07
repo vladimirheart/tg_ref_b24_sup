@@ -15,7 +15,6 @@ from flask import (
 )
 import sqlite3
 import datetime
-import requests
 import json
 import os
 import logging
@@ -31,6 +30,9 @@ from pathlib import Path
 import secrets
 from functools import wraps
 from typing import Any, Iterable
+from urllib.parse import quote
+
+import requests
 
 from vk_api import VkApi
 from vk_api.exceptions import VkApiError
@@ -9473,7 +9475,10 @@ def api_ticket_invite(ticket_id):
 
     inviter = session.get('user_email') or session.get('username') or session.get('user') or 'оператор'
     text = f"{inviter} приглашает вас в диалог №{ticket_id}"
-    url = url_for('index', ticket_id=ticket_id)
+
+    base_url = url_for('index')
+    encoded_ticket = quote(ticket_id, safe='')
+    url = f"{base_url}#open=ticket:{encoded_ticket}"
 
     try:
         _notify_many([invitee], text, url)
