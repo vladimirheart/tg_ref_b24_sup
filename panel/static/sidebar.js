@@ -453,6 +453,62 @@
   let lastUnreadCount = 0;
   let hasInitialUnread = false;
 
+  const HTML_ESCAPE_RE = /[&<>"']/g;
+  const HTML_ESCAPE_MAP = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+
+  function escapeHtml(value) {
+    if (typeof value !== 'string') return '';
+    return value.replace(HTML_ESCAPE_RE, (char) => HTML_ESCAPE_MAP[char] || char);
+  }
+
+  function normalizeNotificationItem(item) {
+    if (!item || typeof item !== 'object') return null;
+    const numericId = Number(item.id);
+    const id = Number.isFinite(numericId) ? numericId : item.id;
+    return {
+      id,
+      text: typeof item.text === 'string' ? item.text : '',
+      url: typeof item.url === 'string' ? item.url : '',
+      created_at: item.created_at || item.createdAt || '',
+      is_read: item.is_read === true || item.is_read === 1,
+    };
+  }
+
+  function normalizeNotificationPayload(data) {
+    if (Array.isArray(data)) {
+      return {
+        unread: data.map(normalizeNotificationItem).filter(Boolean),
+        read: [],
+      };
+    }
+
+    const container = data && typeof data === 'object'
+      ? (typeof data.items === 'object' && data.items !== null ? data.items : data)
+      : {};
+
+    const unread = Array.isArray(container.unread)
+      ? container.unread.map(normalizeNotificationItem).filter(Boolean)
+      : [];
+    const read = Array.isArray(container.read)
+      ? container.read.map(normalizeNotificationItem).filter(Boolean)
+      : [];
+
+    return { unread, read };
+  }
+
+  function formatNotificationTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('ru-RU');
+  }
+
   function showNotificationToast(message) {
     if (!message) return;
     if (!toastEl) {
@@ -482,25 +538,39 @@
     }
   }
 
-  function renderNotifications(items) {
+  function renderNotifications(unreadItems, readItems) {
     if (!bellDropdown) return;
-    if (!Array.isArray(items) || !items.length) {
+    const unread = Array.isArray(unreadItems) ? unreadItems.filter(Boolean) : [];
+    const read = Array.isArray(readItems) ? readItems.filter(Boolean) : [];
+
+    if (!unread.length && !read.length) {
       bellDropdown.innerHTML = '<div class="notif-item text-muted">Новых уведомлений нет</div>';
       return;
     }
-    bellDropdown.innerHTML = items.map((item) => {
-      const title = (item && item.text) ? item.text : 'Уведомление';
-      const url = item && item.url ? item.url : '';
-      const dateStr = item && item.created_at ? new Date(item.created_at).toLocaleString('ru-RU') : '';
-      const linkStart = url ? `<a class="stretched-link" href="${url}" target="_blank" rel="noopener">` : '';
-      const linkEnd = url ? '</a>' : '';
-      return `
-        <div class="notif-item position-relative" data-id="${item.id || ''}">
-          ${linkStart}<div class="fw-semibold">${title}</div>${linkEnd}
-          ${dateStr ? `<div class="notif-time">${dateStr}</div>` : ''}
-        </div>
-      `;
-    }).join('');
+    const renderSection = (items, title, unreadFlag) => {
+      if (!items.length) return '';
+      const sectionTitle = `<div class="notif-section-title">${escapeHtml(title)}</div>`;
+      const markup = items.map((item) => {
+        const text = escapeHtml(item.text || 'Уведомление');
+        const url = (item.url || '').trim();
+        const dateStr = formatNotificationTime(item.created_at);
+        const linkStart = url ? `<a class="stretched-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">` : '';
+        const linkEnd = url ? '</a>' : '';
+        const classes = ['notif-item', 'position-relative', unreadFlag ? 'notif-item-unread' : 'notif-item-read'];
+        return `
+          <div class="${classes.join(' ')}" data-id="${item.id ?? ''}">
+            ${linkStart}<div class="notif-text">${text}</div>${linkEnd}
+            ${dateStr ? `<div class="notif-time">${escapeHtml(dateStr)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+      return sectionTitle + markup;
+    };
+
+    const parts = [];
+    parts.push(renderSection(unread, 'Непрочитанные', true));
+    parts.push(renderSection(read, 'Прочитанные', false));
+    bellDropdown.innerHTML = parts.filter(Boolean).join('');
   }
 
   async function loadNotifications() {
@@ -513,16 +583,24 @@
       const response = await fetch('/api/notifications');
       if (!response.ok) throw new Error('Failed to load notifications');
       const data = await response.json();
-      const items = Array.isArray(data) ? data : Array.isArray(data.items) ? data.items : [];
-      renderNotifications(items);
-      setBellCount(0);
-      lastUnreadCount = 0;
+      const payload = normalizeNotificationPayload(data);
+      renderNotifications(payload.unread, payload.read);
       hasInitialUnread = true;
-      const markPromises = items
-        .filter((item) => item && item.id)
+      setBellCount(payload.unread.length);
+      lastUnreadCount = payload.unread.length;
+
+      const markPromises = payload.unread
+        .filter((item) => item && item.id != null)
         .map((item) => fetch(`/api/notifications/${item.id}/read`, { method: 'POST' }));
       if (markPromises.length) {
-        Promise.allSettled(markPromises);
+        Promise.allSettled(markPromises).finally(() => {
+          setBellCount(0);
+          lastUnreadCount = 0;
+          updateNotificationCount();
+        });
+      } else {
+        setBellCount(0);
+        lastUnreadCount = 0;
       }
     } catch (error) {
       bellDropdown.innerHTML = '<div class="notif-item text-danger">Не удалось загрузить уведомления</div>';
