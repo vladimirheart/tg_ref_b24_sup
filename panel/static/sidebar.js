@@ -509,6 +509,34 @@
     return date.toLocaleString('ru-RU');
   }
 
+  function navigateNotification(url) {
+    if (!url) return;
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    try {
+      const absolute = new URL(trimmed, window.location.origin);
+      const hash = absolute.hash || '';
+      const sameOrigin = absolute.origin === window.location.origin;
+      if (hash.startsWith('#open=ticket:')) {
+        const targetPath = absolute.pathname || '/';
+        const destination = `${targetPath}${absolute.search || ''}${hash}`;
+        if (window.location.pathname !== targetPath) {
+          window.location.href = destination;
+        } else {
+          window.location.hash = hash;
+        }
+        return;
+      }
+      if (sameOrigin) {
+        window.location.href = `${absolute.pathname}${absolute.search}${hash}`;
+      } else {
+        window.open(absolute.href, '_blank', 'noopener');
+      }
+    } catch (error) {
+      window.location.href = trimmed;
+    }
+  }
+
   function showNotificationToast(message) {
     if (!message) return;
     if (!toastEl) {
@@ -554,7 +582,7 @@
         const text = escapeHtml(item.text || 'Уведомление');
         const url = (item.url || '').trim();
         const dateStr = formatNotificationTime(item.created_at);
-        const linkStart = url ? `<a class="stretched-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">` : '';
+        const linkStart = url ? `<a class="stretched-link" data-notification-link href="${escapeHtml(url)}" rel="noopener">` : '';
         const linkEnd = url ? '</a>' : '';
         const classes = ['notif-item', 'position-relative', unreadFlag ? 'notif-item-unread' : 'notif-item-read'];
         return `
@@ -605,6 +633,21 @@
     } catch (error) {
       bellDropdown.innerHTML = '<div class="notif-item text-danger">Не удалось загрузить уведомления</div>';
     }
+  }
+
+  if (bellDropdown) {
+    bellDropdown.addEventListener('click', (event) => {
+      const link = event.target.closest('a[data-notification-link]');
+      if (!link) return;
+      if (event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) {
+        return;
+      }
+      event.preventDefault();
+      const href = link.getAttribute('href') || '';
+      closeNotifications();
+      navigateNotification(href);
+    });
   }
 
   function closeNotifications() {
