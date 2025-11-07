@@ -398,8 +398,13 @@ setInterval(updateOverdueTasks, 60000);
   function handleCommentPaste(e) {
     if (!commentEditor) return;
     const items = (e.clipboardData || e.originalEvent?.clipboardData || {}).items || [];
+    let handledImage = false;
     for (const it of items) {
       if (it.type && it.type.indexOf('image') === 0) {
+        if (!handledImage) {
+          e.preventDefault();
+          handledImage = true;
+        }
         const file = it.getAsFile();
         const reader = new FileReader();
         reader.onload = function (evt) {
@@ -617,8 +622,13 @@ setInterval(updateOverdueTasks, 60000);
   // вставка картинок в тело задачи из буфера
   if (bodyEditor) bodyEditor.addEventListener('paste', (e) => {
     const items = (e.clipboardData || e.originalEvent?.clipboardData || {}).items || [];
+    let handledImage = false;
     for (const it of items) {
       if (it.type && it.type.indexOf("image") === 0) {
+        if (!handledImage) {
+          e.preventDefault();
+          handledImage = true;
+        }
         const file = it.getAsFile();
         const reader = new FileReader();
         reader.onload = function (evt) {
