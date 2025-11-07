@@ -2916,12 +2916,6 @@ function markTicketReopenedLocally() {
             const ticketId = String(ticket.ticket_id ?? ticket.ticketId ?? '');
             if (!ticketId || seen.has(ticketId)) return;
 
-            const include = isTicketNew(ticket)
-              || ticketAssignedToCurrentOperator(ticket)
-              || ticketInvitesCurrentOperator(ticket);
-
-            if (!include) return;
-
             included.push(ticket);
             seen.add(ticketId);
           });
@@ -4019,18 +4013,23 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
         }
 
         window.addEventListener('resize', adjustComposerPadding, { passive: true });
-		        function shouldDisplayUnreadBadge(ticket, overrideStatus) {
-          if (!ticket) return true;
-          const resolvedBy = String(ticket.resolved_by || '').toLowerCase();
-          const autoClosed = resolvedBy.includes('авто') || resolvedBy.includes('auto');
-          if (autoClosed) return true;
+                        function shouldDisplayUnreadBadge(ticket, overrideStatus) {
+          if (!ticket) return false;
 
-          const rawStatus = String(ticket.raw_status || '').toLowerCase();
-          const humanStatus = String(overrideStatus || ticket.status || '').toLowerCase();
-          const resolvedStatuses = ['resolved', 'closed'];
-          const isResolvedRaw = resolvedStatuses.includes(rawStatus);
-          const isResolvedHuman = humanStatus.includes('решено') || humanStatus.includes('закрыт') || humanStatus.includes('resolved') || humanStatus.includes('closed');
-          return !(isResolvedRaw || isResolvedHuman);
+          const effectiveStatus = overrideStatus !== undefined ? overrideStatus : ticket.status;
+          const effectiveTicket = overrideStatus !== undefined
+            ? { ...ticket, status: effectiveStatus }
+            : ticket;
+
+          if (isTicketResolved(effectiveTicket)) {
+            return false;
+          }
+
+          const isNewTicket = isTicketNew(effectiveTicket);
+          const isResponsible = ticketAssignedToCurrentOperator(ticket);
+          const isInvited = ticketInvitesCurrentOperator(ticket);
+
+          return isNewTicket || isResponsible || isInvited;
         }
         const unreadFetchQueue = [];
         const unreadFetchInFlight = new Map();
