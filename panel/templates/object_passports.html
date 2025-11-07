@@ -191,7 +191,8 @@
       </div>
 
       <div class="table-responsive mt-2">
-        <table class="table table-hover align-middle" id="passportsTable">
+        <div class="table-responsive" data-column-reorder-container>
+        <table class="table table-hover align-middle" id="passportsTable" data-column-reorderable data-reorder-key="passports">
           <thead class="table-dark">
             <tr>
               <th scope="col" class="sortable" data-sort-key="business">Бизнес</th>
@@ -209,6 +210,7 @@
           </thead>
           <tbody></tbody>
         </table>
+        </div>
       </div>
       <div class="alert alert-info mt-3 d-none" id="emptyState">
         По заданным критериям ничего не найдено. Попробуйте изменить фильтры или запрос.
