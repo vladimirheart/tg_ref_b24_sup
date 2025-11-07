@@ -3719,21 +3719,22 @@ document.getElementById('fileGif')?.addEventListener('change', async (e)=>{
 
 		// На переходный период (чтобы не вылавливать все вызовы сразу)
 		function updateUnreadBadge(n) { setUnread(n ?? unreadCount); }
-	let lastSeenAt = null;
-    let columnSettings = {
-		client: true,
-		clientStatus: true,
-		channel: true,
-		ticketId: true,
-		business: true,
-		location: true,
-		problem: true,
-		responsible: true,
-		status: true,
-		date: true,
-		time: true,
-		actions: true
+        let lastSeenAt = null;
+    const defaultColumnSettings = {
+                client: true,
+                clientStatus: true,
+                channel: true,
+                ticketId: true,
+                business: true,
+                location: true,
+                problem: true,
+                responsible: true,
+                status: true,
+                date: true,
+                time: true,
+                actions: true
     };
+    let columnSettings = { ...defaultColumnSettings };
 	let lastRenderedAt = null;     // ISO-время последнего отрисованного сообщения
 	let unreadCountValue = 0;           // счётчик непрочитанных во время открытой модалки
 	let historyModalIsOpen = false;
@@ -5231,7 +5232,19 @@ function restoreColumnWidths() {
     // Загрузка сохраненных настроек столбцов
     const savedColumnSettings = localStorage.getItem('columnSettings');
     if (savedColumnSettings) {
-      columnSettings = JSON.parse(savedColumnSettings);
+      try {
+        const parsed = JSON.parse(savedColumnSettings);
+        if (parsed && typeof parsed === 'object') {
+          columnSettings = { ...defaultColumnSettings };
+          Object.keys(defaultColumnSettings).forEach(key => {
+            if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+              columnSettings[key] = !!parsed[key];
+            }
+          });
+        }
+      } catch (error) {
+        columnSettings = { ...defaultColumnSettings };
+      }
     }
 
     // Загрузка сохраненного размера страницы
@@ -5792,6 +5805,9 @@ function renderTicketsPageRows(tickets, container) {
         scheduleUnreadUpdate(t);
         });
 
+  if (typeof window.applyStoredColumnOrder === 'function') {
+    window.applyStoredColumnOrder(document.getElementById('ticketsTable'));
+  }
   parseEmojis(container);
   applyColumnSettingsFromState();
   initColumnResize();
