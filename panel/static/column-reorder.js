@@ -61,6 +61,12 @@
     }
   }
 
+  function reapplyStoredOrder(table) {
+    if (!table) return;
+    if (!Array.isArray(table.__columnOrder) || !table.__columnOrder.length) return;
+    applyColumnOrder(table, table.__columnOrder);
+  }
+
   function persistOrder(table) {
     const key = storageKey(table);
     const order = table.__columnOrder;
@@ -140,9 +146,12 @@
     attachResetButton(table);
 
     const savedOrder = restoreOrder(table);
+    table.__applyColumnOrder = () => reapplyStoredOrder(table);
+    table.addEventListener('table:reapply-column-order', table.__applyColumnOrder);
+
     if (savedOrder) {
       table.__columnOrder = coerceOrder(savedOrder, headerCells.length);
-      applyColumnOrder(table, table.__columnOrder);
+      reapplyStoredOrder(table);
     }
     persistOrder(table);
 
@@ -185,7 +194,7 @@
       const [moved] = order.splice(dragIndex, 1);
       order.splice(targetIndex, 0, moved);
       table.__columnOrder = order;
-      applyColumnOrder(table, order);
+      reapplyStoredOrder(table);
       persistOrder(table);
       dragIndex = targetIndex;
     });
@@ -198,4 +207,30 @@
   }
 
   tables.forEach(setupTable);
+
+  window.applyStoredColumnOrder = function applyStoredColumnOrder(target) {
+    const normalizeCollection = (value) => {
+      if (!value) return tables;
+      if (typeof value === 'string') {
+        return Array.from(document.querySelectorAll(value));
+      }
+      if (typeof NodeList !== 'undefined' && value instanceof NodeList) {
+        return Array.from(value);
+      }
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (typeof Element !== 'undefined' && value instanceof Element) {
+        return [value];
+      }
+      return tables;
+    };
+
+    const list = normalizeCollection(target);
+    list.forEach((table) => {
+      if (table && typeof table.__applyColumnOrder === 'function') {
+        table.__applyColumnOrder();
+      }
+    });
+  };
 })();
