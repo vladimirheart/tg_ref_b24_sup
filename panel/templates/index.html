@@ -2008,8 +2008,8 @@ function markTicketReopenedLocally() {
   </div>
 </div>
 
-    <div class="table-responsive">
-      <table class="table table-striped" id="ticketsTable">
+    <div class="table-responsive" data-column-reorder-container>
+      <table class="table table-striped" id="ticketsTable" data-column-reorderable data-reorder-key="tickets">
         <thead>
           <tr>
             <th data-column="client" data-field="client" data-resizable="true">Клиент</th>
