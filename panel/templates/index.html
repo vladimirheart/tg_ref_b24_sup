@@ -3115,6 +3115,38 @@ let cachedAdminUsers = null;
           return ['user','client','customer','клиент','пользователь','telegram_user','customer'].includes(raw);
         }
 
+        function resolveSupportDisplayName(msg) {
+          const fallbackName = getOperatorName();
+          if (!msg || typeof msg !== 'object') {
+            return fallbackName;
+          }
+
+          const candidates = [
+            msg.sender_name,
+            msg.sender_label,
+            msg.sender_display_name,
+            msg.operator_name,
+            msg.operator,
+            msg.sender_email,
+            msg.sender,
+          ];
+
+          let firstNonEmpty = '';
+          for (const value of candidates) {
+            if (typeof value !== 'string') continue;
+            const candidate = value.trim();
+            if (!candidate) continue;
+            if (!firstNonEmpty) {
+              firstNonEmpty = candidate;
+            }
+            if (!isSupportSenderLabel(candidate)) {
+              return candidate;
+            }
+          }
+
+          return firstNonEmpty || fallbackName;
+        }
+
 	// Единый UTC-timestamp (ms) для сортировки
 	function sortTsMs(msg) {
 	  const tsRaw = (msg.timestamp ?? msg.date ?? msg.created_at ?? msg.createdAt ?? msg.tg_date ?? null);
@@ -4526,8 +4558,7 @@ function renderMessagesHTML(ticket_id, messages, clientData) {
       else if (username) name = '👤 @' + escapeHtml(username);
       else name = '👤 Клиент';
     } else {
-      const operatorRaw = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
-      const supportLabel = operatorRaw || (msg.sender_name ? String(msg.sender_name).trim() : '') || getOperatorName();
+      const supportLabel = resolveSupportDisplayName(msg);
       name = '🛠 ' + escapeHtml(supportLabel);
     }
 
