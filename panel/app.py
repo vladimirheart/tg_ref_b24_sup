@@ -8054,43 +8054,78 @@ def api_dashboard_data():
         return jsonify({"error": str(e)}), 500
 
 # === API: уведомления (колокольчик) ===
+def _collect_notifications_for_user(user: str, *, limit: int = 200) -> dict[str, list[dict]]:
+    user_key = (user or '').strip()
+    with get_db() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT id, text, url, created_at, is_read
+              FROM notifications
+             WHERE user = ?
+             ORDER BY datetime(created_at) DESC, id DESC
+             LIMIT ?
+            """,
+            (user_key, limit),
+        ).fetchall()
+
+    unread: list[dict] = []
+    read: list[dict] = []
+    for row in rows:
+        item = {
+            'id': row['id'],
+            'text': row['text'] or '',
+            'url': row['url'] or '',
+            'created_at': row['created_at'],
+            'is_read': bool(row['is_read']),
+        }
+        if item['is_read']:
+            read.append(item)
+        else:
+            unread.append(item)
+
+    return {'unread': unread, 'read': read}
+
+
 @app.get('/api/notifications')
 @login_required_api
 def api_notifications():
-    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
-    since = request.args.get('since')
-    params = [user,]
-    where_since = ''
-    if since:
+    user = session.get('user_email') or session.get('user') or session.get('username') or ''
+    since_raw = request.args.get('since')
+    payload = _collect_notifications_for_user(user)
+
+    if since_raw not in (None, ''):
         try:
-            since_id = int(since)
-            where_since = 'AND id > ?'
-            params.append(since_id)
-        except:
-            pass
-    conn = get_db()
-    rows = conn.execute(f"""
-        SELECT id, text, url, created_at
-          FROM notifications
-         WHERE (user = ? OR user = 'all') AND is_read = 0 {where_since}
-         ORDER BY id DESC
-         LIMIT 100
-    """, params).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
+            since_id = int(since_raw)
+        except (TypeError, ValueError):
+            since_id = None
+        if since_id is not None:
+            filtered = {
+                'unread': [item for item in payload['unread'] if (item.get('id') or 0) > since_id],
+                'read': [item for item in payload['read'] if (item.get('id') or 0) > since_id],
+            }
+            return jsonify({'items': filtered})
+
+    return jsonify({'items': payload})
+
 
 @app.post('/api/notifications/mark_read')
 @login_required_api
 def api_notifications_mark():
+    user = session.get('user_email') or session.get('user') or session.get('username') or ''
     data = request.get_json(force=True, silent=True) or {}
-    ids = data.get('ids') or []
+    ids = [int(i) for i in (data.get('ids') or []) if str(i).isdigit()]
     if not ids:
         return jsonify({'ok': True})
+    placeholders = ','.join(['?'] * len(ids))
     try:
         conn = get_db()
-        q = 'UPDATE notifications SET is_read=1 WHERE id IN ({})'.format(','.join(['?']*len(ids)))
-        conn.execute(q, ids)
-        conn.commit(); conn.close()
+        conn.execute(
+            f"UPDATE notifications SET is_read=1 WHERE id IN ({placeholders}) AND user = ?",
+            (*ids, user),
+        )
+        conn.commit()
+        conn.close()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
@@ -9514,55 +9549,24 @@ def api_ticket_responsible(ticket_id):
 @app.route('/api/notifications/unread_count')
 @login_required_api
 def api_notify_count():
-    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
+    user = session.get('user_email') or session.get('user') or session.get('username') or ''
     with get_db() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) AS c FROM notifications WHERE (user=? OR user='all') AND is_read=0",
-            (user,)
+            'SELECT COUNT(*) FROM notifications WHERE user=? AND is_read=0',
+            (user,),
         ).fetchone()
-        return jsonify({'count': row['c'] if row else 0})
-    with get_db() as conn:
-        row = conn.execute("SELECT COUNT(*) AS c FROM notifications WHERE (user=? OR user='all') AND is_read=0", (user,)).fetchone()
-        return jsonify({'count': row['c'] if row else 0})
-
-@app.route('/api/notifications')
-@login_required_api
-def api_notify_list():
-    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
-    with get_db() as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("""
-            SELECT id, text, url, created_at
-            FROM notifications
-            WHERE user=? OR user='all'
-            ORDER BY created_at DESC
-            LIMIT 100
-        """, (user,)).fetchall()
-        items = [{'id': r['id'], 'text': r['text'], 'url': r['url'], 'created_at': r['created_at']} for r in rows]
-        return jsonify({'items': items})
-    with get_db() as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("""
-            SELECT id, text, url, created_at FROM notifications
-            WHERE user=? OR user='all'
-            ORDER BY created_at DESC
-            LIMIT 100
-        """, (user,)).fetchall()
-        items = [{'id':r['id'],'text':r['text'],'url':r['url'],'created_at':r['created_at']} for r in rows]
-        return jsonify({'items': items})
+    count = row[0] if row else 0
+    return jsonify({'count': count})
 
 @app.route('/api/notifications/<int:nid>/read', methods=['POST'])
 @login_required_api
 def api_notify_read(nid):
-    user = session.get('user_email') or session.get('user') or session.get('username') or 'all'
+    user = session.get('user_email') or session.get('user') or session.get('username') or ''
     with get_db() as conn:
         conn.execute(
-            "UPDATE notifications SET is_read=1 WHERE id=? AND (user=? OR user='all')",
-            (nid, user)
+            'UPDATE notifications SET is_read=1 WHERE id=? AND user=?',
+            (nid, user),
         )
-    return jsonify({'ok': True})
-    with get_db() as conn:
-        conn.execute("UPDATE notifications SET is_read=1 WHERE id=? AND (user=? OR user='all')", (nid, user))
     return jsonify({'ok': True})
 
 @app.route("/channels", methods=["GET"])
