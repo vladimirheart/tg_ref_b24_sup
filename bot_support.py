@@ -7,6 +7,9 @@ import uuid
 import re
 import asyncio
 import signal, sys
+
+from panel.repositories import BotCredentialRepository, ChannelRepository
+from panel.secrets import SecretStorageError, decrypt_token
 from datetime import datetime, timezone
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -183,6 +186,8 @@ import sqlite3, json
 from functools import wraps
 
 _channel_cache = {}
+_channel_repo = ChannelRepository()
+_credential_repo = BotCredentialRepository()
 
 # === DB write helpers (используйте их из хендлеров) ===
 def db():
@@ -2096,13 +2101,23 @@ def get_channel_id_by_token(token: str) -> int:
     if token in _channel_cache:
         return _channel_cache[token]
     conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM channels WHERE token = ?", (token,))
-    row = cur.fetchone()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT c.id, bc.encrypted_token
+        FROM channels c
+        JOIN bot_credentials bc ON bc.id = c.credential_id
+        """
+    ).fetchall()
     conn.close()
-    if not row:
-        raise RuntimeError("Token не найден в таблице channels")
-    _channel_cache[token] = row[0]
+    for row in rows:
+        try:
+            decrypted = decrypt_token(row["encrypted_token"])
+        except SecretStorageError:
+            continue
+        _channel_cache[decrypted] = row["id"]
+    if token not in _channel_cache:
+        raise RuntimeError("Token не найден в секретном хранилище")
     return _channel_cache[token]
  
 def get_support_chat_id(channel_id: int):
@@ -2141,14 +2156,37 @@ def iter_active_channels(platform: str | None = None):
     """Генератор активных каналов из БД с фильтрацией по платформе."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    query = "SELECT id, token, platform, platform_config FROM channels WHERE is_active = 1"
+    query = """
+        SELECT c.id, c.platform, c.platform_config, bc.encrypted_token
+        FROM channels c
+        LEFT JOIN bot_credentials bc ON bc.id = c.credential_id
+        WHERE c.is_active = 1
+    """
     params: list[str] = []
     if platform:
-        query += " AND LOWER(COALESCE(platform, 'telegram')) = ?"
+        query += " AND LOWER(COALESCE(c.platform, 'telegram')) = ?"
         params.append(platform.lower())
     rows = conn.execute(query, params).fetchall()
     conn.close()
-    return rows
+
+    result = []
+    for row in rows:
+        encrypted = row["encrypted_token"]
+        if not encrypted:
+            continue
+        try:
+            token = decrypt_token(encrypted)
+        except SecretStorageError as exc:
+            logging.warning("Не удалось расшифровать токен канала %s: %s", row["id"], exc)
+            continue
+        _channel_cache[token] = row["id"]
+        result.append({
+            "id": row["id"],
+            "token": token,
+            "platform": row["platform"],
+            "platform_config": row["platform_config"],
+        })
+    return result
 
 async def run_all_bots():
     """Запускает всех активных ботов в ОДНОМ event loop без run_polling()."""
