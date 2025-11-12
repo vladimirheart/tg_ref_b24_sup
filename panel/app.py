@@ -37,6 +37,15 @@ import requests
 from vk_api import VkApi
 from vk_api.exceptions import VkApiError
 
+from panel.notification_queue import enqueue_notification, init_queue
+from panel.repositories import (
+    BotCredentialRepository,
+    ChannelNotificationRepository,
+    ChannelRepository,
+    ensure_tables as ensure_channel_tables,
+)
+from panel.secrets import mask_token
+
 PARENT_DIR = Path(__file__).resolve().parent.parent
 if str(PARENT_DIR) not in sys.path:
     sys.path.insert(0, str(PARENT_DIR))
@@ -3539,6 +3548,13 @@ def ensure_channels_schema():
         try: conn.close()
         except: pass
 ensure_channels_schema()
+ensure_channel_tables()
+
+BOT_CREDENTIALS_REPO = BotCredentialRepository()
+CHANNEL_REPO = ChannelRepository()
+CHANNEL_NOTIFICATIONS_REPO = ChannelNotificationRepository()
+
+init_queue()
 
 def _load_sanitized_bot_settings_payload():
     settings_payload = load_settings()
@@ -3587,6 +3603,27 @@ def _parse_platform_config(raw_config) -> dict:
     return {}
 
 
+def _resolve_channel_token(channel_row: dict | sqlite3.Row | None) -> str:
+    if not channel_row:
+        return ""
+    if isinstance(channel_row, dict):
+        credential_id = channel_row.get("credential_id")
+        token_value = channel_row.get("token")
+    else:
+        keys = set(channel_row.keys()) if hasattr(channel_row, "keys") else set()
+        credential_id = channel_row["credential_id"] if "credential_id" in keys else None
+        token_value = channel_row["token"] if "token" in keys else None
+    if credential_id:
+        try:
+            return BOT_CREDENTIALS_REPO.reveal_token(int(credential_id))
+        except Exception:
+            return ""
+    token_value = (token_value or "").strip() if isinstance(token_value, str) else ""
+    if token_value.startswith("vault:"):
+        return ""
+    return token_value
+
+
 def _extract_vk_group_id(config: dict) -> int | None:
     if not isinstance(config, dict):
         return None
@@ -3625,7 +3662,7 @@ def _fetch_vk_bot_identity(token: str, *, group_id: int) -> tuple[str, str]:
 def _refresh_bot_identity_if_needed(conn: sqlite3.Connection, channel_row: dict) -> dict:
     if not channel_row:
         return channel_row
-    token = (channel_row.get("token") or "").strip()
+    token = _resolve_channel_token(channel_row)
     if not token:
         return channel_row
     platform = _parse_platform(channel_row.get("platform"))
@@ -7596,9 +7633,7 @@ def client_profile(user_id):
             'profile_url': profile_url or None,
             'channel_name': channel_name,
         }
-        token = ''
-        if channel_info:
-            token = (channel_info.get('token') or '').strip()
+        token = _resolve_channel_token(channel_info)
         vk_user_id = str(latest_vk.get('user_id') or '').strip()
         if token and vk_user_id:
             try:
@@ -9699,7 +9734,7 @@ def api_notify_read(nid):
 @login_required
 @page_access_required("channels")
 def channels_page():
-    return redirect(url_for("settings_page", open="channels"))
+    return render_template("channels.html")
 
 @app.route("/api/channels", methods=["GET"])
 @login_required
@@ -9707,37 +9742,54 @@ def api_channels_list():
     conn = get_db()
     try:
         rows = conn.execute("SELECT * FROM channels ORDER BY id DESC").fetchall()
-        result = []
+        result: list[dict] = []
         for row in rows:
             data = dict(row)
+            try:
+                data["filters"] = json.loads(data.get("filters") or "{}")
+            except Exception:
+                data["filters"] = {}
+            data["platform_config"] = _parse_platform_config(data.get("platform_config"))
+            data["delivery_settings"] = _parse_platform_config(data.get("delivery_settings"))
+            token_plain = _resolve_channel_token(row)
+            data["token"] = mask_token(token_plain)
+            credential_info = None
+            credential_id = data.get("credential_id")
+            if credential_id:
+                credential = BOT_CREDENTIALS_REPO.get(int(credential_id))
+                if credential:
+                    credential_info = {
+                        "id": credential.id,
+                        "name": credential.name,
+                        "platform": credential.platform,
+                        "masked_token": credential.masked_token,
+                        "is_active": credential.is_active,
+                    }
+            data["credential"] = credential_info
             refreshed = _refresh_bot_identity_if_needed(conn, data)
             result.append(refreshed)
-        return jsonify(result)
+        return jsonify({"success": True, "channels": result})
     finally:
         conn.close()
+
 
 @app.route("/api/channels", methods=["POST"])
 @login_required
 def api_channels_create():
-    data = request.get_json(force=True)
-    token = (data.get("token") or "").strip()
-    channel_name = (data.get("channel_name") or "").strip()
-    raw_questions_cfg = data.get("questions_cfg") or {}
-    max_questions = int(data.get("max_questions") or 0)
-    is_active = 1 if data.get("is_active", True) else 0
-    question_template_id = (data.get("question_template_id") or "").strip()
-    rating_template_id = (data.get("rating_template_id") or "").strip()
-    auto_action_template_id = (data.get("auto_action_template_id") or "").strip()
+    data = request.get_json(force=True) or {}
+    channel_name = (data.get("channel_name") or data.get("name") or "").strip()
+    description = (data.get("description") or "").strip()
     platform = _parse_platform(data.get("platform"))
     if platform not in {"telegram", "vk"}:
         return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
-    platform_config = _parse_platform_config(data.get("platform_config"))
-
+    token_raw = (data.get("token") or "").strip()
+    credential_id = data.get("credential_id")
     if not channel_name:
         return jsonify({"success": False, "error": "Укажите название канала"}), 400
-    if platform != "vk" and not token:
+    if not credential_id and platform != "vk" and not token_raw:
         return jsonify({"success": False, "error": "Токен обязателен для Telegram"}), 400
 
+    platform_config = _parse_platform_config(data.get("platform_config"))
     try:
         if platform == "vk":
             group_id = data.get("vk_group_id") or data.get("group_id") or platform_config.get("group_id")
@@ -9763,15 +9815,59 @@ def api_channels_create():
             )
             if secret:
                 platform_config["secret"] = str(secret).strip()
-            if token:
-                bot_display_name, bot_username = _fetch_vk_bot_identity(token, group_id=group_id_int)
+        bot_display_name = ""
+        bot_username = ""
+        token_plain = token_raw
+        if credential_id:
+            credential = BOT_CREDENTIALS_REPO.get(int(credential_id))
+            if not credential:
+                return jsonify({"success": False, "error": "Учётные данные не найдены"}), 400
+            if token_raw:
+                credential = BOT_CREDENTIALS_REPO.update(int(credential_id), {"token": token_raw})
+                token_plain = token_raw
+            else:
+                try:
+                    token_plain = BOT_CREDENTIALS_REPO.reveal_token(credential.id)
+                except ValueError:
+                    token_plain = ""
+        else:
+            credential = BOT_CREDENTIALS_REPO.create({
+                "name": data.get("credential_name") or f"{channel_name} ({platform})",
+                "platform": platform,
+                "token": token_raw,
+                "metadata": {"channel_name": channel_name},
+                "is_active": True,
+            })
+            credential_id = credential.id
+            token_plain = token_raw
+        if platform == "vk":
+            group_id_int = int(platform_config.get("group_id"))
+            if token_plain:
+                bot_display_name, bot_username = _fetch_vk_bot_identity(token_plain, group_id=group_id_int)
             else:
                 bot_username = f"club{group_id_int}"
                 bot_display_name = f"VK группа {group_id_int}"
         else:
-            bot_display_name, bot_username = _fetch_telegram_bot_identity(token)
-    except Exception as e:
-        return jsonify({"success": False, "error": f"Ошибка проверки токена: {e}"}), 400
+            bot_display_name, bot_username = _fetch_telegram_bot_identity(token_plain)
+    except Exception as exc:
+        return jsonify({"success": False, "error": f"Ошибка проверки токена: {exc}"}), 400
+
+    raw_questions_cfg = data.get("questions_cfg") or {}
+    if isinstance(raw_questions_cfg, str):
+        try:
+            questions_cfg = json.loads(raw_questions_cfg)
+        except Exception:
+            questions_cfg = {}
+    elif isinstance(raw_questions_cfg, dict):
+        questions_cfg = dict(raw_questions_cfg)
+    else:
+        questions_cfg = {}
+
+    max_questions = int(data.get("max_questions") or 0)
+    is_active = bool(data.get("is_active", True))
+    question_template_id = (data.get("question_template_id") or "").strip()
+    rating_template_id = (data.get("rating_template_id") or "").strip()
+    auto_action_template_id = (data.get("auto_action_template_id") or "").strip()
 
     bot_settings = _load_sanitized_bot_settings_payload()
     settings_payload = load_settings()
@@ -9803,16 +9899,6 @@ def api_channels_create():
     if auto_action_template_id not in auto_template_ids:
         auto_action_template_id = default_auto_template_id or ""
 
-    if isinstance(raw_questions_cfg, str):
-        try:
-            questions_cfg = json.loads(raw_questions_cfg)
-        except Exception:
-            questions_cfg = {}
-    elif isinstance(raw_questions_cfg, dict):
-        questions_cfg = dict(raw_questions_cfg)
-    else:
-        questions_cfg = {}
-
     q_from_cfg = (questions_cfg.get("question_template_id")
         or questions_cfg.get("questionTemplateId")
         or "").strip()
@@ -9834,100 +9920,285 @@ def api_channels_create():
     if rating_template_id:
         questions_cfg["rating_template_id"] = rating_template_id
 
-    conn = get_db()
-    cur = conn.cursor()
-    public_id = _generate_unique_channel_public_id(cur)
-    cur.execute(
-        """
-        INSERT INTO channels(token, bot_name, bot_username, channel_name, questions_cfg, max_questions, is_active, question_template_id, rating_template_id, auto_action_template_id, public_id, platform, platform_config)
-        VALUES (:token, :bot_name, :bot_username, :channel_name, :questions_cfg, :max_questions, :is_active, :question_template_id, :rating_template_id, :auto_action_template_id, :public_id, :platform, :platform_config)
-        """,
-        {
-            "token": token,
-            "bot_name": bot_display_name,
-            "bot_username": bot_username,
-            "channel_name": channel_name,
-            "questions_cfg": json.dumps(questions_cfg, ensure_ascii=False),
-            "max_questions": max_questions,
-            "is_active": is_active,
-            "question_template_id": question_template_id,
-            "rating_template_id": rating_template_id,
-            "auto_action_template_id": auto_action_template_id or None,
-            "public_id": public_id,
-            "platform": platform,
-            "platform_config": json.dumps(platform_config, ensure_ascii=False),
-        },
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({"success": True, "public_id": public_id})
+    with get_db() as conn:
+        cur = conn.cursor()
+        public_id = _generate_unique_channel_public_id(cur)
+
+    channel = CHANNEL_REPO.create({
+        "name": channel_name,
+        "description": description,
+        "platform": platform,
+        "credential_id": credential_id,
+        "settings": platform_config,
+        "filters": data.get("filters"),
+        "is_active": is_active,
+        "public_id": public_id,
+        "questions_cfg": questions_cfg,
+        "max_questions": max_questions,
+        "question_template_id": question_template_id,
+        "rating_template_id": rating_template_id,
+        "auto_action_template_id": auto_action_template_id or None,
+    })
+
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE channels SET bot_name = ?, bot_username = ? WHERE id = ?",
+            (bot_display_name, bot_username, channel.id),
+        )
+        conn.commit()
+
+    created = CHANNEL_REPO.get(channel.id)
+    payload = CHANNEL_REPO.to_dict(created)
+    payload["channel_name"] = payload.get("name")
+    payload["token"] = mask_token(token_plain)
+    return jsonify({"success": True, "channel": payload})
+
 
 @app.route("/api/channels/<int:channel_id>", methods=["PATCH"])
 @login_required
 def api_channels_update(channel_id):
-    data = request.get_json(force=True)
-    if "question_template_id" in data:
-        value = data.get("question_template_id")
-        data["question_template_id"] = value.strip() if isinstance(value, str) else value
-    if "rating_template_id" in data:
-        value = data.get("rating_template_id")
-        data["rating_template_id"] = value.strip() if isinstance(value, str) else value
-    settings_payload = load_settings()
-    auto_close_config = settings_payload.get("auto_close_config") if isinstance(settings_payload, dict) else {}
-    auto_action_ids = {
-        tpl.get("id")
-        for tpl in (auto_close_config.get("templates") or [])
-        if isinstance(tpl, dict) and tpl.get("id")
-    }
-    if "auto_action_template_id" in data:
-        raw_value = data.get("auto_action_template_id")
-        cleaned = raw_value.strip() if isinstance(raw_value, str) else ""
-        if cleaned and cleaned not in auto_action_ids:
-            return jsonify({"success": False, "error": "Некорректный шаблон автоматических действий"}), 400
-        data["auto_action_template_id"] = cleaned or None
-    fields, params = [], {"id": channel_id}
+    data = request.get_json(force=True) or {}
+    channel = CHANNEL_REPO.get(channel_id)
+    if channel is None:
+        return jsonify({"success": False, "error": "Канал не найден"}), 404
+
+    updates: dict = {}
+    if "name" in data or "channel_name" in data:
+        name_value = (data.get("name") or data.get("channel_name") or "").strip()
+        updates["name"] = name_value
+    if "description" in data:
+        updates["description"] = (data.get("description") or "").strip()
     if "platform" in data:
         platform_value = _parse_platform(data.get("platform"))
         if platform_value not in {"telegram", "vk"}:
             return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
-        fields.append("platform = :platform")
-        params["platform"] = platform_value
-    if "platform_config" in data:
-        config_dict = _parse_platform_config(data.get("platform_config"))
-        group_id = config_dict.get("group_id")
-        if group_id is not None:
-            try:
-                config_dict["group_id"] = int(group_id)
-            except (TypeError, ValueError):
-                return jsonify({"success": False, "error": "group_id должен быть числом"}), 400
-        fields.append("platform_config = :platform_config")
-        params["platform_config"] = json.dumps(config_dict, ensure_ascii=False)
-    for k in ("channel_name", "questions_cfg", "max_questions", "is_active", "question_template_id", "rating_template_id", "auto_action_template_id"):
-        if k in data:
-            fields.append(f"{k} = :{k}")
-            params[k] = json.dumps(data[k], ensure_ascii=False) if k == "questions_cfg" else data[k]
-    if not fields:
+        updates["platform"] = platform_value
+    if "platform_config" in data or "settings" in data:
+        config_dict = _parse_platform_config(data.get("platform_config") or data.get("settings"))
+        updates["settings"] = config_dict
+    if "filters" in data:
+        updates["filters"] = data.get("filters")
+    if "is_active" in data:
+        updates["is_active"] = bool(data.get("is_active"))
+    if "max_questions" in data:
+        updates["max_questions"] = data.get("max_questions")
+    for key in ("question_template_id", "rating_template_id", "auto_action_template_id"):
+        if key in data:
+            updates[key] = data.get(key)
+    if "questions_cfg" in data:
+        updates["questions_cfg"] = data.get("questions_cfg")
+
+    token_raw = (data.get("token") or "").strip()
+    if "credential_id" in data:
+        updates["credential_id"] = data.get("credential_id")
+    target_credential_id = updates.get("credential_id") or channel.credential_id
+    if token_raw and target_credential_id:
+        try:
+            BOT_CREDENTIALS_REPO.update(int(target_credential_id), {"token": token_raw})
+        except ValueError as exc:
+            return jsonify({"success": False, "error": str(exc)}), 400
+
+    if not updates:
         return jsonify({"success": False, "error": "Нет полей для обновления"}), 400
 
-    conn = get_db()
-    conn.execute(f"UPDATE channels SET {', '.join(fields)} WHERE id = :id", params)
-    conn.commit()
-    conn.close()
-    return jsonify({"success": True})
+    updated = CHANNEL_REPO.update(channel_id, updates)
+    payload = CHANNEL_REPO.to_dict(updated)
+    payload["channel_name"] = payload.get("name")
+    token_plain = _resolve_channel_token({"credential_id": payload.get("credential_id"), "token": token_raw})
+    payload["token"] = mask_token(token_plain)
+    return jsonify({"success": True, "channel": payload})
+
 
 @app.route("/api/channels/<int:channel_id>", methods=["DELETE"])
 @login_required
 def api_channels_delete(channel_id):
     conn = get_db()
-    # Проверка привязок
-    exists = conn.execute("SELECT 1 FROM tickets WHERE channel_id = ?", (channel_id,)).fetchone()
-    if exists:
+    try:
+        exists = conn.execute("SELECT 1 FROM tickets WHERE channel_id = ?", (channel_id,)).fetchone()
+        if exists:
+            return jsonify({"success": False, "error": "Есть связанные заявки — удаление запрещено"}), 400
+        conn.execute("DELETE FROM channels WHERE id = ?", (channel_id,))
+        conn.commit()
+    finally:
         conn.close()
-        return jsonify({"success": False, "error": "Есть связанные заявки — удаление запрещено"}), 400
-    conn.execute("DELETE FROM channels WHERE id = ?", (channel_id,))
-    conn.commit()
-    conn.close()
     return jsonify({"success": True})
+
+
+def _serialize_credential(credential) -> dict:
+    if credential is None:
+        return {}
+    return {
+        "id": credential.id,
+        "name": credential.name,
+        "platform": credential.platform,
+        "masked_token": credential.masked_token,
+        "is_active": credential.is_active,
+        "created_at": credential.created_at,
+        "updated_at": credential.updated_at,
+        "metadata": credential.metadata,
+    }
+
+
+@app.route("/api/bot-credentials", methods=["GET"])
+@login_required
+def api_bot_credentials_list():
+    credentials = BOT_CREDENTIALS_REPO.list()
+    payload = [_serialize_credential(cred) for cred in credentials]
+    return jsonify({"success": True, "credentials": payload})
+
+
+@app.route("/api/bot-credentials", methods=["POST"])
+@login_required
+def api_bot_credentials_create():
+    data = request.get_json(force=True) or {}
+    name = (data.get("name") or "").strip()
+    platform = _parse_platform(data.get("platform"))
+    token = (data.get("token") or "").strip()
+    if not name:
+        return jsonify({"success": False, "error": "Название обязательно"}), 400
+    if platform not in {"telegram", "vk"}:
+        return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
+    if not token:
+        return jsonify({"success": False, "error": "Токен обязателен"}), 400
+    try:
+        credential = BOT_CREDENTIALS_REPO.create({
+            "name": name,
+            "platform": platform,
+            "token": token,
+            "metadata": data.get("metadata"),
+            "is_active": bool(data.get("is_active", True)),
+        })
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    return jsonify({"success": True, "credential": _serialize_credential(credential)})
+
+
+@app.route("/api/bot-credentials/<int:credential_id>", methods=["PATCH"])
+@login_required
+def api_bot_credentials_update(credential_id):
+    data = request.get_json(force=True) or {}
+    updates: dict = {}
+    if "name" in data:
+        updates["name"] = (data.get("name") or "").strip()
+    if "platform" in data:
+        platform = _parse_platform(data.get("platform"))
+        if platform not in {"telegram", "vk"}:
+            return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
+        updates["platform"] = platform
+    if "token" in data:
+        updates["token"] = (data.get("token") or "").strip()
+    if "metadata" in data:
+        updates["metadata"] = data.get("metadata")
+    if "is_active" in data:
+        updates["is_active"] = bool(data.get("is_active"))
+    if not updates:
+        return jsonify({"success": False, "error": "Нет данных для обновления"}), 400
+    try:
+        credential = BOT_CREDENTIALS_REPO.update(credential_id, updates)
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    return jsonify({"success": True, "credential": _serialize_credential(credential)})
+
+
+@app.route("/api/bot-credentials/<int:credential_id>", methods=["DELETE"])
+@login_required
+def api_bot_credentials_delete(credential_id):
+    conn = get_db()
+    try:
+        used = conn.execute(
+            "SELECT 1 FROM channels WHERE credential_id = ?",
+            (credential_id,),
+        ).fetchone()
+        if used:
+            return jsonify({"success": False, "error": "К учётным данным привязаны каналы"}), 400
+    finally:
+        conn.close()
+    BOT_CREDENTIALS_REPO.delete(credential_id)
+    return jsonify({"success": True})
+
+
+@app.route("/api/channel-notifications", methods=["GET"])
+@login_required
+def api_channel_notifications_list():
+    status = request.args.get("status")
+    channel_id = request.args.get("channel_id", type=int)
+    limit = request.args.get("limit", default=100, type=int)
+    notifications = CHANNEL_NOTIFICATIONS_REPO.list(
+        status=status,
+        channel_id=channel_id,
+        limit=max(1, min(limit, 500)),
+    )
+    payload = []
+    for item in notifications:
+        payload.append({
+            "id": item.id,
+            "channel_id": item.channel_id,
+            "recipient": item.recipient,
+            "payload": item.payload,
+            "status": item.status,
+            "error": item.error,
+            "attempts": item.attempts,
+            "scheduled_at": item.scheduled_at,
+            "created_at": item.created_at,
+            "started_at": item.started_at,
+            "finished_at": item.finished_at,
+        })
+    return jsonify({"success": True, "notifications": payload})
+
+
+@app.route("/api/channel-notifications", methods=["POST"])
+@login_required
+def api_channel_notifications_create():
+    data = request.get_json(force=True) or {}
+    channel_id = data.get("channel_id")
+    recipient = (data.get("recipient") or "").strip()
+    payload = data.get("payload") or {}
+    message = (payload.get("message") or data.get("message") or "").strip()
+    if not channel_id:
+        return jsonify({"success": False, "error": "channel_id обязателен"}), 400
+    if not message:
+        return jsonify({"success": False, "error": "Укажите текст сообщения"}), 400
+    payload["message"] = message
+    if recipient:
+        payload.setdefault("recipient", recipient)
+    notification = CHANNEL_NOTIFICATIONS_REPO.create({
+        "channel_id": channel_id,
+        "recipient": recipient,
+        "payload": payload,
+        "status": "pending",
+    })
+    enqueue_notification(notification.id)
+    return jsonify({"success": True, "notification": {
+        "id": notification.id,
+        "status": notification.status,
+        "channel_id": notification.channel_id,
+        "recipient": notification.recipient,
+        "payload": notification.payload,
+        "created_at": notification.created_at,
+    }})
+
+
+@app.route("/api/channels/<int:channel_id>/test-message", methods=["POST"])
+@login_required
+def api_channels_test_message(channel_id):
+    channel = CHANNEL_REPO.get(channel_id)
+    if channel is None:
+        return jsonify({"success": False, "error": "Канал не найден"}), 404
+    data = request.get_json(force=True) or {}
+    recipient = (data.get("recipient") or "").strip()
+    message = (data.get("message") or "").strip()
+    if not recipient:
+        return jsonify({"success": False, "error": "Укажите получателя"}), 400
+    if not message:
+        return jsonify({"success": False, "error": "Введите текст сообщения"}), 400
+    notification = CHANNEL_NOTIFICATIONS_REPO.create({
+        "channel_id": channel_id,
+        "recipient": recipient,
+        "payload": {"message": message, "recipient": recipient, "test": True},
+        "status": "pending",
+    })
+    enqueue_notification(notification.id)
+    return jsonify({"success": True, "notification_id": notification.id})
 
 @app.route("/settings")
 @login_required
@@ -12658,8 +12929,19 @@ def api_channels_get(channel_id):
         row = conn.execute("SELECT * FROM channels WHERE id = ?", (channel_id,)).fetchone()
         if not row:
             return jsonify({"success": False, "error": "Канал не найден"}), 404
-        d = _refresh_bot_identity_if_needed(conn, dict(row))
-    # Попробуем распарсить JSON, но вернём как есть — фронт сам приведёт
+        d = dict(row)
+        d["platform_config"] = _parse_platform_config(d.get("platform_config"))
+        try:
+            d["filters"] = json.loads(d.get("filters") or "{}")
+        except Exception:
+            d["filters"] = {}
+        d["delivery_settings"] = _parse_platform_config(d.get("delivery_settings"))
+        d["token"] = mask_token(_resolve_channel_token(row))
+        credential = None
+        if d.get("credential_id"):
+            credential = BOT_CREDENTIALS_REPO.get(int(d["credential_id"]))
+        d["credential"] = _serialize_credential(credential)
+        d = _refresh_bot_identity_if_needed(conn, d)
     return jsonify({"success": True, "channel": d})
 
 @app.route("/stats_data")
