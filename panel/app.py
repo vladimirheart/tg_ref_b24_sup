@@ -4930,7 +4930,60 @@ def _add_chat_history_entry(
                 attachment,
                 channel_id,
             ),
-        )
+    )
+)
+
+
+def _resolve_ticket_channel_id(conn, ticket_id: str) -> int | None:
+    """Safely resolve channel_id for the given ticket inside an open connection."""
+    if not conn or not ticket_id:
+        return None
+    try:
+        row = exec_with_retry(
+            lambda: conn.execute(
+                "SELECT channel_id FROM tickets WHERE ticket_id = ?",
+                (ticket_id,),
+            )
+        ).fetchone()
+    except Exception:
+        return None
+
+    if row is None:
+        return None
+    try:
+        return row["channel_id"] if isinstance(row, sqlite3.Row) else row[0]
+    except Exception:
+        return None
+
+
+def _log_ticket_system_event(
+    conn,
+    ticket_id: str,
+    message: str,
+    *,
+    channel_id: int | None = None,
+    sender: str = "system",
+) -> None:
+    """Append a system message about ticket changes to the chat history."""
+
+    text = (message or "").strip()
+    if not text:
+        return
+
+    ts = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    if channel_id is None:
+        channel_id = _resolve_ticket_channel_id(conn, ticket_id)
+
+    _add_chat_history_entry(
+        conn,
+        ticket_id=ticket_id,
+        sender=sender,
+        message=text,
+        timestamp=ts,
+        message_type="system",
+        attachment=None,
+        channel_id=channel_id,
+        user_id=None,
     )
 
 
@@ -9426,11 +9479,39 @@ def api_ticket_set_active(ticket_id):
     if not user:
         return jsonify({'ok': False}), 400
     with get_db() as conn:
-        conn.execute("""
+        cur = conn.cursor()
+        previous_row = cur.execute(
+            "SELECT user FROM ticket_active WHERE ticket_id = ?",
+            (ticket_id,),
+        ).fetchone()
+        prev_user = None
+        if previous_row is not None:
+            try:
+                prev_user = previous_row["user"] if isinstance(previous_row, sqlite3.Row) else previous_row[0]
+            except Exception:
+                prev_user = None
+
+        cur.execute(
+            """
             INSERT INTO ticket_active(ticket_id, user, last_seen) VALUES(?,?,datetime('now'))
             ON CONFLICT(ticket_id) DO UPDATE SET user=excluded.user, last_seen=datetime('now')
-        """, (ticket_id, user))
+        """,
+            (ticket_id, user),
+        )
         _add_ticket_participants(conn, ticket_id, user)
+
+        prev_clean = (prev_user or "").strip()
+        new_clean = str(user or "").strip()
+        if new_clean and prev_clean != new_clean:
+            operator_label = _current_operator_label(new_clean or 'оператор')
+            if prev_clean:
+                message = f"{operator_label} начал работу с диалогом (до этого: {prev_clean})."
+            else:
+                message = f"{operator_label} начал работу с диалогом."
+            try:
+                _log_ticket_system_event(conn, str(ticket_id), message)
+            except Exception:
+                app.logger.debug("Не удалось записать событие о начале работы", exc_info=True)
     return jsonify({'ok': True})
 
 @app.route('/api/admin/users', methods=['GET'])
@@ -9473,8 +9554,9 @@ def api_ticket_invite(ticket_id):
     if not ticket_row:
         return jsonify({'success': False, 'error': 'Заявка не найдена'}), 404
 
-    inviter = session.get('user_email') or session.get('username') or session.get('user') or 'оператор'
-    text = f"{inviter} приглашает вас в диалог №{ticket_id}"
+    inviter_raw = session.get('user_email') or session.get('username') or session.get('user') or 'оператор'
+    inviter_label = _current_operator_label(inviter_raw or 'оператор')
+    text = f"{inviter_label} приглашает вас в диалог №{ticket_id}"
 
     base_url = url_for('index')
     encoded_ticket = quote(ticket_id, safe='')
@@ -9488,6 +9570,14 @@ def api_ticket_invite(ticket_id):
     try:
         with get_db() as conn:
             _add_ticket_participants(conn, ticket_id, invitee)
+            try:
+                _log_ticket_system_event(
+                    conn,
+                    ticket_id,
+                    f"{inviter_label} пригласил {invitee} в диалог.",
+                )
+            except Exception:
+                app.logger.debug("Не удалось записать событие приглашения", exc_info=True)
     except Exception:
         pass
 
@@ -9511,6 +9601,17 @@ def api_ticket_responsible(ticket_id):
         if not ticket_row:
             return jsonify({'success': False, 'error': 'Заявка не найдена'}), 404
 
+        prev_row = cur.execute(
+            "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+            (ticket_id,),
+        ).fetchone()
+        prev_responsible = None
+        if prev_row is not None:
+            try:
+                prev_responsible = prev_row["responsible"] if isinstance(prev_row, sqlite3.Row) else prev_row[0]
+            except Exception:
+                prev_responsible = None
+
         if responsible:
             cur.execute(
                 """
@@ -9528,6 +9629,26 @@ def api_ticket_responsible(ticket_id):
             cur.execute("DELETE FROM ticket_responsibles WHERE ticket_id = ?", (ticket_id,))
 
         info = _resolve_ticket_responsible(cur, ticket_id, ticket_row['channel_id'])
+
+        prev_clean = (prev_responsible or '').strip()
+        new_clean = responsible.strip()
+        if prev_clean != new_clean:
+            actor_label = _current_operator_label(current_user or 'оператор')
+            if new_clean and prev_clean:
+                event_message = f"{actor_label} переназначил ответственного: {prev_clean} → {new_clean}."
+            elif new_clean:
+                event_message = f"{actor_label} назначил ответственным {new_clean}."
+            else:
+                event_message = f"{actor_label} снял ответственного {prev_clean}."
+            try:
+                _log_ticket_system_event(
+                    conn,
+                    ticket_id,
+                    event_message,
+                    channel_id=ticket_row['channel_id'],
+                )
+            except Exception:
+                app.logger.debug("Не удалось записать событие назначения ответственного", exc_info=True)
 
     responsible_photo = (
         _resolve_operator_photo(info.get('responsible')) or
@@ -12582,6 +12703,7 @@ def history():
     except Exception:
         channel_id = None
 
+    event_rows: list[sqlite3.Row] = []
     try:
         conn = get_db()
         conn.row_factory = sqlite3.Row
@@ -12613,6 +12735,32 @@ def history():
                   rowid ASC
             """, (ticket_id,))
         rows = cur.fetchall()
+
+        # Отдельно выгружаем системные события жизненного цикла диалога
+        if channel_id is not None:
+            cur.execute("""
+                SELECT rowid AS event_id, message, timestamp, sender, channel_id
+                  FROM chat_history
+                 WHERE ticket_id = ?
+                   AND message_type = 'system'
+                   AND COALESCE(sender, '') = 'system'
+                   AND (channel_id = ? OR channel_id IS NULL)
+                 ORDER BY
+                  substr(timestamp,1,19) ASC,
+                  rowid ASC
+            """, (ticket_id, channel_id))
+        else:
+            cur.execute("""
+                SELECT rowid AS event_id, message, timestamp, sender, channel_id
+                  FROM chat_history
+                 WHERE ticket_id = ?
+                   AND message_type = 'system'
+                   AND COALESCE(sender, '') = 'system'
+                 ORDER BY
+                  substr(timestamp,1,19) ASC,
+                  rowid ASC
+            """, (ticket_id,))
+        event_rows = cur.fetchall()
     finally:
         try:
             conn.close()
@@ -12662,7 +12810,19 @@ def history():
             "deleted_at":     r["deleted_at"],
         })
 
-    return jsonify({"success": True, "messages": out})
+    events_payload = []
+    for r in event_rows:
+        events_payload.append(
+            {
+                "id": r["event_id"],
+                "message": r["message"],
+                "timestamp": r["timestamp"],
+                "sender": r["sender"],
+                "channel_id": r["channel_id"],
+            }
+        )
+
+    return jsonify({"success": True, "messages": out, "dialog_events": events_payload})
 
 @app.get("/api/history")
 @login_required
@@ -12978,6 +13138,7 @@ def close_ticket():
     try:
         # 1) перенос категории в messages
         conn = get_db()
+        channel_id = None
         conn.execute("UPDATE messages SET category = ? WHERE ticket_id = ?", (category, ticket_id))
 
         # 2) гарантируем служебные колонки
@@ -13005,6 +13166,16 @@ def close_ticket():
 
         # 4) помечаем закрытым, увеличиваем closed_count, обнуляем last_reopen_at, фиксируем total_sec
         now_iso = dt.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        channel_row = conn.execute(
+            "SELECT channel_id FROM tickets WHERE ticket_id = ?",
+            (ticket_id,),
+        ).fetchone()
+        if channel_row is not None:
+            try:
+                channel_id = channel_row["channel_id"] if isinstance(channel_row, sqlite3.Row) else channel_row[0]
+            except Exception:
+                channel_id = None
+
         conn.execute("""
             UPDATE tickets
                SET status='resolved',
@@ -13016,15 +13187,19 @@ def close_ticket():
              WHERE ticket_id = ?
         """, (now_iso, admin_name, total_sec, ticket_id))
         conn.commit()
+        try:
+            _log_ticket_system_event(
+                conn,
+                ticket_id,
+                f"{admin_name} закрыл диалог.",
+                channel_id=channel_id,
+            )
+        except Exception:
+            app.logger.debug("Не удалось записать событие закрытия", exc_info=True)
         conn.close()
 
                 # 5) уведомления клиенту: закрытие + просьба оценить (пер-ботово из настроек)
         try:
-            # определим channel_id тикета
-            with get_db() as conn2:
-                row_ch = conn2.execute("SELECT channel_id FROM tickets WHERE ticket_id=?", (ticket_id,)).fetchone()
-                channel_id = row_ch["channel_id"] if row_ch else None
-
             close_msg = f"Ваше обращение #{ticket_id} закрыто. Для запуска нового диалога нажмите /start"
             send_telegram_message(chat_id=user_id, text=close_msg, parse_mode='HTML')
 
