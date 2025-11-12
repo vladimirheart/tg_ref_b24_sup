@@ -2102,6 +2102,17 @@ function markTicketReopenedLocally() {
                       Пригласить коллегу
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm header-meta-item"
+                    id="openDialogLifecycleBtn"
+                    title="История изменений диалога"
+                    aria-label="История изменений диалога"
+                    disabled
+                  >
+                    <span aria-hidden="true">🕓</span>
+                    <span class="visually-hidden">История изменений диалога</span>
+                  </button>
                   <button type="button" class="btn btn-outline-secondary btn-sm header-meta-item me-2" id="toggleHistoryFullscreenBtn" aria-pressed="false" title="Развернуть окно истории">⛶</button>
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -2399,6 +2410,22 @@ function markTicketReopenedLocally() {
   </div>
 </div>
 
+<!-- Модальное окно: история изменений диалога -->
+<div class="modal fade" id="dialogLifecycleModal" tabindex="-1" aria-labelledby="dialogLifecycleTitle">
+  <div class="modal-dialog modal-dialog-scrollable modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="dialogLifecycleTitle">История изменений диалога</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3 d-none" id="dialogLifecycleMeta"></p>
+        <div id="dialogLifecycleContent" class="list-group list-group-flush small"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
   <!-- Модальное окно: редактирование имени клиента -->
   <div class="modal fade" id="editClientNameModal" tabindex="-1">
     <div class="modal-dialog">
@@ -2544,6 +2571,8 @@ function markTicketReopenedLocally() {
     let currentTicketId = null;
     let historyPolling = null;
     window.currentTicketDetails = window.currentTicketDetails || {};
+    let dialogLifecycleEvents = [];
+    let dialogLifecycleMeta = { ticketId: null, clientName: '', clientUsername: '' };
         window.lastReadAtByTicket = JSON.parse(localStorage.getItem('lastReadAtByTicket') || '{}');
     let currentPageSize = 20;
     let filtersCurrentlyActive = false;
@@ -6562,6 +6591,146 @@ function displayTicketsForCurrentPage() {
                         throw new Error(`Ответ ${url} не является валидным JSON: ${parseError.message}. Фрагмент: ${snippet}`);
                 }
         }
+        function updateDialogLifecycle(events, meta) {
+          if (events !== undefined) {
+            if (Array.isArray(events)) {
+              dialogLifecycleEvents = events.slice();
+            } else if (events === null) {
+              dialogLifecycleEvents = [];
+            }
+          }
+
+          if (meta && typeof meta === 'object') {
+            const nextMeta = { ...dialogLifecycleMeta };
+            if (Object.prototype.hasOwnProperty.call(meta, 'ticketId')) {
+              nextMeta.ticketId = meta.ticketId ?? null;
+            }
+            if (Object.prototype.hasOwnProperty.call(meta, 'clientName')) {
+              nextMeta.clientName = meta.clientName ? String(meta.clientName).trim() : '';
+            }
+            if (Object.prototype.hasOwnProperty.call(meta, 'clientUsername')) {
+              const value = meta.clientUsername ? String(meta.clientUsername).trim() : '';
+              nextMeta.clientUsername = value;
+            }
+            dialogLifecycleMeta = nextMeta;
+          }
+
+          window.currentDialogLifecycleEvents = dialogLifecycleEvents;
+          window.currentDialogLifecycleMeta = dialogLifecycleMeta;
+
+          const btn = document.getElementById('openDialogLifecycleBtn');
+          if (btn) {
+            const hasEvents = Array.isArray(dialogLifecycleEvents) && dialogLifecycleEvents.length > 0;
+            btn.disabled = !hasEvents;
+            btn.classList.toggle('disabled', !hasEvents);
+            btn.setAttribute('aria-disabled', hasEvents ? 'false' : 'true');
+            if (!hasEvents) {
+              btn.title = 'История изменений недоступна';
+            } else {
+              btn.title = 'История изменений диалога';
+            }
+          }
+
+          renderDialogLifecycleContent();
+        }
+
+        function renderDialogLifecycleContent() {
+          const container = document.getElementById('dialogLifecycleContent');
+          if (container) {
+            container.innerHTML = '';
+            const events = Array.isArray(dialogLifecycleEvents) ? dialogLifecycleEvents.slice() : [];
+            if (!events.length) {
+              const empty = document.createElement('p');
+              empty.className = 'text-muted small mb-0';
+              empty.textContent = 'Нет записей об изменениях.';
+              container.appendChild(empty);
+            } else {
+              events.sort((a, b) => {
+                const da = parseDateFromAny(a && a.timestamp);
+                const db = parseDateFromAny(b && b.timestamp);
+                const ta = da ? da.getTime() : 0;
+                const tb = db ? db.getTime() : 0;
+                if (ta === tb) {
+                  const aid = Number(a && a.id ? a.id : 0);
+                  const bid = Number(b && b.id ? b.id : 0);
+                  return bid - aid;
+                }
+                return tb - ta;
+              });
+
+              const fragment = document.createDocumentFragment();
+              events.forEach((event) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                if (event && event.id !== undefined) {
+                  item.dataset.eventId = String(event.id);
+                }
+
+                const timeEl = document.createElement('div');
+                timeEl.className = 'small text-muted mb-1';
+                const eventDate = parseDateFromAny(event && event.timestamp);
+                if (eventDate) {
+                  timeEl.textContent = fmtTsISO(eventDate.toISOString());
+                  timeEl.title = eventDate.toISOString();
+                } else {
+                  timeEl.textContent = '—';
+                }
+
+                const messageEl = document.createElement('div');
+                messageEl.className = 'fw-semibold';
+                const rawMessage = event && typeof event.message === 'string'
+                  ? event.message.trim()
+                  : String(event && event.message ? event.message : '').trim();
+                messageEl.textContent = rawMessage || '—';
+                if (rawMessage) {
+                  item.title = rawMessage;
+                } else {
+                  item.removeAttribute('title');
+                }
+
+                item.appendChild(timeEl);
+                item.appendChild(messageEl);
+                fragment.appendChild(item);
+              });
+
+              container.appendChild(fragment);
+            }
+          }
+
+          const metaEl = document.getElementById('dialogLifecycleMeta');
+          if (metaEl) {
+            metaEl.innerHTML = '';
+            let hasContent = false;
+
+            if (dialogLifecycleMeta && dialogLifecycleMeta.ticketId) {
+              const strong = document.createElement('strong');
+              strong.textContent = `Диалог №${dialogLifecycleMeta.ticketId}`;
+              metaEl.appendChild(strong);
+              hasContent = true;
+            }
+
+            const nameParts = [];
+            if (dialogLifecycleMeta && dialogLifecycleMeta.clientName) {
+              nameParts.push(dialogLifecycleMeta.clientName);
+            }
+            if (dialogLifecycleMeta && dialogLifecycleMeta.clientUsername) {
+              const cleaned = String(dialogLifecycleMeta.clientUsername).replace(/^@+/, '').trim();
+              if (cleaned) {
+                nameParts.push(`@${cleaned}`);
+              }
+            }
+
+            if (nameParts.length) {
+              if (hasContent) {
+                metaEl.appendChild(document.createElement('br'));
+              }
+              metaEl.appendChild(document.createTextNode(nameParts.join(' · ')));
+              hasContent = true;
+            }
+
+            metaEl.classList.toggle('d-none', !hasContent);
+          }
+        }
 
         // === Загрузить историю ===
         async function loadHistory(user_id, ticket_id) {
@@ -6618,6 +6787,24 @@ function displayTicketsForCurrentPage() {
                                         clientData: window.currentClientData,
                                         ticketDetails: window.currentTicketDetails,
                                         historyPayload: historyData
+                                });
+
+                                const lifecycleEvents = Array.isArray(historyData.dialog_events)
+                                  ? historyData.dialog_events
+                                  : [];
+                                const resolvedClientName =
+                                  (clientData && (clientData.client_name || clientData.clientName))
+                                  || (ticketFull && (ticketFull.client_name || ticketFull.clientName))
+                                  || '';
+                                const resolvedClientUsername =
+                                  (clientData && (clientData.username || clientData.client_username || clientData.clientUsername))
+                                  || (ticketFull && (ticketFull.username || ticketFull.client_username || ticketFull.clientUsername))
+                                  || '';
+                                const ticketIdentifier = String(ticket_id ?? '');
+                                updateDialogLifecycle(lifecycleEvents, {
+                                  ticketId: ticketIdentifier || null,
+                                  clientName: resolvedClientName,
+                                  clientUsername: resolvedClientUsername,
                                 });
 
                                 const messages = historyData.messages || [];
@@ -6940,9 +7127,13 @@ function displayTicketsForCurrentPage() {
 					historyPolling = setInterval(async () => {
 					  try {
 						const resp = await fetch(`/history?user_id=${currentUserId}&ticket_id=${currentTicketId}&channel_id=${window.currentChannelId ?? ''}&_=${Date.now()}`, { cache: 'no-store' });
-						const dataUp = await resp.json();
-						const container = document.getElementById('historyContent');
-						const msgs = dataUp.messages || [];
+                                                const dataUp = await resp.json();
+                                                const eventsUp = Array.isArray(dataUp.dialog_events) ? dataUp.dialog_events : undefined;
+                                                if (eventsUp !== undefined) {
+                                                  updateDialogLifecycle(eventsUp);
+                                                }
+                                                const container = document.getElementById('historyContent');
+                                                const msgs = dataUp.messages || [];
 
 						const newOnes = msgs.filter(m => !renderedMsgIds.has(msgKey(m)));
 						if (!newOnes.length) return;
@@ -7048,6 +7239,7 @@ function displayTicketsForCurrentPage() {
                                                 clearInterval(historyPolling);
                                                 historyPolling = null;
                                         }
+                                        updateDialogLifecycle([], { ticketId: null, clientName: '', clientUsername: '' });
                                 });
 
 		// === Обновление счетчика времени ===
@@ -9053,6 +9245,25 @@ if (clientHistoryMenu) {
     }
 
     loadHistory(userId, ticketId);
+  });
+}
+
+const dialogLifecycleBtn = document.getElementById('openDialogLifecycleBtn');
+if (dialogLifecycleBtn) {
+  dialogLifecycleBtn.addEventListener('click', () => {
+    if (dialogLifecycleBtn.disabled) return;
+    const modalEl = document.getElementById('dialogLifecycleModal');
+    if (!modalEl) return;
+    renderDialogLifecycleContent();
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInstance.show();
+  });
+}
+
+const dialogLifecycleModalEl = document.getElementById('dialogLifecycleModal');
+if (dialogLifecycleModalEl) {
+  dialogLifecycleModalEl.addEventListener('show.bs.modal', () => {
+    renderDialogLifecycleContent();
   });
 }
 
