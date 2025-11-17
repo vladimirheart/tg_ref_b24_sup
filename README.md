@@ -130,3 +130,7 @@ Bender/
 │       └── style.css      ← Стили
 ├── shared_config.py       ← Доступ к общим JSON-конфигам
 └── requirements.txt       ← Зависимости
+
+если юзаешь Python версии 3.13, то модуль криптографии ставить так:
+python -m pip install cffi
+	python -m pip install cryptography
