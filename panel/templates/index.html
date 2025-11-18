@@ -2153,6 +2153,17 @@ function markTicketReopenedLocally() {
                         </div>
                         <div class="form-text mt-2">Можно выбрать несколько категорий</div>
                       </div>
+
+                      <div class="p-3 sidebar-info" id="knowledgeArticleUsage">
+                        <label for="historyArticleSelect" class="form-label">Используемая статья</label>
+                        <div class="input-group input-group-sm">
+                          <select id="historyArticleSelect" class="form-select">
+                            <option value="">Не выбрано</option>
+                          </select>
+                          <button type="button" class="btn btn-outline-primary" id="historyArticleOpenBtn" disabled>Открыть</button>
+                        </div>
+                        <div class="form-text mt-2">Необязательное поле для заметок по базе знаний.</div>
+                      </div>
                     </div>
 
                     <!-- Данные клиента и локации -->
@@ -2569,6 +2580,8 @@ function markTicketReopenedLocally() {
         window.initialClientStatusFilterApplied = false;
     let currentUserId = null;
     let currentTicketId = null;
+    let knowledgeArticlesCache = null;
+    let knowledgeUsageState = { ticketId: null, channelId: null, articleId: null };
     let historyPolling = null;
     window.currentTicketDetails = window.currentTicketDetails || {};
     let dialogLifecycleEvents = [];
@@ -2609,9 +2622,170 @@ function markTicketReopenedLocally() {
       return [];
     }
 
+    function getKnowledgeArticleSelect() {
+      return document.getElementById('historyArticleSelect');
+    }
+
+    function getKnowledgeArticleOpenButton() {
+      return document.getElementById('historyArticleOpenBtn');
+    }
+
+    function ensureKnowledgeArticleOption(articleId, title) {
+      const select = getKnowledgeArticleSelect();
+      if (!select || !articleId) return;
+      const stringId = String(articleId);
+      const exists = Array.from(select.options).some((option) => option.value === stringId);
+      if (exists) return;
+      const option = document.createElement('option');
+      option.value = stringId;
+      option.textContent = title || `Статья #${stringId}`;
+      select.appendChild(option);
+    }
+
+    function populateKnowledgeArticleSelect() {
+      const select = getKnowledgeArticleSelect();
+      if (!select) return;
+      const currentValue = select.value;
+      select.innerHTML = '<option value="">Не выбрано</option>';
+      const items = Array.isArray(knowledgeArticlesCache) ? knowledgeArticlesCache.slice() : [];
+      items.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ru', { sensitivity: 'base' }));
+      items.forEach((article) => {
+        const option = document.createElement('option');
+        option.value = String(article.id);
+        option.textContent = article.title || `Статья #${article.id}`;
+        select.appendChild(option);
+      });
+      if (currentValue && Array.from(select.options).some((option) => option.value === currentValue)) {
+        select.value = currentValue;
+      }
+    }
+
+    async function ensureKnowledgeArticles() {
+      if (Array.isArray(knowledgeArticlesCache)) {
+        populateKnowledgeArticleSelect();
+        return knowledgeArticlesCache;
+      }
+      try {
+        const response = await fetch('/api/knowledge_base/articles', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await response.json().catch(() => ({}));
+        knowledgeArticlesCache = Array.isArray(data?.items) ? data.items : [];
+        populateKnowledgeArticleSelect();
+      } catch (error) {
+        console.error('Не удалось загрузить список статей базы знаний', error);
+        knowledgeArticlesCache = [];
+      }
+      return knowledgeArticlesCache;
+    }
+
+    async function loadTicketKnowledgeUsage(ticketId, channelId) {
+      const select = getKnowledgeArticleSelect();
+      const openBtn = getKnowledgeArticleOpenButton();
+      if (select) {
+        select.value = '';
+      }
+      if (openBtn) {
+        openBtn.disabled = true;
+      }
+      knowledgeUsageState = { ticketId: ticketId ? String(ticketId) : null, channelId: channelId ?? null, articleId: null };
+      if (!ticketId) {
+        return;
+      }
+      try {
+        await ensureKnowledgeArticles();
+        const params = new URLSearchParams();
+        if (channelId) {
+          params.set('channel_id', String(channelId));
+        }
+        const response = await fetch(`/api/tickets/${ticketId}/knowledge_usage?${params.toString()}`, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data?.success) {
+          return;
+        }
+        const usage = data.usage || {};
+        if (usage.article_id) {
+          const stringId = String(usage.article_id);
+          ensureKnowledgeArticleOption(stringId, usage.article_title);
+          if (select) {
+            select.value = stringId;
+          }
+          if (openBtn) {
+            openBtn.disabled = false;
+          }
+          knowledgeUsageState.articleId = stringId;
+        } else {
+          if (select) {
+            select.value = '';
+          }
+          if (openBtn) {
+            openBtn.disabled = true;
+          }
+        }
+      } catch (error) {
+        console.error('Не удалось получить данные об используемой статье', error);
+      }
+    }
+
+    async function saveTicketKnowledgeUsage(articleIdValue) {
+      if (!knowledgeUsageState.ticketId) {
+        return;
+      }
+      const select = getKnowledgeArticleSelect();
+      const openBtn = getKnowledgeArticleOpenButton();
+      const payload = {
+        article_id: articleIdValue ? Number(articleIdValue) : null,
+        channel_id: knowledgeUsageState.channelId,
+      };
+      try {
+        const response = await fetch(`/api/tickets/${knowledgeUsageState.ticketId}/knowledge_usage`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || 'Не удалось сохранить');
+        }
+        const usage = data.usage || {};
+        knowledgeUsageState.articleId = usage.article_id ? String(usage.article_id) : null;
+        if (select) {
+          select.value = knowledgeUsageState.articleId || '';
+        }
+        if (openBtn) {
+          openBtn.disabled = !knowledgeUsageState.articleId;
+        }
+      } catch (error) {
+        alert(error.message);
+        if (select) {
+          select.value = knowledgeUsageState.articleId || '';
+        }
+        if (openBtn) {
+          openBtn.disabled = !knowledgeUsageState.articleId;
+        }
+      }
+    }
+
     function serializeMultiValue(values) {
       if (!Array.isArray(values) || !values.length) return '';
       return JSON.stringify(values.map(value => normalizeFilterValue(value)).filter(Boolean));
+    }
+
+    const knowledgeArticleSelectEl = getKnowledgeArticleSelect();
+    if (knowledgeArticleSelectEl) {
+      knowledgeArticleSelectEl.addEventListener('change', (event) => {
+        const value = event.target.value;
+        saveTicketKnowledgeUsage(value || null);
+      });
+    }
+
+    const knowledgeArticleOpenBtnEl = getKnowledgeArticleOpenButton();
+    if (knowledgeArticleOpenBtnEl) {
+      knowledgeArticleOpenBtnEl.addEventListener('click', () => {
+        const select = getKnowledgeArticleSelect();
+        if (!select || !select.value) return;
+        window.open(`/knowledge_base/${select.value}`, '_blank');
+      });
     }
 
     function extractFilterOptionsFromTickets(tickets) {
@@ -6780,6 +6954,8 @@ function displayTicketsForCurrentPage() {
                                 updateHistoryClientMeta(window.currentClientData, window.currentTicketDetails);
                                 await setupResponsibleControl(window.currentTicketDetails);
                                 renderClientTicketsList(currentUserId, currentTicketId);
+                                await ensureKnowledgeArticles();
+                                await loadTicketKnowledgeUsage(ticket_id, window.currentChannelId);
 
                                 await ensureOperatorProfiles();
                                 window.historyAvatarStore = prepareHistoryAvatarStore({
