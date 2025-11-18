@@ -204,6 +204,7 @@
         <div class="d-flex align-items-end gap-2">
           <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#knowledgeFiltersModal">⚙️ Фильтры</button>
           <button id="knowledgeResetFilters" type="button" class="btn btn-outline-secondary">Сбросить</button>
+          <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#kbTaxonomyModal">📁 Справочники</button>
         </div>
       </div>
 
@@ -249,6 +250,84 @@
         </div>
       </div>
 
+      <div class="modal fade" id="kbTaxonomyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Справочники базы знаний</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <ul class="nav nav-tabs" id="kbTaxonomyTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="kbDirectionsTabButton" data-bs-toggle="tab" data-bs-target="#kbDirectionsTab" type="button" role="tab">Направления</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="kbTypesTabButton" data-bs-toggle="tab" data-bs-target="#kbTypesTab" type="button" role="tab">Типы</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="kbStatusesTabButton" data-bs-toggle="tab" data-bs-target="#kbStatusesTab" type="button" role="tab">Статусы</button>
+                </li>
+              </ul>
+              <div class="tab-content pt-3">
+                <div class="tab-pane fade show active" id="kbDirectionsTab" role="tabpanel" aria-labelledby="kbDirectionsTabButton">
+                  <div class="list-group" id="kbDirectionsList"></div>
+                  <form class="row g-2 align-items-end mt-3" id="kbAddDirectionForm">
+                    <div class="col-md-8">
+                      <label for="kbNewDirectionName" class="form-label">Новое направление</label>
+                      <input type="text" id="kbNewDirectionName" class="form-control" placeholder="Например, IT-поддержка" required />
+                    </div>
+                    <div class="col-md-4 col-lg-3">
+                      <button type="submit" class="btn btn-primary w-100">Добавить</button>
+                    </div>
+                  </form>
+                  <form class="row g-2 align-items-end mt-3" id="kbAddSubtypeForm">
+                    <div class="col-md-5">
+                      <label for="kbSubtypeDirectionSelect" class="form-label">Направление</label>
+                      <select id="kbSubtypeDirectionSelect" class="form-select" required></select>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="kbNewSubtypeName" class="form-label">Подтип</label>
+                      <input type="text" id="kbNewSubtypeName" class="form-control" placeholder="Например, L2" required />
+                    </div>
+                    <div class="col-md-3">
+                      <button type="submit" class="btn btn-outline-primary w-100">Добавить подтип</button>
+                    </div>
+                  </form>
+                </div>
+                <div class="tab-pane fade" id="kbTypesTab" role="tabpanel" aria-labelledby="kbTypesTabButton">
+                  <div id="kbTypesList" class="d-flex flex-wrap gap-2"></div>
+                  <form class="row g-2 align-items-end mt-3" id="kbAddTypeForm">
+                    <div class="col-md-8">
+                      <label for="kbNewTypeName" class="form-label">Новый тип</label>
+                      <input type="text" id="kbNewTypeName" class="form-control" placeholder="Например, Инструкция" required />
+                    </div>
+                    <div class="col-md-4 col-lg-3">
+                      <button type="submit" class="btn btn-primary w-100">Добавить</button>
+                    </div>
+                  </form>
+                </div>
+                <div class="tab-pane fade" id="kbStatusesTab" role="tabpanel" aria-labelledby="kbStatusesTabButton">
+                  <div id="kbStatusesList" class="d-flex flex-wrap gap-2"></div>
+                  <form class="row g-2 align-items-end mt-3" id="kbAddStatusForm">
+                    <div class="col-md-8">
+                      <label for="kbNewStatusName" class="form-label">Новый статус</label>
+                      <input type="text" id="kbNewStatusName" class="form-control" placeholder="Например, Черновик" required />
+                    </div>
+                    <div class="col-md-4 col-lg-3">
+                      <button type="submit" class="btn btn-primary w-100">Добавить</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="knowledge-table-wrapper mt-4" data-column-reorder-container>
         <table class="table table-hover align-middle knowledge-table" id="knowledgeTable" data-column-reorderable data-reorder-key="knowledge">
           <thead>
@@ -275,6 +354,12 @@
   <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
   <script>
     (function () {
+      const kbMeta = {{ kb_meta | tojson | safe }} || {};
+      const taxonomyState = {
+        directions: Array.isArray(kbMeta.directions) ? kbMeta.directions.slice() : [],
+        types: Array.isArray(kbMeta.types) ? kbMeta.types.slice() : [],
+        statuses: Array.isArray(kbMeta.statuses) ? kbMeta.statuses.slice() : [],
+      };
       const articles = ({{ articles | tojson | safe }} || []).map((item) => ({
         id: item.id,
         title: (item.title || '').trim(),
@@ -299,6 +384,18 @@
       const resultsCountEl = document.getElementById('knowledgeResultsCount');
       const totalCountEl = document.getElementById('knowledgeTotalCount');
       const resetButton = document.getElementById('knowledgeResetFilters');
+      const directionsListEl = document.getElementById('kbDirectionsList');
+      const typesListEl = document.getElementById('kbTypesList');
+      const statusesListEl = document.getElementById('kbStatusesList');
+      const addDirectionForm = document.getElementById('kbAddDirectionForm');
+      const addSubtypeForm = document.getElementById('kbAddSubtypeForm');
+      const addTypeForm = document.getElementById('kbAddTypeForm');
+      const addStatusForm = document.getElementById('kbAddStatusForm');
+      const subtypeDirectionSelect = document.getElementById('kbSubtypeDirectionSelect');
+      const newDirectionInput = document.getElementById('kbNewDirectionName');
+      const newSubtypeInput = document.getElementById('kbNewSubtypeName');
+      const newTypeInput = document.getElementById('kbNewTypeName');
+      const newStatusInput = document.getElementById('kbNewStatusName');
       const COLUMN_COUNT = 8;
 
       if (totalCountEl) {
@@ -307,6 +404,302 @@
 
       const collapsedDirections = new Set();
       const collapsedSubDirections = new Set();
+
+      function syncTaxonomyState(items) {
+        if (!items) return;
+        taxonomyState.directions = Array.isArray(items.directions) ? items.directions : [];
+        taxonomyState.types = Array.isArray(items.types) ? items.types : [];
+        taxonomyState.statuses = Array.isArray(items.statuses) ? items.statuses : [];
+        renderTaxonomySections();
+      }
+
+      function renderTaxonomySections() {
+        renderDirectionList();
+        renderTypeList();
+        renderStatusList();
+        populateSubtypeDirectionSelect();
+      }
+
+      function renderDirectionList() {
+        if (!directionsListEl) return;
+        directionsListEl.innerHTML = '';
+        if (!taxonomyState.directions.length) {
+          const empty = document.createElement('div');
+          empty.className = 'list-group-item text-muted small';
+          empty.textContent = 'Направления ещё не добавлены';
+          directionsListEl.appendChild(empty);
+          return;
+        }
+        taxonomyState.directions.forEach((direction) => {
+          const item = document.createElement('div');
+          item.className = 'list-group-item';
+          const header = document.createElement('div');
+          header.className = 'd-flex justify-content-between align-items-center flex-wrap gap-2';
+          const title = document.createElement('div');
+          title.className = 'fw-semibold';
+          title.textContent = direction.value;
+          const actions = document.createElement('div');
+          actions.className = 'btn-group btn-group-sm';
+          const renameBtn = document.createElement('button');
+          renameBtn.type = 'button';
+          renameBtn.className = 'btn btn-outline-secondary';
+          renameBtn.dataset.action = 'rename-direction';
+          renameBtn.dataset.id = direction.id;
+          renameBtn.textContent = 'Переименовать';
+          const deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.className = 'btn btn-outline-danger';
+          deleteBtn.dataset.action = 'delete-direction';
+          deleteBtn.dataset.id = direction.id;
+          deleteBtn.textContent = 'Удалить';
+          actions.append(renameBtn, deleteBtn);
+          header.append(title, actions);
+          item.appendChild(header);
+          if (Array.isArray(direction.subtypes) && direction.subtypes.length) {
+            const subList = document.createElement('ul');
+            subList.className = 'list-unstyled mt-2 mb-0 ps-3';
+            direction.subtypes.forEach((sub) => {
+              const subItem = document.createElement('li');
+              subItem.className = 'd-flex justify-content-between align-items-center gap-2 flex-wrap py-1';
+              const label = document.createElement('span');
+              label.textContent = sub.value;
+              const buttons = document.createElement('div');
+              buttons.className = 'btn-group btn-group-sm';
+              const subRename = document.createElement('button');
+              subRename.type = 'button';
+              subRename.className = 'btn btn-outline-secondary';
+              subRename.dataset.action = 'rename-subtype';
+              subRename.dataset.id = sub.id;
+              subRename.dataset.parentId = direction.id;
+              subRename.textContent = 'Переименовать';
+              const subDelete = document.createElement('button');
+              subDelete.type = 'button';
+              subDelete.className = 'btn btn-outline-danger';
+              subDelete.dataset.action = 'delete-subtype';
+              subDelete.dataset.id = sub.id;
+              subDelete.textContent = 'Удалить';
+              buttons.append(subRename, subDelete);
+              subItem.append(label, buttons);
+              subList.appendChild(subItem);
+            });
+            item.appendChild(subList);
+          }
+          directionsListEl.appendChild(item);
+        });
+      }
+
+      function populateSubtypeDirectionSelect() {
+        if (!subtypeDirectionSelect) return;
+        subtypeDirectionSelect.innerHTML = '';
+        if (!taxonomyState.directions.length) {
+          const placeholder = new Option('Сначала добавьте направление', '');
+          placeholder.disabled = true;
+          placeholder.selected = true;
+          subtypeDirectionSelect.appendChild(placeholder);
+          subtypeDirectionSelect.disabled = true;
+          return;
+        }
+        subtypeDirectionSelect.disabled = false;
+        taxonomyState.directions.forEach((direction, index) => {
+          const option = new Option(direction.value, direction.id);
+          if (index === 0) {
+            option.selected = true;
+          }
+          subtypeDirectionSelect.appendChild(option);
+        });
+      }
+
+      function renderChipList(container, items, category) {
+        if (!container) return;
+        container.innerHTML = '';
+        if (!items.length) {
+          const empty = document.createElement('div');
+          empty.className = 'text-muted small';
+          empty.textContent = 'Список пуст';
+          container.appendChild(empty);
+          return;
+        }
+        items.forEach((item) => {
+          const badge = document.createElement('span');
+          badge.className = 'badge text-bg-light d-inline-flex align-items-center gap-2 p-2';
+          badge.dataset.id = item.id;
+          badge.dataset.category = category;
+          badge.textContent = item.value;
+          const buttons = document.createElement('span');
+          buttons.className = 'btn-group btn-group-sm';
+          const rename = document.createElement('button');
+          rename.type = 'button';
+          rename.className = 'btn btn-link p-0 text-secondary';
+          rename.dataset.action = 'rename-taxonomy';
+          rename.dataset.category = category;
+          rename.dataset.id = item.id;
+          rename.textContent = '✏️';
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'btn btn-link p-0 text-danger';
+          del.dataset.action = 'delete-taxonomy';
+          del.dataset.category = category;
+          del.dataset.id = item.id;
+          del.textContent = '✖';
+          buttons.append(rename, del);
+          badge.appendChild(buttons);
+          container.appendChild(badge);
+        });
+      }
+
+      function renderTypeList() {
+        renderChipList(typesListEl, taxonomyState.types, 'type');
+      }
+
+      function renderStatusList() {
+        renderChipList(statusesListEl, taxonomyState.statuses, 'status');
+      }
+
+      async function createTaxonomyEntry(payload) {
+        const response = await fetch('/api/knowledge_base/taxonomy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Не удалось сохранить элемент');
+        }
+        syncTaxonomyState(data.items);
+      }
+
+      async function updateTaxonomyEntry(id, payload) {
+        const response = await fetch(`/api/knowledge_base/taxonomy/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Не удалось обновить элемент');
+        }
+        syncTaxonomyState(data.items);
+      }
+
+      async function deleteTaxonomyEntry(id) {
+        const response = await fetch(`/api/knowledge_base/taxonomy/${id}`, {
+          method: 'DELETE',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Не удалось удалить элемент');
+        }
+        syncTaxonomyState(data.items);
+      }
+
+      renderTaxonomySections();
+
+      addDirectionForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const value = (newDirectionInput?.value || '').trim();
+        if (!value) return;
+        try {
+          await createTaxonomyEntry({ category: 'direction', value });
+          newDirectionInput.value = '';
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      addSubtypeForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!subtypeDirectionSelect) return;
+        const value = (newSubtypeInput?.value || '').trim();
+        const parentId = subtypeDirectionSelect.value;
+        if (!value || !parentId) return;
+        try {
+          await createTaxonomyEntry({ category: 'direction_subtype', value, parent_id: Number(parentId) });
+          newSubtypeInput.value = '';
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      addTypeForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const value = (newTypeInput?.value || '').trim();
+        if (!value) return;
+        try {
+          await createTaxonomyEntry({ category: 'type', value });
+          newTypeInput.value = '';
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      addStatusForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const value = (newStatusInput?.value || '').trim();
+        if (!value) return;
+        try {
+          await createTaxonomyEntry({ category: 'status', value });
+          newStatusInput.value = '';
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      directionsListEl?.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const id = Number(button.dataset.id);
+        if (!id) return;
+        const action = button.dataset.action;
+        try {
+          if (action === 'rename-direction') {
+            const current = taxonomyState.directions.find((item) => item.id === id);
+            const next = prompt('Новое название направления', current?.value || '');
+            if (!next || !next.trim()) return;
+            await updateTaxonomyEntry(id, { value: next.trim() });
+          } else if (action === 'delete-direction') {
+            if (confirm('Удалить направление и связанные подтипы?')) {
+              await deleteTaxonomyEntry(id);
+            }
+          } else if (action === 'rename-subtype') {
+            const parentId = Number(button.dataset.parentId);
+            const parent = taxonomyState.directions.find((item) => item.id === parentId);
+            const current = parent?.subtypes?.find((sub) => sub.id === id);
+            const next = prompt('Новое название подтипа', current?.value || '');
+            if (!next || !next.trim()) return;
+            await updateTaxonomyEntry(id, { value: next.trim(), parent_id: parentId });
+          } else if (action === 'delete-subtype') {
+            if (confirm('Удалить подтип?')) {
+              await deleteTaxonomyEntry(id);
+            }
+          }
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      function handleChipAction(event, category) {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const id = Number(button.dataset.id);
+        if (!id) return;
+        if (button.dataset.category !== category) return;
+        const items = category === 'type' ? taxonomyState.types : taxonomyState.statuses;
+        const current = items.find((item) => item.id === id);
+        if (!current) return;
+        if (button.dataset.action === 'rename-taxonomy') {
+          const next = prompt('Новое значение', current.value || '');
+          if (!next || !next.trim()) return;
+          updateTaxonomyEntry(id, { value: next.trim() }).catch((error) => alert(error.message));
+        } else if (button.dataset.action === 'delete-taxonomy') {
+          if (confirm('Удалить элемент?')) {
+            deleteTaxonomyEntry(id).catch((error) => alert(error.message));
+          }
+        }
+      }
+
+      typesListEl?.addEventListener('click', (event) => handleChipAction(event, 'type'));
+      statusesListEl?.addEventListener('click', (event) => handleChipAction(event, 'status'));
 
       function normalize(value) {
         return (value || '').trim();
