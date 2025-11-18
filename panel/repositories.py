@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import Iterator
 
 from .models import BotCredential, Channel, ChannelNotification
-from .secrets import decrypt_token, encrypt_token, mask_token, SecretStorageError
+from .secret_utils import (
+    decrypt_token,
+    encrypt_token,
+    mask_token,
+    SecretStorageError,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "tickets.db"
