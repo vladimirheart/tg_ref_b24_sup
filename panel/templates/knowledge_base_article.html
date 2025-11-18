@@ -116,6 +116,27 @@
       transform-origin: center center;
     }
 
+    .kb-meta-summary-row {
+      gap: 1rem;
+    }
+
+    .kb-meta-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .kb-meta-summary-item {
+      display: inline-flex;
+      gap: 0.35rem;
+      align-items: baseline;
+      font-size: 0.85rem;
+    }
+
+    .kb-meta-summary-label {
+      color: #6c757d;
+    }
+
     .kb-card-toggle {
       border: none;
       box-shadow: none;
@@ -140,11 +161,47 @@
   <main class="main-content container-fluid">
     <div class="container-fluid mt-4">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
+        <div class="flex-grow-1">
           <a href="{{ url_for('knowledge_base_page') }}" class="text-decoration-none small">← К списку статей</a>
           <h2 class="mb-0 mt-2">{{ 'Редактирование статьи' if article.id else 'Новая статья' }}</h2>
-          <div class="text-muted small" id="kbArticleIdBadge" {% if not article.id %}style="display: none;"{% endif %}>
-            ID статьи: <span id="kbArticleIdValue">{{ article.id }}</span>
+          <div class="text-muted small d-flex flex-wrap align-items-center kb-meta-summary-row" id="kbArticleSummaryRow">
+            <div id="kbArticleIdBadge" {% if not article.id %}style="display: none;"{% endif %}>
+              ID статьи: <span id="kbArticleIdValue">{{ article.id }}</span>
+            </div>
+            <div class="kb-meta-summary" id="kbMetaSummary">
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Название:</span>
+                <span id="kbMetaSummaryTitle">—</span>
+              </span>
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Направление:</span>
+                <span id="kbMetaSummaryDirection">—</span>
+              </span>
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Подтип направления:</span>
+                <span id="kbMetaSummarySubDirection">—</span>
+              </span>
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Отдел:</span>
+                <span id="kbMetaSummaryDepartment">—</span>
+              </span>
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Тип:</span>
+                <span id="kbMetaSummaryTypes">—</span>
+              </span>
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Статус:</span>
+                <span id="kbMetaSummaryStatus">—</span>
+              </span>
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Автор:</span>
+                <span id="kbMetaSummaryAuthor">—</span>
+              </span>
+              <span class="kb-meta-summary-item">
+                <span class="kb-meta-summary-label">Краткое описание:</span>
+                <span id="kbMetaSummaryDescription">—</span>
+              </span>
+            </div>
           </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
@@ -154,71 +211,86 @@
       </div>
 
       <div class="card shadow-sm border-0 mb-4 article-meta-card">
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-12">
-              <label for="kbTitle" class="form-label">Название *</label>
-              <input type="text" id="kbTitle" class="form-control" placeholder="Введите название статьи" />
-            </div>
-            <div class="col-md-6 col-lg-4">
-              <label for="kbDirection" class="form-label">Направление</label>
-              <select id="kbDirection" class="form-select">
-                <option value="">Без направления</option>
-              </select>
-            </div>
-            <div class="col-md-6 col-lg-4">
-              <label for="kbSubDirection" class="form-label">Подтип направления</label>
-              <select id="kbSubDirection" class="form-select" disabled>
-                <option value="">Без подтипа</option>
-              </select>
-            </div>
-            <div class="col-md-6 col-lg-4">
-              <label for="kbDepartment" class="form-label">Отдел</label>
-              <select id="kbDepartment" class="form-select">
-                <option value="">Без отдела</option>
-              </select>
-            </div>
-            <div class="col-md-6 col-lg-4">
-              <label for="kbTypeDropdownButton" class="form-label">Тип</label>
-              <div class="kb-type-dropdown dropdown">
-                <button
-                  class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                  type="button"
-                  id="kbTypeDropdownButton"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  Выберите типы
-                </button>
-                <div class="dropdown-menu kb-type-menu p-2" aria-labelledby="kbTypeDropdownButton" id="kbTypeDropdownMenu">
-                  <div class="kb-type-empty-text text-muted small" id="kbTypeEmptyState">Нет доступных типов</div>
-                  <div id="kbTypeOptions" class="kb-type-options"></div>
-                  <div class="mt-2" id="kbTypeCustomWrapper">
-                    <label class="form-label small mb-1" for="kbTypeCustomInput">Добавить собственный тип</label>
-                    <div class="input-group input-group-sm">
-                      <input type="text" class="form-control" id="kbTypeCustomInput" placeholder="Например, FAQ" />
-                      <button class="btn btn-outline-primary" type="button" id="kbTypeCustomAdd">Добавить</button>
+        <div class="card-header d-flex justify-content-between align-items-center gap-3">
+          <button
+            class="kb-card-toggle btn btn-link text-decoration-none text-reset flex-grow-1 text-start d-flex justify-content-between align-items-center"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#kbMetaCollapse"
+            aria-expanded="{{ 'true' if not article.id else 'false' }}"
+            aria-controls="kbMetaCollapse"
+          >
+            <span class="fw-semibold">Основная информация</span>
+            <span class="kb-collapse-indicator" aria-hidden="true">▾</span>
+          </button>
+        </div>
+        <div class="collapse{% if not article.id %} show{% endif %}" id="kbMetaCollapse">
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="kbTitle" class="form-label">Название *</label>
+                <input type="text" id="kbTitle" class="form-control" placeholder="Введите название статьи" />
+              </div>
+              <div class="col-md-6 col-lg-4">
+                <label for="kbDirection" class="form-label">Направление</label>
+                <select id="kbDirection" class="form-select">
+                  <option value="">Без направления</option>
+                </select>
+              </div>
+              <div class="col-md-6 col-lg-4">
+                <label for="kbSubDirection" class="form-label">Подтип направления</label>
+                <select id="kbSubDirection" class="form-select" disabled>
+                  <option value="">Без подтипа</option>
+                </select>
+              </div>
+              <div class="col-md-6 col-lg-4">
+                <label for="kbDepartment" class="form-label">Отдел</label>
+                <select id="kbDepartment" class="form-select">
+                  <option value="">Без отдела</option>
+                </select>
+              </div>
+              <div class="col-md-6 col-lg-4">
+                <label for="kbTypeDropdownButton" class="form-label">Тип</label>
+                <div class="kb-type-dropdown dropdown">
+                  <button
+                    class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                    type="button"
+                    id="kbTypeDropdownButton"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                  >
+                    Выберите типы
+                  </button>
+                  <div class="dropdown-menu kb-type-menu p-2" aria-labelledby="kbTypeDropdownButton" id="kbTypeDropdownMenu">
+                    <div class="kb-type-empty-text text-muted small" id="kbTypeEmptyState">Нет доступных типов</div>
+                    <div id="kbTypeOptions" class="kb-type-options"></div>
+                    <div class="mt-2" id="kbTypeCustomWrapper">
+                      <label class="form-label small mb-1" for="kbTypeCustomInput">Добавить собственный тип</label>
+                      <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" id="kbTypeCustomInput" placeholder="Например, FAQ" />
+                        <button class="btn btn-outline-primary" type="button" id="kbTypeCustomAdd">Добавить</button>
+                      </div>
                     </div>
                   </div>
                 </div>
+                <div class="form-text">Можно выбрать несколько значений</div>
               </div>
-              <div class="form-text">Можно выбрать несколько значений</div>
-            </div>
-            <div class="col-md-6 col-lg-4">
-              <label for="kbStatus" class="form-label">Статус</label>
-              <select id="kbStatus" class="form-select">
-                <option value="">Без статуса</option>
-              </select>
-            </div>
-            <div class="col-md-6 col-lg-4">
-              <label for="kbAuthor" class="form-label">Автор</label>
-              <select id="kbAuthor" class="form-select">
-                <option value="">Не указан</option>
-              </select>
-            </div>
-            <div class="col-12">
-              <label for="kbSummary" class="form-label">Краткое описание</label>
-              <textarea id="kbSummary" class="form-control" rows="3" placeholder="Опишите основную мысль статьи"></textarea>
+              <div class="col-md-6 col-lg-4">
+                <label for="kbStatus" class="form-label">Статус</label>
+                <select id="kbStatus" class="form-select">
+                  <option value="">Без статуса</option>
+                </select>
+              </div>
+              <div class="col-md-6 col-lg-4">
+                <label for="kbAuthor" class="form-label">Автор</label>
+                <select id="kbAuthor" class="form-select">
+                  <option value="">Не указан</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label for="kbSummary" class="form-label">Краткое описание</label>
+                <textarea id="kbSummary" class="form-control" rows="3" placeholder="Опишите основную мысль статьи"></textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -266,13 +338,16 @@
   <div class="modal fade kb-image-modal" id="kbImagePreviewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Просмотр изображения</h5>
+        <div class="modal-header flex-wrap gap-2">
+          <h5 class="modal-title me-auto">Просмотр изображения</h5>
           <div class="btn-group me-2" role="group" aria-label="Управление масштабом">
             <button type="button" class="btn btn-outline-secondary btn-sm" id="kbImageZoomOut">−</button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="kbImageZoomReset">100%</button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="kbImageZoomIn">+</button>
           </div>
+          <a class="btn btn-outline-secondary btn-sm" id="kbImageDownload" href="#" download target="_blank" rel="noopener">
+            ⬇ Скачать
+          </a>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body text-center">
@@ -315,9 +390,20 @@
       const uploadButton = document.getElementById('kbUploadButton');
       const articleIdBadge = document.getElementById('kbArticleIdBadge');
       const articleIdValue = document.getElementById('kbArticleIdValue');
+      const metaSummaryFields = {
+        title: document.getElementById('kbMetaSummaryTitle'),
+        direction: document.getElementById('kbMetaSummaryDirection'),
+        subDirection: document.getElementById('kbMetaSummarySubDirection'),
+        department: document.getElementById('kbMetaSummaryDepartment'),
+        types: document.getElementById('kbMetaSummaryTypes'),
+        status: document.getElementById('kbMetaSummaryStatus'),
+        author: document.getElementById('kbMetaSummaryAuthor'),
+        summary: document.getElementById('kbMetaSummaryDescription'),
+      };
       const imageModalEl = document.getElementById('kbImagePreviewModal');
       const imageModal = imageModalEl ? new bootstrap.Modal(imageModalEl) : null;
       const imagePreviewTarget = document.getElementById('kbImagePreviewTarget');
+      const imageDownloadButton = document.getElementById('kbImageDownload');
       const zoomControls = {
         in: document.getElementById('kbImageZoomIn'),
         out: document.getElementById('kbImageZoomOut'),
@@ -381,6 +467,19 @@
         if (!imageModal || !imagePreviewTarget) return;
         imagePreviewTarget.src = url;
         imagePreviewTarget.alt = title || '';
+        if (imageDownloadButton) {
+          if (url) {
+            imageDownloadButton.style.display = '';
+            imageDownloadButton.href = url;
+            if (title) {
+              imageDownloadButton.setAttribute('download', title);
+            } else {
+              imageDownloadButton.setAttribute('download', '');
+            }
+          } else {
+            imageDownloadButton.style.display = 'none';
+          }
+        }
         imageZoom = 1;
         updateImageZoom();
         imageModal.show();
@@ -526,8 +625,11 @@
           entry.checkbox.checked = selectedTypes.has(normalized);
         }
         updateTypeButtonLabel();
-        if (emitChange && beforeState !== selectedTypes.has(normalized)) {
-          markDirty();
+        if (beforeState !== selectedTypes.has(normalized)) {
+          if (emitChange) {
+            markDirty();
+          }
+          refreshMetaSummary();
         }
       }
 
@@ -585,6 +687,7 @@
           }
         });
         rebuildTypeOptions();
+        refreshMetaSummary();
       }
 
       function getSelectedTypes() {
@@ -613,6 +716,7 @@
           typeCustomInput.value = '';
         }
         markDirty();
+        refreshMetaSummary();
       }
 
       function extractArticleTypes(data) {
@@ -683,6 +787,30 @@
           articleIdBadge.style.display = '';
           articleIdValue.textContent = currentArticleId;
         }
+        refreshMetaSummary();
+      }
+
+      function formatSummaryValue(value, { fallback = '—', maxLength = 0 } = {}) {
+        const text = typeof value === 'string' ? value.trim() : '';
+        if (!text) {
+          return fallback;
+        }
+        if (maxLength && text.length > maxLength) {
+          return `${text.slice(0, maxLength - 1)}…`;
+        }
+        return text;
+      }
+
+      function refreshMetaSummary() {
+        if (!metaSummaryFields.title) return;
+        metaSummaryFields.title.textContent = formatSummaryValue(titleInput.value);
+        metaSummaryFields.direction.textContent = formatSummaryValue(directionInput.value);
+        metaSummaryFields.subDirection.textContent = formatSummaryValue(subDirectionInput.value);
+        metaSummaryFields.department.textContent = formatSummaryValue(departmentInput.value);
+        metaSummaryFields.types.textContent = formatSummaryValue(getSelectedTypes().join(', '));
+        metaSummaryFields.status.textContent = formatSummaryValue(statusInput.value);
+        metaSummaryFields.author.textContent = formatSummaryValue(authorInput.value);
+        metaSummaryFields.summary.textContent = formatSummaryValue(summaryInput.value, { maxLength: 160 });
       }
 
       function formatSize(bytes) {
@@ -899,9 +1027,12 @@
       document.addEventListener('paste', (event) => {
         const files = Array.from((event.clipboardData && event.clipboardData.files) || []);
         if (!files.length) return;
-        event.preventDefault();
         const insideEditor = isNodeInsideEditor(event.target);
-        processFilesQueue(files, { insertIntoEditor: insideEditor });
+        if (insideEditor) {
+          return;
+        }
+        event.preventDefault();
+        processFilesQueue(files);
       });
 
       const editor = new toastui.Editor({
@@ -932,24 +1063,6 @@
         },
       });
 
-      function setupEditorDropZone() {
-        const editorContents = document.querySelector('.toastui-editor-ww-container .toastui-editor-contents');
-        if (!editorContents) return;
-        ['dragenter', 'dragover'].forEach((eventName) => {
-          editorContents.addEventListener(eventName, (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          });
-        });
-        editorContents.addEventListener('drop', (event) => {
-          const files = Array.from(event.dataTransfer?.files || []);
-          if (!files.length) return;
-          event.preventDefault();
-          event.stopPropagation();
-          processFilesQueue(files, { insertIntoEditor: true });
-        });
-      }
-
       function setupTaskListExitHelper() {
         const wwContents = document.querySelector('.toastui-editor-ww-container .toastui-editor-contents');
         if (!wwContents) return;
@@ -979,13 +1092,31 @@
         );
       }
 
+      function setupEditorImagePreview() {
+        const containers = document.querySelectorAll(
+          '.toastui-editor-ww-container .toastui-editor-contents, .toastui-editor-md-preview'
+        );
+        containers.forEach((container) => {
+          container.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof Element) || target.tagName !== 'IMG') {
+              return;
+            }
+            const src = target.getAttribute('src');
+            if (!src) return;
+            event.preventDefault();
+            openImagePreview(src, target.getAttribute('alt') || '');
+          });
+        });
+      }
+
       if (articleData.content) {
         editor.setHTML(articleData.content);
       }
 
       setTimeout(() => {
-        setupEditorDropZone();
         setupTaskListExitHelper();
+        setupEditorImagePreview();
       }, 400);
 
       pauseDirtyTracking();
@@ -999,12 +1130,17 @@
         const nextValue = directionInput.value;
         populateSubDirectionOptions(nextValue);
         subDirectionInput.value = '';
+        refreshMetaSummary();
       });
 
       [titleInput, directionInput, subDirectionInput, departmentInput, statusInput, authorInput, summaryInput].forEach((input) => {
         if (!input) return;
-        input.addEventListener('input', markDirty);
-        input.addEventListener('change', markDirty);
+        const handler = () => {
+          markDirty();
+          refreshMetaSummary();
+        };
+        input.addEventListener('input', handler);
+        input.addEventListener('change', handler);
       });
 
       if (typeCustomAddButton) {
