@@ -456,7 +456,7 @@
             <div class="col-12 col-lg-6 d-none" id="statusTaskContainer">
               <label class="form-label">Связанная задача<span class="text-danger">*</span></label>
               <div class="select-search-wrapper">
-                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusTaskSelect" id="statusTaskSearchInput" placeholder="Поиск по номеру или названию" autocomplete="off" data-no-auto-resize="true" />
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusTaskSelect" id="statusTaskSearchInput" placeholder="Поиск по номеру или названию" autocomplete="off" data-no-auto-resize="true" data-unsaved-ignore="true" />
                 <select class="form-select form-select-sm" id="statusTaskSelect">
                   <option value="">Не выбрано</option>
                 </select>
@@ -1712,6 +1712,72 @@
     let currentPhotoPreviewList = [];
     let statusHistoryCollapseInstance = null;
     const searchableSelectRegistry = new Map();
+    const passportDirtyRoot = document.querySelector('.passport-container');
+    let hasPassportUnsavedChanges = false;
+    let passportDirtyPauseCount = 0;
+    let passportDirtyReady = false;
+
+    function handlePassportBeforeUnload(event) {
+      if (!hasPassportUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    }
+
+    function syncPassportBeforeUnload() {
+      if (hasPassportUnsavedChanges) {
+        window.addEventListener('beforeunload', handlePassportBeforeUnload);
+      } else {
+        window.removeEventListener('beforeunload', handlePassportBeforeUnload);
+      }
+    }
+
+    function pausePassportDirtyTracking() {
+      passportDirtyPauseCount += 1;
+    }
+
+    function resumePassportDirtyTracking() {
+      passportDirtyPauseCount = Math.max(0, passportDirtyPauseCount - 1);
+      if (passportDirtyPauseCount === 0) {
+        passportDirtyReady = true;
+      }
+    }
+
+    function resetPassportDirty() {
+      if (!hasPassportUnsavedChanges) {
+        syncPassportBeforeUnload();
+        return;
+      }
+      hasPassportUnsavedChanges = false;
+      syncPassportBeforeUnload();
+    }
+
+    function markPassportDirty() {
+      if (!passportDirtyReady || passportDirtyPauseCount > 0 || hasPassportUnsavedChanges) {
+        return;
+      }
+      hasPassportUnsavedChanges = true;
+      syncPassportBeforeUnload();
+    }
+
+    function shouldTrackPassportElement(target) {
+      if (!(target instanceof HTMLElement)) return false;
+      if (!passportDirtyRoot || !passportDirtyRoot.contains(target)) return false;
+      if (target.closest('[data-unsaved-ignore="true"]')) return false;
+      if (!target.matches('input, textarea, select')) return false;
+      if (target.matches('input[type="file"]')) return false;
+      return Boolean(target.closest('.passport-card'));
+    }
+
+    ['input', 'change'].forEach((eventName) => {
+      document.addEventListener(
+        eventName,
+        (event) => {
+          if (!shouldTrackPassportElement(event.target)) return;
+          markPassportDirty();
+        },
+        true,
+      );
+    });
 
     function closeOtherSearchableSelects(exceptId) {
       searchableSelectRegistry.forEach((state, id) => {
@@ -2397,6 +2463,7 @@
     }
 
     function populateForm() {
+      pausePassportDirtyTracking();
       const data = passportData || {};
       ensureSelectHasOption(departmentSelect, data.department || '');
       departmentSelect.value = data.department || '';
@@ -2470,6 +2537,8 @@
       initializeAutoResizeInputs();
       toggleSectionsAvailability();
       updateStatusTaskRequirement();
+      resetPassportDirty();
+      resumePassportDirtyTracking();
     }
 
     function collectFormData() {
