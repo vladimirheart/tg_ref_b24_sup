@@ -115,6 +115,24 @@
       transition: transform 0.15s ease;
       transform-origin: center center;
     }
+
+    .kb-card-toggle {
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .kb-card-toggle:focus {
+      box-shadow: none;
+    }
+
+    .kb-card-toggle .kb-collapse-indicator {
+      transition: transform 0.2s ease;
+    }
+
+    .kb-card-toggle[aria-expanded='true'] .kb-collapse-indicator {
+      transform: rotate(180deg);
+    }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
@@ -207,17 +225,29 @@
       </div>
 
       <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <span class="fw-semibold">Файлы и вложения</span>
+        <div class="card-header d-flex justify-content-between align-items-center gap-3">
+          <button
+            class="kb-card-toggle btn btn-link text-decoration-none text-reset flex-grow-1 text-start d-flex justify-content-between align-items-center"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#kbAttachmentsCollapse"
+            aria-expanded="false"
+            aria-controls="kbAttachmentsCollapse"
+          >
+            <span class="fw-semibold">Файлы и вложения</span>
+            <span class="kb-collapse-indicator" aria-hidden="true">▾</span>
+          </button>
           <button class="btn btn-outline-primary btn-sm" type="button" id="kbUploadButton">📎 Прикрепить файлы</button>
         </div>
-        <div class="card-body">
-          <div id="kbAttachmentDropzone" class="kb-dropzone text-center">
-            <div class="fw-semibold">Перетащите файлы сюда или используйте кнопку «Прикрепить»</div>
-            <div class="text-muted small">Поддерживаются drag&amp;drop, вставка из буфера обмена и загрузка через диалог выбора</div>
+        <div class="collapse" id="kbAttachmentsCollapse">
+          <div class="card-body">
+            <div id="kbAttachmentDropzone" class="kb-dropzone text-center">
+              <div class="fw-semibold">Перетащите файлы сюда или используйте кнопку «Прикрепить»</div>
+              <div class="text-muted small">Поддерживаются drag&amp;drop, вставка из буфера обмена и загрузка через диалог выбора</div>
+            </div>
+            <input type="file" id="kbAttachmentInput" class="d-none" multiple />
+            <ul class="list-group list-group-flush mt-3" id="kbAttachmentList"></ul>
           </div>
-          <input type="file" id="kbAttachmentInput" class="d-none" multiple />
-          <ul class="list-group list-group-flush mt-3" id="kbAttachmentList"></ul>
         </div>
       </div>
 
@@ -679,6 +709,35 @@
         }
       }
 
+      function getAttachmentKey(file) {
+        if (!file) return null;
+        return (
+          file.id ??
+          file.inline_url ??
+          file.download_url ??
+          (file.name ? `${file.name}-${file.size || 0}` : null)
+        );
+      }
+
+      function upsertAttachment(file, { silent = false } = {}) {
+        if (!file) return null;
+        const key = getAttachmentKey(file);
+        let index = -1;
+        if (key) {
+          index = attachments.findIndex((item) => getAttachmentKey(item) === key);
+        }
+        if (index >= 0) {
+          attachments[index] = file;
+        } else {
+          attachments.push(file);
+        }
+        if (!silent) {
+          renderAttachments();
+          markDirty();
+        }
+        return file;
+      }
+
       function renderAttachments() {
         attachmentList.innerHTML = '';
         if (!attachments.length) {
@@ -791,10 +850,7 @@
         if (!data.success || !data.file) {
           throw new Error('Не удалось загрузить файл');
         }
-        attachments.push(data.file);
-        renderAttachments();
-        markDirty();
-        return data.file;
+        return upsertAttachment(data.file);
       }
 
       attachmentInput.addEventListener('change', async (event) => {
