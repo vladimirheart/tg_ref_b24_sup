@@ -23,14 +23,19 @@ import unicodedata
 import time, sqlite3
 import html
 from uuid import uuid4, uuid5, NAMESPACE_URL
+from pathlib import Path
 import sys
 import shutil
 import hashlib
-from pathlib import Path
 import secrets
 from functools import wraps
 from typing import Any, Iterable
 from urllib.parse import quote
+
+CURRENT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = CURRENT_DIR.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import requests
 
@@ -45,10 +50,6 @@ from panel.repositories import (
     ensure_tables as ensure_channel_tables,
 )
 from panel.secrets import mask_token
-
-PARENT_DIR = Path(__file__).resolve().parent.parent
-if str(PARENT_DIR) not in sys.path:
-    sys.path.insert(0, str(PARENT_DIR))
 
 from bot_settings_utils import (
     DEFAULT_BOT_PRESET_DEFINITIONS,
