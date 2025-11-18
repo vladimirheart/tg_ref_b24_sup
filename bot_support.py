@@ -8,7 +8,11 @@ import re
 import asyncio
 import signal, sys
 
-from panel.repositories import BotCredentialRepository, ChannelRepository
+from panel.repositories import (
+    BotCredentialRepository,
+    ChannelRepository,
+    ensure_tables as ensure_channel_tables,
+)
 from panel.secrets import SecretStorageError, decrypt_token
 from datetime import datetime, timezone
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -178,6 +182,7 @@ def ensure_channel_public_ids():
             pass
 
 
+ensure_channel_tables()
 ensure_channel_platform_columns()
 ensure_channel_public_ids()
 
