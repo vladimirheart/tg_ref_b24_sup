@@ -12,7 +12,7 @@ from vk_api import VkApi
 from vk_api.exceptions import VkApiError
 
 from .repositories import BotCredentialRepository
-from .secrets import decrypt_token, SecretStorageError
+from .secret_utils import decrypt_token, SecretStorageError
 
 
 log = logging.getLogger(__name__)
