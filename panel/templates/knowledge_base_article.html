@@ -46,6 +46,26 @@
       font-size: 0.8rem;
     }
 
+    .kb-attachment-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .kb-attachment-thumb {
+      width: 72px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 0.5rem;
+      box-shadow: 0 0.35rem 0.9rem rgba(15, 23, 42, 0.12);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      cursor: zoom-in;
+    }
+
+    .kb-attachment-thumb + .fw-semibold {
+      margin-bottom: 0;
+    }
+
     .kb-status-message {
       min-height: 1.5rem;
     }
@@ -57,6 +77,11 @@
 
     .toastui-editor-defaultUI {
       border: none;
+    }
+
+    .kb-image-modal img {
+      transition: transform 0.15s ease;
+      transform-origin: center center;
     }
   </style>
 </head>
@@ -87,27 +112,38 @@
             </div>
             <div class="col-md-6 col-lg-4">
               <label for="kbDirection" class="form-label">Направление</label>
-              <input type="text" id="kbDirection" class="form-control" placeholder="Направление" />
+              <select id="kbDirection" class="form-select">
+                <option value="">Без направления</option>
+              </select>
             </div>
             <div class="col-md-6 col-lg-4">
               <label for="kbSubDirection" class="form-label">Подтип направления</label>
-              <input type="text" id="kbSubDirection" class="form-control" placeholder="Подтип" />
+              <select id="kbSubDirection" class="form-select" disabled>
+                <option value="">Без подтипа</option>
+              </select>
             </div>
             <div class="col-md-6 col-lg-4">
               <label for="kbDepartment" class="form-label">Отдел</label>
-              <input type="text" id="kbDepartment" class="form-control" placeholder="Отдел" />
+              <select id="kbDepartment" class="form-select">
+                <option value="">Без отдела</option>
+              </select>
             </div>
             <div class="col-md-6 col-lg-4">
               <label for="kbType" class="form-label">Тип</label>
-              <input type="text" id="kbType" class="form-control" placeholder="Тип статьи" />
+              <select id="kbType" class="form-select" multiple></select>
+              <div class="form-text">Можно выбрать несколько значений</div>
             </div>
             <div class="col-md-6 col-lg-4">
               <label for="kbStatus" class="form-label">Статус</label>
-              <input type="text" id="kbStatus" class="form-control" placeholder="Статус" />
+              <select id="kbStatus" class="form-select">
+                <option value="">Без статуса</option>
+              </select>
             </div>
             <div class="col-md-6 col-lg-4">
               <label for="kbAuthor" class="form-label">Автор</label>
-              <input type="text" id="kbAuthor" class="form-control" placeholder="Автор" />
+              <select id="kbAuthor" class="form-select">
+                <option value="">Не указан</option>
+              </select>
             </div>
             <div class="col-12">
               <label for="kbSummary" class="form-label">Краткое описание</label>
@@ -142,13 +178,35 @@
   </main>
 
   <input type="hidden" id="kbDraftToken" value="{{ draft_token }}" />
+  <input type="hidden" id="kbSuggestedTitle" value="{{ suggested_title or '' }}" />
+
+  <div class="modal fade kb-image-modal" id="kbImagePreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Просмотр изображения</h5>
+          <div class="btn-group me-2" role="group" aria-label="Управление масштабом">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="kbImageZoomOut">−</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="kbImageZoomReset">100%</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="kbImageZoomIn">+</button>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img src="" alt="" id="kbImagePreviewTarget" class="img-fluid" />
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
   <script>
     (function () {
       const articleData = {{ article | tojson | safe }} || {};
+      const kbMeta = {{ kb_meta | tojson | safe }} || {};
       const draftToken = document.getElementById('kbDraftToken').value;
+      const suggestedTitle = document.getElementById('kbSuggestedTitle').value;
       let currentArticleId = articleData.id || null;
       let attachments = Array.isArray(articleData.files) ? articleData.files.slice() : [];
 
@@ -168,6 +226,176 @@
       const uploadButton = document.getElementById('kbUploadButton');
       const articleIdBadge = document.getElementById('kbArticleIdBadge');
       const articleIdValue = document.getElementById('kbArticleIdValue');
+      const imageModalEl = document.getElementById('kbImagePreviewModal');
+      const imageModal = imageModalEl ? new bootstrap.Modal(imageModalEl) : null;
+      const imagePreviewTarget = document.getElementById('kbImagePreviewTarget');
+      const zoomControls = {
+        in: document.getElementById('kbImageZoomIn'),
+        out: document.getElementById('kbImageZoomOut'),
+        reset: document.getElementById('kbImageZoomReset'),
+      };
+      let imageZoom = 1;
+
+      function isImageFile(file) {
+        const mime = String(file?.mime_type || '').toLowerCase();
+        if (mime.startsWith('image/')) return true;
+        const name = String(file?.name || '').toLowerCase();
+        return /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(name);
+      }
+
+      function updateImageZoom() {
+        if (!imagePreviewTarget) return;
+        imagePreviewTarget.style.transform = `scale(${imageZoom})`;
+      }
+
+      function openImagePreview(url, title) {
+        if (!imageModal || !imagePreviewTarget) return;
+        imagePreviewTarget.src = url;
+        imagePreviewTarget.alt = title || '';
+        imageZoom = 1;
+        updateImageZoom();
+        imageModal.show();
+      }
+
+      if (zoomControls.in) {
+        zoomControls.in.addEventListener('click', () => {
+          imageZoom = Math.min(3, imageZoom + 0.2);
+          updateImageZoom();
+        });
+      }
+      if (zoomControls.out) {
+        zoomControls.out.addEventListener('click', () => {
+          imageZoom = Math.max(0.2, imageZoom - 0.2);
+          updateImageZoom();
+        });
+      }
+      if (zoomControls.reset) {
+        zoomControls.reset.addEventListener('click', () => {
+          imageZoom = 1;
+          updateImageZoom();
+        });
+      }
+
+      function populateDirectionOptions() {
+        const directions = Array.isArray(kbMeta.directions) ? kbMeta.directions : [];
+        directionInput.innerHTML = '';
+        directionInput.appendChild(new Option('Без направления', ''));
+        directions.forEach((item) => {
+          if (!item?.value) return;
+          const option = new Option(item.value, item.value);
+          option.dataset.id = item.id || '';
+          directionInput.appendChild(option);
+        });
+      }
+
+      function findDirectionEntry(value) {
+        const directions = Array.isArray(kbMeta.directions) ? kbMeta.directions : [];
+        return directions.find((entry) => (entry?.value || '').toLowerCase() === String(value || '').toLowerCase());
+      }
+
+      function populateSubDirectionOptions(selectedValue) {
+        const matched = findDirectionEntry(selectedValue);
+        subDirectionInput.innerHTML = '';
+        subDirectionInput.appendChild(new Option('Без подтипа', ''));
+        const items = matched && Array.isArray(matched.subtypes) ? matched.subtypes : [];
+        if (!items.length) {
+          subDirectionInput.disabled = true;
+          return;
+        }
+        subDirectionInput.disabled = false;
+        items.forEach((item) => {
+          if (!item?.value) return;
+          const option = new Option(item.value, item.value);
+          subDirectionInput.appendChild(option);
+        });
+      }
+
+      function ensureOption(select, value, label) {
+        if (!value) return;
+        const exists = Array.from(select.options).some((opt) => opt.value === value);
+        if (exists) return;
+        const option = new Option(label || value, value);
+        option.dataset.custom = '1';
+        select.appendChild(option);
+      }
+
+      function populateDepartmentOptions() {
+        const departments = Array.isArray(kbMeta.departments) ? kbMeta.departments : [];
+        departmentInput.innerHTML = '';
+        departmentInput.appendChild(new Option('Без отдела', ''));
+        departments.forEach((dept) => {
+          if (!dept?.label) return;
+          departmentInput.appendChild(new Option(dept.label, dept.label));
+        });
+      }
+
+      function populateTypeOptions() {
+        const types = Array.isArray(kbMeta.types) ? kbMeta.types : [];
+        typeInput.innerHTML = '';
+        types.forEach((type) => {
+          if (!type?.value) return;
+          typeInput.appendChild(new Option(type.value, type.value));
+        });
+      }
+
+      function populateStatusOptions() {
+        const statuses = Array.isArray(kbMeta.statuses) ? kbMeta.statuses : [];
+        statusInput.innerHTML = '';
+        statusInput.appendChild(new Option('Без статуса', ''));
+        statuses.forEach((status) => {
+          if (!status?.value) return;
+          statusInput.appendChild(new Option(status.value, status.value));
+        });
+      }
+
+      function populateAuthorOptions() {
+        const authors = Array.isArray(kbMeta.authors) ? kbMeta.authors : [];
+        authorInput.innerHTML = '';
+        authorInput.appendChild(new Option('Не указан', ''));
+        authors.forEach((author) => {
+          if (!author?.label) return;
+          authorInput.appendChild(new Option(author.label, author.label));
+        });
+      }
+
+      function ensureMultiSelectValues(select, values) {
+        const normalized = Array.isArray(values)
+          ? values.map((value) => String(value || '').trim()).filter(Boolean)
+          : [];
+        const existing = new Set(Array.from(select.options).map((opt) => opt.value));
+        normalized.forEach((value) => {
+          if (!existing.has(value)) {
+            const option = new Option(`${value} (не в справочнике)`, value);
+            option.dataset.custom = '1';
+            select.appendChild(option);
+          }
+        });
+        Array.from(select.options).forEach((opt) => {
+          opt.selected = normalized.includes(opt.value);
+        });
+      }
+
+      function getSelectedTypes() {
+        return Array.from(typeInput.selectedOptions).map((opt) => opt.value).filter(Boolean);
+      }
+
+      function extractArticleTypes(data) {
+        if (Array.isArray(data.article_types)) {
+          return data.article_types.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim());
+        }
+        if (typeof data.article_type === 'string' && data.article_type.trim()) {
+          return data.article_type.split(',').map((value) => value.trim()).filter(Boolean);
+        }
+        return [];
+      }
+
+      function populateMetadataControls() {
+        populateDirectionOptions();
+        populateDepartmentOptions();
+        populateTypeOptions();
+        populateStatusOptions();
+        populateAuthorOptions();
+      }
 
       function setStatus(message, type = 'success', timeout = 4000) {
         if (!message) {
@@ -184,12 +412,36 @@
 
       function populateForm() {
         titleInput.value = articleData.title || '';
-        directionInput.value = articleData.direction || '';
-        subDirectionInput.value = articleData.direction_subtype || '';
-        departmentInput.value = articleData.department || '';
-        typeInput.value = articleData.article_type || '';
-        statusInput.value = articleData.status || '';
-        authorInput.value = articleData.author || '';
+        if (!currentArticleId && !titleInput.value && suggestedTitle) {
+          titleInput.value = suggestedTitle;
+        }
+
+        const currentDirection = articleData.direction || '';
+        ensureOption(directionInput, currentDirection, currentDirection);
+        directionInput.value = currentDirection;
+        populateSubDirectionOptions(currentDirection);
+
+        const currentSubDirection = articleData.direction_subtype || '';
+        if (currentSubDirection) {
+          ensureOption(subDirectionInput, currentSubDirection, currentSubDirection);
+          subDirectionInput.disabled = false;
+        }
+        subDirectionInput.value = currentSubDirection;
+
+        const currentDepartment = articleData.department || '';
+        ensureOption(departmentInput, currentDepartment, currentDepartment);
+        departmentInput.value = currentDepartment;
+
+        ensureMultiSelectValues(typeInput, extractArticleTypes(articleData));
+
+        const currentStatus = articleData.status || '';
+        ensureOption(statusInput, currentStatus, currentStatus);
+        statusInput.value = currentStatus;
+
+        const currentAuthor = articleData.author || '';
+        ensureOption(authorInput, currentAuthor, currentAuthor);
+        authorInput.value = currentAuthor;
+
         summaryInput.value = articleData.summary || '';
         if (currentArticleId) {
           articleIdBadge.style.display = '';
@@ -209,6 +461,18 @@
         return `${size.toFixed(size >= 10 || index === 0 ? 0 : 1)} ${sizes[index]}`;
       }
 
+      function insertAttachmentReference(file, { preferImageInline = true } = {}) {
+        if (!file) return;
+        const link = file.download_url || file.inline_url;
+        if (!link) return;
+        const name = file.name || 'Файл';
+        if (preferImageInline && isImageFile(file) && file.inline_url) {
+          editor.insertText(`![${name}](${file.inline_url})`);
+        } else {
+          editor.insertText(`[${name}](${link})`);
+        }
+      }
+
       function renderAttachments() {
         attachmentList.innerHTML = '';
         if (!attachments.length) {
@@ -222,8 +486,18 @@
           const item = document.createElement('li');
           item.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2';
           const info = document.createElement('div');
-          info.className = 'me-2';
-          info.innerHTML = `<div class="fw-semibold">${file.name}</div><div class="text-muted small">${formatSize(file.size)}</div>`;
+          info.className = 'kb-attachment-info';
+          if (isImageFile(file) && file.inline_url) {
+            const thumb = document.createElement('img');
+            thumb.src = file.inline_url;
+            thumb.alt = file.name || '';
+            thumb.className = 'kb-attachment-thumb';
+            thumb.addEventListener('click', () => openImagePreview(file.inline_url, file.name));
+            info.appendChild(thumb);
+          }
+          const textWrap = document.createElement('div');
+          textWrap.innerHTML = `<div class="fw-semibold">${file.name}</div><div class="text-muted small">${formatSize(file.size)}</div>`;
+          info.appendChild(textWrap);
           const actions = document.createElement('div');
           actions.className = 'kb-attachment-actions btn-group';
           if (file.download_url) {
@@ -235,15 +509,12 @@
             downloadBtn.textContent = 'Скачать';
             actions.appendChild(downloadBtn);
           }
-          if (file.download_url) {
+          if (file.download_url || file.inline_url) {
             const insertBtn = document.createElement('button');
             insertBtn.type = 'button';
             insertBtn.className = 'btn btn-outline-secondary btn-sm';
-            insertBtn.textContent = 'Вставить ссылку';
-            insertBtn.addEventListener('click', () => {
-              const linkText = file.name || 'Файл';
-              editor.insertText(`[${linkText}](${file.download_url})`);
-            });
+            insertBtn.textContent = 'Вставить в текст';
+            insertBtn.addEventListener('click', () => insertAttachmentReference(file));
             actions.appendChild(insertBtn);
           }
           const removeBtn = document.createElement('button');
@@ -274,6 +545,25 @@
         renderAttachments();
       }
 
+      async function processFilesQueue(files, { insertIntoEditor = false } = {}) {
+        const queue = Array.from(files || []);
+        if (!queue.length) return;
+        setStatus('Загрузка файлов...', 'info', 0);
+        for (const file of queue) {
+          try {
+            const uploaded = await uploadAttachment(file);
+            if (insertIntoEditor && uploaded) {
+              insertAttachmentReference(uploaded);
+            }
+          } catch (error) {
+            console.error(error);
+            setStatus(error.message || 'Не удалось загрузить файл', 'danger', 6000);
+          }
+        }
+        attachmentInput.value = '';
+        setStatus('Файлы загружены', 'success');
+      }
+
       async function uploadAttachment(file) {
         const formData = new FormData();
         formData.append('file', file, file.name || `file-${Date.now()}`);
@@ -302,17 +592,7 @@
       attachmentInput.addEventListener('change', async (event) => {
         const files = Array.from(event.target.files || []);
         if (!files.length) return;
-        setStatus('Загрузка файлов...', 'info', 0);
-        for (const file of files) {
-          try {
-            await uploadAttachment(file);
-          } catch (error) {
-            console.error(error);
-            setStatus(error.message, 'danger', 6000);
-          }
-        }
-        attachmentInput.value = '';
-        setStatus('Файлы загружены', 'success');
+        await processFilesQueue(files);
       });
 
       uploadButton.addEventListener('click', () => attachmentInput.click());
@@ -331,29 +611,33 @@
           if (eventName === 'drop') {
             const files = Array.from(event.dataTransfer.files || []);
             if (files.length) {
-              setStatus('Загрузка файлов...', 'info', 0);
-              files.reduce((promise, file) => {
-                return promise.then(() => uploadAttachment(file).catch((error) => {
-                  console.error(error);
-                  setStatus(error.message, 'danger', 6000);
-                }));
-              }, Promise.resolve()).then(() => setStatus('Файлы загружены', 'success'));
+              processFilesQueue(files);
             }
           }
           attachmentDropzone.classList.remove('dragover');
         });
       });
 
+      function isNodeInsideEditor(node) {
+        if (!node) return false;
+        if (node.closest) {
+          if (node.closest('.toastui-editor-defaultUI')) {
+            return true;
+          }
+        }
+        const parent = node.parentElement || node.parentNode;
+        if (parent && parent !== node) {
+          return isNodeInsideEditor(parent);
+        }
+        return false;
+      }
+
       document.addEventListener('paste', (event) => {
-        const items = event.clipboardData && event.clipboardData.files;
-        if (!items || !items.length) return;
-        setStatus('Загрузка файлов...', 'info', 0);
-        Array.from(items).reduce((promise, file) => {
-          return promise.then(() => uploadAttachment(file).catch((error) => {
-            console.error(error);
-            setStatus(error.message, 'danger', 6000);
-          }));
-        }, Promise.resolve()).then(() => setStatus('Файлы загружены', 'success'));
+        const files = Array.from((event.clipboardData && event.clipboardData.files) || []);
+        if (!files.length) return;
+        event.preventDefault();
+        const insideEditor = isNodeInsideEditor(event.target);
+        processFilesQueue(files, { insertIntoEditor: insideEditor });
       });
 
       const editor = new toastui.Editor({
@@ -384,20 +668,81 @@
         },
       });
 
+      function setupEditorDropZone() {
+        const editorContents = document.querySelector('.toastui-editor-ww-container .toastui-editor-contents');
+        if (!editorContents) return;
+        ['dragenter', 'dragover'].forEach((eventName) => {
+          editorContents.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          });
+        });
+        editorContents.addEventListener('drop', (event) => {
+          const files = Array.from(event.dataTransfer?.files || []);
+          if (!files.length) return;
+          event.preventDefault();
+          event.stopPropagation();
+          processFilesQueue(files, { insertIntoEditor: true });
+        });
+      }
+
+      function setupTaskListExitHelper() {
+        const wwContents = document.querySelector('.toastui-editor-ww-container .toastui-editor-contents');
+        if (!wwContents) return;
+        wwContents.addEventListener(
+          'keydown',
+          (event) => {
+            if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+              return;
+            }
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return;
+            let node = selection.anchorNode;
+            if (node && node.nodeType === Node.TEXT_NODE) {
+              node = node.parentElement;
+            }
+            const listItem = node?.closest ? node.closest('li') : null;
+            if (!listItem) return;
+            const textContent = listItem.textContent.replace(/\u200B/g, '').trim();
+            if (textContent) return;
+            event.preventDefault();
+            editor.exec('taskList');
+            setTimeout(() => {
+              editor.insertText('\n');
+            }, 0);
+          },
+          true
+        );
+      }
+
       if (articleData.content) {
         editor.setHTML(articleData.content);
       }
 
+      setTimeout(() => {
+        setupEditorDropZone();
+        setupTaskListExitHelper();
+      }, 400);
+
+      populateMetadataControls();
       populateForm();
       renderAttachments();
 
+      directionInput.addEventListener('change', () => {
+        const nextValue = directionInput.value;
+        populateSubDirectionOptions(nextValue);
+        subDirectionInput.value = '';
+      });
+
       async function saveArticle() {
+        const selectedTypes = getSelectedTypes();
         const payload = {
           title: titleInput.value.trim(),
           direction: directionInput.value.trim(),
           direction_subtype: subDirectionInput.value.trim(),
           department: departmentInput.value.trim(),
-          article_type: typeInput.value.trim(),
+          article_type: selectedTypes.join(', '),
+          article_types: selectedTypes,
           status: statusInput.value.trim(),
           author: authorInput.value.trim(),
           summary: summaryInput.value.trim(),
