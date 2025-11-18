@@ -1459,6 +1459,7 @@ def ensure_knowledge_base_schema():
         expected_columns = {
             "department": "TEXT",
             "article_type": "TEXT",
+            "article_types": "TEXT",
             "status": "TEXT",
             "author": "TEXT",
             "direction": "TEXT",
@@ -1495,6 +1496,46 @@ def ensure_knowledge_base_schema():
         )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_kb_files_draft ON knowledge_article_files(draft_token)"
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_taxonomy_values (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT NOT NULL,
+                value TEXT NOT NULL,
+                parent_id INTEGER,
+                sort_order INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                FOREIGN KEY(parent_id) REFERENCES knowledge_taxonomy_values(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_kb_taxonomy_category ON knowledge_taxonomy_values(category)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_kb_taxonomy_parent ON knowledge_taxonomy_values(parent_id)"
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ticket_knowledge_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id TEXT NOT NULL,
+                channel_id INTEGER,
+                channel_key INTEGER NOT NULL DEFAULT -1,
+                article_id INTEGER,
+                article_title TEXT,
+                assigned_by_id INTEGER,
+                assigned_by_label TEXT,
+                assigned_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(article_id) REFERENCES knowledge_articles(id) ON DELETE SET NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_kb_usage_key ON ticket_knowledge_usage(ticket_id, channel_key)"
         )
 
 
@@ -6851,6 +6892,14 @@ def clients_list():
     )
 
 
+KB_TAXONOMY_ALLOWED_CATEGORIES = {
+    "direction",
+    "direction_subtype",
+    "type",
+    "status",
+}
+
+
 def _clean_kb_value(value: Any) -> str:
     if value is None:
         return ""
@@ -6859,12 +6908,65 @@ def _clean_kb_value(value: Any) -> str:
     return str(value)
 
 
+def _parse_article_types(value: Any) -> list[str]:
+    if not value and value != 0:
+        return []
+    if isinstance(value, list):
+        source = value
+    elif isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return []
+        try:
+            parsed = json.loads(trimmed)
+            if isinstance(parsed, list):
+                source = parsed
+            else:
+                source = [trimmed]
+        except Exception:
+            source = [part.strip() for part in trimmed.split(",") if part.strip()]
+    else:
+        source = [str(value)]
+
+    seen: set[str] = set()
+    result: list[str] = []
+    for entry in source:
+        text = _clean_kb_value(entry)
+        if not text:
+            continue
+        lowered = text.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        result.append(text)
+    return result
+
+
+def _article_types_to_text(values: list[str]) -> str:
+    return ", ".join(values)
+
+
+def _normalize_article_types_payload(raw: Any) -> tuple[list[str], str]:
+    parsed = _parse_article_types(raw)
+    return parsed, _article_types_to_text(parsed)
+
+
+def _normalize_channel_key(channel_id: Any) -> int:
+    try:
+        numeric = int(channel_id)
+    except (TypeError, ValueError):
+        return -1
+    return numeric if numeric >= 0 else -1
+
+
 def _serialize_kb_row(row: sqlite3.Row) -> dict[str, str | int]:
+    article_types = _parse_article_types(row["article_types"] if "article_types" in row.keys() else None)
     return {
         "id": row["id"],
         "title": _clean_kb_value(row["title"]),
         "department": _clean_kb_value(row["department"]),
-        "article_type": _clean_kb_value(row["article_type"]),
+        "article_type": _article_types_to_text(article_types) or _clean_kb_value(row["article_type"]),
+        "article_types": article_types,
         "status": _clean_kb_value(row["status"]),
         "author": _clean_kb_value(row["author"]),
         "direction": _clean_kb_value(row["direction"]),
@@ -6872,12 +6974,199 @@ def _serialize_kb_row(row: sqlite3.Row) -> dict[str, str | int]:
     }
 
 
+def _serialize_taxonomy_row(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "value": _clean_kb_value(row["value"]),
+        "category": row["category"],
+        "parent_id": row["parent_id"],
+        "sort_order": row["sort_order"],
+        "is_active": row["is_active"],
+    }
+
+
+def _load_kb_taxonomy_entries(category: str) -> list[dict]:
+    ensure_knowledge_base_schema()
+    if category not in KB_TAXONOMY_ALLOWED_CATEGORIES:
+        return []
+    with get_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, category, value, parent_id, sort_order, is_active
+            FROM knowledge_taxonomy_values
+            WHERE category = ?
+            ORDER BY sort_order ASC, value COLLATE NOCASE ASC
+            """,
+            (category,),
+        ).fetchall()
+    return [_serialize_taxonomy_row(row) for row in rows]
+
+
+def _load_kb_directions_tree() -> list[dict]:
+    directions = _load_kb_taxonomy_entries("direction")
+    subtypes = _load_kb_taxonomy_entries("direction_subtype")
+    grouped: dict[int, list[dict]] = {}
+    for subtype in subtypes:
+        parent = subtype.get("parent_id")
+        if parent is None:
+            continue
+        grouped.setdefault(parent, []).append(subtype)
+    for values in grouped.values():
+        values.sort(key=lambda item: item["value"].lower())
+    enriched: list[dict] = []
+    for direction in directions:
+        entry = direction.copy()
+        entry["subtypes"] = grouped.get(direction["id"], [])
+        enriched.append(entry)
+    return enriched
+
+
+def _list_departments_from_org_structure() -> list[dict]:
+    structure = load_org_structure()
+    nodes = structure.get("nodes") if isinstance(structure, dict) else None
+    if not isinstance(nodes, list):
+        return []
+    id_map = {str(node.get("id")): node for node in nodes if node.get("id")}
+
+    def build_path(node_id: str, memo: dict[str, str]) -> str:
+        if node_id in memo:
+            return memo[node_id]
+        node = id_map.get(node_id)
+        if not node:
+            memo[node_id] = ""
+            return ""
+        name = _clean_kb_value(node.get("name"))
+        parent = node.get("parent_id")
+        if parent and str(parent) in id_map:
+            parent_path = build_path(str(parent), memo)
+        else:
+            parent_path = ""
+        full = " / ".join([part for part in (parent_path, name) if part])
+        memo[node_id] = full
+        return full
+
+    memo: dict[str, str] = {}
+    result: list[dict] = []
+    for node_id in id_map.keys():
+        path = build_path(node_id, memo)
+        if path:
+            result.append({"id": node_id, "label": path})
+    result.sort(key=lambda item: item["label"].lower())
+    return result
+
+
+def _load_kb_authors() -> list[dict]:
+    with get_users_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, COALESCE(NULLIF(TRIM(full_name), ''), NULLIF(TRIM(username), ''), username, full_name) AS label,
+                   username, full_name
+            FROM users
+            ORDER BY LOWER(COALESCE(full_name, username, ''))
+            """
+        ).fetchall()
+    authors: list[dict] = []
+    for row in rows:
+        label = _clean_kb_value(row["label"]) or _clean_kb_value(row["username"]) or _clean_kb_value(row["full_name"])
+        if not label:
+            continue
+        authors.append({"id": row["id"], "label": label})
+    return authors
+
+
+def _build_kb_meta_context() -> dict:
+    return {
+        "directions": _load_kb_directions_tree(),
+        "types": _load_kb_taxonomy_entries("type"),
+        "statuses": _load_kb_taxonomy_entries("status"),
+        "departments": _list_departments_from_org_structure(),
+        "authors": _load_kb_authors(),
+    }
+
+
+def _kb_taxonomy_snapshot() -> dict:
+    return {
+        "directions": _load_kb_directions_tree(),
+        "types": _load_kb_taxonomy_entries("type"),
+        "statuses": _load_kb_taxonomy_entries("status"),
+    }
+
+
+def _load_ticket_knowledge_usage(ticket_id: str, channel_id: Any) -> dict | None:
+    ensure_knowledge_base_schema()
+    channel_key = _normalize_channel_key(channel_id)
+    with get_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, ticket_id, channel_id, article_id, article_title, assigned_by_id, assigned_by_label, assigned_at
+            FROM ticket_knowledge_usage
+            WHERE ticket_id = ? AND channel_key = ?
+            ORDER BY assigned_at DESC, id DESC
+            LIMIT 1
+            """,
+            (ticket_id, channel_key),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "ticket_id": row["ticket_id"],
+        "channel_id": row["channel_id"],
+        "article_id": row["article_id"],
+        "article_title": row["article_title"],
+        "assigned_by_id": row["assigned_by_id"],
+        "assigned_by_label": row["assigned_by_label"],
+        "assigned_at": row["assigned_at"],
+    }
+
+
+def _save_ticket_knowledge_usage(
+    ticket_id: str,
+    channel_id: Any,
+    article_id: int | None,
+    article_title: str | None,
+) -> dict | None:
+    ensure_knowledge_base_schema()
+    channel_key = _normalize_channel_key(channel_id)
+    try:
+        channel_value = int(channel_id)
+    except (TypeError, ValueError):
+        channel_value = None
+    assigned_by_id = _current_user_id()
+    assigned_by_label = _current_operator_label("оператор")
+    with get_db() as conn:
+        conn.execute(
+            "DELETE FROM ticket_knowledge_usage WHERE ticket_id = ? AND channel_key = ?",
+            (ticket_id, channel_key),
+        )
+        if article_id or article_title:
+            conn.execute(
+                """
+                INSERT INTO ticket_knowledge_usage (
+                    ticket_id, channel_id, channel_key, article_id, article_title,
+                    assigned_by_id, assigned_by_label, assigned_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                """,
+                (
+                    ticket_id,
+                    channel_value,
+                    channel_key,
+                    article_id,
+                    article_title,
+                    assigned_by_id,
+                    assigned_by_label,
+                ),
+            )
+        conn.commit()
+    return _load_ticket_knowledge_usage(ticket_id, channel_id)
+
+
 def _fetch_knowledge_articles() -> list[dict[str, str | int]]:
     ensure_knowledge_base_schema()
     with get_db() as conn:
         rows = conn.execute(
             """
-            SELECT id, title, department, article_type, status, author, direction, direction_subtype
+            SELECT id, title, department, article_type, article_types, status, author, direction, direction_subtype
             FROM knowledge_articles
             ORDER BY
                 COALESCE(direction, '') COLLATE NOCASE,
@@ -6918,7 +7207,7 @@ def _fetch_kb_article(article_id: int) -> dict | None:
     with get_db() as conn:
         row = conn.execute(
             """
-            SELECT id, title, department, article_type, status, author, direction,
+            SELECT id, title, department, article_type, article_types, status, author, direction,
                    direction_subtype, summary, content, attachments, created_at, updated_at
             FROM knowledge_articles
             WHERE id = ?
@@ -7037,18 +7326,33 @@ def _cleanup_orphan_attachments(conn: sqlite3.Connection, article_id: int, keep_
 @page_access_required("knowledge_base")
 def knowledge_base_page():
     articles = _fetch_knowledge_articles()
-    return render_template("knowledge_base.html", articles=articles)
+    return render_template(
+        "knowledge_base.html",
+        articles=articles,
+        kb_meta=_build_kb_meta_context(),
+    )
 
 
 @app.route("/knowledge_base/new")
 @login_required
 def knowledge_base_new_article():
     draft_token = uuid4().hex
+    suggested_title = None
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT seq FROM sqlite_sequence WHERE name = 'knowledge_articles'"
+            ).fetchone()
+            next_id = (row["seq"] if row else 0) + 1
+            suggested_title = f"SPRT-{next_id:04d}"
+    except Exception:
+        suggested_title = "SPRT"
     article = {
         "id": None,
         "title": "",
         "department": "",
         "article_type": "",
+        "article_types": [],
         "status": "",
         "author": "",
         "direction": "",
@@ -7061,6 +7365,8 @@ def knowledge_base_new_article():
         "knowledge_base_article.html",
         article=article,
         draft_token=draft_token,
+        suggested_title=suggested_title,
+        kb_meta=_build_kb_meta_context(),
     )
 
 
@@ -7074,6 +7380,8 @@ def knowledge_base_article_detail(article_id: int):
         "knowledge_base_article.html",
         article=article,
         draft_token=uuid4().hex,
+        suggested_title=None,
+        kb_meta=_build_kb_meta_context(),
     )
 
 
@@ -7085,11 +7393,169 @@ def api_knowledge_base_articles():
     return jsonify({"items": articles, "count": len(articles)})
 
 
+@app.route("/api/knowledge_base/meta", methods=["GET"])
+@app.route("/api/knowledge-base/meta", methods=["GET"])
+@login_required_api
+def api_knowledge_base_meta():
+    return jsonify({"success": True, "meta": _build_kb_meta_context()})
+
+
+@app.route("/api/knowledge_base/taxonomy", methods=["GET"])
+@app.route("/api/knowledge-base/taxonomy", methods=["GET"])
+@login_required_api
+def api_get_kb_taxonomy():
+    return jsonify({"success": True, "items": _kb_taxonomy_snapshot()})
+
+
+def _resolve_taxonomy_parent(category: str, parent_id: Any) -> int | None:
+    if category == "direction_subtype":
+        try:
+            parent_int = int(parent_id)
+        except (TypeError, ValueError):
+            return None
+        return parent_int if parent_int > 0 else None
+    return None
+
+
+def _taxonomy_sort_order(category: str, conn: sqlite3.Connection) -> int:
+    row = conn.execute(
+        "SELECT COALESCE(MAX(sort_order), 0) AS max_order FROM knowledge_taxonomy_values WHERE category = ?",
+        (category,),
+    ).fetchone()
+    return (row["max_order"] if row else 0) + 1
+
+
+def _taxonomy_row_by_id(conn: sqlite3.Connection, item_id: int) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT id, category, value, parent_id, sort_order, is_active FROM knowledge_taxonomy_values WHERE id = ?",
+        (item_id,),
+    ).fetchone()
+
+
+@app.route("/api/knowledge_base/taxonomy", methods=["POST"])
+@app.route("/api/knowledge-base/taxonomy", methods=["POST"])
+@login_required_api
+def api_create_kb_taxonomy_entry():
+    payload = request.json or {}
+    category = (payload.get("category") or "").strip()
+    value = (payload.get("value") or "").strip()
+    if category not in KB_TAXONOMY_ALLOWED_CATEGORIES:
+        return jsonify({"success": False, "error": "Неизвестная категория"}), 400
+    if not value:
+        return jsonify({"success": False, "error": "Введите значение"}), 400
+
+    parent_id = _resolve_taxonomy_parent(category, payload.get("parent_id"))
+    if category == "direction_subtype" and not parent_id:
+        return jsonify({"success": False, "error": "Выберите направление"}), 400
+
+    ensure_knowledge_base_schema()
+    with get_db() as conn:
+        sort_order = _taxonomy_sort_order(category, conn)
+        cursor = conn.execute(
+            """
+            INSERT INTO knowledge_taxonomy_values (category, value, parent_id, sort_order)
+            VALUES (?, ?, ?, ?)
+            """,
+            (category, value, parent_id, sort_order),
+        )
+        new_id = cursor.lastrowid
+        conn.commit()
+
+    with get_db() as conn:
+        row = _taxonomy_row_by_id(conn, new_id)
+    return jsonify({"success": True, "item": _serialize_taxonomy_row(row), "items": _kb_taxonomy_snapshot()})
+
+
+@app.route("/api/knowledge_base/taxonomy/<int:item_id>", methods=["PUT", "PATCH"])
+@app.route("/api/knowledge-base/taxonomy/<int:item_id>", methods=["PUT", "PATCH"])
+@login_required_api
+def api_update_kb_taxonomy_entry(item_id: int):
+    payload = request.json or {}
+    ensure_knowledge_base_schema()
+    with get_db() as conn:
+        row = _taxonomy_row_by_id(conn, item_id)
+        if not row:
+            return jsonify({"success": False, "error": "Элемент не найден"}), 404
+        category = row["category"]
+        value = (payload.get("value") or row["value"] or "").strip()
+        parent_id = row["parent_id"]
+        if category == "direction_subtype" and "parent_id" in payload:
+            parent_id = _resolve_taxonomy_parent(category, payload.get("parent_id"))
+            if not parent_id:
+                return jsonify({"success": False, "error": "Выберите направление"}), 400
+        conn.execute(
+            """
+            UPDATE knowledge_taxonomy_values
+            SET value = ?, parent_id = ?, is_active = COALESCE(?, is_active)
+            WHERE id = ?
+            """,
+            (value, parent_id, payload.get("is_active"), item_id),
+        )
+        conn.commit()
+
+    with get_db() as conn:
+        updated = _taxonomy_row_by_id(conn, item_id)
+    return jsonify({"success": True, "item": _serialize_taxonomy_row(updated), "items": _kb_taxonomy_snapshot()})
+
+
+@app.route("/api/knowledge_base/taxonomy/<int:item_id>", methods=["DELETE"])
+@app.route("/api/knowledge-base/taxonomy/<int:item_id>", methods=["DELETE"])
+@login_required_api
+def api_delete_kb_taxonomy_entry(item_id: int):
+    ensure_knowledge_base_schema()
+    with get_db() as conn:
+        row = _taxonomy_row_by_id(conn, item_id)
+        if not row:
+            return jsonify({"success": False, "error": "Элемент не найден"}), 404
+        conn.execute("DELETE FROM knowledge_taxonomy_values WHERE id = ?", (item_id,))
+        conn.commit()
+    return jsonify({"success": True, "items": _kb_taxonomy_snapshot()})
+
+
+@app.route("/api/tickets/<ticket_id>/knowledge_usage", methods=["GET"])
+@login_required_api
+def api_get_ticket_knowledge_usage(ticket_id: str):
+    channel_id = request.args.get("channel_id")
+    usage = _load_ticket_knowledge_usage(ticket_id, channel_id)
+    return jsonify({"success": True, "usage": usage})
+
+
+@app.route("/api/tickets/<ticket_id>/knowledge_usage", methods=["PUT"])
+@login_required_api
+def api_set_ticket_knowledge_usage(ticket_id: str):
+    payload = request.json or {}
+    channel_id = payload.get("channel_id") or request.args.get("channel_id")
+    article_id = payload.get("article_id")
+
+    if article_id in (None, "", 0):
+        usage = _save_ticket_knowledge_usage(ticket_id, channel_id, None, None)
+        return jsonify({"success": True, "usage": usage})
+
+    try:
+        article_id_int = int(article_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Некорректный идентификатор статьи"}), 400
+
+    article = _fetch_kb_article(article_id_int)
+    if not article:
+        return jsonify({"success": False, "error": "Статья не найдена"}), 404
+
+    usage = _save_ticket_knowledge_usage(
+        ticket_id,
+        channel_id,
+        article_id_int,
+        article.get("title") or f"Статья #{article_id_int}",
+    )
+    return jsonify({"success": True, "usage": usage})
+
+
 def _normalize_article_payload(payload: dict) -> tuple[dict, list[int]]:
+    types_list, types_text = _normalize_article_types_payload(payload.get("article_types"))
     data = {
         "title": (payload.get("title") or "").strip(),
         "department": (payload.get("department") or "").strip(),
-        "article_type": (payload.get("article_type") or "").strip(),
+        "article_type": types_text or (payload.get("article_type") or "").strip(),
+        "article_types": types_list,
         "status": (payload.get("status") or "").strip(),
         "author": (payload.get("author") or "").strip(),
         "direction": (payload.get("direction") or "").strip(),
@@ -7123,14 +7589,15 @@ def api_create_knowledge_article():
         cursor = conn.execute(
             """
             INSERT INTO knowledge_articles (
-                title, department, article_type, status, author, direction,
+                title, department, article_type, article_types, status, author, direction,
                 direction_subtype, summary, content, attachments, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["title"],
                 data["department"],
                 data["article_type"],
+                json.dumps(data["article_types"]),
                 data["status"],
                 data["author"],
                 data["direction"],
@@ -7176,7 +7643,7 @@ def api_update_knowledge_article(article_id: int):
         conn.execute(
             """
             UPDATE knowledge_articles
-            SET title = ?, department = ?, article_type = ?, status = ?, author = ?,
+            SET title = ?, department = ?, article_type = ?, article_types = ?, status = ?, author = ?,
                 direction = ?, direction_subtype = ?, summary = ?, content = ?,
                 attachments = ?, updated_at = ?
             WHERE id = ?
@@ -7185,6 +7652,7 @@ def api_update_knowledge_article(article_id: int):
                 data["title"],
                 data["department"],
                 data["article_type"],
+                json.dumps(data["article_types"]),
                 data["status"],
                 data["author"],
                 data["direction"],
