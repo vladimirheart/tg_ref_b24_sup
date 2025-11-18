@@ -1396,6 +1396,60 @@ function createMediaHtml(ticket_id, mediaInfo) {
       }
     }
 </script>
+<script>
+  (function () {
+    let hasClientUnsavedChanges = false;
+
+    function handleClientBeforeUnload(event) {
+      if (!hasClientUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    }
+
+    function syncClientBeforeUnload() {
+      if (hasClientUnsavedChanges) {
+        window.addEventListener('beforeunload', handleClientBeforeUnload);
+      } else {
+        window.removeEventListener('beforeunload', handleClientBeforeUnload);
+      }
+    }
+
+    function markClientDirty() {
+      if (hasClientUnsavedChanges) return;
+      hasClientUnsavedChanges = true;
+      syncClientBeforeUnload();
+    }
+
+    function resetClientDirty() {
+      if (!hasClientUnsavedChanges) {
+        syncClientBeforeUnload();
+        return;
+      }
+      hasClientUnsavedChanges = false;
+      syncClientBeforeUnload();
+    }
+
+    function bindClientInputs() {
+      const manualInputs = document.querySelectorAll('#manualPhonesTbody .phone-label-input');
+      manualInputs.forEach((input) => {
+        input.addEventListener('input', markClientDirty);
+        input.addEventListener('change', markClientDirty);
+      });
+      [document.getElementById('newPhoneInput'), document.getElementById('newPhoneLabelInput')].forEach((input) => {
+        if (!input) return;
+        input.addEventListener('input', markClientDirty);
+        input.addEventListener('change', markClientDirty);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', bindClientInputs);
+
+    window.ClientCardDirty = {
+      markDirty: markClientDirty,
+      markSaved: resetClientDirty,
+    };
+  })();
+</script>
 <script src="{{ url_for('static', filename='edit-guard.js') }}"></script>
 <script>
 	async function addManualPhone(userId){
@@ -1485,6 +1539,9 @@ function createMediaHtml(ticket_id, mediaInfo) {
               window.EditGuard.refreshBlockSnapshot(card);
             }
             updateBulkSaveButtonState();
+            if (window.ClientCardDirty) {
+              window.ClientCardDirty.markSaved();
+            }
             return true;
           }
 
@@ -1521,6 +1578,10 @@ function createMediaHtml(ticket_id, mediaInfo) {
               } else {
                 window.EditGuard.markBlockSaved(card);
               }
+            }
+
+            if (window.ClientCardDirty) {
+              window.ClientCardDirty.markSaved();
             }
 
             return true;
