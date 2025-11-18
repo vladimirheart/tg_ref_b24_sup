@@ -13,7 +13,7 @@ from panel.repositories import (
     ChannelRepository,
     ensure_tables as ensure_channel_tables,
 )
-from panel.secrets import SecretStorageError, decrypt_token
+from panel.secret_utils import SecretStorageError, decrypt_token
 from datetime import datetime, timezone
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
