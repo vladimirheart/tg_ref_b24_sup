@@ -28,6 +28,38 @@
       box-shadow: 0 0.75rem 1.5rem rgba(18, 38, 63, 0.05);
     }
 
+    .kb-type-dropdown .dropdown-toggle {
+      text-align: left;
+      justify-content: space-between;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+
+    .kb-type-dropdown .dropdown-menu {
+      width: 100%;
+      max-height: 320px;
+      overflow-y: auto;
+      box-shadow: 0 1rem 2rem rgba(15, 23, 42, 0.15);
+    }
+
+    .kb-type-options .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: normal;
+    }
+
+    .kb-type-options .form-check-input {
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .kb-type-empty-text {
+      padding: 0.35rem 0.5rem;
+    }
+
     .kb-dropzone {
       border: 2px dashed #cfd4da;
       border-radius: 0.75rem;
@@ -129,8 +161,29 @@
               </select>
             </div>
             <div class="col-md-6 col-lg-4">
-              <label for="kbType" class="form-label">Тип</label>
-              <select id="kbType" class="form-select" multiple></select>
+              <label for="kbTypeDropdownButton" class="form-label">Тип</label>
+              <div class="kb-type-dropdown dropdown">
+                <button
+                  class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                  type="button"
+                  id="kbTypeDropdownButton"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  Выберите типы
+                </button>
+                <div class="dropdown-menu kb-type-menu p-2" aria-labelledby="kbTypeDropdownButton" id="kbTypeDropdownMenu">
+                  <div class="kb-type-empty-text text-muted small" id="kbTypeEmptyState">Нет доступных типов</div>
+                  <div id="kbTypeOptions" class="kb-type-options"></div>
+                  <div class="mt-2" id="kbTypeCustomWrapper">
+                    <label class="form-label small mb-1" for="kbTypeCustomInput">Добавить собственный тип</label>
+                    <div class="input-group input-group-sm">
+                      <input type="text" class="form-control" id="kbTypeCustomInput" placeholder="Например, FAQ" />
+                      <button class="btn btn-outline-primary" type="button" id="kbTypeCustomAdd">Добавить</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="form-text">Можно выбрать несколько значений</div>
             </div>
             <div class="col-md-6 col-lg-4">
@@ -209,12 +262,18 @@
       const suggestedTitle = document.getElementById('kbSuggestedTitle').value;
       let currentArticleId = articleData.id || null;
       let attachments = Array.isArray(articleData.files) ? articleData.files.slice() : [];
+      let hasUnsavedChanges = false;
+      let dirtyTrackingPaused = true;
 
       const titleInput = document.getElementById('kbTitle');
       const directionInput = document.getElementById('kbDirection');
       const subDirectionInput = document.getElementById('kbSubDirection');
       const departmentInput = document.getElementById('kbDepartment');
-      const typeInput = document.getElementById('kbType');
+      const typeDropdownButton = document.getElementById('kbTypeDropdownButton');
+      const typeOptionsContainer = document.getElementById('kbTypeOptions');
+      const typeEmptyState = document.getElementById('kbTypeEmptyState');
+      const typeCustomInput = document.getElementById('kbTypeCustomInput');
+      const typeCustomAddButton = document.getElementById('kbTypeCustomAdd');
       const statusInput = document.getElementById('kbStatus');
       const authorInput = document.getElementById('kbAuthor');
       const summaryInput = document.getElementById('kbSummary');
@@ -235,6 +294,46 @@
         reset: document.getElementById('kbImageZoomReset'),
       };
       let imageZoom = 1;
+      const selectedTypes = new Set();
+      const customTypeValues = new Set();
+      const typeOptionMap = new Map();
+
+      function handleBeforeUnload(event) {
+        if (!hasUnsavedChanges) return;
+        event.preventDefault();
+        event.returnValue = 'У вас есть несохранённые изменения.';
+      }
+
+      function syncBeforeUnload() {
+        if (hasUnsavedChanges) {
+          window.addEventListener('beforeunload', handleBeforeUnload);
+        } else {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        }
+      }
+
+      function markDirty() {
+        if (dirtyTrackingPaused || hasUnsavedChanges) return;
+        hasUnsavedChanges = true;
+        syncBeforeUnload();
+      }
+
+      function resetDirtyState() {
+        if (!hasUnsavedChanges) {
+          syncBeforeUnload();
+          return;
+        }
+        hasUnsavedChanges = false;
+        syncBeforeUnload();
+      }
+
+      function pauseDirtyTracking() {
+        dirtyTrackingPaused = true;
+      }
+
+      function resumeDirtyTracking() {
+        dirtyTrackingPaused = false;
+      }
 
       function isImageFile(file) {
         const mime = String(file?.mime_type || '').toLowerCase();
@@ -329,15 +428,6 @@
         });
       }
 
-      function populateTypeOptions() {
-        const types = Array.isArray(kbMeta.types) ? kbMeta.types : [];
-        typeInput.innerHTML = '';
-        types.forEach((type) => {
-          if (!type?.value) return;
-          typeInput.appendChild(new Option(type.value, type.value));
-        });
-      }
-
       function populateStatusOptions() {
         const statuses = Array.isArray(kbMeta.statuses) ? kbMeta.statuses : [];
         statusInput.innerHTML = '';
@@ -358,25 +448,141 @@
         });
       }
 
-      function ensureMultiSelectValues(select, values) {
+      function normalizeTypeValue(value) {
+        return String(value || '').trim();
+      }
+
+      function metaTypeExists(value) {
+        const normalized = normalizeTypeValue(value);
+        const types = Array.isArray(kbMeta.types) ? kbMeta.types : [];
+        return types.some((type) => normalizeTypeValue(type?.value) === normalized);
+      }
+
+      function ensureCustomTypeValue(value) {
+        const normalized = normalizeTypeValue(value);
+        if (!normalized || metaTypeExists(normalized) || customTypeValues.has(normalized)) {
+          return false;
+        }
+        customTypeValues.add(normalized);
+        return true;
+      }
+
+      function updateTypeButtonLabel() {
+        if (!typeDropdownButton) return;
+        const values = Array.from(selectedTypes);
+        if (!values.length) {
+          typeDropdownButton.textContent = 'Выберите типы';
+          return;
+        }
+        if (values.length <= 2) {
+          typeDropdownButton.textContent = values.join(', ');
+          return;
+        }
+        const [first, second] = values;
+        typeDropdownButton.textContent = `${first}, ${second} +${values.length - 2}`;
+      }
+
+      function toggleTypeSelection(value, shouldSelect, { emitChange = false } = {}) {
+        const normalized = normalizeTypeValue(value);
+        if (!normalized) return;
+        const beforeState = selectedTypes.has(normalized);
+        if (shouldSelect) {
+          selectedTypes.add(normalized);
+        } else {
+          selectedTypes.delete(normalized);
+        }
+        const entry = typeOptionMap.get(normalized);
+        if (entry?.checkbox) {
+          entry.checkbox.checked = selectedTypes.has(normalized);
+        }
+        updateTypeButtonLabel();
+        if (emitChange && beforeState !== selectedTypes.has(normalized)) {
+          markDirty();
+        }
+      }
+
+      function addTypeOption(value, { isCustom = false } = {}) {
+        if (!typeOptionsContainer) return;
+        const normalized = normalizeTypeValue(value);
+        if (!normalized || typeOptionMap.has(normalized)) return;
+        const item = document.createElement('label');
+        item.className = 'dropdown-item form-check align-items-center';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input';
+        checkbox.value = normalized;
+        checkbox.checked = selectedTypes.has(normalized);
+        checkbox.addEventListener('change', () => {
+          toggleTypeSelection(normalized, checkbox.checked, { emitChange: true });
+        });
+        const text = document.createElement('span');
+        text.className = 'form-check-label flex-grow-1';
+        text.textContent = isCustom ? `${normalized} (не в справочнике)` : value;
+        item.appendChild(checkbox);
+        item.appendChild(text);
+        typeOptionsContainer.appendChild(item);
+        typeOptionMap.set(normalized, { checkbox, element: item });
+      }
+
+      function rebuildTypeOptions() {
+        typeOptionMap.clear();
+        if (typeOptionsContainer) {
+          typeOptionsContainer.innerHTML = '';
+        }
+        const types = Array.isArray(kbMeta.types) ? kbMeta.types : [];
+        types.forEach((type) => {
+          if (!type?.value) return;
+          addTypeOption(type.value, { isCustom: false });
+        });
+        customTypeValues.forEach((value) => addTypeOption(value, { isCustom: true }));
+        if (typeEmptyState) {
+          const hasItems = Boolean(typeOptionsContainer?.children.length);
+          typeEmptyState.style.display = hasItems ? 'none' : '';
+        }
+        updateTypeButtonLabel();
+      }
+
+      function setSelectedTypes(values) {
+        selectedTypes.clear();
+        customTypeValues.clear();
         const normalized = Array.isArray(values)
-          ? values.map((value) => String(value || '').trim()).filter(Boolean)
+          ? values.map((value) => normalizeTypeValue(value)).filter(Boolean)
           : [];
-        const existing = new Set(Array.from(select.options).map((opt) => opt.value));
         normalized.forEach((value) => {
-          if (!existing.has(value)) {
-            const option = new Option(`${value} (не в справочнике)`, value);
-            option.dataset.custom = '1';
-            select.appendChild(option);
+          selectedTypes.add(value);
+          if (!metaTypeExists(value)) {
+            customTypeValues.add(value);
           }
         });
-        Array.from(select.options).forEach((opt) => {
-          opt.selected = normalized.includes(opt.value);
-        });
+        rebuildTypeOptions();
       }
 
       function getSelectedTypes() {
-        return Array.from(typeInput.selectedOptions).map((opt) => opt.value).filter(Boolean);
+        return Array.from(selectedTypes);
+      }
+
+      function handleCustomTypeAdd() {
+        const value = normalizeTypeValue(typeCustomInput?.value || '');
+        if (!value) {
+          if (typeCustomInput) {
+            typeCustomInput.focus();
+          }
+          return;
+        }
+        if (selectedTypes.has(value)) {
+          setStatus(`Тип «${value}» уже выбран`, 'warning', 4000);
+          return;
+        }
+        if (!metaTypeExists(value)) {
+          ensureCustomTypeValue(value);
+        }
+        selectedTypes.add(value);
+        rebuildTypeOptions();
+        updateTypeButtonLabel();
+        if (typeCustomInput) {
+          typeCustomInput.value = '';
+        }
+        markDirty();
       }
 
       function extractArticleTypes(data) {
@@ -392,7 +598,7 @@
       function populateMetadataControls() {
         populateDirectionOptions();
         populateDepartmentOptions();
-        populateTypeOptions();
+        rebuildTypeOptions();
         populateStatusOptions();
         populateAuthorOptions();
       }
@@ -432,7 +638,7 @@
         ensureOption(departmentInput, currentDepartment, currentDepartment);
         departmentInput.value = currentDepartment;
 
-        ensureMultiSelectValues(typeInput, extractArticleTypes(articleData));
+        setSelectedTypes(extractArticleTypes(articleData));
 
         const currentStatus = articleData.status || '';
         ensureOption(statusInput, currentStatus, currentStatus);
@@ -543,6 +749,7 @@
         }
         attachments = attachments.filter((item) => item.id !== id);
         renderAttachments();
+        markDirty();
       }
 
       async function processFilesQueue(files, { insertIntoEditor = false } = {}) {
@@ -586,6 +793,7 @@
         }
         attachments.push(data.file);
         renderAttachments();
+        markDirty();
         return data.file;
       }
 
@@ -724,9 +932,12 @@
         setupTaskListExitHelper();
       }, 400);
 
+      pauseDirtyTracking();
       populateMetadataControls();
       populateForm();
       renderAttachments();
+      resetDirtyState();
+      resumeDirtyTracking();
 
       directionInput.addEventListener('change', () => {
         const nextValue = directionInput.value;
@@ -734,15 +945,37 @@
         subDirectionInput.value = '';
       });
 
+      [titleInput, directionInput, subDirectionInput, departmentInput, statusInput, authorInput, summaryInput].forEach((input) => {
+        if (!input) return;
+        input.addEventListener('input', markDirty);
+        input.addEventListener('change', markDirty);
+      });
+
+      if (typeCustomAddButton) {
+        typeCustomAddButton.addEventListener('click', handleCustomTypeAdd);
+      }
+      if (typeCustomInput) {
+        typeCustomInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            handleCustomTypeAdd();
+          }
+        });
+      }
+
+      if (editor) {
+        editor.on('change', markDirty);
+      }
+
       async function saveArticle() {
-        const selectedTypes = getSelectedTypes();
+        const selectedTypeValues = getSelectedTypes();
         const payload = {
           title: titleInput.value.trim(),
           direction: directionInput.value.trim(),
           direction_subtype: subDirectionInput.value.trim(),
           department: departmentInput.value.trim(),
-          article_type: selectedTypes.join(', '),
-          article_types: selectedTypes,
+          article_type: selectedTypeValues.join(', '),
+          article_types: selectedTypeValues,
           status: statusInput.value.trim(),
           author: authorInput.value.trim(),
           summary: summaryInput.value.trim(),
@@ -777,6 +1010,7 @@
           articleIdBadge.style.display = '';
           articleIdValue.textContent = currentArticleId;
           setStatus('Изменения сохранены', 'success');
+          resetDirtyState();
           if (!articleData.id) {
             history.replaceState({}, '', `/knowledge_base/${currentArticleId}`);
           }
