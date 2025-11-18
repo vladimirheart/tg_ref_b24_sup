@@ -49,7 +49,7 @@ from panel.repositories import (
     ChannelRepository,
     ensure_tables as ensure_channel_tables,
 )
-from panel.secrets import mask_token
+from panel.secret_utils import mask_token
 
 from bot_settings_utils import (
     DEFAULT_BOT_PRESET_DEFINITIONS,
