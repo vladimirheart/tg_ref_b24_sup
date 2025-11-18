@@ -244,7 +244,8 @@ class ChannelRepository:
                     credential_id,
                     description,
                     filters,
-                    delivery_settings
+                    delivery_settings,
+                    updated_at
                 )
                 VALUES (
                     :token,
@@ -263,7 +264,8 @@ class ChannelRepository:
                     :credential_id,
                     :description,
                     :filters,
-                    :delivery_settings
+                    :delivery_settings,
+                    datetime('now')
                 )
                 """,
                 {
@@ -544,9 +546,22 @@ def ensure_tables() -> None:
         if "auto_action_template_id" not in cols:
             conn.execute("ALTER TABLE channels ADD COLUMN auto_action_template_id TEXT")
         if "updated_at" not in cols:
-            conn.execute(
-                "ALTER TABLE channels ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))"
-            )
+            try:
+                conn.execute(
+                    "ALTER TABLE channels ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))"
+                )
+            except sqlite3.OperationalError as exc:
+                message = str(exc).lower()
+                if "non-constant default" not in message:
+                    raise
+                conn.execute("ALTER TABLE channels ADD COLUMN updated_at TEXT")
+                conn.execute(
+                    """
+                    UPDATE channels
+                    SET updated_at = datetime('now')
+                    WHERE updated_at IS NULL OR TRIM(COALESCE(updated_at, '')) = ''
+                    """
+                )
         if "support_chat_id" not in cols:
             try:
                 conn.execute("ALTER TABLE channels ADD COLUMN support_chat_id TEXT")
