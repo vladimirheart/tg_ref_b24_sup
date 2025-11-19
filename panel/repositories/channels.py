@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterator
 
 from panel.models import BotCredential, Channel, ChannelNotification
+from migrations_runner import ensure_schema_is_current
 from panel.secret_utils import (
     decrypt_token,
     encrypt_token,
@@ -517,116 +518,6 @@ class ChannelNotificationRepository:
 
 
 def ensure_tables() -> None:
-    with get_connection() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS bot_credentials (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                platform TEXT NOT NULL DEFAULT 'telegram',
-                encrypted_token TEXT NOT NULL,
-                metadata TEXT DEFAULT '{}',
-                is_active INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-            )
-            """
-        )
+    """Ensure the SQLite schema is on the latest Alembic revision."""
 
-        cols = {row["name"] for row in conn.execute("PRAGMA table_info(channels)")}
-        if "credential_id" not in cols:
-            conn.execute(
-                "ALTER TABLE channels ADD COLUMN credential_id INTEGER REFERENCES bot_credentials(id)"
-            )
-        if "description" not in cols:
-            conn.execute("ALTER TABLE channels ADD COLUMN description TEXT")
-        if "filters" not in cols:
-            conn.execute("ALTER TABLE channels ADD COLUMN filters TEXT DEFAULT '{}'")
-        if "delivery_settings" not in cols:
-            conn.execute("ALTER TABLE channels ADD COLUMN delivery_settings TEXT DEFAULT '{}' ")
-        if "platform" not in cols:
-            conn.execute("ALTER TABLE channels ADD COLUMN platform TEXT NOT NULL DEFAULT 'telegram'")
-        if "platform_config" not in cols:
-            conn.execute("ALTER TABLE channels ADD COLUMN platform_config TEXT DEFAULT '{}' ")
-        if "auto_action_template_id" not in cols:
-            conn.execute("ALTER TABLE channels ADD COLUMN auto_action_template_id TEXT")
-        if "updated_at" not in cols:
-            try:
-                conn.execute(
-                    "ALTER TABLE channels ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))"
-                )
-            except sqlite3.OperationalError as exc:
-                message = str(exc).lower()
-                if "non-constant default" not in message:
-                    raise
-                conn.execute("ALTER TABLE channels ADD COLUMN updated_at TEXT")
-                conn.execute(
-                    """
-                    UPDATE channels
-                    SET updated_at = datetime('now')
-                    WHERE updated_at IS NULL OR TRIM(COALESCE(updated_at, '')) = ''
-                    """
-                )
-        if "support_chat_id" not in cols:
-            try:
-                conn.execute("ALTER TABLE channels ADD COLUMN support_chat_id TEXT")
-            except sqlite3.OperationalError:
-                pass
-
-        # Миграция существующих токенов в секретное хранилище
-        rows = conn.execute(
-            """
-            SELECT id, channel_name, token, platform
-            FROM channels
-            WHERE TRIM(COALESCE(token, '')) != '' AND token NOT LIKE 'vault:%'
-            """
-        ).fetchall()
-        for row in rows:
-            token = row["token"]
-            metadata = json.dumps({"channel_id": row["id"]}, ensure_ascii=False)
-            existing = conn.execute(
-                "SELECT id FROM bot_credentials WHERE metadata = ?",
-                (metadata,),
-            ).fetchone()
-            if existing:
-                credential_id = existing["id"] if isinstance(existing, sqlite3.Row) else existing[0]
-            else:
-                try:
-                    encrypted = encrypt_token(token)
-                except SecretStorageError:
-                    continue
-                cur = conn.execute(
-                    """
-                    INSERT INTO bot_credentials(name, platform, encrypted_token, metadata)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (
-                        row["channel_name"] or f"Channel {row['id']}",
-                        (row["platform"] or "telegram") if "platform" in cols else "telegram",
-                        encrypted,
-                        metadata,
-                    ),
-                )
-                credential_id = cur.lastrowid
-            conn.execute(
-                "UPDATE channels SET credential_id = ?, token = ?, updated_at = datetime('now') WHERE id = ?",
-                (credential_id, f"vault:{credential_id}", row["id"]),
-            )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS channel_notifications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                channel_id INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
-                recipient TEXT,
-                payload TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending',
-                error TEXT,
-                attempts INTEGER NOT NULL DEFAULT 0,
-                scheduled_at TEXT NOT NULL DEFAULT (datetime('now')),
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                started_at TEXT,
-                finished_at TEXT
-            )
-            """
-        )
+    ensure_schema_is_current()
