@@ -8,14 +8,18 @@ from pathlib import Path
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-import config as project_config
+try:
+    from config import get_settings
+
+    DATABASE_URL = get_settings().db.url
+except Exception:
+    DATABASE_URL = f"sqlite:///{Path(__file__).resolve().parents[1] / 'tickets.db'}"
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = project_config.DATABASE_URL
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 def run_migrations_offline() -> None:
