@@ -198,6 +198,41 @@
       border-radius: 0.75rem;
       background-color: #fdfdfd;
     }
+    .business-style-preview {
+      position: relative;
+      border: 1px dashed #ced4da;
+      border-radius: 0.75rem;
+      padding: 16px;
+      min-height: 56px;
+      background-color: #f8f9fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: #212529;
+    }
+    .business-style-preview--with-icon {
+      padding-left: 32px;
+    }
+    .business-style-preview-icon {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 4px;
+      height: 4px;
+    }
+    .business-style-preview-icon img {
+      width: 4px;
+      height: 4px;
+      display: block;
+    }
+    .business-color-input .form-control-color {
+      max-width: 3rem;
+      padding: 0.15rem;
+    }
+    .business-color-input .btn {
+      min-width: 2.5rem;
+    }
 
     .auth-user-modal-dialog {
       width: auto;
@@ -951,6 +986,16 @@
             <div class="tile-icon">🏷️</div>
             <h5 class="card-title">Статусы клиентов</h5>
             <p class="card-text text-muted">Создавайте статусы для сегментации клиентов.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#businessStylesModal">
+          <div class="card-body">
+            <div class="tile-icon">🏢</div>
+            <h5 class="card-title">Метки бизнесов</h5>
+            <p class="card-text text-muted">Настройте цвета и иконки столбца «Бизнес».</p>
           </div>
         </div>
       </div>
@@ -1847,6 +1892,33 @@
               Пока нет статусов. Нажмите «Редактировать», чтобы добавить первый статус.
             </div>
             <button class="btn btn-sm btn-success mt-3 d-none" id="addStatusBtn" type="button" onclick="addStatus()">+ Добавить статус</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Цвета и иконки бизнесов -->
+    <div class="modal fade" id="businessStylesModal" tabindex="-1" aria-labelledby="businessStylesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="businessStylesModalLabel">🏢 Метки бизнесов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted">
+              Настройте цвет заливки, цвет текста и мини-иконку для столбца «Бизнес» на главной странице.
+              Иконка отображается в левом верхнем углу ячейки и имеет размер 4×4 пикселя.
+            </p>
+            <div id="businessStylesEmpty" class="alert alert-light border d-none">
+              Пока нет ни одной настройки. Добавьте бизнес, чтобы настроить отображение в таблице.
+            </div>
+            <div id="businessStylesContainer" class="d-flex flex-column gap-3"></div>
+            <button type="button" class="btn btn-outline-primary btn-sm mt-3" id="addBusinessStyleBtn">+ Добавить бизнес</button>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+            <button type="button" class="btn btn-primary" id="saveBusinessStylesBtn">Сохранить изменения</button>
           </div>
         </div>
       </div>
@@ -8463,6 +8535,7 @@
   let CLIENT_STATUS_USAGE = {{ status_usage | tojson }} || {};
   const INITIAL_CLIENT_STATUSES = {{ settings.client_statuses | tojson }} || [];
   const INITIAL_CLIENT_STATUS_COLORS = {{ settings.client_status_colors | tojson }} || {};
+  const INITIAL_BUSINESS_CELL_STYLES = {{ settings.get('business_cell_styles', {}) | tojson | safe }} || {};
   const STATUS_COLOR_FALLBACK = '#0d6efd';
   let CLIENT_STATUS_COLORS = sanitizeStatusColorMap(INITIAL_CLIENT_STATUS_COLORS);
   let statusEditMode = false;
@@ -8803,6 +8876,311 @@
     renderStatusesList(Array.isArray(INITIAL_CLIENT_STATUSES) ? INITIAL_CLIENT_STATUSES : []);
     updateStatusesEmptyState();
     setStatusesEditMode(false);
+  }
+
+  // === Метки бизнесов ===
+  const businessStylesContainer = document.getElementById('businessStylesContainer');
+  const businessStylesEmptyState = document.getElementById('businessStylesEmpty');
+  const addBusinessStyleBtn = document.getElementById('addBusinessStyleBtn');
+  const saveBusinessStylesBtn = document.getElementById('saveBusinessStylesBtn');
+  const BUSINESS_ICON_ALLOWED_PREFIXES = ['http://', 'https://', '/', 'data:image/'];
+  let businessStylesState = [];
+
+  function generateBusinessStyleId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `business-style-${Math.random().toString(36).slice(2, 11)}`;
+  }
+
+  function createBusinessStyleState(initial = {}) {
+    return {
+      id: generateBusinessStyleId(),
+      business: (initial.business || '').trim(),
+      background_color: (initial.background_color || '').trim(),
+      text_color: (initial.text_color || '').trim(),
+      icon: (initial.icon || '').trim(),
+    };
+  }
+
+  function updateBusinessStylesEmptyState() {
+    if (!businessStylesEmptyState) return;
+    const isEmpty = !businessStylesState.length;
+    businessStylesEmptyState.classList.toggle('d-none', !isEmpty);
+  }
+
+  function updateBusinessStylePreview(card, item) {
+    if (!(card instanceof HTMLElement)) return;
+    const preview = card.querySelector('[data-business-preview]');
+    if (!(preview instanceof HTMLElement)) return;
+    const background = sanitizeHexColor(item.background_color, '');
+    preview.style.backgroundColor = background || '#f8f9fa';
+    const textEl = preview.querySelector('.business-style-preview-text');
+    if (textEl instanceof HTMLElement) {
+      textEl.textContent = item.business || 'Пример';
+      const color = sanitizeHexColor(item.text_color, '');
+      textEl.style.color = color || '#212529';
+    }
+    const iconSpot = preview.querySelector('.business-style-preview-icon');
+    if (iconSpot instanceof HTMLElement) {
+      const iconValue = (item.icon || '').trim();
+      if (iconValue) {
+        iconSpot.classList.remove('d-none');
+        iconSpot.innerHTML = `<img src="${escapeHtml(iconValue)}" alt="" width="4" height="4">`;
+        preview.classList.add('business-style-preview--with-icon');
+      } else {
+        iconSpot.innerHTML = '';
+        iconSpot.classList.add('d-none');
+        preview.classList.remove('business-style-preview--with-icon');
+      }
+    }
+  }
+
+  function refreshBusinessStyleCard(id) {
+    if (!businessStylesContainer) return;
+    const card = businessStylesContainer.querySelector(`[data-style-id="${id}"]`);
+    const item = businessStylesState.find((entry) => entry.id === id);
+    if (card && item) {
+      updateBusinessStylePreview(card, item);
+    }
+  }
+
+  function updateBusinessStyleField(id, field, value) {
+    const item = businessStylesState.find((entry) => entry.id === id);
+    if (!item) return;
+    item[field] = typeof value === 'string' ? value.trim() : value;
+    refreshBusinessStyleCard(id);
+  }
+
+  function removeBusinessStyle(id) {
+    businessStylesState = businessStylesState.filter((entry) => entry.id !== id);
+    renderBusinessStyles();
+  }
+
+  function attachColorControls(card, item, field) {
+    const textInput = card.querySelector(`[data-field="${field}"]`);
+    const picker = card.querySelector(`[data-color-picker="${field}"]`);
+    const clearBtn = card.querySelector(`[data-clear-field="${field}"]`);
+    const currentValue = item[field] || '';
+    if (textInput) {
+      textInput.value = currentValue;
+      textInput.addEventListener('input', (event) => {
+        const val = (event.target.value || '').trim();
+        updateBusinessStyleField(item.id, field, val);
+        if (picker) {
+          const sanitized = sanitizeHexColor(val, '');
+          if (sanitized) {
+            picker.value = sanitized;
+          }
+        }
+      });
+    }
+    if (picker) {
+      picker.value = sanitizeHexColor(currentValue, picker.value || '#ffffff') || '#ffffff';
+      picker.addEventListener('input', (event) => {
+        const val = event.target.value || '';
+        if (textInput) {
+          textInput.value = val;
+        }
+        updateBusinessStyleField(item.id, field, val);
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (textInput) textInput.value = '';
+        if (picker) picker.value = '#ffffff';
+        updateBusinessStyleField(item.id, field, '');
+      });
+    }
+  }
+
+  function createBusinessStyleCard(item) {
+    const card = document.createElement('div');
+    card.className = 'business-style-card card';
+    card.dataset.styleId = item.id;
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4 col-lg-3">
+            <label class="form-label">Бизнес</label>
+            <input type="text" class="form-control form-control-sm" data-field="business" placeholder="Название бизнеса">
+            <div class="form-text">Текст из столбца «Бизнес».</div>
+          </div>
+          <div class="col-md-4 col-lg-3">
+            <label class="form-label">Иконка (URL)</label>
+            <input type="url" class="form-control form-control-sm" data-field="icon" placeholder="https://... или /static/...">
+            <div class="form-text">Поддерживаются http(s), data:image и относительные пути.</div>
+          </div>
+          <div class="col-md-4 col-lg-2">
+            <label class="form-label">Цвет ячейки</label>
+            <div class="input-group input-group-sm business-color-input">
+              <input type="text" class="form-control" data-field="background_color" placeholder="#FFAA00">
+              <input type="color" class="form-control form-control-color flex-shrink-0" data-color-picker="background_color" value="#ffffff" title="Цвет ячейки">
+              <button class="btn btn-outline-secondary" type="button" data-clear-field="background_color" title="Очистить цвет">&times;</button>
+            </div>
+          </div>
+          <div class="col-md-4 col-lg-2">
+            <label class="form-label">Цвет текста</label>
+            <div class="input-group input-group-sm business-color-input">
+              <input type="text" class="form-control" data-field="text_color" placeholder="#FFFFFF">
+              <input type="color" class="form-control form-control-color flex-shrink-0" data-color-picker="text_color" value="#ffffff" title="Цвет текста">
+              <button class="btn btn-outline-secondary" type="button" data-clear-field="text_color" title="Очистить цвет">&times;</button>
+            </div>
+          </div>
+          <div class="col-md-4 col-lg-2">
+            <label class="form-label">Превью</label>
+            <div class="business-style-preview" data-business-preview>
+              <span class="business-style-preview-icon d-none"></span>
+              <span class="business-style-preview-text">Пример</span>
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2" data-remove-style>Удалить</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const businessInput = card.querySelector('[data-field="business"]');
+    if (businessInput) {
+      businessInput.value = item.business || '';
+      businessInput.addEventListener('input', (event) => {
+        updateBusinessStyleField(item.id, 'business', event.target.value || '');
+      });
+    }
+
+    const iconInput = card.querySelector('[data-field="icon"]');
+    if (iconInput) {
+      iconInput.value = item.icon || '';
+      iconInput.addEventListener('input', (event) => {
+        updateBusinessStyleField(item.id, 'icon', event.target.value || '');
+      });
+    }
+
+    attachColorControls(card, item, 'background_color');
+    attachColorControls(card, item, 'text_color');
+
+    const removeBtn = card.querySelector('[data-remove-style]');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => removeBusinessStyle(item.id));
+    }
+
+    updateBusinessStylePreview(card, item);
+    return card;
+  }
+
+  function renderBusinessStyles() {
+    if (!businessStylesContainer) return;
+    businessStylesContainer.innerHTML = '';
+    businessStylesState.forEach((item) => {
+      businessStylesContainer.appendChild(createBusinessStyleCard(item));
+    });
+    updateBusinessStylesEmptyState();
+  }
+
+  function initBusinessStylesEditor() {
+    if (!businessStylesContainer) return;
+    businessStylesState = [];
+    if (INITIAL_BUSINESS_CELL_STYLES && typeof INITIAL_BUSINESS_CELL_STYLES === 'object') {
+      Object.entries(INITIAL_BUSINESS_CELL_STYLES).forEach(([business, config]) => {
+        businessStylesState.push(
+          createBusinessStyleState({
+            business,
+            background_color: config && config.background_color,
+            text_color: config && config.text_color,
+            icon: config && config.icon,
+          })
+        );
+      });
+    }
+    renderBusinessStyles();
+  }
+
+  function isValidBusinessIcon(icon) {
+    if (typeof icon !== 'string') return false;
+    const trimmed = icon.trim();
+    return BUSINESS_ICON_ALLOWED_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+  }
+
+  function collectBusinessStylesPayload() {
+    const payload = {};
+    const errors = [];
+    businessStylesState.forEach((item, index) => {
+      const business = (item.business || '').trim();
+      if (!business) {
+        errors.push(`Карточка №${index + 1}: укажите название бизнеса или удалите её.`);
+        return;
+      }
+      const background = item.background_color ? sanitizeHexColor(item.background_color, '') : '';
+      if (item.background_color && !background) {
+        errors.push(`«${business}»: цвет ячейки должен быть в формате HEX (#RRGGBB).`);
+      }
+      const textColor = item.text_color ? sanitizeHexColor(item.text_color, '') : '';
+      if (item.text_color && !textColor) {
+        errors.push(`«${business}»: цвет текста должен быть в формате HEX (#RRGGBB).`);
+      }
+      const icon = (item.icon || '').trim();
+      if (icon && !isValidBusinessIcon(icon)) {
+        errors.push(`«${business}»: иконка должна начинаться с http(s), / или data:image/.`);
+      }
+      payload[business] = {
+        background_color: background,
+        text_color: textColor,
+        icon,
+      };
+    });
+    return { payload, errors };
+  }
+
+  async function saveBusinessStyles() {
+    if (!saveBusinessStylesBtn) return;
+    const { payload, errors } = collectBusinessStylesPayload();
+    if (errors.length) {
+      alert('❌ ' + errors.join('\n'));
+      return;
+    }
+    const originalText = saveBusinessStylesBtn.textContent;
+    saveBusinessStylesBtn.disabled = true;
+    saveBusinessStylesBtn.textContent = '...';
+    try {
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_cell_styles: payload }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error((data && data.error) || 'Не удалось сохранить настройки бизнесов');
+      }
+      businessStylesState = Object.entries(payload || {}).map(([business, config]) =>
+        createBusinessStyleState({
+          business,
+          background_color: config && config.background_color,
+          text_color: config && config.text_color,
+          icon: config && config.icon,
+        })
+      );
+      renderBusinessStyles();
+      alert('✅ Настройки бизнесов сохранены');
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      alert('❌ Ошибка: ' + message);
+    } finally {
+      saveBusinessStylesBtn.disabled = false;
+      saveBusinessStylesBtn.textContent = originalText || 'Сохранить изменения';
+    }
+  }
+
+  if (addBusinessStyleBtn && businessStylesContainer) {
+    addBusinessStyleBtn.addEventListener('click', () => {
+      businessStylesState.push(createBusinessStyleState());
+      renderBusinessStyles();
+    });
+  }
+
+  if (saveBusinessStylesBtn) {
+    saveBusinessStylesBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      saveBusinessStyles();
+    });
   }
 
   // === Инициализация управления доступом ===
@@ -11188,6 +11566,7 @@
   // === Запуск при загрузке страницы ===
   document.addEventListener('DOMContentLoaded', () => {
     initClientStatuses();
+    initBusinessStylesEditor();
     initAutoCloseTemplates();
     initDialogTemplates();
     initTimeMetricsControls();
