@@ -7,7 +7,12 @@ from typing import Final
 from alembic import command
 from alembic.config import Config
 
-from config import DATABASE_URL
+try:
+    from config import DATABASE_URL as _CONFIG_DATABASE_URL
+except Exception:
+    _CONFIG_DATABASE_URL = f"sqlite:///{Path(__file__).resolve().parent / 'tickets.db'}"
+
+DATABASE_URL = _CONFIG_DATABASE_URL
 
 _APPLIED: bool = False
 _CONFIG_PATH: Final[Path] = Path(__file__).resolve().with_name("alembic.ini")
