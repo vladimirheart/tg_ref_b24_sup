@@ -261,6 +261,26 @@
   td.business-cell {
     text-align: center;
     width: 115px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  td.business-cell.business-cell--with-icon {
+    padding-left: 18px;
+  }
+
+  .business-cell-icon {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 4px;
+    height: 4px;
+    object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
+  .business-cell-text {
+    display: inline-block;
   }
 
   .actions-cell .btn.btn-sm {
@@ -1669,6 +1689,7 @@ img.emoji {
 <script src="{{ url_for('static', filename='common.js') }}"></script>
 <script>
 const CURRENT_OPERATOR = {{ (session.get('user_email') or session.get('username') or session.get('user') or '') | tojson }};
+const BUSINESS_CELL_STYLES = {{ settings.get('business_cell_styles', {}) | tojson | safe }} || {};
 
 function getOperatorName() {
   const name = (typeof CURRENT_OPERATOR === 'string' ? CURRENT_OPERATOR : '').trim();
@@ -1691,6 +1712,40 @@ function sanitizeHexColor(value, fallback) {
     return raw;
   }
   return fallback;
+}
+
+function resolveBusinessCellStyleConfig(businessName) {
+  const name = (typeof businessName === 'string' ? businessName : '').trim();
+  if (!name || !BUSINESS_CELL_STYLES || typeof BUSINESS_CELL_STYLES !== 'object') {
+    return null;
+  }
+  const config = BUSINESS_CELL_STYLES[name];
+  if (!config || typeof config !== 'object') {
+    return null;
+  }
+  const background = sanitizeHexColor(config.background_color, '');
+  const textColor = sanitizeHexColor(config.text_color, '');
+  const icon = typeof config.icon === 'string' ? config.icon.trim() : '';
+  if (!background && !textColor && !icon) {
+    return null;
+  }
+  return { background, textColor, icon };
+}
+
+function buildBusinessCellPresentation(businessName) {
+  const config = resolveBusinessCellStyleConfig(businessName);
+  if (!config) {
+    return { styleAttr: '', iconHtml: '', extraClass: '' };
+  }
+  const inlineParts = [];
+  if (config.background) inlineParts.push(`background-color:${config.background}`);
+  if (config.textColor) inlineParts.push(`color:${config.textColor}`);
+  const styleAttr = inlineParts.length ? ` style="${inlineParts.join(';')}"` : '';
+  const iconHtml = config.icon
+    ? `<img src="${escapeHtml(config.icon)}" alt="" class="business-cell-icon" width="4" height="4">`
+    : '';
+  const extraClass = config.icon ? ' business-cell--with-icon' : '';
+  return { styleAttr, iconHtml, extraClass };
 }
 
 function normalizeDialogTimeMetrics(raw) {
@@ -5949,7 +6004,8 @@ function renderTicketsPageRows(tickets, container) {
                       </button>`;
                 }
 
-        const businessValue = t.business || '—';
+        const businessValue = escapeHtml(t.business || '—');
+        const businessPresentation = buildBusinessCellPresentation(t.business);
         const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
         const historyButton = `
           <button
@@ -5980,7 +6036,7 @@ function renderTicketsPageRows(tickets, container) {
         rowHTML += `<td>${t.client_status || '—'}</td>`;
         rowHTML += `<td>${t.channel_name || '—'}</td>`;
         rowHTML += `<td><code>${t.ticket_id}</code></td>`;
-        rowHTML += `<td class="business-cell ${businessClass}">${businessValue}</td>`;
+        rowHTML += `<td class="business-cell ${businessClass}${businessPresentation.extraClass}"${businessPresentation.styleAttr}>${businessPresentation.iconHtml}<span class="business-cell-text">${businessValue}</span></td>`;
         rowHTML += `<td>${t.city}<br><small>${t.location_name}</small></td>`;
         rowHTML += `<td>${t.problem}</td>`;
         rowHTML += `<td>${responsibleDisplay}</td>`;
