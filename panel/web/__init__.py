@@ -1,22 +1,22 @@
 """Flask application factory for the operator panel."""
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from flask import Flask
 
+from config import get_settings
 from panel.background import init_background
 from panel.repositories import TicketRepository, UserRepository
 from panel.services import AuthService, SettingsService, TicketService
 from panel.storage import SettingsStorage
-from shared_config import shared_config_path
 
 from . import auth, settings as settings_bp, tickets
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_FOLDER = PROJECT_ROOT / "templates"
 STATIC_FOLDER = PROJECT_ROOT / "static"
+runtime_settings = get_settings()
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -26,10 +26,10 @@ def create_app(config: dict | None = None) -> Flask:
         static_folder=str(STATIC_FOLDER),
     )
     default_config = {
-        "SECRET_KEY": os.getenv("SECRET_KEY", "dev"),
-        "USERS_DB_PATH": str(PROJECT_ROOT.parent / "users.db"),
-        "TICKETS_DB_PATH": str(PROJECT_ROOT / "tickets.db"),
-        "SETTINGS_FILE_PATH": str(shared_config_path("settings.json")),
+        "SECRET_KEY": runtime_settings.security.secret_key,
+        "USERS_DB_PATH": str(runtime_settings.db.users_path),
+        "TICKETS_DB_PATH": str(runtime_settings.db.tickets_path),
+        "SETTINGS_FILE_PATH": str(runtime_settings.shared.settings_path),
         "ENABLE_BACKGROUND_TASKS": True,
     }
     app.config.from_mapping(default_config)
