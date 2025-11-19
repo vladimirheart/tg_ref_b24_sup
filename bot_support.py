@@ -67,7 +67,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from config import DB_PATH, load_settings  # Убраны TOKEN и GROUP_CHAT_ID
+from config import get_settings, load_shared_settings  # Убраны TOKEN и GROUP_CHAT_ID
 from db import (
     ClientBlacklist,
     ClientUnblockRequest,
@@ -88,8 +88,8 @@ from bot_settings_utils import (
 )
 from shared_config import shared_config_path
 
-ATTACHMENTS_DIR = "attachments"
-LOCATIONS_PATH = shared_config_path("locations.json")
+ATTACHMENTS_DIR = str(settings.storage.attachments)
+LOCATIONS_PATH = settings.shared.locations_path
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(os.path.join(ATTACHMENTS_DIR, "temp"), exist_ok=True)
 
@@ -443,7 +443,7 @@ def load_locations():
         return {}
 LOCATIONS = load_locations()
 BUSINESS_OPTIONS = list(LOCATIONS.keys())
-SETTINGS = load_settings()
+SETTINGS = load_shared_settings()
 
 
 def load_bot_settings_config(channel_id: int | None = None):
