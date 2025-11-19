@@ -4091,12 +4091,18 @@ def _sanitize_completion_templates(raw):
     return templates
 
 
-def _sanitize_hex_color(value: Any, fallback: str) -> str:
-    if isinstance(value, str):
-        candidate = value.strip()
-        if re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", candidate):
-            return candidate
-    return fallback
+def _sanitize_hex_color(value: Any, fallback: str | None = None) -> str:
+    """Return a sanitized hex color or a fallback/default value."""
+
+    color = str(value or "").strip()
+    if HEX_COLOR_RE.match(color):
+        return color.lower()
+
+    if fallback is None:
+        return ""
+
+    fallback_color = str(fallback or "").strip()
+    return fallback_color.lower() if HEX_COLOR_RE.match(fallback_color) else ""
 
 
 def _sanitize_time_metrics(raw: Any) -> dict[str, Any]:
@@ -4297,13 +4303,6 @@ def sanitize_client_status_colors(raw_colors: Any, *, allowed_statuses: Iterable
 
 HEX_COLOR_RE = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 ALLOWED_ICON_PREFIXES = ("http://", "https://", "/", "data:image/")
-
-
-def _sanitize_hex_color(value: Any) -> str:
-    if not isinstance(value, str):
-        value = str(value or "")
-    color = value.strip()
-    return color.lower() if HEX_COLOR_RE.match(color) else ""
 
 
 def sanitize_business_cell_styles(raw_styles: Any) -> dict[str, dict[str, str]]:
