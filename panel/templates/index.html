@@ -241,17 +241,6 @@
     white-space: nowrap;
   }
 
-  /* Стили для бизнесов */
-  .business-sushi {
-    background-color: #F25F79 !important;
-    color: white !important;
-  }
-
-  .business-blin {
-    background-color: #FFD504 !important;
-    color: black !important;
-  }
-
   th[data-column="business"] {
     width: 115px;
     min-width: 115px;
@@ -1744,7 +1733,7 @@ function buildBusinessCellPresentation(businessName) {
   const iconHtml = config.icon
     ? `<img src="${escapeHtml(config.icon)}" alt="" class="business-cell-icon" width="4" height="4">`
     : '';
-  const extraClass = config.icon ? ' business-cell--with-icon' : '';
+  const extraClass = config.icon ? 'business-cell--with-icon' : '';
   return { styleAttr, iconHtml, extraClass };
 }
 
@@ -5979,10 +5968,6 @@ function renderTicketsPageRows(tickets, container) {
 		const unreadBadge = `<span class="badge bg-danger me-1 unread-badge" data-ticket="${t.ticket_id}" style="display:none;">0</span>`;
 		statusBadge = unreadBadge + statusBadge;
 
-  let businessClass = '';
-  if (t.business === 'СушиВесла') businessClass = 'business-sushi';
-  else if (t.business === 'БлинБери') businessClass = 'business-blin';
-
   // Кнопка создания задачи (безопасно прокидываем текст через JSON.stringify, чтобы не париться с кавычками)
                 let createTaskBtn;
                 if (t.linked_task_id) {
@@ -6006,6 +5991,10 @@ function renderTicketsPageRows(tickets, container) {
 
         const businessValue = escapeHtml(t.business || '—');
         const businessPresentation = buildBusinessCellPresentation(t.business);
+        const businessCellClasses = ['business-cell'];
+        if (businessPresentation.extraClass) {
+          businessCellClasses.push(businessPresentation.extraClass);
+        }
         const responsibleDisplay = (t.responsible || '').trim() || 'ещё не в работе';
         const historyButton = `
           <button
@@ -6036,7 +6025,7 @@ function renderTicketsPageRows(tickets, container) {
         rowHTML += `<td>${t.client_status || '—'}</td>`;
         rowHTML += `<td>${t.channel_name || '—'}</td>`;
         rowHTML += `<td><code>${t.ticket_id}</code></td>`;
-        rowHTML += `<td class="business-cell ${businessClass}${businessPresentation.extraClass}"${businessPresentation.styleAttr}>${businessPresentation.iconHtml}<span class="business-cell-text">${businessValue}</span></td>`;
+        rowHTML += `<td class="${businessCellClasses.join(' ')}"${businessPresentation.styleAttr}>${businessPresentation.iconHtml}<span class="business-cell-text">${businessValue}</span></td>`;
         rowHTML += `<td>${t.city}<br><small>${t.location_name}</small></td>`;
         rowHTML += `<td>${t.problem}</td>`;
         rowHTML += `<td>${responsibleDisplay}</td>`;
