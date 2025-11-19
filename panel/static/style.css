@@ -200,16 +200,6 @@ a:not([class]) {
   background-color: #aaa;
 }
 
-.business-sushi {
-  background-color: #F25F79 !important;
-  color: white !important;
-}
-
-.business-blin {
-  background-color: #FFD504 !important;
-  color: black !important;
-}
-
 .clickable-client {
   cursor: pointer;
   color: #0d6efd;
