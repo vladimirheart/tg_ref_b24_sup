@@ -8,13 +8,9 @@ import re
 import asyncio
 import signal, sys
 
-from panel.repositories import (
-    BotCredentialRepository,
-    ChannelRepository,
-    ensure_tables as ensure_channel_tables,
-)
+from core.channels import ChannelService
+from core.repositories import ensure_tables as ensure_channel_tables
 from migrations_runner import ensure_schema_is_current
-from panel.secret_utils import SecretStorageError, decrypt_token
 from datetime import datetime, timezone
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -97,9 +93,7 @@ LOCATIONS_PATH = shared_config_path("locations.json")
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(os.path.join(ATTACHMENTS_DIR, "temp"), exist_ok=True)
 
-# --- Кеш channel_id по токену ---
-_channel_id_cache = {}
-
+# --- Инициализация схем ---
 ensure_schema_is_current()
 ensure_channel_tables()
 
@@ -107,9 +101,7 @@ ensure_channel_tables()
 import sqlite3, json
 from functools import wraps
 
-_channel_cache = {}
-_channel_repo = ChannelRepository()
-_credential_repo = BotCredentialRepository()
+_channel_service = ChannelService()
 
 # === DB write helpers (используйте их из хендлеров) ===
 def db():
@@ -482,27 +474,15 @@ def load_bot_settings_config(channel_id: int | None = None):
 
     question_template_id = None
     rating_template_id = None
-    raw_cfg = None
+    parsed_cfg: dict[str, Any] = {}
 
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT question_template_id, rating_template_id, questions_cfg FROM channels WHERE id = ?",
-                (channel_id,),
-            ).fetchone()
-        if row:
-            question_template_id = (row["question_template_id"] or "").strip()
-            rating_template_id = (row["rating_template_id"] or "").strip()
-            raw_cfg = row["questions_cfg"]
-    except Exception:
-        row = None
+    questionnaire = _channel_service.get_questionnaire(channel_id)
+    if questionnaire:
+        question_template_id = questionnaire.question_template_id
+        rating_template_id = questionnaire.rating_template_id
+        parsed_cfg = questionnaire.questions_cfg or {}
 
-    if raw_cfg and (not question_template_id or not rating_template_id):
-        try:
-            parsed_cfg = json.loads(raw_cfg)
-        except Exception:
-            parsed_cfg = {}
+    if parsed_cfg and (not question_template_id or not rating_template_id):
         if not question_template_id:
             question_template_id = (
                 parsed_cfg.get("question_template_id")
@@ -1866,17 +1846,13 @@ def auto_close_inactive():
             return parsed.astimezone(timezone.utc).replace(tzinfo=None)
         return parsed
 
+    channel_hours = {
+        cid: resolve_hours(template_id)
+        for cid, template_id in _channel_service.list_auto_close_templates().items()
+    }
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
-        channel_rows = conn.execute(
-            "SELECT id, auto_action_template_id FROM channels"
-        ).fetchall()
-        channel_hours = {
-            row["id"]: resolve_hours(row["auto_action_template_id"])
-            for row in channel_rows
-            if row["id"] is not None
-        }
-
         tickets = conn.execute(
             """
             SELECT t.user_id, t.ticket_id, t.channel_id, MAX(h.timestamp) AS last_activity
@@ -1933,18 +1909,8 @@ def auto_close_inactive():
         conn.commit()
 
 def get_questions_cfg(channel_id: int) -> dict:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        "SELECT questions_cfg, max_questions FROM channels WHERE id = ?",
-        (channel_id,),
-    ).fetchone()
-    conn.close()
-
-    try:
-        stored_cfg = json.loads(row["questions_cfg"] or "{}") if row else {}
-    except Exception:
-        stored_cfg = {}
+    questionnaire = _channel_service.get_questionnaire(channel_id)
+    stored_cfg = questionnaire.questions_cfg if questionnaire else {}
 
     per_limit = 0
     if isinstance(stored_cfg, dict):
@@ -1953,8 +1919,8 @@ def get_questions_cfg(channel_id: int) -> dict:
             per_limit = int(raw_limit)
         except (TypeError, ValueError):
             per_limit = 0
-    if not per_limit and row:
-        per_limit = row["max_questions"] or 0
+    if not per_limit and questionnaire:
+        per_limit = questionnaire.max_questions or 0
 
     bot_config = load_bot_settings_config(channel_id)
     question_flow = bot_config.get("question_flow") or []
@@ -2020,51 +1986,13 @@ def with_channel(handler):
     return wrapper
 
 def get_channel_id_by_token(token: str) -> int:
-    if token in _channel_cache:
-        return _channel_cache[token]
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        """
-        SELECT c.id, bc.encrypted_token
-        FROM channels c
-        JOIN bot_credentials bc ON bc.id = c.credential_id
-        """
-    ).fetchall()
-    conn.close()
-    for row in rows:
-        try:
-            decrypted = decrypt_token(row["encrypted_token"])
-        except SecretStorageError:
-            continue
-        _channel_cache[decrypted] = row["id"]
-    if token not in _channel_cache:
-        raise RuntimeError("Token не найден в секретном хранилище")
-    return _channel_cache[token]
- 
+    return _channel_service.get_channel_id_by_token(token)
+
 def get_support_chat_id(channel_id: int):
     """Возвращает chat_id группы поддержки для канала.
        Приоритет: channels.support_chat_id -> SETTINGS.support_chat_id / group_chat_id -> None"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        # мягко проверим, есть ли колонка в базе
-        cols = {r["name"] for r in conn.execute("PRAGMA table_info(channels)").fetchall()}
-        chat_id = None
-        if "support_chat_id" in cols:
-            row = conn.execute("SELECT support_chat_id FROM channels WHERE id = ?", (channel_id,)).fetchone()
-            if row and row["support_chat_id"]:
-                try:
-                    chat_id = int(row["support_chat_id"])
-                except Exception:
-                    chat_id = row["support_chat_id"]
-        conn.close()
-    except Exception:
-        chat_id = None
-
-    if not chat_id:
-        chat_id = SETTINGS.get("support_chat_id") or SETTINGS.get("group_chat_id")
-    return chat_id
+    fallback = SETTINGS.get("support_chat_id") or SETTINGS.get("group_chat_id")
+    return _channel_service.get_support_chat_id(channel_id, fallback=fallback)
 
 def is_group_update(update: Update) -> bool:
     try:
@@ -2076,39 +2004,16 @@ def is_group_update(update: Update) -> bool:
 # --- функции для запуска нескольких ботов ---
 def iter_active_channels(platform: str | None = None):
     """Генератор активных каналов из БД с фильтрацией по платформе."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    query = """
-        SELECT c.id, c.platform, c.platform_config, bc.encrypted_token
-        FROM channels c
-        LEFT JOIN bot_credentials bc ON bc.id = c.credential_id
-        WHERE c.is_active = 1
-    """
-    params: list[str] = []
-    if platform:
-        query += " AND LOWER(COALESCE(c.platform, 'telegram')) = ?"
-        params.append(platform.lower())
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
-
-    result = []
-    for row in rows:
-        encrypted = row["encrypted_token"]
-        if not encrypted:
-            continue
-        try:
-            token = decrypt_token(encrypted)
-        except SecretStorageError as exc:
-            logging.warning("Не удалось расшифровать токен канала %s: %s", row["id"], exc)
-            continue
-        _channel_cache[token] = row["id"]
-        result.append({
-            "id": row["id"],
-            "token": token,
-            "platform": row["platform"],
-            "platform_config": row["platform_config"],
-        })
-    return result
+    configs = _channel_service.iter_active_bot_channels(platform=platform)
+    return [
+        {
+            "id": cfg.id,
+            "token": cfg.token,
+            "platform": cfg.platform,
+            "platform_config": cfg.platform_config,
+        }
+        for cfg in configs
+    ]
 
 async def run_all_bots():
     """Запускает всех активных ботов в ОДНОМ event loop без run_polling()."""
