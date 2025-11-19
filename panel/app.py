@@ -9708,13 +9708,8 @@ def api_channels_list():
             if credential_id:
                 credential = BOT_CREDENTIALS_REPO.get(int(credential_id))
                 if credential:
-                    credential_info = {
-                        "id": credential.id,
-                        "name": credential.name,
-                        "platform": credential.platform,
-                        "masked_token": credential.masked_token,
-                        "is_active": credential.is_active,
-                    }
+                    serialized = _serialize_credential(credential)
+                    credential_info = serialized or None
             data["credential"] = credential_info
             refreshed = _refresh_bot_identity_if_needed(conn, data)
             result.append(refreshed)
@@ -9977,16 +9972,10 @@ def api_channels_delete(channel_id):
 def _serialize_credential(credential) -> dict:
     if credential is None:
         return {}
-    return {
-        "id": credential.id,
-        "name": credential.name,
-        "platform": credential.platform,
-        "masked_token": credential.masked_token,
-        "is_active": credential.is_active,
-        "created_at": credential.created_at,
-        "updated_at": credential.updated_at,
-        "metadata": credential.metadata,
-    }
+    payload = BotCredentialRepository.to_dict(credential)
+    # Never expose encrypted token via API responses.
+    payload.pop("encrypted_token", None)
+    return payload
 
 
 @app.route("/api/bot-credentials", methods=["GET"])
