@@ -35,7 +35,10 @@ from bot_support import (
     save_username_if_changed,
 )
 from migrations_runner import ensure_schema_is_current
-from config import DB_PATH
+from config import get_settings
+
+settings = get_settings()
+DB_PATH = str(settings.db.tickets_path)
 
 logger = logging.getLogger(__name__)
 
