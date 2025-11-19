@@ -43,13 +43,13 @@ from vk_api import VkApi
 from vk_api.exceptions import VkApiError
 
 from panel.notification_queue import enqueue_notification, init_queue
-from panel.repositories import (
+from core.repositories import (
     BotCredentialRepository,
     ChannelNotificationRepository,
     ChannelRepository,
     ensure_tables as ensure_channel_tables,
 )
-from panel.secret_utils import mask_token
+from core.secrets import mask_token
 from migrations_runner import ensure_schema_is_current
 
 from bot_settings_utils import (
