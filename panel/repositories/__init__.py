@@ -1,12 +1,12 @@
 """Repository package aggregating DB access helpers."""
-from .channels import (
+from core.repositories import (
     BotCredentialRepository,
     ChannelNotificationRepository,
     ChannelRepository,
+    TicketRepository,
     ensure_tables,
 )
 from .users import UserRepository
-from .tickets import TicketRepository
 
 __all__ = [
     "BotCredentialRepository",
