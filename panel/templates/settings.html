@@ -8884,6 +8884,7 @@
   const addBusinessStyleBtn = document.getElementById('addBusinessStyleBtn');
   const saveBusinessStylesBtn = document.getElementById('saveBusinessStylesBtn');
   const BUSINESS_ICON_ALLOWED_PREFIXES = ['http://', 'https://', '/', 'data:image/'];
+  const BUSINESS_ICON_MAX_FILE_SIZE = 16 * 1024; // 16 КБ на мини-иконку
   let businessStylesState = [];
 
   function generateBusinessStyleId() {
@@ -8994,6 +8995,64 @@
     }
   }
 
+  function handleBusinessIconFileSelect(fileInput, iconInput, styleId) {
+    if (!fileInput) return;
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      alert('❌ Можно загрузить только изображения (PNG, JPG, SVG и т.п.).');
+      fileInput.value = '';
+      return;
+    }
+    if (file.size > BUSINESS_ICON_MAX_FILE_SIZE) {
+      alert(`❌ Размер файла не должен превышать ${Math.round(BUSINESS_ICON_MAX_FILE_SIZE / 1024)} КБ.`);
+      fileInput.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      if (iconInput) {
+        iconInput.value = result;
+      }
+      updateBusinessStyleField(styleId, 'icon', result);
+      fileInput.value = '';
+    };
+    reader.onerror = () => {
+      alert('❌ Не удалось прочитать файл. Попробуйте ещё раз.');
+      fileInput.value = '';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function attachIconControls(card, item) {
+    const iconInput = card.querySelector('[data-field="icon"]');
+    const uploadBtn = card.querySelector('[data-icon-upload]');
+    const fileInput = card.querySelector('[data-icon-file]');
+    const clearBtn = card.querySelector('[data-clear-field="icon"]');
+    if (iconInput) {
+      iconInput.value = item.icon || '';
+      iconInput.addEventListener('input', (event) => {
+        updateBusinessStyleField(item.id, 'icon', event.target.value || '');
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (iconInput) {
+          iconInput.value = '';
+        }
+        if (fileInput) {
+          fileInput.value = '';
+        }
+        updateBusinessStyleField(item.id, 'icon', '');
+      });
+    }
+    if (uploadBtn && fileInput) {
+      uploadBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => handleBusinessIconFileSelect(fileInput, iconInput, item.id));
+    }
+  }
+
   function createBusinessStyleCard(item) {
     const card = document.createElement('div');
     card.className = 'business-style-card card';
@@ -9007,9 +9066,23 @@
             <div class="form-text">Текст из столбца «Бизнес».</div>
           </div>
           <div class="col-md-4 col-lg-3">
-            <label class="form-label">Иконка (URL)</label>
-            <input type="url" class="form-control form-control-sm" data-field="icon" placeholder="https://... или /static/...">
-            <div class="form-text">Поддерживаются http(s), data:image и относительные пути.</div>
+            <label class="form-label">Иконка</label>
+            <div class="input-group input-group-sm business-icon-input">
+              <input
+                type="url"
+                class="form-control"
+                data-field="icon"
+                placeholder="https://... или /static/..."
+              >
+              <button class="btn btn-outline-secondary" type="button" data-icon-upload title="Загрузить файл">
+                <i class="bi bi-upload"></i>
+              </button>
+              <button class="btn btn-outline-secondary" type="button" data-clear-field="icon" title="Очистить иконку">
+                &times;
+              </button>
+            </div>
+            <input type="file" class="d-none" accept="image/*" data-icon-file>
+            <div class="form-text">Поддерживаются http(s), data:image, относительные пути и загрузка файла.</div>
           </div>
           <div class="col-md-4 col-lg-2">
             <label class="form-label">Цвет ячейки</label>
@@ -9047,13 +9120,7 @@
       });
     }
 
-    const iconInput = card.querySelector('[data-field="icon"]');
-    if (iconInput) {
-      iconInput.value = item.icon || '';
-      iconInput.addEventListener('input', (event) => {
-        updateBusinessStyleField(item.id, 'icon', event.target.value || '');
-      });
-    }
+    attachIconControls(card, item);
 
     attachColorControls(card, item, 'background_color');
     attachColorControls(card, item, 'text_color');
