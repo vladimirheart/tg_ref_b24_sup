@@ -90,6 +90,12 @@ from collections import Counter
 from werkzeug.utils import secure_filename
 
 runtime_settings = get_settings()
+ensure_schema_is_current()
+ensure_channel_tables()
+
+BOT_CREDENTIALS_REPO = BotCredentialRepository()
+CHANNEL_REPO = ChannelRepository()
+CHANNEL_NOTIFICATIONS_REPO = ChannelNotificationRepository()
 BASE_DIR = str(runtime_settings.project_root)
 SETTINGS_PATH = runtime_settings.shared.settings_path
 ATTACHMENTS_DIR = str(runtime_settings.storage.attachments)
