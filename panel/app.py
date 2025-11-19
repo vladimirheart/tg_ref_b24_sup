@@ -50,6 +50,7 @@ from panel.repositories import (
     ensure_tables as ensure_channel_tables,
 )
 from panel.secret_utils import mask_token
+from migrations_runner import ensure_schema_is_current
 
 from bot_settings_utils import (
     DEFAULT_BOT_PRESET_DEFINITIONS,
@@ -1432,141 +1433,9 @@ _ensure_object_passport_equipment_columns()
 
 
 def ensure_knowledge_base_schema():
-    with get_db() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS knowledge_articles (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                department TEXT,
-                article_type TEXT,
-                status TEXT,
-                author TEXT,
-                direction TEXT,
-                direction_subtype TEXT,
-                summary TEXT,
-                content TEXT,
-                attachments TEXT,
-                created_at TEXT DEFAULT (datetime('now')),
-                updated_at TEXT DEFAULT (datetime('now'))
-            )
-        """
-        )
-        existing_columns = {
-            row["name"]: row["type"].upper()
-            for row in conn.execute("PRAGMA table_info(knowledge_articles)").fetchall()
-        }
-        expected_columns = {
-            "department": "TEXT",
-            "article_type": "TEXT",
-            "article_types": "TEXT",
-            "status": "TEXT",
-            "author": "TEXT",
-            "direction": "TEXT",
-            "direction_subtype": "TEXT",
-            "summary": "TEXT",
-            "content": "TEXT",
-            "attachments": "TEXT",
-            "created_at": "TEXT DEFAULT (datetime('now'))",
-            "updated_at": "TEXT DEFAULT (datetime('now'))",
-        }
-        for column, column_type in expected_columns.items():
-            if column not in existing_columns:
-                conn.execute(
-                    f"ALTER TABLE knowledge_articles ADD COLUMN {column} {column_type}"
-                )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS knowledge_article_files (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                article_id INTEGER,
-                draft_token TEXT,
-                stored_path TEXT NOT NULL,
-                original_name TEXT,
-                mime_type TEXT,
-                file_size INTEGER,
-                uploaded_at TEXT DEFAULT (datetime('now')),
-                FOREIGN KEY(article_id) REFERENCES knowledge_articles(id) ON DELETE CASCADE
-            )
-            """
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_kb_files_article ON knowledge_article_files(article_id)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_kb_files_draft ON knowledge_article_files(draft_token)"
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS knowledge_taxonomy_values (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                category TEXT NOT NULL,
-                value TEXT NOT NULL,
-                parent_id INTEGER,
-                sort_order INTEGER DEFAULT 0,
-                is_active INTEGER DEFAULT 1,
-                FOREIGN KEY(parent_id) REFERENCES knowledge_taxonomy_values(id) ON DELETE CASCADE
-            )
-            """
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_kb_taxonomy_category ON knowledge_taxonomy_values(category)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_kb_taxonomy_parent ON knowledge_taxonomy_values(parent_id)"
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS ticket_knowledge_usage (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ticket_id TEXT NOT NULL,
-                channel_id INTEGER,
-                channel_key INTEGER NOT NULL DEFAULT -1,
-                article_id INTEGER,
-                article_title TEXT,
-                assigned_by_id INTEGER,
-                assigned_by_label TEXT,
-                assigned_at TEXT DEFAULT (datetime('now')),
-                FOREIGN KEY(article_id) REFERENCES knowledge_articles(id) ON DELETE SET NULL
-            )
-            """
-        )
-        conn.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_kb_usage_key ON ticket_knowledge_usage(ticket_id, channel_key)"
-        )
-
-
-ensure_knowledge_base_schema()
-
-PASSPORT_STATUSES = (
-    "Стройка",
-    "Открыт",
-    "Закрыт",
-    "Реконструкция",
-    "Заморожен",
-    "Другое",
-)
-
-PASSPORT_STATUSES_REQUIRING_TASK = {"Закрыт", "Реконструкция", "Заморожен", "Другое"}
-
-PASSPORT_STATUSES_WITH_PERIODS = {"Заморожен", "Реконструкция", "Другое", "Закрыт"}
-
-WEEKDAY_SEQUENCE = [
-    ("monday", "Понедельник", "Пн"),
-    ("tuesday", "Вторник", "Вт"),
-    ("wednesday", "Среда", "Ср"),
-    ("thursday", "Четверг", "Чт"),
-    ("friday", "Пятница", "Пт"),
-    ("saturday", "Суббота", "Сб"),
-    ("sunday", "Воскресенье", "Вс"),
-]
-
-WEEKDAY_FULL_LABELS = {key: full for key, full, _ in WEEKDAY_SEQUENCE}
-WEEKDAY_SHORT_LABELS = {key: short for key, _, short in WEEKDAY_SEQUENCE}
-WEEKDAY_ORDER = [key for key, *_ in WEEKDAY_SEQUENCE]
+    """Ensure migrations covering knowledge base tables are applied."""
+    ensure_schema_is_current()
+    return
 
 
 def _empty_schedule_template():
@@ -2834,232 +2703,33 @@ def _prepare_passport_record(payload):
     return record, schedule_normalized, None
 
 def ensure_tasks_schema():
-    with get_db() as conn:
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS tasks(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            seq INTEGER NOT NULL,               -- порядковый номер (целый, инкремент)
-            source TEXT,                        -- 'DL' или NULL
-            title TEXT,
-            body_html TEXT,
-            creator TEXT,
-            assignee TEXT,
-            tag TEXT,
-            status TEXT DEFAULT 'Новая',
-            due_at TEXT,                        -- ISO
-            created_at TEXT DEFAULT (datetime('now')),
-            closed_at TEXT,                     -- ISO
-            last_activity_at TEXT DEFAULT (datetime('now'))
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS task_people(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id INTEGER NOT NULL,
-            role TEXT NOT NULL,                 -- 'co' или 'watcher'
-            identity TEXT NOT NULL,
-            UNIQUE(task_id, role, identity),
-            FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS task_comments(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id INTEGER NOT NULL,
-            author TEXT,
-            html TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS task_history(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id INTEGER NOT NULL,
-            at TEXT DEFAULT (datetime('now')),
-            text TEXT,
-            FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS ticket_active(
-            ticket_id TEXT PRIMARY KEY,
-            user      TEXT NOT NULL,
-            last_seen TEXT DEFAULT (datetime('now'))
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS ticket_responsibles(
-            ticket_id   TEXT PRIMARY KEY,
-            responsible TEXT NOT NULL,
-            assigned_at TEXT DEFAULT (datetime('now')),
-            assigned_by TEXT
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS ticket_participants(
-            ticket_id TEXT NOT NULL,
-            user TEXT NOT NULL,
-            joined_at TEXT DEFAULT (datetime('now')),
-            PRIMARY KEY(ticket_id, user)
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS task_links(
-            task_id   INTEGER NOT NULL,
-            ticket_id TEXT    NOT NULL,
-            PRIMARY KEY(task_id, ticket_id)
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS notifications(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user TEXT NOT NULL,
-            text TEXT NOT NULL,
-            url TEXT,
-            is_read INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now'))
-        )
-        """)
-        # автоинкремент для seq через служебную таблицу
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS task_seq(
-            id INTEGER PRIMARY KEY CHECK (id=1),
-            val INTEGER NOT NULL
-        )
-        """)
-        cur = conn.execute("SELECT val FROM task_seq WHERE id=1").fetchone()
-        if not cur:
-            conn.execute("INSERT INTO task_seq(id,val) VALUES(1,0)")
+    """Ensure task tables are created via Alembic."""
+    ensure_schema_is_current()
+    return
 
-ensure_tasks_schema()
 
 def ensure_client_blacklist_schema():
-    """
-    Таблица блэклиста клиентов:
-      - user_id (PK)
-      - is_blacklisted: 0/1
-      - reason: причина
-      - added_at: ISO
-      - added_by: оператор
-      - unblock_requested: 0/1 (клиент нажал «запросить разблокировку»)
-      - unblock_requested_at: ISO
-    """
-    try:
-        with get_db() as conn:
-            conn.execute("""
-            CREATE TABLE IF NOT EXISTS client_blacklist (
-                user_id TEXT PRIMARY KEY,
-                is_blacklisted INTEGER NOT NULL DEFAULT 0,
-                reason TEXT,
-                added_at TEXT,
-                added_by TEXT,
-                unblock_requested INTEGER NOT NULL DEFAULT 0,
-                unblock_requested_at TEXT
-            )
-            """)
-    except Exception as e:
-        print(f"ensure_client_blacklist_schema: {e}")
-
-ensure_client_blacklist_schema()
+    """Ensure client blacklist table exists via migrations."""
+    ensure_schema_is_current()
+    return
 
 
 def ensure_client_unblock_requests_schema():
-    try:
-        with get_db() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS client_unblock_requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id TEXT NOT NULL,
-                    channel_id INTEGER,
-                    reason TEXT,
-                    created_at TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'pending',
-                    decided_at TEXT,
-                    decided_by TEXT,
-                    decision_comment TEXT
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user
-                ON client_unblock_requests(user_id)
-                """
-            )
-    except Exception as e:
-        print(f"ensure_client_unblock_requests_schema: {e}")
-
-
-ensure_client_unblock_requests_schema()
+    """Ensure client unblock requests table exists via migrations."""
+    ensure_schema_is_current()
+    return
 
 
 def ensure_settings_parameters_schema():
-    try:
-        with get_db() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS settings_parameters (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    param_type TEXT NOT NULL,
-                    value TEXT NOT NULL,
-                    state TEXT NOT NULL DEFAULT 'Активен',
-                    is_deleted INTEGER NOT NULL DEFAULT 0,
-                    deleted_at TEXT,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    UNIQUE(param_type, value)
-                )
-                """
-            )
-            columns = {
-                row["name"]: row["type"].upper()
-                for row in conn.execute("PRAGMA table_info(settings_parameters)").fetchall()
-            }
-            if "state" not in columns:
-                conn.execute(
-                    "ALTER TABLE settings_parameters ADD COLUMN state TEXT NOT NULL DEFAULT 'Активен'"
-                )
-            if "is_deleted" not in columns:
-                conn.execute(
-                    "ALTER TABLE settings_parameters ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
-                )
-            if "deleted_at" not in columns:
-                conn.execute(
-                    "ALTER TABLE settings_parameters ADD COLUMN deleted_at TEXT"
-                )
-            if "extra_json" not in columns:
-                conn.execute(
-                    "ALTER TABLE settings_parameters ADD COLUMN extra_json TEXT"
-                )
-    except Exception as e:
-        print(f"ensure_settings_parameters_schema: {e}")
+    """Ensure settings parameter table exists via migrations."""
+    ensure_schema_is_current()
+    return
 
 
 def ensure_it_equipment_catalog_schema():
-    try:
-        with get_db() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS it_equipment_catalog (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    equipment_type TEXT NOT NULL,
-                    equipment_vendor TEXT NOT NULL,
-                    equipment_model TEXT NOT NULL,
-                    photo_url TEXT,
-                    serial_number TEXT,
-                    accessories TEXT,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    updated_at TEXT DEFAULT (datetime('now'))
-                )
-                """
-            )
-    except Exception as e:
-        print(f"ensure_it_equipment_catalog_schema: {e}")
-
-
-ensure_settings_parameters_schema()
-ensure_it_equipment_catalog_schema()
+    """Ensure IT equipment catalog table exists via migrations."""
+    ensure_schema_is_current()
+    return
 
 
 def _load_legacy_settings_payload() -> dict:
@@ -3508,95 +3178,10 @@ def _generate_unique_channel_public_id(cur: sqlite3.Cursor, used: set[str] | Non
 
 
 def ensure_channels_schema():
-    """Добавляет недостающие колонки в channels, если база старая."""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cols = {r['name'] for r in cur.execute("PRAGMA table_info(channels)").fetchall()}
-        # ожидаемые поля: id, token, bot_name, bot_username, channel_name,
-        # questions_cfg, max_questions, is_active, question_template_id, rating_template_id,
-        # auto_action_template_id
-        if 'bot_name' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN bot_name TEXT")
-        if 'bot_username' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN bot_username TEXT")
-        if 'channel_name' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN channel_name TEXT")
-        if 'questions_cfg' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN questions_cfg TEXT DEFAULT '{}'")
-        if 'max_questions' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN max_questions INTEGER DEFAULT 0")
-        if 'is_active' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN is_active INTEGER DEFAULT 1")
-        if 'question_template_id' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN question_template_id TEXT")
-        if 'rating_template_id' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN rating_template_id TEXT")
-        if 'auto_action_template_id' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN auto_action_template_id TEXT")
-        if 'public_id' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN public_id TEXT")
-        if 'platform' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN platform TEXT NOT NULL DEFAULT 'telegram'")
-        if 'platform_config' not in cols:
-            cur.execute("ALTER TABLE channels ADD COLUMN platform_config TEXT")
-        existing_ids = set()
-        try:
-            rows = cur.execute("SELECT id, public_id FROM channels").fetchall()
-        except sqlite3.OperationalError:
-            rows = []
-        for row in rows:
-            cid = row[0]
-            raw_value = row[1] or ''
-            current = raw_value.strip().lower()
-            if current:
-                if raw_value != current:
-                    cur.execute(
-                        "UPDATE channels SET public_id = ? WHERE id = ?",
-                        (current, cid),
-                    )
-                if current not in existing_ids:
-                    existing_ids.add(current)
-                continue
-            new_id = _generate_unique_channel_public_id(cur, existing_ids)
-            cur.execute("UPDATE channels SET public_id = ? WHERE id = ?", (new_id, cid))
-            existing_ids.add(new_id)
-        try:
-            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_public_id ON channels(public_id)")
-        except sqlite3.OperationalError:
-            pass
-        try:
-            cur.execute(
-                "UPDATE channels SET bot_username = COALESCE(bot_username, bot_name) WHERE bot_username IS NULL OR bot_username = ''"
-            )
-        except Exception:
-            pass
-        try:
-            cur.execute(
-                "UPDATE channels SET platform = COALESCE(NULLIF(TRIM(platform), ''), 'telegram')"
-            )
-        except Exception:
-            pass
-        try:
-            cur.execute(
-                "UPDATE channels SET platform_config = COALESCE(platform_config, '{}')"
-            )
-        except Exception:
-            pass
-        conn.commit()
-    except Exception as e:
-        print(f"ensure_channels_schema: {e}")
-    finally:
-        try: conn.close()
-        except: pass
-ensure_channels_schema()
-ensure_channel_tables()
+    """Ensure channel table columns are migrated."""
+    ensure_schema_is_current()
+    return
 
-BOT_CREDENTIALS_REPO = BotCredentialRepository()
-CHANNEL_REPO = ChannelRepository()
-CHANNEL_NOTIFICATIONS_REPO = ChannelNotificationRepository()
-
-init_queue()
 
 def _load_sanitized_bot_settings_payload():
     settings_payload = load_settings()
@@ -3744,156 +3329,34 @@ def _refresh_bot_identity_if_needed(conn: sqlite3.Connection, channel_row: dict)
     return channel_row
 
 def ensure_feedback_requests_table():
-    try:
-        conn = get_db()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS pending_feedback_requests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                channel_id INTEGER NOT NULL,
-                ticket_id TEXT,
-                source TEXT,
-                created_at TEXT NOT NULL,
-                expires_at TEXT NOT NULL,
-                UNIQUE(user_id, channel_id, ticket_id, source)
-            )
-        """)
-        conn.commit()
-    except Exception as e:
-        print(f"ensure_feedback_requests_table: {e}")
-    finally:
-        try: conn.close()
-        except: pass
+    """Ensure pending feedback table exists via migrations."""
+    ensure_schema_is_current()
+    return
 
-ensure_feedback_requests_table()
 
 def ensure_client_profile_schema():
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS client_usernames (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                username TEXT NOT NULL,
-                seen_at TEXT NOT NULL,
-                UNIQUE(user_id, username)
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS client_phones (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                phone TEXT NOT NULL,
-                label TEXT,
-                source TEXT NOT NULL CHECK (source IN ('telegram','manual')),
-                is_active INTEGER DEFAULT 1,
-                created_at TEXT NOT NULL,
-                created_by TEXT
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS client_avatar_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                fingerprint TEXT NOT NULL,
-                source TEXT NOT NULL,
-                file_unique_id TEXT,
-                file_id TEXT,
-                thumb_path TEXT,
-                full_path TEXT,
-                width INTEGER,
-                height INTEGER,
-                file_size INTEGER,
-                fetched_at TEXT NOT NULL,
-                last_seen_at TEXT NOT NULL,
-                metadata TEXT,
-                UNIQUE(user_id, fingerprint)
-            )
-        """)
-        cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_client_avatar_history_user ON client_avatar_history(user_id)"
-        )
-        cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_client_avatar_history_last_seen ON client_avatar_history(last_seen_at)"
-        )
-        conn.commit()
-    except Exception as e:
-        print(f"ensure_client_profile_schema: {e}")
-    finally:
-        try: conn.close()
-        except: pass
+    """Ensure client profile helper tables exist via migrations."""
+    ensure_schema_is_current()
+    return
 
-ensure_client_profile_schema()
 
 def ensure_history_mark_columns():
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("PRAGMA table_info(chat_history)")
-        cols = {r['name'] for r in cur.fetchall()}
-        if 'edited_at' not in cols:
-            cur.execute("ALTER TABLE chat_history ADD COLUMN edited_at TEXT")
-        if 'deleted_at' not in cols:
-            cur.execute("ALTER TABLE chat_history ADD COLUMN deleted_at TEXT")
-        conn.commit()
-    except Exception as e:
-        print(f"ensure_history_mark_columns: {e}")
-    finally:
-        try: conn.close()
-        except: pass
+    """Ensure chat history metadata columns are migrated."""
+    ensure_schema_is_current()
+    return
 
-# === Миграция: столбцы для reply/thread ===
+
 def ensure_history_reply_columns():
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cols = {r['name'] for r in cur.execute("PRAGMA table_info(chat_history)").fetchall()}
-        if "tg_message_id" not in cols:
-            cur.execute("ALTER TABLE chat_history ADD COLUMN tg_message_id INTEGER")
-        if "reply_to_tg_id" not in cols:
-            cur.execute("ALTER TABLE chat_history ADD COLUMN reply_to_tg_id INTEGER")
-        conn.commit()
-    except Exception as e:
-        print(f"ensure_history_reply_columns: {e}")
-    finally:
-        try: conn.close()
-        except: pass
-        commit()
+    """Ensure chat history reply columns are migrated."""
+    ensure_schema_is_current()
+    return
 
-    ensure_history_mark_columns()
-    ensure_history_reply_columns()
 
 def ensure_ticket_time_schema():
-    """ticket_spans + счётчики reopen/closed в tickets."""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS ticket_spans (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ticket_id TEXT NOT NULL,
-                span_no INTEGER NOT NULL,
-                started_at TEXT NOT NULL,
-                ended_at   TEXT,
-                duration_seconds INTEGER,
-                UNIQUE(ticket_id, span_no)
-            )
-        """)
-        # Добавляем счётчики в tickets
-        cols = {r['name'] for r in cur.execute("PRAGMA table_info(tickets)").fetchall()}
-        if 'reopen_count' not in cols:
-            cur.execute("ALTER TABLE tickets ADD COLUMN reopen_count INTEGER DEFAULT 0")
-        if 'closed_count' not in cols:
-            cur.execute("ALTER TABLE tickets ADD COLUMN closed_count INTEGER DEFAULT 0")
-        conn.commit()
-    except Exception as e:
-        print(f"ensure_ticket_time_schema: {e}")
-    finally:
-        try: conn.close()
-        except: pass
+    """Ensure ticket span tables exist via migrations."""
+    ensure_schema_is_current()
+    return
 
-ensure_ticket_time_schema()
 
 def _active_span(conn, ticket_id: str):
     return conn.execute(
@@ -4638,29 +4101,9 @@ def sync_org_structure_user_department(
 # === Публичная веб-форма обращений ===
 
 def ensure_web_form_schema():
-    """Создаёт таблицу с сессиями веб-форм, если её ещё нет."""
-
-    create_sql = f"""
-        CREATE TABLE IF NOT EXISTS {WEB_FORM_SESSIONS_TABLE} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            token TEXT NOT NULL UNIQUE,
-            ticket_id TEXT NOT NULL,
-            channel_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            answers_json TEXT,
-            client_name TEXT,
-            client_contact TEXT,
-            username TEXT,
-            created_at TEXT NOT NULL,
-            last_active_at TEXT NOT NULL
-        )
-    """
-
-    with get_db() as conn:
-        exec_with_retry(lambda: conn.execute(create_sql))
-
-
-ensure_web_form_schema()
+    """Ensure web form session table exists via migrations."""
+    ensure_schema_is_current()
+    return
 
 
 def _allocate_web_user_id(conn) -> int:
