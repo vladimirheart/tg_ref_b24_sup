@@ -2817,20 +2817,14 @@
                   <table class="table align-middle mb-0">
                     <thead class="table-light">
                       <tr>
-                        <th style="width: 6%">ID</th>
-                        <th style="width: 20%">Канал и бот</th>
-                        <th style="width: 16%">Название для панели</th>
-                        <th style="width: 12%">Платформа</th>
-                        <th style="width: 10%" class="text-center">Статус</th>
-                        <th style="width: 16%">Шаблон вопросов</th>
-                        <th style="width: 14%">Система оценок</th>
-                        <th style="width: 16%">Автоматические действия</th>
-                        <th style="width: 6%"></th>
+                        <th style="width: 50%">Название для панели</th>
+                        <th style="width: 25%">Платформа</th>
+                        <th style="width: 25%" class="text-center">Статус</th>
                       </tr>
                     </thead>
                     <tbody id="channelsBody">
                       <tr>
-                        <td colspan="9" class="text-center text-muted py-4">Загрузка каналов…</td>
+                        <td colspan="3" class="text-center text-muted py-4">Загрузка каналов…</td>
                       </tr>
                     </tbody>
                   </table>
@@ -2909,6 +2903,72 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
           </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="channelEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Настройки канала</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-light border small mb-4" role="alert">
+            <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
+              <div>
+                <div class="text-muted small">Платформа</div>
+                <div class="fw-semibold" data-channel-editor-platform>—</div>
+              </div>
+              <div class="vr d-none d-lg-flex"></div>
+              <div class="flex-grow-1">
+                <div class="text-muted small">Бот</div>
+                <div data-channel-editor-bot>—</div>
+              </div>
+            </div>
+            <div class="mt-2 text-muted small">
+              ID для форм: <span class="font-monospace" data-channel-editor-public-id>—</span>
+            </div>
+            <div class="text-muted small">Токен: <span class="font-monospace" data-channel-editor-token>—</span></div>
+            <div class="text-muted small" data-channel-editor-meta></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="channelEditorName">Название для панели</label>
+            <input class="form-control" id="channelEditorName" placeholder="Например: Поддержка" />
+          </div>
+          <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" id="channelEditorIsActive" />
+            <label class="form-check-label" for="channelEditorIsActive">Канал активен</label>
+            <div class="form-text" data-channel-editor-status-label>Канал выключен</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="channelEditorQuestionTemplate">Шаблон вопросов</label>
+              <select class="form-select" id="channelEditorQuestionTemplate"></select>
+              <div class="form-text small" data-channel-editor-summary="question_template_id">—</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="channelEditorRatingTemplate">Система оценок</label>
+              <select class="form-select" id="channelEditorRatingTemplate"></select>
+              <div class="form-text small" data-channel-editor-summary="rating_template_id">—</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="channelEditorAutoTemplate">Автоматические действия</label>
+              <select class="form-select" id="channelEditorAutoTemplate"></select>
+              <div class="form-text small" data-channel-editor-summary="auto_action_template_id">—</div>
+            </div>
+          </div>
+          <div class="mt-4 d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
+            <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
+            <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="channelEditorDeleteBtn">Удалить канал</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          <button type="button" class="btn btn-primary" id="channelEditorSaveBtn">Сохранить</button>
+        </div>
       </div>
     </div>
   </div>
@@ -11658,12 +11718,39 @@
 
   // === КАНАЛЫ (боты) ===
   const channelsBody = document.getElementById('channelsBody');
+  const channelEditorModalEl = document.getElementById('channelEditorModal');
+  const channelEditorNameInput = document.getElementById('channelEditorName');
+  const channelEditorActiveInput = document.getElementById('channelEditorIsActive');
+  const channelEditorStatusLabel = document.querySelector('[data-channel-editor-status-label]');
+  const channelEditorQuestionSelect = document.getElementById('channelEditorQuestionTemplate');
+  const channelEditorRatingSelect = document.getElementById('channelEditorRatingTemplate');
+  const channelEditorAutoSelect = document.getElementById('channelEditorAutoTemplate');
+  const channelEditorPlatformEl = document.querySelector('[data-channel-editor-platform]');
+  const channelEditorBotEl = document.querySelector('[data-channel-editor-bot]');
+  const channelEditorTokenEl = document.querySelector('[data-channel-editor-token]');
+  const channelEditorPublicIdEl = document.querySelector('[data-channel-editor-public-id]');
+  const channelEditorMetaEl = document.querySelector('[data-channel-editor-meta]');
+  const channelEditorHintEl = document.querySelector('[data-channel-editor-hint]');
+  const channelEditorVkBtn = document.getElementById('channelEditorVkButton');
+  const channelEditorSaveBtn = document.getElementById('channelEditorSaveBtn');
+  const channelEditorDeleteBtn = document.getElementById('channelEditorDeleteBtn');
 
   const vkWebhookState = {
     channelId: null,
     groupId: null,
     confirmationToken: '',
     secret: '',
+  };
+
+  const channelEditorSummaries = {
+    question_template_id: document.querySelector('[data-channel-editor-summary="question_template_id"]'),
+    rating_template_id: document.querySelector('[data-channel-editor-summary="rating_template_id"]'),
+    auto_action_template_id: document.querySelector('[data-channel-editor-summary="auto_action_template_id"]'),
+  };
+
+  const CHANNELS_REGISTRY = new Map();
+  const channelEditorState = {
+    channelId: null,
   };
 
   let channelsInitialized = false;
@@ -11678,16 +11765,116 @@
       .replace(/'/g, '&#039;');
   }
 
-  function openVkSettings(id) {
-    const row = document.querySelector(`tr[data-id="${id}"]`);
-    if (!row) return;
-    const platformConfigRaw = row.dataset.platformConfig || '{}';
-    let platformConfig = {};
-    try {
-      platformConfig = JSON.parse(platformConfigRaw);
-    } catch (error) {
-      platformConfig = {};
+  function updateChannelEditorStatusLabel(isActive) {
+    if (channelEditorStatusLabel) {
+      channelEditorStatusLabel.textContent = isActive ? 'Канал активен' : 'Канал выключен';
     }
+  }
+
+  function updateChannelEditorSummary(field, value) {
+    const builder = TEMPLATE_SUMMARY_BUILDERS[field];
+    const summaryEl = channelEditorSummaries[field];
+    if (typeof builder === 'function' && summaryEl) {
+      summaryEl.textContent = builder(value || '');
+    }
+  }
+
+  function configureChannelEditorSelect(selectEl, templates, selectedId, fallbackId, field) {
+    if (!selectEl) return;
+    selectEl.innerHTML = buildTemplateOptions(templates, selectedId || fallbackId);
+    selectEl.disabled = !templates.length;
+    updateChannelEditorSummary(field, selectEl.value || '');
+  }
+
+  function formatBotLabel(channel) {
+    const parts = [];
+    if (channel.bot_name) {
+      parts.push(channel.bot_name);
+    }
+    if (channel.bot_username) {
+      parts.push(`@${channel.bot_username}`);
+    }
+    return parts.length ? parts.join(' • ') : '—';
+  }
+
+  function populateChannelEditor(channel) {
+    channelEditorState.channelId = channel.id;
+    if (channelEditorNameInput) {
+      channelEditorNameInput.value = channel.channel_name || '';
+    }
+    if (channelEditorActiveInput) {
+      channelEditorActiveInput.checked = Boolean(channel.is_active);
+      updateChannelEditorStatusLabel(channelEditorActiveInput.checked);
+    }
+    if (channelEditorPlatformEl) {
+      channelEditorPlatformEl.textContent = channel.platformLabel;
+    }
+    if (channelEditorBotEl) {
+      channelEditorBotEl.textContent = formatBotLabel(channel);
+    }
+    if (channelEditorTokenEl) {
+      channelEditorTokenEl.textContent = maskToken(channel.token);
+    }
+    if (channelEditorPublicIdEl) {
+      channelEditorPublicIdEl.textContent = channel.public_id || '—';
+    }
+    if (channelEditorMetaEl) {
+      channelEditorMetaEl.textContent = `ID канала: #${channel.id}`;
+    }
+    if (channelEditorHintEl) {
+      channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
+    }
+    configureChannelEditorSelect(channelEditorQuestionSelect, QUESTION_TEMPLATES, channel.question_template_id, DEFAULT_QUESTION_TEMPLATE_ID, 'question_template_id');
+    configureChannelEditorSelect(channelEditorRatingSelect, RATING_TEMPLATES, channel.rating_template_id, DEFAULT_RATING_TEMPLATE_ID, 'rating_template_id');
+    configureChannelEditorSelect(channelEditorAutoSelect, AUTO_ACTION_TEMPLATES, channel.auto_action_template_id, DEFAULT_AUTO_ACTION_TEMPLATE_ID, 'auto_action_template_id');
+    if (channelEditorVkBtn) {
+      channelEditorVkBtn.classList.toggle('d-none', channel.platform !== 'vk');
+    }
+  }
+
+  function refreshChannelEditorIfOpen() {
+    if (!channelEditorModalEl) return;
+    const isVisible = channelEditorModalEl.classList.contains('show');
+    if (!isVisible || channelEditorState.channelId === null) {
+      return;
+    }
+    const channel = CHANNELS_REGISTRY.get(String(channelEditorState.channelId));
+    if (channel) {
+      populateChannelEditor(channel);
+    }
+  }
+
+  function openChannelEditor(id) {
+    const channel = CHANNELS_REGISTRY.get(String(id));
+    if (!channel) {
+      alert('Канал не найден.');
+      return;
+    }
+    populateChannelEditor(channel);
+    if (channelEditorModalEl && typeof bootstrap !== 'undefined') {
+      bootstrap.Modal.getOrCreateInstance(channelEditorModalEl).show();
+    }
+  }
+
+  if (channelsBody) {
+    channelsBody.addEventListener('click', (event) => {
+      const editBtn = event.target.closest('[data-channel-edit]');
+      if (!editBtn) return;
+      event.preventDefault();
+      const id = editBtn.getAttribute('data-channel-edit');
+      if (id) {
+        openChannelEditor(id);
+      }
+    });
+  }
+
+  function openVkSettings(id) {
+    const channel = CHANNELS_REGISTRY.get(String(id));
+    if (!channel || channel.platform !== 'vk') {
+      alert('Настройки вебхука доступны только для VK.');
+      return;
+    }
+    const platformConfig = parsePlatformConfig(channel.platform_config);
     const groupId = platformConfig.group_id ?? platformConfig.groupId ?? null;
     const confirmationToken = platformConfig.confirmation_token ?? platformConfig.confirmationToken ?? '';
     const secret = platformConfig.secret ?? platformConfig.callback_secret ?? '';
@@ -11747,28 +11934,12 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
 
-      const row = document.querySelector(`tr[data-id="${vkWebhookState.channelId}"]`);
-      if (row) {
-        const existing = row.dataset.platformConfig ? JSON.parse(row.dataset.platformConfig) : {};
-        const updated = Object.assign({}, existing, payload.platform_config);
-        if (!updated.secret) {
-          delete updated.secret;
-        }
-        row.dataset.platformConfig = JSON.stringify(updated);
-        const platformCell = row.querySelector('td:nth-child(4)');
-        if (platformCell) {
-          const infoEl = platformCell.querySelector('.small.text-muted');
-          if (infoEl) {
-            infoEl.textContent = `group_id: ${groupId}`;
-          }
-        }
-      }
-
       const modalEl = document.getElementById('vkWebhookModal');
       if (modalEl && typeof bootstrap !== 'undefined') {
         const modal = bootstrap.Modal.getInstance(modalEl);
         modal?.hide();
       }
+      await loadChannels();
       alert('Настройки вебхука сохранены.');
     } catch (error) {
       alert('Не удалось сохранить настройки вебхука: ' + error.message);
@@ -11938,23 +12109,6 @@
     auto_action_template_id: getAutoActionTemplateSummary,
   };
 
-  function attachTemplateSummary(selectEl) {
-    if (!(selectEl instanceof HTMLSelectElement)) {
-      return;
-    }
-    const field = selectEl.dataset.field;
-    const builder = TEMPLATE_SUMMARY_BUILDERS[field];
-    const summaryEl = selectEl.closest('td')?.querySelector(`[data-template-summary="${field}"]`);
-    if (typeof builder !== 'function' || !summaryEl) {
-      return;
-    }
-    const update = () => {
-      summaryEl.textContent = builder(selectEl.value || '');
-    };
-    update();
-    selectEl.addEventListener('change', update);
-  }
-
   function parsePlatformConfig(raw) {
     if (!raw) return {};
     if (typeof raw === 'string') {
@@ -11974,88 +12128,59 @@
   function renderChannels(rows) {
     if (!channelsBody) return;
     channelsBody.innerHTML = '';
+    CHANNELS_REGISTRY.clear();
     if (!rows.length) {
-      channelsBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
+      channelsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
       return;
     }
     rows.forEach((row) => {
       const platform = String(row.platform || 'telegram').toLowerCase();
       const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
       const platformConfig = parsePlatformConfig(row.platform_config);
-      const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId) : null;
+      const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId ?? null) : null;
       const questionTemplateId = sanitizeTemplateId(row.question_template_id, QUESTION_TEMPLATE_MAP, DEFAULT_QUESTION_TEMPLATE_ID);
       const ratingTemplateId = sanitizeTemplateId(row.rating_template_id, RATING_TEMPLATE_MAP, DEFAULT_RATING_TEMPLATE_ID);
       const autoTemplateId = sanitizeTemplateId(row.auto_action_template_id, AUTO_ACTION_TEMPLATE_MAP, DEFAULT_AUTO_ACTION_TEMPLATE_ID);
 
+      const prepared = {
+        id: row.id,
+        channel_name: row.channel_name || row.name || '',
+        platform,
+        platformLabel,
+        platform_config: platformConfig,
+        is_active: Boolean(row.is_active),
+        question_template_id: questionTemplateId,
+        rating_template_id: ratingTemplateId,
+        auto_action_template_id: autoTemplateId,
+        bot_name: row.bot_name || row.name || '',
+        bot_username: row.bot_username || '',
+        token: row.token || '',
+        public_id: row.public_id || '',
+        vk_group_id: vkGroupId,
+      };
+
+      CHANNELS_REGISTRY.set(String(row.id), prepared);
+
+      const statusBadge = prepared.is_active
+        ? '<span class="badge bg-success-subtle text-success">Активен</span>'
+        : '<span class="badge bg-secondary-subtle text-secondary">Выключен</span>';
+
       const tr = document.createElement('tr');
       tr.dataset.id = row.id;
-      tr.dataset.platform = platform;
-      tr.dataset.platformConfig = JSON.stringify(platformConfig);
       tr.innerHTML = `
-        <td class="fw-semibold">#${row.id}</td>
         <td>
-          <div class="fw-medium">${escapeHtml(row.channel_name || '—')}</div>
-          <div class="text-muted small">
-            Бот: ${escapeHtml(row.bot_name || '—')}${row.bot_username ? ` (@${escapeHtml(row.bot_username)})` : ''}
-          </div>
-          <div class="text-muted small">Токен: ${escapeHtml(maskToken(row.token))}</div>
-          <div class="text-muted small">ID для форм: <span class="font-monospace">${escapeHtml(row.public_id || '—')}</span></div>
-        </td>
-        <td>
-          <input class="form-control form-control-sm" data-field="channel_name" value="${escapeHtml(row.channel_name || '')}">
+          <div class="fw-medium">${escapeHtml(prepared.channel_name || '—')}</div>
+          <div class="text-muted small">Бот: ${escapeHtml(prepared.bot_name || '—')}${prepared.bot_username ? ` (@${escapeHtml(prepared.bot_username)})` : ''}</div>
         </td>
         <td>
           <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
-          ${vkGroupId ? `<div class="small text-muted">group_id: ${escapeHtml(String(vkGroupId))}</div>` : ''}
-          ${platform === 'vk'
-            ? `<button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="openVkSettings(${row.id})">Настроить вебхук…</button>`
-            : ''}
+          ${prepared.vk_group_id ? `<div class="small text-muted mt-1">group_id: ${escapeHtml(String(prepared.vk_group_id))}</div>` : ''}
         </td>
-        <td class="text-center align-middle">
-          <div class="form-check form-switch d-inline-flex align-items-center gap-2">
-            <input class="form-check-input" type="checkbox" data-field="is_active" ${row.is_active ? 'checked' : ''}>
-            <label class="form-check-label small" data-status-label>${row.is_active ? 'Активен' : 'Выключен'}</label>
-          </div>
-        </td>
-        <td>
-          <div class="d-flex flex-column gap-1">
-            <select class="form-select form-select-sm" data-field="question_template_id" ${QUESTION_TEMPLATES.length ? '' : 'disabled'}>
-              ${buildTemplateOptions(QUESTION_TEMPLATES, questionTemplateId)}
-            </select>
-            <div class="form-text small" data-template-summary="question_template_id">${escapeHtml(getQuestionTemplateSummary(questionTemplateId))}</div>
-          </div>
-        </td>
-        <td>
-          <div class="d-flex flex-column gap-1">
-            <select class="form-select form-select-sm" data-field="rating_template_id" ${RATING_TEMPLATES.length ? '' : 'disabled'}>
-              ${buildTemplateOptions(RATING_TEMPLATES, ratingTemplateId)}
-            </select>
-            <div class="form-text small" data-template-summary="rating_template_id">${escapeHtml(getRatingTemplateSummary(ratingTemplateId))}</div>
-          </div>
-        </td>
-        <td>
-          <div class="d-flex flex-column gap-1">
-            <select class="form-select form-select-sm" data-field="auto_action_template_id" ${AUTO_ACTION_TEMPLATES.length ? '' : 'disabled'}>
-              ${buildTemplateOptions(AUTO_ACTION_TEMPLATES, autoTemplateId)}
-            </select>
-            <div class="form-text small" data-template-summary="auto_action_template_id">${escapeHtml(getAutoActionTemplateSummary(autoTemplateId))}</div>
-          </div>
-        </td>
-        <td class="text-nowrap">
-          <button type="button" class="btn btn-sm btn-success me-2" onclick="saveChannel(${row.id})">Сохранить</button>
-          <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeChannel(${row.id})">Удалить</button>
+        <td class="text-center">
+          <div>${statusBadge}</div>
+          <button type="button" class="btn btn-sm btn-outline-primary mt-2" data-channel-edit="${prepared.id}">Редактировать</button>
         </td>
       `;
-
-      const statusSwitch = tr.querySelector('[data-field="is_active"]');
-      const statusLabel = tr.querySelector('[data-status-label]');
-      if (statusSwitch && statusLabel) {
-        statusSwitch.addEventListener('change', () => {
-          statusLabel.textContent = statusSwitch.checked ? 'Активен' : 'Выключен';
-        });
-      }
-
-      tr.querySelectorAll('select[data-field]').forEach(attachTemplateSummary);
       channelsBody.appendChild(tr);
     });
   }
@@ -12072,6 +12197,7 @@
           ? data.channels
           : [];
       renderChannels(rows);
+      refreshChannelEditorIfOpen();
     } catch (error) {
       alert('Не удалось загрузить каналы: ' + error.message);
     }
@@ -12164,38 +12290,30 @@
   }
 
   async function saveChannel(id) {
-    const row = document.querySelector(`tr[data-id="${id}"]`);
-    if (!row) return;
-    const nameInput = row.querySelector('[data-field="channel_name"]');
-    const activeInput = row.querySelector('[data-field="is_active"]');
-    const questionSelect = row.querySelector('[data-field="question_template_id"]');
-    const ratingSelect = row.querySelector('[data-field="rating_template_id"]');
-    const autoSelect = row.querySelector('[data-field="auto_action_template_id"]');
-
-    const channelName = (nameInput?.value || '').trim();
+    const channelName = channelEditorNameInput?.value?.trim() || '';
     if (!channelName) {
-      alert('Укажите имя канала.');
+      alert('Укажите название для панели.');
       return;
     }
 
     const body = {
       channel_name: channelName,
-      is_active: activeInput?.checked ? 1 : 0,
+      is_active: channelEditorActiveInput?.checked ? 1 : 0,
     };
 
     const configPayload = {};
-    if (questionSelect && !questionSelect.disabled) {
-      const value = questionSelect.value || '';
+    if (channelEditorQuestionSelect && !channelEditorQuestionSelect.disabled) {
+      const value = channelEditorQuestionSelect.value || '';
       body.question_template_id = value;
       if (value) configPayload.question_template_id = value;
     }
-    if (ratingSelect && !ratingSelect.disabled) {
-      const value = ratingSelect.value || '';
+    if (channelEditorRatingSelect && !channelEditorRatingSelect.disabled) {
+      const value = channelEditorRatingSelect.value || '';
       body.rating_template_id = value;
       if (value) configPayload.rating_template_id = value;
     }
-    if (autoSelect && !autoSelect.disabled) {
-      body.auto_action_template_id = autoSelect.value || '';
+    if (channelEditorAutoSelect && !channelEditorAutoSelect.disabled) {
+      body.auto_action_template_id = channelEditorAutoSelect.value || '';
     }
     if (Object.keys(configPayload).length) {
       body.questions_cfg = configPayload;
@@ -12212,7 +12330,7 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
       alert('Настройки канала сохранены.');
-      loadChannels();
+      await loadChannels();
     } catch (error) {
       alert('Ошибка сохранения: ' + error.message);
     }
@@ -12225,6 +12343,10 @@
       const data = await resp.json();
       if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
       await loadChannels();
+      if (channelEditorModalEl && typeof bootstrap !== 'undefined' && channelEditorState.channelId === id) {
+        const modal = bootstrap.Modal.getInstance(channelEditorModalEl);
+        modal?.hide();
+      }
     } catch (error) {
       alert('Ошибка удаления: ' + error.message);
     }
@@ -12266,6 +12388,7 @@
     channelsInitialized = true;
     populateAddChannelTemplateSelects();
     togglePlatformFields();
+    initChannelEditorControls();
     loadChannels();
 
     const platformSelect = document.getElementById('new_platform');
@@ -12274,10 +12397,40 @@
     vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
   }
 
+  function initChannelEditorControls() {
+    channelEditorActiveInput?.addEventListener('change', () => {
+      updateChannelEditorStatusLabel(channelEditorActiveInput.checked);
+    });
+    channelEditorQuestionSelect?.addEventListener('change', () => {
+      updateChannelEditorSummary('question_template_id', channelEditorQuestionSelect.value || '');
+    });
+    channelEditorRatingSelect?.addEventListener('change', () => {
+      updateChannelEditorSummary('rating_template_id', channelEditorRatingSelect.value || '');
+    });
+    channelEditorAutoSelect?.addEventListener('change', () => {
+      updateChannelEditorSummary('auto_action_template_id', channelEditorAutoSelect.value || '');
+    });
+    channelEditorVkBtn?.addEventListener('click', () => {
+      if (channelEditorState.channelId !== null) {
+        openVkSettings(channelEditorState.channelId);
+      }
+    });
+    channelEditorSaveBtn?.addEventListener('click', () => {
+      if (channelEditorState.channelId !== null) {
+        saveChannel(channelEditorState.channelId);
+      }
+    });
+    channelEditorDeleteBtn?.addEventListener('click', () => {
+      if (channelEditorState.channelId !== null) {
+        removeChannel(channelEditorState.channelId);
+      }
+    });
+    channelEditorModalEl?.addEventListener('hidden.bs.modal', () => {
+      channelEditorState.channelId = null;
+    });
+  }
+
   window.addChannel = addChannel;
-  window.saveChannel = saveChannel;
-  window.removeChannel = removeChannel;
-  window.openVkSettings = openVkSettings;
 
   </script>
 </main>
