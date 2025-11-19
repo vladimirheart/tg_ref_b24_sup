@@ -57,7 +57,7 @@ from bot_settings_utils import (
     build_location_presets,
     sanitize_bot_settings,
 )
-from shared_config import shared_config_path
+from config import get_settings
 
 
 def generate_client_panel_id(user_id: Any) -> str:
@@ -89,20 +89,21 @@ import mimetypes
 from collections import Counter
 from werkzeug.utils import secure_filename
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SETTINGS_PATH = shared_config_path("settings.json")
-ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
-KNOWLEDGE_BASE_ATTACHMENTS_DIR = os.path.join(ATTACHMENTS_DIR, "knowledge_base")
-AVATAR_CACHE_DIR = os.path.join(ATTACHMENTS_DIR, "avatars")
-AVATAR_HISTORY_DIR = os.path.join(AVATAR_CACHE_DIR, "history")
+runtime_settings = get_settings()
+BASE_DIR = str(runtime_settings.project_root)
+SETTINGS_PATH = runtime_settings.shared.settings_path
+ATTACHMENTS_DIR = str(runtime_settings.storage.attachments)
+KNOWLEDGE_BASE_ATTACHMENTS_DIR = str(runtime_settings.storage.knowledge_base)
+AVATAR_CACHE_DIR = str(runtime_settings.storage.avatars)
+AVATAR_HISTORY_DIR = str(runtime_settings.storage.avatar_history)
 AVATAR_CACHE_TTL_SECONDS = 15 * 60  # 15 minutes
-TICKETS_DB_PATH = os.path.join(BASE_DIR, "tickets.db")
-USERS_DB_PATH = os.path.join(BASE_DIR, "users.db")
-LOCATIONS_PATH = shared_config_path("locations.json")
-OBJECT_PASSPORT_DB_PATH = os.path.join(BASE_DIR, "object_passports.db")
-ORG_STRUCTURE_PATH = shared_config_path("org_structure.json")
-OBJECT_PASSPORT_UPLOADS_DIR = os.path.join(BASE_DIR, "object_passport_uploads")
-USER_PHOTOS_DIR = os.path.join(os.path.dirname(__file__), "static", "user_photos")
+TICKETS_DB_PATH = str(runtime_settings.db.tickets_path)
+USERS_DB_PATH = str(runtime_settings.db.users_path)
+LOCATIONS_PATH = runtime_settings.shared.locations_path
+OBJECT_PASSPORT_DB_PATH = str(runtime_settings.db.object_passports_path)
+ORG_STRUCTURE_PATH = runtime_settings.shared.org_structure_path
+OBJECT_PASSPORT_UPLOADS_DIR = str(runtime_settings.storage.object_passport_uploads)
+USER_PHOTOS_DIR = str(runtime_settings.storage.user_photos)
 ALLOWED_USER_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 MAX_USER_PHOTO_SIZE = 5 * 1024 * 1024
 WEB_FORM_SESSIONS_TABLE = "web_form_sessions"
@@ -115,16 +116,10 @@ os.makedirs(KNOWLEDGE_BASE_ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(USER_PHOTOS_DIR, exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY")
+app.secret_key = runtime_settings.security.secret_key
 
-# === НАСТРОЙКИ ===
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GROUP_CHAT_ID = int(os.getenv("GROUP_CHAT_ID"))
+TELEGRAM_BOT_TOKEN = runtime_settings.integrations.telegram.token
+GROUP_CHAT_ID = runtime_settings.integrations.telegram.group_chat_id
 
 PARAMETER_TYPES = {
     "business": "Бизнес",
