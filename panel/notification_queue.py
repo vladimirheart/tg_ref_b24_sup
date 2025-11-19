@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from queue import Empty, Queue
 
+from core.channels import ChannelService
 from .providers import ProviderError, ProviderFactory
 from .repositories import (
     BotCredentialRepository,
@@ -25,8 +27,12 @@ class NotificationQueue:
         credential_repo: BotCredentialRepository,
         notification_repo: ChannelNotificationRepository,
         poll_interval: float = 5.0,
+        channel_service: ChannelService | None = None,
     ) -> None:
-        self.channel_repo = channel_repo
+        self.channel_service = channel_service or ChannelService(
+            channel_repo=channel_repo,
+            credential_repo=credential_repo,
+        )
         self.credential_repo = credential_repo
         self.notification_repo = notification_repo
         self.poll_interval = poll_interval
@@ -69,17 +75,22 @@ class NotificationQueue:
             return
         log.debug("Processing notification %s", notification_id)
         self.notification_repo.mark_in_progress(notification_id)
-        channel = self.channel_repo.get(notification.channel_id)
+        channel = self.channel_service.get_channel(notification.channel_id)
         if channel is None:
             log.error("Channel %s not found for notification %s", notification.channel_id, notification_id)
             self.notification_repo.mark_failed(notification_id, "Канал не найден")
             return
         try:
-            provider = self._provider_factory.build(channel.platform, channel.credential_id, extra=channel.settings)
-            message = str(notification.payload.get("message") or "")
+            provider = self._provider_factory.build(
+                channel.platform,
+                channel.credential_id,
+                extra=channel.settings,
+            )
+            payload = _ensure_dict(notification.payload)
+            message = str(payload.get("message") or "")
             if not message:
                 raise ProviderError("Пустое сообщение")
-            recipient = notification.recipient or str(notification.payload.get("recipient") or "")
+            recipient = notification.recipient or str(payload.get("recipient") or "")
             if not recipient:
                 raise ProviderError("Получатель не указан")
             provider.send(recipient, message, extra=channel.settings)
@@ -112,3 +123,15 @@ def init_queue() -> NotificationQueue:
 def enqueue_notification(notification_id: int) -> None:
     queue = init_queue()
     queue.enqueue(notification_id)
+
+
+def _ensure_dict(payload) -> dict:
+    if isinstance(payload, dict):
+        return payload
+    if isinstance(payload, str):
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
