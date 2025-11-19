@@ -9,12 +9,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, scoped_session, sessionmaker
 
 try:
-    from config import DATABASE_URL as _CONFIG_DATABASE_URL
+    from config import get_settings
+
+    DATABASE_URL = get_settings().db.url
 except Exception:
     base_dir = Path(__file__).resolve().parents[1]
-    _CONFIG_DATABASE_URL = f"sqlite:///{base_dir / 'tickets.db'}"
-
-DATABASE_URL = _CONFIG_DATABASE_URL
+    DATABASE_URL = f"sqlite:///{base_dir / 'tickets.db'}"
 
 
 class Base(DeclarativeBase):
