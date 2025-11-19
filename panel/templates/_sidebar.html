@@ -57,6 +57,25 @@
         <span class="icon" aria-hidden="true">⇅</span>
       </button>
     </div>
+    {% set sidebar_user = sidebar_current_user or {} %}
+    {% if sidebar_user.display_name %}
+    <div class="sidebar-user-card" data-sidebar-user>
+      <div class="sidebar-user-avatar">
+        <img
+          src="{{ sidebar_user.photo }}"
+          alt="Аватар {{ sidebar_user.display_name }}"
+          loading="lazy"
+          decoding="async"
+        >
+      </div>
+      <div class="sidebar-user-meta">
+        <span class="sidebar-user-name">{{ sidebar_user.display_name }}</span>
+        {% if sidebar_user.username %}
+        <span class="sidebar-user-username">@{{ sidebar_user.username }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
     <button type="button" class="sidebar-account-btn" data-sidebar-change-password>
       <span class="icon" aria-hidden="true">🔐</span>
       <span class="label">Сменить пароль</span>
