@@ -86,8 +86,8 @@ from bot_settings_utils import (
     rating_scale,
     sanitize_bot_settings,
 )
-from shared_config import shared_config_path
-
+settings = get_settings()
+DB_PATH = str(settings.db.tickets_path)
 ATTACHMENTS_DIR = str(settings.storage.attachments)
 LOCATIONS_PATH = settings.shared.locations_path
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
