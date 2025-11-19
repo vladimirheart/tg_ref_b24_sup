@@ -4295,6 +4295,41 @@ def sanitize_client_status_colors(raw_colors: Any, *, allowed_statuses: Iterable
     return result
 
 
+HEX_COLOR_RE = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+ALLOWED_ICON_PREFIXES = ("http://", "https://", "/", "data:image/")
+
+
+def _sanitize_hex_color(value: Any) -> str:
+    if not isinstance(value, str):
+        value = str(value or "")
+    color = value.strip()
+    return color.lower() if HEX_COLOR_RE.match(color) else ""
+
+
+def sanitize_business_cell_styles(raw_styles: Any) -> dict[str, dict[str, str]]:
+    """Normalize business color/icon settings payload."""
+    if not isinstance(raw_styles, dict):
+        return {}
+
+    normalized: dict[str, dict[str, str]] = {}
+    for name, payload in raw_styles.items():
+        business_name = str(name or "").strip()
+        if not business_name:
+            continue
+        payload_dict = payload if isinstance(payload, dict) else {}
+        bg_color = _sanitize_hex_color(payload_dict.get("background_color"))
+        text_color = _sanitize_hex_color(payload_dict.get("text_color"))
+        icon_value = str(payload_dict.get("icon") or "").strip()
+        if icon_value and not icon_value.startswith(ALLOWED_ICON_PREFIXES):
+            icon_value = ""
+        normalized[business_name] = {
+            "background_color": bg_color,
+            "text_color": text_color,
+            "icon": icon_value,
+        }
+    return normalized
+
+
 def load_settings():
     settings = {"auto_close_hours": 24, "categories": ["Консультация"], "client_statuses": ["Новый", "Постоянный", "VIP"]}
     if os.path.exists(SETTINGS_PATH):
@@ -4314,6 +4349,9 @@ def load_settings():
     )
     settings["bot_settings"] = sanitize_bot_settings(
         settings.get("bot_settings"), definitions=DEFAULT_BOT_PRESET_DEFINITIONS
+    )
+    settings["business_cell_styles"] = sanitize_business_cell_styles(
+        settings.get("business_cell_styles")
     )
     settings = ensure_auto_close_config(settings)
     return ensure_dialog_config(settings)
@@ -10795,6 +10833,12 @@ def update_settings():
             if settings.get("client_status_colors") != filtered_colors:
                 settings_modified = True
             settings["client_status_colors"] = filtered_colors
+
+        if "business_cell_styles" in data:
+            styles_payload = sanitize_business_cell_styles(data.get("business_cell_styles"))
+            if settings.get("business_cell_styles") != styles_payload:
+                settings_modified = True
+            settings["business_cell_styles"] = styles_payload
 
         if "network_profiles" in data:
             profiles = []
