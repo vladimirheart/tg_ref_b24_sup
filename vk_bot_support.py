@@ -34,9 +34,12 @@ from bot_support import (
     iter_active_channels,
     save_username_if_changed,
 )
+from migrations_runner import ensure_schema_is_current
 from config import DB_PATH
 
 logger = logging.getLogger(__name__)
+
+ensure_schema_is_current()
 
 
 def _parse_platform_config(raw) -> dict:
