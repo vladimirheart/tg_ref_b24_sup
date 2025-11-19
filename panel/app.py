@@ -633,7 +633,7 @@ def _resolve_ticket_responsible(cur: sqlite3.Cursor, ticket_id: str, channel_id:
           AND (channel_id = ? OR channel_id IS NULL OR ? IS NULL)
           AND sender IS NOT NULL
           AND TRIM(sender) != ''
-          AND LOWER(sender) != 'user'
+          AND LOWER(TRIM(sender)) NOT IN ('user', 'system')
         ORDER BY timestamp ASC
         LIMIT 1
         """,
@@ -643,7 +643,8 @@ def _resolve_ticket_responsible(cur: sqlite3.Cursor, ticket_id: str, channel_id:
     auto = ""
     if first_support_row:
         sender = (first_support_row["sender"] or "").strip()
-        if sender and sender.lower() not in {"support", "bot"}:
+        sender_normalized = sender.lower()
+        if sender and sender_normalized not in {"support", "bot", "system"}:
             auto = sender
         else:
             auto = _extract_operator_name(first_support_row["message"] or "")
@@ -1234,6 +1235,29 @@ def _load_current_user_context():
         or _row_value(row, "role")
         or session.get("role")
     )
+
+
+@app.context_processor
+def inject_sidebar_user():
+    """Expose current operator data to templates (sidebar, navbar, etc.)."""
+
+    user_row = getattr(g, "current_user", None)
+    username = (session.get("username") or session.get("user") or "").strip()
+    if user_row is not None:
+        username = (_row_value(user_row, "username", username) or "").strip()
+    full_name = (user_row and (_row_value(user_row, "full_name") or "")) or ""
+    display_name = (full_name or username).strip()
+
+    raw_photo = (user_row and (_row_value(user_row, "photo") or "")) or ""
+    photo = raw_photo.strip() or url_for("static", filename="avatar_default.svg")
+
+    return {
+        "sidebar_current_user": {
+            "display_name": display_name or username,
+            "username": username,
+            "photo": photo,
+        }
+    }
 
 
 def page_access_required(page_key: str):
