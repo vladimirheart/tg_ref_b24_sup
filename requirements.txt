@@ -12,6 +12,7 @@ Pillow==11.3.0
 npm
 psycopg
 SQLAlchemy
+alembic>=1.13.1
 vk-api>=11.9.1
 cryptography>=41.0.0
 pycryptodome
