@@ -10,6 +10,42 @@
 
   const isSkippableTag = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'OPTION', 'BUTTON']);
 
+  const editableSelector = [
+    'input',
+    'textarea',
+    '[contenteditable]',
+    '.toastui-editor-defaultUI',
+    '[data-copy-editor-ignore]',
+  ].join(',');
+
+  function isInsideEditable(node) {
+    if (!node) {
+      return false;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      node = node.parentElement;
+    }
+
+    if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    if (node.matches(editableSelector)) {
+      return true;
+    }
+
+    if (node.isContentEditable) {
+      return true;
+    }
+
+    if (typeof node.closest === 'function' && node.closest(editableSelector)) {
+      return true;
+    }
+
+    return false;
+  }
+
   function createCopyButton(copyValue) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -116,6 +152,9 @@
     if (anchor.closest('[data-copy-ignore], .copyable-ignore')) {
       return;
     }
+    if (isInsideEditable(anchor)) {
+      return;
+    }
     const href = anchor.getAttribute('href') || '';
     if (!href || !detectionRegex.test(href)) {
       return;
@@ -144,6 +183,9 @@
     }
 
     if (parent.closest('[data-copy-ignore], .copyable-ignore')) {
+      return;
+    }
+    if (isInsideEditable(parent)) {
       return;
     }
     if (parent.closest('[data-copy-enhanced="true"]')) {
@@ -226,6 +268,10 @@
       return;
     }
 
+    if (isInsideEditable(root)) {
+      return;
+    }
+
     if (isSkippableTag.has(root.tagName)) {
       return;
     }
@@ -242,6 +288,9 @@
           return NodeFilter.FILTER_REJECT;
         }
         if (node.parentElement.closest('[data-copy-ignore], .copyable-ignore')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        if (isInsideEditable(node.parentElement)) {
           return NodeFilter.FILTER_REJECT;
         }
         if (node.parentElement.closest('[data-copy-enhanced="true"]')) {
