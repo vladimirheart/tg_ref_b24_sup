@@ -35,6 +35,7 @@ class Channel:
     settings: dict[str, Any] = field(default_factory=dict)
     is_active: bool = True
     filters: dict[str, Any] = field(default_factory=dict)
+    support_chat_id: str | None = None
     created_at: str = field(default_factory=_utcnow)
     updated_at: str = field(default_factory=_utcnow)
 
