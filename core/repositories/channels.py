@@ -176,6 +176,9 @@ class ChannelRepository:
             question_template_id=data.get("question_template_id"),
             rating_template_id=data.get("rating_template_id"),
             auto_action_template_id=data.get("auto_action_template_id"),
+            support_chat_id=(
+                str(data.get("support_chat_id")).strip() if data.get("support_chat_id") not in (None, "") else None
+            ),
             token=f"vault:{data.get('credential_id') or 'pending'}",
         )
         if not payload.channel_name:
@@ -221,6 +224,9 @@ class ChannelRepository:
                 channel.rating_template_id = data.get("rating_template_id")
             if "auto_action_template_id" in data:
                 channel.auto_action_template_id = data.get("auto_action_template_id")
+            if "support_chat_id" in data:
+                value = data.get("support_chat_id")
+                channel.support_chat_id = str(value).strip() if value not in (None, "") else None
             if "public_id" in data:
                 channel.public_id = (data.get("public_id") or "").strip().lower() or None
             session.flush()
@@ -255,6 +261,7 @@ class ChannelRepository:
             "settings": settings,
             "filters": _parse_json(channel.filters),
             "is_active": bool(channel.is_active),
+            "support_chat_id": channel.support_chat_id,
             "created_at": channel.created_at,
             "updated_at": channel.updated_at,
         }
