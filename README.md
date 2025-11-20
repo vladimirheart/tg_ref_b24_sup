@@ -79,9 +79,11 @@ export SPRING_OPTS="--server.port=9090"
 
 Все Python-сервисы теперь читают переменные окружения и общие JSON-файлы только через класс `config.Settings`. Он использует Pydantic и Dynaconf, чтобы объединить `.env`, `config/shared/*.json` и значения по умолчанию.
 
-1. Создайте `.env` с `TELEGRAM_BOT_TOKEN`, `GROUP_CHAT_ID`, `SECRET_KEY` и при необходимости `DATABASE_URL`.
+1. Создайте `.env` с `TELEGRAM_BOT_TOKEN`, `SECRET_KEY` и при необходимости `DATABASE_URL`.
 2. Отредактируйте `config/shared/settings.json`, `locations.json`, `org_structure.json`, если нужно поменять шаблоны вопросов и справочники.
 3. Переопределяйте пути к БД (`APP_DB_TICKETS`, `APP_DB_USERS`, ... ) и хранилищам (`APP_STORAGE_ATTACHMENTS`, `APP_STORAGE_KNOWLEDGE_BASE`, ... ) через переменные окружения — `Settings` создаст каталоги автоматически.
+
+ID группы для оповещений теперь задаётся на вкладке «Каналы (боты)» для каждого канала отдельно. Поле необязательное: достаточно добавить бота в нужный чат Telegram, и ID сохранится автоматически после появления системного события.
 
 Подробная инструкция доступна в [docs/configuration.md](docs/configuration.md).
 
