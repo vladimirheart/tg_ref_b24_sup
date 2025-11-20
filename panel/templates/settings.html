@@ -931,6 +931,16 @@
       </div>
 
       <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#reportingModal">
+          <div class="card-body">
+            <div class="tile-icon">📊</div>
+            <h5 class="card-title">Автоотчёт по обращениям</h5>
+            <p class="card-text text-muted" data-reporting-summary>Настройте период и время отправки.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
         <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#appearanceModal">
           <div class="card-body">
             <div class="tile-icon">🎨</div>
@@ -2665,6 +2675,50 @@
       </div>
     </div>
 
+    <div class="modal fade" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="reportingModalLabel">📊 Автоотчёт по обращениям</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info d-none" role="alert" data-reporting-feedback></div>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" role="switch" id="reportingEnabled" data-reporting-enabled>
+              <label class="form-check-label" for="reportingEnabled">Включить автоматическую отправку</label>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="reportingPeriod">Период отчёта, дней</label>
+                <input type="number" min="1" class="form-control" id="reportingPeriod" data-reporting-period>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="reportingFrequency">Частота отправки, дней</label>
+                <input type="number" min="1" class="form-control" id="reportingFrequency" data-reporting-frequency>
+                <div class="form-text">Через сколько дней повторять отправку.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="reportingTime">Время отправки</label>
+                <input type="time" class="form-control" id="reportingTime" data-reporting-time>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="reportingChannel">Канал для доставки</label>
+                <select class="form-select" id="reportingChannel" data-reporting-channel>
+                  <option value="">Подобрать автоматически</option>
+                </select>
+                <div class="form-text">Используется ID группы, указанной в выбранном канале.</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-reporting-save>Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -3061,6 +3115,7 @@
   const AUTO_CLOSE_CONFIG = RAW_AUTO_CLOSE_CONFIG && typeof RAW_AUTO_CLOSE_CONFIG === 'object' ? RAW_AUTO_CLOSE_CONFIG : {};
   const AUTO_CLOSE_FALLBACK_HOURS = Number({{ settings.auto_close_hours | tojson }}) || 24;
   const FALLBACK_DIALOG_CATEGORIES = {{ settings.categories | tojson | safe }};
+  const REPORTING_CONFIG_INITIAL = {{ settings.reporting_config | tojson | safe }};
 
   const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
     good_limit: 30,
@@ -12493,6 +12548,148 @@
   }
 
   window.addChannel = addChannel;
+
+  // === Автоотчёт по обращениям ===
+  const reportingState = {
+    config: normalizeReportingConfig(REPORTING_CONFIG_INITIAL || {}),
+    channelsLoaded: false,
+  };
+
+  const reportingEls = {
+    summary: document.querySelector('[data-reporting-summary]'),
+    enabled: document.querySelector('[data-reporting-enabled]'),
+    period: document.querySelector('[data-reporting-period]'),
+    frequency: document.querySelector('[data-reporting-frequency]'),
+    time: document.querySelector('[data-reporting-time]'),
+    channel: document.querySelector('[data-reporting-channel]'),
+    feedback: document.querySelector('[data-reporting-feedback]'),
+    saveBtn: document.querySelector('[data-reporting-save]'),
+    modal: document.getElementById('reportingModal'),
+  };
+
+  function normalizeReportingConfig(raw) {
+    const defaults = {
+      enabled: false,
+      period_days: 7,
+      frequency_days: 7,
+      send_at: '09:00',
+      channel_id: null,
+    };
+    if (!raw || typeof raw !== 'object') return { ...defaults };
+    return {
+      enabled: Boolean(raw.enabled),
+      period_days: Math.max(1, parseInt(raw.period_days, 10) || defaults.period_days),
+      frequency_days: Math.max(1, parseInt(raw.frequency_days, 10) || defaults.frequency_days),
+      send_at: typeof raw.send_at === 'string' && raw.send_at ? raw.send_at : defaults.send_at,
+      channel_id: raw.channel_id ?? defaults.channel_id,
+    };
+  }
+
+  function renderReportingSummary(config) {
+    if (!reportingEls.summary) return;
+    if (!config.enabled) {
+      reportingEls.summary.textContent = 'Отправка выключена.';
+      return;
+    }
+    reportingEls.summary.textContent = `Каждые ${config.frequency_days} д., период ${config.period_days} д. в ${config.send_at}`;
+  }
+
+  function hydrateReportingForm(config) {
+    if (!reportingEls.enabled) return;
+    reportingEls.enabled.checked = Boolean(config.enabled);
+    if (reportingEls.period) reportingEls.period.value = config.period_days;
+    if (reportingEls.frequency) reportingEls.frequency.value = config.frequency_days;
+    if (reportingEls.time) reportingEls.time.value = config.send_at || '09:00';
+    if (reportingEls.channel) {
+      const selected = config.channel_id == null ? '' : String(config.channel_id);
+      reportingEls.channel.value = selected;
+    }
+    clearReportingFeedback();
+  }
+
+  function clearReportingFeedback() {
+    if (!reportingEls.feedback) return;
+    reportingEls.feedback.classList.add('d-none');
+    reportingEls.feedback.textContent = '';
+  }
+
+  function showReportingFeedback(message, type = 'info') {
+    if (!reportingEls.feedback) return;
+    reportingEls.feedback.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-danger');
+    reportingEls.feedback.classList.add(`alert-${type}`);
+    reportingEls.feedback.textContent = message;
+  }
+
+  async function loadReportingChannels() {
+    if (!reportingEls.channel || reportingState.channelsLoaded) return;
+    reportingState.channelsLoaded = true;
+    try {
+      const resp = await fetch('/api/channels');
+      const data = await resp.json();
+      if (!resp.ok || data.success === false) throw new Error(data.error || 'Не удалось загрузить каналы');
+      const channels = Array.isArray(data.channels) ? data.channels : [];
+      const options = ['<option value="">Подобрать автоматически</option>'];
+      channels.forEach((channel) => {
+        const id = channel.id ?? channel.channel_id;
+        if (!id) return;
+        const name = channel.channel_name || channel.name || `Канал #${id}`;
+        const support = channel.support_chat_id || (channel.delivery_settings && channel.delivery_settings.support_chat_id);
+        const disabled = support ? '' : 'disabled';
+        const hint = support ? '' : ' — нет ID группы';
+        const selected = reportingState.config.channel_id !== null && String(reportingState.config.channel_id) === String(id)
+          ? 'selected'
+          : '';
+        options.push(`<option value="${id}" ${disabled} ${selected}>${name}${hint}</option>`);
+      });
+      reportingEls.channel.innerHTML = options.join('');
+    } catch (error) {
+      showReportingFeedback(`Не удалось загрузить список каналов: ${error.message}`, 'danger');
+    }
+  }
+
+  async function saveReportingConfig() {
+    if (!reportingEls.enabled) return;
+    const payload = {
+      enabled: reportingEls.enabled.checked,
+      period_days: parseInt(reportingEls.period?.value, 10) || reportingState.config.period_days,
+      frequency_days: parseInt(reportingEls.frequency?.value, 10) || reportingState.config.frequency_days,
+      send_at: reportingEls.time?.value || reportingState.config.send_at,
+      channel_id: reportingEls.channel?.value ? reportingEls.channel.value : null,
+    };
+    try {
+      reportingEls.saveBtn?.setAttribute('disabled', 'disabled');
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reporting_config: payload }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || 'Не удалось сохранить настройки');
+      }
+      reportingState.config = normalizeReportingConfig(payload);
+      hydrateReportingForm(reportingState.config);
+      renderReportingSummary(reportingState.config);
+      showReportingFeedback('Настройки сохранены', 'success');
+    } catch (error) {
+      showReportingFeedback(error.message, 'danger');
+    } finally {
+      reportingEls.saveBtn?.removeAttribute('disabled');
+    }
+  }
+
+  function initReporting() {
+    renderReportingSummary(reportingState.config);
+    if (reportingEls.modal && typeof bootstrap !== 'undefined') {
+      reportingEls.modal.addEventListener('show.bs.modal', () => {
+        hydrateReportingForm(reportingState.config);
+        loadReportingChannels();
+      });
+    }
+    reportingEls.saveBtn?.addEventListener('click', saveReportingConfig);
+  }
+
+  document.addEventListener('DOMContentLoaded', initReporting);
 
   </script>
 </main>
