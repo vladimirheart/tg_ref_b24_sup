@@ -222,6 +222,7 @@ class ChannelRepository:
             "question_template_id": data.get("question_template_id"),
             "rating_template_id": data.get("rating_template_id"),
             "auto_action_template_id": data.get("auto_action_template_id"),
+            "support_chat_id": (str(data.get("support_chat_id")).strip() if data.get("support_chat_id") else None),
         }
         if not payload["channel_name"]:
             raise ValueError("Название канала обязательно")
@@ -251,6 +252,7 @@ class ChannelRepository:
                     description,
                     filters,
                     delivery_settings,
+                    support_chat_id,
                     updated_at
                 )
                 VALUES (
@@ -271,6 +273,7 @@ class ChannelRepository:
                     :description,
                     :filters,
                     :delivery_settings,
+                    :support_chat_id,
                     datetime('now')
                 )
                 """,
@@ -341,6 +344,10 @@ class ChannelRepository:
         if "auto_action_template_id" in data:
             fields.append("auto_action_template_id = :auto_action_template_id")
             params["auto_action_template_id"] = data.get("auto_action_template_id")
+        if "support_chat_id" in data:
+            fields.append("support_chat_id = :support_chat_id")
+            value = data.get("support_chat_id")
+            params["support_chat_id"] = (str(value).strip() if value not in (None, "") else None)
         if not fields:
             raise ValueError("Нет данных для обновления")
         with get_connection() as conn:
@@ -393,6 +400,7 @@ class ChannelRepository:
             settings=settings,
             filters=filters,
             is_active=bool(row["is_active"]) if "is_active" in keys else True,
+            support_chat_id=row["support_chat_id"] if "support_chat_id" in keys else None,
             created_at=row["created_at"] if "created_at" in keys else None,
             updated_at=row["updated_at"] if "updated_at" in keys else row.get("created_at"),
         )
