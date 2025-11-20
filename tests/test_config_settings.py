@@ -21,6 +21,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.integrations.telegram.group_chat_id, 12345)
         self.assertTrue(settings.db.tickets_path.name.endswith("tickets.db"))
 
+    def test_group_chat_id_optional(self):
+        settings = Settings.load(env_overrides={"TELEGRAM_BOT_TOKEN": "test-token"})
+        self.assertIsNone(settings.integrations.telegram.group_chat_id)
+
     def test_storage_directories_created_from_env(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             attachments = Path(tmpdir) / "files"
