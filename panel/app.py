@@ -22,6 +22,7 @@ import re
 import unicodedata
 import time, sqlite3
 import html
+import atexit
 from uuid import uuid4, uuid5, NAMESPACE_URL
 from pathlib import Path
 import sys
@@ -43,6 +44,7 @@ from vk_api import VkApi
 from vk_api.exceptions import VkApiError
 
 from panel.notification_queue import enqueue_notification, init_queue
+from core.channels import ChannelService
 from core.repositories import (
     BotCredentialRepository,
     ChannelNotificationRepository,
@@ -3816,6 +3818,71 @@ def sanitize_business_cell_styles(raw_styles: Any) -> dict[str, dict[str, str]]:
     return normalized
 
 
+REPORTING_DEFAULT_CONFIG = {
+    "enabled": False,
+    "period_days": 7,
+    "frequency_days": 7,
+    "send_at": "09:00",
+    "channel_id": None,
+    "last_sent_at": None,
+}
+
+REPORT_TIME_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+
+
+def _parse_iso_ts(raw: Any) -> dt | None:
+    if not raw:
+        return None
+    try:
+        return dt.fromisoformat(str(raw))
+    except Exception:
+        return None
+
+
+def _sanitize_send_time(raw: Any, fallback: str = "09:00") -> str:
+    value = str(raw or "").strip()
+    if REPORT_TIME_PATTERN.match(value):
+        return value
+    return fallback
+
+
+def sanitize_reporting_config(raw: Any, existing: dict | None = None) -> dict:
+    """Normalize payload for автоматический отчёт."""
+
+    if not isinstance(existing, dict):
+        existing = {}
+
+    base = REPORTING_DEFAULT_CONFIG | existing
+    if not isinstance(raw, dict):
+        return base
+
+    config = dict(base)
+    config["enabled"] = bool(raw.get("enabled"))
+
+    try:
+        config["period_days"] = max(1, int(raw.get("period_days", config["period_days"])))
+    except Exception:
+        config["period_days"] = base["period_days"]
+
+    try:
+        config["frequency_days"] = max(1, int(raw.get("frequency_days", config["frequency_days"])))
+    except Exception:
+        config["frequency_days"] = base["frequency_days"]
+
+    config["send_at"] = _sanitize_send_time(raw.get("send_at"), fallback=config["send_at"])
+
+    channel_value = raw.get("channel_id", config.get("channel_id"))
+    try:
+        config["channel_id"] = int(channel_value) if channel_value not in (None, "") else None
+    except Exception:
+        config["channel_id"] = None
+
+    last_sent_raw = raw.get("last_sent_at", config.get("last_sent_at"))
+    last_sent = _parse_iso_ts(last_sent_raw)
+    config["last_sent_at"] = last_sent.isoformat() if last_sent else None
+    return config
+
+
 def load_settings():
     settings = {"auto_close_hours": 24, "categories": ["Консультация"], "client_statuses": ["Новый", "Постоянный", "VIP"]}
     if os.path.exists(SETTINGS_PATH):
@@ -3838,6 +3905,9 @@ def load_settings():
     )
     settings["business_cell_styles"] = sanitize_business_cell_styles(
         settings.get("business_cell_styles")
+    )
+    settings["reporting_config"] = sanitize_reporting_config(
+        settings.get("reporting_config")
     )
     settings = ensure_auto_close_config(settings)
     return ensure_dialog_config(settings)
@@ -3883,6 +3953,264 @@ def resize_image(image_path, max_size=600):
 def save_settings(settings):
     with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
         json.dump(settings, f, ensure_ascii=False, indent=2)
+
+
+def _format_minutes_short(minutes: float | int | None) -> str:
+    if minutes is None:
+        return "0 мин"
+    try:
+        total = int(round(float(minutes)))
+    except Exception:
+        return "0 мин"
+    hours, mins = divmod(total, 60)
+    if hours and mins:
+        return f"{hours} ч {mins} мин"
+    if hours:
+        return f"{hours} ч"
+    return f"{mins} мин"
+
+
+def _resolve_report_channel_id(config: dict | None = None) -> tuple[int | None, str | None]:
+    """Return (channel_id, recipient) for summary delivery."""
+
+    config = config or {}
+    channel_id = config.get("channel_id")
+    candidate_ids: list[int] = []
+
+    if channel_id:
+        try:
+            candidate_ids.append(int(channel_id))
+        except Exception:
+            pass
+
+    for channel in CHANNEL_REPO.list():
+        try:
+            if channel.id not in candidate_ids:
+                candidate_ids.append(channel.id)
+        except Exception:
+            continue
+
+    channel_service = ChannelService(
+        channel_repo=CHANNEL_REPO, credential_repo=BOT_CREDENTIALS_REPO
+    )
+
+    for candidate in candidate_ids:
+        dto = channel_service.get_channel(candidate)
+        if not dto:
+            continue
+        recipient = dto.support_chat_id or dto.settings.get("support_chat_id") if isinstance(dto.settings, dict) else None
+        if recipient:
+            return candidate, recipient
+    return None, None
+
+
+def _collect_summary_metrics(period_days: int) -> dict:
+    since = dt.now() - timedelta(days=max(1, period_days))
+    since_iso = since.strftime("%Y-%m-%d %H:%M:%S")
+
+    with sqlite3.connect(TICKETS_DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+
+        total_tickets = conn.execute(
+            "SELECT COUNT(*) FROM messages WHERE created_at >= ?",
+            (since_iso,),
+        ).fetchone()[0]
+
+        top_categories = conn.execute(
+            """
+            SELECT category, COUNT(*) as total
+            FROM messages
+            WHERE created_at >= ? AND category IS NOT NULL AND TRIM(category) != ''
+            GROUP BY category
+            ORDER BY total DESC
+            LIMIT 5
+            """,
+            (since_iso,),
+        ).fetchall()
+
+        top_restaurants = conn.execute(
+            """
+            SELECT location_name, COUNT(*) as total
+            FROM messages
+            WHERE created_at >= ? AND location_name IS NOT NULL AND TRIM(location_name) != ''
+            GROUP BY location_name
+            ORDER BY total DESC
+            LIMIT 5
+            """,
+            (since_iso,),
+        ).fetchall()
+
+        avg_response_overall = conn.execute(
+            """
+            SELECT AVG((julianday(first_response) - julianday(created_at)) * 24 * 60) AS avg_minutes
+            FROM (
+                SELECT m.ticket_id, m.created_at, MIN(ch.timestamp) AS first_response
+                FROM messages m
+                JOIN chat_history ch ON ch.ticket_id = m.ticket_id
+                WHERE m.created_at >= ?
+                  AND ch.timestamp IS NOT NULL
+                  AND LOWER(COALESCE(ch.sender, '')) NOT IN ('user', 'клиент', 'client', 'customer', 'пользователь')
+                GROUP BY m.ticket_id
+            ) AS responses
+            WHERE responses.first_response IS NOT NULL
+            """,
+            (since_iso,),
+        ).fetchone()[0]
+
+        staff_responses = conn.execute(
+            """
+            SELECT sender as staff, AVG(delay_minutes) AS avg_minutes
+            FROM (
+                SELECT m.ticket_id, ch.sender,
+                       (julianday(MIN(ch.timestamp)) - julianday(m.created_at)) * 24 * 60 AS delay_minutes
+                FROM messages m
+                JOIN chat_history ch ON ch.ticket_id = m.ticket_id
+                WHERE m.created_at >= ?
+                  AND ch.timestamp IS NOT NULL
+                  AND LOWER(COALESCE(ch.sender, '')) NOT IN ('user', 'клиент', 'client', 'customer', 'пользователь')
+                GROUP BY m.ticket_id, ch.sender
+            ) AS delays
+            WHERE staff IS NOT NULL AND TRIM(staff) != ''
+            GROUP BY staff
+            ORDER BY avg_minutes ASC
+            LIMIT 10
+            """,
+            (since_iso,),
+        ).fetchall()
+
+        total_work_time = conn.execute(
+            """
+            SELECT SUM(t.work_time_total_sec) as total_sec
+            FROM tickets t
+            JOIN messages m ON t.ticket_id = m.ticket_id
+            WHERE m.created_at >= ?
+            """,
+            (since_iso,),
+        ).fetchone()[0] or 0
+
+        staff_work_time = conn.execute(
+            """
+            SELECT t.resolved_by as staff, SUM(t.work_time_total_sec) as total_sec
+            FROM tickets t
+            JOIN messages m ON t.ticket_id = m.ticket_id
+            WHERE m.created_at >= ? AND t.resolved_by IS NOT NULL AND TRIM(t.resolved_by) != ''
+            GROUP BY t.resolved_by
+            ORDER BY total_sec DESC
+            LIMIT 10
+            """,
+            (since_iso,),
+        ).fetchall()
+
+    return {
+        "total_tickets": total_tickets,
+        "top_categories": [dict(row) for row in top_categories],
+        "top_restaurants": [dict(row) for row in top_restaurants],
+        "avg_response_minutes": avg_response_overall,
+        "staff_responses": [dict(row) for row in staff_responses],
+        "total_work_minutes": (total_work_time or 0) / 60,
+        "staff_work_minutes": [dict(row) for row in staff_work_time],
+    }
+
+
+def _format_report_message(metrics: dict, period_days: int) -> str:
+    lines = [f"Сводка за последние {period_days} д."]
+    lines.append(f"• Заявок: {metrics.get('total_tickets', 0)}")
+    lines.append(f"• Среднее время ответа: {_format_minutes_short(metrics.get('avg_response_minutes'))}")
+
+    staff_lines = []
+    for row in metrics.get("staff_responses", [])[:5]:
+        staff = row.get("staff") or "—"
+        staff_lines.append(f"  - {staff}: {_format_minutes_short(row.get('avg_minutes'))}")
+    if staff_lines:
+        lines.append("• Среднее время ответа по сотрудникам:")
+        lines.extend(staff_lines)
+
+    lines.append(
+        f"• Затрачено времени всего: {_format_minutes_short(metrics.get('total_work_minutes'))}"
+    )
+
+    work_staff_lines = []
+    for row in metrics.get("staff_work_minutes", [])[:5]:
+        staff = row.get("staff") or "—"
+        work_staff_lines.append(
+            f"  - {staff}: {_format_minutes_short((row.get('total_sec') or 0) / 60)}"
+        )
+    if work_staff_lines:
+        lines.append("• Затраты по сотрудникам:")
+        lines.extend(work_staff_lines)
+
+    category_lines = []
+    for row in metrics.get("top_categories", [])[:5]:
+        category_lines.append(f"  - {row.get('category')}: {row.get('total')} обращ.")
+    if category_lines:
+        lines.append("Топ-5 категорий:")
+        lines.extend(category_lines)
+
+    restaurant_lines = []
+    for row in metrics.get("top_restaurants", [])[:5]:
+        restaurant_lines.append(f"  - {row.get('location_name')}: {row.get('total')} обращ.")
+    if restaurant_lines:
+        lines.append("Топ-5 ресторанов:")
+        lines.extend(restaurant_lines)
+
+    return "\n".join(lines)
+
+
+def _should_send_report(config: dict, now: dt | None = None) -> bool:
+    if not config.get("enabled"):
+        return False
+    now = now or dt.now(timezone.utc)
+    send_at = config.get("send_at") or REPORTING_DEFAULT_CONFIG["send_at"]
+    hour, minute = (int(part) for part in send_at.split(":"))
+    today_target = now.astimezone(timezone.utc).replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if now < today_target:
+        return False
+    last_sent = _parse_iso_ts(config.get("last_sent_at"))
+    interval = timedelta(days=max(1, int(config.get("frequency_days") or 1)))
+    if last_sent and now - last_sent < interval:
+        return False
+    return True
+
+
+def send_summary_report(force: bool = False) -> bool:
+    settings = load_settings()
+    config = sanitize_reporting_config(settings.get("reporting_config"))
+    if not force and not _should_send_report(config):
+        return False
+
+    channel_id, recipient = _resolve_report_channel_id(config)
+    if not channel_id or not recipient:
+        app.logger.warning("Не удалось подобрать канал или чат для отправки отчёта")
+        return False
+
+    metrics = _collect_summary_metrics(config.get("period_days", REPORTING_DEFAULT_CONFIG["period_days"]))
+    message = _format_report_message(metrics, config.get("period_days", REPORTING_DEFAULT_CONFIG["period_days"]))
+    notification = CHANNEL_NOTIFICATIONS_REPO.create(
+        {
+            "channel_id": channel_id,
+            "recipient": str(recipient),
+            "payload": {"message": message, "recipient": str(recipient)},
+            "status": "pending",
+        }
+    )
+    enqueue_notification(notification.id)
+
+    config["last_sent_at"] = dt.now(timezone.utc).isoformat()
+    settings["reporting_config"] = config
+    save_settings(settings)
+    return True
+
+
+SUMMARY_SCHEDULER = BackgroundScheduler(timezone="UTC")
+SUMMARY_SCHEDULER.add_job(
+    send_summary_report,
+    "interval",
+    minutes=15,
+    id="summary-report",
+    replace_existing=True,
+)
+SUMMARY_SCHEDULER.start()
+atexit.register(lambda: SUMMARY_SCHEDULER.shutdown(wait=False))
 
 # Функция для загрузки локаций
 def load_locations():
@@ -10396,9 +10724,15 @@ def update_settings():
             if "dialog_time_metrics" in data:
                 dialog_config["time_metrics"] = _sanitize_time_metrics(
                     data.get("dialog_time_metrics")
-                )
+            )
 
             settings["dialog_config"] = dialog_config
+            settings_modified = True
+
+        if "reporting_config" in data:
+            settings["reporting_config"] = sanitize_reporting_config(
+                data.get("reporting_config"), existing=settings.get("reporting_config")
+            )
             settings_modified = True
 
         if settings_modified:
