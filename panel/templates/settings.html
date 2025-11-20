@@ -2761,6 +2761,11 @@
                         <input id="new_channel_name" class="form-control" placeholder="Например: Доставка">
                         <div class="form-text">Отображается в списке обращений клиентов.</div>
                       </div>
+                      <div class="col-12 col-md-4 col-xl-3">
+                        <label class="form-label" for="new_support_chat_id">ID группы для уведомлений</label>
+                        <input id="new_support_chat_id" class="form-control" placeholder="Например: -1001234567890">
+                        <div class="form-text">Опционально. Можно оставить пустым — бот сохранит ID автоматически после добавления в чат.</div>
+                      </div>
                       <div class="col-12 col-md-4 col-xl-2">
                         <label class="form-label" for="new_platform">Платформа</label>
                         <select id="new_platform" class="form-select">
@@ -2957,6 +2962,13 @@
               <label class="form-label" for="channelEditorAutoTemplate">Автоматические действия</label>
               <select class="form-select" id="channelEditorAutoTemplate"></select>
               <div class="form-text small" data-channel-editor-summary="auto_action_template_id">—</div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="form-label" for="channelEditorSupportChatId">ID группы для уведомлений</label>
+            <input class="form-control" id="channelEditorSupportChatId" placeholder="Например: -1001234567890" />
+            <div class="form-text small" data-channel-editor-support-hint>
+              Можно оставить пустым — добавьте бота в нужную группу, и мы определим ID автоматически.
             </div>
           </div>
           <div class="mt-4 d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
@@ -11725,12 +11737,14 @@
   const channelEditorQuestionSelect = document.getElementById('channelEditorQuestionTemplate');
   const channelEditorRatingSelect = document.getElementById('channelEditorRatingTemplate');
   const channelEditorAutoSelect = document.getElementById('channelEditorAutoTemplate');
+  const channelEditorSupportChatInput = document.getElementById('channelEditorSupportChatId');
   const channelEditorPlatformEl = document.querySelector('[data-channel-editor-platform]');
   const channelEditorBotEl = document.querySelector('[data-channel-editor-bot]');
   const channelEditorTokenEl = document.querySelector('[data-channel-editor-token]');
   const channelEditorPublicIdEl = document.querySelector('[data-channel-editor-public-id]');
   const channelEditorMetaEl = document.querySelector('[data-channel-editor-meta]');
   const channelEditorHintEl = document.querySelector('[data-channel-editor-hint]');
+  const channelEditorSupportHint = document.querySelector('[data-channel-editor-support-hint]');
   const channelEditorVkBtn = document.getElementById('channelEditorVkButton');
   const channelEditorSaveBtn = document.getElementById('channelEditorSaveBtn');
   const channelEditorDeleteBtn = document.getElementById('channelEditorDeleteBtn');
@@ -11786,6 +11800,20 @@
     updateChannelEditorSummary(field, selectEl.value || '');
   }
 
+  function updateSupportChatHint(value, options = {}) {
+    if (!channelEditorSupportHint) return;
+    const pending = Boolean(options.pending);
+    if (pending && value) {
+      channelEditorSupportHint.textContent = `Будет сохранён ID: ${value}`;
+      return;
+    }
+    if (value) {
+      channelEditorSupportHint.textContent = `Текущее значение: ${value}`;
+    } else {
+      channelEditorSupportHint.textContent = 'ID группы не задан. Добавьте бота в чат или укажите значение вручную.';
+    }
+  }
+
   function formatBotLabel(channel) {
     const parts = [];
     if (channel.bot_name) {
@@ -11827,6 +11855,11 @@
     configureChannelEditorSelect(channelEditorQuestionSelect, QUESTION_TEMPLATES, channel.question_template_id, DEFAULT_QUESTION_TEMPLATE_ID, 'question_template_id');
     configureChannelEditorSelect(channelEditorRatingSelect, RATING_TEMPLATES, channel.rating_template_id, DEFAULT_RATING_TEMPLATE_ID, 'rating_template_id');
     configureChannelEditorSelect(channelEditorAutoSelect, AUTO_ACTION_TEMPLATES, channel.auto_action_template_id, DEFAULT_AUTO_ACTION_TEMPLATE_ID, 'auto_action_template_id');
+    const supportChatValue = channel.support_chat_id ?? '';
+    if (channelEditorSupportChatInput) {
+      channelEditorSupportChatInput.value = supportChatValue;
+    }
+    updateSupportChatHint(supportChatValue);
     if (channelEditorVkBtn) {
       channelEditorVkBtn.classList.toggle('d-none', channel.platform !== 'vk');
     }
@@ -12157,6 +12190,7 @@
         token: row.token || '',
         public_id: row.public_id || '',
         vk_group_id: vkGroupId,
+        support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
       };
 
       CHANNELS_REGISTRY.set(String(row.id), prepared);
@@ -12167,6 +12201,12 @@
 
       const tr = document.createElement('tr');
       tr.dataset.id = row.id;
+      const supportChatRaw = prepared.support_chat_id;
+      const hasSupportChat = supportChatRaw !== null && supportChatRaw !== undefined && String(supportChatRaw).trim() !== '';
+      const supportChatInfo = hasSupportChat
+        ? `<div class="small text-muted mt-1">ID группы: ${escapeHtml(String(supportChatRaw))}</div>`
+        : '<div class="small text-muted mt-1">ID группы пока не привязан</div>';
+
       tr.innerHTML = `
         <td>
           <div class="fw-medium">${escapeHtml(prepared.channel_name || '—')}</div>
@@ -12175,6 +12215,7 @@
         <td>
           <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
           ${prepared.vk_group_id ? `<div class="small text-muted mt-1">group_id: ${escapeHtml(String(prepared.vk_group_id))}</div>` : ''}
+          ${supportChatInfo}
         </td>
         <td class="text-center">
           <div>${statusBadge}</div>
@@ -12206,6 +12247,7 @@
   async function addChannel() {
     const tokenInput = document.getElementById('new_token');
     const nameInput = document.getElementById('new_channel_name');
+    const supportChatInput = document.getElementById('new_support_chat_id');
     const platformSelect = document.getElementById('new_platform');
     const questionSelect = document.getElementById('new_question_template');
     const ratingSelect = document.getElementById('new_rating_template');
@@ -12240,6 +12282,8 @@
     if (questionTemplateId) payload.question_template_id = questionTemplateId;
     if (ratingTemplateId) payload.rating_template_id = ratingTemplateId;
     if (autoTemplateId) payload.auto_action_template_id = autoTemplateId;
+    const supportChatId = supportChatInput?.value?.trim() || '';
+    if (supportChatId) payload.support_chat_id = supportChatId;
 
     if (platform === 'vk') {
       const groupId = Number.parseInt(vkGroupInput?.value || '0', 10);
@@ -12271,6 +12315,7 @@
       }
       if (tokenInput) tokenInput.value = '';
       if (nameInput) nameInput.value = '';
+      if (supportChatInput) supportChatInput.value = '';
       if (vkGroupInput) vkGroupInput.value = '';
       if (vkConfirmInput) vkConfirmInput.value = '';
       if (vkSecretInput) vkSecretInput.value = '';
@@ -12300,6 +12345,11 @@
       channel_name: channelName,
       is_active: channelEditorActiveInput?.checked ? 1 : 0,
     };
+
+    if (channelEditorSupportChatInput) {
+      const supportValue = channelEditorSupportChatInput.value.trim();
+      body.support_chat_id = supportValue || null;
+    }
 
     const configPayload = {};
     if (channelEditorQuestionSelect && !channelEditorQuestionSelect.disabled) {
@@ -12409,6 +12459,18 @@
     });
     channelEditorAutoSelect?.addEventListener('change', () => {
       updateChannelEditorSummary('auto_action_template_id', channelEditorAutoSelect.value || '');
+    });
+    channelEditorSupportChatInput?.addEventListener('input', () => {
+      const value = channelEditorSupportChatInput.value.trim();
+      if (value) {
+        updateSupportChatHint(value, { pending: true });
+      } else {
+        const channel = channelEditorState.channelId !== null
+          ? CHANNELS_REGISTRY.get(String(channelEditorState.channelId))
+          : null;
+        const value = channel && (channel.support_chat_id ?? '');
+        updateSupportChatHint(value || '');
+      }
     });
     channelEditorVkBtn?.addEventListener('click', () => {
       if (channelEditorState.channelId !== null) {
