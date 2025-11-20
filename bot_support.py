@@ -15,12 +15,13 @@ from datetime import datetime, timezone
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ApplicationBuilder,
+    ApplicationHandlerStop,
+    ChatMemberHandler,
     CommandHandler,
-    MessageHandler,
-    filters,
     ContextTypes,
     ConversationHandler,
-    ApplicationHandlerStop,
+    MessageHandler,
+    filters,
 )
 # --- PTB filters compatibility (работает и с объектами, и с классами, и с .ALL) ---
 import inspect
@@ -1042,6 +1043,7 @@ async def problem_description(update: Update, context: ContextTypes.DEFAULT_TYPE
         group_chat_id = get_support_chat_id(channel_id)
         if not group_chat_id and is_group_update(update):
             group_chat_id = update.effective_chat.id
+            capture_support_chat_from_update(channel_id, update)
 
         sent = None
         if group_chat_id:
@@ -1234,6 +1236,7 @@ async def reply_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # channel_id текущего бота
     channel_id = context.application.bot_data["channel_id"]
+    capture_support_chat_from_update(channel_id, update)
 
     try:
         # Отправляем клиенту
@@ -1994,6 +1997,31 @@ def get_support_chat_id(channel_id: int):
     fallback = SETTINGS.get("support_chat_id") or SETTINGS.get("group_chat_id")
     return _channel_service.get_support_chat_id(channel_id, fallback=fallback)
 
+
+def capture_support_chat_from_update(channel_id: int | None, update: Update | None) -> None:
+    if not channel_id or update is None:
+        return
+    chat = getattr(update, "effective_chat", None)
+    if chat and chat.type in ("group", "supergroup"):
+        current = _channel_service.get_support_chat_id(channel_id, fallback=None)
+        if current is not None and str(current) == str(chat.id):
+            return
+        logging.info("Привязываем chat_id %s к каналу %s", chat.id, channel_id)
+        _channel_service.set_support_chat_id(channel_id, chat.id)
+
+
+async def track_bot_membership(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    channel_id = context.application.bot_data.get("channel_id") if context.application else None
+    if not channel_id:
+        return
+    member_update = update.my_chat_member or update.chat_member
+    if member_update is None:
+        return
+    new_status = getattr(member_update.new_chat_member, "status", None)
+    if new_status in {"member", "administrator", "creator"}:
+        capture_support_chat_from_update(channel_id, update)
+
+
 def is_group_update(update: Update) -> bool:
     try:
         return update.effective_chat and update.effective_chat.type in ("group", "supergroup")
@@ -2196,6 +2224,7 @@ async def run_all_bots():
             allow_reentry=True,
         )
         application.add_handler(conv_handler)
+        application.add_handler(ChatMemberHandler(track_bot_membership, ChatMemberHandler.MY_CHAT_MEMBER))
         application.add_handler(MessageHandler(filters.REPLY & filters.ChatType.GROUPS, reply_to_user))
         application.add_handler(CommandHandler("stats", stats))
         application.add_handler(CommandHandler("pending", pending))
