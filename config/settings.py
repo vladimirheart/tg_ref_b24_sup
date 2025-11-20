@@ -194,7 +194,7 @@ class SharedConfigFiles(BaseModel):
 
 class TelegramSettings(BaseModel):
     token: str
-    group_chat_id: int
+    group_chat_id: int | None = None
 
     @classmethod
     def from_env(cls, env: Dynaconf) -> "TelegramSettings":
@@ -202,12 +202,12 @@ class TelegramSettings(BaseModel):
         if not token:
             raise ValueError("TELEGRAM_BOT_TOKEN is not configured")
         group_chat_id = env.get("GROUP_CHAT_ID")
-        if group_chat_id is None:
-            raise ValueError("GROUP_CHAT_ID is not configured")
-        try:
-            group_chat_id_int = int(group_chat_id)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("GROUP_CHAT_ID must be an integer") from exc
+        group_chat_id_int: int | None = None
+        if group_chat_id not in (None, ""):
+            try:
+                group_chat_id_int = int(group_chat_id)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("GROUP_CHAT_ID must be an integer") from exc
         return cls(token=token, group_chat_id=group_chat_id_int)
 
 
