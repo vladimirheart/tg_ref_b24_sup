@@ -102,6 +102,17 @@ class ChannelService:
                 return value
         return fallback
 
+    def set_support_chat_id(self, channel_id: int, chat_id: Any) -> None:
+        if not chat_id:
+            return
+        value = str(chat_id).strip()
+        if not value:
+            return
+        try:
+            self._channels.update(channel_id, {"support_chat_id": value})
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Не удалось сохранить support_chat_id для канала %s: %s", channel_id, exc)
+
     def list_auto_close_templates(self) -> dict[int, str | None]:
         mapping: dict[int, str | None] = {}
         for channel in self._channels.list():
