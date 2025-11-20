@@ -125,7 +125,6 @@ app = Flask(__name__)
 app.secret_key = runtime_settings.security.secret_key
 
 TELEGRAM_BOT_TOKEN = runtime_settings.integrations.telegram.token
-GROUP_CHAT_ID = runtime_settings.integrations.telegram.group_chat_id
 
 PARAMETER_TYPES = {
     "business": "Бизнес",
@@ -9753,6 +9752,13 @@ def api_channels_create():
         return jsonify({"success": False, "error": "Поддерживаются платформы telegram и vk"}), 400
     token_raw = (data.get("token") or "").strip()
     credential_id = data.get("credential_id")
+    support_chat_id = data.get("support_chat_id")
+    if support_chat_id is None and "supportChatId" in data:
+        support_chat_id = data.get("supportChatId")
+    if support_chat_id not in (None, ""):
+        support_chat_id = str(support_chat_id).strip()
+    else:
+        support_chat_id = None
     if not channel_name:
         return jsonify({"success": False, "error": "Укажите название канала"}), 400
     if not credential_id and platform != "vk" and not token_raw:
@@ -9907,6 +9913,7 @@ def api_channels_create():
         "question_template_id": question_template_id,
         "rating_template_id": rating_template_id,
         "auto_action_template_id": auto_action_template_id or None,
+        "support_chat_id": support_chat_id,
     })
 
     with get_db() as conn:
@@ -9949,6 +9956,11 @@ def api_channels_update(channel_id):
         updates["filters"] = data.get("filters")
     if "is_active" in data:
         updates["is_active"] = bool(data.get("is_active"))
+    if "support_chat_id" in data or "supportChatId" in data:
+        value = data.get("support_chat_id")
+        if value is None and "supportChatId" in data:
+            value = data.get("supportChatId")
+        updates["support_chat_id"] = (str(value).strip() if value not in (None, "") else None)
     if "max_questions" in data:
         updates["max_questions"] = data.get("max_questions")
     for key in ("question_template_id", "rating_template_id", "auto_action_template_id"):
