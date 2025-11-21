@@ -7,6 +7,7 @@ import secrets
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
@@ -86,18 +87,23 @@ class BotCredentialRepository:
         if not token:
             raise ValueError("Токен обязателен")
         encrypted = encrypt_token(token)
+        timestamp = datetime.now().isoformat(timespec="seconds")
         payload = {
             "name": (data.get("name") or "").strip(),
             "platform": (data.get("platform") or "telegram").strip().lower(),
             "encrypted_token": encrypted,
             "metadata": _serialize_metadata(data.get("metadata")),
             "is_active": 1 if data.get("is_active", True) else 0,
+            "created_at": timestamp,
+            "updated_at": timestamp,
         }
         with get_connection() as conn:
             cur = conn.execute(
                 """
-                INSERT INTO bot_credentials(name, platform, encrypted_token, metadata, is_active)
-                VALUES (:name, :platform, :encrypted_token, :metadata, :is_active)
+                INSERT INTO bot_credentials(
+                    name, platform, encrypted_token, metadata, is_active, created_at, updated_at
+                )
+                VALUES (:name, :platform, :encrypted_token, :metadata, :is_active, :created_at, :updated_at)
                 """,
                 payload,
             )
