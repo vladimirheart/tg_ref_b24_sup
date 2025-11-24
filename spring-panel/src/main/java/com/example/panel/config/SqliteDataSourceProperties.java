@@ -13,7 +13,7 @@ public class SqliteDataSourceProperties {
     /**
      * Path to the SQLite database file. May be absolute or relative to the working directory.
      */
-    private String path = "db/panel.db";
+    private String path = "tickets.db";
 
     /**
      * SQLite journal mode parameter (e.g. WAL, DELETE).
