@@ -133,6 +133,41 @@ PASSPORT_STATUSES_WITH_PERIODS: set[str] = {
     "Другое",
 }
 
+WEEKDAY_ORDER: tuple[str, ...] = (
+    "mon",
+    "tue",
+    "wed",
+    "thu",
+    "fri",
+    "sat",
+    "sun",
+)
+
+WEEKDAY_FULL_LABELS: dict[str, str] = {
+    "mon": "Понедельник",
+    "tue": "Вторник",
+    "wed": "Среда",
+    "thu": "Четверг",
+    "fri": "Пятница",
+    "sat": "Суббота",
+    "sun": "Воскресенье",
+}
+
+WEEKDAY_SHORT_LABELS: dict[str, str] = {
+    "mon": "Пн",
+    "tue": "Вт",
+    "wed": "Ср",
+    "thu": "Чт",
+    "fri": "Пт",
+    "sat": "Сб",
+    "sun": "Вс",
+}
+
+WEEKDAY_SEQUENCE: tuple[tuple[str, str, str], ...] = tuple(
+    (key, WEEKDAY_FULL_LABELS.get(key, key), WEEKDAY_SHORT_LABELS.get(key, key))
+    for key in WEEKDAY_ORDER
+)
+
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(AVATAR_CACHE_DIR, exist_ok=True)
 os.makedirs(AVATAR_HISTORY_DIR, exist_ok=True)
