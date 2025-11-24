@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Задачи — Support Panel</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="bg-light">
+<div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
+<main class="container py-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Задачи</h1>
+            <p class="text-muted mb-0">Последние поручения команды поддержки.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Название</th>
+                    <th scope="col">Статус</th>
+                    <th scope="col">Ответственный</th>
+                    <th scope="col">Дедлайн</th>
+                    <th scope="col">Создана</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(tasks)}">
+                    <td colspan="6" class="text-center text-muted py-4">Задачи отсутствуют</td>
+                </tr>
+                <tr th:each="task : ${tasks}">
+                    <td th:text="${task.seq} != null ? task.seq : task.id"></td>
+                    <td>
+                        <div class="fw-semibold" th:text="${task.title} ?: 'Без названия'"></div>
+                        <div class="text-muted small" th:text="${task.tag}"></div>
+                    </td>
+                    <td><span class="badge text-bg-secondary" th:text="${task.status} ?: 'new'"></span></td>
+                    <td th:text="${task.assignee} ?: '—'"></td>
+                    <td th:text="${task.dueAt} ?: '—'"></td>
+                    <td th:text="${task.createdAt} ?: '—'"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+</body>
+</html>
