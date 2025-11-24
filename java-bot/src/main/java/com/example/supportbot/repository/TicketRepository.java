@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TicketRepository extends JpaRepository<Ticket, TicketId> {
     Optional<Ticket> findTopByIdUserIdOrderByIdTicketIdDesc(Long userId);
+
+    Optional<Ticket> findByIdTicketId(String ticketId);
 }
