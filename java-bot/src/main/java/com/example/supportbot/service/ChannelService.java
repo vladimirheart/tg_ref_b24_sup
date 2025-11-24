@@ -30,8 +30,20 @@ public class ChannelService {
                 .orElseGet(() -> {
                     Channel created = new Channel();
                     created.setToken(lookupToken);
+                    created.setChannelName("Telegram");
+                    created.setPlatform("telegram");
                     return channelRepository.save(created);
                 });
+
+        if (channel.getChannelName() == null || channel.getChannelName().isBlank()) {
+            channel.setChannelName("Telegram");
+        }
+        if (channel.getPlatform() == null || channel.getPlatform().isBlank()) {
+            channel.setPlatform("telegram");
+        }
+        if (channel.getQuestionsCfg() == null) {
+            channel.setQuestionsCfg("{}");
+        }
 
         if (channel.getPublicId() != null && !channel.getPublicId().isBlank()) {
             return channel;
