@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ form.name or 'Внешняя форма' }}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='bender-icon.svg') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f8fafc; }
+    .form-card { background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); padding: 2rem; }
+    .form-card h1 { font-size: 1.6rem; }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <div class="form-card mx-auto" style="max-width: 720px;">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <p class="text-muted mb-1">Внешняя форма</p>
+          <h1 class="mb-1">{{ form.name or 'Внешняя форма' }}</h1>
+          {% if form.description %}<p class="text-muted mb-0">{{ form.description }}</p>{% endif %}
+        </div>
+        <span class="badge bg-primary">Bender</span>
+      </div>
+      <form id="publicExternalForm" novalidate>
+        <div id="questionsBlock" class="mb-3"></div>
+        <div class="d-flex justify-content-between align-items-center">
+          <div id="publicFormMessage" class="text-muted small"></div>
+          <button class="btn btn-primary" type="submit">Отправить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const FORM_CONFIG = {{ form | tojson }};
+    const questionsBlock = document.getElementById('questionsBlock');
+    const messageBox = document.getElementById('publicFormMessage');
+
+    function showMessage(text, type = 'muted') {
+      messageBox.textContent = text || '';
+      messageBox.className = `small text-${type}`;
+    }
+
+    function renderQuestions() {
+      questionsBlock.innerHTML = '';
+      const questions = Array.isArray(FORM_CONFIG.questions) ? FORM_CONFIG.questions : [];
+      questions.forEach((question) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mb-3';
+        const selectId = `question-${question.id}`;
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.setAttribute('for', selectId);
+        label.textContent = `${question.text || 'Вопрос'}${question.required ? ' *' : ''}`;
+
+        const select = document.createElement('select');
+        select.className = 'form-select';
+        select.id = selectId;
+        select.dataset.questionId = question.id;
+        if (question.required) select.required = true;
+        select.innerHTML = '<option value="">Выберите вариант</option>' +
+          (Array.isArray(question.options)
+            ? question.options.map((opt) => `<option value="${opt}">${opt}</option>`).join('')
+            : '');
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(select);
+        questionsBlock.appendChild(wrapper);
+      });
+    }
+
+    async function submitForm(event) {
+      event.preventDefault();
+      const answers = {};
+      const selects = questionsBlock.querySelectorAll('select[data-question-id]');
+      for (const select of selects) {
+        answers[select.dataset.questionId] = select.value.trim();
+      }
+      try {
+        const response = await fetch(`/api/external/forms/${FORM_CONFIG.public_id}/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось отправить форму');
+        }
+        showMessage('Спасибо! Заявка создана и передана в работу.', 'success');
+        document.getElementById('publicExternalForm').reset();
+      } catch (error) {
+        showMessage(error.message, 'danger');
+      }
+    }
+
+    document.getElementById('publicExternalForm').addEventListener('submit', submitForm);
+
+    renderQuestions();
+  </script>
+</body>
+</html>
