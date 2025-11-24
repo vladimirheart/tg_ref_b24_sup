@@ -106,8 +106,16 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         log.info("VK long poll runner started");
     }
 
+    public void handleIncomingMessage(Message message) {
+        if (message == null) {
+            return;
+        }
+        GroupActor actor = createActor();
+        onMessage(actor, message);
+    }
+
     private void runLoop() {
-        GroupActor actor = new GroupActor(properties.getGroupId(), properties.getToken());
+        GroupActor actor = createActor();
         BotsLongPoll poller = new BotsLongPoll(vkClient, actor);
         while (running) {
             try {
@@ -123,6 +131,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    private GroupActor createActor() {
+        return new GroupActor(properties.getGroupId(), properties.getToken());
     }
 
     private void handleUpdates(GroupActor actor, GetLongPollEventsResponse response) {
