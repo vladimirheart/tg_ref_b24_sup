@@ -2,15 +2,24 @@ CREATE TABLE IF NOT EXISTS channels (
     id BIGSERIAL PRIMARY KEY,
     token VARCHAR(128) NOT NULL UNIQUE,
     bot_name VARCHAR(255),
-    channel_name VARCHAR(255) NOT NULL,
-    questions_cfg TEXT,
+    bot_username VARCHAR(255),
+    channel_name VARCHAR(255) NOT NULL DEFAULT 'Telegram',
+    questions_cfg TEXT DEFAULT '{}',
     max_questions INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    bot_username VARCHAR(255),
     question_template_id VARCHAR(255),
     rating_template_id VARCHAR(255),
-    public_id VARCHAR(255)
+    auto_action_template_id VARCHAR(255),
+    public_id VARCHAR(255),
+    description TEXT,
+    filters TEXT DEFAULT '{}',
+    delivery_settings TEXT DEFAULT '{}',
+    platform VARCHAR(64) NOT NULL DEFAULT 'telegram',
+    platform_config TEXT DEFAULT '{}',
+    credential_id BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    support_chat_id VARCHAR(255)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_public_id ON channels(public_id);
