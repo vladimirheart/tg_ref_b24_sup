@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Внешние формы — Bender</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='bender-icon.svg') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <style>
+    .question-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin-bottom: 10px; background: #f8fafc; }
+    .question-card .form-label { font-weight: 600; }
+    .form-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .link-badge { font-size: 0.85rem; word-break: break-all; }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+    <div class="container-fluid mt-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+          <h2 class="mb-0">🌐 Внешние формы</h2>
+          <p class="text-muted mb-0">Создавайте формы с выпадающими списками, собирайте ответы и автоматически заводите задачи.</p>
+        </div>
+        <button class="btn btn-outline-secondary" type="button" id="resetFormBtn">Очистить форму</button>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0" id="formTitle">Новая форма</h5>
+                <span class="badge bg-secondary" id="formStatusBadge">Черновик</span>
+              </div>
+              <form id="externalFormEditor" novalidate>
+                <div class="mb-3">
+                  <label class="form-label" for="formName">Название формы *</label>
+                  <input type="text" class="form-control" id="formName" placeholder="Например, Заявка на обслуживание" required />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label" for="formDescription">Описание</label>
+                  <textarea class="form-control" id="formDescription" rows="2" placeholder="Кратко опишите, зачем нужна форма"></textarea>
+                </div>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-8">
+                    <label class="form-label" for="notifyRole">Роль для оповещения</label>
+                    <select class="form-select" id="notifyRole">
+                      <option value="">Не выбрано</option>
+                      {% for role in roles %}
+                      <option value="{{ role.id }}">{{ role.name }}{% if role.description %} — {{ role.description }}{% endif %}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="formActive" checked />
+                      <label class="form-check-label" for="formActive">Форма активна</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">Вопросы формы</h6>
+                  <button class="btn btn-outline-primary btn-sm" type="button" id="addQuestionBtn">Добавить вопрос</button>
+                </div>
+                <div id="questionsContainer"></div>
+
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                  <div id="formMessage" class="text-muted small"></div>
+                  <div class="form-actions">
+                    <button class="btn btn-primary" type="submit">Сохранить форму</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Сохранённые формы</h5>
+                <span class="text-muted" id="formsCount">0 форм</span>
+              </div>
+              <div class="table-responsive">
+                <table class="table align-middle" id="formsTable">
+                  <thead>
+                    <tr>
+                      <th>Название</th>
+                      <th>Роль</th>
+                      <th>Статус</th>
+                      <th>Ссылка</th>
+                      <th class="text-end">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const AVAILABLE_ROLES = {{ roles | tojson }} || [];
+    const questionsContainer = document.getElementById('questionsContainer');
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+    const formMessage = document.getElementById('formMessage');
+    const formsTableBody = document.querySelector('#formsTable tbody');
+    const formsCount = document.getElementById('formsCount');
+    const formTitle = document.getElementById('formTitle');
+    const formStatusBadge = document.getElementById('formStatusBadge');
+    const resetFormBtn = document.getElementById('resetFormBtn');
+    const formActiveInput = document.getElementById('formActive');
+    const notifyRoleSelect = document.getElementById('notifyRole');
+    const formNameInput = document.getElementById('formName');
+    const formDescriptionInput = document.getElementById('formDescription');
+
+    let currentFormId = null;
+    let formsState = [];
+
+    function showMessage(message, type = 'muted') {
+      formMessage.textContent = message || '';
+      formMessage.className = `small text-${type}`;
+    }
+
+    function createQuestionCard(question = {}) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'question-card';
+      wrapper.dataset.questionId = question.id || '';
+
+      wrapper.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div class="flex-grow-1">
+            <label class="form-label">Текст вопроса *</label>
+            <input type="text" class="form-control" value="${question.text || ''}" placeholder="Например, Выберите офис" required />
+          </div>
+          <div class="form-check ms-2 mt-4">
+            <input class="form-check-input" type="checkbox" ${question.required ? 'checked' : ''} />
+            <label class="form-check-label">Обязательный</label>
+          </div>
+        </div>
+        <div class="mt-2">
+          <label class="form-label">Варианты для выпадающего списка *</label>
+          <textarea class="form-control" rows="2" placeholder="Каждый вариант с новой строки">${(question.options || []).join('\n')}</textarea>
+          <div class="text-muted small mt-1">Клиент сможет выбрать только из перечисленных значений.</div>
+        </div>
+        <div class="d-flex justify-content-end mt-2">
+          <button type="button" class="btn btn-outline-danger btn-sm" data-action="remove">Удалить</button>
+        </div>
+      `;
+
+      wrapper.querySelector('[data-action="remove"]').addEventListener('click', () => {
+        wrapper.remove();
+      });
+
+      return wrapper;
+    }
+
+    function renderQuestions(questions = []) {
+      questionsContainer.innerHTML = '';
+      if (!questions.length) {
+        questionsContainer.appendChild(createQuestionCard());
+        return;
+      }
+      questions.forEach((q) => questionsContainer.appendChild(createQuestionCard(q)));
+    }
+
+    function collectQuestions() {
+      const cards = Array.from(questionsContainer.querySelectorAll('.question-card'));
+      return cards
+        .map((card, index) => {
+          const [textInput] = card.getElementsByTagName('input');
+          const requiredInput = card.querySelector('.form-check-input');
+          const optionsTextarea = card.querySelector('textarea');
+          const text = (textInput?.value || '').trim();
+          const options = (optionsTextarea?.value || '')
+            .split('\n')
+            .map((item) => item.trim())
+            .filter(Boolean);
+
+          if (!text || !options.length) return null;
+
+          return {
+            id: card.dataset.questionId || undefined,
+            text,
+            required: requiredInput?.checked || false,
+            options,
+            order: index,
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function resetEditor() {
+      currentFormId = null;
+      formTitle.textContent = 'Новая форма';
+      formStatusBadge.textContent = 'Черновик';
+      formStatusBadge.className = 'badge bg-secondary';
+      formNameInput.value = '';
+      formDescriptionInput.value = '';
+      notifyRoleSelect.value = '';
+      formActiveInput.checked = true;
+      renderQuestions();
+      showMessage('Заполните поля и сохраните форму.');
+    }
+
+    function populateEditor(form) {
+      currentFormId = form.id;
+      formTitle.textContent = `Редактирование: ${form.name}`;
+      formStatusBadge.textContent = form.is_active ? 'Активна' : 'Выключена';
+      formStatusBadge.className = `badge ${form.is_active ? 'bg-success' : 'bg-secondary'}`;
+      formNameInput.value = form.name || '';
+      formDescriptionInput.value = form.description || '';
+      notifyRoleSelect.value = form.notify_role_id || '';
+      formActiveInput.checked = !!form.is_active;
+      renderQuestions(form.questions || []);
+      showMessage('Редактируйте поля и нажмите «Сохранить форму».');
+    }
+
+    function renderFormsTable() {
+      formsTableBody.innerHTML = '';
+      if (!formsState.length) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = '<td colspan="5" class="text-center text-muted py-3">Формы ещё не созданы</td>';
+        formsTableBody.appendChild(emptyRow);
+        formsCount.textContent = '0 форм';
+        return;
+      }
+
+      formsState.forEach((form) => {
+        const tr = document.createElement('tr');
+        const roleName = form.notify_role_name || '—';
+        const statusBadge = form.is_active
+          ? '<span class="badge bg-success">Активна</span>'
+          : '<span class="badge bg-secondary">Выключена</span>';
+
+        tr.innerHTML = `
+          <td>${form.name}</td>
+          <td>${roleName}</td>
+          <td>${statusBadge}</td>
+          <td><span class="badge bg-light text-dark link-badge">${form.public_url}</span></td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-primary" data-action="edit">Редактировать</button>
+              <button class="btn btn-outline-secondary" data-action="copy">Скопировать ссылку</button>
+            </div>
+          </td>
+        `;
+
+        tr.querySelector('[data-action="edit"]').addEventListener('click', () => populateEditor(form));
+        tr.querySelector('[data-action="copy"]').addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(form.public_url);
+            showMessage('Ссылка скопирована в буфер обмена', 'success');
+          } catch (err) {
+            showMessage('Не удалось скопировать ссылку', 'danger');
+          }
+        });
+
+        formsTableBody.appendChild(tr);
+      });
+      formsCount.textContent = `${formsState.length} форм`;
+    }
+
+    async function loadForms() {
+      try {
+        const response = await fetch('/api/external_forms');
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось загрузить формы');
+        }
+        formsState = data.forms || [];
+        renderFormsTable();
+      } catch (error) {
+        showMessage(error.message, 'danger');
+      }
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      const name = formNameInput.value.trim();
+      const description = formDescriptionInput.value.trim();
+      const questions = collectQuestions();
+      const notify_role_id = notifyRoleSelect.value || null;
+      const is_active = formActiveInput.checked;
+
+      if (!name) {
+        showMessage('Укажите название формы', 'danger');
+        return;
+      }
+      if (!questions.length) {
+        showMessage('Добавьте хотя бы один вопрос с вариантами.', 'danger');
+        return;
+      }
+
+      const payload = {
+        id: currentFormId,
+        name,
+        description,
+        notify_role_id,
+        is_active,
+        questions,
+      };
+
+      try {
+        const response = await fetch('/api/external_forms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить форму');
+        }
+        showMessage('Форма сохранена', 'success');
+        await loadForms();
+        if (data.form) {
+          populateEditor(data.form);
+        } else {
+          resetEditor();
+        }
+      } catch (error) {
+        showMessage(error.message, 'danger');
+      }
+    }
+
+    document.getElementById('externalFormEditor').addEventListener('submit', saveForm);
+    addQuestionBtn.addEventListener('click', () => questionsContainer.appendChild(createQuestionCard()));
+    resetFormBtn.addEventListener('click', resetEditor);
+
+    resetEditor();
+    loadForms();
+  </script>
+</body>
+</html>
