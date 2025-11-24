@@ -398,7 +398,7 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private BotSettingsDto loadSettings() {
-        return botSettingsService.buildDefaultSettings();
+        return botSettingsService.loadFromChannel(getChannel());
     }
 
     private String getExtension(String fileName) {
