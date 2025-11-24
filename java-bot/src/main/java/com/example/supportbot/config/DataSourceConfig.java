@@ -30,7 +30,7 @@ public class DataSourceConfig {
         if (StringUtils.hasText(rawDatabaseUrl)) {
             DatabaseCredentials credentials = normalizePostgresUrl(rawDatabaseUrl);
             registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.dialect.PostgreSQLDialect");
-            registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
+            registerRuntimeProperty(environment, "spring.sql.init.platform", "postgres");
 
             DataSourceBuilder<?> builder = DataSourceBuilder.create();
             builder.driverClassName("org.postgresql.Driver");
@@ -40,7 +40,7 @@ public class DataSourceConfig {
             return builder.build();
         }
 
-        String sqlitePath = environment.getProperty("APP_DB_BOT", "bot_database.db");
+        String sqlitePath = environment.getProperty("APP_DB_TICKETS", "tickets.db");
         Path normalized = Paths.get(sqlitePath).toAbsolutePath().normalize();
         if (normalized.getParent() != null && !Files.exists(normalized.getParent())) {
             normalized.getParent().toFile().mkdirs();
@@ -54,6 +54,9 @@ public class DataSourceConfig {
     }
 
     private static void registerRuntimeProperty(ConfigurableEnvironment env, String key, String value) {
+        if (StringUtils.hasText(env.getProperty(key))) {
+            return;
+        }
         MutablePropertySources propertySources = env.getPropertySources();
         PropertySource<?> existing = propertySources.get("runtime-properties");
         Map<String, Object> map;
