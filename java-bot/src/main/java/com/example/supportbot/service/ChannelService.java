@@ -25,21 +25,26 @@ public class ChannelService {
 
     @Transactional
     public Channel ensurePublicIdForToken(String token) {
+        return ensurePublicIdForToken(token, "Telegram", "telegram");
+    }
+
+    @Transactional
+    public Channel ensurePublicIdForToken(String token, String channelName, String platform) {
         String lookupToken = (token == null || token.isBlank()) ? "__default__" : token;
         Channel channel = channelRepository.findByToken(lookupToken)
                 .orElseGet(() -> {
                     Channel created = new Channel();
                     created.setToken(lookupToken);
-                    created.setChannelName("Telegram");
-                    created.setPlatform("telegram");
+                    created.setChannelName(channelName);
+                    created.setPlatform(platform);
                     return channelRepository.save(created);
                 });
 
         if (channel.getChannelName() == null || channel.getChannelName().isBlank()) {
-            channel.setChannelName("Telegram");
+            channel.setChannelName(channelName);
         }
         if (channel.getPlatform() == null || channel.getPlatform().isBlank()) {
-            channel.setPlatform("telegram");
+            channel.setPlatform(platform);
         }
         if (channel.getQuestionsCfg() == null) {
             channel.setQuestionsCfg("{}");
