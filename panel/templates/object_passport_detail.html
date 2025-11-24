@@ -944,6 +944,7 @@
     const PARAMETER_DEPENDENCIES = {{ parameter_dependencies | default({}) | tojson }} || {};
     const parameterValuesInitial = {{ parameter_values | tojson }};
     const statuses = {{ statuses | tojson }};
+    const statusesRequiringTask = new Set({{ statuses_requiring_task | tojson }});
     const dayLabels = {{ day_labels | tojson }};
     const networkProfilesRaw = {{ network_profiles | tojson }};
     const networkProfiles = Array.isArray(networkProfilesRaw) ? networkProfilesRaw : [];
@@ -1786,8 +1787,6 @@
       });
     }
     const savePassportBtn = document.getElementById('savePassportBtn');
-
-    const statusesRequiringTask = new Set(['Закрыт', 'Реконструкция', 'Заморожен', 'Другое']);
 
     function ensureStatusHistoryCollapse() {
       if (!statusHistoryCollapse || typeof bootstrap === 'undefined') return null;
