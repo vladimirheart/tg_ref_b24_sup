@@ -1,25 +1,113 @@
 package com.example.panel.config;
 
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Profile;
-
-import javax.sql.DataSource;
-
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertySource;
+import org.springframework.util.StringUtils;
 import org.sqlite.SQLiteDataSource;
 
+import javax.sql.DataSource;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+
 @Configuration
-@Profile("sqlite")
 @EnableConfigurationProperties(SqliteDataSourceProperties.class)
 public class SqliteDataSourceConfiguration {
 
     @Bean
     @Primary
-    public DataSource sqliteDataSource(SqliteDataSourceProperties properties) {
+    public DataSource dataSource(SqliteDataSourceProperties properties, ConfigurableEnvironment environment) {
+        String rawDatabaseUrl = environment.getProperty("DATABASE_URL", "");
+        if (StringUtils.hasText(rawDatabaseUrl)) {
+            DatabaseCredentials credentials = normalizePostgresUrl(rawDatabaseUrl);
+            registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.dialect.PostgreSQLDialect");
+            registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
+
+            DataSourceBuilder<?> builder = DataSourceBuilder.create();
+            builder.driverClassName("org.postgresql.Driver");
+            builder.url(credentials.jdbcUrl());
+            builder.username(credentials.username());
+            builder.password(credentials.password());
+            return builder.build();
+        }
+
+        Path normalized = properties.getNormalizedPath();
+        if (normalized.getParent() != null && !Files.exists(normalized.getParent())) {
+            normalized.getParent().toFile().mkdirs();
+        }
+
         SQLiteDataSource dataSource = new SQLiteDataSource();
-        dataSource.setUrl(properties.buildJdbcUrl());
+        dataSource.setUrl("jdbc:sqlite:" + normalized);
+        registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
+        registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
         return dataSource;
+    }
+
+    private static void registerRuntimeProperty(ConfigurableEnvironment env, String key, String value) {
+        MutablePropertySources propertySources = env.getPropertySources();
+        PropertySource<?> existing = propertySources.get("runtime-properties");
+        Map<String, Object> map;
+        if (existing instanceof MapPropertySource mapSource) {
+            map = new HashMap<>(mapSource.getSource());
+            propertySources.remove("runtime-properties");
+        } else {
+            map = new HashMap<>();
+        }
+        map.putIfAbsent(key, value);
+        propertySources.addFirst(new MapPropertySource("runtime-properties", map));
+    }
+
+    private static DatabaseCredentials normalizePostgresUrl(String rawUrl) {
+        if (rawUrl.startsWith("jdbc:")) {
+            return new DatabaseCredentials(rawUrl, "", "");
+        }
+        String normalized = rawUrl;
+        if (rawUrl.startsWith("postgres://")) {
+            normalized = rawUrl.replaceFirst("postgres://", "postgresql://");
+        }
+        try {
+            URI uri = new URI(normalized);
+            String userInfo = uri.getUserInfo();
+            String username = "";
+            String password = "";
+            if (userInfo != null) {
+                String[] parts = userInfo.split(":", 2);
+                username = parts[0];
+                if (parts.length > 1) {
+                    password = parts[1];
+                }
+            }
+            String host = uri.getHost();
+            int port = uri.getPort();
+            String path = uri.getPath();
+            String query = uri.getQuery();
+            StringBuilder jdbc = new StringBuilder("jdbc:postgresql://");
+            jdbc.append(host != null ? host : "");
+            if (port > 0) {
+                jdbc.append(':').append(port);
+            }
+            if (path != null) {
+                jdbc.append(path);
+            }
+            if (StringUtils.hasText(query)) {
+                jdbc.append('?').append(query);
+            }
+            return new DatabaseCredentials(jdbc.toString(), username, password);
+        } catch (URISyntaxException ex) {
+            throw new IllegalArgumentException("Invalid DATABASE_URL format", ex);
+        }
+    }
+
+    private record DatabaseCredentials(String jdbcUrl, String username, String password) {
     }
 }
