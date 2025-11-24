@@ -1,26 +1,25 @@
 spring:
-  datasource:
-    url: "jdbc:sqlite:${SUPPORT_BOT_DB_PATH:bot_database.db}"
-    driver-class-name: org.sqlite.JDBC
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema.sql
+  application:
+    name: support-bot
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.community.dialect.SQLiteDialect
         format_sql: true
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:always}
+      platform: ${SQL_INIT_PLATFORM:sqlite}
+      schema-locations: classpath:schema-${spring.sql.init.platform:sqlite}.sql
   main:
     web-application-type: none
 
 support-bot:
-  token: "YOUR_TELEGRAM_BOT_TOKEN"
-  username: "your_bot_username"
-  channel-id: 0
-  attachments-dir: attachments
+  token: ${TELEGRAM_BOT_TOKEN:YOUR_TELEGRAM_BOT_TOKEN}
+  username: ${TELEGRAM_BOT_USERNAME:your_bot_username}
+  channel-id: ${GROUP_CHAT_ID:0}
+  attachments-dir: ${APP_STORAGE_ATTACHMENTS:attachments}
 
 logging:
   level:
