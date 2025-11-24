@@ -12299,6 +12299,15 @@
     }
   }
 
+  function notifyChannelStatus(message, type = 'info') {
+    if (typeof showNotification === 'function') {
+      showNotification(message, type);
+      return;
+    }
+    const prefix = type === 'error' ? 'Ошибка: ' : '';
+    alert(prefix + message);
+  }
+
   async function addChannel() {
     const tokenInput = document.getElementById('new_token');
     const nameInput = document.getElementById('new_channel_name');
@@ -12316,11 +12325,11 @@
     const channelName = nameInput?.value?.trim() || '';
 
     if (!channelName) {
-      alert('Укажите название канала.');
+      notifyChannelStatus('Укажите название канала.', 'warning');
       return;
     }
     if (platform !== 'vk' && !token) {
-      alert('Для Telegram необходим токен бота.');
+      notifyChannelStatus('Для Telegram необходим токен бота.', 'warning');
       return;
     }
 
@@ -12344,11 +12353,11 @@
       const groupId = Number.parseInt(vkGroupInput?.value || '0', 10);
       const confirmation = vkConfirmInput?.value?.trim() || '';
       if (!Number.isFinite(groupId) || groupId <= 0) {
-        alert('Укажите корректный ID сообщества VK.');
+        notifyChannelStatus('Укажите корректный ID сообщества VK.', 'warning');
         return;
       }
       if (!confirmation) {
-        alert('Укажите код подтверждения Callback API.');
+        notifyChannelStatus('Укажите код подтверждения Callback API.', 'warning');
         return;
       }
       payload.platform_config = { group_id: groupId, confirmation_token: confirmation };
@@ -12383,9 +12392,10 @@
       if (autoSelect && !autoSelect.disabled) {
         autoSelect.value = DEFAULT_AUTO_ACTION_TEMPLATE_ID;
       }
+      notifyChannelStatus(`Канал «${channelName}» успешно добавлен.`, 'success');
       loadChannels();
     } catch (error) {
-      alert('Ошибка добавления канала: ' + error.message);
+      notifyChannelStatus('Ошибка добавления канала: ' + error.message, 'error');
     }
   }
 
@@ -12693,6 +12703,7 @@
 
   </script>
 </main>
+  <script src="{{ url_for('static', filename='common.js') }}"></script>
   <script src="{{ url_for('static', filename='input-settings.js') }}"></script>
   <script src="{{ url_for('static', filename='auth-management.js') }}"></script>
   <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
