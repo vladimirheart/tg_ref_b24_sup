@@ -62,7 +62,15 @@ public class SupportBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         Message message = update.getMessage();
-        if (message == null || (!message.hasText() && !message.hasDocument() && !message.hasPhoto() && !message.hasVideo())) {
+        if (message == null || (!message.hasText()
+                && !message.hasDocument()
+                && !message.hasPhoto()
+                && !message.hasVideo()
+                && !message.hasVoice()
+                && !message.hasAudio()
+                && !message.hasAnimation()
+                && message.getSticker() == null
+                && message.getVideoNote() == null)) {
             return;
         }
 
@@ -96,6 +104,26 @@ public class SupportBot extends TelegramLongPollingBot {
 
         if (message.hasVideo()) {
             handleVideo(message, session);
+        }
+
+        if (message.hasVoice()) {
+            handleVoice(message, session);
+        }
+
+        if (message.hasAudio()) {
+            handleAudio(message, session);
+        }
+
+        if (message.hasAnimation()) {
+            handleAnimation(message, session);
+        }
+
+        if (message.getSticker() != null) {
+            handleSticker(message, session);
+        }
+
+        if (message.getVideoNote() != null) {
+            handleVideoNote(message, session);
         }
     }
 
@@ -149,6 +177,94 @@ public class SupportBot extends TelegramLongPollingBot {
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store video", e);
+        }
+    }
+
+    private void handleVoice(Message message, ConversationSession session) {
+        Voice voice = message.getVoice();
+        if (voice == null) {
+            return;
+        }
+        String extension = extensionFromMime(voice.getMimeType(), "ogg");
+        try (InputStream data = fetchFile(voice.getFileId())) {
+            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Voice saved for user {} at {}", message.getFrom().getId(), stored);
+            if (session != null) {
+                session.addAttachment(stored);
+            }
+        } catch (IOException | TelegramApiException e) {
+            log.error("Failed to store voice", e);
+        }
+    }
+
+    private void handleAudio(Message message, ConversationSession session) {
+        Audio audio = message.getAudio();
+        if (audio == null) {
+            return;
+        }
+        String extension = Optional.ofNullable(getExtension(audio.getFileName()))
+                .orElseGet(() -> extensionFromMime(audio.getMimeType(), "mp3"));
+        try (InputStream data = fetchFile(audio.getFileId())) {
+            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Audio saved for user {} at {}", message.getFrom().getId(), stored);
+            if (session != null) {
+                session.addAttachment(stored);
+            }
+        } catch (IOException | TelegramApiException e) {
+            log.error("Failed to store audio", e);
+        }
+    }
+
+    private void handleAnimation(Message message, ConversationSession session) {
+        Animation animation = message.getAnimation();
+        if (animation == null) {
+            return;
+        }
+        String extension = Optional.ofNullable(getExtension(animation.getFileName()))
+                .orElseGet(() -> extensionFromMime(animation.getMimeType(), "mp4"));
+        try (InputStream data = fetchFile(animation.getFileId())) {
+            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Animation saved for user {} at {}", message.getFrom().getId(), stored);
+            if (session != null) {
+                session.addAttachment(stored);
+            }
+        } catch (IOException | TelegramApiException e) {
+            log.error("Failed to store animation", e);
+        }
+    }
+
+    private void handleSticker(Message message, ConversationSession session) {
+        Sticker sticker = message.getSticker();
+        if (sticker == null) {
+            return;
+        }
+        String extension = sticker.getIsAnimated() != null && sticker.getIsAnimated()
+                ? "tgs"
+                : (sticker.getIsVideo() != null && sticker.getIsVideo() ? "webm" : "webp");
+        try (InputStream data = fetchFile(sticker.getFileId())) {
+            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Sticker saved for user {} at {}", message.getFrom().getId(), stored);
+            if (session != null) {
+                session.addAttachment(stored);
+            }
+        } catch (IOException | TelegramApiException e) {
+            log.error("Failed to store sticker", e);
+        }
+    }
+
+    private void handleVideoNote(Message message, ConversationSession session) {
+        VideoNote note = message.getVideoNote();
+        if (note == null) {
+            return;
+        }
+        try (InputStream data = fetchFile(note.getFileId())) {
+            Path stored = attachmentService.store(getChannelPublicId(), "mp4", data);
+            log.info("Video note saved for user {} at {}", message.getFrom().getId(), stored);
+            if (session != null) {
+                session.addAttachment(stored);
+            }
+        } catch (IOException | TelegramApiException e) {
+            log.error("Failed to store video note", e);
         }
     }
 
@@ -209,6 +325,17 @@ public class SupportBot extends TelegramLongPollingBot {
             return null;
         }
         return fileName.substring(idx + 1);
+    }
+
+    private String extensionFromMime(String mimeType, String fallback) {
+        if (mimeType == null || !mimeType.contains("/")) {
+            return fallback;
+        }
+        String candidate = mimeType.substring(mimeType.lastIndexOf('/') + 1);
+        if (candidate.isBlank()) {
+            return fallback;
+        }
+        return candidate;
     }
 
     private void startConversation(Message message, ConversationSession existing) {
