@@ -1,0 +1,302 @@
+erDiagram
+    CHANNELS ||--o{ TICKETS : "has"
+    CHANNELS ||--o{ MESSAGES : "collects"
+    CHANNELS ||--o{ CHAT_HISTORY : "routes"
+    CHANNELS ||--o{ PENDING_FEEDBACK_REQUESTS : "requests"
+    CHANNELS ||--o{ APP_SETTINGS : "configures"
+    CHANNELS ||--o{ WEB_FORM_SESSIONS : "starts"
+    CHANNELS ||--o{ CLIENT_UNBLOCK_REQUESTS : "receives"
+
+    USERS ||--o{ TICKETS : "opens"
+    USERS ||--|| CLIENT_STATUSES : "current"
+    USERS ||--o{ CLIENT_USERNAMES : "aliases"
+    USERS ||--o{ CLIENT_PHONES : "contacts"
+    USERS ||--o{ CLIENT_AVATAR_HISTORY : "avatars"
+    USERS ||--o{ CHAT_HISTORY : "messages"
+    USERS ||--o{ FEEDBACKS : "rates"
+
+    TICKETS ||--|| TICKET_RESPONSIBLES : "assigned"
+    TICKETS ||--o{ TICKET_SPANS : "sessions"
+    TICKETS ||--o{ TASK_LINKS : "linked"
+    TICKETS ||--o{ PENDING_FEEDBACK_REQUESTS : "triggers"
+    TICKETS ||--o{ WEB_FORM_SESSIONS : "via"
+
+    TASKS ||--o{ TASK_PEOPLE : "participants"
+    TASKS ||--o{ TASK_COMMENTS : "discuss"
+    TASKS ||--o{ TASK_HISTORY : "events"
+    TASKS ||--o{ TASK_LINKS : "references"
+
+    KNOWLEDGE_ARTICLES ||--o{ KNOWLEDGE_ARTICLE_FILES : "attachments"
+
+    ROLES ||--o{ PANEL_USERS : "grants"
+
+    BOT_USERS ||--o{ BOT_CHAT_HISTORY : "messages"
+    BOT_USERS ||--o{ APPLICATIONS : "submits"
+
+    CHANNELS {
+        INTEGER id PK
+        TEXT token
+        TEXT bot_name
+        TEXT channel_name
+        TEXT questions_cfg
+        INTEGER max_questions
+        INTEGER is_active
+        TEXT created_at
+        TEXT bot_username
+        TEXT question_template_id
+        TEXT rating_template_id
+        TEXT public_id
+    }
+
+    TICKETS {
+        TEXT ticket_id PK
+        INTEGER user_id FK
+        INTEGER channel_id FK
+        INTEGER group_msg_id
+        TEXT status
+        TEXT resolved_at
+        TEXT resolved_by
+        INTEGER reopen_count
+        INTEGER closed_count
+        INTEGER work_time_total_sec
+        TEXT last_reopen_at
+    }
+
+    MESSAGES {
+        INTEGER group_msg_id PK
+        INTEGER user_id FK
+        INTEGER channel_id FK
+        TEXT ticket_id FK
+        TEXT business
+        TEXT location_type
+        TEXT city
+        TEXT location_name
+        TEXT problem
+        TEXT created_at
+        TEXT username
+        TEXT category
+        TEXT created_date
+        TEXT created_time
+        TEXT client_name
+        TEXT client_status
+        TEXT updated_at
+        TEXT updated_by
+    }
+
+    CHAT_HISTORY {
+        INTEGER id PK
+        INTEGER user_id FK
+        TEXT sender
+        TEXT message
+        TEXT timestamp
+        TEXT ticket_id FK
+        INTEGER channel_id FK
+        INTEGER tg_message_id
+        INTEGER reply_to_tg_id
+        TEXT message_type
+        TEXT attachment
+        TEXT edited_at
+        TEXT deleted_at
+    }
+
+    CLIENT_STATUSES {
+        INTEGER user_id PK
+        TEXT status
+        TEXT updated_at
+        TEXT updated_by
+    }
+
+    CLIENT_USERNAMES {
+        INTEGER id PK
+        INTEGER user_id FK
+        TEXT username
+        TEXT seen_at
+    }
+
+    CLIENT_PHONES {
+        INTEGER id PK
+        INTEGER user_id FK
+        TEXT phone
+        TEXT label
+        TEXT source
+        INTEGER is_active
+        TEXT created_at
+        TEXT created_by
+    }
+
+    PENDING_FEEDBACK_REQUESTS {
+        INTEGER id PK
+        INTEGER user_id FK
+        INTEGER channel_id FK
+        TEXT ticket_id FK
+        TEXT source
+        TEXT created_at
+        TEXT expires_at
+        TEXT sent_at
+    }
+
+    APP_SETTINGS {
+        INTEGER id PK
+        INTEGER channel_id FK
+        TEXT key
+        TEXT value
+    }
+
+    TASKS {
+        INTEGER id PK
+        INTEGER seq
+        TEXT source
+        TEXT title
+        TEXT body_html
+        TEXT creator
+        TEXT assignee
+        TEXT tag
+        TEXT status
+        TEXT due_at
+        TEXT created_at
+        TEXT closed_at
+        TEXT last_activity_at
+    }
+
+    TASK_PEOPLE {
+        INTEGER id PK
+        INTEGER task_id FK
+        TEXT role
+        TEXT identity
+    }
+
+    TASK_COMMENTS {
+        INTEGER id PK
+        INTEGER task_id FK
+        TEXT author
+        TEXT html
+        TEXT created_at
+    }
+
+    TASK_HISTORY {
+        INTEGER id PK
+        INTEGER task_id FK
+        TEXT at
+        TEXT text
+    }
+
+    TASK_LINKS {
+        INTEGER task_id PK
+        TEXT ticket_id PK
+    }
+
+    TICKET_SPANS {
+        INTEGER id PK
+        TEXT ticket_id FK
+        INTEGER span_no
+        TEXT started_at
+        TEXT ended_at
+        INTEGER duration_seconds
+    }
+
+    TICKET_RESPONSIBLES {
+        TEXT ticket_id PK
+        TEXT responsible
+        TEXT assigned_at
+        TEXT assigned_by
+    }
+
+    WEB_FORM_SESSIONS {
+        INTEGER id PK
+        TEXT token
+        TEXT ticket_id FK
+        INTEGER channel_id FK
+        INTEGER user_id FK
+        TEXT answers_json
+        TEXT client_name
+        TEXT client_contact
+        TEXT username
+        TEXT created_at
+        TEXT last_active_at
+    }
+
+    CLIENT_UNBLOCK_REQUESTS {
+        INTEGER id PK
+        TEXT user_id FK
+        INTEGER channel_id FK
+        TEXT reason
+        TEXT created_at
+        TEXT status
+        TEXT decided_at
+        TEXT decided_by
+        TEXT decision_comment
+    }
+
+    CLIENT_AVATAR_HISTORY {
+        INTEGER id PK
+        INTEGER user_id FK
+        TEXT fingerprint
+        TEXT source
+        TEXT file_unique_id
+        TEXT file_id
+        TEXT thumb_path
+        TEXT full_path
+        INTEGER width
+        INTEGER height
+        INTEGER file_size
+        TEXT fetched_at
+        TEXT last_seen_at
+        TEXT metadata
+    }
+
+    FEEDBACKS {
+        INTEGER user_id FK
+        INTEGER rating
+        TEXT timestamp
+    }
+
+    PANEL_USERS {
+        INTEGER id PK
+        TEXT username
+        TEXT password
+        TEXT password_hash
+        INTEGER role_id FK
+        TEXT photo
+        TEXT registration_date
+        TEXT birth_date
+        TEXT email
+        TEXT department
+        TEXT phones
+        TEXT full_name
+        INTEGER is_blocked
+    }
+
+    ROLES {
+        INTEGER id PK
+        TEXT name
+        TEXT description
+        TEXT permissions
+    }
+
+    BOT_USERS {
+        INTEGER user_id PK
+        TEXT username
+        TEXT first_name
+        TEXT last_name
+        TEXT registered_at
+    }
+
+    BOT_CHAT_HISTORY {
+        INTEGER id PK
+        INTEGER user_id FK
+        TEXT message
+        INTEGER timestamp
+        INTEGER message_id
+        TEXT message_type
+    }
+
+    APPLICATIONS {
+        INTEGER id PK
+        INTEGER user_id FK
+        TEXT problem_description
+        TEXT photo_path
+        TEXT status
+        TEXT created_at
+        INTEGER b24_contact_id
+        INTEGER b24_deal_id
+    }
