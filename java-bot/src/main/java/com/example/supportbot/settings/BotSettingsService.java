@@ -1,5 +1,6 @@
 package com.example.supportbot.settings;
 
+import com.example.supportbot.entity.Channel;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -50,6 +51,20 @@ public class BotSettingsService {
     public BotSettingsDto sanitizeFromJson(Object rawJson, Map<String, Object> presetDefinitions, int maxScale) {
         Map<String, Object> raw = convertToMap(rawJson);
         Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw, presetDefinitions, maxScale);
+        return objectMapper.convertValue(sanitized, BotSettingsDto.class);
+    }
+
+    /**
+     * Build settings from a raw {@link Channel#getQuestionsCfg()} JSON payload.
+     * Falls back to defaults if the config is missing or invalid.
+     */
+    public BotSettingsDto loadFromChannel(Channel channel) {
+        if (channel == null || channel.getQuestionsCfg() == null) {
+            return buildDefaultSettings();
+        }
+        Map<String, Object> raw = convertToMap(channel.getQuestionsCfg());
+        Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw,
+                BotSettingsDefaults.defaultPresetDefinitions(), 10);
         return objectMapper.convertValue(sanitized, BotSettingsDto.class);
     }
 
@@ -122,6 +137,13 @@ public class BotSettingsService {
     // Internal helpers mirroring the Python implementation ------------------
 
     private Map<String, Object> convertToMap(Object raw) {
+        if (raw instanceof String json && !json.isBlank()) {
+            try {
+                return objectMapper.readValue(json, LinkedHashMap.class);
+            } catch (Exception ignored) {
+                // fallback to default conversion below
+            }
+        }
         if (raw instanceof Map<?, ?> map) {
             Map<String, Object> copy = new LinkedHashMap<>();
             for (Map.Entry<?, ?> entry : map.entrySet()) {
