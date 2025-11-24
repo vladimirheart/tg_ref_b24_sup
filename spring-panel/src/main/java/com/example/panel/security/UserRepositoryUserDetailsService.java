@@ -69,6 +69,11 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_ANALYTICS");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_KNOWLEDGE_BASE");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_CLIENTS");
+            jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_TASKS");
+            jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_CHANNELS");
+            jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_USERS");
+            jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_SETTINGS");
+            jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_OBJECT_PASSPORTS");
         }
     }
 }
