@@ -45,4 +45,24 @@ public class ChatHistoryService {
         history.setTelegramMessageId(telegramMessageId);
         return historyRepository.save(history);
     }
+
+    @Transactional
+    public ChatHistory storeOperatorMessage(Long userId,
+                                            String ticketId,
+                                            String text,
+                                            Channel channel,
+                                            Long telegramMessageId,
+                                            Long replyToTelegramId) {
+        ChatHistory history = new ChatHistory();
+        history.setUserId(userId);
+        history.setSender("operator");
+        history.setMessage(text);
+        history.setTimestamp(OffsetDateTime.now().toString());
+        history.setTicketId(ticketId);
+        history.setMessageType("operator_message");
+        history.setChannel(channel);
+        history.setTelegramMessageId(telegramMessageId);
+        history.setReplyToTelegramId(replyToTelegramId);
+        return historyRepository.save(history);
+    }
 }
