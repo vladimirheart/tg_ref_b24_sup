@@ -116,6 +116,23 @@ ALLOWED_USER_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 MAX_USER_PHOTO_SIZE = 5 * 1024 * 1024
 WEB_FORM_SESSIONS_TABLE = "web_form_sessions"
 
+PASSPORT_STATUSES: tuple[str, ...] = (
+    "Активен",
+    "Готовится к запуску",
+    "Приостановлен",
+    "Заморожен",
+    "Реконструкция",
+    "Закрыт",
+    "Другое",
+)
+PASSPORT_STATUSES_REQUIRING_TASK: set[str] = {"Закрыт", "Реконструкция", "Заморожен", "Другое"}
+PASSPORT_STATUSES_WITH_PERIODS: set[str] = {
+    "Приостановлен",
+    "Заморожен",
+    "Реконструкция",
+    "Другое",
+}
+
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(AVATAR_CACHE_DIR, exist_ok=True)
 os.makedirs(AVATAR_HISTORY_DIR, exist_ok=True)
@@ -720,6 +737,7 @@ AVAILABLE_PAGE_PERMISSIONS = [
     {"key": "tasks", "label": "Задачи"},
     {"key": "clients", "label": "Клиенты"},
     {"key": "object_passports", "label": "Паспорта объектов"},
+    {"key": "external_forms", "label": "Внешние формы"},
     {"key": "knowledge_base", "label": "База знаний"},
     {"key": "dashboard", "label": "Дашборд"},
     {"key": "analytics", "label": "Аналитика"},
@@ -2638,6 +2656,7 @@ def _render_passport_template(passport_detail, is_new):
         parameter_values=parameter_values,
         cities=cities,
         statuses=list(PASSPORT_STATUSES),
+        statuses_requiring_task=list(PASSPORT_STATUSES_REQUIRING_TASK),
         day_labels=WEEKDAY_SEQUENCE,
         network_profiles=network_profiles,
         network_provider_options=provider_options,
@@ -3174,8 +3193,12 @@ def create_unblock_request_task(user_id: str, reason: str = ""):
 
 def _next_task_seq(conn):
     row = conn.execute("SELECT val FROM task_seq WHERE id=1").fetchone()
-    cur = int(row["val"])
-    conn.execute("UPDATE task_seq SET val = ? WHERE id=1", (cur+1,))
+    if row is None:
+        conn.execute("INSERT OR IGNORE INTO task_seq (id, val) VALUES (1, 0)")
+        row = conn.execute("SELECT val FROM task_seq WHERE id=1").fetchone()
+
+    cur = int(row["val"] if isinstance(row, sqlite3.Row) else row[0])
+    conn.execute("UPDATE task_seq SET val = ? WHERE id=1", (cur + 1,))
     return cur + 1
 
 def _display_no(source, seq):
@@ -4510,6 +4533,230 @@ def sync_org_structure_user_department(
         save_org_structure(structure)
 
 
+# === Внешние формы для задач ===
+
+
+def ensure_external_form_schema() -> None:
+    with get_db() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS external_forms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                public_id TEXT NOT NULL UNIQUE,
+                questions_json TEXT NOT NULL DEFAULT '[]',
+                notify_role_id INTEGER,
+                notify_role_name TEXT,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS external_form_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                form_id INTEGER NOT NULL,
+                task_id INTEGER,
+                answers_json TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY(form_id) REFERENCES external_forms(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_external_form_submissions_form_id ON external_form_submissions(form_id)"
+        )
+
+
+def _generate_unique_form_public_id(conn: sqlite3.Connection) -> str:
+    existing: set[str] = set()
+    try:
+        rows = conn.execute("SELECT public_id FROM external_forms").fetchall()
+        existing = {str(row[0]).strip().lower() for row in rows if row and row[0]}
+    except Exception:
+        existing = set()
+
+    while True:
+        candidate = uuid4().hex.lower()
+        if candidate in existing:
+            continue
+        row = conn.execute(
+            "SELECT 1 FROM external_forms WHERE LOWER(public_id) = ?",
+            (candidate,),
+        ).fetchone()
+        if not row:
+            return candidate
+
+
+def _sanitize_external_form_questions(payload) -> list[dict]:
+    if not isinstance(payload, list):
+        return []
+
+    questions: list[dict] = []
+    seen_ids: set[str] = set()
+    for index, item in enumerate(payload):
+        if not isinstance(item, dict):
+            continue
+
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+
+        raw_options = item.get("options")
+        options: list[str] = []
+        if isinstance(raw_options, str):
+            options = [opt.strip() for opt in raw_options.splitlines() if opt.strip()]
+        elif isinstance(raw_options, (list, tuple, set)):
+            options = [str(opt or "").strip() for opt in raw_options if str(opt or "").strip()]
+
+        seen_options: set[str] = set()
+        unique_options: list[str] = []
+        for opt in options:
+            key = opt.lower()
+            if key in seen_options:
+                continue
+            seen_options.add(key)
+            unique_options.append(opt)
+
+        if not unique_options:
+            continue
+
+        raw_id = str(item.get("id") or "").strip()
+        q_id = raw_id or uuid4().hex
+        while q_id in seen_ids:
+            q_id = uuid4().hex
+        seen_ids.add(q_id)
+
+        required = bool(item.get("required"))
+        questions.append(
+            {
+                "id": q_id,
+                "text": text,
+                "options": unique_options,
+                "required": required,
+                "order": index,
+            }
+        )
+
+    questions.sort(key=lambda q: q.get("order", 0))
+    return questions
+
+
+def _serialize_external_form_row(row: sqlite3.Row) -> dict:
+    try:
+        questions = json.loads(row["questions_json"] or "[]")
+    except Exception:
+        questions = []
+
+    public_id = (row["public_id"] or "").strip()
+    public_url = url_for("external_form_public", public_id=public_id, _external=True)
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "description": row["description"] or "",
+        "public_id": public_id,
+        "public_url": public_url,
+        "questions": questions if isinstance(questions, list) else [],
+        "notify_role_id": row["notify_role_id"],
+        "notify_role_name": row["notify_role_name"] or "",
+        "is_active": bool(row["is_active"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def _list_available_roles() -> list[dict]:
+    try:
+        with get_users_db() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT id, name, description FROM roles ORDER BY name COLLATE NOCASE"
+            ).fetchall()
+            return [
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "description": row["description"] or "",
+                }
+                for row in rows
+            ]
+    except Exception:
+        return []
+
+
+def _get_role_name(role_id: int | None) -> str | None:
+    if role_id is None:
+        return None
+    try:
+        with get_users_db() as conn:
+            row = conn.execute(
+                "SELECT name FROM roles WHERE id = ?",
+                (role_id,),
+            ).fetchone()
+            if row:
+                return row["name"]
+    except Exception:
+        return None
+    return None
+
+
+def _collect_users_for_role(role_id: int | None) -> list[str]:
+    if role_id is None:
+        return []
+    try:
+        with get_users_db() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT username
+                  FROM users
+                 WHERE role_id = ?
+                   AND (is_blocked IS NULL OR is_blocked = 0)
+                   AND username IS NOT NULL
+                """,
+                (role_id,),
+            ).fetchall()
+            return [row["username"] for row in rows if row["username"]]
+    except Exception:
+        return []
+
+
+def _load_external_form_by_public_id(public_id: str, *, include_inactive: bool = False) -> dict | None:
+    cleaned = (public_id or "").strip().lower()
+    if not cleaned:
+        return None
+
+    ensure_external_form_schema()
+    with get_db() as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM external_forms WHERE LOWER(public_id) = ?",
+            (cleaned,),
+        ).fetchone()
+
+    if not row:
+        return None
+    if not include_inactive and not bool(row["is_active"]):
+        return None
+    return _serialize_external_form_row(row)
+
+
+def _load_external_form_by_id(form_id: int) -> dict | None:
+    ensure_external_form_schema()
+    with get_db() as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM external_forms WHERE id = ?",
+            (form_id,),
+        ).fetchone()
+
+    if not row:
+        return None
+    return _serialize_external_form_row(row)
+
 # === Публичная веб-форма обращений ===
 
 def ensure_web_form_schema():
@@ -5550,6 +5797,211 @@ def login_required_api(f):
             return jsonify({'error': 'auth', 'message': 'unauthorized'}), 401
         return f(*args, **kwargs)
     return wrapper
+
+# === Внешние формы ===
+
+
+@app.route("/external_forms")
+@login_required
+@page_access_required("external_forms")
+def external_forms_page():
+    ensure_external_form_schema()
+    roles = _list_available_roles()
+    return render_template("external_forms.html", roles=roles)
+
+
+@app.route("/api/external_forms", methods=["GET"])
+@login_required_api
+def api_external_forms_list():
+    if not has_page_access("external_forms"):
+        return jsonify({"success": False, "error": "forbidden"}), 403
+
+    ensure_external_form_schema()
+    with get_db() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM external_forms ORDER BY datetime(created_at) DESC, id DESC"
+        ).fetchall()
+    return jsonify({"success": True, "forms": [_serialize_external_form_row(row) for row in rows]})
+
+
+@app.route("/api/external_forms", methods=["POST"])
+@login_required_api
+def api_external_forms_save():
+    if not has_page_access("external_forms"):
+        return jsonify({"success": False, "error": "forbidden"}), 403
+
+    ensure_external_form_schema()
+    payload = request.get_json(force=True, silent=True) or {}
+
+    form_id_raw = payload.get("id")
+    try:
+        form_id = int(form_id_raw)
+    except (TypeError, ValueError):
+        form_id = None
+
+    name = (payload.get("name") or "").strip()
+    description = (payload.get("description") or "").strip()
+    is_active = bool(payload.get("is_active", True))
+
+    questions = _sanitize_external_form_questions(payload.get("questions") or [])
+    if not name:
+        return jsonify({"success": False, "error": "Укажите название формы"}), 400
+    if not questions:
+        return jsonify({"success": False, "error": "Добавьте хотя бы один вопрос с вариантами"}), 400
+
+    raw_role = payload.get("notify_role_id")
+    try:
+        notify_role_id = int(raw_role) if raw_role not in (None, "") else None
+    except (TypeError, ValueError):
+        notify_role_id = None
+    notify_role_name = _get_role_name(notify_role_id)
+
+    now_iso = dt.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    with get_db() as conn:
+        conn.row_factory = sqlite3.Row
+        questions_json = json.dumps(questions, ensure_ascii=False)
+        if form_id:
+            existing = conn.execute(
+                "SELECT id FROM external_forms WHERE id = ?",
+                (form_id,),
+            ).fetchone()
+            if not existing:
+                return jsonify({"success": False, "error": "Форма не найдена"}), 404
+
+            conn.execute(
+                """
+                UPDATE external_forms
+                   SET name = ?, description = ?, questions_json = ?,
+                       notify_role_id = ?, notify_role_name = ?,
+                       is_active = ?, updated_at = ?
+                 WHERE id = ?
+                """,
+                (
+                    name,
+                    description,
+                    questions_json,
+                    notify_role_id,
+                    notify_role_name,
+                    1 if is_active else 0,
+                    now_iso,
+                    form_id,
+                ),
+            )
+        else:
+            public_id = _generate_unique_form_public_id(conn)
+            conn.execute(
+                """
+                INSERT INTO external_forms (
+                    name, description, public_id, questions_json,
+                    notify_role_id, notify_role_name, is_active,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    name,
+                    description,
+                    public_id,
+                    questions_json,
+                    notify_role_id,
+                    notify_role_name,
+                    1 if is_active else 0,
+                    now_iso,
+                    now_iso,
+                ),
+            )
+            form_id = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+
+        conn.commit()
+
+    form = _load_external_form_by_id(form_id) if form_id else None
+    return jsonify({"success": True, "form": form})
+
+
+@app.route("/external/forms/<string:public_id>")
+def external_form_public(public_id: str):
+    form = _load_external_form_by_public_id(public_id)
+    if not form:
+        abort(404)
+    return render_template("external_form_public.html", form=form)
+
+
+@app.route("/api/external/forms/<string:public_id>/submit", methods=["POST"])
+def api_external_form_submit(public_id: str):
+    form = _load_external_form_by_public_id(public_id)
+    if not form:
+        return jsonify({"success": False, "error": "Форма недоступна"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    answers_payload = payload.get("answers") if isinstance(payload, dict) else {}
+    if not isinstance(answers_payload, dict):
+        answers_payload = payload if isinstance(payload, dict) else {}
+
+    validated: dict[str, str] = {}
+    for question in form.get("questions", []):
+        q_id = question.get("id")
+        text = question.get("text") or "Вопрос"
+        raw_value = answers_payload.get(q_id) if isinstance(answers_payload, dict) else None
+        value = str(raw_value or "").strip()
+
+        if question.get("required") and not value:
+            return jsonify({"success": False, "error": f"Заполните поле «{text}»"}), 400
+
+        allowed_options = question.get("options") or []
+        if value and value not in allowed_options:
+            return jsonify({"success": False, "error": f"Выберите значение из списка для «{text}»"}), 400
+
+        validated[str(q_id)] = value
+
+    title = f"Заявка из формы «{form.get('name') or 'внешняя форма'}»"
+    answers_json = json.dumps(validated, ensure_ascii=False)
+
+    answer_lines = []
+    for question in form.get("questions", []):
+        q_id = str(question.get("id") or "")
+        label = question.get("text") or "Вопрос"
+        value = validated.get(q_id) or "—"
+        answer_lines.append(f"<p><strong>{html.escape(label)}:</strong> {html.escape(value)}</p>")
+    body_html = "<div>" + "".join(answer_lines) + "</div>"
+
+    with get_db() as conn:
+        conn.row_factory = sqlite3.Row
+        seq = _next_task_seq(conn)
+        conn.execute(
+            """
+            INSERT INTO tasks (seq, source, title, body_html, creator, assignee, tag, status, created_at)
+            VALUES (?, 'FORM', ?, ?, ?, '', 'external_form', 'Новая', datetime('now'))
+            """,
+            (
+                seq,
+                title,
+                body_html,
+                form.get("name") or "external_form",
+            ),
+        )
+        task_id = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        conn.execute(
+            "INSERT INTO task_history(task_id, text) VALUES(?, ?)",
+            (task_id, f"Создано через внешнюю форму {form.get('name') or ''}".strip()),
+        )
+        conn.execute(
+            "INSERT INTO external_form_submissions (form_id, task_id, answers_json) VALUES (?, ?, ?)",
+            (form.get("id"), task_id, answers_json),
+        )
+        _touch_activity(conn, task_id)
+        conn.commit()
+
+    recipients = _collect_users_for_role(form.get("notify_role_id"))
+    if recipients:
+        _notify_many(
+            recipients,
+            f"Новая заявка из формы «{form.get('name') or 'внешняя форма'}»",
+            url=url_for("tasks_page"),
+        )
+
+    return jsonify({"success": True, "task_id": task_id})
+
 
 # === Отправка сообщения через Telegram API ===
 def send_telegram_message(chat_id, text, parse_mode='HTML', **extra):
