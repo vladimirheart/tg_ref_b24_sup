@@ -3,15 +3,24 @@ CREATE TABLE IF NOT EXISTS channels (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token TEXT NOT NULL UNIQUE,
     bot_name TEXT,
-    channel_name TEXT NOT NULL,
-    questions_cfg TEXT,
+    bot_username TEXT,
+    channel_name TEXT NOT NULL DEFAULT 'Telegram',
+    questions_cfg TEXT DEFAULT '{}',
     max_questions INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now')),
-    bot_username TEXT,
     question_template_id TEXT,
     rating_template_id TEXT,
-    public_id TEXT
+    auto_action_template_id TEXT,
+    public_id TEXT,
+    description TEXT,
+    filters TEXT DEFAULT '{}',
+    delivery_settings TEXT DEFAULT '{}',
+    platform TEXT NOT NULL DEFAULT 'telegram',
+    platform_config TEXT DEFAULT '{}',
+    credential_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    support_chat_id TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_public_id ON channels(public_id);
