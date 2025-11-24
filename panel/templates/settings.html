@@ -2993,6 +2993,13 @@
             <div class="text-muted small" data-channel-editor-meta></div>
           </div>
           <div class="mb-3">
+            <label class="form-label" for="channelEditorNewToken">Новый токен</label>
+            <input class="form-control" id="channelEditorNewToken" placeholder="Оставьте пустым, если менять токен не нужно" />
+            <div class="form-text">
+              Текущий токен указан выше. Введите новый, чтобы заменить учётные данные этого канала.
+            </div>
+          </div>
+          <div class="mb-3">
             <label class="form-label" for="channelEditorName">Название для панели</label>
             <input class="form-control" id="channelEditorName" placeholder="Например: Поддержка" />
           </div>
@@ -11799,6 +11806,7 @@
   const channelEditorPublicIdEl = document.querySelector('[data-channel-editor-public-id]');
   const channelEditorMetaEl = document.querySelector('[data-channel-editor-meta]');
   const channelEditorHintEl = document.querySelector('[data-channel-editor-hint]');
+  const channelEditorNewTokenInput = document.getElementById('channelEditorNewToken');
   const channelEditorSupportHint = document.querySelector('[data-channel-editor-support-hint]');
   const channelEditorVkBtn = document.getElementById('channelEditorVkButton');
   const channelEditorSaveBtn = document.getElementById('channelEditorSaveBtn');
@@ -11897,6 +11905,9 @@
     }
     if (channelEditorTokenEl) {
       channelEditorTokenEl.textContent = maskToken(channel.token);
+    }
+    if (channelEditorNewTokenInput) {
+      channelEditorNewTokenInput.value = '';
     }
     if (channelEditorPublicIdEl) {
       channelEditorPublicIdEl.textContent = channel.public_id || '—';
@@ -12406,10 +12417,16 @@
       return;
     }
 
+    const newToken = channelEditorNewTokenInput?.value?.trim() || '';
+
     const body = {
       channel_name: channelName,
       is_active: channelEditorActiveInput?.checked ? 1 : 0,
     };
+
+    if (newToken) {
+      body.token = newToken;
+    }
 
     if (channelEditorSupportChatInput) {
       const supportValue = channelEditorSupportChatInput.value.trim();
@@ -12445,6 +12462,9 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
       alert('Настройки канала сохранены.');
+      if (channelEditorNewTokenInput) {
+        channelEditorNewTokenInput.value = '';
+      }
       await loadChannels();
     } catch (error) {
       alert('Ошибка сохранения: ' + error.message);
