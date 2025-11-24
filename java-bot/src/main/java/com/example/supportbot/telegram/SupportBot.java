@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class SupportBot extends TelegramLongPollingBot {
@@ -86,6 +88,10 @@ public class SupportBot extends TelegramLongPollingBot {
                 && !message.hasAnimation()
                 && message.getSticker() == null
                 && message.getVideoNote() == null)) {
+            return;
+        }
+
+        if (handleOperatorMessage(message)) {
             return;
         }
 
@@ -151,6 +157,90 @@ public class SupportBot extends TelegramLongPollingBot {
         if ("/unblock".equalsIgnoreCase(text)) {
             requestUnblock(message);
         }
+    }
+
+    private boolean handleOperatorMessage(Message message) {
+        Integer configuredChannelId = properties.getChannelId();
+        if (configuredChannelId == null) {
+            return false;
+        }
+        long chatId = message.getChatId();
+        if (chatId != configuredChannelId.longValue()) {
+            return false;
+        }
+
+        String operatorText = Optional.ofNullable(message.getText()).orElse("").trim();
+        TicketReference ticketReference = resolveTicketReference(message, operatorText);
+        if (ticketReference.ticketId == null || ticketReference.outboundText.isBlank()) {
+            return false;
+        }
+
+        Optional<TicketService.TicketWithUser> ticketOpt = ticketService.findByTicketId(ticketReference.ticketId);
+        if (ticketOpt.isEmpty()) {
+            SendMessage warning = SendMessage.builder()
+                    .chatId(chatId)
+                    .text("Не удалось найти заявку с ID " + ticketReference.ticketId)
+                    .build();
+            try {
+                execute(warning);
+            } catch (TelegramApiException e) {
+                log.error("Failed to notify about missing ticket", e);
+            }
+            return true;
+        }
+
+        TicketService.TicketWithUser ticket = ticketOpt.get();
+        SendMessage toClient = SendMessage.builder()
+                .chatId(ticket.userId())
+                .text(ticketReference.outboundText)
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(toClient);
+            chatHistoryService.storeOperatorMessage(
+                    ticket.userId(),
+                    ticket.ticketId(),
+                    ticketReference.outboundText,
+                    getChannel(),
+                    message.getMessageId() != null ? message.getMessageId().longValue() : null,
+                    ticketReference.replyToTelegramId);
+        } catch (TelegramApiException e) {
+            log.error("Failed to relay operator reply to user {}", ticket.userId(), e);
+        }
+
+        return true;
+    }
+
+    private TicketReference resolveTicketReference(Message message, String operatorText) {
+        String candidateText = operatorText == null ? "" : operatorText.trim();
+        Matcher replyCommand = Pattern.compile("^/reply\\s+(\\S+)\\s+(.+)$", Pattern.DOTALL).matcher(candidateText);
+        if (replyCommand.matches()) {
+            return new TicketReference(replyCommand.group(1), replyCommand.group(2).trim(), null);
+        }
+
+        Message repliedTo = message.getReplyToMessage();
+        if (repliedTo != null && repliedTo.hasText()) {
+            String ticketId = extractTicketId(repliedTo.getText());
+            if (ticketId != null) {
+                return new TicketReference(ticketId, candidateText, repliedTo.getMessageId() != null
+                        ? repliedTo.getMessageId().longValue()
+                        : null);
+            }
+        }
+
+        String ticketId = extractTicketId(candidateText);
+        return new TicketReference(ticketId, candidateText, null);
+    }
+
+    private String extractTicketId(String text) {
+        if (text == null) {
+            return null;
+        }
+        Matcher matcher = Pattern.compile("#([A-Za-z0-9-]{6,})").matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
     }
 
     private boolean tryHandleFeedback(Message message, Channel channel) {
@@ -744,6 +834,8 @@ public class SupportBot extends TelegramLongPollingBot {
             return builder.toString();
         }
     }
+
+    private record TicketReference(String ticketId, String outboundText, Long replyToTelegramId) {}
 
     private record HistoryEvent(Long userId, Long telegramMessageId, String text, String messageType, String attachmentPath) {}
 
