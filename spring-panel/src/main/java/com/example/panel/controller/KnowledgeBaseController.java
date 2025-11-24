@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.model.knowledge.KnowledgeArticleCommand;
 import com.example.panel.model.knowledge.KnowledgeArticleDetails;
 import com.example.panel.service.KnowledgeBaseService;
+import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.storage.AttachmentService;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,18 +30,22 @@ public class KnowledgeBaseController {
     private final PermissionService permissionService;
     private final KnowledgeBaseService knowledgeBaseService;
     private final AttachmentService attachmentService;
+    private final NavigationService navigationService;
 
     public KnowledgeBaseController(PermissionService permissionService,
                                    KnowledgeBaseService knowledgeBaseService,
-                                   AttachmentService attachmentService) {
+                                   AttachmentService attachmentService,
+                                   NavigationService navigationService) {
         this.permissionService = permissionService;
         this.knowledgeBaseService = knowledgeBaseService;
         this.attachmentService = attachmentService;
+        this.navigationService = navigationService;
     }
 
     @GetMapping
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
     public String list(Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
         model.addAttribute("articles", knowledgeBaseService.listArticles());
         model.addAttribute("canCreate", permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE"));
         return "knowledge/list";
@@ -48,14 +53,16 @@ public class KnowledgeBaseController {
 
     @GetMapping("/new")
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
-    public String createForm(Model model) {
+    public String createForm(Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
         model.addAttribute("article", emptyArticle());
         return "knowledge/editor";
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
-    public String edit(@PathVariable Long id, Model model) {
+    public String edit(@PathVariable Long id, Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
         Optional<KnowledgeArticleDetails> article = knowledgeBaseService.findArticle(id);
         model.addAttribute("article", article.orElseGet(this::emptyArticle));
         return "knowledge/editor";
