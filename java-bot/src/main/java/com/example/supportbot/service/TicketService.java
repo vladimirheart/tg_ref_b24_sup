@@ -84,6 +84,15 @@ public class TicketService {
         return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<TicketWithUser> findByTicketId(String ticketId) {
+        return ticketRepository.findByIdTicketId(ticketId)
+                .map(ticket -> new TicketWithUser(ticket.getUserId(), ticket.getTicketId()));
+    }
+
     public record TicketCreationResult(String ticketId, Long groupMessageId) {
+    }
+
+    public record TicketWithUser(Long userId, String ticketId) {
     }
 }
