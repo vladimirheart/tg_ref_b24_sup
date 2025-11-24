@@ -3287,6 +3287,22 @@ def _extract_vk_group_id(config: dict) -> int | None:
         return None
 
 
+def _credential_has_attached_channel(credential_id: int) -> bool:
+    if not credential_id:
+        return False
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM channels WHERE credential_id = ? LIMIT 1",
+            (credential_id,),
+        ).fetchone()
+        return bool(row)
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
 def _find_existing_credential_by_token(token: str, *, platform: str, exclude_credential_id: int | None = None):
     normalized_token = (token or "").strip()
     if not normalized_token:
@@ -3302,6 +3318,8 @@ def _find_existing_credential_by_token(token: str, *, platform: str, exclude_cre
         if not cred_id:
             continue
         if exclude_credential_id and int(cred_id) == int(exclude_credential_id):
+            continue
+        if not _credential_has_attached_channel(int(cred_id)):
             continue
         try:
             existing_token = BOT_CREDENTIALS_REPO.reveal_token(int(cred_id))
