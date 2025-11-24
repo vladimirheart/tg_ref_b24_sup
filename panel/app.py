@@ -2363,11 +2363,13 @@ def _fetch_passport_rows(filters):
             value = (filters_local.get(field) or "").strip()
             if value:
                 conditions.append(
-                    "EXISTS ("
-                    "SELECT 1 FROM object_passport_equipment eq "
-                    "WHERE eq.passport_id = object_passports.id "
-                    f"AND LOWER(TRIM(COALESCE(eq.{column}, ''))) = LOWER(?)"
-                    ")"
+                    (
+                        "EXISTS ("
+                        "SELECT 1 FROM object_passport_equipment eq "
+                        "WHERE eq.passport_id = object_passports.id "
+                        f"AND LOWER(TRIM(COALESCE(eq.{column}, ''))) = LOWER(?)"
+                        ")"
+                    )
                 )
                 params.append(value)
 
