@@ -22,6 +22,15 @@ public class VkBotProperties {
     /** Delay between long poll retries, seconds. */
     private int retryDelaySeconds = 5;
 
+    /** Enable processing of Callback API webhooks. */
+    private boolean webhookEnabled = false;
+
+    /** Confirmation token for Callback API. */
+    private String confirmationToken = "";
+
+    /** Optional shared secret for Callback API requests. */
+    private String secret = "";
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -60,5 +69,29 @@ public class VkBotProperties {
 
     public void setRetryDelaySeconds(int retryDelaySeconds) {
         this.retryDelaySeconds = retryDelaySeconds;
+    }
+
+    public boolean isWebhookEnabled() {
+        return webhookEnabled;
+    }
+
+    public void setWebhookEnabled(boolean webhookEnabled) {
+        this.webhookEnabled = webhookEnabled;
+    }
+
+    public String getConfirmationToken() {
+        return confirmationToken;
+    }
+
+    public void setConfirmationToken(String confirmationToken) {
+        this.confirmationToken = confirmationToken;
+    }
+
+    public String getSecret() {
+        return secret;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
     }
 }
