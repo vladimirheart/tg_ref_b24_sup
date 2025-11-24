@@ -8,16 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-    <div class="container-fluid">
-        <a class="navbar-brand" th:href="@{/}">Bender Support</a>
-        <div class="d-flex gap-2">
-            <a class="btn btn-outline-light btn-sm" th:href="@{/}">Диалоги</a>
-            <a class="btn btn-outline-light btn-sm" th:href="@{/analytics}">Аналитика</a>
-            <a class="btn btn-outline-light btn-sm" th:href="@{/logout}">Выйти</a>
-        </div>
-    </div>
-</nav>
+<div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
 <main class="container py-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
