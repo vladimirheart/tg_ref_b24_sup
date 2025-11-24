@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm" th:fragment="navbar(active)">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-semibold" th:href="@{/}">Bender Support</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+                aria-controls="navbarContent" aria-expanded="false" aria-label="Навигация">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${active}=='dialogs' ? ' active'" th:href="@{/}">Диалоги</a>
+                </li>
+                <li class="nav-item" th:if="${canViewAnalytics}">
+                    <a class="nav-link" th:classappend="${active}=='analytics' ? ' active'" th:href="@{/analytics}">Аналитика</a>
+                </li>
+                <li class="nav-item" th:if="${canEditKnowledgeBase}">
+                    <a class="nav-link" th:classappend="${active}=='knowledge' ? ' active'" th:href="@{/knowledge-base}">База знаний</a>
+                </li>
+                <li class="nav-item" th:if="${canManageTasks}">
+                    <a class="nav-link" th:classappend="${active}=='tasks' ? ' active'" th:href="@{/tasks}">Задачи</a>
+                </li>
+                <li class="nav-item" th:if="${canManageChannels}">
+                    <a class="nav-link" th:classappend="${active}=='channels' ? ' active'" th:href="@{/channels}">Каналы</a>
+                </li>
+                <li class="nav-item" th:if="${canManageUsers}">
+                    <a class="nav-link" th:classappend="${active}=='users' ? ' active'" th:href="@{/users}">Пользователи</a>
+                </li>
+                <li class="nav-item" th:if="${canViewPassports}">
+                    <a class="nav-link" th:classappend="${active}=='passports' ? ' active'" th:href="@{/object-passports}">Паспорта объектов</a>
+                </li>
+                <li class="nav-item" th:if="${canViewSettings}">
+                    <a class="nav-link" th:classappend="${active}=='settings' ? ' active'" th:href="@{/settings}">Настройки</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/public/forms/demo}">Публичные формы</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/logout}">Выйти</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+</body>
+</html>
