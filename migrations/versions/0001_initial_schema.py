@@ -550,6 +550,22 @@ def _column_exists(conn, table: str, column: str) -> bool:
     return any(row[1] == column for row in rows)
 
 
+def _add_column(conn, table: str, column: str, ddl: str) -> None:
+    """Adds a column, handling SQLite limitations for dynamic defaults.
+
+    SQLite does not allow adding a column with a non-constant default such as
+    ``datetime('now')``. For such cases we add the column without the default
+    and backfill existing rows manually.
+    """
+
+    default_now = "DEFAULT (datetime('now'))"
+    needs_backfill = default_now in ddl
+    ddl_sql = ddl.replace(default_now, "").strip() if needs_backfill else ddl
+    op.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_sql}")
+    if needs_backfill:
+        op.execute(sa.text(f"UPDATE {table} SET {column} = datetime('now') WHERE {column} IS NULL"))
+
+
 def upgrade() -> None:
     conn = op.get_bind()
     for name, statement in TABLE_STATEMENTS:
@@ -560,7 +576,7 @@ def upgrade() -> None:
             continue
         for column, ddl in columns:
             if not _column_exists(conn, table, column):
-                op.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+                _add_column(conn, table, column, ddl)
     for statement in INDEX_STATEMENTS:
         op.execute(statement)
     op.execute(
