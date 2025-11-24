@@ -3287,7 +3287,7 @@ def _extract_vk_group_id(config: dict) -> int | None:
         return None
 
 
-def _find_existing_credential_by_token(token: str, *, platform: str):
+def _find_existing_credential_by_token(token: str, *, platform: str, exclude_credential_id: int | None = None):
     normalized_token = (token or "").strip()
     if not normalized_token:
         return None
@@ -3300,6 +3300,8 @@ def _find_existing_credential_by_token(token: str, *, platform: str):
             continue
         cred_id = getattr(credential, "id", None)
         if not cred_id:
+            continue
+        if exclude_credential_id and int(cred_id) == int(exclude_credential_id):
             continue
         try:
             existing_token = BOT_CREDENTIALS_REPO.reveal_token(int(cred_id))
@@ -10357,6 +10359,17 @@ def api_channels_update(channel_id):
         updates["credential_id"] = data.get("credential_id")
     target_credential_id = updates.get("credential_id") or channel.credential_id
     if token_raw and target_credential_id:
+        duplicate_credential = _find_existing_credential_by_token(
+            token_raw,
+            platform=channel.platform or "telegram",
+            exclude_credential_id=int(target_credential_id),
+        )
+        if duplicate_credential:
+            name = getattr(duplicate_credential, "name", "") or getattr(duplicate_credential, "channel_name", "")
+            return jsonify({
+                "success": False,
+                "error": f"Токен уже используется в учётных данных «{name or duplicate_credential.id}»",
+            }), 400
         try:
             BOT_CREDENTIALS_REPO.update(int(target_credential_id), {"token": token_raw})
         except ValueError as exc:
@@ -10377,7 +10390,10 @@ def api_channels_update(channel_id):
 @login_required
 def api_channels_delete(channel_id):
     conn = get_db()
+    credential_id = None
     try:
+        row = conn.execute("SELECT credential_id FROM channels WHERE id = ?", (channel_id,)).fetchone()
+        credential_id = row["credential_id"] if row else None
         exists = conn.execute("SELECT 1 FROM tickets WHERE channel_id = ?", (channel_id,)).fetchone()
         if exists:
             return jsonify({"success": False, "error": "Есть связанные заявки — удаление запрещено"}), 400
@@ -10385,7 +10401,31 @@ def api_channels_delete(channel_id):
         conn.commit()
     finally:
         conn.close()
+
+    if credential_id:
+        _cleanup_unused_credential(int(credential_id))
     return jsonify({"success": True})
+
+
+def _cleanup_unused_credential(credential_id: int) -> None:
+    if not credential_id:
+        return
+    conn = get_db()
+    try:
+        still_used = conn.execute(
+            "SELECT 1 FROM channels WHERE credential_id = ? LIMIT 1",
+            (credential_id,),
+        ).fetchone()
+        if still_used:
+            return
+    finally:
+        conn.close()
+
+    try:
+        BOT_CREDENTIALS_REPO.delete(int(credential_id))
+    except Exception:
+        # Безопасно игнорируем ошибки очистки, чтобы не блокировать удаление канала.
+        pass
 
 
 def _serialize_credential(credential) -> dict:
