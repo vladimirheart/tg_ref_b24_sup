@@ -103,7 +103,15 @@ class BotCredentialRepository:
                 INSERT INTO bot_credentials(
                     name, platform, encrypted_token, metadata, is_active, created_at, updated_at
                 )
-                VALUES (:name, :platform, :encrypted_token, :metadata, :is_active, :created_at, :updated_at)
+                VALUES (
+                    :name,
+                    :platform,
+                    :encrypted_token,
+                    :metadata,
+                    :is_active,
+                    datetime('now'),
+                    datetime('now')
+                )
                 """,
                 payload,
             )
