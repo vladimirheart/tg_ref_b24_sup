@@ -1,7 +1,9 @@
 """ORM models shared between panel and bot runtimes."""
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -16,8 +18,17 @@ class BotCredential(Base):
     encrypted_token: Mapped[str] = mapped_column(Text, nullable=False)
     metadata_payload: Mapped[str | None] = mapped_column("metadata", Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[str | None] = mapped_column(String)
-    updated_at: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[str | None] = mapped_column(
+        String,
+        default=lambda: datetime.utcnow().isoformat(timespec="seconds"),
+        server_default=func.datetime("now"),
+    )
+    updated_at: Mapped[str | None] = mapped_column(
+        String,
+        default=lambda: datetime.utcnow().isoformat(timespec="seconds"),
+        onupdate=lambda: datetime.utcnow().isoformat(timespec="seconds"),
+        server_default=func.datetime("now"),
+    )
 
     channels: Mapped[list["Channel"]] = relationship(back_populates="credential")
 
