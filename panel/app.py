@@ -3287,6 +3287,46 @@ def _extract_vk_group_id(config: dict) -> int | None:
         return None
 
 
+def _find_existing_credential_by_token(token: str, *, platform: str):
+    normalized_token = (token or "").strip()
+    if not normalized_token:
+        return None
+    try:
+        credentials = BOT_CREDENTIALS_REPO.list()
+    except Exception:
+        return None
+    for credential in credentials:
+        if (getattr(credential, "platform", "") or "").lower() != platform.lower():
+            continue
+        cred_id = getattr(credential, "id", None)
+        if not cred_id:
+            continue
+        try:
+            existing_token = BOT_CREDENTIALS_REPO.reveal_token(int(cred_id))
+        except Exception:
+            continue
+        if existing_token == normalized_token:
+            return credential
+    return None
+
+
+def _find_existing_vk_channel(group_id: int):
+    if not group_id:
+        return None
+    try:
+        channels = CHANNEL_REPO.list()
+    except Exception:
+        return None
+    for channel in channels:
+        if (getattr(channel, "platform", "") or "").lower() != "vk":
+            continue
+        config_payload = getattr(channel, "platform_config", None) or getattr(channel, "delivery_settings", None)
+        config = _parse_platform_config(config_payload)
+        if _extract_vk_group_id(config) == group_id:
+            return channel
+    return None
+
+
 def _fetch_vk_bot_identity(token: str, *, group_id: int) -> tuple[str, str]:
     if not token:
         raise ValueError("Пустой токен")
@@ -10121,6 +10161,7 @@ def api_channels_create():
         bot_display_name = ""
         bot_username = ""
         token_plain = token_raw
+        credential = None
         if credential_id:
             credential = BOT_CREDENTIALS_REPO.get(int(credential_id))
             if not credential:
@@ -10133,7 +10174,15 @@ def api_channels_create():
                     token_plain = BOT_CREDENTIALS_REPO.reveal_token(credential.id)
                 except ValueError:
                     token_plain = ""
-        else:
+        if platform == "telegram":
+            duplicate_credential = _find_existing_credential_by_token(token_plain, platform="telegram")
+            if duplicate_credential:
+                name = getattr(duplicate_credential, "name", "") or getattr(duplicate_credential, "channel_name", "")
+                return jsonify({
+                    "success": False,
+                    "error": f"Токен уже используется в учётных данных «{name or duplicate_credential.id}»",
+                }), 400
+        if not credential_id:
             credential = BOT_CREDENTIALS_REPO.create({
                 "name": data.get("credential_name") or f"{channel_name} ({platform})",
                 "platform": platform,
@@ -10145,6 +10194,12 @@ def api_channels_create():
             token_plain = token_raw
         if platform == "vk":
             group_id_int = int(platform_config.get("group_id"))
+            existing_channel = _find_existing_vk_channel(group_id_int)
+            if existing_channel:
+                return jsonify({
+                    "success": False,
+                    "error": f"Сообщество VK с ID {group_id_int} уже подключено как «{getattr(existing_channel, 'channel_name', '') or existing_channel.id}»",
+                }), 400
             if token_plain:
                 bot_display_name, bot_username = _fetch_vk_bot_identity(token_plain, group_id=group_id_int)
             else:
