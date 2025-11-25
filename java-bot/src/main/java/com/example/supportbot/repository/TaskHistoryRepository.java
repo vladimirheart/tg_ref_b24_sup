@@ -1,7 +1,9 @@
 package com.example.supportbot.repository;
 
-import com.example.supportbot.entity.TaskLink;
+import com.example.supportbot.entity.TaskHistory;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface TaskLinkRepository extends JpaRepository<TaskLink, Long> {
+public interface TaskHistoryRepository extends JpaRepository<TaskHistory, Long> {
+    List<TaskHistory> findByTaskIdOrderByAtDesc(Long taskId);
 }
