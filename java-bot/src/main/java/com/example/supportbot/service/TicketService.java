@@ -170,7 +170,9 @@ public class TicketService {
         pendingFeedbackRequestRepository.findFirstByTicketIdOrderByCreatedAtDesc(ticketId)
                 .ifPresentOrElse(request -> {
                     request.setExpiresAt(now.plusDays(1));
-                    request.setSentAt(now);
+                    if (source != null && !source.isBlank()) {
+                        request.setSource(source);
+                    }
                     pendingFeedbackRequestRepository.save(request);
                 }, () -> createPendingFeedback(ticket, source, now));
         return true;
@@ -208,10 +210,14 @@ public class TicketService {
     @Transactional
     public void ensureFeedbackRequest(String ticketId, Long userId, Channel channel, String source) {
         OffsetDateTime now = OffsetDateTime.now();
+        boolean markAsSent = "user_prompt".equalsIgnoreCase(source);
         pendingFeedbackRequestRepository.findFirstByTicketIdOrderByCreatedAtDesc(ticketId)
                 .ifPresentOrElse(request -> {
                     request.setExpiresAt(now.plusDays(1));
                     request.setSource(source);
+                    if (markAsSent && request.getSentAt() == null) {
+                        request.setSentAt(now);
+                    }
                     pendingFeedbackRequestRepository.save(request);
                 }, () -> {
                     PendingFeedbackRequest request = new PendingFeedbackRequest();
@@ -221,6 +227,9 @@ public class TicketService {
                     request.setSource(source);
                     request.setCreatedAt(now);
                     request.setExpiresAt(now.plusDays(1));
+                    if (markAsSent) {
+                        request.setSentAt(now);
+                    }
                     pendingFeedbackRequestRepository.save(request);
                 });
     }
@@ -244,7 +253,6 @@ public class TicketService {
         request.setSource(source);
         request.setCreatedAt(now);
         request.setExpiresAt(now.plusDays(1));
-        request.setSentAt(now);
         pendingFeedbackRequestRepository.save(request);
     }
 
