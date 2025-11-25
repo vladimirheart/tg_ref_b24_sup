@@ -197,9 +197,9 @@ CREATE TABLE IF NOT EXISTS pending_feedback_requests (
 CREATE TABLE IF NOT EXISTS app_settings (
     id SERIAL PRIMARY KEY,
     channel_id INTEGER NOT NULL,
-    key TEXT NOT NULL,
+    setting_key TEXT NOT NULL,
     value TEXT NOT NULL,
-    UNIQUE(channel_id, key)
+    UNIQUE(channel_id, setting_key)
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -319,7 +319,7 @@ CREATE TABLE IF NOT EXISTS knowledge_articles (
     direction_subtype TEXT,
     summary TEXT,
     content TEXT,
-    attachments JSONB,
+    attachments TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS knowledge_article_files (
     stored_path TEXT NOT NULL,
     original_name TEXT,
     mime_type TEXT,
-    file_size INTEGER,
+    file_size BIGINT,
     uploaded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
