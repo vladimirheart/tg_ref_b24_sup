@@ -25,11 +25,11 @@ public class TaskLink {
     @JoinColumn(name = "task_id")
     private Task task;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("ticketId")
-    @JoinColumns({
-            @JoinColumn(name = "ticket_id", referencedColumnName = "ticket_id"),
-            @JoinColumn(name = "user_id", referencedColumnName = "user_id")
-    })
-    private Ticket ticket;
-}
+    @ManyToOne(fetch = FetchType.LAZY)␊
+    @MapsId("ticketId")␊
+    @JoinColumns({␊
+            @JoinColumn(name = "ticket_id", referencedColumnName = "ticket_id"),␊
+            @JoinColumn(name = "user_id", referencedColumnName = "user_id", insertable = false, updatable = false)
+    })␊
+    private Ticket ticket;␊
+}␊
