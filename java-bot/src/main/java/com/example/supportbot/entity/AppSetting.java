@@ -14,7 +14,7 @@ public class AppSetting {
     @JoinColumn(name = "channel_id")
     private Channel channel;
 
-    @Column(name = "key")
+    @Column(name = "setting_key")
     private String key;
 
     @Column(name = "value", columnDefinition = "TEXT")
