@@ -205,9 +205,11 @@ CREATE TABLE IF NOT EXISTS ticket_active (
 );
 
 CREATE TABLE IF NOT EXISTS task_links (
+    user_id  BIGINT NOT NULL,
     task_id   BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     ticket_id VARCHAR(255)   NOT NULL,
-    PRIMARY KEY (task_id, ticket_id)
+    PRIMARY KEY (task_id, ticket_id, user_id),
+    CONSTRAINT fk_task_links_ticket FOREIGN KEY (user_id, ticket_id) REFERENCES tickets(user_id, ticket_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS task_people (
