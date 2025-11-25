@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PendingFeedbackRequestRepository extends JpaRepository<PendingFeedbackRequest, Long> {
     Optional<PendingFeedbackRequest> findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(
             Long userId, Long channelId, OffsetDateTime now);
+
+    Optional<PendingFeedbackRequest> findFirstByTicketIdOrderByCreatedAtDesc(String ticketId);
 }
