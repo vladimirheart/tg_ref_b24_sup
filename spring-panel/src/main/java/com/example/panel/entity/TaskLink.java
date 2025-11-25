@@ -29,7 +29,7 @@ public class TaskLink {
     @MapsId("ticketId")
     @JoinColumns({
             @JoinColumn(name = "ticket_id", referencedColumnName = "ticket_id"),
-            @JoinColumn(name = "user_id", referencedColumnName = "user_id", insertable = false, updatable = false)
+            @JoinColumn(name = "user_id", referencedColumnName = "user_id")
     })
     private Ticket ticket;
 }
