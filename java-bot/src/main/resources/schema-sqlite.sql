@@ -199,9 +199,9 @@ CREATE TABLE IF NOT EXISTS pending_feedback_requests (
 CREATE TABLE IF NOT EXISTS app_settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     channel_id INTEGER NOT NULL,
-    key TEXT NOT NULL,
+    setting_key TEXT NOT NULL,
     value TEXT NOT NULL,
-    UNIQUE(channel_id, key)
+    UNIQUE(channel_id, setting_key)
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -335,7 +335,7 @@ CREATE TABLE IF NOT EXISTS knowledge_article_files (
     stored_path TEXT NOT NULL,
     original_name TEXT,
     mime_type TEXT,
-    file_size INTEGER,
+    file_size BIGINT,
     uploaded_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY(article_id) REFERENCES knowledge_articles(id) ON DELETE CASCADE
 );
