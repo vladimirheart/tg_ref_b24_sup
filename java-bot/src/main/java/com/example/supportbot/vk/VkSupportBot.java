@@ -340,6 +340,25 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
     }
 
+    public boolean sendDirectMessage(Integer peerId, String text) {
+        if (!properties.isEnabled() || peerId == null || text == null || text.isBlank()) {
+            return false;
+        }
+        GroupActor actor = createActor();
+        try {
+            vkClient.messages()
+                    .send(actor)
+                    .peerId(peerId)
+                    .randomId(ThreadLocalRandom.current().nextInt())
+                    .message(text)
+                    .execute();
+            return true;
+        } catch (ClientException e) {
+            log.error("Failed to send VK message", e);
+            return false;
+        }
+    }
+
     private void sendText(GroupActor actor, int peerId, String text) {
         if (text == null || text.isBlank()) {
             return;
