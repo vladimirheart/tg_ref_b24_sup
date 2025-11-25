@@ -190,6 +190,9 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         TicketService.TicketWithUser ticket = ticketOpt.get();
+        if (ticket.status() != null && ticket.status().equalsIgnoreCase("closed")) {
+            ticketService.reopenTicket(ticket.ticketId());
+        }
         SendMessage toClient = SendMessage.builder()
                 .chatId(ticket.userId())
                 .text(ticketReference.outboundText)
@@ -204,6 +207,7 @@ public class SupportBot extends TelegramLongPollingBot {
                     getChannel(),
                     message.getMessageId() != null ? message.getMessageId().longValue() : null,
                     ticketReference.replyToTelegramId);
+            ticketService.registerActivity(ticket.ticketId(), operatorUsername(message));
         } catch (TelegramApiException e) {
             log.error("Failed to relay operator reply to user {}", ticket.userId(), e);
         }
@@ -615,6 +619,8 @@ public class SupportBot extends TelegramLongPollingBot {
             chatHistoryService.storeEntry(event.userId(), event.telegramMessageId(), channel, ticket.ticketId(), event.text(), event.messageType(), event.attachmentPath());
         }
 
+        ticketService.registerActivity(ticket.ticketId(), Optional.ofNullable(session.user()).map(User::getUserName).orElse(null));
+
         if (properties.getChannelId() != null) {
             SendMessage toChannel = SendMessage.builder()
                     .chatId(properties.getChannelId().longValue())
@@ -653,6 +659,8 @@ public class SupportBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             log.error("Failed to send rating prompt", e);
         }
+
+        ticketService.ensureFeedbackRequest(ticket.ticketId(), session.userId(), channel, "user_prompt");
     }
 
     private void cancelConversation(Message message) {
@@ -838,6 +846,12 @@ public class SupportBot extends TelegramLongPollingBot {
     private record TicketReference(String ticketId, String outboundText, Long replyToTelegramId) {}
 
     private record HistoryEvent(Long userId, Long telegramMessageId, String text, String messageType, String attachmentPath) {}
+
+    private String operatorUsername(Message message) {
+        return Optional.ofNullable(message.getFrom())
+                .map(User::getUserName)
+                .orElse(null);
+    }
 
     @Override
     public String getBotUsername() {
