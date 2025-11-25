@@ -17,6 +17,12 @@ BOOLEAN_COLUMNS = {
     "panel_users": {"is_blocked"},
 }
 
+COLUMN_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
+    ("app_settings", "setting_key"): ("key",),
+    ("it_equipment_catalog", "item_type"): ("equipment_type",),
+    ("it_equipment_catalog", "brand"): ("equipment_vendor",),
+}
+
 IDENTITY_TABLES = {
     "channels": "channels_id_seq",
     "panel_users": "panel_users_id_seq",
@@ -156,7 +162,7 @@ MIGRATION_PLAN: list[tuple[str, str, str, list[tuple[str, str]]]] = [
     ("tickets.db", "app_settings", "app_settings", [
         ("id", "id"),
         ("channel_id", "channel_id"),
-        ("key", "key"),
+        ("setting_key", "setting_key"),
         ("value", "value"),
     ]),
     ("tickets.db", "tasks", "tasks", [
@@ -235,8 +241,8 @@ MIGRATION_PLAN: list[tuple[str, str, str, list[tuple[str, str]]]] = [
     ]),
     ("tickets.db", "it_equipment_catalog", "it_equipment_catalog", [
         ("id", "id"),
-        ("equipment_type", "equipment_type"),
-        ("equipment_vendor", "equipment_vendor"),
+        ("item_type", "item_type"),
+        ("brand", "brand"),
         ("equipment_model", "equipment_model"),
         ("photo_url", "photo_url"),
         ("serial_number", "serial_number"),
@@ -390,13 +396,35 @@ def generate_inserts(sqlite_path: pathlib.Path, table: str, target: str,
     connection = sqlite3.connect(sqlite_path)
     connection.row_factory = sqlite3.Row
     cursor = connection.cursor()
-    source_columns = ", ".join(src for src, _ in column_pairs)
-    cursor.execute(f"SELECT {source_columns} FROM {table}")
+    cursor.execute(f"PRAGMA table_info({table})")
+    available_columns = {row[1] for row in cursor.fetchall()}
+
+    select_columns: list[str] = []
+    resolved_pairs: list[tuple[str, str]] = []
+
+    for source, destination in column_pairs:
+        actual_column = source
+        if source not in available_columns:
+            alias_options = COLUMN_ALIASES.get((table, source), tuple())
+            for candidate in alias_options:
+                if candidate in available_columns:
+                    actual_column = candidate
+                    break
+        if actual_column not in available_columns:
+            raise SystemExit(
+                f"Column '{source}' (or aliases {COLUMN_ALIASES.get((table, source), ())}) "
+                f"not present in {sqlite_path}"
+            )
+        alias_sql = f"{actual_column} AS {source}" if actual_column != source else actual_column
+        select_columns.append(alias_sql)
+        resolved_pairs.append((source, destination))
+
+    cursor.execute(f"SELECT {', '.join(select_columns)} FROM {table}")
     boolean_columns = BOOLEAN_COLUMNS.get(target, set())
     for row in cursor.fetchall():
         columns = []
         values = []
-        for src, dest in column_pairs:
+        for src, dest in resolved_pairs:
             columns.append(dest)
             values.append(quote(row[src], dialect, dest in boolean_columns))
         column_sql = ", ".join(columns)
