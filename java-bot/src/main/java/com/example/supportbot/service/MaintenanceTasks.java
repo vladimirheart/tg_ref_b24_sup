@@ -17,9 +17,12 @@ public class MaintenanceTasks {
     private static final Logger log = LoggerFactory.getLogger(MaintenanceTasks.class);
 
     private final ClientUnblockRequestRepository unblockRequestRepository;
+    private final TicketService ticketService;
 
-    public MaintenanceTasks(ClientUnblockRequestRepository unblockRequestRepository) {
+    public MaintenanceTasks(ClientUnblockRequestRepository unblockRequestRepository,
+                           TicketService ticketService) {
         this.unblockRequestRepository = unblockRequestRepository;
+        this.ticketService = ticketService;
     }
 
     @Scheduled(cron = "0 0 * * * *")
@@ -43,6 +46,15 @@ public class MaintenanceTasks {
         }
         if (updated > 0) {
             log.info("Marked {} unblock requests as expired", updated);
+        }
+    }
+
+    @Scheduled(cron = "0 */10 * * * *")
+    @Transactional
+    public void autoCloseInactiveTickets() {
+        int closed = ticketService.closeInactiveTickets(java.time.Duration.ofHours(24));
+        if (closed > 0) {
+            log.info("Auto-closed {} inactive tickets", closed);
         }
     }
 }
