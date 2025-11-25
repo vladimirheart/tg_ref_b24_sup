@@ -491,6 +491,24 @@ public class SupportBot extends TelegramLongPollingBot {
         return ensured;
     }
 
+    public boolean sendDirectMessage(Long chatId, String text) {
+        if (chatId == null || text == null || text.isBlank()) {
+            return false;
+        }
+        SendMessage message = SendMessage.builder()
+                .chatId(chatId)
+                .text(text)
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(message);
+            return true;
+        } catch (TelegramApiException e) {
+            log.error("Failed to send direct message", e);
+            return false;
+        }
+    }
+
     private BotSettingsDto loadSettings() {
         return botSettingsService.loadFromChannel(getChannel());
     }
