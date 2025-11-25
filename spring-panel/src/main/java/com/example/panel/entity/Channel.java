@@ -33,9 +33,12 @@ public class Channel {
 
     private Integer maxQuestions;
 
-    private Boolean isActive;
+    @Column(name = "is_active")
+    private Boolean active;
 
     private OffsetDateTime createdAt;
+
+    private OffsetDateTime updatedAt;
 
     private String botUsername;
 
@@ -44,4 +47,20 @@ public class Channel {
     private String ratingTemplateId;
 
     private String publicId;
+
+    private String autoActionTemplateId;
+
+    private String description;
+
+    private String filters;
+
+    private String deliverySettings;
+
+    private String platform;
+
+    private String platformConfig;
+
+    private Long credentialId;
+
+    private String supportChatId;
 }
