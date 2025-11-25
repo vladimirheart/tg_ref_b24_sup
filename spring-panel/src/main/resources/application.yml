@@ -7,6 +7,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  flyway:
+    locations:
+      - classpath:db/migration/sqlite
+    placeholders:
+      autoIncrement: AUTOINCREMENT
   sql:
     init:
       mode: ${SQL_INIT_MODE:never}
