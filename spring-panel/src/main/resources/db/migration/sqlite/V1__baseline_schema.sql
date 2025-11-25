@@ -105,7 +105,8 @@ CREATE INDEX IF NOT EXISTS idx_history_ticket_channel
 CREATE INDEX IF NOT EXISTS idx_history_channel_time
     ON chat_history(channel_id, timestamp);
 
-CREATE OR REPLACE VIEW client_stats AS
+DROP VIEW IF EXISTS client_stats;
+CREATE VIEW client_stats AS
 SELECT
     COALESCE(m.username, '') AS username,
     MAX(COALESCE(ch.timestamp, m.created_at)) AS last_contact,
