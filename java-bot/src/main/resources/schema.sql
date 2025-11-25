@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS knowledge_article_files (
     stored_path TEXT NOT NULL,
     original_name TEXT,
     mime_type TEXT,
-    file_size INTEGER,
+    file_size BIGINT,
     uploaded_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY(article_id) REFERENCES knowledge_articles(id) ON DELETE CASCADE
 );
