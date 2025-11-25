@@ -28,7 +28,7 @@ public class KnowledgeArticleFile {
     private String mimeType;
 
     @Column(name = "file_size")
-    private Integer fileSize;
+    private Long fileSize;
 
     @Column(name = "uploaded_at")
     private OffsetDateTime uploadedAt;
@@ -81,11 +81,11 @@ public class KnowledgeArticleFile {
         this.mimeType = mimeType;
     }
 
-    public Integer getFileSize() {
+    public Long getFileSize() {
         return fileSize;
     }
 
-    public void setFileSize(Integer fileSize) {
+    public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
     }
 
