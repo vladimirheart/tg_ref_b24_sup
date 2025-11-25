@@ -1,42 +1,32 @@
 package com.example.supportbot.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "task_links")
 public class TaskLink {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @EmbeddedId
+    private TaskLinkId id;
 
-    @Column(name = "task_id")
-    private Long taskId;
-
-    @Column(name = "ticket_id")
-    private String ticketId;
-
-    public Long getId() {
-        return id;
+    public TaskLink() {
     }
 
-    public void setId(Long id) {
+    public TaskLink(TaskLinkId id) {
         this.id = id;
     }
 
-    public Long getTaskId() {
-        return taskId;
+    public TaskLink(Long taskId, String ticketId) {
+        this.id = new TaskLinkId(taskId, ticketId);
     }
 
-    public void setTaskId(Long taskId) {
-        this.taskId = taskId;
+    public TaskLinkId getId() {
+        return id;
     }
 
-    public String getTicketId() {
-        return ticketId;
-    }
-
-    public void setTicketId(String ticketId) {
-        this.ticketId = ticketId;
+    public void setId(TaskLinkId id) {
+        this.id = id;
     }
 }
