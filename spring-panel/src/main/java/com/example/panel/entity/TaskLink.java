@@ -24,6 +24,7 @@ public class TaskLink {
     @JoinColumn(name = "task_id")
     private Task task;
 
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("ticketId")
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
