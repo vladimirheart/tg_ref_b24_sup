@@ -2,6 +2,7 @@ package com.example.supportbot.settings;
 
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.settings.dto.BotSettingsDto;
+import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,13 +30,21 @@ import org.springframework.stereotype.Service;
 public class BotSettingsService {
 
     private final ObjectMapper objectMapper;
+    private final SharedConfigService sharedConfigService;
 
-    public BotSettingsService(ObjectMapper objectMapper) {
+    public BotSettingsService(ObjectMapper objectMapper, SharedConfigService sharedConfigService) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+        this.sharedConfigService = Objects.requireNonNull(sharedConfigService, "sharedConfigService");
     }
 
     public BotSettingsDto buildDefaultSettings() {
-        Map<String, Object> defaults = defaultBotSettingsInternal(BotSettingsDefaults.defaultPresetDefinitions());
+        Map<String, Object> presetDefinitions = sharedConfigService.presetDefinitions();
+        Map<String, Object> sharedDefaults = sharedConfigService.loadSettings();
+        if (!sharedDefaults.isEmpty()) {
+            Map<String, Object> sanitized = sanitizeBotSettingsInternal(sharedDefaults, presetDefinitions, 10);
+            return objectMapper.convertValue(sanitized, BotSettingsDto.class);
+        }
+        Map<String, Object> defaults = defaultBotSettingsInternal(presetDefinitions);
         return objectMapper.convertValue(defaults, BotSettingsDto.class);
     }
 
@@ -45,7 +54,7 @@ public class BotSettingsService {
     }
 
     public BotSettingsDto sanitizeFromJson(Object rawJson) {
-        return sanitizeFromJson(rawJson, BotSettingsDefaults.defaultPresetDefinitions(), 10);
+        return sanitizeFromJson(rawJson, sharedConfigService.presetDefinitions(), 10);
     }
 
     public BotSettingsDto sanitizeFromJson(Object rawJson, Map<String, Object> presetDefinitions, int maxScale) {
@@ -64,12 +73,12 @@ public class BotSettingsService {
         }
         Map<String, Object> raw = convertToMap(channel.getQuestionsCfg());
         Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw,
-                BotSettingsDefaults.defaultPresetDefinitions(), 10);
+                sharedConfigService.presetDefinitions(), 10);
         return objectMapper.convertValue(sanitized, BotSettingsDto.class);
     }
 
     public Map<String, Object> buildLocationPresets(Map<String, Object> locationTree) {
-        return buildLocationPresets(locationTree, BotSettingsDefaults.defaultPresetDefinitions());
+        return buildLocationPresets(locationTree, sharedConfigService.presetDefinitions());
     }
 
     public Map<String, Object> buildLocationPresets(Map<String, Object> locationTree, Map<String, Object> baseDefinitions) {
