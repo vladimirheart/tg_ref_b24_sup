@@ -65,4 +65,17 @@ public class ChatHistoryService {
         history.setReplyToTelegramId(replyToTelegramId);
         return historyRepository.save(history);
     }
+
+    @Transactional
+    public ChatHistory storeSystemEvent(Long userId, String ticketId, Channel channel, String text) {
+        ChatHistory history = new ChatHistory();
+        history.setUserId(userId);
+        history.setSender("system");
+        history.setMessage(text);
+        history.setTimestamp(OffsetDateTime.now().toString());
+        history.setTicketId(ticketId);
+        history.setMessageType("system_event");
+        history.setChannel(channel);
+        return historyRepository.save(history);
+    }
 }
