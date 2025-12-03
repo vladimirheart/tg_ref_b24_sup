@@ -37,3 +37,8 @@ app:
     attachments: ${APP_STORAGE_ATTACHMENTS:attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:attachments}/knowledge_base}
     avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:attachments}/avatars}
+
+server:
+  error:
+    whitelabel:
+      enabled: false
