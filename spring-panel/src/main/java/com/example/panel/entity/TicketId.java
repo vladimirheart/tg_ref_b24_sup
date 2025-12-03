@@ -12,16 +12,13 @@ import java.io.Serializable;
 @Getter
 @Setter
 @EqualsAndHashCode
-public class TaskLinkId implements Serializable {
+public class TicketId implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @Column(name = "task_id")
-    private Long taskId;
+    @Column(name = "user_id")
+    private Long userId;
 
     @Column(name = "ticket_id")
     private String ticketId;
-
-    @Column(name = "user_id")
-    private Long userId;
 }
