@@ -16,12 +16,12 @@ public class TaskLinkId implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @Column(name = "user_id")
-    private Long userId;
-
     @Column(name = "task_id")
     private Long taskId;
 
     @Column(name = "ticket_id")
     private String ticketId;
+
+    @Column(name = "user_id")
+    private Long userId;
 }
