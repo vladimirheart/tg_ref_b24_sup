@@ -4,12 +4,12 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none      # было update, ставим none
+      ddl-auto: none      # правильно, пускай Flyway рулит схемой
     properties:
       hibernate:
         format_sql: true
         temp:
-          use_jdbc_metadata_defaults: false   # критично для SQLite + Hibernate 6
+          use_jdbc_metadata_defaults: false
 
   flyway:
     locations:
@@ -27,9 +27,7 @@ spring:
   session:
     store-type: jdbc
     jdbc:
-      initialize-schema: always
-      schema: classpath:org/springframework/session/jdbc/schema-sqlite.sql
-      table-name: SPRING_SESSION
+      table-name: SPRING_SESSION   # только имя таблицы, без initialize-schema / schema
 
 app:
   datasource:
