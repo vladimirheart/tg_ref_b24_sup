@@ -49,8 +49,8 @@
                         <td class="text-muted" th:text="${article.department() ?: '—'}"></td>
                         <td class="text-muted" th:text="${article.author() ?: '—'}"></td>
                         <td>
-                            <span class="badge" th:classappend="${article.status()} == 'published' ? 'text-bg-success' : (${article.status()} == 'draft' ? 'text-bg-warning' : 'text-bg-secondary')"
-                                  th:text="${article.status() ?: 'draft'}"></span>
+                            <span class="badge" th:classappend="${article.status} == 'published' ? 'text-bg-success' : (${article.status} == 'draft' ? 'text-bg-warning' : 'text-bg-secondary')"
+                                  th:text="${article.status ?: 'draft'}"></span>
                         </td>
                         <td class="text-muted text-nowrap" th:text="${article.updatedAt()}"></td>
                     </tr>
