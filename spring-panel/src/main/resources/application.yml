@@ -32,11 +32,11 @@ spring:
 app:
   datasource:
     sqlite:
-      path: ${APP_DB_TICKETS:tickets.db}
+      path: ${APP_DB_TICKETS:../tickets.db}
   storage:
-    attachments: ${APP_STORAGE_ATTACHMENTS:attachments}
-    knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:attachments}/knowledge_base}
-    avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:attachments}/avatars}
+    attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
+    knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
+    avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:../attachments}/avatars}
 
 server:
   error:
