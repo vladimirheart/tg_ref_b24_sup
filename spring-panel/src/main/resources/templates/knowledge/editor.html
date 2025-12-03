@@ -36,9 +36,9 @@
                             <div class="col-md-6">
                                 <label class="form-label">Статус</label>
                                 <select class="form-select" name="status">
-                                    <option value="draft" th:selected="${article.status()} == 'draft'">Черновик</option>
-                                    <option value="published" th:selected="${article.status()} == 'published'">Опубликована</option>
-                                    <option value="archived" th:selected="${article.status()} == 'archived'">Архив</option>
+                                    <option value="draft" th:selected="${article.status} == 'draft'">Черновик</option>
+                                    <option value="published" th:selected="${article.status} == 'published'">Опубликована</option>
+                                    <option value="archived" th:selected="${article.status} == 'archived'">Архив</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
