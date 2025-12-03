@@ -3,10 +3,12 @@ spring:
     name: panel
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none          # было: update
     properties:
       hibernate:
         format_sql: true
+        temp:                 # добавили блок temp
+          use_jdbc_metadata_defaults: false
   flyway:
     locations:
       - classpath:db/migration/sqlite
