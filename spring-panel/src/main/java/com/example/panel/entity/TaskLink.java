@@ -23,16 +23,56 @@ public class TaskLink {
     @EmbeddedId
     private TaskLinkId id;
 
+    // task_id – часть PK и FK на Task
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("taskId")
-    @JoinColumn(name = "task_id")
+    @MapsId("taskId") // связываем поле taskId из EmbeddedId с FK на Task
+    @JoinColumn(name = "task_id", nullable = false)
     private Task task;
 
+    /**
+     * Ticket привязан по ticket_id + user_id.
+     * Эти колонки уже лежат в EmbeddedId (id.ticketId, id.userId),
+     * поэтому здесь мы делаем их read-only, чтобы Hibernate
+     * не ругался на дубликаты колонок.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("ticketId")
     @JoinColumns({
-            @JoinColumn(name = "ticket_id", referencedColumnName = "ticket_id"),
-            @JoinColumn(name = "user_id", referencedColumnName = "user_id", insertable = false, updatable = false)
+            @JoinColumn(
+                    name = "ticket_id",
+                    referencedColumnName = "ticket_id",
+                    insertable = false,
+                    updatable = false
+            ),
+            @JoinColumn(
+                    name = "user_id",
+                    referencedColumnName = "user_id",
+                    insertable = false,
+                    updatable = false
+            )
     })
     private Ticket ticket;
+
+    // Необязательные, но удобные сеттеры для синхронизации id
+
+    public void setTask(Task task) {
+        this.task = task;
+        if (task != null) {
+            if (this.id == null) {
+                this.id = new TaskLinkId();
+            }
+            // предполагаем, что у Task простой PK Long id
+            this.id.setTaskId(task.getId());
+        }
+    }
+
+    public void setTicket(Ticket ticket) {
+        this.ticket = ticket;
+        if (ticket != null && ticket.getId() != null) {
+            if (this.id == null) {
+                this.id = new TaskLinkId();
+            }
+            this.id.setTicketId(ticket.getId().getTicketId());
+            this.id.setUserId(ticket.getId().getUserId());
+        }
+    }
 }
