@@ -122,8 +122,8 @@
                         <div class="text-muted small" th:text="${dialog.createdTime()}"></div>
                     </td>
                     <td>
-                        <span th:classappend="${dialog.status()} == 'resolved' ? 'badge text-bg-success' : (dialog.status() == 'pending' ? 'badge text-bg-warning' : 'badge text-bg-secondary')"
-                              th:text="${dialog.status()} ?: 'unknown'"></span>
+                        <span th:classappend="${dialog.status} == 'resolved' ? 'badge text-bg-success' : (dialog.status == 'pending' ? 'badge text-bg-warning' : 'badge text-bg-secondary')"
+                              th:text="${dialog.status} ?: 'unknown'"></span>
                     </td>
                 </tr>
                 </tbody>
