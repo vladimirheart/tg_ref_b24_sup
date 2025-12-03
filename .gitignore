@@ -3,6 +3,7 @@
 *.db
 __pycache__/
 panel/node_modules/
+node_modules/
 object_passport_uploads/
 attachments/
 /java-bot/target/
