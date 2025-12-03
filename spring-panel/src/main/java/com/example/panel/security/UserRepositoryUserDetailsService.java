@@ -31,11 +31,26 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
                     "SELECT id, username, password, enabled FROM users WHERE lower(username) = lower(?)",
                     username
             );
-            List<GrantedAuthority> authorities = loadAuthorities((Long) userRow.get("id"));
+
+            // SQLite может вернуть Integer, Long, BigInteger — приводим через Number
+            Number idNumber = (Number) userRow.get("id");
+            Long userId = idNumber != null ? idNumber.longValue() : null;
+
+            // enabled может быть и BOOLEAN, и INTEGER (0/1) — аккуратно разбираем
+            Object enabledObj = userRow.get("enabled");
+            boolean enabled = false;
+            if (enabledObj instanceof Boolean b) {
+                enabled = b;
+            } else if (enabledObj instanceof Number n) {
+                enabled = n.intValue() != 0;
+            }
+
+            List<GrantedAuthority> authorities = loadAuthorities(userId);
+
             return User.withUsername((String) userRow.get("username"))
                     .password((String) userRow.get("password"))
                     .authorities(authorities)
-                    .disabled(!Boolean.TRUE.equals(userRow.get("enabled")))
+                    .disabled(!enabled)
                     .build();
         } catch (EmptyResultDataAccessException ex) {
             throw new UsernameNotFoundException("User not found", ex);
@@ -43,12 +58,15 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
     }
 
     private List<GrantedAuthority> loadAuthorities(Long userId) {
-        RowMapper<GrantedAuthority> mapper = (rs, rowNum) -> new SimpleGrantedAuthority(rs.getString("authority"));
+        RowMapper<GrantedAuthority> mapper = (rs, rowNum) ->
+                new SimpleGrantedAuthority(rs.getString("authority"));
+
         List<GrantedAuthority> authorities = jdbcTemplate.query(
                 "SELECT authority FROM user_authorities WHERE user_id = ?",
                 mapper,
                 userId
         );
+
         if (authorities.isEmpty()) {
             authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
         }
@@ -60,10 +78,22 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
         if (count != null && count > 0) {
             return;
         }
+
         String hashed = passwordEncoder.encode(rawPassword);
-        jdbcTemplate.update("INSERT INTO users(username, password, enabled) VALUES (?, ?, ?)", username, hashed, true);
-        Long userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE username = ?", Long.class, username);
-        if (userId != null) {
+        jdbcTemplate.update(
+                "INSERT INTO users(username, password, enabled) VALUES (?, ?, ?)",
+                username, hashed, true
+        );
+
+        // Тут тоже аккуратно читаем id как Number
+        Number idNumber = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE username = ?",
+                Number.class,
+                username
+        );
+
+        if (idNumber != null) {
+            Long userId = idNumber.longValue();
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "ROLE_ADMIN");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_DIALOGS");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_ANALYTICS");
