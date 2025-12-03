@@ -1,24 +1,35 @@
 spring:
   application:
     name: panel
+
   jpa:
     hibernate:
-      ddl-auto: none          # было: update
+      ddl-auto: none      # было update, ставим none
     properties:
       hibernate:
         format_sql: true
-        temp:                 # добавили блок temp
-          use_jdbc_metadata_defaults: false
+        temp:
+          use_jdbc_metadata_defaults: false   # критично для SQLite + Hibernate 6
+
   flyway:
     locations:
       - classpath:db/migration/sqlite
     placeholders:
       autoIncrement: AUTOINCREMENT
+
   sql:
     init:
       mode: ${SQL_INIT_MODE:never}
+
   main:
     banner-mode: off
+
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
+      schema: classpath:org/springframework/session/jdbc/schema-sqlite.sql
+      table-name: SPRING_SESSION
 
 app:
   datasource:
