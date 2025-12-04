@@ -43,8 +43,8 @@
                     <td th:text="${channel.botUsername} ?: '—'"></td>
                     <td th:text="${channel.publicId} ?: '—'"></td>
                     <td>
-                        <span th:classappend="${channel.isActive} ? 'badge text-bg-success' : 'badge text-bg-secondary'"
-                              th:text="${channel.isActive} ? 'Да' : 'Нет'"></span>
+                        <span th:classappend="${channel.active} ? 'badge text-bg-success' : 'badge text-bg-secondary'"
+                              th:text="${channel.active} ? 'Да' : 'Нет'"></span>
                     </td>
                 </tr>
                 </tbody>
