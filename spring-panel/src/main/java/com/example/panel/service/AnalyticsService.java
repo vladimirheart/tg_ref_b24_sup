@@ -21,7 +21,15 @@ public class AnalyticsService {
     @Cacheable("analytics")
     public List<AnalyticsTicketSummary> loadTicketSummary() {
         return jdbcTemplate.query(
-                "SELECT business, city, status, COUNT(*) AS total FROM tickets GROUP BY business, city, status",
+                """
+                        SELECT m.business,
+                               m.city,
+                               t.status,
+                               COUNT(*) AS total
+                        FROM messages m
+                        JOIN tickets t ON m.ticket_id = t.ticket_id
+                        GROUP BY m.business, m.city, t.status
+                        """,
                 (rs, rowNum) -> new AnalyticsTicketSummary(
                         rs.getString("business"),
                         rs.getString("city"),
