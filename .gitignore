@@ -7,3 +7,5 @@ node_modules/
 object_passport_uploads/
 attachments/
 /java-bot/target/
+
+/spring-panel/target/
