@@ -81,9 +81,9 @@ public class ManagementController {
     public String settings(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         List<AppSetting> appSettings = appSettingRepository.findAll();
-        List<SettingsParameter> parameters = settingsParameterRepository.findAll();
+        List<SettingsParameter> systemParameters = settingsParameterRepository.findAll();
         model.addAttribute("appSettings", appSettings);
-        model.addAttribute("parameters", parameters);
+        model.addAttribute("systemParameters", systemParameters);
         return "settings/index";
     }
 
