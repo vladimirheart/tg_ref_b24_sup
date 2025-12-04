@@ -63,13 +63,13 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:if="${#lists.isEmpty(parameters)}">
+                        <tr th:if="${#lists.isEmpty(systemParameters)}">
                             <td colspan="3" class="text-center text-muted py-4">Параметры отсутствуют</td>
                         </tr>
-                        <tr th:each="param : ${parameters}">
-                            <td th:text="${param.paramType}"></td>
-                            <td><code th:text="${param.value}"></code></td>
-                            <td th:text="${param.state} ?: '—'"></td>
+                        <tr th:each="systemParam : ${systemParameters}">
+                            <td th:text="${systemParam.paramType}"></td>
+                            <td><code th:text="${systemParam.value}"></code></td>
+                            <td th:text="${systemParam.state} ?: '—'"></td>
                         </tr>
                         </tbody>
                     </table>
