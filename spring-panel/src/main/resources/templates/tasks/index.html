@@ -1,57 +1,312 @@
 <!DOCTYPE html>
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Задачи — Support Panel</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
-    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
-    <link rel="stylesheet" th:href="@{/css/app.css}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Задачи — Bender</title>
+  <link rel="icon" type="image/svg+xml" th:href="@{/bender-icon.svg}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link th:href="@{/style.css}" rel="stylesheet" />
+  <link th:href="@{/sidebar.css}" rel="stylesheet" />
+  <style>
+    .table thead th.sortable { cursor: pointer; }
+    .table thead th.sortable .sort-ind { opacity: .5; font-size: .85em; }
+    .filters-toggle { cursor:pointer; }
+    details#historyDetails summary { cursor:pointer; }
+        .overdue {
+  background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.overdue .pulsating {
+  animation: pulse 2s infinite;
+  color: #dc3545;
+  font-weight: bold;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+    #taskModal .modal-dialog {
+      max-width: none;
+      width: 90vw;
+      margin-left: 0;
+      margin-right: 10vw;
+    }
+
+    #taskModal .modal-content {
+      min-height: 90vh;
+    }
+
+    @media (max-width: 992px) {
+      #taskModal .modal-dialog {
+        width: 100vw;
+        margin: 0;
+      }
+
+      #taskModal .modal-content {
+        min-height: 100vh;
+        border-radius: 0;
+      }
+    }
+
+    .tasks-metrics .badge {
+      font-size: 0.95rem;
+    }
+
+    .tasks-sticky-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1015;
+      padding: 1rem 0 0.75rem;
+      margin-bottom: 1.5rem;
+      background: var(--color-bg);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .tasks-sticky-bar > *:last-child {
+      margin-bottom: 0;
+    }
+  </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
-<div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
-<main class="main-content container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-        <div>
-            <h1 class="h3 mb-1">Задачи</h1>
-            <p class="text-muted mb-0">Последние поручения команды поддержки.</p>
+  <div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
+  <datalist id="usersList">
+  <option th:each="u : ${users}" th:value="${u.username}"></option>
+</datalist>
+
+  <main class="main-content container-fluid">
+
+    <div class="tasks-sticky-bar">
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-3">
+        <h3 class="mb-0">Задачи</h3>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+                  <button id="filtersBtn" class="btn btn-outline-secondary">Фильтры</button>
+                  <button id="createTaskBtn" class="btn btn-primary">Создать задачу</button>
+                  <a id="exportBtn" class="btn btn-outline-secondary" href="#">Выгрузить в Excel</a>
+                </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 tasks-metrics">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <span class="badge bg-primary-subtle text-primary-emphasis">
+            Всего задач: <span id="tasksTotal">0</span>
+          </span>
+          <span class="badge bg-secondary-subtle text-secondary-emphasis">
+            На странице: <span id="tasksShown">0</span>
+          </span>
+          <span id="tasksSummary" class="text-muted small">Показано 0 из 0 · Страница 1/1</span>
         </div>
+        <div class="d-flex align-items-center gap-2">
+          <label for="pageSizeSel" class="form-label m-0 text-muted small">На странице</label>
+          <select id="pageSizeSel" class="form-select form-select-sm" style="width: auto; min-width: 90px;">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Фильтры как на аналитике: сворачиваемый блок -->
+  <div class="modal" tabindex="-1" id="filtersModal">
+          <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header">
+                        <h5 class="modal-title">Фильтры</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                        <form id="filters" class="row g-2 align-items-end">
+                          <div class="col-md-4">
+                                <label class="form-label">Номер</label>
+                                <input type="text" name="num" class="form-control" placeholder="DL_12 или 15">
+                          </div>
+                          <div class="col-md-4">
+                                <label class="form-label">Название</label>
+                                <input type="text" name="title" class="form-control">
+                          </div>
+                          <div class="col-md-4">
+                                <label class="form-label">Исполнитель</label>
+                                <input type="text" name="assignee" class="form-control" list="usersList" placeholder="email/логин/имя">
+                          </div>
+
+                          <div class="col-md-4">
+                                <label class="form-label">Тег</label>
+                                <input type="text" name="tag" class="form-control">
+                          </div>
+                          <div class="col-md-4">
+                                <label class="form-label">Статус</label>
+                                <select name="status" class="form-select">
+                                  <option value="">Любой</option>
+                                  <option>Новая</option>
+                                  <option>В работе</option>
+                                  <option>Ожидание</option>
+                                  <option>Завершена</option>
+                                  <option>Отменена</option>
+                                </select>
+                          </div>
+
+                          <div class="col-md-6">
+                                <label class="form-label">Период создания</label>
+                                <div class="d-flex gap-1">
+                                  <input type="date" name="created_from" class="form-control">
+                                  <input type="date" name="created_to" class="form-control">
+                                </div>
+                          </div>
+
+                          <div class="col-md-6">
+                                <label class="form-label">Период дедлайна</label>
+                                <div class="d-flex gap-1">
+                                  <input type="date" name="due_from" class="form-control">
+                                  <input type="date" name="due_to" class="form-control">
+                                </div>
+                          </div>
+                        </form>
+                  </div>
+                  <div class="modal-footer">
+                        <button id="resetFiltersBtn" class="btn btn-outline-secondary me-auto">Сбросить</button>
+                        <button id="applyFiltersBtn" class="btn btn-primary">Применить</button>
+                  </div>
+                </div>
+          </div>
     </div>
 
     <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="table-light">
-                <tr>
-                    <th scope="col">ID</th>
-                    <th scope="col">Название</th>
-                    <th scope="col">Статус</th>
-                    <th scope="col">Ответственный</th>
-                    <th scope="col">Дедлайн</th>
-                    <th scope="col">Создана</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(tasks)}">
-                    <td colspan="6" class="text-center text-muted py-4">Задачи отсутствуют</td>
-                </tr>
-                <tr th:each="task : ${tasks}">
-                    <td th:text="${task.seq} != null ? task.seq : task.id"></td>
-                    <td>
-                        <div class="fw-semibold" th:text="${task.title} ?: 'Без названия'"></div>
-                        <div class="text-muted small" th:text="${task.tag}"></div>
-                    </td>
-                    <td><span class="badge text-bg-secondary" th:text="${task.status} ?: 'new'"></span></td>
-                    <td th:text="${task.assignee} ?: '—'"></td>
-                    <td th:text="${task.dueAt} ?: '—'"></td>
-                    <td th:text="${task.createdAt} ?: '—'"></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0" id="tasksTable">
+          <thead class="table-light">
+            <tr>
+              <th scope="col" class="sortable" data-sort="num">Номер <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="title">Название <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="status">Статус <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="assignee">Исполнитель <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="tag">Тег <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="due_at">Дедлайн <span class="sort-ind">↕</span></th>
+              <th scope="col">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="tasksBody">
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">Задачи не загружены</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-</main>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div id="paginationInfo" class="text-muted"></div>
+      <nav>
+        <ul class="pagination mb-0" id="pagination"></ul>
+      </nav>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="taskModalLabel">Задача</h5>
+              <small id="taskMeta" class="text-muted"></small>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-task-close></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-warning d-none" id="taskAlert"></div>
+            <form id="taskForm" class="row g-3">
+              <input type="hidden" id="taskId" />
+              <div class="col-md-7 border-end">
+                <label class="form-label">Название</label>
+                <div class="input-group mb-3">
+                  <span class="input-group-text">№</span>
+                  <input type="text" name="num" class="form-control" placeholder="DL_" />
+                  <input type="text" name="title" class="form-control" placeholder="Название задачи" required />
+                </div>
+
+                <label class="form-label">Описание</label>
+                <div class="card bg-light-subtle border-0 shadow-sm mb-3">
+                  <div class="card-body p-0">
+                    <textarea name="description" class="form-control border-0 rounded-3" rows="8" placeholder="Детали задачи..."></textarea>
+                  </div>
+                </div>
+
+                <details class="mb-3" id="historyDetails">
+                  <summary class="text-muted small mb-2">История изменений</summary>
+                  <div id="taskHistory" class="p-3 bg-light border rounded">Пусто</div>
+                </details>
+
+                <label class="form-label">Комментарий</label>
+                <div class="input-group mb-3">
+                  <select name="status" class="form-select" style="max-width: 160px">
+                    <option>Новая</option>
+                    <option>В работе</option>
+                    <option>Ожидание</option>
+                    <option>Завершена</option>
+                    <option>Отменена</option>
+                  </select>
+                  <textarea name="comment" class="form-control" placeholder="Комментарий к изменению"></textarea>
+                </div>
+
+                <label class="form-label">Добавить вложения</label>
+                <div class="border rounded p-3 mb-3 bg-light">
+                  <div class="mb-2">Пока заглушка — прикрепите файл ссылкой в описании</div>
+                </div>
+              </div>
+
+              <div class="col-md-5">
+                <label class="form-label">Назначить</label>
+                <select name="assignee" class="form-select" list="usersList">
+                  <option value="" selected>Не выбрано</option>
+                  <option th:each="u : ${users}" th:text="${u.username}" th:value="${u.username}"></option>
+                </select>
+
+                <label class="form-label mt-2">Клиент</label>
+                <input type="text" name="customer" class="form-control" placeholder="Ссылка или имя клиента">
+
+                <label class="form-label mt-2">Доступ и ссылки</label>
+                <textarea name="access_data" class="form-control" rows="3" placeholder="URL, токены и т.д."></textarea>
+
+                <label class="form-label mt-2">Соисполнители</label>
+                <input type="text" name="co" class="form-control" list="usersList" placeholder="через запятую">
+
+                <label class="form-label mt-2">Наблюдатели</label>
+                <input type="text" name="watchers" class="form-control" list="usersList" placeholder="через запятую">
+
+                <label class="form-label mt-2">Тег</label>
+                <input type="text" name="tag" class="form-control" placeholder="#backend, #ui...">
+
+                <div class="mt-3">
+                  <label class="form-label">Крайний срок</label>
+                  <input type="datetime-local" name="due_at" class="form-control">
+                  <div class="form-text">
+                    Осталось: <span id="timeLeft">—</span><br>
+                    Создано: <span id="createdAt">—</span>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="modal-footer">
+            <button id="deleteTaskBtn" class="btn btn-outline-danger me-auto" hidden>Удалить</button>
+            <button type="button" class="btn btn-secondary" data-task-close>Закрыть</button>
+            <button id="saveTaskBtn" class="btn btn-primary">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script th:src="@{/modal-helpers.js}"></script>
+  <script th:src="@{/sidebar.js}"></script>
+  <script th:src="@{/tasks.js}"></script>
+  <script th:src="@{/modal-transitions.js}"></script>
 </body>
 </html>
