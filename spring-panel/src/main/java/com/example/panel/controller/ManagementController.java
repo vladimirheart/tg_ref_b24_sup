@@ -56,6 +56,7 @@ public class ManagementController {
         List<Task> tasks = taskRepository.findTop50ByOrderByCreatedAtDesc();
         model.addAttribute("tasks", tasks);
         return "tasks/index";
+        model.addAttribute("users", panelUserRepository.findAll());
     }
 
     @GetMapping("/channels")
