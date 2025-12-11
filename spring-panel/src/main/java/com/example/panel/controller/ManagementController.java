@@ -55,8 +55,8 @@ public class ManagementController {
         navigationService.enrich(model, authentication);
         List<Task> tasks = taskRepository.findTop50ByOrderByCreatedAtDesc();
         model.addAttribute("tasks", tasks);
-        return "tasks/index";
         model.addAttribute("users", panelUserRepository.findAll());
+        return "tasks/index";
     }
 
     @GetMapping("/channels")
