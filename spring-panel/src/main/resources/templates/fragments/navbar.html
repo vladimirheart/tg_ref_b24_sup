@@ -2,20 +2,18 @@
 <div xmlns:th="http://www.thymeleaf.org" th:fragment="navbar(active)">
     <div class="sidebar" id="app-sidebar">
         <div class="sidebar-header">
-            <a class="brand" th:href="@{/}">
+            <span class="brand">
                 <img th:src="@{/bender-icon.svg}" alt="Логотип Bender" class="brand-icon" loading="lazy" decoding="async"/>
                 <span class="brand-name">Bender</span>
-            </a>
-            <div class="sidebar-actions">
-                <button id="pinSidebarBtn" class="icon-btn" type="button" title="Закрепить панель">
-                    📌
+            </span>
+            <div class="sidebar-actions" id="notify-bell-wrapper">
+                <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
+                    <span class="icon" aria-hidden="true">🔔</span>
+                    <span id="notify-count" class="notify-count" hidden>0</span>
                 </button>
-                <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Сбросить порядок разделов">
-                    ↺
-                </button>
-                <button id="editSidebarOrderBtn" class="icon-btn" type="button" title="Изменить порядок разделов">
-                    ⇅
-                </button>
+                <div id="notify-dropdown" class="notify-dropdown" hidden role="listbox" aria-label="Оповещения"></div>
+                <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
+                <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Вернуть порядок по умолчанию">↺</button>
             </div>
         </div>
 
@@ -26,18 +24,6 @@
                 <span class="icon" aria-hidden="true">💬</span>
                 <span class="label">Диалоги</span>
             </a>
-            <a class="nav-link" data-page-key="analytics" th:if="${canViewAnalytics}"
-               th:classappend="${active}=='analytics' ? ' active'"
-               th:href="@{/analytics}">
-                <span class="icon" aria-hidden="true">📈</span>
-                <span class="label">Аналитика</span>
-            </a>
-            <a class="nav-link" data-page-key="knowledge" th:if="${canEditKnowledgeBase}"
-               th:classappend="${active}=='knowledge' ? ' active'"
-               th:href="@{/knowledge-base}">
-                <span class="icon" aria-hidden="true">📚</span>
-                <span class="label">База знаний</span>
-            </a>
             <a class="nav-link" data-page-key="tasks" th:if="${canManageTasks}"
                th:classappend="${active}=='tasks' ? ' active'"
                th:href="@{/tasks}">
@@ -47,8 +33,26 @@
             <a class="nav-link" data-page-key="passports" th:if="${canViewPassports}"
                th:classappend="${active}=='passports' ? ' active'"
                th:href="@{/object-passports}">
-                <span class="icon" aria-hidden="true">🗂️</span>
-                <span class="label">Паспорта объектов</span>
+                <span class="icon" aria-hidden="true">🗃️</span>
+                <span class="label">Паспорт объектов</span>
+            </a>
+            <a class="nav-link" data-page-key="public"
+               th:classappend="${active}=='public' ? ' active'"
+               th:href="@{/public/forms/demo}">
+                <span class="icon" aria-hidden="true">🌐</span>
+                <span class="label">Внешние формы</span>
+            </a>
+            <a class="nav-link" data-page-key="knowledge" th:if="${canEditKnowledgeBase}"
+               th:classappend="${active}=='knowledge' ? ' active'"
+               th:href="@{/knowledge-base}">
+                <span class="icon" aria-hidden="true">📚</span>
+                <span class="label">База знаний</span>
+            </a>
+            <a class="nav-link" data-page-key="analytics" th:if="${canViewAnalytics}"
+               th:classappend="${active}=='analytics' ? ' active'"
+               th:href="@{/analytics}">
+                <span class="icon" aria-hidden="true">📈</span>
+                <span class="label">Аналитика</span>
             </a>
             <a class="nav-link" data-page-key="channels" th:if="${canManageChannels}"
                th:classappend="${active}=='channels' ? ' active'"
@@ -68,15 +72,19 @@
                 <span class="icon" aria-hidden="true">⚙️</span>
                 <span class="label">Настройки</span>
             </a>
-            <a class="nav-link" data-page-key="public"
-               th:classappend="${active}=='public' ? ' active'"
-               th:href="@{/public/forms/demo}">
-                <span class="icon" aria-hidden="true">🌐</span>
-                <span class="label">Публичные формы</span>
-            </a>
         </nav>
 
         <div class="sidebar-footer">
+            <div class="sidebar-order-controls">
+                <button
+                        id="editSidebarOrderBtn"
+                        class="sidebar-order-btn"
+                        type="button"
+                        aria-label="Редактировать порядок"
+                        title="Редактировать порядок">
+                    <span class="icon" aria-hidden="true">⇅</span>
+                </button>
+            </div>
             <div class="sidebar-user-card" th:if="${#authentication?.name}">
                 <div class="sidebar-user-avatar">
                     <img th:src="@{/bender-icon.svg}" alt="Аватар" loading="lazy" decoding="async"/>
@@ -86,12 +94,79 @@
                     <span class="sidebar-user-username" th:text="${#authentication?.principal}"></span>
                 </div>
             </div>
+            <button type="button" class="sidebar-account-btn" data-sidebar-change-password>
+                <span class="icon" aria-hidden="true">🔐</span>
+                <span class="label">Сменить пароль</span>
+            </button>
             <a class="sidebar-logout-btn" th:href="@{/logout}">
                 <span class="icon" aria-hidden="true">🚪</span>
                 <span class="label">Выйти</span>
             </a>
         </div>
     </div>
+
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true" data-sidebar-password-modal>
+        <div class="modal-dialog">
+            <form class="modal-content" data-change-password-form>
+                <div class="modal-header">
+                    <h5 class="modal-title">Смена пароля</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" data-change-password-error role="alert"></div>
+                    <div class="alert alert-success d-none" data-change-password-success role="alert"></div>
+                    <div class="mb-3">
+                        <label class="form-label" for="changePasswordCurrent">Текущий пароль</label>
+                        <input type="password" class="form-control" id="changePasswordCurrent" name="current_password" autocomplete="current-password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="changePasswordNew">Новый пароль</label>
+                        <input type="password" class="form-control" id="changePasswordNew" name="new_password" autocomplete="new-password" required minlength="8">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="changePasswordConfirm">Повторите новый пароль</label>
+                        <input type="password" class="form-control" id="changePasswordConfirm" name="confirm_password" autocomplete="new-password" required>
+                    </div>
+                    <p class="text-muted small mb-0">Пароль должен соответствовать корпоративной политике безопасности.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary" data-change-password-submit>
+                        <span data-change-password-submit-text>Сменить пароль</span>
+                        <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" data-change-password-spinner></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style id="modal-animations-style">
+        .modal.fade .modal-dialog {
+            --modal-scale-hidden: 0.92;
+            --modal-scale-visible: 1;
+            --modal-scale-closing: 0.9;
+            --modal-scale: var(--modal-scale-hidden);
+            transform: var(--modal-transform, scale(var(--modal-scale)));
+            opacity: 0;
+            transform-origin: center;
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+
+        .modal.fade.show .modal-dialog,
+        .modal.fade.showing .modal-dialog {
+            --modal-scale: var(--modal-scale-visible);
+            opacity: 1;
+        }
+
+        .modal.fade.modal-closing .modal-dialog {
+            --modal-scale: var(--modal-scale-closing);
+            opacity: 0;
+        }
+
+        .modal.fade.modal-closing {
+            pointer-events: none;
+        }
+    </style>
 
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/sidebar.js}"></script>
