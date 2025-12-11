@@ -80,14 +80,14 @@
   const ORDER_STORAGE_KEY = 'sidebarNavOrder';
   const DEFAULT_ORDER = [
     'dialogs',
-    'analytics',
-    'knowledge',
     'tasks',
+    'public',
+    'knowledge',
+    'analytics',
     'passports',
     'channels',
     'users',
     'settings',
-    'public',
   ];
   const NAV_TITLE_DEFAULT = '';
   const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
