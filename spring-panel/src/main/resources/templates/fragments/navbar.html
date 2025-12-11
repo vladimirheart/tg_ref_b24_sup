@@ -1,48 +1,98 @@
-<!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org">
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm" th:fragment="navbar(active)">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-semibold" th:href="@{/}">Bender Support</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
-                aria-controls="navbarContent" aria-expanded="false" aria-label="Навигация">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarContent">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link" th:classappend="${active}=='dialogs' ? ' active'" th:href="@{/}">Диалоги</a>
-                </li>
-                <li class="nav-item" th:if="${canViewAnalytics}">
-                    <a class="nav-link" th:classappend="${active}=='analytics' ? ' active'" th:href="@{/analytics}">Аналитика</a>
-                </li>
-                <li class="nav-item" th:if="${canEditKnowledgeBase}">
-                    <a class="nav-link" th:classappend="${active}=='knowledge' ? ' active'" th:href="@{/knowledge-base}">База знаний</a>
-                </li>
-                <li class="nav-item" th:if="${canManageTasks}">
-                    <a class="nav-link" th:classappend="${active}=='tasks' ? ' active'" th:href="@{/tasks}">Задачи</a>
-                </li>
-                <li class="nav-item" th:if="${canManageChannels}">
-                    <a class="nav-link" th:classappend="${active}=='channels' ? ' active'" th:href="@{/channels}">Каналы</a>
-                </li>
-                <li class="nav-item" th:if="${canManageUsers}">
-                    <a class="nav-link" th:classappend="${active}=='users' ? ' active'" th:href="@{/users}">Пользователи</a>
-                </li>
-                <li class="nav-item" th:if="${canViewPassports}">
-                    <a class="nav-link" th:classappend="${active}=='passports' ? ' active'" th:href="@{/object-passports}">Паспорта объектов</a>
-                </li>
-                <li class="nav-item" th:if="${canViewSettings}">
-                    <a class="nav-link" th:classappend="${active}=='settings' ? ' active'" th:href="@{/settings}">Настройки</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/public/forms/demo}">Публичные формы</a>
-                </li>
-            </ul>
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item"><a class="nav-link" th:href="@{/logout}">Выйти</a></li>
-            </ul>
+<!-- Unified sidebar fragment shared across all pages -->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="navbar(active)">
+    <div class="sidebar" id="app-sidebar">
+        <div class="sidebar-header">
+            <a class="brand" th:href="@{/}">
+                <img th:src="@{/bender-icon.svg}" alt="Логотип Bender" class="brand-icon" loading="lazy" decoding="async"/>
+                <span class="brand-name">Bender</span>
+            </a>
+            <div class="sidebar-actions">
+                <button id="pinSidebarBtn" class="icon-btn" type="button" title="Закрепить панель">
+                    📌
+                </button>
+                <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Сбросить порядок разделов">
+                    ↺
+                </button>
+                <button id="editSidebarOrderBtn" class="icon-btn" type="button" title="Изменить порядок разделов">
+                    ⇅
+                </button>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Основная навигация">
+            <a class="nav-link" data-page-key="dialogs"
+               th:classappend="${active}=='dialogs' ? ' active'"
+               th:href="@{/}">
+                <span class="icon" aria-hidden="true">💬</span>
+                <span class="label">Диалоги</span>
+            </a>
+            <a class="nav-link" data-page-key="analytics" th:if="${canViewAnalytics}"
+               th:classappend="${active}=='analytics' ? ' active'"
+               th:href="@{/analytics}">
+                <span class="icon" aria-hidden="true">📈</span>
+                <span class="label">Аналитика</span>
+            </a>
+            <a class="nav-link" data-page-key="knowledge" th:if="${canEditKnowledgeBase}"
+               th:classappend="${active}=='knowledge' ? ' active'"
+               th:href="@{/knowledge-base}">
+                <span class="icon" aria-hidden="true">📚</span>
+                <span class="label">База знаний</span>
+            </a>
+            <a class="nav-link" data-page-key="tasks" th:if="${canManageTasks}"
+               th:classappend="${active}=='tasks' ? ' active'"
+               th:href="@{/tasks}">
+                <span class="icon" aria-hidden="true">✅</span>
+                <span class="label">Задачи</span>
+            </a>
+            <a class="nav-link" data-page-key="passports" th:if="${canViewPassports}"
+               th:classappend="${active}=='passports' ? ' active'"
+               th:href="@{/object-passports}">
+                <span class="icon" aria-hidden="true">🗂️</span>
+                <span class="label">Паспорта объектов</span>
+            </a>
+            <a class="nav-link" data-page-key="channels" th:if="${canManageChannels}"
+               th:classappend="${active}=='channels' ? ' active'"
+               th:href="@{/channels}">
+                <span class="icon" aria-hidden="true">📡</span>
+                <span class="label">Каналы</span>
+            </a>
+            <a class="nav-link" data-page-key="users" th:if="${canManageUsers}"
+               th:classappend="${active}=='users' ? ' active'"
+               th:href="@{/users}">
+                <span class="icon" aria-hidden="true">👥</span>
+                <span class="label">Пользователи</span>
+            </a>
+            <a class="nav-link" data-page-key="settings" th:if="${canViewSettings}"
+               th:classappend="${active}=='settings' ? ' active'"
+               th:href="@{/settings}">
+                <span class="icon" aria-hidden="true">⚙️</span>
+                <span class="label">Настройки</span>
+            </a>
+            <a class="nav-link" data-page-key="public"
+               th:classappend="${active}=='public' ? ' active'"
+               th:href="@{/public/forms/demo}">
+                <span class="icon" aria-hidden="true">🌐</span>
+                <span class="label">Публичные формы</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user-card" th:if="${#authentication?.name}">
+                <div class="sidebar-user-avatar">
+                    <img th:src="@{/bender-icon.svg}" alt="Аватар" loading="lazy" decoding="async"/>
+                </div>
+                <div class="sidebar-user-meta">
+                    <span class="sidebar-user-name" th:text="${#authentication?.name}">Пользователь</span>
+                    <span class="sidebar-user-username" th:text="${#authentication?.principal}"></span>
+                </div>
+            </div>
+            <a class="sidebar-logout-btn" th:href="@{/logout}">
+                <span class="icon" aria-hidden="true">🚪</span>
+                <span class="label">Выйти</span>
+            </a>
         </div>
     </div>
-</nav>
-</body>
-</html>
+
+    <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/sidebar.js}"></script>
+</div>
