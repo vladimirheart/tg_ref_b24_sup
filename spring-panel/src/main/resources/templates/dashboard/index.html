@@ -168,15 +168,15 @@
                             <div class="text-muted small" th:text="${dialog.ticketId()} ?: '—'"></div>
                         </td>
                         <td>
-                            <div th:text="${dialog.business()} ?: '—'"></div>
-                            <div class="text-muted small" th:text="${dialog.city()} ?: ${dialog.locationName()} ?: '—'"></div>
+                            <div th:text="${dialog.business()} ?: '—'"></div>␊
+                            <div class="text-muted small" th:text="${dialog.city() ?: (dialog.locationName() ?: '—')}"></div>
                         </td>
                         <td>
                             <div class="fw-semibold" th:text="${dialog.username()} ?: 'Не назначен'"></div>
                             <div class="text-muted small" th:text="${dialog.resolvedBy()} ?: '—'"></div>
                         </td>
                         <td class="text-nowrap">
-                            <div class="fw-semibold" th:text="${dialog.createdDate()} ?: ${dialog.createdAt()}"></div>
+                            <div class="fw-semibold" th:text="${dialog.createdDate() ?: dialog.createdAt()}"></div>
                             <div class="text-muted small" th:text="${dialog.createdTime()}"></div>
                         </td>
                     </tr>
