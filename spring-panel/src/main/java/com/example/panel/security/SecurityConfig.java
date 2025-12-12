@@ -47,6 +47,9 @@ public class SecurityConfig {
                         .maximumSessions(5)
                         .maxSessionsPreventsLogin(false)
                 )
+                .exceptionHandling(configurer -> configurer
+                        .accessDeniedPage("/error/403")
+                )
                 .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class);
 
         http.authenticationProvider(daoAuthenticationProvider);
