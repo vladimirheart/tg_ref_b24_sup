@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ORIGINAL_DIR="$(pwd)"
+
+cd "${SCRIPT_DIR}"
 
 JAVA_BIN=""
 if [[ -n "${JAVA_HOME:-}" && -x "${JAVA_HOME}/bin/java" ]]; then
@@ -44,9 +47,11 @@ cleanup() {
     kill -INT "${MVN_PID}" 2>/dev/null || true
     wait "${MVN_PID}" 2>/dev/null || true
   fi
+  cd "${ORIGINAL_DIR}"
 }
 trap 'cleanup; exit 130' INT TERM
 
 "${MVN_CMD}" "${MVN_ARGS[@]}" spring-boot:run "$@" &
 MVN_PID=$!
 wait "${MVN_PID}"
+cd "${ORIGINAL_DIR}""
