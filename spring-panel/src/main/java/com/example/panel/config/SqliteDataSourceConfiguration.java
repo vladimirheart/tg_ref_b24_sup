@@ -1,5 +1,7 @@
 package com.example.panel.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -15,14 +17,15 @@ import org.sqlite.SQLiteDataSource;
 import javax.sql.DataSource;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 @EnableConfigurationProperties(SqliteDataSourceProperties.class)
-public class SqliteDataSourceConfiguration {
+    public class SqliteDataSourceConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(SqliteDataSourceConfiguration.class);
 
     @Bean
     @Primary
@@ -42,9 +45,7 @@ public class SqliteDataSourceConfiguration {
         }
 
         Path normalized = properties.getNormalizedPath();
-        if (normalized.getParent() != null && !Files.exists(normalized.getParent())) {
-            normalized.getParent().toFile().mkdirs();
-        }
+        log.info("Using SQLite database at {}", normalized);
 
         SQLiteDataSource dataSource = new SQLiteDataSource();
         dataSource.setUrl("jdbc:sqlite:" + normalized);
