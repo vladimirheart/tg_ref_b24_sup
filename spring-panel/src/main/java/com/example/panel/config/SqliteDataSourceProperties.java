@@ -2,7 +2,6 @@ package com.example.panel.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -53,16 +52,41 @@ public class SqliteDataSourceProperties {
         if (path == null || path.isBlank()) {
             throw new IllegalStateException("app.datasource.sqlite.path must not be empty");
         }
-        Path resolved = Paths.get(path).toAbsolutePath().normalize();
-        Path parent = resolved.getParent();
-        if (parent != null && !Files.exists(parent)) {
-            try {
-                Files.createDirectories(parent);
-            } catch (IOException ex) {
-                throw new IllegalStateException("Failed to create directories for SQLite database path: " + parent, ex);
+
+        Path configured = Paths.get(path);
+        Path resolved = configured.toAbsolutePath().normalize();
+
+        if (Files.exists(resolved)) {
+            return resolved;
+        }
+
+        if (!configured.isAbsolute()) {
+            Path fallback = findExistingSibling(Paths.get("").toAbsolutePath().normalize(), configured.getFileName());
+            if (fallback != null) {
+                return fallback;
             }
         }
-        return resolved;
+
+        throw new IllegalStateException(
+            "SQLite database file not found at " + resolved +
+                ". Set APP_DB_TICKETS (app.datasource.sqlite.path) to point to an existing DB created by the Python panel."
+        );
+    }
+
+    private Path findExistingSibling(Path start, Path fileName) {
+        if (fileName == null) {
+            return null;
+        }
+
+        Path current = start;
+        for (int depth = 0; depth < 4 && current != null; depth++) {
+            Path candidate = current.resolve(fileName).normalize();
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+            current = current.getParent();
+        }
+        return null;
     }
 
     public String buildJdbcUrl() {
