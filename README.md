@@ -83,6 +83,8 @@ export SPRING_OPTS="--server.port=9090"
 2. Отредактируйте `config/shared/settings.json`, `locations.json`, `org_structure.json`, если нужно поменять шаблоны вопросов и справочники.
 3. Переопределяйте пути к БД (`APP_DB_TICKETS`, `APP_DB_USERS`, ... ) и хранилищам (`APP_STORAGE_ATTACHMENTS`, `APP_STORAGE_KNOWLEDGE_BASE`, ... ) через переменные окружения — `Settings` создаст каталоги автоматически.
 
+Spring-панель использует ту же SQLite, что и Flask-приложение `panel/app.py`: укажите существующий `tickets.db` через `APP_DB_TICKETS`, иначе запуск прервётся вместо создания пустой базы.
+
 ID группы для оповещений теперь задаётся на вкладке «Каналы (боты)» для каждого канала отдельно. Поле необязательное: достаточно добавить бота в нужный чат Telegram, и ID сохранится автоматически после появления системного события.
 
 Подробная инструкция доступна в [docs/configuration.md](docs/configuration.md).
