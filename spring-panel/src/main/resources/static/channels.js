@@ -319,6 +319,21 @@
   }
 
   function init() {
+    const hasChannelsLayout =
+      credentialForm &&
+      channelForm &&
+      testMessageForm &&
+      credentialsTableBody &&
+      channelsTableBody &&
+      notificationsTableBody &&
+      credentialSelect &&
+      testChannelSelect &&
+      filterChannelSelect;
+
+    if (!hasChannelsLayout) {
+      return;
+    }
+
     credentialForm?.addEventListener('submit', handleCredentialSubmit);
     credentialsTableBody?.addEventListener('click', handleCredentialTableClick);
     channelForm?.addEventListener('submit', handleChannelSubmit);
