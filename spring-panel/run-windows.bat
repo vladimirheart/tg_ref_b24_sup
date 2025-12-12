@@ -3,6 +3,8 @@ setlocal enabledelayedexpansion
 
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+set "ORIGINAL_DIR=%CD%"
+pushd "%SCRIPT_DIR%" >nul
 
 set "JAVA_EXE="
 if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA_EXE=%JAVA_HOME%\bin\java.exe"
@@ -65,4 +67,5 @@ if "%MVN_CMD%"=="mvn" (
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"
+popd >nul
 endlocal & exit /b %EXIT_CODE%
