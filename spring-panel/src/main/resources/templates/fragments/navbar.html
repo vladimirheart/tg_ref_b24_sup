@@ -17,6 +17,13 @@
             </div>
         </div>
 
+        <div class="alert alert-warning small mb-0" th:if="${dbWarning}" role="alert">
+            <div class="fw-semibold">База данных недоступна</div>
+            <div th:text="${dbWarning}"></div>
+            <div class="mt-2 text-muted">Текущий путь: <span class="fw-semibold" th:text="${dbPath}"></span></div>
+            <div class="mt-1">Проверьте переменную окружения <code>APP_DB_TICKETS</code> и перезапустите панель.</div>
+        </div>
+
         <nav class="sidebar-nav" aria-label="Основная навигация">
             <a class="nav-link" data-page-key="dialogs"
                th:classappend="${active}=='dialogs' ? ' active'"
