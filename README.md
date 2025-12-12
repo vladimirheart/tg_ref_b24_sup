@@ -90,6 +90,54 @@ Spring-панель использует ту же SQLite, что и Flask-пр�
 
 Аналогично задаются пути к остальным БД (`APP_DB_USERS` для `users.db`, `APP_DB_BOT` для `bot_database.db`).
 
+**Быстро подключить текущие SQLite-файлы из репозитория**
+
+Linux/macOS (выполняйте из корня проекта, пути должны быть абсолютными, их можно подставить командой `pwd`):
+
+```bash
+cd /workspace/tg_ref_b24_sup
+export APP_DB_TICKETS="$(pwd)/tickets.db"
+export APP_DB_USERS="$(pwd)/users.db"
+export APP_DB_BOT="$(pwd)/bot_database.db"
+export APP_DB_OBJECT_PASSPORTS="$(pwd)/object_passports.db"  # если файл уже существует
+alembic upgrade head  # заполнит схемы, если файлов ещё нет
+
+# Flask-панель (если нужна)
+export FLASK_APP=panel/app.py
+flask run --port 5000
+
+# Spring-панель, использующая те же файлы
+cd spring-panel
+APP_DB_TICKETS="/workspace/tg_ref_b24_sup/tickets.db" \
+APP_DB_USERS="/workspace/tg_ref_b24_sup/users.db" \
+APP_DB_BOT="/workspace/tg_ref_b24_sup/bot_database.db" \
+APP_DB_OBJECT_PASSPORTS="/workspace/tg_ref_b24_sup/object_passports.db" \
+./run-linux.sh
+```
+
+Windows PowerShell (пути подставьте под своё расположение каталога):
+
+```powershell
+Set-Location C:\path\to\tg_ref_b24_sup
+$env:APP_DB_TICKETS = "$PWD\tickets.db"
+$env:APP_DB_USERS = "$PWD\users.db"
+$env:APP_DB_BOT = "$PWD\bot_database.db"
+$env:APP_DB_OBJECT_PASSPORTS = "$PWD\object_passports.db"  # если файл уже существует
+alembic upgrade head
+
+# Flask-панель (если нужна)
+$env:FLASK_APP = "panel/app.py"
+python -m flask run --port 5000
+
+# Spring-панель с теми же файлами
+Set-Location spring-panel
+$env:APP_DB_TICKETS = "C:/path/to/tg_ref_b24_sup/tickets.db"
+$env:APP_DB_USERS = "C:/path/to/tg_ref_b24_sup/users.db"
+$env:APP_DB_BOT = "C:/path/to/tg_ref_b24_sup/bot_database.db"
+$env:APP_DB_OBJECT_PASSPORTS = "C:/path/to/tg_ref_b24_sup/object_passports.db"
+./run-windows.bat
+```
+
 > **Архитектурно и безопаснее всего** вынести хотя бы боевую `tickets.db` из каталога с исходным кодом в полноценную СУБД (PostgreSQL/MySQL) и подключать её через `DATABASE_URL`/JDBC. SQLite остаётся вариантом для разработки, но совместный доступ Flask и Spring к одному файлу рискован (блокировки, потеря данных). Для продакшена обеспечьте:
 > - **Раздельные учётные записи** БД для панелей/ботов с минимальными правами (только нужные схемы и операции).
 > - **Шифрование и бэкапы**: включите TLS между сервисами и СУБД, храните резервные копии вне продакшн-кластера.
