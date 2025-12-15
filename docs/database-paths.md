@@ -19,12 +19,16 @@
 - В `spring-panel/src/main/resources/application.yml` путь к SQLite берётся из `app.datasource.sqlite.path` (по умолчанию `../tickets.db`).
 - Чтобы использовать те же БД, что и Python-приложения, перед стартом Java-панели задайте такие же абсолютные пути:
   ```shell
-  set APP_DB_TICKETS=путь до проекта через 2 слэша\\tickets.db
-  set APP_DB_USERS=путь до проекта через 2 слэша\\users.db
-  set APP_DB_BOT=путь до проекта через 2 слэша\\bot_database.db
-  set APP_DB_OBJECT_PASSPORTS=путь до проекта через 2 слэша\\object_passports.db
+  set APP_DB_TICKETS=C:\\Users\\SinicinVV\\Documents\\tg_bot\\tg_sup\\tickets.db
+  set APP_DB_USERS=C:\\Users\\SinicinVV\\Documents\\tg_bot\\tg_sup\\users.db
+  set APP_DB_BOT=C:\\Users\\SinicinVV\\Documents\\tg_bot\\tg_sup\\bot_database.db
+  set APP_DB_OBJECT_PASSPORTS=C:\\Users\\SinicinVV\\Documents\\tg_bot\\tg_sup\\object_passports.db
   ```
 - Java-версия ищет только `APP_DB_TICKETS`, но использование одинакового набора переменных гарантирует совпадение путей и упрощает отладку.
+
+## Java bot
+- Параметр `support-bot.database.path` читает `APP_DB_TICKETS` и по умолчанию указывает на `../tickets.db`, поэтому бот использует тот же файл, что и Flask.
+- Пути к вложениям по умолчанию совпадают с Python-версией: `../attachments`, `../attachments/knowledge_base`, `../attachments/forms`.
 
 ## Почему сайдбар пустой, если нет БД
 - Ссылки в боковом меню рендерятся только при наличии соответствующих прав (`PAGE_*`), которые читаются из таблиц `users` и `user_authorities` SQLite-базы.
