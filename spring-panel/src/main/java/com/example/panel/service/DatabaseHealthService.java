@@ -1,8 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.config.SqliteDataSourceProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -19,11 +19,10 @@ public class DatabaseHealthService {
     private final JdbcTemplate jdbcTemplate;
     private final String sqlitePath;
 
-    public DatabaseHealthService(JdbcTemplate jdbcTemplate,
-                                 @Value("${app.datasource.sqlite.path:../tickets.db}") String sqlitePath) {
+    public DatabaseHealthService(JdbcTemplate jdbcTemplate, SqliteDataSourceProperties sqliteProperties) {
         this.jdbcTemplate = jdbcTemplate;
-        this.sqlitePath = sqlitePath;
-        log.info("Spring panel is using SQLite database at: {}", sqlitePath);
+        this.sqlitePath = sqliteProperties.getNormalizedPath().toString();
+        log.info("Spring panel is using SQLite database at: {}", this.sqlitePath);
     }
 
     public String databasePath() {
