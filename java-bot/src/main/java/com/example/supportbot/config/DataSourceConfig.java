@@ -40,11 +40,7 @@ public class DataSourceConfig {
             return builder.build();
         }
 
-        String sqlitePath = environment.getProperty("APP_DB_TICKETS", "tickets.db");
-        Path normalized = Paths.get(sqlitePath).toAbsolutePath().normalize();
-        if (normalized.getParent() != null && !Files.exists(normalized.getParent())) {
-            normalized.getParent().toFile().mkdirs();
-        }
+        Path normalized = resolveSqlitePath(environment.getProperty("APP_DB_TICKETS"));
         SQLiteDataSource dataSource = new SQLiteDataSource();
         dataSource.setUrl("jdbc:sqlite:" + normalized);
 
@@ -68,6 +64,40 @@ public class DataSourceConfig {
         }
         map.putIfAbsent(key, value);
         propertySources.addFirst(new MapPropertySource("runtime-properties", map));
+    }
+
+    private static Path resolveSqlitePath(String configured) {
+        if (StringUtils.hasText(configured)) {
+            return normalizeAndEnsureParent(Paths.get(configured));
+        }
+
+        Path cwd = Paths.get("").toAbsolutePath().normalize();
+        Path existing = findExistingSibling(cwd, "tickets.db");
+        if (existing != null) {
+            return existing;
+        }
+
+        return normalizeAndEnsureParent(cwd.resolve("tickets.db"));
+    }
+
+    private static Path normalizeAndEnsureParent(Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        if (normalized.getParent() != null && !Files.exists(normalized.getParent())) {
+            normalized.getParent().toFile().mkdirs();
+        }
+        return normalized;
+    }
+
+    private static Path findExistingSibling(Path start, String fileName) {
+        Path current = start;
+        for (int depth = 0; depth < 4 && current != null; depth++) {
+            Path candidate = current.resolve(fileName).normalize();
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+            current = current.getParent();
+        }
+        return null;
     }
 
     private static DatabaseCredentials normalizePostgresUrl(String rawUrl) {
