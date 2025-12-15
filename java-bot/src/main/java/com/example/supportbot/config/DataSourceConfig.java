@@ -69,7 +69,10 @@ public class DataSourceConfig {
 
     private static Path resolveSqlitePath(String configured) {
         if (StringUtils.hasText(configured)) {
-            return normalizeAndEnsureParent(Paths.get(configured));
+            Path candidate = normalizeAndEnsureParent(Paths.get(configured));
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
         }
 
         Path cwd = Paths.get("").toAbsolutePath().normalize();
@@ -78,7 +81,10 @@ public class DataSourceConfig {
             return existing;
         }
 
-        return normalizeAndEnsureParent(cwd.resolve("tickets.db"));
+        throw new IllegalStateException(
+                "SQLite database tickets.db not found near " + cwd
+                        + ". Set APP_DB_TICKETS (support-bot.database.path) to an existing Python panel DB."
+        );
     }
 
     private static Path normalizeAndEnsureParent(Path path) {
