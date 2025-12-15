@@ -19,9 +19,11 @@ support-bot:
   token: ${TELEGRAM_BOT_TOKEN:YOUR_TELEGRAM_BOT_TOKEN}
   username: ${TELEGRAM_BOT_USERNAME:your_bot_username}
   channel-id: ${GROUP_CHAT_ID:0}
-  attachments-dir: ${APP_STORAGE_ATTACHMENTS:attachments}
-  knowledge-base-dir: ${APP_STORAGE_KB:attachments/knowledge_base}
-  webforms-dir: ${APP_STORAGE_WEBFORMS:attachments/forms}
+  database:
+    path: ${APP_DB_TICKETS:../tickets.db}
+  attachments-dir: ${APP_STORAGE_ATTACHMENTS:../attachments}
+  knowledge-base-dir: ${APP_STORAGE_KB:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
+  webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}
 
 vk-bot:
   enabled: ${VK_BOT_ENABLED:false}
