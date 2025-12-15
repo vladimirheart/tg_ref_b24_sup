@@ -40,7 +40,8 @@ public class DataSourceConfig {
             return builder.build();
         }
 
-        Path normalized = resolveSqlitePath(environment.getProperty("APP_DB_TICKETS"));
+        String configuredPath = environment.getProperty("support-bot.database.path", "");
+        Path normalized = resolveSqlitePath(configuredPath);
         SQLiteDataSource dataSource = new SQLiteDataSource();
         dataSource.setUrl("jdbc:sqlite:" + normalized);
 
