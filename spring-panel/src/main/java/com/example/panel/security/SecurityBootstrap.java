@@ -15,7 +15,10 @@ public class SecurityBootstrap {
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
 
-    public SecurityBootstrap(JdbcTemplate jdbcTemplate, PasswordEncoder passwordEncoder) {
+    public SecurityBootstrap(
+            @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
+            PasswordEncoder passwordEncoder
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
     }
@@ -30,14 +33,6 @@ public class SecurityBootstrap {
         // 3) гарантируем набор прав admin
         ensureAdminAuthorities(adminId);
     }
-    public SecurityBootstrap(
-        @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
-        PasswordEncoder passwordEncoder
-    ) {
-    this.jdbcTemplate = jdbcTemplate;
-    this.passwordEncoder = passwordEncoder;
-    }
-
 
     /**
      * Создаёт таблицу user_authorities, если её ещё нет.
@@ -57,7 +52,6 @@ public class SecurityBootstrap {
             // если sqlite_master недоступен/другой диалект — всё равно попробуем CREATE IF NOT EXISTS ниже
         }
 
-        // Таблица прав
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS user_authorities (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,7 +62,6 @@ public class SecurityBootstrap {
             );
         """);
 
-        // Индекс по user_id (ускоряет чтение прав)
         jdbcTemplate.execute("""
             CREATE INDEX IF NOT EXISTS idx_user_authorities_user_id
             ON user_authorities(user_id);
@@ -105,7 +98,6 @@ public class SecurityBootstrap {
     }
 
     private void ensureAdminAuthorities(long userId) {
-        // полный набор прав, чтобы все страницы открывались
         List<String> required = List.of(
                 "ROLE_ADMIN",
                 "PAGE_DIALOGS",
@@ -118,7 +110,6 @@ public class SecurityBootstrap {
                 "PAGE_KNOWLEDGE_BASE"
         );
 
-        // Если таблица вдруг всё равно отсутствует (или не та БД) — создадим и попробуем снова
         Set<String> existing;
         try {
             existing = jdbcTemplate.query(
@@ -127,7 +118,7 @@ public class SecurityBootstrap {
                     userId
             ).stream().collect(Collectors.toSet());
         } catch (DataAccessException e) {
-            // Например: "no such table: user_authorities"
+            // например: "no such table: user_authorities"
             ensureAuthoritiesTable();
             existing = jdbcTemplate.query(
                     "SELECT authority FROM user_authorities WHERE user_id = ?",
