@@ -30,6 +30,14 @@ public class SecurityBootstrap {
         // 3) гарантируем набор прав admin
         ensureAdminAuthorities(adminId);
     }
+    public SecurityBootstrap(
+        @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
+        PasswordEncoder passwordEncoder
+    ) {
+    this.jdbcTemplate = jdbcTemplate;
+    this.passwordEncoder = passwordEncoder;
+    }
+
 
     /**
      * Создаёт таблицу user_authorities, если её ещё нет.
