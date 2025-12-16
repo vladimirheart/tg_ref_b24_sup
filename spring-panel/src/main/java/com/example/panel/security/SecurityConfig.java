@@ -63,9 +63,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserRepositoryUserDetailsService userRepositoryUserDetailsService(JdbcTemplate jdbcTemplate, PasswordEncoder passwordEncoder) {
-        return new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
+    public UserRepositoryUserDetailsService userRepositoryUserDetailsService(
+        @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
+        PasswordEncoder passwordEncoder
+    ) {
+    return new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
     }
+
 
     @Bean
     public UserDetailsService userDetailsService(UserRepositoryUserDetailsService delegate) {
