@@ -13,6 +13,8 @@ import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -24,6 +26,8 @@ import java.util.List;
 
 @Controller
 public class ManagementController {
+
+    private static final Logger log = LoggerFactory.getLogger(ManagementController.class);
 
     private final NavigationService navigationService;
     private final TaskRepository taskRepository;
@@ -53,9 +57,15 @@ public class ManagementController {
     @PreAuthorize("hasAuthority('PAGE_TASKS')")
     public String tasks(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
-        List<Task> tasks = taskRepository.findTop50ByOrderByCreatedAtDesc();
-        model.addAttribute("tasks", tasks);
-        model.addAttribute("users", panelUserRepository.findAll());
+        try {
+            List<Task> tasks = taskRepository.findTop50ByOrderByCreatedAtDesc();
+            model.addAttribute("tasks", tasks);
+            model.addAttribute("users", panelUserRepository.findAll());
+            log.info("Loaded {} tasks for user {}", tasks.size(), authentication.getName());
+        } catch (Exception ex) {
+            log.error("Failed to load tasks page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
+            throw ex;
+        }
         return "tasks/index";
     }
 
@@ -63,8 +73,14 @@ public class ManagementController {
     @PreAuthorize("hasAuthority('PAGE_CHANNELS')")
     public String channels(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
-        List<Channel> channels = channelRepository.findAll();
-        model.addAttribute("channels", channels);
+        try {
+            List<Channel> channels = channelRepository.findAll();
+            model.addAttribute("channels", channels);
+            log.info("Loaded {} channels for user {}", channels.size(), authentication.getName());
+        } catch (Exception ex) {
+            log.error("Failed to load channels page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
+            throw ex;
+        }
         return "channels/index";
     }
 
@@ -72,8 +88,14 @@ public class ManagementController {
     @PreAuthorize("hasAuthority('PAGE_USERS')")
     public String users(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
-        List<PanelUser> users = panelUserRepository.findAll();
-        model.addAttribute("users", users);
+        try {
+            List<PanelUser> users = panelUserRepository.findAll();
+            model.addAttribute("users", users);
+            log.info("Loaded {} panel users for user {}", users.size(), authentication.getName());
+        } catch (Exception ex) {
+            log.error("Failed to load users page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
+            throw ex;
+        }
         return "users/index";
     }
 
@@ -81,10 +103,16 @@ public class ManagementController {
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public String settings(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
-        List<AppSetting> appSettings = appSettingRepository.findAll();
-        List<SettingsParameter> systemParameters = settingsParameterRepository.findAll();
-        model.addAttribute("appSettings", appSettings);
-        model.addAttribute("systemParameters", systemParameters);
+        try {
+            List<AppSetting> appSettings = appSettingRepository.findAll();
+            List<SettingsParameter> systemParameters = settingsParameterRepository.findAll();
+            model.addAttribute("appSettings", appSettings);
+            model.addAttribute("systemParameters", systemParameters);
+            log.info("Loaded settings for user {}: {} app settings, {} system parameters", authentication.getName(), appSettings.size(), systemParameters.size());
+        } catch (Exception ex) {
+            log.error("Failed to load settings page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
+            throw ex;
+        }
         return "settings/index";
     }
 
@@ -92,8 +120,14 @@ public class ManagementController {
     @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public String passports(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
-        List<ItEquipmentCatalog> items = equipmentRepository.findAll();
-        model.addAttribute("items", items);
+        try {
+            List<ItEquipmentCatalog> items = equipmentRepository.findAll();
+            model.addAttribute("items", items);
+            log.info("Loaded {} object passports for user {}", items.size(), authentication.getName());
+        } catch (Exception ex) {
+            log.error("Failed to load object passports page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
+            throw ex;
+        }
         return "passports/list";
     }
 
