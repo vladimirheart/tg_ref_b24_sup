@@ -53,6 +53,9 @@ public class PublicFormService {
 
     @Transactional(readOnly = true)
     public Optional<PublicFormConfig> loadConfig(String channelRef) {
+        if (channelRef != null && channelRef.trim().equalsIgnoreCase("demo")) {
+            return Optional.of(buildDemoConfig());
+        }
         return resolveChannel(channelRef).map(this::toConfig);
     }
 
@@ -147,6 +150,21 @@ public class PublicFormService {
                 ? channel.getPublicId()
                 : (channel.getId() != null ? channel.getId().toString() : null);
         return new PublicFormConfig(channel.getId(), publicId, channel.getChannelName(), questions);
+    }
+
+    private PublicFormConfig buildDemoConfig() {
+        List<PublicFormQuestion> demoQuestions = List.of(
+                new PublicFormQuestion("client_name", "Как вас зовут?", "text", 1, Map.of("required", true)),
+                new PublicFormQuestion("contact", "Как с вами связаться?", "text", 2, Map.of("required", true)),
+                new PublicFormQuestion("urgency", "Насколько срочно решить вопрос?", "select", 3, Map.of(
+                        "options", List.of("Срочно", "В течение дня", "Не горит"),
+                        "placeholder", "Выберите приоритет"
+                )),
+                new PublicFormQuestion("location", "Где возникла проблема?", "text", 4, Map.of("placeholder", "Адрес или подразделение")),
+                new PublicFormQuestion("details", "Опишите ситуацию подробнее", "textarea", 5, Map.of("rows", 3))
+        );
+
+        return new PublicFormConfig(0L, "demo", "Демо-канал", demoQuestions);
     }
 
     private List<PublicFormQuestion> parseQuestions(Channel channel) {
