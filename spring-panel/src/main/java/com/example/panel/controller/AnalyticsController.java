@@ -4,6 +4,8 @@ import com.example.panel.model.AnalyticsClientSummary;
 import com.example.panel.model.AnalyticsTicketSummary;
 import com.example.panel.service.AnalyticsService;
 import com.example.panel.service.NavigationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,8 @@ import java.util.Map;
 @RequestMapping("/analytics")
 public class AnalyticsController {
 
+    private static final Logger log = LoggerFactory.getLogger(AnalyticsController.class);
+
     private final AnalyticsService analyticsService;
     private final NavigationService navigationService;
 
@@ -36,10 +40,17 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public String view(Model model, Authentication authentication) {
         navigationService.enrich(model, authentication);
-        List<AnalyticsTicketSummary> ticketSummary = analyticsService.loadTicketSummary();
-        List<AnalyticsClientSummary> clientSummary = analyticsService.loadClientSummary();
-        model.addAttribute("ticketSummary", ticketSummary);
-        model.addAttribute("clientSummary", clientSummary);
+        try {
+            List<AnalyticsTicketSummary> ticketSummary = analyticsService.loadTicketSummary();
+            List<AnalyticsClientSummary> clientSummary = analyticsService.loadClientSummary();
+            model.addAttribute("ticketSummary", ticketSummary);
+            model.addAttribute("clientSummary", clientSummary);
+            log.info("Analytics view requested by {}: {} ticket rows, {} client rows",
+                    authentication.getName(), ticketSummary.size(), clientSummary.size());
+        } catch (Exception ex) {
+            log.error("Failed to load analytics page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
+            throw ex;
+        }
         return "analytics/index";
     }
 
