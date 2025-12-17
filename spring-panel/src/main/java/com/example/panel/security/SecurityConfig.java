@@ -1,5 +1,6 @@
 package com.example.panel.security;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,7 +26,14 @@ public class SecurityConfig {
                                                    DaoAuthenticationProvider daoAuthenticationProvider) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/login", "/public/forms/**", "/api/public/forms/**").permitAll()
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(
+                                "/css/**", "/js/**", "/images/**", "/webjars/**",
+                                "/*.svg",
+                                "/login",
+                                "/public/forms/**", "/api/public/forms/**",
+                                "/error", "/error/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
@@ -64,12 +72,11 @@ public class SecurityConfig {
 
     @Bean
     public UserRepositoryUserDetailsService userRepositoryUserDetailsService(
-        @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
-        PasswordEncoder passwordEncoder
+            @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
+            PasswordEncoder passwordEncoder
     ) {
-    return new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
+        return new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
     }
-
 
     @Bean
     public UserDetailsService userDetailsService(UserRepositoryUserDetailsService delegate) {
