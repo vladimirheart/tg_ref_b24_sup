@@ -20,7 +20,7 @@ support-bot:
   username: ${TELEGRAM_BOT_USERNAME:your_bot_username}
   channel-id: ${GROUP_CHAT_ID:0}
   database:
-    path: ${APP_DB_TICKETS:../tickets.db}
+    path: ${APP_DB_TICKETS:${APP_DB_BOT:../tickets.db}}
   attachments-dir: ${APP_STORAGE_ATTACHMENTS:../attachments}
   knowledge-base-dir: ${APP_STORAGE_KB:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
   webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}
