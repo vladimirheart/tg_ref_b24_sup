@@ -12,6 +12,7 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
 import org.springframework.util.StringUtils;
+import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
 
 import javax.sql.DataSource;
@@ -47,7 +48,10 @@ import java.util.Map;
         Path normalized = properties.getNormalizedPath();
         log.info("Using SQLite database at {}", normalized);
 
-        SQLiteDataSource dataSource = new SQLiteDataSource();
+        SQLiteConfig config = new SQLiteConfig();
+        config.setDateStringFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+
+        SQLiteDataSource dataSource = new SQLiteDataSource(config.toProperties());
         dataSource.setUrl("jdbc:sqlite:" + normalized);
         registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
         registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
