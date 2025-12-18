@@ -26,11 +26,11 @@
             <div class="btn-group" role="group" aria-label="Фильтр заявок">
                 <button type="button" class="btn btn-outline-primary btn-sm active">
                     В работе
-                    <span class="badge bg-primary text-white ms-2" th:text="${summary.pendingTickets()}">0</span>
+                    <span class="badge bg-primary text-white ms-2" th:text="${summary.pendingTickets}">0</span>
                 </button>
                 <button type="button" class="btn btn-outline-secondary btn-sm">
                     Все заявки
-                    <span class="badge bg-secondary text-white ms-2" th:text="${summary.totalTickets()}">0</span>
+                    <span class="badge bg-secondary text-white ms-2" th:text="${summary.totalTickets}">0</span>
                 </button>
             </div>
             <a class="btn btn-outline-secondary btn-sm" th:href="@{/knowledge-base}">
@@ -51,7 +51,7 @@
                         <span class="text-muted small">Всего обращений</span>
                     </div>
                     <div class="d-flex align-items-baseline gap-2">
-                        <h3 class="mb-0" th:text="${summary.totalTickets()}">0</h3>
+                        <h3 class="mb-0" th:text="${summary.totalTickets}">0</h3>
                         <span class="text-muted">диалогов</span>
                     </div>
                 </div>
@@ -65,7 +65,7 @@
                         <span class="text-muted small">Решено</span>
                     </div>
                     <div class="d-flex align-items-baseline gap-2">
-                        <h3 class="mb-0 text-success" th:text="${summary.resolvedTickets()}">0</h3>
+                        <h3 class="mb-0 text-success" th:text="${summary.resolvedTickets}">0</h3>
                         <span class="text-muted">закрыто</span>
                     </div>
                 </div>
@@ -79,7 +79,7 @@
                         <span class="text-muted small">В работе</span>
                     </div>
                     <div class="d-flex align-items-baseline gap-2">
-                        <h3 class="mb-0 text-warning" th:text="${summary.pendingTickets()}">0</h3>
+                        <h3 class="mb-0 text-warning" th:text="${summary.pendingTickets}">0</h3>
                         <span class="text-muted">активных</span>
                     </div>
                 </div>
@@ -93,12 +93,12 @@
                         <span class="text-muted small">Лидеры каналов</span>
                     </div>
                     <div class="list-group list-group-flush small" style="max-height: 160px; overflow-y: auto;">
-                        <div class="list-group-item d-flex justify-content-between align-items-center" th:if="${summary.channelStats().isEmpty()}">
+                        <div class="list-group-item d-flex justify-content-between align-items-center" th:if="${summary.channelStats.isEmpty()}">
                             <span class="text-muted">Нет данных</span>
                         </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center" th:each="stat : ${summary.channelStats()}">
-                            <span th:text="${stat.name()} ?: 'Без канала'"></span>
-                            <span class="badge rounded-pill bg-primary-subtle text-primary" th:text="${stat.total()}">0</span>
+                        <div class="list-group-item d-flex justify-content-between align-items-center" th:each="stat : ${summary.channelStats}">
+                            <span th:text="${stat.name} ?: 'Без канала'"></span>
+                            <span class="badge rounded-pill bg-primary-subtle text-primary" th:text="${stat.total}">0</span>
                         </div>
                     </div>
                 </div>
@@ -113,12 +113,12 @@
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <span class="dot dot-success"></span>
                         <span class="text-muted small">В работе</span>
-                        <span class="badge bg-success-subtle text-success" th:text="${summary.pendingTickets()}">0</span>
+                        <span class="badge bg-success-subtle text-success" th:text="${summary.pendingTickets}">0</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="dot dot-primary"></span>
                         <span class="text-muted small">Всего</span>
-                        <span class="badge bg-primary-subtle text-primary" th:text="${summary.totalTickets()}">0</span>
+                        <span class="badge bg-primary-subtle text-primary" th:text="${summary.totalTickets}">0</span>
                     </div>
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-2">
@@ -153,7 +153,7 @@
                     </tr>
                     <tr th:each="dialog : ${dialogs}">
                         <td class="client-cell">
-                            <div class="avatar-circle" aria-hidden="true" th:text="${dialog.clientName() != null && !dialog.clientName().isBlank() ? dialog.clientName().substring(0,1).toUpperCase() : '—'}">N</div>
+                            <div class="avatar-circle" aria-hidden="true" th:text="${dialog.clientName != null && !dialog.clientName.isBlank() ? dialog.clientName.substring(0,1).toUpperCase() : '—'}">N</div>
                             <div class="d-flex flex-column">
                                 <div class="fw-semibold" th:text="${dialog.clientName()} ?: 'Неизвестный клиент'"></div>
                                 <div class="text-muted small" th:text="${dialog.clientStatus()} ?: 'статус не указан'"></div>
@@ -163,7 +163,7 @@
                             <span class="badge" th:text="${dialog.statusLabel()}" th:classappend="${dialog.statusClass()}"></span>
                         </td>
                         <td>
-                            <div class="fw-semibold" th:text="${dialog.problem()} ?: 'Проблема не указана'"></div>
+                            <div class="fw-semibold" th:text="${dialog.problem} ?: 'Проблема не указана'"></div>
                             <div class="text-muted small" th:text="${dialog.channelName()} ?: 'Без канала'"></div>
                         </td>
                         <td class="text-muted" th:text="${dialog.location()} ?: 'Локация не указана'"></td>
@@ -177,8 +177,8 @@
                             </div>
                         </td>
                         <td class="text-muted">
-                            <div th:text="${dialog.createdDate()}">Сегодня</div>
-                            <div class="small" th:text="${dialog.createdTime()}">12:30</div>
+                            <div th:text="${dialog.createdDate}">Сегодня</div>
+                            <div class="small" th:text="${dialog.createdTime}">12:30</div>
                         </td>
                     </tr>
                     </tbody>
