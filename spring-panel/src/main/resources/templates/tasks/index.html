@@ -194,10 +194,10 @@
               <td colspan="7" class="text-center text-muted py-4">Задачи не загружены</td>
             </tr>
             <tr th:each="task : ${tasks}" class="server-rendered">
-              <td th:text="${task.num} ?: '—'"></td>
+              <td th:text="${task.seq != null ? 'DL_' + task.seq : 'DL_' + task.id}"></td>
               <td>
                 <div class="fw-semibold" th:text="${task.title} ?: 'Без названия'"></div>
-                <div class="text-muted small" th:text="${task.description} ?: ''"></div>
+                <div class="text-muted small" th:utext="${task.bodyHtml} ?: ''"></div>
               </td>
               <td>
                 <span class="badge text-bg-secondary" th:text="${task.status} ?: '—'"></span>
