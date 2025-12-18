@@ -6,7 +6,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,7 +49,8 @@ public class AnalyticsService {
                 (rs, rowNum) -> new AnalyticsClientSummary(
                         rs.getString("username"),
                         Optional.ofNullable(rs.getString("last_contact"))
-                                .map(OffsetDateTime::parse)
+                                .map(LocalDateTime::parse)
+                                .map(dt -> dt.atOffset(ZoneOffset.UTC))
                                 .orElse(null),
                         rs.getLong("total_tickets")
                 )
