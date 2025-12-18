@@ -51,7 +51,7 @@ import java.util.Map;
         SQLiteConfig config = new SQLiteConfig();
         config.setDateStringFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 
-        SQLiteDataSource dataSource = new SQLiteDataSource(config.toProperties());
+        SQLiteDataSource dataSource = new SQLiteDataSource(config);
         dataSource.setUrl("jdbc:sqlite:" + normalized);
         registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
         registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
