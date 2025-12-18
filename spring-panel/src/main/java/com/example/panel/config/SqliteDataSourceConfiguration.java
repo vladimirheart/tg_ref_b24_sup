@@ -49,7 +49,9 @@ import java.util.Map;
         log.info("Using SQLite database at {}", normalized);
 
         SQLiteConfig config = new SQLiteConfig();
-        config.setDateStringFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+        // Existing databases store timestamps without timezone info (e.g. "2025-12-03 15:04:53.370"),
+        // so align the driver format accordingly to avoid Flyway parsing errors during startup.
+        config.setDateStringFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
         SQLiteDataSource dataSource = new SQLiteDataSource(config);
         dataSource.setUrl("jdbc:sqlite:" + normalized);
