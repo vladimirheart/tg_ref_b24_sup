@@ -175,21 +175,25 @@ public class TaskApiController {
         dto.put("creator", task.getCreator());
 
         List<Map<String, Object>> comments = commentRepository.findByTaskIdOrderByCreatedAtAsc(task.getId()).stream()
-                .map(c -> Map.of(
-                        "id", c.getId(),
-                        "author", c.getAuthor(),
-                        "html", c.getHtml(),
-                        "created_at", formatDate(c.getCreatedAt())
-                ))
+                .map(c -> {
+                    Map<String, Object> commentDto = new HashMap<>();
+                    commentDto.put("id", c.getId());
+                    commentDto.put("author", c.getAuthor());
+                    commentDto.put("html", c.getHtml());
+                    commentDto.put("created_at", formatDate(c.getCreatedAt()));
+                    return commentDto;
+                })
                 .toList();
         dto.put("comments", comments);
 
         List<Map<String, Object>> history = historyRepository.findByTaskIdOrderByAtDesc(task.getId()).stream()
-                .map(h -> Map.of(
-                        "id", h.getId(),
-                        "text", h.getText(),
-                        "at", formatDate(h.getAt())
-                ))
+                .map(h -> {
+                    Map<String, Object> historyDto = new HashMap<>();
+                    historyDto.put("id", h.getId());
+                    historyDto.put("text", h.getText());
+                    historyDto.put("at", formatDate(h.getAt()));
+                    return historyDto;
+                })
                 .toList();
         dto.put("history", history);
         return dto;
