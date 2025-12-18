@@ -92,12 +92,12 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 tasks-metrics">
         <div class="d-flex flex-wrap align-items-center gap-3">
           <span class="badge bg-primary-subtle text-primary-emphasis">
-            Всего задач: <span id="tasksTotal">0</span>
+            Всего задач: <span id="tasksTotal" th:text="${#lists.size(tasks)}">0</span>
           </span>
           <span class="badge bg-secondary-subtle text-secondary-emphasis">
-            На странице: <span id="tasksShown">0</span>
+            На странице: <span id="tasksShown" th:text="${#lists.size(tasks)}">0</span>
           </span>
-          <span id="tasksSummary" class="text-muted small">Показано 0 из 0 · Страница 1/1</span>
+          <span id="tasksSummary" class="text-muted small" th:text="${#lists.isEmpty(tasks)} ? 'Показано 0 из 0 · Страница 1/1' : 'Показано ' + ${#lists.size(tasks)} + ' из ' + ${#lists.size(tasks)}">Показано 0 из 0 · Страница 1/1</span>
         </div>
         <div class="d-flex align-items-center gap-2">
           <label for="pageSizeSel" class="form-label m-0 text-muted small">На странице</label>
@@ -190,8 +190,22 @@
             </tr>
           </thead>
           <tbody id="tasksBody">
-            <tr>
+            <tr th:if="${#lists.isEmpty(tasks)}">
               <td colspan="7" class="text-center text-muted py-4">Задачи не загружены</td>
+            </tr>
+            <tr th:each="task : ${tasks}" class="server-rendered">
+              <td th:text="${task.num} ?: '—'"></td>
+              <td>
+                <div class="fw-semibold" th:text="${task.title} ?: 'Без названия'"></div>
+                <div class="text-muted small" th:text="${task.description} ?: ''"></div>
+              </td>
+              <td>
+                <span class="badge text-bg-secondary" th:text="${task.status} ?: '—'"></span>
+              </td>
+              <td th:text="${task.assignee} ?: '—'"></td>
+              <td th:text="${task.tag} ?: '—'"></td>
+              <td th:text="${task.dueAt} ?: '—'"></td>
+              <td class="text-muted small">Загрузка...</td>
             </tr>
           </tbody>
         </table>
