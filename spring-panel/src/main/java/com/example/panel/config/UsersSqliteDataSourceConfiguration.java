@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
 
 import javax.sql.DataSource;
@@ -21,7 +22,10 @@ public class UsersSqliteDataSourceConfiguration {
         var url = props.buildJdbcUrl();
         log.info("Using USERS SQLite database at {}", props.getNormalizedPath());
 
-        SQLiteDataSource ds = new SQLiteDataSource();
+        SQLiteConfig config = new SQLiteConfig();
+        config.setDateStringFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+
+        SQLiteDataSource ds = new SQLiteDataSource(config.toProperties());
         ds.setUrl(url);
         return ds;
     }
