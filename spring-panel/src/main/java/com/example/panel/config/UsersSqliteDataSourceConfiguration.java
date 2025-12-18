@@ -23,7 +23,9 @@ public class UsersSqliteDataSourceConfiguration {
         log.info("Using USERS SQLite database at {}", props.getNormalizedPath());
 
         SQLiteConfig config = new SQLiteConfig();
-        config.setDateStringFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+        // Existing databases store timestamps without timezone info (e.g. "2025-12-03 15:04:53.370"),
+        // so align the driver format accordingly to avoid parsing errors.
+        config.setDateStringFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
         SQLiteDataSource ds = new SQLiteDataSource(config);
         ds.setUrl(url);
