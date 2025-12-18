@@ -9,7 +9,7 @@
   const filtersModalEl = document.getElementById('filtersModal');
   const exportBtn = document.getElementById('exportBtn');
   const pageSizeSel = document.getElementById('pageSizeSel');
-  const pager = document.getElementById('pager');
+  const pager = document.getElementById('pager') || document.getElementById('pagination');
   const modalEl = document.getElementById('taskModal');
   const form = document.getElementById('taskForm');
   const bodyEditor = document.getElementById('bodyEditor');
@@ -329,6 +329,7 @@ setInterval(updateOverdueTasks, 60000);
 
   function renderPager() {
     const totalPages = Math.max(1, Math.ceil(state.total / state.page_size));
+    if (!pager) return;
     pager.innerHTML = '';
     if (totalPages <= 1) return;
     const mkItem = (p, label, disabled = false, active = false) => {
