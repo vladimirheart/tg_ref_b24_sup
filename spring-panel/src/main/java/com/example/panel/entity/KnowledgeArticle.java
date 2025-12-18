@@ -36,6 +36,8 @@ public class KnowledgeArticle {
 
     private String directionSubtype;
 
+    private String summary;
+
     private String content;
 
     private String attachments;
