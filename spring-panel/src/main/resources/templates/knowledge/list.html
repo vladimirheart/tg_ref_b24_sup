@@ -44,15 +44,15 @@
                     <tr th:each="article : ${articles}" th:data-title="${article.title}" th:data-department="${article.department}">
                         <td>
                             <a class="fw-semibold text-decoration-none" th:href="@{'/knowledge-base/' + ${article.id}}" th:text="${article.title}"></a>
-                            <div class="text-muted small" th:text="${article.summary()}"></div>
+                            <div class="text-muted small" th:text="${article.summary}"></div>
                         </td>
-                        <td class="text-muted" th:text="${article.department() ?: '—'}"></td>
-                        <td class="text-muted" th:text="${article.author() ?: '—'}"></td>
+                        <td class="text-muted" th:text="${article.department ?: '—'}"></td>
+                        <td class="text-muted" th:text="${article.author ?: '—'}"></td>
                         <td>
                             <span class="badge" th:classappend="${article.status} == 'published' ? 'text-bg-success' : (${article.status} == 'draft' ? 'text-bg-warning' : 'text-bg-secondary')"
                                   th:text="${article.status ?: 'draft'}"></span>
                         </td>
-                        <td class="text-muted text-nowrap" th:text="${article.updatedAt()}"></td>
+                        <td class="text-muted text-nowrap" th:text="${article.updatedAt}"></td>
                     </tr>
                     </tbody>
                 </table>
