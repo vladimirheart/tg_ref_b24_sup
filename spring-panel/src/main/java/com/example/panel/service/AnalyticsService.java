@@ -18,7 +18,7 @@ public class AnalyticsService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @Cacheable("analytics")
+    @Cacheable("analyticsTickets")
     public List<AnalyticsTicketSummary> loadTicketSummary() {
         return jdbcTemplate.query(
                 """
@@ -39,7 +39,7 @@ public class AnalyticsService {
         );
     }
 
-    @Cacheable("analytics")
+    @Cacheable("analyticsClients")
     public List<AnalyticsClientSummary> loadClientSummary() {
         return jdbcTemplate.query(
                 "SELECT username, MAX(last_contact) AS last_contact, SUM(tickets) AS total_tickets FROM client_stats GROUP BY username",
