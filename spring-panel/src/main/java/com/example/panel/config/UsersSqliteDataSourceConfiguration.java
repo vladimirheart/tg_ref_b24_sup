@@ -25,7 +25,7 @@ public class UsersSqliteDataSourceConfiguration {
         SQLiteConfig config = new SQLiteConfig();
         config.setDateStringFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 
-        SQLiteDataSource ds = new SQLiteDataSource(config.toProperties());
+        SQLiteDataSource ds = new SQLiteDataSource(config);
         ds.setUrl(url);
         return ds;
     }
