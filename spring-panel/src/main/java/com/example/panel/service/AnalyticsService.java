@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class AnalyticsService {
@@ -48,12 +48,27 @@ public class AnalyticsService {
                 "SELECT username, MAX(last_contact) AS last_contact, SUM(tickets) AS total_tickets FROM client_stats GROUP BY username",
                 (rs, rowNum) -> new AnalyticsClientSummary(
                         rs.getString("username"),
-                        Optional.ofNullable(rs.getString("last_contact"))
-                                .map(LocalDateTime::parse)
-                                .map(dt -> dt.atOffset(ZoneOffset.UTC))
-                                .orElse(null),
+                        parseLastContact(rs.getString("last_contact")),
                         rs.getLong("total_tickets")
                 )
         );
+    }
+
+    private OffsetDateTime parseLastContact(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            return OffsetDateTime.parse(value);
+        } catch (DateTimeParseException ignored) {
+            // Try without offset (assume UTC)
+        }
+
+        try {
+            return LocalDateTime.parse(value).atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 }
