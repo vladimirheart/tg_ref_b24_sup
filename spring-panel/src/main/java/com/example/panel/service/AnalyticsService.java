@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AnalyticsService {
@@ -45,7 +46,9 @@ public class AnalyticsService {
                 "SELECT username, MAX(last_contact) AS last_contact, SUM(tickets) AS total_tickets FROM client_stats GROUP BY username",
                 (rs, rowNum) -> new AnalyticsClientSummary(
                         rs.getString("username"),
-                        rs.getObject("last_contact", OffsetDateTime.class),
+                        Optional.ofNullable(rs.getString("last_contact"))
+                                .map(OffsetDateTime::parse)
+                                .orElse(null),
                         rs.getLong("total_tickets")
                 )
         );
