@@ -75,7 +75,7 @@
                                 <span class="fw-semibold" th:text="${client.username()} ?: 'Без имени'"></span>
                                 <span class="badge text-bg-primary" th:text="${client.totalTickets()}"></span>
                             </div>
-                            <div class="text-muted small" th:text="${client.lastContact()} != null ? 'Последний контакт: ' + ${client.lastContact()} : 'Нет данных'"></div>
+                            <div class="text-muted small" th:text="${client.lastContact} != null ? 'Последний контакт: ' + ${client.lastContact} : 'Нет данных'"></div>
                         </div>
                     </div>
                 </div>
