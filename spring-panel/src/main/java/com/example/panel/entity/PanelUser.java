@@ -16,7 +16,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "panel_users")
+@Table(name = "users")
 @Getter
 @Setter
 public class PanelUser {
@@ -28,6 +28,7 @@ public class PanelUser {
     @Column(nullable = false, unique = true)
     private String username;
 
+    @Column(name = "password_hash")
     private String passwordHash;
 
     private String password;
@@ -40,8 +41,10 @@ public class PanelUser {
 
     private String photo;
 
+    @Column(name = "registration_date")
     private OffsetDateTime registrationDate;
 
+    @Column(name = "birth_date")
     private LocalDate birthDate;
 
     private String email;
@@ -50,6 +53,7 @@ public class PanelUser {
 
     private String phones;
 
+    @Column(name = "full_name")
     private String fullName;
 
     @Column(name = "is_blocked")
