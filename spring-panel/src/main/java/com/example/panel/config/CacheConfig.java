@@ -13,7 +13,13 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager("analytics", "avatars", "knowledgeBase");
+        CaffeineCacheManager manager = new CaffeineCacheManager(
+                "analytics",
+                "analyticsTickets",
+                "analyticsClients",
+                "avatars",
+                "knowledgeBase"
+        );
         manager.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(10))
                 .maximumSize(2_000));
