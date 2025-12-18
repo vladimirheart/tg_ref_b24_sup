@@ -48,13 +48,13 @@
                                 <td colspan="4" class="text-center text-muted py-4">Нет данных для отображения</td>
                             </tr>
                             <tr th:each="row : ${ticketSummary}">
-                                <td th:text="${row.business()} ?: '—'"></td>
-                                <td th:text="${row.city()} ?: '—'"></td>
+                                <td th:text="${row.business} ?: '—'"></td>
+                                <td th:text="${row.city} ?: '—'"></td>
                                 <td>
                                     <span th:classappend="${row.status} == 'resolved' ? 'badge text-bg-success' : (${row.status} == 'pending' ? 'badge text-bg-warning' : 'badge text-bg-secondary')"
                                           th:text="${row.status} ?: '—'"></span>
                                 </td>
-                                <td class="text-end fw-semibold" th:text="${row.total()}"></td>
+                                <td class="text-end fw-semibold" th:text="${row.total}"></td>
                             </tr>
                             </tbody>
                         </table>
@@ -72,10 +72,10 @@
                         <div class="list-group-item text-muted" th:if="${#lists.isEmpty(clientSummary)}">Нет активных клиентов</div>
                         <div class="list-group-item" th:each="client : ${clientSummary}">
                             <div class="d-flex justify-content-between">
-                                <span class="fw-semibold" th:text="${client.username()} ?: 'Без имени'"></span>
-                                <span class="badge text-bg-primary" th:text="${client.totalTickets()}"></span>
+                                <span class="fw-semibold" th:text="${client.username} ?: 'Без имени'"></span>
+                                <span class="badge text-bg-primary" th:text="${client.totalTickets}"></span>
                             </div>
-                            <div class="text-muted small" th:text="${client.lastContact} != null ? 'Последний контакт: ' + ${client.lastContact} : 'Нет данных'"></div>
+                            <div class="text-muted small" th:text="${client.lastContact} != null ? 'Последний контакт: ' + client.lastContact : 'Нет данных'"></div>
                         </div>
                     </div>
                 </div>
