@@ -16,6 +16,24 @@ public record DialogListItem(String ticketId,
                              String createdTime,
                              String clientStatus) {
 
+    public String avatarInitial() {
+        String source = displayClientName();
+        if (source != null && !source.isBlank()) {
+            return source.substring(0, 1).toUpperCase();
+        }
+        return "—";
+    }
+
+    public String displayClientName() {
+        if (clientName != null && !clientName.isBlank()) {
+            return clientName;
+        }
+        if (username != null && !username.isBlank()) {
+            return username;
+        }
+        return "Неизвестный клиент";
+    }
+
     public String statusLabel() {
         if (status == null || status.isBlank()) {
             return "Неизвестно";
@@ -39,7 +57,10 @@ public record DialogListItem(String ticketId,
     }
 
     public String channelName() {
-        return business;
+        if (business != null && !business.isBlank()) {
+            return business;
+        }
+        return "Без канала";
     }
 
     public String location() {
@@ -60,5 +81,35 @@ public record DialogListItem(String ticketId,
             return username;
         }
         return null;
+    }
+
+    public String createdDateSafe() {
+        if (createdDate != null && !createdDate.isBlank()) {
+            return createdDate;
+        }
+        if (createdAt != null && !createdAt.isBlank() && createdAt.length() >= 10) {
+            return createdAt.substring(0, 10);
+        }
+        return "Дата не указана";
+    }
+
+    public String createdTimeSafe() {
+        if (createdTime != null && !createdTime.isBlank()) {
+            return createdTime;
+        }
+        if (createdAt != null && !createdAt.isBlank()) {
+            int timeStart = createdAt.indexOf(' ');
+            if (timeStart > 0 && timeStart + 1 < createdAt.length()) {
+                return createdAt.substring(timeStart + 1);
+            }
+        }
+        return "—";
+    }
+
+    public String problemSafe() {
+        if (problem != null && !problem.isBlank()) {
+            return problem;
+        }
+        return "Проблема не указана";
     }
 }
