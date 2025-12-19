@@ -42,27 +42,44 @@ public class PanelUserRepository {
         PanelUser user = new PanelUser();
         user.setId(rs.getLong("id"));
         user.setUsername(rs.getString("username"));
-        user.setPassword(rs.getString("password"));
-        user.setPasswordHash(rs.getString("password_hash"));
-        user.setRole(rs.getString("role"));
+        user.setPassword(getStringSafe(rs, "password"));
+        user.setPasswordHash(getStringSafe(rs, "password_hash"));
+        user.setRole(getStringSafe(rs, "role"));
 
-        Long roleId = rs.getObject("role_id", Long.class);
+        Long roleId = getObjectSafe(rs, "role_id", Long.class);
         if (roleId != null) {
             Role roleRef = new Role();
             roleRef.setId(roleId);
             user.setRoleRef(roleRef);
         }
 
-        user.setPhoto(rs.getString("photo"));
-        user.setRegistrationDate(parseOffsetDateTime(rs.getString("registration_date")));
-        user.setBirthDate(parseLocalDate(rs.getString("birth_date")));
-        user.setEmail(rs.getString("email"));
-        user.setDepartment(rs.getString("department"));
-        user.setPhones(rs.getString("phones"));
-        user.setFullName(rs.getString("full_name"));
-        Integer blocked = rs.getObject("is_blocked", Integer.class);
+        user.setPhoto(getStringSafe(rs, "photo"));
+        user.setRegistrationDate(parseOffsetDateTime(getStringSafe(rs, "registration_date")));
+        user.setBirthDate(parseLocalDate(getStringSafe(rs, "birth_date")));
+        user.setEmail(getStringSafe(rs, "email"));
+        user.setDepartment(getStringSafe(rs, "department"));
+        user.setPhones(getStringSafe(rs, "phones"));
+        user.setFullName(getStringSafe(rs, "full_name"));
+        Integer blocked = getObjectSafe(rs, "is_blocked", Integer.class);
         user.setBlocked(blocked != null && blocked == 1);
         return user;
+    }
+
+    private boolean hasColumn(ResultSet rs, String column) {
+        try {
+            rs.findColumn(column);
+            return true;
+        } catch (SQLException ex) {
+            return false;
+        }
+    }
+
+    private String getStringSafe(ResultSet rs, String column) throws SQLException {
+        return hasColumn(rs, column) ? rs.getString(column) : null;
+    }
+
+    private <T> T getObjectSafe(ResultSet rs, String column, Class<T> type) throws SQLException {
+        return hasColumn(rs, column) ? rs.getObject(column, type) : null;
     }
 
     private OffsetDateTime parseOffsetDateTime(String value) {
