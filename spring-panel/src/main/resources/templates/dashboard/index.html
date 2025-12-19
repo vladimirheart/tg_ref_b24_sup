@@ -153,9 +153,9 @@
                     </tr>
                     <tr th:each="dialog : ${dialogs}">
                         <td class="client-cell">
-                            <div class="avatar-circle" aria-hidden="true" th:text="${dialog.clientName != null && !dialog.clientName.isBlank() ? dialog.clientName.substring(0,1).toUpperCase() : '—'}">N</div>
+                            <div class="avatar-circle" aria-hidden="true" th:text="${dialog.avatarInitial()}">N</div>
                             <div class="d-flex flex-column">
-                                <div class="fw-semibold" th:text="${dialog.clientName()} ?: 'Неизвестный клиент'"></div>
+                                <div class="fw-semibold" th:text="${dialog.displayClientName()}"></div>
                                 <div class="text-muted small" th:text="${dialog.clientStatus()} ?: 'статус не указан'"></div>
                             </div>
                         </td>
@@ -163,8 +163,8 @@
                             <span class="badge" th:text="${dialog.statusLabel()}" th:classappend="${dialog.statusClass()}"></span>
                         </td>
                         <td>
-                            <div class="fw-semibold" th:text="${dialog.problem} ?: 'Проблема не указана'"></div>
-                            <div class="text-muted small" th:text="${dialog.channelName()} ?: 'Без канала'"></div>
+                            <div class="fw-semibold" th:text="${dialog.problemSafe()}"></div>
+                            <div class="text-muted small" th:text="${dialog.channelName()}"></div>
                         </td>
                         <td class="text-muted" th:text="${dialog.location()} ?: 'Локация не указана'"></td>
                         <td>
@@ -177,8 +177,8 @@
                             </div>
                         </td>
                         <td class="text-muted">
-                            <div th:text="${dialog.createdDate}">Сегодня</div>
-                            <div class="small" th:text="${dialog.createdTime}">12:30</div>
+                            <div th:text="${dialog.createdDateSafe()}">Сегодня</div>
+                            <div class="small" th:text="${dialog.createdTimeSafe()}">12:30</div>
                         </td>
                     </tr>
                     </tbody>
