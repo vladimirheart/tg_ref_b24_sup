@@ -2,6 +2,8 @@ package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +18,8 @@ import java.util.Map;
 @RequestMapping("/api")
 public class ChannelApiController {
 
+    private static final Logger log = LoggerFactory.getLogger(ChannelApiController.class);
+
     private final ChannelRepository channelRepository;
 
     public ChannelApiController(ChannelRepository channelRepository) {
@@ -28,6 +32,7 @@ public class ChannelApiController {
         Map<String, Object> body = new HashMap<>();
         body.put("channels", channels);
         body.put("success", true);
+        log.info("Channels API returned {} channels", channels.size());
         return ResponseEntity.ok(body);
     }
 
