@@ -23,9 +23,9 @@ public class SharedConfigService {
     private final Path sharedConfigDir;
 
     public SharedConfigService(ObjectMapper objectMapper,
-                               @Value("${shared-config.dir:config/shared}") String sharedDir) {
+                               @Value("${shared-config.dir:../config/shared}") String sharedDir) {
         this.objectMapper = objectMapper;
-        this.sharedConfigDir = Paths.get(sharedDir).toAbsolutePath().normalize();
+        this.sharedConfigDir = resolveSharedDir(sharedDir);
     }
 
     public Map<String, Object> loadSettings() {
@@ -38,6 +38,33 @@ public class SharedConfigService {
 
     public JsonNode loadLocations() {
         return readAsTree("locations.json");
+    }
+
+    private Path resolveSharedDir(String configuredPath) {
+        Path configured = Paths.get(configuredPath);
+        Path absolute = configured.toAbsolutePath().normalize();
+
+        if (Files.isDirectory(absolute)) {
+            log.info("Using shared config directory at {}", absolute);
+            return absolute;
+        }
+
+        if (!configured.isAbsolute()) {
+            Path current = Paths.get("").toAbsolutePath().normalize();
+            for (int depth = 0; depth < 4 && current != null; depth++) {
+                Path candidate = current.resolve(configured).normalize();
+                if (Files.isDirectory(candidate)) {
+                    log.info("Using shared config directory at {}", candidate);
+                    return candidate;
+                }
+                current = current.getParent();
+            }
+        }
+
+        throw new IllegalStateException(
+            "Shared config directory not found at " + absolute
+                + ". Set SHARED_CONFIG_DIR or shared-config.dir to point to the Python panel's config/shared." 
+        );
     }
 
     private Map<String, Object> readAsMap(String fileName) {
