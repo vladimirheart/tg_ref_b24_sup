@@ -28,6 +28,38 @@ fi
 ENGINE="${ENGINE:-python}"
 ENGINE="${ENGINE,,}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+
+load_env() {
+  if [[ -f "${ENV_FILE}" ]]; then
+    # shellcheck source=/dev/null
+    set -a
+    source "${ENV_FILE}"
+    set +a
+    echo "[INFO] Loaded environment from ${ENV_FILE}"
+  fi
+}
+
+require_vars() {
+  local missing=()
+  for var in "$@"; do
+    if [[ -z "${!var:-}" ]]; then
+      missing+=("${var}")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "[ERROR] Missing required variables: ${missing[*]}" >&2
+    if [[ ! -f "${ENV_FILE}" ]]; then
+      echo "[HINT] Create ${ENV_FILE} or export the variables in your shell before running." >&2
+    else
+      echo "[HINT] Populate ${ENV_FILE} with the missing values or override via environment variables." >&2
+    fi
+    exit 1
+  fi
+}
+
+load_env
 
 case "${ENGINE}" in
   python)
@@ -37,6 +69,7 @@ case "${ENGINE}" in
     fi
     export FLASK_APP="panel/app.py"
     PORT="${PORT:-5000}"
+    require_vars TELEGRAM_BOT_TOKEN
     echo "[INFO] Starting Flask panel on port ${PORT} using shared APP_DB_* settings..."
     cd "${ROOT_DIR}"
     exec flask run --host=0.0.0.0 --port="${PORT}"
