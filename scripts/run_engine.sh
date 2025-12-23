@@ -46,9 +46,12 @@ load_env() {
       # Drop an optional leading "export".
       line="${line#[[:space:]]*export[[:space:]]}"
 
-      if [[ "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      if [[ "${line}" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
         var="${BASH_REMATCH[1]}"
         raw_val="${BASH_REMATCH[2]}"
+
+        # Trim trailing whitespace from unquoted values.
+        raw_val="${raw_val%"${raw_val##*[![:space:]]}"}" || true
 
         # Strip surrounding single/double quotes if present.
         if [[ "${raw_val}" =~ ^"(.*)"$ ]]; then
@@ -94,12 +97,17 @@ case "${ENGINE}" in
       echo "[ERROR] Flask CLI is not available. Activate the Python environment before running." >&2
       exit 1
     fi
+    # Ensure we keep the GIL enabled for greenlet/gevent compatibility unless explicitly overridden.
+    export PYTHON_GIL="${PYTHON_GIL:-1}"
     export FLASK_APP="panel/app.py"
     PORT="${PORT:-5000}"
     require_vars TELEGRAM_BOT_TOKEN
     echo "[INFO] Starting Flask panel on port ${PORT} using shared APP_DB_* settings..."
     cd "${ROOT_DIR}"
-    exec flask run --host=0.0.0.0 --port="${PORT}"
+    # Ensure the project root stays ahead of the panel directory so imports resolve to
+    # the shared config package instead of the legacy panel/config.py module.
+    export PYTHONPATH="${ROOT_DIR}:${PYTHONPATH:-}"
+    exec python -X gil=1 -m flask run --host=0.0.0.0 --port="${PORT}"
     ;;
   java)
     RUNNER="${ROOT_DIR}/spring-panel/run-linux.sh"
