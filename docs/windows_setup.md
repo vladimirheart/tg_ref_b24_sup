@@ -26,6 +26,13 @@ The script now bundles the Maven Wrapper (`mvnw.cmd`), so Maven will be download
 
 After the dependencies download the panel becomes available at <http://localhost:8080/>. The default admin credentials are `admin` / `admin`.
 
+If another service already listens on port 8080, set `APP_HTTP_PORT` before launching to override the HTTP port without editing `application.yml`:
+
+```powershell
+$env:APP_HTTP_PORT = "9090"
+./run-windows.bat
+```
+
 ### JVM and application arguments
 
 To tune the JVM or pass extra Spring Boot arguments export `JAVA_OPTS` and `SPRING_OPTS` before launching:
