@@ -29,8 +29,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(
-                                "/css/**", "/js/**", "/images/**", "/webjars/**",
-                                "/*.svg",
+                                "/css/**", "/js/**", "/images/**", "/vendor/**", "/webjars/**",
+                                "/favicon.ico", "/*.svg",
                                 "/login",
                                 "/public/forms/**", "/api/public/forms/**",
                                 "/error", "/error/**"
