@@ -32,11 +32,38 @@ ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 
 load_env() {
   if [[ -f "${ENV_FILE}" ]]; then
-    # shellcheck source=/dev/null
-    set -a
-    source "${ENV_FILE}"
-    set +a
-    echo "[INFO] Loaded environment from ${ENV_FILE}"
+    echo "[INFO] Loading environment from ${ENV_FILE}"
+    # Parse .env-style KEY=VALUE pairs without executing arbitrary commands.
+    # Supports optional leading "export" and quoted values.
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+      # Trim carriage returns for Windows-formatted files.
+      line="${line%$'\r'}"
+
+      # Skip blanks and comments.
+      [[ -z "${line//[[:space:]]/}" ]] && continue
+      [[ "${line}" =~ ^[[:space:]]*# ]] && continue
+
+      # Drop an optional leading "export".
+      line="${line#[[:space:]]*export[[:space:]]}"
+
+      if [[ "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+        var="${BASH_REMATCH[1]}"
+        raw_val="${BASH_REMATCH[2]}"
+
+        # Strip surrounding single/double quotes if present.
+        if [[ "${raw_val}" =~ ^"(.*)"$ ]]; then
+          val="${BASH_REMATCH[1]}"
+        elif [[ "${raw_val}" =~ ^'(.*)'$ ]]; then
+          val="${BASH_REMATCH[1]}"
+        else
+          val="${raw_val}"
+        fi
+
+        export "${var}"="${val}"
+      else
+        echo "[WARN] Skipping invalid line in ${ENV_FILE}: ${line}" >&2
+      fi
+    done < "${ENV_FILE}"
   fi
 }
 
