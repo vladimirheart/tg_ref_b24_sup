@@ -6,6 +6,8 @@ import com.example.panel.service.KnowledgeBaseService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.storage.AttachmentService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -27,6 +29,8 @@ import java.util.Optional;
 @Validated
 public class KnowledgeBaseController {
 
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeBaseController.class);
+
     private final PermissionService permissionService;
     private final KnowledgeBaseService knowledgeBaseService;
     private final AttachmentService attachmentService;
@@ -46,8 +50,12 @@ public class KnowledgeBaseController {
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
     public String list(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
-        model.addAttribute("articles", knowledgeBaseService.listArticles());
-        model.addAttribute("canCreate", permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE"));
+        var articles = knowledgeBaseService.listArticles();
+        var canCreate = permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
+        model.addAttribute("articles", articles);
+        model.addAttribute("canCreate", canCreate);
+        log.info("Knowledge base list requested by {}: {} articles, canCreate={}"
+                , authentication != null ? authentication.getName() : "anonymous", articles.size(), canCreate);
         return "knowledge/list";
     }
 
@@ -65,6 +73,13 @@ public class KnowledgeBaseController {
         navigationService.enrich(model, authentication);
         Optional<KnowledgeArticleDetails> article = knowledgeBaseService.findArticle(id);
         model.addAttribute("article", article.orElseGet(this::emptyArticle));
+        if (article.isPresent()) {
+            log.info("Editing knowledge article {} requested by {}", id,
+                    authentication != null ? authentication.getName() : "anonymous");
+        } else {
+            log.warn("Knowledge article {} not found for user {}", id,
+                    authentication != null ? authentication.getName() : "anonymous");
+        }
         return "knowledge/editor";
     }
 
