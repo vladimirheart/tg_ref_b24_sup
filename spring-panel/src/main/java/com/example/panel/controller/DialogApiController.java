@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
