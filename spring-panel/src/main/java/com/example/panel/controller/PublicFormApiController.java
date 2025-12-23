@@ -9,6 +9,8 @@ import com.example.panel.service.DialogService;
 import com.example.panel.service.PublicFormService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -31,6 +33,8 @@ import java.util.Optional;
 @Validated
 public class PublicFormApiController {
 
+    private static final Logger log = LoggerFactory.getLogger(PublicFormApiController.class);
+
     private final PublicFormService publicFormService;
     private final DialogService dialogService;
 
@@ -43,9 +47,12 @@ public class PublicFormApiController {
     public ResponseEntity<Map<String, Object>> config(@PathVariable String channelId) {
         Optional<PublicFormConfig> config = publicFormService.loadConfig(channelId);
         if (config.isEmpty()) {
+            log.warn("Public form config not found for channel {}", channelId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Канал не найден"));
         }
+        log.info("Public form config loaded for channel {} (id={}) with {} questions", channelId,
+                config.get().channelId(), config.get().questions().size());
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
         payload.put("channel", Map.of(
@@ -71,8 +78,11 @@ public class PublicFormApiController {
                     "id", session.channelId(),
                     "publicId", session.channelPublicId()
             ));
+            log.info("Public form session created for channel {} (ticketId={}, token set={})", channelId,
+                    session.ticketId(), session.token() != null && !session.token().isBlank());
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException ex) {
+            log.warn("Failed to create public form session for channel {}: {}", channelId, ex.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
         }
     }
@@ -83,10 +93,12 @@ public class PublicFormApiController {
                                                        @RequestParam(value = "channel", required = false) Long channelFilter) {
         Optional<PublicFormSessionDto> session = publicFormService.findSession(channelId, token);
         if (session.isEmpty()) {
+            log.warn("Public form session not found for channel {}, token {}", channelId, token);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));
         }
         List<ChatMessageDto> history = dialogService.loadHistory(session.get().ticketId(), channelFilter);
+        log.info("Public form session {} for channel {} loaded with {} history messages", token, channelId, history.size());
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("success", true);
         response.put("session", Map.of(
