@@ -114,6 +114,24 @@ cd java-bot
 
 Чтобы сделать переменные постоянными, используйте `setx` или системный интерфейс «Переменные среды» (не забудьте перезапустить PowerShell).
 
+## Смена HTTP-порта Spring панели
+
+Панель по умолчанию слушает порт 8080. Если он занят, переопределите его без правки `application.yml`:
+
+```powershell
+$env:APP_HTTP_PORT = "9090"
+./run-windows.bat
+```
+
+или в Unix-оболочке:
+
+```bash
+export APP_HTTP_PORT=9090
+./mvnw spring-boot:run
+```
+
+Переменная перекрывает стандартный порт во всех конфигурациях Spring Boot.
+
 ## Linux / macOS Shell
 
 ```bash
