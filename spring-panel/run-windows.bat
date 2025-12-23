@@ -12,6 +12,20 @@ if not defined JAVA_EXE (
     for %%J in (java.exe) do if not "%%~$PATH:J"=="" set "JAVA_EXE=%%~$PATH:J"
 )
 
+rem Choose a port if the default one is busy and the user has not explicitly set APP_HTTP_PORT.
+set "DEFAULT_PORT=%APP_HTTP_PORT%"
+if not defined DEFAULT_PORT set "DEFAULT_PORT=8080"
+if not defined APP_HTTP_PORT (
+    call :CheckPort !DEFAULT_PORT!
+    if "!PORT_BUSY!"=="1" (
+        set "APP_HTTP_PORT=8081"
+        echo [INFO] Port !DEFAULT_PORT! is already in use. Falling back to APP_HTTP_PORT=!APP_HTTP_PORT!.
+    )
+) else (
+    call :CheckPort %APP_HTTP_PORT%
+    if "!PORT_BUSY!"=="1" echo [WARN] APP_HTTP_PORT=%APP_HTTP_PORT% appears to be in use. The application may fail to start.
+)
+
 if not defined JAVA_EXE (
     echo [ERROR] Java executable not found. Install JDK 17 and expose it via JAVA_HOME or PATH.
     exit /b 1
