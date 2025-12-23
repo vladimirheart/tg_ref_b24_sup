@@ -4,6 +4,8 @@ import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -23,6 +25,8 @@ import java.util.Optional;
 @Validated
 public class DialogApiController {
 
+    private static final Logger log = LoggerFactory.getLogger(DialogApiController.class);
+
     private final DialogService dialogService;
 
     public DialogApiController(DialogService dialogService) {
@@ -37,6 +41,7 @@ public class DialogApiController {
         payload.put("summary", summary);
         payload.put("dialogs", dialogs);
         payload.put("success", true);
+        log.info("Loaded dialogs API payload: {} dialogs, summary stats loaded", dialogs.size());
         return payload;
     }
 
@@ -44,6 +49,8 @@ public class DialogApiController {
     public ResponseEntity<?> details(@PathVariable String ticketId,
                                       @RequestParam(value = "channelId", required = false) Long channelId) {
         Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId);
+        log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
+                details.map(d -> "found").orElse("not found"));
         return details.<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("success", false, "error", "Диалог не найден")));
@@ -52,9 +59,11 @@ public class DialogApiController {
     @GetMapping("/{ticketId}/history")
     public Map<String, Object> history(@PathVariable String ticketId,
                                         @RequestParam(value = "channelId", required = false) Long channelId) {
+        List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
+        log.info("History requested for ticket {} (channelId={}): {} messages", ticketId, channelId, history.size());
         return Map.of(
                 "success", true,
-                "messages", dialogService.loadHistory(ticketId, channelId)
+                "messages", history
         );
     }
 }
