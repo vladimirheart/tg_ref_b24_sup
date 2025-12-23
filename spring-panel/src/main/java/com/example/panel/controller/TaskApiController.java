@@ -76,6 +76,8 @@ public class TaskApiController {
         response.put("total", result.getTotalElements());
         response.put("page", result.getNumber() + 1);
         response.put("page_size", result.getSize());
+        log.info("Tasks list requested: page={}, size={}, sort={} {}, returned {} items of {}", page, pageSize,
+                sortBy, sortDir, items.size(), result.getTotalElements());
         return response;
     }
 
@@ -83,11 +85,17 @@ public class TaskApiController {
     public ResponseEntity<Map<String, Object>> get(@PathVariable Long id) {
         Optional<Task> taskOpt = taskRepository.findById(id);
         if (taskOpt.isEmpty()) {
+            log.warn("Task {} not found when requesting details", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Task not found"));
         }
         Task task = taskOpt.get();
         Map<String, Object> dto = toDetailedDto(task);
+        int commentsCount = dto.getOrDefault("comments", List.of()) instanceof List<?> comments
+                ? comments.size() : 0;
+        int historyCount = dto.getOrDefault("history", List.of()) instanceof List<?> history
+                ? history.size() : 0;
+        log.info("Task {} details loaded with {} comments and {} history records", id, commentsCount, historyCount);
         return ResponseEntity.ok(dto);
     }
 
@@ -119,18 +127,21 @@ public class TaskApiController {
             saved.setSeq(saved.getId());
             saved = taskRepository.save(saved);
         }
-
+        log.info("Task {} saved (id={}, creator={}, assignee={}, status={})",
+                saved.getSeq(), saved.getId(), saved.getCreator(), saved.getAssignee(), saved.getStatus());
         return Map.of("ok", true, "id", saved.getId());
     }
 
     @DeleteMapping("/{id}")
     public Map<String, Object> delete(@PathVariable Long id) {
         if (!taskRepository.existsById(id)) {
+            log.warn("Attempt to delete missing task {}", id);
             return Map.of("ok", false, "error", "Task not found");
         }
         commentRepository.deleteAll(commentRepository.findByTaskIdOrderByCreatedAtAsc(id));
         historyRepository.deleteAll(historyRepository.findByTaskIdOrderByAtDesc(id));
         taskRepository.deleteById(id);
+        log.info("Task {} deleted along with related comments and history", id);
         return Map.of("ok", true);
     }
 
@@ -151,6 +162,7 @@ public class TaskApiController {
                 "html", saved.getHtml(),
                 "created_at", formatDate(saved.getCreatedAt())
         );
+        log.info("Comment {} added to task {} by {}", saved.getId(), id, saved.getAuthor());
         return Map.of("ok", true, "item", dto);
     }
 
