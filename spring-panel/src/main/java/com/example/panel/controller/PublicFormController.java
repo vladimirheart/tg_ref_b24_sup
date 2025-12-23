@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
@@ -18,6 +20,8 @@ import java.util.Optional;
 @RequestMapping("/public/forms")
 @Validated
 public class PublicFormController {
+
+    private static final Logger log = LoggerFactory.getLogger(PublicFormController.class);
 
     private final PublicFormService publicFormService;
 
@@ -32,6 +36,7 @@ public class PublicFormController {
                        Model model) {
         Optional<PublicFormConfig> config = publicFormService.loadConfig(channelId);
         if (config.isEmpty()) {
+            log.warn("Public form requested for unknown channel {}", channelId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         String initialToken = Optional.ofNullable(token).filter(t -> !t.isBlank()).orElse(dialog);
@@ -39,6 +44,8 @@ public class PublicFormController {
         model.addAttribute("channelRef", channelId);
         model.addAttribute("channelName", config.get().channelName());
         model.addAttribute("initialToken", Optional.ofNullable(initialToken).orElse(""));
+        log.info("Serving public form for channel {} (ref: {}), initial token present: {}", config.get().channelId(), channelId,
+                initialToken != null && !initialToken.isBlank());
         return "public/form";
     }
 }
