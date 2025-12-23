@@ -1,6 +1,7 @@
 package com.example.panel.security;
 
 import jakarta.servlet.DispatcherType;
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,9 +29,10 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers(
                                 "/css/**", "/js/**", "/images/**", "/vendor/**", "/webjars/**",
-                                "/favicon.ico", "/*.svg",
+                                "/favicon.ico", "/*.svg", "/*.png",
                                 "/login",
                                 "/public/forms/**", "/api/public/forms/**",
                                 "/error", "/error/**"
