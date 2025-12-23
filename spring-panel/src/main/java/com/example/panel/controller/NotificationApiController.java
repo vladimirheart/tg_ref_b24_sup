@@ -3,6 +3,8 @@ package com.example.panel.controller;
 import com.example.panel.model.notification.NotificationDto;
 import com.example.panel.model.notification.NotificationSummary;
 import com.example.panel.service.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,8 @@ import java.util.Map;
 @RequestMapping("/api/notifications")
 public class NotificationApiController {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificationApiController.class);
+
     private final NotificationService notificationService;
 
     public NotificationApiController(NotificationService notificationService) {
@@ -26,18 +30,25 @@ public class NotificationApiController {
 
     @GetMapping
     public List<NotificationDto> list(Authentication authentication) {
-        return notificationService.findForUser(resolveIdentity(authentication));
+        String identity = resolveIdentity(authentication);
+        List<NotificationDto> notifications = notificationService.findForUser(identity);
+        log.info("Loaded {} notifications for {}", notifications.size(), identity);
+        return notifications;
     }
 
     @GetMapping("/unread_count")
     public Map<String, Object> unreadCount(Authentication authentication) {
-        NotificationSummary summary = notificationService.summary(resolveIdentity(authentication));
+        String identity = resolveIdentity(authentication);
+        NotificationSummary summary = notificationService.summary(identity);
+        log.info("Unread notifications requested by {}: {} unread", identity, summary.unreadCount());
         return Map.of("success", true, "unread", summary.unreadCount());
     }
 
     @PostMapping("/{id}/read")
     public Map<String, Object> markAsRead(@PathVariable Long id, Authentication authentication) {
-        notificationService.markAsRead(resolveIdentity(authentication), id);
+        String identity = resolveIdentity(authentication);
+        notificationService.markAsRead(identity, id);
+        log.info("Notification {} marked as read by {}", id, identity);
         return Map.of("success", true);
     }
 
