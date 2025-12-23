@@ -20,9 +20,13 @@ fi
 
 JAVA_VERSION="$("${JAVA_BIN}" -version 2>&1 | awk -F\" '/version/ {print $2; exit}')"
 JAVA_MAJOR="${JAVA_VERSION%%.*}"
-if [[ "${JAVA_MAJOR}" != "17" ]]; then
-  echo "[ERROR] JDK 17 is required, but ${JAVA_VERSION:-unknown} was detected." >&2
-  exit 1
+if [[ "${JAVA_MAJOR}" =~ ^[0-9]+$ ]]; then
+  if (( JAVA_MAJOR < 17 )); then
+    echo "[ERROR] JDK 17 or newer is required, but ${JAVA_VERSION:-unknown} was detected." >&2
+    exit 1
+  fi
+else
+  echo "[WARN] Unable to parse Java version from '${JAVA_VERSION:-unknown}'. Proceeding anyway." >&2
 fi
 
 if [[ -x "${SCRIPT_DIR}/mvnw" ]]; then
@@ -54,4 +58,4 @@ trap 'cleanup; exit 130' INT TERM
 "${MVN_CMD}" "${MVN_ARGS[@]}" spring-boot:run "$@" &
 MVN_PID=$!
 wait "${MVN_PID}"
-cd "${ORIGINAL_DIR}""
+cd "${ORIGINAL_DIR}"
