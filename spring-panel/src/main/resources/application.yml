@@ -43,6 +43,7 @@ app:
     avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:../attachments}/avatars}
 
 server:
+  port: ${APP_HTTP_PORT:8080}
   error:
     whitelabel:
       enabled: false
