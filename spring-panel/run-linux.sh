@@ -6,6 +6,29 @@ ORIGINAL_DIR="$(pwd)"
 
 cd "${SCRIPT_DIR}"
 
+# Choose a port if the default one is busy and the user has not explicitly set APP_HTTP_PORT.
+DEFAULT_PORT="${APP_HTTP_PORT:-8080}"
+is_port_listening() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -lnt "sport = :${port}" 2>/dev/null | grep -q ":${port} "
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -lnt 2>/dev/null | awk '{print $4}' | grep -q ":${port}$"
+  else
+    return 1
+  fi
+}
+
+if [[ -z "${APP_HTTP_PORT:-}" && -n "${DEFAULT_PORT}" ]]; then
+  if is_port_listening "${DEFAULT_PORT}"; then
+    APP_HTTP_PORT=8081
+    export APP_HTTP_PORT
+    echo "[INFO] Port ${DEFAULT_PORT} is already in use. Falling back to APP_HTTP_PORT=${APP_HTTP_PORT}." >&2
+  fi
+elif [[ -n "${APP_HTTP_PORT:-}" && is_port_listening "${APP_HTTP_PORT}" ]]; then
+  echo "[WARN] APP_HTTP_PORT=${APP_HTTP_PORT} appears to be in use. The application may fail to start." >&2
+fi
+
 JAVA_BIN=""
 if [[ -n "${JAVA_HOME:-}" && -x "${JAVA_HOME}/bin/java" ]]; then
   JAVA_BIN="${JAVA_HOME}/bin/java"
