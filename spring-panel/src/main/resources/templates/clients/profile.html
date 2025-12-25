@@ -64,6 +64,22 @@
                                 <div class="small mt-1" th:if="${profile.blacklist.reason != null}"
                                      th:text="'Причина: ' + ${profile.blacklist.reason}">Причина</div>
                             </div>
+                            <div class="mt-3">
+                                <div><strong>Имя в БД:</strong>
+                                    <span id="clientNameDisplay" th:text="${profile.header.clientName} ?: '—'">—</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" type="button" data-bs-toggle="modal" data-bs-target="#clientNameModal">
+                                    ✏️ Редактировать имя
+                                </button>
+                            </div>
+                            <div class="mt-3">
+                                <div><strong>Статус клиента:</strong>
+                                    <span id="clientStatusDisplay" th:text="${profile.clientStatus} ?: '—'">—</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-info mt-2" type="button" data-bs-toggle="modal" data-bs-target="#clientStatusModal">
+                                    🏷️ Изменить статус
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="border rounded p-3 bg-light">
@@ -98,46 +114,156 @@
         </div>
     </div>
 
+    <div class="card shadow-sm mb-4" id="clientPhonesCard">
+        <div class="card-body">
+            <h5 class="card-title">📞 Телефоны клиента</h5>
+            <h6 class="mt-3">Из Telegram (только для чтения)</h6>
+            <div th:if="${#lists.isEmpty(profile.phonesTelegram)}" class="text-muted">Клиент ещё не поделился номером через Telegram.</div>
+            <ul class="list-group mb-3" th:if="${!#lists.isEmpty(profile.phonesTelegram)}">
+                <li class="list-group-item d-flex justify-content-between align-items-center"
+                    th:each="phone : ${profile.phonesTelegram}">
+                    <span>
+                        <strong th:text="${phone.phone()}">+7</strong>
+                        <span class="text-muted" th:text="${phone.label()} != null ? '(' + phone.label() + ')' : '(из Telegram)'">(из Telegram)</span>
+                    </span>
+                    <small class="text-muted" th:text="${phone.createdAt()}">—</small>
+                </li>
+            </ul>
+
+            <h6 class="mt-3">Добавленные вручную</h6>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                    <tr>
+                        <th>Телефон</th>
+                        <th>Метка</th>
+                        <th>Добавлен</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody id="manualPhonesTbody">
+                    <tr th:if="${#lists.isEmpty(profile.phonesManual)}">
+                        <td colspan="4" class="text-center text-muted py-3">Телефоны не добавлены</td>
+                    </tr>
+                    <tr th:each="phone : ${profile.phonesManual}" th:attr="data-id=${phone.id()}">
+                        <td><strong th:text="${phone.phone()}">+7</strong></td>
+                        <td>
+                            <input class="form-control form-control-sm phone-label-input"
+                                   th:value="${phone.label()}"
+                                   placeholder="личный/рабочий/…">
+                        </td>
+                        <td><small class="text-muted" th:text="${phone.createdAt()}">—</small></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" type="button"
+                                    th:attr="data-user-id=${profile.header.userId},data-phone-id=${phone.id()}"
+                                    onclick="savePhoneLabel(this)">💾</button>
+                            <button class="btn btn-sm btn-outline-danger" type="button"
+                                    th:attr="data-user-id=${profile.header.userId},data-phone-id=${phone.id()}"
+                                    onclick="archivePhone(this)">🗑</button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row g-2 mt-2">
+                <div class="col-md-4">
+                    <input id="newPhoneInput" class="form-control" placeholder="+7…">
+                </div>
+                <div class="col-md-4">
+                    <input id="newPhoneLabelInput" class="form-control" placeholder="личный / рабочий / другое">
+                </div>
+                <div class="col-md-4 d-flex flex-column flex-sm-row gap-2">
+                    <button class="btn btn-primary flex-fill" type="button" onclick="addManualPhone()">➕ Добавить телефон</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <div class="card-body">
             <h5 class="card-title">Заявки клиента</h5>
         </div>
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="table-light">
-                <tr>
-                    <th>Тикет</th>
-                    <th>Проблема</th>
-                    <th>Локация</th>
-                    <th>Категория</th>
-                    <th>Статус</th>
-                    <th>Создан</th>
-                    <th>Решен</th>
-                    <th>Канал</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(profile.tickets)}">
-                    <td colspan="8" class="text-center text-muted py-4">Заявки отсутствуют</td>
-                </tr>
-                <tr th:each="ticket : ${profile.tickets}">
-                    <td th:text="${ticket.ticketId}">—</td>
-                    <td>
-                        <div class="fw-semibold" th:text="${ticket.problem} ?: '—'">—</div>
-                        <div class="text-muted small" th:text="${ticket.business} ?: '—'">—</div>
-                    </td>
-                    <td th:text="${ticket.locationName} ?: '—'">—</td>
-                    <td th:text="${ticket.category} ?: '—'">—</td>
-                    <td th:text="${ticket.status} ?: '—'">—</td>
-                    <td th:text="${ticket.createdAt} ?: '—'">—</td>
-                    <td th:text="${ticket.resolvedAt} ?: '—'">—</td>
-                    <td th:text="${ticket.channelName} ?: '—'">—</td>
-                </tr>
-                </tbody>
-            </table>
+        <div class="card-body pt-0" th:if="${!#lists.isEmpty(profile.tickets)}">
+            <input type="search" class="form-control form-control-sm" id="clientTicketsSearch" placeholder="Поиск по заявкам">
+        </div>
+        <div class="accordion border-top" id="clientTicketsAccordion">
+            <div class="p-4 text-center text-muted" th:if="${#lists.isEmpty(profile.tickets)}">Заявки отсутствуют</div>
+            <div class="accordion-item"
+                 th:each="ticket, iter : ${profile.tickets}"
+                 th:attr="data-search-value=${ticket.ticketId} + ' ' + ${ticket.problem} + ' ' + ${ticket.business} + ' ' + ${ticket.city} + ' ' + ${ticket.locationName} + ' ' + ${ticket.status} + ' ' + ${ticket.channelName}">
+                <h2 class="accordion-header" th:attr="id='ticket-heading-' + ${iter.index}">
+                    <button class="accordion-button collapsed" type="button"
+                            th:attr="data-bs-target='#ticket-collapse-' + ${iter.index},aria-controls='ticket-collapse-' + ${iter.index}"
+                            data-bs-toggle="collapse" aria-expanded="false">
+                        <span th:text="${ticket.ticketId}">—</span>
+                        <span class="ms-2" th:text="${ticket.business} ?: '—'">—</span>
+                        <span class="text-muted ms-2" th:text="${ticket.city} != null ? '(' + ${ticket.city} + ')' : ''"></span>
+                    </button>
+                </h2>
+                <div class="accordion-collapse collapse"
+                     th:attr="id='ticket-collapse-' + ${iter.index},aria-labelledby='ticket-heading-' + ${iter.index}"
+                     data-bs-parent="#clientTicketsAccordion">
+                    <div class="accordion-body">
+                        <p><strong>Проблема:</strong> <span th:text="${ticket.problem} ?: '—'">—</span></p>
+                        <p><strong>Категория:</strong> <span th:text="${ticket.category} ?: '—'">—</span></p>
+                        <p><strong>Локация:</strong> <span th:text="${ticket.locationName} ?: '—'">—</span></p>
+                        <p><strong>Статус:</strong> <span th:text="${ticket.status} ?: '—'">—</span></p>
+                        <p><strong>Создан:</strong> <span th:text="${ticket.createdAt} ?: '—'">—</span></p>
+                        <p><strong>Решен:</strong> <span th:text="${ticket.resolvedAt} ?: '—'">—</span></p>
+                        <p><strong>Канал:</strong> <span th:text="${ticket.channelName} ?: '—'">—</span></p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </main>
+
+<div class="modal fade" id="clientNameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="clientNameForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать имя в БД</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="clientNameInput" class="form-label">Имя клиента</label>
+                <input type="text" class="form-control" id="clientNameInput" th:value="${profile.header.clientName}">
+                <div class="alert alert-danger mt-3 d-none" role="alert" id="clientNameError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="clientStatusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="clientStatusForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Изменить статус клиента</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="clientStatusSelect" class="form-label">Статус</label>
+                <select class="form-select" id="clientStatusSelect">
+                    <option value="">Без статуса</option>
+                    <option th:each="status : ${clientStatuses}"
+                            th:value="${status}"
+                            th:selected="${status} == ${profile.clientStatus}"
+                            th:text="${status}">Статус</option>
+                </select>
+                <div class="alert alert-danger mt-3 d-none" role="alert" id="clientStatusError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
 <div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -175,7 +301,8 @@
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-<script>
+<script th:inline="javascript">
+    const clientUserId = /*[[${profile.header.userId}]]*/ 0;
     const avatarImg = document.querySelector('.zoomable-avatar');
     const avatarModalEl = document.getElementById('avatarModal');
     const avatarModalImage = document.getElementById('avatarModalImage');
@@ -299,6 +426,192 @@
             alert(payload.error || 'Не удалось снять блокировку');
         }
     };
+
+    const clientNameForm = document.getElementById('clientNameForm');
+    const clientNameInput = document.getElementById('clientNameInput');
+    const clientNameDisplay = document.getElementById('clientNameDisplay');
+    const clientNameError = document.getElementById('clientNameError');
+
+    if (clientNameForm) {
+        clientNameForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!clientNameInput) return;
+            if (clientNameError) {
+                clientNameError.classList.add('d-none');
+                clientNameError.textContent = '';
+            }
+            try {
+                const response = await fetch(`/api/clients/${clientUserId}/name`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_name: clientNameInput.value || '' })
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || 'Ошибка сохранения имени');
+                }
+                if (clientNameDisplay) {
+                    clientNameDisplay.textContent = payload.client_name || '—';
+                }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('clientNameModal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } catch (error) {
+                if (clientNameError) {
+                    clientNameError.textContent = error?.message || 'Ошибка соединения';
+                    clientNameError.classList.remove('d-none');
+                }
+            }
+        });
+    }
+
+    const clientStatusForm = document.getElementById('clientStatusForm');
+    const clientStatusSelect = document.getElementById('clientStatusSelect');
+    const clientStatusDisplay = document.getElementById('clientStatusDisplay');
+    const clientStatusError = document.getElementById('clientStatusError');
+
+    if (clientStatusForm) {
+        clientStatusForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!clientStatusSelect) return;
+            if (clientStatusError) {
+                clientStatusError.classList.add('d-none');
+                clientStatusError.textContent = '';
+            }
+            try {
+                const response = await fetch(`/api/clients/${clientUserId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_status: clientStatusSelect.value || '' })
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || 'Ошибка сохранения статуса');
+                }
+                if (clientStatusDisplay) {
+                    clientStatusDisplay.textContent = payload.client_status || '—';
+                }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('clientStatusModal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } catch (error) {
+                if (clientStatusError) {
+                    clientStatusError.textContent = error?.message || 'Ошибка соединения';
+                    clientStatusError.classList.remove('d-none');
+                }
+            }
+        });
+    }
+
+    function ensureManualPhonesPlaceholderHidden() {
+        const tbody = document.getElementById('manualPhonesTbody');
+        if (!tbody) return;
+        const placeholder = tbody.querySelector('tr td[colspan="4"]');
+        if (placeholder) {
+            placeholder.parentElement?.remove();
+        }
+    }
+
+    window.addManualPhone = async function () {
+        const phoneInput = document.getElementById('newPhoneInput');
+        const labelInput = document.getElementById('newPhoneLabelInput');
+        const phone = (phoneInput?.value || '').trim();
+        const label = (labelInput?.value || '').trim();
+        if (!phone) {
+            alert('Введите телефон');
+            return;
+        }
+        try {
+            const response = await fetch(`/api/clients/${clientUserId}/phones`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, label })
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Не удалось добавить телефон');
+            }
+            const tbody = document.getElementById('manualPhonesTbody');
+            if (tbody) {
+                ensureManualPhonesPlaceholderHidden();
+                const row = document.createElement('tr');
+                row.dataset.id = payload.id;
+                row.innerHTML = `
+                    <td><strong>${payload.phone}</strong></td>
+                    <td><input class="form-control form-control-sm phone-label-input" value="${payload.label || ''}" placeholder="личный/рабочий/…"></td>
+                    <td><small class="text-muted">${payload.created_at || '—'}</small></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="savePhoneLabel(this)">💾</button>
+                        <button class="btn btn-sm btn-outline-danger" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="archivePhone(this)">🗑</button>
+                    </td>
+                `;
+                tbody.prepend(row);
+            }
+            if (phoneInput) phoneInput.value = '';
+            if (labelInput) labelInput.value = '';
+        } catch (error) {
+            alert(error?.message || 'Ошибка соединения');
+        }
+    };
+
+    window.savePhoneLabel = async function (button) {
+        const userId = button?.dataset?.userId;
+        const phoneId = button?.dataset?.phoneId;
+        const row = button?.closest('tr');
+        const input = row?.querySelector('.phone-label-input');
+        if (!userId || !phoneId || !input) return;
+        try {
+            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label: input.value || '' })
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Не удалось сохранить метку');
+            }
+        } catch (error) {
+            alert(error?.message || 'Ошибка соединения');
+        }
+    };
+
+    window.archivePhone = async function (button) {
+        const userId = button?.dataset?.userId;
+        const phoneId = button?.dataset?.phoneId;
+        if (!userId || !phoneId) return;
+        if (!confirm('Убрать телефон из активных?')) return;
+        try {
+            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: false })
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Не удалось убрать телефон');
+            }
+            const row = button.closest('tr');
+            if (row) {
+                row.remove();
+            }
+        } catch (error) {
+            alert(error?.message || 'Ошибка соединения');
+        }
+    };
+
+    const ticketsSearch = document.getElementById('clientTicketsSearch');
+    if (ticketsSearch) {
+        ticketsSearch.addEventListener('input', () => {
+            const query = ticketsSearch.value.trim().toLowerCase();
+            document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
+                const haystack = (item.dataset.searchValue || '').toLowerCase();
+                const matches = !query || haystack.includes(query);
+                item.classList.toggle('d-none', !matches);
+            });
+        });
+    }
 </script>
 </body>
 </html>
