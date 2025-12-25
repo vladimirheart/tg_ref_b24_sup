@@ -8,6 +8,12 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        .sortable { cursor: pointer; user-select: none; position: relative; }
+        .sortable::after { content: " ↕"; font-size: .8em; opacity: .5; }
+        .sort-asc::after { content: " ↑"; opacity: 1; }
+        .sort-desc::after { content: " ↓"; opacity: 1; }
+    </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
 <div th:replace="~{fragments/navbar :: navbar('clients')}"></div>
@@ -19,29 +25,73 @@
         </div>
         <div class="text-muted small" th:text="'Всего клиентов: ' + ${#lists.size(clients)}">Всего клиентов: 0</div>
     </div>
+
+    <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert"
+         th:if="${statusFilter != null && !statusFilter.isBlank()}">
+        <span th:text="'Показаны клиенты со статусом «' + ${statusFilter} + '». '">Показаны клиенты со статусом.</span>
+        <a class="btn btn-sm btn-outline-secondary" th:href="@{/clients}">Сбросить фильтр</a>
+    </div>
+
+    <div class="mb-3">
+        <input type="text" id="searchClients" class="form-control"
+               placeholder="Поиск по ID, юзернейму, имени, каналу или статусу">
+    </div>
+    <div class="mb-2">
+        <label class="form-label me-2">Blacklist:</label>
+        <select class="form-select form-select-sm" style="width:auto;display:inline-block"
+                onchange="location.href='?blacklist='+this.value">
+            <option value="" th:selected="${blacklistFilter == null || blacklistFilter.isBlank()}">Все</option>
+            <option value="1" th:selected="${blacklistFilter == '1'}">Только в блэклисте</option>
+            <option value="0" th:selected="${blacklistFilter == '0'}">Только не в блэклисте</option>
+        </select>
+    </div>
+
     <div class="card shadow-sm">
         <div class="table-responsive">
-            <table class="table align-middle mb-0">
+            <table class="table align-middle mb-0" id="clientsTable">
                 <thead class="table-light">
                 <tr>
-                    <th>ID</th>
-                    <th>Имя</th>
-                    <th>Логин</th>
-                    <th>Дата регистрации</th>
+                    <th class="sortable" onclick="sortTable(0)">ID Telegram</th>
+                    <th class="sortable" onclick="sortTable(1)">Юзернейм</th>
+                    <th class="sortable" onclick="sortTable(2)">Имя в БД</th>
+                    <th class="sortable" onclick="sortTable(3)">Название для панели</th>
+                    <th class="sortable" onclick="sortTable(4)">Заявок</th>
+                    <th class="sortable" onclick="sortTable(5)">Затрачено времени</th>
+                    <th class="sortable" onclick="sortTable(6)">Первый контакт</th>
+                    <th class="sortable" onclick="sortTable(7)">Последний контакт</th>
+                    <th class="sortable" onclick="sortTable(8)">Статус</th>
+                    <th>Blacklist</th>
+                    <th>Действия</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(clients)}">
-                    <td colspan="4" class="text-center text-muted py-4">Клиенты отсутствуют</td>
+                    <td colspan="11" class="text-center text-muted py-4">Клиенты отсутствуют</td>
                 </tr>
-                <tr th:each="client : ${clients}">
-                    <td th:text="${client.userId}">0</td>
+                <tr th:each="client : ${clients}"
+                    th:attr="data-search=${client.userId} + ' ' + ${client.panelId} + ' ' + ${client.username} + ' ' + ${client.clientName} + ' ' + ${client.channelName} + ' ' + ${client.formattedTime} + ' ' + ${client.clientStatus}">
                     <td>
-                        <div class="fw-semibold" th:text="${client.firstName} ?: '—'">—</div>
-                        <div class="text-muted small" th:text="${client.lastName} ?: '—'">—</div>
+                        <div class="d-flex flex-column">
+                            <span class="badge text-bg-primary" th:text="${client.panelId}">CL-00000000</span>
+                            <code th:text="${client.userId}">0</code>
+                        </div>
                     </td>
                     <td th:text="${client.username} ?: '—'">—</td>
-                    <td th:text="${client.registeredAt} ?: '—'">—</td>
+                    <td th:text="${client.clientName} ?: '—'">—</td>
+                    <td th:text="${client.channelName} ?: '—'">—</td>
+                    <td th:text="${client.ticketCount}">0</td>
+                    <td th:text="${client.formattedTime}">0 мин</td>
+                    <td th:text="${client.firstContact} ?: '—'">—</td>
+                    <td th:text="${client.lastContact} ?: '—'">—</td>
+                    <td th:text="${client.clientStatus} ?: '—'">—</td>
+                    <td>
+                        <span class="badge text-bg-danger" th:if="${client.blacklisted}">Да</span>
+                        <span class="badge text-bg-secondary" th:if="${!client.blacklisted}">Нет</span>
+                        <span class="badge text-bg-warning ms-1" th:if="${client.unblockRequested}">Запрос на снятие</span>
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-info" th:href="@{/client/{id}(id=${client.userId})}">Карточка клиента</a>
+                    </td>
                 </tr>
                 </tbody>
             </table>
@@ -49,5 +99,58 @@
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script>
+    function sortTable(colIndex) {
+        const table = document.getElementById('clientsTable');
+        const tbody = table.tBodies[0];
+        const rows = Array.from(tbody.rows);
+        const th = table.tHead.rows[0].cells[colIndex];
+        const asc = !th.classList.contains('sort-asc');
+
+        table.querySelectorAll('thead th.sortable').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+        th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+        function parseTimeToMinutes(str) {
+            if (!str || str === '—') return 0;
+            let m = 0;
+            const h = str.match(/(\d+)\s*ч/); if (h) m += parseInt(h[1], 10) * 60;
+            const mi = str.match(/(\d+)\s*мин/); if (mi) m += parseInt(mi[1], 10);
+            return m;
+        }
+
+        rows.sort((a, b) => {
+            let A = a.cells[colIndex].textContent.trim();
+            let B = b.cells[colIndex].textContent.trim();
+
+            if (colIndex === 4) {
+                const aN = parseInt(A, 10) || 0;
+                const bN = parseInt(B, 10) || 0;
+                return asc ? (aN - bN) : (bN - aN);
+            }
+            if (colIndex === 5) {
+                const aM = parseTimeToMinutes(A);
+                const bM = parseTimeToMinutes(B);
+                return asc ? (aM - bM) : (bM - aM);
+            }
+            if (colIndex === 6 || colIndex === 7) {
+                const aD = (A && A !== '—') ? new Date(A) : new Date(0);
+                const bD = (B && B !== '—') ? new Date(B) : new Date(0);
+                return asc ? (aD - bD) : (bD - aD);
+            }
+            return asc ? A.localeCompare(B) : B.localeCompare(A);
+        });
+
+        tbody.innerHTML = '';
+        rows.forEach(r => tbody.appendChild(r));
+    }
+
+    document.getElementById('searchClients').addEventListener('input', function () {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('#clientsTable tbody tr').forEach(tr => {
+            const text = (tr.dataset.search || '').toLowerCase();
+            tr.style.display = text.includes(q) ? '' : 'none';
+        });
+    });
+</script>
 </body>
 </html>
