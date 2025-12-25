@@ -1,10 +1,12 @@
 package com.example.panel.entity;
 
+import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Convert;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,5 +26,6 @@ public class ClientUsername {
 
     private String username;
 
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime seenAt;
 }
