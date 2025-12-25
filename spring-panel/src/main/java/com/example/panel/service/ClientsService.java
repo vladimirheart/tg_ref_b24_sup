@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.model.clients.ClientBlacklistInfo;
 import com.example.panel.model.clients.ClientListItem;
 import com.example.panel.model.clients.ClientProfile;
 import com.example.panel.model.clients.ClientProfileHeader;
@@ -187,7 +188,10 @@ public class ClientsService {
             userId
         );
 
-        return Optional.of(new ClientProfile(header, stats, tickets));
+        ClientBlacklistInfo blacklistInfo = loadClientBlacklist(userId);
+        Double averageRating = loadAverageRating(userId);
+
+        return Optional.of(new ClientProfile(header, stats, tickets, blacklistInfo, averageRating));
     }
 
     private int loadTotalMinutes(long userId) {
@@ -223,6 +227,42 @@ public class ClientsService {
             userId
         );
         return total != null ? total : 0;
+    }
+
+    private ClientBlacklistInfo loadClientBlacklist(long userId) {
+        return jdbcTemplate.query(
+            """
+                SELECT is_blacklisted, reason, added_at, added_by, unblock_requested
+                FROM client_blacklist
+                WHERE user_id = ?
+                """,
+            rs -> {
+                if (!rs.next()) {
+                    return new ClientBlacklistInfo(false, false, null, null, null);
+                }
+                boolean blacklisted = rs.getInt("is_blacklisted") == 1;
+                boolean unblockRequested = rs.getInt("unblock_requested") == 1;
+                String addedAt = formatTimestamp(rs.getString("added_at"));
+                String addedBy = rs.getString("added_by");
+                String reason = rs.getString("reason");
+                return new ClientBlacklistInfo(blacklisted, unblockRequested, addedAt, addedBy, reason);
+            },
+            String.valueOf(userId)
+        );
+    }
+
+    private Double loadAverageRating(long userId) {
+        return jdbcTemplate.query(
+            "SELECT AVG(rating) AS avg_rating FROM feedbacks WHERE user_id = ?",
+            rs -> {
+                if (!rs.next()) {
+                    return null;
+                }
+                double avg = rs.getDouble("avg_rating");
+                return rs.wasNull() ? null : avg;
+            },
+            userId
+        );
     }
 
     private Map<String, BlacklistInfo> loadBlacklistInfo() {
