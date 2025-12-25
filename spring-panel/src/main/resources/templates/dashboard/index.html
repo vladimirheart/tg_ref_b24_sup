@@ -124,50 +124,52 @@
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <div class="input-group input-group-sm" style="max-width: 260px;">
                         <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control" placeholder="Поиск по клиенту или тикету" disabled>
+                        <input type="text" class="form-control" id="dialogQuickSearch" placeholder="Поиск по клиенту или тикету">
                     </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="dialogFiltersBtn">
                         <i class="bi bi-funnel"></i> Фильтры
                     </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn">
                         <i class="bi bi-gear"></i> Столбцы
                     </button>
                 </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-hover align-middle dialog-table mb-0">
+            <div class="table-responsive" data-column-reorder-container>
+                <table class="table table-hover align-middle dialog-table mb-0" id="dialogsTable" data-column-reorderable data-reorder-key="dialogs">
                     <thead class="table-light">
                     <tr>
-                        <th scope="col">Клиент</th>
-                        <th scope="col" class="text-nowrap">Статус</th>
-                        <th scope="col">Проблема</th>
-                        <th scope="col">Локация</th>
-                        <th scope="col" class="text-nowrap">Ответственный</th>
-                        <th scope="col" class="text-nowrap">Создан</th>
+                        <th scope="col" data-column-key="client" data-resizable="true">Клиент</th>
+                        <th scope="col" class="text-nowrap" data-column-key="status" data-resizable="true">Статус</th>
+                        <th scope="col" data-column-key="problem" data-resizable="true">Проблема</th>
+                        <th scope="col" data-column-key="location" data-resizable="true">Локация</th>
+                        <th scope="col" class="text-nowrap" data-column-key="responsible" data-resizable="true">Ответственный</th>
+                        <th scope="col" class="text-nowrap" data-column-key="created" data-resizable="true">Создан</th>
+                        <th scope="col" class="text-nowrap" data-column-key="actions" data-column-fixed data-resizable="true">Действия</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr th:if="${#lists.isEmpty(dialogs)}">
-                        <td colspan="6" class="text-center text-muted py-4">Диалоги отсутствуют</td>
+                        <td colspan="7" class="text-center text-muted py-4">Диалоги отсутствуют</td>
                     </tr>
-                    <tr th:each="dialog : ${dialogs}">
-                        <td class="client-cell">
+                    <tr th:each="dialog : ${dialogs}"
+                        th:attr="data-ticket-id=${dialog.ticketId},data-client=${dialog.displayClientName()},data-problem=${dialog.problemSafe()},data-status=${dialog.statusLabel()},data-location=${dialog.location()},data-responsible=${dialog.responsible()}">
+                        <td class="client-cell" data-column-key="client">
                             <div class="avatar-circle" aria-hidden="true" th:text="${dialog.avatarInitial()}">N</div>
                             <div class="d-flex flex-column">
                                 <div class="fw-semibold" th:text="${dialog.displayClientName()}"></div>
                                 <div class="text-muted small" th:text="${dialog.clientStatus()} ?: 'статус не указан'"></div>
                             </div>
                         </td>
-                        <td>
+                        <td data-column-key="status">
                             <span class="badge" th:text="${dialog.statusLabel()}" th:classappend="${dialog.statusClass()}"></span>
                         </td>
-                        <td>
+                        <td data-column-key="problem">
                             <div class="fw-semibold" th:text="${dialog.problemSafe()}"></div>
                             <div class="text-muted small" th:text="${dialog.channelName()}"></div>
                         </td>
-                        <td class="text-muted" th:text="${dialog.location()} ?: 'Локация не указана'"></td>
-                        <td>
+                        <td class="text-muted" data-column-key="location" th:text="${dialog.location()} ?: 'Локация не указана'"></td>
+                        <td data-column-key="responsible">
                             <div class="d-flex align-items-center gap-2">
                                 <div class="avatar-circle small" aria-hidden="true" th:text="${dialog.responsible() != null && !dialog.responsible().isBlank() ? dialog.responsible().substring(0,1).toUpperCase() : '—'}">S</div>
                                 <div>
@@ -176,9 +178,19 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="text-muted">
+                        <td class="text-muted" data-column-key="created">
                             <div th:text="${dialog.createdDateSafe()}">Сегодня</div>
                             <div class="small" th:text="${dialog.createdTimeSafe()}">12:30</div>
+                        </td>
+                        <td data-column-key="actions">
+                            <div class="d-flex gap-2 flex-wrap dialog-actions">
+                                <button type="button" class="btn btn-outline-primary btn-sm dialog-open-btn" th:attr="data-ticket-id=${dialog.ticketId}">
+                                    Открыть
+                                </button>
+                                <a class="btn btn-outline-secondary btn-sm dialog-task-btn" th:href="@{/tasks}" th:attr="data-ticket-id=${dialog.ticketId},data-client=${dialog.displayClientName()}" target="_blank" rel="noopener">
+                                    Создать задачу
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     </tbody>
@@ -188,11 +200,97 @@
     </div>
 </main>
 
+<div class="modal fade" id="dialogFiltersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Фильтры диалогов</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <form id="dialogFiltersForm" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Поиск</label>
+                        <input type="text" class="form-control" name="search" placeholder="Клиент, тикет, проблема">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Статус</label>
+                        <select class="form-select" name="status">
+                            <option value="">Любой</option>
+                            <option value="Открыт">Открыт</option>
+                            <option value="В ожидании">В ожидании</option>
+                            <option value="Закрыт">Закрыт</option>
+                            <option value="Неизвестно">Неизвестно</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="dialogFiltersReset">Сбросить</button>
+                <button type="button" class="btn btn-primary" id="dialogFiltersApply">Применить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogColumnsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Столбцы таблицы</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2" id="dialogColumnsList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="dialogColumnsReset">По умолчанию</button>
+                <button type="button" class="btn btn-primary" id="dialogColumnsApply">Применить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">Диалог</h5>
+                    <div class="text-muted small" id="dialogDetailsMeta">—</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h6 class="mb-3">Карточка диалога</h6>
+                                <div id="dialogDetailsSummary" class="d-flex flex-column gap-2 small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">История сообщений</h6>
+                            <a class="btn btn-outline-secondary btn-sm" href="/tasks" target="_blank" rel="noopener" id="dialogDetailsCreateTask">Создать задачу</a>
+                        </div>
+                        <div class="chat-history" id="dialogDetailsHistory"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script th:src="@{/js/theme.js}"></script>
 <script th:src="@{/js/sidebar.js}"></script>
+<script th:src="@{/js/column-reorder.js}"></script>
 <script th:src="@{/js/channels.js}"></script>
 <script th:src="@{/js/auth-management.js}"></script>
 <script th:src="@{/js/modal-transitions.js}"></script>
+<script th:src="@{/js/dialogs.js}"></script>
 </body>
 </html>
