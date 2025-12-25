@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="'Карточка клиента — ' + ${profile.header.userId}">Карточка клиента</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="with-sidebar sidebar-pinned">
+<div th:replace="~{fragments/navbar :: navbar('clients')}"></div>
+<main class="main-content container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Карточка клиента</h1>
+            <p class="text-muted mb-0" th:text="'ID: ' + ${profile.header.userId}">ID</p>
+        </div>
+        <a class="btn btn-outline-secondary" th:href="@{/clients}">← Назад</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Основная информация</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-4">Имя</dt>
+                        <dd class="col-8" th:text="${profile.header.clientName} ?: '—'">—</dd>
+                        <dt class="col-4">Юзернейм</dt>
+                        <dd class="col-8" th:text="${profile.header.username} ?: '—'">—</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Статистика</h5>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div>
+                            <div class="text-muted small">Всего заявок</div>
+                            <div class="h4 mb-0" th:text="${profile.stats.total}">0</div>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Решено</div>
+                            <div class="h4 mb-0" th:text="${profile.stats.resolved}">0</div>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Ожидают</div>
+                            <div class="h4 mb-0" th:text="${profile.stats.pending}">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Заявки клиента</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th>Тикет</th>
+                    <th>Проблема</th>
+                    <th>Локация</th>
+                    <th>Категория</th>
+                    <th>Статус</th>
+                    <th>Создан</th>
+                    <th>Решен</th>
+                    <th>Канал</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(profile.tickets)}">
+                    <td colspan="8" class="text-center text-muted py-4">Заявки отсутствуют</td>
+                </tr>
+                <tr th:each="ticket : ${profile.tickets}">
+                    <td th:text="${ticket.ticketId}">—</td>
+                    <td>
+                        <div class="fw-semibold" th:text="${ticket.problem} ?: '—'">—</div>
+                        <div class="text-muted small" th:text="${ticket.business} ?: '—'">—</div>
+                    </td>
+                    <td th:text="${ticket.locationName} ?: '—'">—</td>
+                    <td th:text="${ticket.category} ?: '—'">—</td>
+                    <td th:text="${ticket.status} ?: '—'">—</td>
+                    <td th:text="${ticket.createdAt} ?: '—'">—</td>
+                    <td th:text="${ticket.resolvedAt} ?: '—'">—</td>
+                    <td th:text="${ticket.channelName} ?: '—'">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
