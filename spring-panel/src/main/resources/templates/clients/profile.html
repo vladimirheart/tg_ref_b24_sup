@@ -17,7 +17,19 @@
             <h1 class="h3 mb-1">Карточка клиента</h1>
             <p class="text-muted mb-0" th:text="'ID: ' + ${profile.header.userId}">ID</p>
         </div>
-        <a class="btn btn-outline-secondary" th:href="@{/clients}">← Назад</a>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a class="btn btn-outline-secondary" th:href="@{/clients}">← Назад</a>
+            <button class="btn btn-outline-danger"
+                    type="button"
+                    th:if="${!profile.blacklist.blacklisted}"
+                    th:attr="data-blacklist-user-id=${profile.header.userId}"
+                    onclick="openBlacklistModal(this)">Заблокировать</button>
+            <button class="btn btn-success"
+                    type="button"
+                    th:if="${profile.blacklist.blacklisted}"
+                    th:attr="data-blacklist-user-id=${profile.header.userId}"
+                    onclick="removeBlacklist(this)">Разблокировать</button>
+        </div>
     </div>
 
     <div class="row g-3 mb-4">
@@ -26,8 +38,9 @@
                 <div class="card-body">
                     <h5 class="card-title">Основная информация</h5>
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <img class="client-profile-avatar"
+                        <img class="client-profile-avatar zoomable-avatar"
                              th:src="@{/avatar/{id}(id=${profile.header.userId})}"
+                             th:attr="data-fullsrc=@{/avatar/{id}(id=${profile.header.userId}, full=1)}"
                              alt="Аватар клиента"
                              loading="lazy"
                              decoding="async"
@@ -36,7 +49,28 @@
                             <div><strong>ID Telegram:</strong> <code th:text="${profile.header.userId}">0</code></div>
                             <div><strong>Имя:</strong> <span th:text="${profile.header.clientName} ?: '—'">—</span></div>
                             <div><strong>Юзернейм:</strong> <span th:text="${profile.header.username} ?: '—'">—</span></div>
+                            <div class="mt-2">
+                                <strong>Blacklist:</strong>
+                                <span class="badge text-bg-danger" th:if="${profile.blacklist.blacklisted}">Да</span>
+                                <span class="badge text-bg-secondary" th:if="${!profile.blacklist.blacklisted}">Нет</span>
+                                <span class="badge text-bg-warning ms-1" th:if="${profile.blacklist.unblockRequested}">Запрос на снятие</span>
+                                <div class="small text-muted mt-1"
+                                     th:if="${profile.blacklist.addedAt != null || profile.blacklist.addedBy != null}">
+                                    <span th:if="${profile.blacklist.addedAt != null}"
+                                          th:text="'Заблокирован: ' + ${profile.blacklist.addedAt}">Заблокирован</span>
+                                    <span th:if="${profile.blacklist.addedBy != null}"
+                                          th:text="${profile.blacklist.addedAt != null ? ' • Оператор: ' : 'Оператор: '} + ${profile.blacklist.addedBy}">Оператор</span>
+                                </div>
+                                <div class="small mt-1" th:if="${profile.blacklist.reason != null}"
+                                     th:text="'Причина: ' + ${profile.blacklist.reason}">Причина</div>
+                            </div>
                         </div>
+                    </div>
+                    <div class="border rounded p-3 bg-light">
+                        <div class="text-muted small text-uppercase fw-semibold">Средняя оценка диалогов</div>
+                        <div class="h4 mb-0"
+                             th:text="${profile.averageRating != null ? #numbers.formatDecimal(profile.averageRating, 1, 2) : '—'}">—</div>
+                        <div class="text-muted small">из 5</div>
                     </div>
                 </div>
             </div>
@@ -104,6 +138,167 @@
         </div>
     </div>
 </main>
+<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <img id="avatarModalImage" src="" alt="Аватар клиента" class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="blacklistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="blacklistForm" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title">Заблокировать клиента</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">
+                    Укажите причину блокировки для клиента <code data-blacklist-user-id></code>.
+                </p>
+                <label for="blacklistReason" class="form-label">Причина блокировки</label>
+                <textarea class="form-control" id="blacklistReason" name="reason" rows="3"></textarea>
+                <div class="alert alert-danger mt-3 d-none" role="alert" data-blacklist-feedback="error"></div>
+                <div class="alert alert-success mt-3 d-none" role="alert" data-blacklist-feedback="success"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-danger" data-blacklist-submit>
+                    <span data-blacklist-submit-text>Заблокировать</span>
+                    <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" data-blacklist-loading></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script>
+    const avatarImg = document.querySelector('.zoomable-avatar');
+    const avatarModalEl = document.getElementById('avatarModal');
+    const avatarModalImage = document.getElementById('avatarModalImage');
+    let avatarModalInstance = null;
+
+    if (avatarImg && avatarModalEl && avatarModalImage) {
+        avatarImg.addEventListener('click', () => {
+            avatarModalImage.src = avatarImg.dataset.fullsrc || avatarImg.src;
+            if (!avatarModalInstance) {
+                avatarModalInstance = new bootstrap.Modal(avatarModalEl);
+            }
+            avatarModalInstance.show();
+        });
+    }
+
+    const blacklistModalEl = document.getElementById('blacklistModal');
+    const blacklistForm = document.getElementById('blacklistForm');
+    const blacklistReason = document.getElementById('blacklistReason');
+    const blacklistUserPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
+    const blacklistSubmit = blacklistModalEl?.querySelector('[data-blacklist-submit]');
+    const blacklistSubmitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
+    const blacklistLoading = blacklistModalEl?.querySelector('[data-blacklist-loading]');
+    const blacklistError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
+    const blacklistSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
+    let blacklistModalInstance = null;
+
+    function resetBlacklistFeedback() {
+        if (blacklistError) {
+            blacklistError.classList.add('d-none');
+            blacklistError.textContent = '';
+        }
+        if (blacklistSuccess) {
+            blacklistSuccess.classList.add('d-none');
+            blacklistSuccess.textContent = '';
+        }
+    }
+
+    window.openBlacklistModal = function (button) {
+        if (!blacklistModalEl) return;
+        const userId = button?.dataset?.blacklistUserId;
+        if (blacklistUserPlaceholder) {
+            blacklistUserPlaceholder.textContent = userId || '';
+        }
+        blacklistModalEl.dataset.userId = userId || '';
+        if (blacklistReason) {
+            blacklistReason.value = '';
+        }
+        resetBlacklistFeedback();
+        if (!blacklistModalInstance) {
+            blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
+        }
+        blacklistModalInstance.show();
+    };
+
+    if (blacklistForm) {
+        blacklistForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const userId = blacklistModalEl?.dataset?.userId;
+            if (!userId) return;
+            resetBlacklistFeedback();
+            if (blacklistSubmit) {
+                blacklistSubmit.disabled = true;
+            }
+            if (blacklistLoading) {
+                blacklistLoading.classList.remove('d-none');
+            }
+            try {
+                const formData = new FormData();
+                formData.append('user_id', userId);
+                formData.append('reason', blacklistReason?.value?.trim() || '');
+                const response = await fetch('/api/blacklist/add', {
+                    method: 'POST',
+                    body: formData
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    const message = payload.error || 'Не удалось добавить в blacklist';
+                    if (blacklistError) {
+                        blacklistError.textContent = message;
+                        blacklistError.classList.remove('d-none');
+                    }
+                    return;
+                }
+                if (blacklistSuccess) {
+                    blacklistSuccess.textContent = payload.message || 'Клиент заблокирован';
+                    blacklistSuccess.classList.remove('d-none');
+                }
+                setTimeout(() => window.location.reload(), 600);
+            } catch (error) {
+                if (blacklistError) {
+                    blacklistError.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
+                    blacklistError.classList.remove('d-none');
+                }
+            } finally {
+                if (blacklistSubmit) {
+                    blacklistSubmit.disabled = false;
+                }
+                if (blacklistLoading) {
+                    blacklistLoading.classList.add('d-none');
+                }
+            }
+        });
+    }
+
+    window.removeBlacklist = async function (button) {
+        const userId = button?.dataset?.blacklistUserId;
+        if (!userId) return;
+        if (!confirm('Разблокировать клиента?')) {
+            return;
+        }
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        const response = await fetch('/api/blacklist/remove', {
+            method: 'POST',
+            body: formData
+        });
+        const payload = await response.json();
+        if (response.ok && payload.ok) {
+            window.location.reload();
+        } else {
+            alert(payload.error || 'Не удалось снять блокировку');
+        }
+    };
+</script>
 </body>
 </html>
