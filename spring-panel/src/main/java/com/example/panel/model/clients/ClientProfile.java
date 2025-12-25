@@ -9,6 +9,9 @@ public record ClientProfile(
         ClientBlacklistInfo blacklist,
         Double averageRating,
         String clientStatus,
+        List<ClientUsernameEntry> usernameHistory,
+        List<ClientAnalyticsItem> categoryStats,
+        List<ClientAnalyticsItem> locationStats,
         List<ClientPhoneEntry> phonesTelegram,
         List<ClientPhoneEntry> phonesManual
 ) {
