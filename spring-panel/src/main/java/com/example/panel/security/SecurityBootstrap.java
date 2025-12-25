@@ -102,6 +102,7 @@ public class SecurityBootstrap {
                 "ROLE_ADMIN",
                 "PAGE_DIALOGS",
                 "PAGE_ANALYTICS",
+                "PAGE_CLIENTS",
                 "PAGE_OBJECT_PASSPORTS",
                 "PAGE_CHANNELS",
                 "PAGE_USERS",
