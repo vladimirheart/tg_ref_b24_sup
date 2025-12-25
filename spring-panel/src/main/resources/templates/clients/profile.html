@@ -25,12 +25,19 @@
             <div class="card shadow-sm h-100">
                 <div class="card-body">
                     <h5 class="card-title">Основная информация</h5>
-                    <dl class="row mb-0">
-                        <dt class="col-4">Имя</dt>
-                        <dd class="col-8" th:text="${profile.header.clientName} ?: '—'">—</dd>
-                        <dt class="col-4">Юзернейм</dt>
-                        <dd class="col-8" th:text="${profile.header.username} ?: '—'">—</dd>
-                    </dl>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <img class="client-profile-avatar"
+                             th:src="@{/avatar/{id}(id=${profile.header.userId})}"
+                             alt="Аватар клиента"
+                             loading="lazy"
+                             decoding="async"
+                             onerror="this.onerror=null;this.src='/avatar_default.svg';">
+                        <div>
+                            <div><strong>ID Telegram:</strong> <code th:text="${profile.header.userId}">0</code></div>
+                            <div><strong>Имя:</strong> <span th:text="${profile.header.clientName} ?: '—'">—</span></div>
+                            <div><strong>Юзернейм:</strong> <span th:text="${profile.header.username} ?: '—'">—</span></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
