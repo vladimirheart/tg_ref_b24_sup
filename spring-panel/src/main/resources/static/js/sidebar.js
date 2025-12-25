@@ -23,33 +23,34 @@
   function ensureLayoutWrap() {
     const root = document.body;
     if (!root.classList.contains('with-sidebar')) root.classList.add('with-sidebar');
-    if (!document.querySelector('.sidebar-layout')) {
-      const wrap = document.createElement('div');
+
+    const main = document.querySelector('main') || document.getElementById('main');
+    if (!main) return;
+
+    let wrap = document.querySelector('.sidebar-layout');
+    if (!wrap) {
+      wrap = document.createElement('div');
       wrap.className = 'sidebar-layout';
-      const main = document.querySelector('main') || document.getElementById('main') || document.body.firstElementChild;
-      // переносим основной контейнер
-      const mainWrap = document.createElement('div');
-      mainWrap.className = 'main-content';
-      // если main отсутствует – создаём
-      if (!main || main === sidebar) {
-        const m = document.createElement('div');
-        m.className = 'main-content';
-        while (document.body.firstChild) {
-          if (document.body.firstChild === sidebar) { wrap.appendChild(sidebar); }
-          else { m.appendChild(document.body.firstChild); }
-        }
-        wrap.appendChild(m);
-        document.body.appendChild(wrap);
-      } else {
-        const parent = main.parentElement;
-        wrap.appendChild(sidebar);
-        parent.insertBefore(wrap, main);
-        wrap.appendChild(main);
-        main.classList.add('main-content');
-      }
+      const parent = main.parentElement || root;
+      parent.insertBefore(wrap, main);
     }
+
+    if (sidebar.parentElement !== wrap) {
+      wrap.appendChild(sidebar);
+    }
+
+    if (main.parentElement !== wrap) {
+      wrap.appendChild(main);
+    }
+
+    main.classList.add('main-content');
   }
-  ensureLayoutWrap();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureLayoutWrap, { once: true });
+  } else {
+    ensureLayoutWrap();
+  }
 
   function setBodyCollapsedState(collapsed) {
     if (!root) return;
