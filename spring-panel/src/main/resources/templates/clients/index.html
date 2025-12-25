@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Клиенты — Support Panel</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="with-sidebar sidebar-pinned">
+<div th:replace="~{fragments/navbar :: navbar('clients')}"></div>
+<main class="main-content container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Клиенты</h1>
+            <p class="text-muted mb-0">Список пользователей, которые обращались в поддержку.</p>
+        </div>
+        <div class="text-muted small" th:text="'Всего клиентов: ' + ${#lists.size(clients)}">Всего клиентов: 0</div>
+    </div>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Имя</th>
+                    <th>Логин</th>
+                    <th>Дата регистрации</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(clients)}">
+                    <td colspan="4" class="text-center text-muted py-4">Клиенты отсутствуют</td>
+                </tr>
+                <tr th:each="client : ${clients}">
+                    <td th:text="${client.userId}">0</td>
+                    <td>
+                        <div class="fw-semibold" th:text="${client.firstName} ?: '—'">—</div>
+                        <div class="text-muted small" th:text="${client.lastName} ?: '—'">—</div>
+                    </td>
+                    <td th:text="${client.username} ?: '—'">—</td>
+                    <td th:text="${client.registeredAt} ?: '—'">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
