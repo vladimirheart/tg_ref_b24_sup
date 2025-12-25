@@ -7,6 +7,9 @@ public record ClientProfile(
         ClientProfileStats stats,
         List<ClientProfileTicket> tickets,
         ClientBlacklistInfo blacklist,
-        Double averageRating
+        Double averageRating,
+        String clientStatus,
+        List<ClientPhoneEntry> phonesTelegram,
+        List<ClientPhoneEntry> phonesManual
 ) {
 }
