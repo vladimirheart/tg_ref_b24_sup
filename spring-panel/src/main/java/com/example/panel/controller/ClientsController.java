@@ -70,6 +70,9 @@ public class ClientsController {
             return "redirect:/clients";
         }
         model.addAttribute("profile", profile.get());
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        model.addAttribute("clientStatuses", settings.getOrDefault("client_statuses", List.of()));
+        model.addAttribute("clientStatusColors", settings.getOrDefault("client_status_colors", Map.of()));
         return "clients/profile";
     }
 }
