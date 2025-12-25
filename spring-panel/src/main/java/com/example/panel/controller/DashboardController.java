@@ -33,12 +33,25 @@ public class DashboardController {
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
     public String index(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
+        model.addAttribute("activePage", "dialogs");
+        return renderDashboard(authentication, model);
+    }
+
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    public String dashboard(Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
+        model.addAttribute("activePage", "dashboard");
+        return renderDashboard(authentication, model);
+    }
+
+    private String renderDashboard(Authentication authentication, Model model) {
         try {
             DialogSummary summary = dialogService.loadSummary();
             var dialogs = dialogService.loadDialogs();
             model.addAttribute("summary", summary);
             model.addAttribute("dialogs", dialogs);
-            log.info("Rendering dashboard for user {} with {} dialogs", authentication.getName(), dialogs.size());
+            log.info("Rendering dashboard for user {} with {} dialogs", authentication != null ? authentication.getName() : "unknown", dialogs.size());
         } catch (Exception ex) {
             log.error("Failed to render dashboard for user {}", authentication != null ? authentication.getName() : "unknown", ex);
             throw ex;
