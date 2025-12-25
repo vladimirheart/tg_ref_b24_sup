@@ -5,218 +5,641 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Настройки — Support Panel</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        .settings-tiles .settings-tile {
+            border: 1px solid #e9ecef;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .settings-tiles .settings-tile--accent {
+            background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), #ffffff);
+            border-color: rgba(13, 110, 253, 0.2);
+            box-shadow: 0 0.25rem 0.75rem rgba(13, 110, 253, 0.15);
+        }
+
+        .settings-tiles .settings-tile.is-active {
+            border-color: rgba(13, 110, 253, 0.45);
+            box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.2);
+            background: linear-gradient(135deg, rgba(13, 110, 253, 0.18), #ffffff);
+        }
+
+        .settings-tiles .settings-tile:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.12);
+        }
+
+        .settings-tiles .settings-tile .tile-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.75rem;
+            background: rgba(13, 110, 253, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .settings-tiles .settings-tile--accent .tile-icon {
+            background: rgba(13, 110, 253, 0.18);
+            color: #0d6efd;
+        }
+
+        .settings-tiles .settings-tile .card-title {
+            text-align: center;
+            color: #0d6efd;
+            font-weight: 600;
+        }
+
+        .settings-tiles .settings-tile--accent .card-text {
+            color: #495057;
+        }
+
+        .modal-dialog {
+            width: auto;
+            max-width: min(90vw, var(--bs-modal-width, 500px));
+            max-height: 90vh;
+            margin-left: auto;
+            margin-right: auto;
+            overflow: auto;
+            resize: both;
+        }
+
+        .modal-dialog.modal-lg {
+            --bs-modal-width: 1000px;
+        }
+
+        .modal-dialog.modal-xl {
+            --bs-modal-width: 1440px;
+        }
+
+        .modal-content {
+            min-height: 100%;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-body {
+            overflow-y: auto;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            font-weight: 600;
+        }
+
+        .status-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
 <div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
-<main class="main-content container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-        <div>
-            <h1 class="h3 mb-1">Настройки</h1>
-            <p class="text-muted mb-0">Ключевые параметры интеграций и работы панели.</p>
+<main class="main-content container-fluid">
+    <div class="container mt-4">
+        <h2>⚙️ Настройки системы</h2>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 settings-tiles">
+            <div class="col">
+                <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#channelsModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🤖</div>
+                        <h5 class="card-title">Каналы (боты)</h5>
+                        <p class="card-text text-muted">Подключайте и управляйте ботами в Telegram и VK.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#reportingModal">
+                    <div class="card-body">
+                        <div class="tile-icon">📊</div>
+                        <h5 class="card-title">Автоотчёт по обращениям</h5>
+                        <p class="card-text text-muted">Настройте период и время отправки.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#appearanceModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🎨</div>
+                        <h5 class="card-title">Оформление панели</h5>
+                        <p class="card-text text-muted">Выбирайте светлую, тёмную или автоматическую тему.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#categoriesModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🗂️</div>
+                        <h5 class="card-title">Настройка диалогов</h5>
+                        <p class="card-text text-muted">Управляйте шаблонами категорий, вопросов и действий.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#parametersModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🧩</div>
+                        <h5 class="card-title">Параметры партнёров</h5>
+                        <p class="card-text text-muted">Обновляйте справочники и значения для форм.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#itConnectionsModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🖧</div>
+                        <h5 class="card-title">Подключения IT-блока</h5>
+                        <p class="card-text text-muted">Управляйте подключениями и профилями провайдеров.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#usersModal">
+                    <div class="card-body">
+                        <div class="tile-icon">👥</div>
+                        <h5 class="card-title">Пользователи панели и настройки доступа</h5>
+                        <p class="card-text text-muted">Создавайте роли, настраивайте права и управляйте пользователями.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#statusesModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🏷️</div>
+                        <h5 class="card-title">Статусы клиентов</h5>
+                        <p class="card-text text-muted">Создавайте статусы для сегментации клиентов.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#businessStylesModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🏢</div>
+                        <h5 class="card-title">Метки бизнесов</h5>
+                        <p class="card-text text-muted">Настройте цвета и иконки столбца «Бизнес».</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#locationsModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🧭</div>
+                        <h5 class="card-title">Структура локаций</h5>
+                        <p class="card-text text-muted">Управляйте деревом бизнесов, типов и локаций.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#legalEntitiesModal">
+                    <div class="card-body">
+                        <div class="tile-icon">🏢</div>
+                        <h5 class="card-title">Юридические лица</h5>
+                        <p class="card-text text-muted">Управляйте реквизитами и контактами партнёров.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#inputFormattingModal">
+                    <div class="card-body">
+                        <div class="tile-icon"><i class="bi bi-input-cursor-text"></i></div>
+                        <h5 class="card-title">Настройка вводимых данных</h5>
+                        <p class="card-text text-muted">Централизуйте требования для телефонов, e-mail и адресов.</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h2 class="h5 mb-0">Статусы клиентов</h2>
-            <button class="btn btn-sm btn-outline-primary" type="button" id="addClientStatus">Добавить статус</button>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table align-middle" id="clientStatusesTable">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Статус</th>
-                        <th>Цвет</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:if="${#lists.isEmpty(clientStatuses)}">
-                        <td colspan="3" class="text-center text-muted py-3">Статусы не настроены</td>
-                    </tr>
-                    <tr th:each="status : ${clientStatuses}">
-                        <td>
-                            <input class="form-control form-control-sm status-name-input" th:value="${status}">
-                        </td>
-                        <td>
-                            <input type="color" class="form-control form-control-color status-color-input"
-                                   th:value="${clientStatusColors[status]} ?: '#0d6efd'">
-                        </td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-danger remove-status-btn" type="button">Удалить</button>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
+    <div class="modal fade" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="channelsModalLabel">🤖 Каналы (боты)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Канал</th>
+                                <th>Ключ</th>
+                                <th>Значение</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:if="${#lists.isEmpty(appSettings)}">
+                                <td colspan="3" class="text-center text-muted py-4">Настройки отсутствуют</td>
+                            </tr>
+                            <tr th:each="setting : ${appSettings}">
+                                <td th:text="${setting.channel != null ? setting.channel.channelName : '—'}"></td>
+                                <td th:text="${setting.key}"></td>
+                                <td><code th:text="${setting.value}"></code></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <div class="d-flex justify-content-end">
-                <button class="btn btn-primary" type="button" id="saveClientStatuses">Сохранить статусы</button>
-            </div>
-            <div class="alert alert-success mt-3 d-none" role="alert" id="clientStatusesSuccess">
-                Статусы сохранены.
-            </div>
-            <div class="alert alert-danger mt-3 d-none" role="alert" id="clientStatusesError"></div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-12 col-lg-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h2 class="h5 mb-0">Настройки каналов</h2>
+    <div class="modal fade" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="parametersModalLabel">🧩 Параметры партнёров</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead class="table-light">
-                        <tr>
-                            <th>Канал</th>
-                            <th>Ключ</th>
-                            <th>Значение</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:if="${#lists.isEmpty(appSettings)}">
-                            <td colspan="3" class="text-center text-muted py-4">Настройки отсутствуют</td>
-                        </tr>
-                        <tr th:each="setting : ${appSettings}">
-                            <td th:text="${setting.channel != null ? setting.channel.channelName : '—'}"></td>
-                            <td th:text="${setting.key}"></td>
-                            <td><code th:text="${setting.value}"></code></td>
-                        </tr>
-                        </tbody>
-                    </table>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Тип</th>
+                                <th>Значение</th>
+                                <th>Статус</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:if="${#lists.isEmpty(systemParameters)}">
+                                <td colspan="3" class="text-center text-muted py-4">Параметры отсутствуют</td>
+                            </tr>
+                            <tr th:each="systemParam : ${systemParameters}">
+                                <td th:text="${systemParam.paramType}"></td>
+                                <td><code th:text="${systemParam.value}"></code></td>
+                                <td th:text="${systemParam.state} ?: '—'"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-12 col-lg-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h2 class="h5 mb-0">Системные параметры</h2>
+    </div>
+
+    <div class="modal fade" id="statusesModal" tabindex="-1" aria-labelledby="statusesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statusesModalLabel">🏷️ Статусы клиентов</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead class="table-light">
-                        <tr>
-                            <th>Тип</th>
-                            <th>Значение</th>
-                            <th>Статус</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:if="${#lists.isEmpty(systemParameters)}">
-                            <td colspan="3" class="text-center text-muted py-4">Параметры отсутствуют</td>
-                        </tr>
-                        <tr th:each="systemParam : ${systemParameters}">
-                            <td th:text="${systemParam.paramType}"></td>
-                            <td><code th:text="${systemParam.value}"></code></td>
-                            <td th:text="${systemParam.state} ?: '—'"></td>
-                        </tr>
-                        </tbody>
-                    </table>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <div>
+                            <h6 class="mb-0">Список статусов</h6>
+                            <span class="text-muted small">Изменения можно вносить в режиме редактирования.</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="editStatusesBtn">
+                                <i class="bi bi-pencil-square me-1"></i> Редактировать
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm d-none" id="saveStatusesBtn">
+                                <i class="bi bi-check-lg me-1"></i> Сохранить
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelStatusesBtn">Отмена</button>
+                        </div>
+                    </div>
+                    <div id="statusesList" class="list-group"></div>
+                    <div id="statusesEmptyPlaceholder" class="text-muted fst-italic small d-none">
+                        Пока нет статусов. Нажмите «Редактировать», чтобы добавить первый статус.
+                    </div>
+                    <button class="btn btn-sm btn-success mt-3 d-none" id="addStatusBtn" type="button">+ Добавить статус</button>
+                    <div class="alert alert-success mt-3 d-none" role="alert" id="statusesSuccess">Статусы сохранены.</div>
+                    <div class="alert alert-danger mt-3 d-none" role="alert" id="statusesError"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportingModalLabel">📊 Автоотчёт по обращениям</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="appearanceModal" tabindex="-1" aria-labelledby="appearanceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="appearanceModalLabel">🎨 Оформление панели</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoriesModalLabel">🗂️ Настройка диалогов</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="itConnectionsModalLabel">🖧 Подключения IT-блока</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панели</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="businessStylesModal" tabindex="-1" aria-labelledby="businessStylesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="businessStylesModalLabel">🏢 Метки бизнесов</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="locationsModalLabel">🧭 Структура локаций</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="legalEntitiesModalLabel">🏢 Юридические лица</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inputFormattingModalLabel">🧾 Настройка вводимых данных</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border">Раздел находится в разработке и будет синхронизирован с полной версией панели.</div>
                 </div>
             </div>
         </div>
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:inline="javascript">
+    const INITIAL_CLIENT_STATUSES = /*[[${clientStatuses}]]*/ [];
+    const INITIAL_CLIENT_STATUS_COLORS = /*[[${clientStatusColors}]]*/ {};
+</script>
 <script>
-    const statusesTable = document.getElementById('clientStatusesTable');
-    const addStatusBtn = document.getElementById('addClientStatus');
-    const saveStatusBtn = document.getElementById('saveClientStatuses');
-    const statusesSuccess = document.getElementById('clientStatusesSuccess');
-    const statusesError = document.getElementById('clientStatusesError');
+    const statusesList = document.getElementById('statusesList');
+    const editStatusesBtn = document.getElementById('editStatusesBtn');
+    const saveStatusesBtn = document.getElementById('saveStatusesBtn');
+    const cancelStatusesBtn = document.getElementById('cancelStatusesBtn');
+    const addStatusBtn = document.getElementById('addStatusBtn');
+    const statusesEmpty = document.getElementById('statusesEmptyPlaceholder');
+    const statusesSuccess = document.getElementById('statusesSuccess');
+    const statusesError = document.getElementById('statusesError');
 
-    function clearStatusFeedback() {
-        if (statusesSuccess) statusesSuccess.classList.add('d-none');
+    let currentStatuses = Array.isArray(INITIAL_CLIENT_STATUSES) ? [...INITIAL_CLIENT_STATUSES] : [];
+    let currentColors = INITIAL_CLIENT_STATUS_COLORS && typeof INITIAL_CLIENT_STATUS_COLORS === 'object'
+        ? { ...INITIAL_CLIENT_STATUS_COLORS }
+        : {};
+    let editSnapshot = [];
+    let isEditMode = false;
+
+    function clearStatusAlerts() {
+        statusesSuccess?.classList.add('d-none');
         if (statusesError) {
-            statusesError.classList.add('d-none');
             statusesError.textContent = '';
+            statusesError.classList.add('d-none');
         }
     }
 
-    function ensureEmptyRowHidden() {
-        if (!statusesTable) return;
-        const emptyRow = statusesTable.querySelector('tbody tr td[colspan="3"]');
-        if (emptyRow) {
-            emptyRow.parentElement?.remove();
-        }
+    function updateStatusesEmptyState() {
+        if (!statusesEmpty) return;
+        const hasItems = currentStatuses.length > 0;
+        statusesEmpty.classList.toggle('d-none', hasItems);
     }
 
-    function createStatusRow(name = '', color = '#0d6efd') {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><input class="form-control form-control-sm status-name-input" value="${name}"></td>
-            <td><input type="color" class="form-control form-control-color status-color-input" value="${color}"></td>
-            <td class="text-end"><button class="btn btn-sm btn-outline-danger remove-status-btn" type="button">Удалить</button></td>
-        `;
-        row.querySelector('.remove-status-btn').addEventListener('click', () => {
-            row.remove();
-        });
-        return row;
-    }
-
-    if (statusesTable) {
-        statusesTable.querySelectorAll('.remove-status-btn').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                btn.closest('tr')?.remove();
+    function createStatusItem(status, color, editable) {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex align-items-center justify-content-between flex-wrap gap-3';
+        if (editable) {
+            item.innerHTML = `
+                <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+                    <input class="form-control form-control-sm flex-grow-1 status-name-input" value="${status}">
+                    <input type="color" class="form-control form-control-color status-color-input" value="${color || '#0d6efd'}">
+                </div>
+                <button class="btn btn-sm btn-outline-danger" type="button">Удалить</button>
+            `;
+            item.querySelector('button')?.addEventListener('click', () => {
+                item.remove();
+                currentStatuses = collectStatusItems().map((entry) => entry.name);
+                updateStatusesEmptyState();
             });
-        });
+        } else {
+            const safeColor = color || '#0d6efd';
+            item.innerHTML = `
+                <div class="status-pill" style="border-color:${safeColor};">
+                    <span class="status-color-dot" style="background:${safeColor};"></span>
+                    <span>${status}</span>
+                </div>
+            `;
+        }
+        return item;
     }
 
-    if (addStatusBtn && statusesTable) {
-        addStatusBtn.addEventListener('click', () => {
-            clearStatusFeedback();
-            ensureEmptyRowHidden();
-            const row = createStatusRow();
-            statusesTable.querySelector('tbody')?.appendChild(row);
+    function renderStatusesList(editable = false) {
+        if (!statusesList) return;
+        statusesList.innerHTML = '';
+        currentStatuses.forEach((status) => {
+            const color = currentColors[status] || '#0d6efd';
+            statusesList.appendChild(createStatusItem(status, color, editable));
         });
+        updateStatusesEmptyState();
     }
 
-    if (saveStatusBtn && statusesTable) {
-        saveStatusBtn.addEventListener('click', async () => {
-            clearStatusFeedback();
-            const rows = Array.from(statusesTable.querySelectorAll('tbody tr'))
-                .filter((row) => row.querySelector('.status-name-input'));
-            const statuses = [];
-            const colors = {};
-            rows.forEach((row) => {
-                const nameInput = row.querySelector('.status-name-input');
-                const colorInput = row.querySelector('.status-color-input');
-                const name = (nameInput?.value || '').trim();
+    function collectStatusItems() {
+        if (!statusesList) return [];
+        return Array.from(statusesList.querySelectorAll('.list-group-item'))
+            .map((item) => {
+                const nameInput = item.querySelector('.status-name-input');
+                const colorInput = item.querySelector('.status-color-input');
+                const name = (nameInput?.value || item.textContent || '').trim();
                 const color = (colorInput?.value || '').trim();
-                if (!name) return;
-                if (!statuses.includes(name)) {
-                    statuses.push(name);
-                }
-                if (color) {
-                    colors[name] = color;
-                }
-            });
-            try {
-                const response = await fetch('/api/settings/client-statuses', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_statuses: statuses, client_status_colors: colors })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Не удалось сохранить статусы');
-                }
-                if (statusesSuccess) {
-                    statusesSuccess.classList.remove('d-none');
-                }
-            } catch (error) {
-                if (statusesError) {
-                    statusesError.textContent = error?.message || 'Ошибка соединения';
-                    statusesError.classList.remove('d-none');
-                }
+                return { name, color };
+            })
+            .filter((entry) => entry.name.length > 0);
+    }
+
+    function setEditMode(enable, restoreSnapshot = false) {
+        isEditMode = enable;
+        editStatusesBtn?.classList.toggle('d-none', enable);
+        saveStatusesBtn?.classList.toggle('d-none', !enable);
+        cancelStatusesBtn?.classList.toggle('d-none', !enable);
+        addStatusBtn?.classList.toggle('d-none', !enable);
+
+        if (restoreSnapshot) {
+            currentStatuses = editSnapshot.map((entry) => entry.name);
+            currentColors = editSnapshot.reduce((acc, entry) => {
+                acc[entry.name] = entry.color;
+                return acc;
+            }, {});
+        }
+        renderStatusesList(enable);
+    }
+
+    function addStatus() {
+        if (!statusesList) return;
+        const newItem = createStatusItem('', '#0d6efd', true);
+        statusesList.appendChild(newItem);
+        updateStatusesEmptyState();
+    }
+
+    async function saveClientStatuses() {
+        clearStatusAlerts();
+        const entries = collectStatusItems();
+        const statuses = [];
+        const colors = {};
+        entries.forEach((entry) => {
+            if (!statuses.includes(entry.name)) {
+                statuses.push(entry.name);
+            }
+            if (entry.color) {
+                colors[entry.name] = entry.color;
             }
         });
+        try {
+            const response = await fetch('/api/settings/client-statuses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_statuses: statuses, client_status_colors: colors })
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Не удалось сохранить статусы');
+            }
+            currentStatuses = [...statuses];
+            currentColors = { ...colors };
+            editSnapshot = entries;
+            setEditMode(false);
+            statusesSuccess?.classList.remove('d-none');
+        } catch (error) {
+            if (statusesError) {
+                statusesError.textContent = error?.message || 'Ошибка соединения';
+                statusesError.classList.remove('d-none');
+            }
+        }
     }
+
+    editStatusesBtn?.addEventListener('click', () => {
+        clearStatusAlerts();
+        editSnapshot = collectStatusItems();
+        if (!editSnapshot.length) {
+            editSnapshot = currentStatuses.map((status) => ({ name: status, color: currentColors[status] || '#0d6efd' }));
+        }
+        setEditMode(true);
+    });
+
+    cancelStatusesBtn?.addEventListener('click', () => {
+        clearStatusAlerts();
+        setEditMode(false, true);
+    });
+
+    addStatusBtn?.addEventListener('click', () => {
+        clearStatusAlerts();
+        addStatus();
+    });
+
+    saveStatusesBtn?.addEventListener('click', () => {
+        saveClientStatuses();
+    });
+
+    renderStatusesList(false);
+    updateStatusesEmptyState();
 </script>
 </body>
 </html>
