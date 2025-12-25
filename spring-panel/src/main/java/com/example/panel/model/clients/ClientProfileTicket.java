@@ -12,6 +12,7 @@ public record ClientProfileTicket(
         String resolvedAt,
         String category,
         String clientStatus,
-        String channelName
+        String channelName,
+        Long channelId
 ) {
 }
