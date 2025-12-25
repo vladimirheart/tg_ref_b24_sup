@@ -82,13 +82,15 @@
   const DEFAULT_ORDER = [
     'dialogs',
     'tasks',
+    'clients',
+    'passports',
     'public',
     'knowledge',
+    'dashboard',
     'analytics',
-    'passports',
     'channels',
-    'users',
     'settings',
+    'users',
   ];
   const NAV_TITLE_DEFAULT = '';
   const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
