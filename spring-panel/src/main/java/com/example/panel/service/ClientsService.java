@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import com.example.panel.entity.ClientUsername;
+import com.example.panel.model.clients.ClientAnalyticsItem;
 import com.example.panel.model.clients.ClientBlacklistInfo;
 import com.example.panel.model.clients.ClientListItem;
 import com.example.panel.model.clients.ClientPhoneEntry;
@@ -7,6 +9,10 @@ import com.example.panel.model.clients.ClientProfile;
 import com.example.panel.model.clients.ClientProfileHeader;
 import com.example.panel.model.clients.ClientProfileStats;
 import com.example.panel.model.clients.ClientProfileTicket;
+import com.example.panel.model.clients.ClientUsernameEntry;
+import com.example.panel.repository.ClientUsernameRepository;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -27,10 +33,14 @@ import org.springframework.util.StringUtils;
 public class ClientsService {
 
     private static final UUID NAMESPACE_URL = UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8");
+    private static final DateTimeFormatter DISPLAY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private final JdbcTemplate jdbcTemplate;
+    private final ClientUsernameRepository clientUsernameRepository;
 
-    public ClientsService(JdbcTemplate jdbcTemplate) {
+    public ClientsService(JdbcTemplate jdbcTemplate,
+                          ClientUsernameRepository clientUsernameRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.clientUsernameRepository = clientUsernameRepository;
     }
 
     public List<ClientListItem> loadClients(String blacklistFilter, String statusFilter) {
@@ -111,10 +121,25 @@ public class ClientsService {
     public Optional<ClientProfile> loadClientProfile(long userId) {
         ClientProfileHeader header = jdbcTemplate.query(
             """
-                SELECT user_id, username, client_name
-                FROM messages
-                WHERE user_id = ?
-                ORDER BY created_at DESC
+                SELECT
+                    m.user_id,
+                    (
+                        SELECT username
+                        FROM messages
+                        WHERE user_id = m.user_id AND username IS NOT NULL AND username != ''
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    ) AS username,
+                    (
+                        SELECT client_name
+                        FROM messages
+                        WHERE user_id = m.user_id AND client_name IS NOT NULL AND client_name != ''
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    ) AS client_name
+                FROM messages m
+                WHERE m.user_id = ?
+                ORDER BY m.created_at DESC
                 LIMIT 1
                 """,
             rs -> rs.next()
@@ -168,7 +193,8 @@ public class ClientsService {
                 rs.getString("resolved_at"),
                 rs.getString("category"),
                 rs.getString("client_status"),
-                resolveChannelName(rs.getString("channel_name"), rs.getString("bot_name"))
+                resolveChannelName(rs.getString("channel_name"), rs.getString("bot_name")),
+                rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null
             ),
             userId
         );
@@ -198,6 +224,9 @@ public class ClientsService {
         ClientBlacklistInfo blacklistInfo = loadClientBlacklist(userId);
         Double averageRating = loadAverageRating(userId);
         String clientStatus = loadClientStatus(userId);
+        List<ClientUsernameEntry> usernameHistory = loadUsernameHistory(userId);
+        List<ClientAnalyticsItem> categoryStats = buildCategoryStats(tickets);
+        List<ClientAnalyticsItem> locationStats = buildLocationStats(tickets);
         List<ClientPhoneEntry> phonesTelegram = loadClientPhones(userId, "telegram");
         List<ClientPhoneEntry> phonesManual = loadClientPhones(userId, "manual");
 
@@ -208,9 +237,69 @@ public class ClientsService {
             blacklistInfo,
             averageRating,
             clientStatus,
+            usernameHistory,
+            categoryStats,
+            locationStats,
             phonesTelegram,
             phonesManual
         ));
+    }
+
+    private List<ClientUsernameEntry> loadUsernameHistory(long userId) {
+        List<ClientUsername> entries = clientUsernameRepository.findByUserIdOrderBySeenAtDesc(userId);
+        if (entries.isEmpty()) {
+            return List.of();
+        }
+        List<ClientUsernameEntry> history = new ArrayList<>();
+        for (ClientUsername entry : entries) {
+            String username = entry.getUsername();
+            String seenAt = formatOffsetDateTime(entry.getSeenAt());
+            history.add(new ClientUsernameEntry(username, seenAt));
+        }
+        return history;
+    }
+
+    private List<ClientAnalyticsItem> buildCategoryStats(List<ClientProfileTicket> tickets) {
+        Map<String, Long> counts = new HashMap<>();
+        for (ClientProfileTicket ticket : tickets) {
+            String value = ticket.category();
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+            String key = value.trim();
+            if (!key.isEmpty()) {
+                counts.merge(key, 1L, Long::sum);
+            }
+        }
+        return toAnalyticsList(counts);
+    }
+
+    private List<ClientAnalyticsItem> buildLocationStats(List<ClientProfileTicket> tickets) {
+        Map<String, Long> counts = new HashMap<>();
+        for (ClientProfileTicket ticket : tickets) {
+            String city = ticket.city() != null ? ticket.city().trim() : "";
+            String location = ticket.locationName();
+            String locationLabel = StringUtils.hasText(location) ? location.trim() : "Без названия";
+            String label = StringUtils.hasText(city) ? city + " — " + locationLabel : locationLabel;
+            counts.merge(label, 1L, Long::sum);
+        }
+        return toAnalyticsList(counts);
+    }
+
+    private List<ClientAnalyticsItem> toAnalyticsList(Map<String, Long> counts) {
+        if (counts.isEmpty()) {
+            return List.of();
+        }
+        return counts.entrySet().stream()
+            .sorted((a, b) -> {
+                int cmp = Long.compare(b.getValue(), a.getValue());
+                if (cmp != 0) {
+                    return cmp;
+                }
+                return a.getKey().compareToIgnoreCase(b.getKey());
+            })
+            .map(entry -> new ClientAnalyticsItem(entry.getKey(), entry.getValue()))
+            .toList();
     }
 
     private int loadTotalMinutes(long userId) {
@@ -408,6 +497,13 @@ public class ClientsService {
             trimmed = trimmed.substring(0, dotIndex);
         }
         return trimmed.replace('T', ' ');
+    }
+
+    private String formatOffsetDateTime(OffsetDateTime value) {
+        if (value == null) {
+            return null;
+        }
+        return DISPLAY_DATE_FORMAT.format(value);
     }
 
     private String generatePanelId(Long userId) {
