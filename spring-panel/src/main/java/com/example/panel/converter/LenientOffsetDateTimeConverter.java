@@ -15,6 +15,8 @@ public class LenientOffsetDateTimeConverter implements AttributeConverter<Offset
     private static final List<DateTimeFormatter> FALLBACK_FORMATTERS = List.of(
             DateTimeFormatter.ISO_OFFSET_DATE_TIME,
             DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
