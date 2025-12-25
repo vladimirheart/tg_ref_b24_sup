@@ -71,9 +71,21 @@
                 <tr th:each="client : ${clients}"
                     th:attr="data-search=${client.userId} + ' ' + ${client.panelId} + ' ' + ${client.username} + ' ' + ${client.clientName} + ' ' + ${client.channelName} + ' ' + ${client.formattedTime} + ' ' + ${client.clientStatus}">
                     <td>
-                        <div class="d-flex flex-column">
-                            <span class="badge text-bg-primary" th:text="${client.panelId}">CL-00000000</span>
-                            <code th:text="${client.userId}">0</code>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="client-avatar-ring"
+                                  th:classappend="${client.clientStatus} != null ? ' status-has-color' : ''"
+                                  th:style="${client.clientStatus} != null ? '--status-color: #0d6efd;' : null">
+                                <img class="client-avatar-img"
+                                     th:src="@{/avatar/{id}(id=${client.userId})}"
+                                     alt="Аватар клиента"
+                                     width="24"
+                                     height="24"
+                                     onerror="this.onerror=null;this.src='/avatar_default.svg';">
+                            </span>
+                            <div class="d-flex flex-column">
+                                <span class="badge text-bg-primary" th:text="${client.panelId}">CL-00000000</span>
+                                <code th:text="${client.userId}">0</code>
+                            </div>
                         </div>
                     </td>
                     <td th:text="${client.username} ?: '—'">—</td>
