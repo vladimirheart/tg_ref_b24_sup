@@ -37,6 +37,12 @@
                 <span class="icon" aria-hidden="true">✅</span>
                 <span class="label">Задачи</span>
             </a>
+            <a class="nav-link" data-page-key="clients" th:if="${canViewClients}"
+               th:classappend="${active}=='clients' ? ' active'"
+               th:href="@{/clients}">
+                <span class="icon" aria-hidden="true">👥</span>
+                <span class="label">Клиенты</span>
+            </a>
             <a class="nav-link" data-page-key="passports" th:if="${canViewPassports}"
                th:classappend="${active}=='passports' ? ' active'"
                th:href="@{/object-passports}">
@@ -55,6 +61,12 @@
                 <span class="icon" aria-hidden="true">📚</span>
                 <span class="label">База знаний</span>
             </a>
+            <a class="nav-link" data-page-key="dashboard"
+               th:classappend="${active}=='dashboard' ? ' active'"
+               th:href="@{/dashboard}">
+                <span class="icon" aria-hidden="true">📊</span>
+                <span class="label">Дашборд</span>
+            </a>
             <a class="nav-link" data-page-key="analytics" th:if="${canViewAnalytics}"
                th:classappend="${active}=='analytics' ? ' active'"
                th:href="@{/analytics}">
@@ -67,17 +79,17 @@
                 <span class="icon" aria-hidden="true">📡</span>
                 <span class="label">Каналы</span>
             </a>
-            <a class="nav-link" data-page-key="users" th:if="${canManageUsers}"
-               th:classappend="${active}=='users' ? ' active'"
-               th:href="@{/users}">
-                <span class="icon" aria-hidden="true">👥</span>
-                <span class="label">Пользователи</span>
-            </a>
             <a class="nav-link" data-page-key="settings" th:if="${canViewSettings}"
                th:classappend="${active}=='settings' ? ' active'"
                th:href="@{/settings}">
                 <span class="icon" aria-hidden="true">⚙️</span>
                 <span class="label">Настройки</span>
+            </a>
+            <a class="nav-link" data-page-key="users" th:if="${canManageUsers}"
+               th:classappend="${active}=='users' ? ' active'"
+               th:href="@{/users}">
+                <span class="icon" aria-hidden="true">👥</span>
+                <span class="label">Пользователи</span>
             </a>
         </nav>
 
@@ -94,11 +106,11 @@
             </div>
             <div class="sidebar-user-card" th:if="${#authentication?.name}">
                 <div class="sidebar-user-avatar">
-                    <img th:src="@{/bender-icon.svg}" alt="Аватар" loading="lazy" decoding="async"/>
+                    <img th:src="${sidebarUserAvatarUrl}" alt="Аватар" loading="lazy" decoding="async"/>
                 </div>
                 <div class="sidebar-user-meta">
-                    <span class="sidebar-user-name" th:text="${#authentication?.name}">Пользователь</span>
-                    <span class="sidebar-user-username" th:text="${#authentication?.principal}"></span>
+                    <span class="sidebar-user-name" th:text="${sidebarUserDisplayName}">Пользователь</span>
+                    <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
                 </div>
             </div>
             <button type="button" class="sidebar-account-btn" data-sidebar-change-password>
