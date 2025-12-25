@@ -32,6 +32,10 @@ public class SharedConfigService {
         return readAsMap("settings.json");
     }
 
+    public void saveSettings(Map<String, Object> settings) {
+        writeMap("settings.json", settings);
+    }
+
     public JsonNode loadOrgStructure() {
         return readAsTree("org_structure.json");
     }
@@ -90,6 +94,16 @@ public class SharedConfigService {
         } catch (IOException ex) {
             log.warn("Failed to read shared config {}: {}", file, ex.getMessage());
             return null;
+        }
+    }
+
+    private void writeMap(String fileName, Map<String, Object> payload) {
+        Path file = sharedConfigDir.resolve(fileName);
+        try {
+            Files.createDirectories(file.getParent());
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), payload);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to write shared config " + file, ex);
         }
     }
 }
