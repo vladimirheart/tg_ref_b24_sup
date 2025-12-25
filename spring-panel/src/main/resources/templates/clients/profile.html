@@ -180,41 +180,116 @@
         </div>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <h5 class="card-title">Заявки клиента</h5>
+            <h5 class="card-title">📝 История юзернейма</h5>
+            <div th:if="${#lists.isEmpty(profile.usernameHistory)}" class="text-muted">Нет данных по изменению юзернейма.</div>
+            <ul class="list-group" th:if="${!#lists.isEmpty(profile.usernameHistory)}">
+                <li class="list-group-item d-flex justify-content-between align-items-center"
+                    th:each="entry, iter : ${profile.usernameHistory}">
+                    <span>
+                        <span class="badge bg-success me-2" th:if="${iter.index == 0}">Текущий</span>
+                        <span th:text="'@' + ${entry.username()}">@username</span>
+                    </span>
+                    <small class="text-muted" th:text="${entry.seenAt()} ?: '—'">—</small>
+                </li>
+            </ul>
         </div>
-        <div class="card-body pt-0" th:if="${!#lists.isEmpty(profile.tickets)}">
-            <input type="search" class="form-control form-control-sm" id="clientTicketsSearch" placeholder="Поиск по заявкам">
+    </div>
+
+    <div class="card shadow-sm mb-4 searchable-collapse">
+        <div class="card-header p-0">
+            <button class="btn btn-link text-decoration-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clientAnalyticsCollapse" aria-expanded="false">
+                📈 Аналитика по обращениям
+            </button>
         </div>
-        <div class="accordion border-top" id="clientTicketsAccordion">
-            <div class="p-4 text-center text-muted" th:if="${#lists.isEmpty(profile.tickets)}">Заявки отсутствуют</div>
-            <div class="accordion-item"
-                 th:each="ticket, iter : ${profile.tickets}"
-                 th:attr="data-search-value=${ticket.ticketId} + ' ' + ${ticket.problem} + ' ' + ${ticket.business} + ' ' + ${ticket.city} + ' ' + ${ticket.locationName} + ' ' + ${ticket.status} + ' ' + ${ticket.channelName}">
-                <h2 class="accordion-header" th:attr="id='ticket-heading-' + ${iter.index}">
-                    <button class="accordion-button collapsed" type="button"
-                            th:attr="data-bs-target='#ticket-collapse-' + ${iter.index},aria-controls='ticket-collapse-' + ${iter.index}"
-                            data-bs-toggle="collapse" aria-expanded="false">
-                        <span th:text="${ticket.ticketId}">—</span>
-                        <span class="ms-2" th:text="${ticket.business} ?: '—'">—</span>
-                        <span class="text-muted ms-2" th:text="${ticket.city} != null ? '(' + ${ticket.city} + ')' : ''"></span>
-                    </button>
-                </h2>
-                <div class="accordion-collapse collapse"
-                     th:attr="id='ticket-collapse-' + ${iter.index},aria-labelledby='ticket-heading-' + ${iter.index}"
-                     data-bs-parent="#clientTicketsAccordion">
-                    <div class="accordion-body">
-                        <p><strong>Проблема:</strong> <span th:text="${ticket.problem} ?: '—'">—</span></p>
-                        <p><strong>Категория:</strong> <span th:text="${ticket.category} ?: '—'">—</span></p>
-                        <p><strong>Локация:</strong> <span th:text="${ticket.locationName} ?: '—'">—</span></p>
-                        <p><strong>Статус:</strong> <span th:text="${ticket.status} ?: '—'">—</span></p>
-                        <p><strong>Создан:</strong> <span th:text="${ticket.createdAt} ?: '—'">—</span></p>
-                        <p><strong>Решен:</strong> <span th:text="${ticket.resolvedAt} ?: '—'">—</span></p>
-                        <p><strong>Канал:</strong> <span th:text="${ticket.channelName} ?: '—'">—</span></p>
+        <div id="clientAnalyticsCollapse" class="collapse">
+            <div class="card-body">
+                <div th:if="${#lists.isEmpty(profile.categoryStats) and #lists.isEmpty(profile.locationStats)}" class="text-muted">
+                    Недостаточно данных для аналитики.
+                </div>
+                <div th:if="${!#lists.isEmpty(profile.categoryStats) or !#lists.isEmpty(profile.locationStats)}">
+                    <div class="mb-3">
+                        <input type="search" class="form-control form-control-sm" id="clientAnalyticsSearch" placeholder="Поиск по темам и локациям">
+                    </div>
+                    <div id="clientAnalyticsList">
+                        <div class="searchable-group mb-3" data-group-container="categories">
+                            <div class="small text-muted text-uppercase fw-semibold mb-2">Темы обращений</div>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between align-items-center"
+                                     th:each="item : ${profile.categoryStats}"
+                                     th:attr="data-search-value=${item.label()},data-group-key='categories'">
+                                    <span th:text="${item.label()}">—</span>
+                                    <span class="badge bg-info" th:text="${item.count()}">0</span>
+                                </div>
+                                <div class="list-group-item text-muted" th:if="${#lists.isEmpty(profile.categoryStats)}">Темы не найдены</div>
+                            </div>
+                        </div>
+                        <div class="searchable-group" data-group-container="locations">
+                            <div class="small text-muted text-uppercase fw-semibold mb-2">Локации</div>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between align-items-center"
+                                     th:each="item : ${profile.locationStats}"
+                                     th:attr="data-search-value=${item.label()},data-group-key='locations'">
+                                    <span th:text="${item.label()}">—</span>
+                                    <span class="badge bg-secondary" th:text="${item.count()}">0</span>
+                                </div>
+                                <div class="list-group-item text-muted" th:if="${#lists.isEmpty(profile.locationStats)}">Локации не найдены</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-muted small mt-3" id="clientAnalyticsEmpty" style="display: none;">Совпадений не найдено.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm searchable-collapse">
+        <div class="card-header p-0">
+            <button class="btn btn-link text-decoration-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clientTicketsCollapse" aria-expanded="false">
+                📋 Заявки клиента
+            </button>
+        </div>
+        <div id="clientTicketsCollapse" class="collapse">
+            <div class="card-body" th:if="${!#lists.isEmpty(profile.tickets)}">
+                <input type="search" class="form-control form-control-sm" id="clientTicketsSearch" placeholder="Поиск по заявкам">
+            </div>
+            <div class="accordion border-top" id="clientTicketsAccordion">
+                <div class="p-4 text-center text-muted" th:if="${#lists.isEmpty(profile.tickets)}">Заявки отсутствуют</div>
+                <div class="accordion-item"
+                     th:each="ticket, iter : ${profile.tickets}"
+                     th:attr="data-search-value=${ticket.ticketId} + ' ' + ${ticket.problem} + ' ' + ${ticket.business} + ' ' + ${ticket.city} + ' ' + ${ticket.locationName} + ' ' + ${ticket.status} + ' ' + ${ticket.channelName}">
+                    <h2 class="accordion-header" th:attr="id='ticket-heading-' + ${iter.index}">
+                        <button class="accordion-button collapsed" type="button"
+                                th:attr="data-bs-target='#ticket-collapse-' + ${iter.index},aria-controls='ticket-collapse-' + ${iter.index}"
+                                data-bs-toggle="collapse" aria-expanded="false">
+                            <span th:text="${ticket.ticketId}">—</span>
+                            <span class="ms-2" th:text="${ticket.business} ?: '—'">—</span>
+                            <span class="text-muted ms-2" th:text="${ticket.city} != null ? '(' + ${ticket.city} + ')' : ''"></span>
+                        </button>
+                    </h2>
+                    <div class="accordion-collapse collapse"
+                         th:attr="id='ticket-collapse-' + ${iter.index},aria-labelledby='ticket-heading-' + ${iter.index}"
+                         data-bs-parent="#clientTicketsAccordion">
+                        <div class="accordion-body">
+                            <p><strong>Проблема:</strong> <span th:text="${ticket.problem} ?: '—'">—</span></p>
+                            <p><strong>Категория:</strong> <span th:text="${ticket.category} ?: '—'">—</span></p>
+                            <p><strong>Локация:</strong> <span th:text="${ticket.locationName} ?: '—'">—</span></p>
+                            <p><strong>Статус:</strong> <span th:text="${ticket.status} ?: '—'">—</span></p>
+                            <p><strong>Создан:</strong> <span th:text="${ticket.createdAt} ?: '—'">—</span></p>
+                            <p><strong>Решен:</strong> <span th:text="${ticket.resolvedAt} ?: '—'">—</span></p>
+                            <p><strong>Канал:</strong> <span th:text="${ticket.channelName} ?: '—'">—</span></p>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    type="button"
+                                    th:attr="data-ticket-id=${ticket.ticketId},data-channel-id=${ticket.channelId}"
+                                    onclick="openClientHistory(this)">
+                                Показать историю
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+            <div class="text-muted small mt-3 px-4" id="clientTicketsEmpty" style="display: none;">Совпадений не найдено.</div>
         </div>
     </div>
 </main>
@@ -269,6 +344,23 @@
         <div class="modal-content">
             <div class="modal-body text-center">
                 <img id="avatarModalImage" src="" alt="Аватар клиента" class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="clientHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">История переписки</h5>
+                    <div class="text-muted small" id="clientHistoryMeta">—</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="chat-history" id="clientHistoryMessages"></div>
             </div>
         </div>
     </div>
@@ -601,17 +693,158 @@
         }
     };
 
+    function normalizeMessageSender(sender) {
+        const value = String(sender || '').toLowerCase();
+        if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
+            return 'support';
+        }
+        return 'user';
+    }
+
+    function formatMessageTimestamp(value) {
+        if (!value) return '';
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleString();
+        }
+        return value;
+    }
+
+    function renderClientHistory(messages) {
+        const container = document.getElementById('clientHistoryMessages');
+        if (!container) return;
+        if (!Array.isArray(messages) || messages.length === 0) {
+            container.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
+            return;
+        }
+        container.innerHTML = messages.map((msg) => {
+            const senderType = normalizeMessageSender(msg.sender);
+            const timestamp = formatMessageTimestamp(msg.timestamp);
+            const body = msg.message ? msg.message.replace(/\n/g, '<br>') : '—';
+            let attachment = '';
+            if (msg.attachment) {
+                const name = msg.attachment.split('/').pop();
+                const url = `/api/attachments/tickets/${encodeURIComponent(clientHistoryTicketId || '')}/${encodeURIComponent(name)}`;
+                attachment = `<div class="small"><a href="${url}" target="_blank" rel="noopener">Вложение</a></div>`;
+            }
+            return `
+                <div class="chat-message ${senderType}">
+                    <div class="d-flex justify-content-between small text-muted mb-1">
+                        <span>${msg.sender || 'Пользователь'}</span>
+                        <span>${timestamp}</span>
+                    </div>
+                    <div>${body}</div>
+                    ${attachment}
+                </div>
+            `;
+        }).join('');
+    }
+
+    let clientHistoryModalInstance = null;
+    let clientHistoryTicketId = null;
+
+    window.openClientHistory = async function (button) {
+        const ticketId = button?.dataset?.ticketId;
+        const channelId = button?.dataset?.channelId;
+        if (!ticketId) return;
+        clientHistoryTicketId = ticketId;
+        const meta = document.getElementById('clientHistoryMeta');
+        if (meta) {
+            meta.textContent = `ID заявки: ${ticketId}`;
+        }
+        const container = document.getElementById('clientHistoryMessages');
+        if (container) {
+            container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';
+        }
+        if (!clientHistoryModalInstance) {
+            clientHistoryModalInstance = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
+        }
+        clientHistoryModalInstance.show();
+
+        try {
+            const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
+            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload?.error || 'Не удалось загрузить историю');
+            }
+            renderClientHistory(payload.history || []);
+        } catch (error) {
+            if (container) {
+                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
+            }
+        }
+    };
+
     const ticketsSearch = document.getElementById('clientTicketsSearch');
     if (ticketsSearch) {
         ticketsSearch.addEventListener('input', () => {
             const query = ticketsSearch.value.trim().toLowerCase();
+            let visibleCount = 0;
             document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
                 const haystack = (item.dataset.searchValue || '').toLowerCase();
                 const matches = !query || haystack.includes(query);
                 item.classList.toggle('d-none', !matches);
+                if (matches) {
+                    visibleCount += 1;
+                }
             });
+            const emptyIndicator = document.getElementById('clientTicketsEmpty');
+            if (emptyIndicator) {
+                emptyIndicator.style.display = visibleCount ? 'none' : '';
+            }
         });
     }
+
+    function initSearch(inputId, selector, options = {}) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const items = Array.from(document.querySelectorAll(selector));
+        if (!items.length) return;
+
+        const groupContainers = {};
+        if (options.groupContainerSelector) {
+            document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
+                const key = el.dataset.groupContainer;
+                if (key) groupContainers[key] = el;
+            });
+        }
+
+        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
+
+        const applyFilter = () => {
+            const query = input.value.trim().toLowerCase();
+            let visibleCount = 0;
+            const visibleByGroup = {};
+            items.forEach((item) => {
+                const value = (item.dataset.searchValue || '').toLowerCase();
+                const groupKey = item.dataset.groupKey || '';
+                const matches = !query || value.includes(query);
+                item.classList.toggle('d-none', !matches);
+                if (matches) {
+                    visibleCount += 1;
+                    visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
+                }
+            });
+
+            Object.entries(groupContainers).forEach(([key, container]) => {
+                const hasVisible = (visibleByGroup[key] || 0) > 0;
+                container.classList.toggle('d-none', !hasVisible);
+            });
+
+            if (emptyIndicator) {
+                emptyIndicator.style.display = visibleCount ? 'none' : '';
+            }
+        };
+
+        input.addEventListener('input', applyFilter);
+        applyFilter();
+    }
+
+    initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
+        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
+        emptyIndicatorId: 'clientAnalyticsEmpty',
+    });
 </script>
 </body>
 </html>
