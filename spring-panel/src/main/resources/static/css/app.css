@@ -204,6 +204,10 @@ body {
     background: #fff;
 }
 
+.client-profile-avatar.zoomable-avatar {
+    cursor: zoom-in;
+}
+
 @keyframes client-avatar-pulse {
     0% { opacity: 0.45; transform: scale(1); }
     65% { opacity: 0; transform: scale(1.45); }
