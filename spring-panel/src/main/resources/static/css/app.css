@@ -208,6 +208,33 @@ body {
     cursor: zoom-in;
 }
 
+.searchable-collapse .card-header button {
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: #0d6efd;
+}
+
+.searchable-collapse .card-header button:hover {
+    background-color: rgba(13, 110, 253, 0.08);
+    text-decoration: none;
+}
+
+.searchable-collapse .card-header button::after {
+    content: '\25BC';
+    float: right;
+    transition: transform 0.2s ease;
+}
+
+.searchable-collapse .card-header button[aria-expanded="true"]::after {
+    transform: rotate(-180deg);
+}
+
+.searchable-group.d-none {
+    display: none !important;
+}
+
 @keyframes client-avatar-pulse {
     0% { opacity: 0.45; transform: scale(1); }
     65% { opacity: 0; transform: scale(1.45); }
