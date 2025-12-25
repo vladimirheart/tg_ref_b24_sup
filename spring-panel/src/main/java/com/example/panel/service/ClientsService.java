@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.model.clients.ClientBlacklistInfo;
 import com.example.panel.model.clients.ClientListItem;
+import com.example.panel.model.clients.ClientPhoneEntry;
 import com.example.panel.model.clients.ClientProfile;
 import com.example.panel.model.clients.ClientProfileHeader;
 import com.example.panel.model.clients.ClientProfileStats;
@@ -109,7 +110,13 @@ public class ClientsService {
 
     public Optional<ClientProfile> loadClientProfile(long userId) {
         ClientProfileHeader header = jdbcTemplate.query(
-            "SELECT user_id, username, client_name FROM messages WHERE user_id = ? LIMIT 1",
+            """
+                SELECT user_id, username, client_name
+                FROM messages
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
             rs -> rs.next()
                 ? new ClientProfileHeader(
                     rs.getLong("user_id"),
@@ -190,8 +197,20 @@ public class ClientsService {
 
         ClientBlacklistInfo blacklistInfo = loadClientBlacklist(userId);
         Double averageRating = loadAverageRating(userId);
+        String clientStatus = loadClientStatus(userId);
+        List<ClientPhoneEntry> phonesTelegram = loadClientPhones(userId, "telegram");
+        List<ClientPhoneEntry> phonesManual = loadClientPhones(userId, "manual");
 
-        return Optional.of(new ClientProfile(header, stats, tickets, blacklistInfo, averageRating));
+        return Optional.of(new ClientProfile(
+            header,
+            stats,
+            tickets,
+            blacklistInfo,
+            averageRating,
+            clientStatus,
+            phonesTelegram,
+            phonesManual
+        ));
     }
 
     private int loadTotalMinutes(long userId) {
@@ -248,6 +267,36 @@ public class ClientsService {
                 return new ClientBlacklistInfo(blacklisted, unblockRequested, addedAt, addedBy, reason);
             },
             String.valueOf(userId)
+        );
+    }
+
+    private String loadClientStatus(long userId) {
+        return jdbcTemplate.query(
+            "SELECT status FROM client_statuses WHERE user_id = ?",
+            rs -> rs.next() ? rs.getString("status") : null,
+            userId
+        );
+    }
+
+    private List<ClientPhoneEntry> loadClientPhones(long userId, String source) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, phone, label, source, is_active, created_at, created_by
+                FROM client_phones
+                WHERE user_id = ? AND source = ? AND is_active = TRUE
+                ORDER BY created_at DESC
+                """,
+            (rs, rowNum) -> new ClientPhoneEntry(
+                rs.getLong("id"),
+                rs.getString("phone"),
+                rs.getString("label"),
+                rs.getString("source"),
+                rs.getObject("is_active") != null ? rs.getBoolean("is_active") : null,
+                formatTimestamp(rs.getString("created_at")),
+                rs.getString("created_by")
+            ),
+            userId,
+            source
         );
     }
 
