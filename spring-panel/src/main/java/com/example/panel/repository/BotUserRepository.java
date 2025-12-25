@@ -1,7 +1,6 @@
 package com.example.panel.repository;
 
 import com.example.panel.entity.BotUser;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -22,23 +21,42 @@ public class BotUserRepository {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     };
 
-    private final JdbcTemplate botJdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
-    public BotUserRepository(@Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate) {
-        this.botJdbcTemplate = botJdbcTemplate;
+    public BotUserRepository(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public List<BotUser> findAll() {
-        return botJdbcTemplate.query("select * from bot_users", this::mapRow);
+        return jdbcTemplate.query("""
+                SELECT
+                    m.user_id,
+                    m.username,
+                    (
+                        SELECT client_name
+                        FROM messages
+                        WHERE user_id = m.user_id AND client_name IS NOT NULL AND client_name != ''
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    ) AS client_name,
+                    MIN(m.created_at) AS first_contact,
+                    MAX(m.created_at) AS last_contact
+                FROM messages m
+                GROUP BY m.user_id
+                ORDER BY last_contact DESC
+                """,
+            this::mapRow);
     }
 
     private BotUser mapRow(ResultSet rs, int rowNum) throws SQLException {
         BotUser user = new BotUser();
         user.setUserId(rs.getLong("user_id"));
-        user.setUsername(rs.getString("username"));
-        user.setFirstName(rs.getString("first_name"));
-        user.setLastName(rs.getString("last_name"));
-        user.setRegisteredAt(parseOffsetDateTime(rs.getString("registered_at")));
+        String username = rs.getString("username");
+        String clientName = rs.getString("client_name");
+        user.setUsername(username);
+        user.setFirstName(StringUtils.hasText(clientName) ? clientName : username);
+        user.setLastName(null);
+        user.setRegisteredAt(parseOffsetDateTime(rs.getString("first_contact")));
         return user;
     }
 
