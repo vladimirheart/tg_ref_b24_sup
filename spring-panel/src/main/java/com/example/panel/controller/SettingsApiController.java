@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,9 +22,12 @@ public class SettingsApiController {
     private static final Logger log = LoggerFactory.getLogger(SettingsApiController.class);
 
     private final SharedConfigService sharedConfigService;
+    private final SettingsCatalogService settingsCatalogService;
 
-    public SettingsApiController(SharedConfigService sharedConfigService) {
+    public SettingsApiController(SharedConfigService sharedConfigService,
+                                 SettingsCatalogService settingsCatalogService) {
         this.sharedConfigService = sharedConfigService;
+        this.settingsCatalogService = settingsCatalogService;
     }
 
     @PostMapping("/client-statuses")
@@ -39,6 +43,49 @@ public class SettingsApiController {
         sharedConfigService.saveSettings(settings);
         log.info("Updated client statuses: {} entries", statuses.size());
         return Map.of("ok", true);
+    }
+
+    @PostMapping("/it-connection-categories")
+    public Map<String, Object> createItConnectionCategory(@RequestBody Map<String, Object> payload) {
+        String label = payload.get("label") != null ? String.valueOf(payload.get("label")).trim() : "";
+        String requestedKey = payload.get("key") != null ? String.valueOf(payload.get("key")).trim() : "";
+        if (label.isEmpty()) {
+            return Map.of("success", false, "error", "Название категории обязательно");
+        }
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, String> categories = settingsCatalogService.getItConnectionCategories(settings);
+        String normalizedLabel = label.toLowerCase();
+        for (String existingLabel : categories.values()) {
+            if (existingLabel != null && existingLabel.trim().toLowerCase().equals(normalizedLabel)) {
+                return Map.of("success", false, "error", "Такая категория уже существует");
+            }
+        }
+
+        String key = requestedKey;
+        if (!key.isEmpty() && categories.containsKey(key)) {
+            return Map.of("success", false, "error", "Идентификатор категории уже используется");
+        }
+        if (key.isEmpty()) {
+            key = settingsCatalogService.slugifyItConnectionCategory(label, categories.keySet());
+        }
+
+        Map<String, String> custom = settingsCatalogService.normalizeItConnectionCategories(
+            settings.get("it_connection_categories")
+        );
+        custom.put(key, label);
+        settings.put("it_connection_categories", custom);
+        sharedConfigService.saveSettings(settings);
+
+        Map<String, String> updatedCategories = settingsCatalogService.getItConnectionCategories(settings);
+        return Map.of(
+            "success", true,
+            "data", Map.of(
+                "key", key,
+                "label", label,
+                "categories", updatedCategories
+            )
+        );
     }
 
     private List<String> normalizeStatusList(Object raw) {
