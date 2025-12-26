@@ -30,9 +30,11 @@
   class AuthManager {
     constructor(root) {
       this.root = root;
-      this.fetchUrl = root.dataset.authStateUrl || '/auth/state';
-      this.usersEndpoint = root.dataset.authUsersEndpoint || '/users';
-      this.rolesEndpoint = root.dataset.authRolesEndpoint || '/roles';
+      this.fetchUrl = root.dataset.authStateUrl || '/api/auth/state';
+      this.usersEndpoint = root.dataset.authUsersEndpoint || '/api/users';
+      this.rolesEndpoint = root.dataset.authRolesEndpoint || '/api/roles';
+      this.orgStructureEndpoint =
+        root.dataset.authOrgStructureEndpoint || '/api/auth/org-structure';
       this.state = {
         users: [],
         roles: [],
@@ -3349,7 +3351,7 @@
         },
       };
 
-      fetch('/auth/org-structure', {
+      fetch(this.orgStructureEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
