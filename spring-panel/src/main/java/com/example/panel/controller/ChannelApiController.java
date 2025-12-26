@@ -7,11 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Collections;
@@ -43,7 +43,7 @@ public class ChannelApiController {
         return ResponseEntity.ok(body);
     }
 
-    @PatchMapping("/channels/{channelId}")
+    @RequestMapping(value = "/channels/{channelId}", method = {RequestMethod.PATCH, RequestMethod.PUT})
     public ResponseEntity<Map<String, Object>> updateChannel(@PathVariable long channelId,
                                                              @RequestBody(required = false) Map<String, Object> payload) {
         Channel channel = channelRepository.findById(channelId).orElse(null);
