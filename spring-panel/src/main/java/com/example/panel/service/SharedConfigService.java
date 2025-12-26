@@ -44,6 +44,14 @@ public class SharedConfigService {
         return readAsTree("locations.json");
     }
 
+    public void saveLocations(Object payload) {
+        writeJson("locations.json", payload);
+    }
+
+    public void saveOrgStructure(Object payload) {
+        writeJson("org_structure.json", payload);
+    }
+
     private Path resolveSharedDir(String configuredPath) {
         Path configured = Paths.get(configuredPath);
         Path absolute = configured.toAbsolutePath().normalize();
@@ -98,6 +106,16 @@ public class SharedConfigService {
     }
 
     private void writeMap(String fileName, Map<String, Object> payload) {
+        Path file = sharedConfigDir.resolve(fileName);
+        try {
+            Files.createDirectories(file.getParent());
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), payload);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to write shared config " + file, ex);
+        }
+    }
+
+    private void writeJson(String fileName, Object payload) {
         Path file = sharedConfigDir.resolve(fileName);
         try {
             Files.createDirectories(file.getParent());
