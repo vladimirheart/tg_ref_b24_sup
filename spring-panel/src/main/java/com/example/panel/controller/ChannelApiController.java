@@ -43,7 +43,7 @@ public class ChannelApiController {
         return ResponseEntity.ok(body);
     }
 
-    @RequestMapping(value = "/channels/{channelId}", method = {RequestMethod.PATCH, RequestMethod.PUT})
+    @RequestMapping(value = "/channels/{channelId}", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
     public ResponseEntity<Map<String, Object>> updateChannel(@PathVariable long channelId,
                                                              @RequestBody(required = false) Map<String, Object> payload) {
         Channel channel = channelRepository.findById(channelId).orElse(null);
