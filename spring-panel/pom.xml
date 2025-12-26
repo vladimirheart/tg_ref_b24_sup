@@ -113,7 +113,7 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
-            </plugin>s
+            </plugin>
         </plugins>
     </build>
 
