@@ -11907,11 +11907,13 @@
 
   function formatBotLabel(channel) {
     const parts = [];
-    if (channel.bot_name) {
-      parts.push(channel.bot_name);
+    const botName = channel.bot_name || channel.botName;
+    const botUsername = channel.bot_username || channel.botUsername;
+    if (botName) {
+      parts.push(botName);
     }
-    if (channel.bot_username) {
-      parts.push(`@${channel.bot_username}`);
+    if (botUsername) {
+      parts.push(`@${botUsername}`);
     }
     return parts.length ? parts.join(' • ') : '—';
   }
@@ -12263,26 +12265,38 @@
     rows.forEach((row) => {
       const platform = String(row.platform || 'telegram').toLowerCase();
       const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
-      const platformConfig = parsePlatformConfig(row.platform_config);
+      const platformConfig = parsePlatformConfig(row.platform_config ?? row.platformConfig);
       const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId ?? null) : null;
-      const questionTemplateId = sanitizeTemplateId(row.question_template_id, QUESTION_TEMPLATE_MAP, DEFAULT_QUESTION_TEMPLATE_ID);
-      const ratingTemplateId = sanitizeTemplateId(row.rating_template_id, RATING_TEMPLATE_MAP, DEFAULT_RATING_TEMPLATE_ID);
-      const autoTemplateId = sanitizeTemplateId(row.auto_action_template_id, AUTO_ACTION_TEMPLATE_MAP, DEFAULT_AUTO_ACTION_TEMPLATE_ID);
+      const questionTemplateId = sanitizeTemplateId(
+        row.question_template_id ?? row.questionTemplateId,
+        QUESTION_TEMPLATE_MAP,
+        DEFAULT_QUESTION_TEMPLATE_ID
+      );
+      const ratingTemplateId = sanitizeTemplateId(
+        row.rating_template_id ?? row.ratingTemplateId,
+        RATING_TEMPLATE_MAP,
+        DEFAULT_RATING_TEMPLATE_ID
+      );
+      const autoTemplateId = sanitizeTemplateId(
+        row.auto_action_template_id ?? row.autoActionTemplateId,
+        AUTO_ACTION_TEMPLATE_MAP,
+        DEFAULT_AUTO_ACTION_TEMPLATE_ID
+      );
 
       const prepared = {
         id: row.id,
-        channel_name: row.channel_name || row.name || '',
+        channel_name: row.channel_name || row.channelName || row.name || '',
         platform,
         platformLabel,
         platform_config: platformConfig,
-        is_active: Boolean(row.is_active),
+        is_active: Boolean(row.is_active ?? row.active ?? row.isActive),
         question_template_id: questionTemplateId,
         rating_template_id: ratingTemplateId,
         auto_action_template_id: autoTemplateId,
-        bot_name: row.bot_name || row.name || '',
-        bot_username: row.bot_username || '',
+        bot_name: row.bot_name || row.botName || row.name || '',
+        bot_username: row.bot_username || row.botUsername || '',
         token: row.token || '',
-        public_id: row.public_id || '',
+        public_id: row.public_id || row.publicId || '',
         vk_group_id: vkGroupId,
         support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
       };
@@ -12718,8 +12732,11 @@
       channels.forEach((channel) => {
         const id = channel.id ?? channel.channel_id;
         if (!id) return;
-        const name = channel.channel_name || channel.name || `Канал #${id}`;
-        const support = channel.support_chat_id || (channel.delivery_settings && channel.delivery_settings.support_chat_id);
+        const name = channel.channel_name || channel.channelName || channel.name || `Канал #${id}`;
+        const support = channel.support_chat_id
+          || channel.supportChatId
+          || (channel.delivery_settings && channel.delivery_settings.support_chat_id)
+          || (channel.deliverySettings && channel.deliverySettings.support_chat_id);
         const disabled = support ? '' : 'disabled';
         const hint = support ? '' : ' — нет ID группы';
         const selected = reportingState.config.channel_id !== null && String(reportingState.config.channel_id) === String(id)
