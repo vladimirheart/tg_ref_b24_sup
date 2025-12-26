@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+fv<!DOCTYPE html>
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8" />
@@ -4731,7 +4731,7 @@
           throw new Error('Не удалось определить идентификатор записи');
         }
         response = await fetch(`/api/settings/parameters/${id}`, {
-          method: 'PATCH',
+        method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
