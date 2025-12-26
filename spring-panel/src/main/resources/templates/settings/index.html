@@ -12515,15 +12515,33 @@
       body.questions_cfg = configPayload;
     }
 
-    try {
+    async function parseJsonSafe(response) {
+      try {
+        return await response.json();
+      } catch (error) {
+        return {};
+      }
+    }
+
+    async function saveChannelRequest(method) {
       const resp = await fetch(`/api/channels/${id}`, {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await resp.json();
-      if (!resp.ok || data.success === false) {
-        throw new Error(data.error || ('HTTP ' + resp.status));
+      return { resp, data: await parseJsonSafe(resp) };
+    }
+
+    try {
+      let result = await saveChannelRequest('PATCH');
+      if (result.resp.status === 405) {
+        result = await saveChannelRequest('POST');
+      }
+      if (result.resp.status === 405) {
+        result = await saveChannelRequest('PUT');
+      }
+      if (!result.resp.ok || result.data.success === false) {
+        throw new Error(result.data.error || ('HTTP ' + result.resp.status));
       }
       alert('Настройки канала сохранены.');
       if (channelEditorNewTokenInput) {
