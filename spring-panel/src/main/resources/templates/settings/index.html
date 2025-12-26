@@ -12054,7 +12054,7 @@
 
     try {
       const resp = await fetch(`/api/channels/${vkWebhookState.channelId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -12517,7 +12517,7 @@
 
     try {
       const resp = await fetch(`/api/channels/${id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
