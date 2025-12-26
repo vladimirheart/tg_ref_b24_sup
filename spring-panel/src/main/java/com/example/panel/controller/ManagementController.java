@@ -13,7 +13,10 @@ import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
+import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,6 +42,8 @@ public class ManagementController {
     private final SettingsParameterRepository settingsParameterRepository;
     private final ItEquipmentCatalogRepository equipmentRepository;
     private final SharedConfigService sharedConfigService;
+    private final SettingsCatalogService settingsCatalogService;
+    private final ObjectMapper objectMapper;
 
     public ManagementController(NavigationService navigationService,
                                 TaskRepository taskRepository,
@@ -47,7 +52,9 @@ public class ManagementController {
                                 AppSettingRepository appSettingRepository,
                                 SettingsParameterRepository settingsParameterRepository,
                                 ItEquipmentCatalogRepository equipmentRepository,
-                                SharedConfigService sharedConfigService) {
+                                SharedConfigService sharedConfigService,
+                                SettingsCatalogService settingsCatalogService,
+                                ObjectMapper objectMapper) {
         this.navigationService = navigationService;
         this.taskRepository = taskRepository;
         this.channelRepository = channelRepository;
@@ -56,6 +63,8 @@ public class ManagementController {
         this.settingsParameterRepository = settingsParameterRepository;
         this.equipmentRepository = equipmentRepository;
         this.sharedConfigService = sharedConfigService;
+        this.settingsCatalogService = settingsCatalogService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/tasks")
@@ -114,8 +123,26 @@ public class ManagementController {
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
             var settings = sharedConfigService.loadSettings();
+            JsonNode locationsPayload = sharedConfigService.loadLocations();
+            Map<String, Object> locationsMap = locationsPayload != null && locationsPayload.isObject()
+                ? objectMapper.convertValue(locationsPayload, Map.class)
+                : Map.of();
+            Map<String, Object> locationTree = Map.of();
+            if (locationsMap.get("tree") instanceof Map<?, ?> tree) {
+                locationTree = (Map<String, Object>) tree;
+            }
             model.addAttribute("clientStatuses", settings.getOrDefault("client_statuses", List.of()));
             model.addAttribute("clientStatusColors", settings.getOrDefault("client_status_colors", Map.of()));
+            model.addAttribute("settingsPayload", settings);
+            model.addAttribute("locationsPayload", locationsMap);
+            model.addAttribute("cities", settingsCatalogService.collectCities(locationTree));
+            model.addAttribute("parameterTypes", settingsCatalogService.getParameterTypes());
+            model.addAttribute("parameterDependencies", settingsCatalogService.getParameterDependencies());
+            model.addAttribute("itConnectionCategories", settingsCatalogService.getItConnectionCategories(settings));
+            model.addAttribute("itConnectionCategoryFields", settingsCatalogService.getItConnectionCategoryFields());
+            model.addAttribute("botQuestionPresets", settingsCatalogService.buildLocationPresets(locationTree));
+            model.addAttribute("contractUsage", Map.of());
+            model.addAttribute("statusUsage", Map.of());
             log.info("Loaded settings for user {}: {} app settings, {} system parameters", authentication.getName(), appSettings.size(), systemParameters.size());
         } catch (Exception ex) {
             log.error("Failed to load settings page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
