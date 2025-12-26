@@ -386,7 +386,7 @@ public class SettingsBridgeController {
                 Object rawDeps = extra.get("dependencies");
                 Map<?, ?> depsMap = rawDeps instanceof Map<?, ?> map ? map : Map.of();
                 for (String key : depKeys) {
-                    Object value = depsMap.getOrDefault(key, extra.get(key));
+                    Object value = depsMap.containsKey(key) ? depsMap.get(key) : extra.get(key);
                     dependencies.put(key, value != null ? value.toString().trim() : "");
                 }
                 extra.put("dependencies", dependencies);
