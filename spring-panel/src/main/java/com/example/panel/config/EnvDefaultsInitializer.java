@@ -16,6 +16,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
+import org.springframework.util.StringUtils;
 
 /**
  * Ensures the Spring panel automatically points to the same local SQLite files as the Python
@@ -34,6 +35,7 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         ConfigurableEnvironment environment = applicationContext.getEnvironment();
         Path projectRoot = locateProjectRoot();
         Map<String, String> dotEnv = loadDotEnv(projectRoot.resolve(".env"));
+        String ticketsPath = resolveTicketsPath(environment, dotEnv, projectRoot);
 
         Map<String, Object> defaults = new HashMap<>();
         for (String key : DB_KEYS) {
@@ -41,8 +43,7 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
                 continue; // Respect values already provided via environment variables or system properties.
             }
 
-            Path defaultPath = projectRoot.resolve(mapKeyToFileName(key));
-            String resolved = Optional.ofNullable(dotEnv.get(key)).orElse(defaultPath.toString());
+            String resolved = resolveDefaultPath(key, projectRoot, dotEnv, ticketsPath);
             defaults.put(key, resolved);
         }
 
@@ -97,5 +98,65 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
             case "APP_DB_OBJECT_PASSPORTS" -> "object_passports.db";
             default -> key.toLowerCase();
         };
+    }
+
+    private String resolveTicketsPath(ConfigurableEnvironment environment,
+                                      Map<String, String> dotEnv,
+                                      Path projectRoot) {
+        String raw = Optional.ofNullable(environment.getProperty("APP_DB_TICKETS"))
+            .filter(StringUtils::hasText)
+            .orElse(dotEnv.get("APP_DB_TICKETS"));
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        Path path = Paths.get(raw);
+        if (!path.isAbsolute()) {
+            Path candidate = projectRoot.resolve(path).normalize();
+            if (Files.exists(candidate)) {
+                return candidate.toString();
+            }
+        }
+        return path.normalize().toString();
+    }
+
+    private String resolveDefaultPath(String key,
+                                      Path projectRoot,
+                                      Map<String, String> dotEnv,
+                                      String ticketsPath) {
+        String fromEnv = dotEnv.get(key);
+        if (StringUtils.hasText(fromEnv)) {
+            return fromEnv;
+        }
+        if ("APP_DB_USERS".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "users.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        if ("APP_DB_BOT".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "bot_database.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        if ("APP_DB_OBJECT_PASSPORTS".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "object_passports.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        Path defaultPath = projectRoot.resolve(mapKeyToFileName(key));
+        return defaultPath.toString();
+    }
+
+    private String resolveSiblingPath(String ticketsPath, String fileName) {
+        if (!StringUtils.hasText(ticketsPath)) {
+            return null;
+        }
+        Path base = Paths.get(ticketsPath).getParent();
+        if (base == null) {
+            return null;
+        }
+        return base.resolve(fileName).normalize().toString();
     }
 }
