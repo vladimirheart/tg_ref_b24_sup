@@ -13,6 +13,7 @@ public record DialogListItem(String ticketId,
                              String status,
                              String resolvedBy,
                              String resolvedAt,
+                             String responsible,
                              String createdDate,
                              String createdTime,
                              String clientStatus) {
@@ -89,10 +90,10 @@ public record DialogListItem(String ticketId,
     }
 
     public String responsible() {
-        if (resolvedBy != null && !resolvedBy.isBlank()) {
+        if (responsible != null && !responsible.isBlank()) {
             return resolvedBy;
         }
-        if (username != null && !username.isBlank()) {
+        if (resolvedBy != null && !resolvedBy.isBlank()) {
             return username;
         }
         return null;
