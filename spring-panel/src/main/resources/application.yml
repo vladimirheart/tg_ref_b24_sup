@@ -34,11 +34,11 @@ spring:
 app:
   datasource:
     sqlite:
-      path: ${APP_DB_TICKETS:../tickets.db}
+      path: ${APP_DB_TICKETS:tickets.db}
     users-sqlite:
-      path: ${APP_DB_USERS:../users.db}
+      path: ${APP_DB_USERS:users.db}
     bot-sqlite:
-      path: ${APP_DB_BOT:../bot_database.db}
+      path: ${APP_DB_BOT:bot_database.db}
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
