@@ -27,7 +27,23 @@ public class UsersSqliteDataSourceProperties {
             throw new IllegalStateException("app.datasource.users-sqlite.path must not be empty");
         }
         Path configured = Paths.get(path);
-        Path resolved = configured.toAbsolutePath().normalize();
+        if (configured.isAbsolute()) {
+            return configured.normalize();
+        }
+
+        Path resolved = Paths.get("").toAbsolutePath().normalize().resolve(configured).normalize();
+        if (Files.exists(resolved)) {
+            return resolved;
+        }
+
+        Path probe = Paths.get("").toAbsolutePath().normalize();
+        while (probe != null) {
+            Path candidate = probe.resolve(configured).normalize();
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+            probe = probe.getParent();
+        }
 
         // users.db можно создавать на чистом развёртывании — поэтому НЕ падаем, если файла нет
         // просто возвращаем абсолютный путь, чтобы SQLite создал файл при подключении
