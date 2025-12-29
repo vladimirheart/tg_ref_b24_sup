@@ -5,6 +5,7 @@ public record DialogListItem(String ticketId,
                              String username,
                              String clientName,
                              String business,
+                             String channelName,
                              String city,
                              String locationName,
                              String problem,
@@ -56,11 +57,25 @@ public record DialogListItem(String ticketId,
         };
     }
 
-    public String channelName() {
+    public String channelLabel() {
+        if (channelName != null && !channelName.isBlank()) {
+            return channelName;
+        }
+        return "Без канала";
+    }
+
+    public String businessLabel() {
         if (business != null && !business.isBlank()) {
             return business;
         }
-        return "Без канала";
+        return "Без бизнеса";
+    }
+
+    public String clientStatusLabel() {
+        if (clientStatus != null && !clientStatus.isBlank()) {
+            return clientStatus;
+        }
+        return "статус не указан";
     }
 
     public String location() {
