@@ -2,6 +2,9 @@ package com.example.panel.controller;
 
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,11 +26,14 @@ public class SettingsApiController {
 
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
+    private final ObjectMapper objectMapper;
 
     public SettingsApiController(SharedConfigService sharedConfigService,
-                                 SettingsCatalogService settingsCatalogService) {
+                                 SettingsCatalogService settingsCatalogService,
+                                 ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/client-statuses")
@@ -46,7 +52,8 @@ public class SettingsApiController {
     }
 
     @PostMapping("/it-connection-categories")
-    public Map<String, Object> createItConnectionCategory(@RequestBody Map<String, Object> payload) {
+    public Map<String, Object> createItConnectionCategory(HttpServletRequest request) throws IOException {
+        Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
         String label = payload.get("label") != null ? String.valueOf(payload.get("label")).trim() : "";
         String requestedKey = payload.get("key") != null ? String.valueOf(payload.get("key")).trim() : "";
         if (label.isEmpty()) {
