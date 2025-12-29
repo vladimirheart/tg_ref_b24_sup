@@ -16,6 +16,7 @@
   const columnsList = document.getElementById('dialogColumnsList');
   const columnsApply = document.getElementById('dialogColumnsApply');
   const columnsReset = document.getElementById('dialogColumnsReset');
+  const viewTabs = document.querySelectorAll('[data-dialog-view]');
 
   const detailsMeta = document.getElementById('dialogDetailsMeta');
   const detailsSummary = document.getElementById('dialogDetailsSummary');
@@ -118,6 +119,9 @@
     const parts = [
       row.dataset.ticketId,
       row.dataset.client,
+      row.dataset.clientStatus,
+      row.dataset.channel,
+      row.dataset.business,
       row.dataset.problem,
       row.dataset.status,
       row.dataset.location,
@@ -132,7 +136,7 @@
   }
 
   const emptyRow = document.createElement('tr');
-  emptyRow.innerHTML = '<td colspan="7" class="text-center text-muted py-4">Нет результатов</td>';
+  emptyRow.innerHTML = '<td colspan="12" class="text-center text-muted py-4">Нет результатов</td>';
   emptyRow.classList.add('d-none');
 
   function ensureEmptyRow() {
@@ -141,7 +145,13 @@
     }
   }
 
-  const filterState = { search: '', status: '' };
+  const filterState = { search: '', status: '', view: 'all' };
+
+  function isResolved(row) {
+    const raw = (row.dataset.statusRaw || '').toLowerCase();
+    const label = (row.dataset.status || '').toLowerCase();
+    return raw === 'resolved' || label === 'закрыт';
+  }
 
   function applyFilters() {
     const search = (filterState.search || '').trim().toLowerCase();
@@ -152,7 +162,8 @@
       const statusValue = (row.dataset.status || '').toLowerCase();
       const matchesSearch = !search || text.includes(search);
       const matchesStatus = !status || statusValue === status;
-      const visible = matchesSearch && matchesStatus;
+      const matchesView = filterState.view === 'active' ? !isResolved(row) : true;
+      const visible = matchesSearch && matchesStatus && matchesView;
       row.classList.toggle('d-none', !visible);
       if (visible) visibleCount += 1;
     });
@@ -162,6 +173,14 @@
 
   function applyQuickSearch(value) {
     filterState.search = value || '';
+    applyFilters();
+  }
+
+  function setViewTab(nextView) {
+    filterState.view = nextView || 'all';
+    viewTabs.forEach((tab) => {
+      tab.classList.toggle('active', tab.dataset.dialogView === filterState.view);
+    });
     applyFilters();
   }
 
@@ -387,6 +406,14 @@
     });
   }
 
+  if (viewTabs.length) {
+    viewTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        setViewTab(tab.dataset.dialogView || 'all');
+      });
+    });
+  }
+
   if (columnsBtn && columnsModal) {
     columnsBtn.addEventListener('click', () => {
       syncColumnsList();
@@ -420,7 +447,12 @@
   loadColumnState();
   buildColumnsList();
   applyColumnState();
-  applyFilters();
+  if (viewTabs.length) {
+    const activeTab = Array.from(viewTabs).find((tab) => tab.classList.contains('active'));
+    setViewTab(activeTab?.dataset.dialogView || 'all');
+  } else {
+    applyFilters();
+  }
   initColumnResize();
   restoreColumnWidths();
 })();
