@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,7 +49,11 @@ public class DialogApiController {
 
     @GetMapping("/{ticketId}")
     public ResponseEntity<?> details(@PathVariable String ticketId,
-                                      @RequestParam(value = "channelId", required = false) Long channelId) {
+                                     @RequestParam(value = "channelId", required = false) Long channelId,
+                                     Authentication authentication) {
+        if (authentication != null && authentication.getName() != null) {
+            dialogService.assignResponsibleIfMissing(ticketId, authentication.getName());
+        }
         Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId);
         log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
                 details.map(d -> "found").orElse("not found"));
