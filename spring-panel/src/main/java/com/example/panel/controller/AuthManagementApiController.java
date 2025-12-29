@@ -357,7 +357,7 @@ public class AuthManagementApiController {
         return Map.of("success", true);
     }
 
-    @PostMapping(value = "/api/users/photo-upload", consumes = "multipart/form-data")
+    @PostMapping(value = "/users/photo-upload", consumes = "multipart/form-data")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> uploadUserPhoto(@RequestParam("photo") MultipartFile file) throws IOException {
         if (file.isEmpty()) {
