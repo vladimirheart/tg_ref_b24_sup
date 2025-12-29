@@ -22,6 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -143,6 +144,16 @@ public class AuthManagementApiController {
     @PostMapping("/users")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> createUser(@RequestBody Map<String, Object> payload) {
+        return createUserFromPayload(payload);
+    }
+
+    @PostMapping(value = "/users", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    public Map<String, Object> createUserFromForm(@RequestParam Map<String, String> payload) {
+        return createUserFromPayload(new LinkedHashMap<>(payload));
+    }
+
+    private Map<String, Object> createUserFromPayload(Map<String, Object> payload) {
         String username = stringValue(payload.get("username"));
         String password = stringValue(payload.get("password"));
         if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
@@ -281,6 +292,16 @@ public class AuthManagementApiController {
     @PostMapping("/roles")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> createRole(@RequestBody Map<String, Object> payload) {
+        return createRoleFromPayload(payload);
+    }
+
+    @PostMapping(value = "/roles", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    public Map<String, Object> createRoleFromForm(@RequestParam Map<String, String> payload) {
+        return createRoleFromPayload(new LinkedHashMap<>(payload));
+    }
+
+    private Map<String, Object> createRoleFromPayload(Map<String, Object> payload) {
         String name = stringValue(payload.get("name"));
         if (!StringUtils.hasText(name)) {
             return Map.of("success", false, "error", "Название роли не может быть пустым");
