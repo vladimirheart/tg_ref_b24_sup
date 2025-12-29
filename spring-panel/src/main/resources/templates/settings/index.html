@@ -1410,6 +1410,7 @@
 
                 <div class="tab-pane fade" id="settingsAuthRoles" role="tabpanel" data-auth-roles-section>
                   <form class="row g-2 align-items-end mb-3" data-auth-role-create action="/api/roles" method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                     <div class="col-md-4">
                       <label class="form-label small mb-1" for="authRoleName">Название</label>
                       <input type="text" class="form-control form-control-sm" id="authRoleName" name="name" autocomplete="off" required>
@@ -1459,6 +1460,7 @@
       <div class="modal-dialog modal-dialog-scrollable modal-xl auth-user-modal-dialog modal-fullscreen-sm-down">
         <div class="modal-content">
           <form data-auth-user-form action="/api/users" method="post">
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
             <div class="modal-header">
               <h5 class="modal-title" data-auth-user-modal-title>Пользователь</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
@@ -2453,7 +2455,8 @@
             <h5 class="modal-title" id="itConnectionAddModalLabel">Новое подключение</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
-          <form data-it-connection-add-form>
+          <form data-it-connection-add-form action="/api/settings/parameters" method="post">
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
             <div class="modal-body">
               <div class="mb-3">
                 <label class="form-label" for="itConnectionCategorySelect">Выберите, что необходимо добавить</label>
@@ -2502,7 +2505,8 @@
             <h5 class="modal-title" id="itEquipmentAddModalLabel">Новое оборудование</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
-          <form data-it-equipment-add-form>
+          <form data-it-equipment-add-form action="/api/settings/it-equipment" method="post">
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
             <div class="modal-body">
               <div class="mb-3">
                 <label class="form-label" for="itEquipmentTypeSelect">Тип оборудования</label>
