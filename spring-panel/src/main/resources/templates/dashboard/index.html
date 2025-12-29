@@ -23,14 +23,14 @@
             <p class="text-muted mb-0">Последние диалоги клиентов и статус их обработки.</p>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
-            <div class="btn-group" role="group" aria-label="Фильтр заявок">
-                <button type="button" class="btn btn-outline-primary btn-sm active">
-                    В работе
-                    <span class="badge bg-primary text-white ms-2" th:text="${summary.pendingTickets}">0</span>
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm">
+            <div class="nav nav-pills gap-2 dialog-view-tabs" role="tablist">
+                <button type="button" class="nav-link active" data-dialog-view="all">
                     Все заявки
-                    <span class="badge bg-secondary text-white ms-2" th:text="${summary.totalTickets}">0</span>
+                    <span class="badge bg-light text-muted ms-2" th:text="${summary.totalTickets}">0</span>
+                </button>
+                <button type="button" class="nav-link" data-dialog-view="active">
+                    Не закрытые заявки
+                    <span class="badge bg-light text-muted ms-2" th:text="${summary.pendingTickets}">0</span>
                 </button>
             </div>
             <a class="btn btn-outline-secondary btn-sm" th:href="@{/knowledge-base}">
@@ -140,35 +140,47 @@
                     <thead class="table-light">
                     <tr>
                         <th scope="col" data-column-key="client" data-resizable="true">Клиент</th>
-                        <th scope="col" class="text-nowrap" data-column-key="status" data-resizable="true">Статус</th>
-                        <th scope="col" data-column-key="problem" data-resizable="true">Проблема</th>
+                        <th scope="col" class="text-nowrap" data-column-key="clientStatus" data-resizable="true">Статус клиента</th>
+                        <th scope="col" data-column-key="channel" data-resizable="true">Имя канала</th>
+                        <th scope="col" data-column-key="ticketId" data-resizable="true">ID заявки</th>
+                        <th scope="col" data-column-key="business" data-resizable="true">Бизнес</th>
                         <th scope="col" data-column-key="location" data-resizable="true">Локация</th>
+                        <th scope="col" data-column-key="problem" data-resizable="true">Проблема</th>
                         <th scope="col" class="text-nowrap" data-column-key="responsible" data-resizable="true">Ответственный</th>
-                        <th scope="col" class="text-nowrap" data-column-key="created" data-resizable="true">Создан</th>
+                        <th scope="col" class="text-nowrap" data-column-key="status" data-resizable="true">Статус</th>
+                        <th scope="col" class="text-nowrap" data-column-key="createdDate" data-resizable="true">Дата</th>
+                        <th scope="col" class="text-nowrap" data-column-key="createdTime" data-resizable="true">Время</th>
                         <th scope="col" class="text-nowrap" data-column-key="actions" data-column-fixed data-resizable="true">Действия</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr th:if="${#lists.isEmpty(dialogs)}">
-                        <td colspan="7" class="text-center text-muted py-4">Диалоги отсутствуют</td>
+                        <td colspan="12" class="text-center text-muted py-4">Диалоги отсутствуют</td>
                     </tr>
                     <tr th:each="dialog : ${dialogs}"
-                        th:attr="data-ticket-id=${dialog.ticketId},data-client=${dialog.displayClientName()},data-problem=${dialog.problemSafe()},data-status=${dialog.statusLabel()},data-location=${dialog.location()},data-responsible=${dialog.responsible()}">
+                        th:attr="data-ticket-id=${dialog.ticketId},data-client=${dialog.displayClientName()},data-client-status=${dialog.clientStatusLabel()},data-problem=${dialog.problemSafe()},data-status=${dialog.statusLabel()},data-status-raw=${dialog.status},data-location=${dialog.location()},data-responsible=${dialog.responsible()},data-business=${dialog.businessLabel()},data-channel=${dialog.channelLabel()}">
                         <td class="client-cell" data-column-key="client">
-                            <div class="avatar-circle" aria-hidden="true" th:text="${dialog.avatarInitial()}">N</div>
+                            <div class="dialog-avatar" aria-hidden="true">
+                                <img class="dialog-avatar-img"
+                                     th:src="${dialog.userId() != null} ? @{/avatar/{id}(id=${dialog.userId})} : @{/avatar_default.svg}"
+                                     alt="Аватар клиента"
+                                     onerror="this.onerror=null;this.src='/avatar_default.svg';">
+                            </div>
                             <div class="d-flex flex-column">
                                 <div class="fw-semibold" th:text="${dialog.displayClientName()}"></div>
-                                <div class="text-muted small" th:text="${dialog.clientStatus()} ?: 'статус не указан'"></div>
+                                <div class="text-muted small" th:text="${dialog.clientStatusLabel()}"></div>
                             </div>
                         </td>
-                        <td data-column-key="status">
-                            <span class="badge" th:text="${dialog.statusLabel()}" th:classappend="${dialog.statusClass()}"></span>
+                        <td class="text-muted" data-column-key="clientStatus" th:text="${dialog.clientStatusLabel()}"></td>
+                        <td data-column-key="channel">
+                            <div class="fw-semibold" th:text="${dialog.channelLabel()}"></div>
                         </td>
+                        <td class="text-muted" data-column-key="ticketId" th:text="${dialog.ticketId}">—</td>
+                        <td class="text-muted" data-column-key="business" th:text="${dialog.businessLabel()}">—</td>
+                        <td class="text-muted" data-column-key="location" th:text="${dialog.location()} ?: 'Локация не указана'"></td>
                         <td data-column-key="problem">
                             <div class="fw-semibold" th:text="${dialog.problemSafe()}"></div>
-                            <div class="text-muted small" th:text="${dialog.channelName()}"></div>
                         </td>
-                        <td class="text-muted" data-column-key="location" th:text="${dialog.location()} ?: 'Локация не указана'"></td>
                         <td data-column-key="responsible">
                             <div class="d-flex align-items-center gap-2">
                                 <div class="avatar-circle small" aria-hidden="true" th:text="${dialog.responsible() != null && !dialog.responsible().isBlank() ? dialog.responsible().substring(0,1).toUpperCase() : '—'}">S</div>
@@ -178,10 +190,11 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="text-muted" data-column-key="created">
-                            <div th:text="${dialog.createdDateSafe()}">Сегодня</div>
-                            <div class="small" th:text="${dialog.createdTimeSafe()}">12:30</div>
+                        <td data-column-key="status">
+                            <span class="badge" th:text="${dialog.statusLabel()}" th:classappend="${dialog.statusClass()}"></span>
                         </td>
+                        <td class="text-muted" data-column-key="createdDate" th:text="${dialog.createdDateSafe()}">Сегодня</td>
+                        <td class="text-muted" data-column-key="createdTime" th:text="${dialog.createdTimeSafe()}">12:30</td>
                         <td data-column-key="actions">
                             <div class="d-flex gap-2 flex-wrap dialog-actions">
                                 <button type="button" class="btn btn-outline-primary btn-sm dialog-open-btn" th:attr="data-ticket-id=${dialog.ticketId}">
