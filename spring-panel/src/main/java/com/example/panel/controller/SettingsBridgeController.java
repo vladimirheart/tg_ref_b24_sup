@@ -4,11 +4,13 @@ import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,7 +19,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
@@ -167,7 +168,8 @@ public class SettingsBridgeController {
 
     @PostMapping("/api/settings/parameters")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
-    public Map<String, Object> createParameter(@RequestBody Map<String, Object> payload) {
+    public Map<String, Object> createParameter(HttpServletRequest request) throws IOException {
+        Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
         String paramType = stringValue(payload.get("param_type"));
         String value = stringValue(payload.get("value"));
         if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
@@ -261,7 +263,8 @@ public class SettingsBridgeController {
 
     @PostMapping("/api/settings/it-equipment")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
-    public Map<String, Object> createItEquipment(@RequestBody Map<String, Object> payload) {
+    public Map<String, Object> createItEquipment(HttpServletRequest request) throws IOException {
+        Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
         String type = stringValue(payload.get("equipment_type"));
         String vendor = stringValue(payload.get("equipment_vendor"));
         String model = stringValue(payload.get("equipment_model"));
