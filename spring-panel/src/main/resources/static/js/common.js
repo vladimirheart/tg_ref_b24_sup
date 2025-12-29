@@ -1,5 +1,39 @@
 // static/common.js
 
+function getCookieValue(name) {
+    if (typeof document === 'undefined') {
+        return '';
+    }
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    const encodedName = encodeURIComponent(name) + '=';
+    for (const cookie of cookies) {
+        const trimmed = cookie.trim();
+        if (trimmed.startsWith(encodedName)) {
+            return decodeURIComponent(trimmed.slice(encodedName.length));
+        }
+    }
+    return '';
+}
+
+function attachCsrfToken(init = {}) {
+    const method = (init.method || 'GET').toUpperCase();
+    if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+        return init;
+    }
+    const token = getCookieValue('XSRF-TOKEN');
+    if (!token) {
+        return init;
+    }
+    const headers = new Headers(init.headers || {});
+    headers.set('X-XSRF-TOKEN', token);
+    return { ...init, headers };
+}
+
+if (typeof window !== 'undefined' && window.fetch) {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => originalFetch(input, attachCsrfToken(init));
+}
+
 // Функция для показа уведомлений (например, об ошибках или успехе)
 function showNotification(message, type = 'info', containerId = 'notification-container') {
     // Убедимся, что контейнер для уведомлений существует
