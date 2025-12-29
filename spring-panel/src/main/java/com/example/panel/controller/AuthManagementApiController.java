@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -30,9 +31,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -129,7 +128,7 @@ public class AuthManagementApiController {
 
     @PostMapping("/auth/org-structure")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> updateOrgStructure(@RequestBody Map<String, Object> payload) {
+    public Map<String, Object> updateOrgStructure(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> payload) {
         Object structure = payload.getOrDefault("org_structure", payload);
         sharedConfigService.saveOrgStructure(structure);
         return Map.of("success", true, "org_structure", structure);
@@ -143,14 +142,8 @@ public class AuthManagementApiController {
 
     @PostMapping("/users")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> createUser(@RequestBody Map<String, Object> payload) {
-        return createUserFromPayload(payload);
-    }
-
-    @PostMapping(value = "/users", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> createUserFromForm(@RequestParam Map<String, String> payload) {
-        return createUserFromPayload(new LinkedHashMap<>(payload));
+    public Map<String, Object> createUser(HttpServletRequest request) throws IOException {
+        return createUserFromPayload(loadRequestPayload(request));
     }
 
     private Map<String, Object> createUserFromPayload(Map<String, Object> payload) {
@@ -291,14 +284,8 @@ public class AuthManagementApiController {
 
     @PostMapping("/roles")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> createRole(@RequestBody Map<String, Object> payload) {
-        return createRoleFromPayload(payload);
-    }
-
-    @PostMapping(value = "/roles", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> createRoleFromForm(@RequestParam Map<String, String> payload) {
-        return createRoleFromPayload(new LinkedHashMap<>(payload));
+    public Map<String, Object> createRole(HttpServletRequest request) throws IOException {
+        return createRoleFromPayload(loadRequestPayload(request));
     }
 
     private Map<String, Object> createRoleFromPayload(Map<String, Object> payload) {
@@ -605,5 +592,39 @@ public class AuthManagementApiController {
         } catch (Exception ex) {
             return new LinkedHashSet<>();
         }
+    }
+
+    private Map<String, Object> loadRequestPayload(HttpServletRequest request) throws IOException {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        Map<String, String[]> parameterMap = request.getParameterMap();
+        if (!parameterMap.isEmpty()) {
+            for (Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
+                String key = entry.getKey();
+                String[] values = entry.getValue();
+                if (values == null) {
+                    payload.put(key, null);
+                } else if (values.length == 1) {
+                    payload.put(key, values[0]);
+                } else {
+                    payload.put(key, List.of(values));
+                }
+            }
+        }
+        String contentType = request.getContentType();
+        boolean isJson = contentType != null
+            && contentType.toLowerCase(Locale.ROOT).contains(MediaType.APPLICATION_JSON_VALUE);
+        if (request.getContentLengthLong() > 0 && (isJson || payload.isEmpty())) {
+            try {
+                Map<String, Object> body = objectMapper.readValue(request.getInputStream(), Map.class);
+                if (body != null) {
+                    payload.putAll(body);
+                }
+            } catch (JsonProcessingException ex) {
+                if (payload.isEmpty()) {
+                    throw ex;
+                }
+            }
+        }
+        return payload;
     }
 }
