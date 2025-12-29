@@ -1409,7 +1409,7 @@
                 </div>
 
                 <div class="tab-pane fade" id="settingsAuthRoles" role="tabpanel" data-auth-roles-section>
-                  <form class="row g-2 align-items-end mb-3" data-auth-role-create>
+                  <form class="row g-2 align-items-end mb-3" data-auth-role-create action="/api/roles" method="post">
                     <div class="col-md-4">
                       <label class="form-label small mb-1" for="authRoleName">Название</label>
                       <input type="text" class="form-control form-control-sm" id="authRoleName" name="name" autocomplete="off" required>
@@ -1458,7 +1458,7 @@
     <div class="modal fade" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
       <div class="modal-dialog modal-dialog-scrollable modal-xl auth-user-modal-dialog modal-fullscreen-sm-down">
         <div class="modal-content">
-          <form data-auth-user-form>
+          <form data-auth-user-form action="/api/users" method="post">
             <div class="modal-header">
               <h5 class="modal-title" data-auth-user-modal-title>Пользователь</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
