@@ -340,13 +340,15 @@ public class AuthManagementApiController {
     @DeleteMapping("/roles/{roleId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> deleteRole(@PathVariable long roleId) {
-        Integer usage = usersJdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM users WHERE role_id = ?",
-            Integer.class,
-            roleId
-        );
-        if (usage != null && usage > 0) {
-            return Map.of("success", false, "error", "Роль используется пользователями");
+        if (userColumns.contains("role_id")) {
+            Integer usage = usersJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE role_id = ?",
+                Integer.class,
+                roleId
+            );
+            if (usage != null && usage > 0) {
+                return Map.of("success", false, "error", "Роль используется пользователями");
+            }
         }
         int removed = usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", roleId);
         if (removed == 0) {
@@ -373,10 +375,8 @@ public class AuthManagementApiController {
     }
 
     private List<Map<String, Object>> fetchUsers(Authentication authentication) {
-        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
-            "SELECT u.*, r.name AS role_name, r.permissions AS role_permissions " +
-                "FROM users u LEFT JOIN roles r ON r.id = u.role_id ORDER BY lower(u.username)"
-        );
+        String usersQuery = buildUsersQuery();
+        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(usersQuery);
         Long currentId = resolveCurrentUserId(authentication);
         boolean canEditPassword = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
         boolean canEditUsername = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
@@ -412,6 +412,14 @@ public class AuthManagementApiController {
             users.add(user);
         }
         return users;
+    }
+
+    private String buildUsersQuery() {
+        if (userColumns.contains("role_id")) {
+            return "SELECT u.*, r.name AS role_name, r.permissions AS role_permissions " +
+                "FROM users u LEFT JOIN roles r ON r.id = u.role_id ORDER BY lower(u.username)";
+        }
+        return "SELECT u.* FROM users u ORDER BY lower(u.username)";
     }
 
     private List<Map<String, Object>> fetchRoles() {
