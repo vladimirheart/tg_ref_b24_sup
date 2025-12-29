@@ -53,16 +53,18 @@ public class DialogService {
     public List<DialogListItem> loadDialogs() {
         try {
             String sql = """
-                    SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business, m.city, m.location_name,
+                    SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business,
+                           c.channel_name AS channel_name,
+                           m.city, m.location_name,
                            m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
                            m.created_date, m.created_time, cs.status AS client_status
                       FROM messages m
                       LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+                      LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
                       LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
                            AND cs.updated_at = (
                                SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
-                           )
-                     ORDER BY m.created_at DESC
+                           )created_at DESC
                     """;
             return jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
@@ -70,6 +72,7 @@ public class DialogService {
                     rs.getString("username"),
                     rs.getString("client_name"),
                     rs.getString("business"),
+                    rs.getString("channel_name"),
                     rs.getString("city"),
                     rs.getString("location_name"),
                     rs.getString("problem"),
@@ -90,11 +93,14 @@ public class DialogService {
     public Optional<DialogListItem> findDialog(String ticketId) {
         try {
             String sql = """
-                    SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business, m.city, m.location_name,
+                    SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business,
+                           c.channel_name AS channel_name,
+                           m.city, m.location_name,
                            m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
                            m.created_date, m.created_time, cs.status AS client_status
                       FROM messages m
                       LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+                      LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
                       LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
                            AND cs.updated_at = (
                                SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
@@ -109,9 +115,10 @@ public class DialogService {
                     rs.getString("username"),
                     rs.getString("client_name"),
                     rs.getString("business"),
+                    rs.getString("channel_name"),
                     rs.getString("city"),
                     rs.getString("location_name"),
-                    rs.getString("problem"),
+                    rs.getString("problem"),s
                     rs.getString("created_at"),
                     rs.getString("status"),
                     rs.getString("resolved_by"),
