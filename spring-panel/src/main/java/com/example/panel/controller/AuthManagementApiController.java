@@ -23,7 +23,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -145,7 +144,7 @@ public class AuthManagementApiController {
     @PostMapping("/users")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> createUser(HttpServletRequest request) throws IOException {
-        return createUserFromPayload(loadRequestPayload(request));
+        return createUserFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
     }
 
     private Map<String, Object> createUserFromPayload(Map<String, Object> payload) {
@@ -287,7 +286,7 @@ public class AuthManagementApiController {
     @PostMapping("/roles")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> createRole(HttpServletRequest request) throws IOException {
-        return createRoleFromPayload(loadRequestPayload(request));
+        return createRoleFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
     }
 
     private Map<String, Object> createRoleFromPayload(Map<String, Object> payload) {
@@ -596,37 +595,5 @@ public class AuthManagementApiController {
         }
     }
 
-    private Map<String, Object> loadRequestPayload(HttpServletRequest request) throws IOException {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        Map<String, String[]> parameterMap = request.getParameterMap();
-        if (!parameterMap.isEmpty()) {
-            for (Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
-                String key = entry.getKey();
-                String[] values = entry.getValue();
-                if (values == null) {
-                    payload.put(key, null);
-                } else if (values.length == 1) {
-                    payload.put(key, values[0]);
-                } else {
-                    payload.put(key, List.of(values));
-                }
-            }
-        }
-        String contentType = request.getContentType();
-        boolean isJson = contentType != null
-            && contentType.toLowerCase(Locale.ROOT).contains(MediaType.APPLICATION_JSON_VALUE);
-        if (request.getContentLengthLong() > 0 && (isJson || payload.isEmpty())) {
-            try {
-                Map<String, Object> body = objectMapper.readValue(request.getInputStream(), Map.class);
-                if (body != null) {
-                    payload.putAll(body);
-                }
-            } catch (JsonProcessingException ex) {
-                if (payload.isEmpty()) {
-                    throw ex;
-                }
-            }
-        }
-        return payload;
-    }
+
 }
