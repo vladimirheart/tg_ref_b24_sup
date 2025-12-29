@@ -57,10 +57,12 @@ public class DialogService {
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
                        m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+                       tr.responsible AS responsible,
                        m.created_date, m.created_time, cs.status AS client_status
                   FROM messages m
                   LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
                   LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+                  LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
                   LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
                        AND cs.updated_at = (
                            SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
@@ -81,6 +83,7 @@ public class DialogService {
                     rs.getString("status"),
                     rs.getString("resolved_by"),
                     rs.getString("resolved_at"),
+                    rs.getString("responsible"),
                     rs.getString("created_date"),
                     rs.getString("created_time"),
                     rs.getString("client_status")
@@ -98,10 +101,12 @@ public class DialogService {
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
                            m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+                           tr.responsible AS responsible,
                            m.created_date, m.created_time, cs.status AS client_status
                       FROM messages m
                       LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+                      LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
                       LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
                            AND cs.updated_at = (
                                SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
@@ -124,6 +129,7 @@ public class DialogService {
                     rs.getString("status"),
                     rs.getString("resolved_by"),
                     rs.getString("resolved_at"),
+                    rs.getString("responsible"),
                     rs.getString("created_date"),
                     rs.getString("created_time"),
                     rs.getString("client_status")
@@ -132,6 +138,34 @@ public class DialogService {
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialog {} details: {}", ticketId, ex.getMessage());
             return Optional.empty();
+        }
+    }
+
+    public void assignResponsibleIfMissing(String ticketId, String username) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(username)) {
+            return;
+        }
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ? LIMIT 1",
+                    ticketId
+            );
+            if (rows.isEmpty()) {
+                jdbcTemplate.update(
+                        "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?, ?, ?)",
+                        ticketId, username, username
+                );
+                return;
+            }
+            Object existing = rows.get(0).get("responsible");
+            if (existing == null || existing.toString().trim().isEmpty()) {
+                jdbcTemplate.update(
+                        "UPDATE ticket_responsibles SET responsible = ?, assigned_by = ? WHERE ticket_id = ?",
+                        username, username, ticketId
+                );
+            }
+        } catch (DataAccessException ex) {
+            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, ex.getMessage());
         }
     }
 
