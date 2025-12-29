@@ -323,7 +323,7 @@
         ['Статус', summary.status ? summary.statusLabel || summary.status : fallbackRow?.dataset.status || '—'],
         ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
         ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
-        ['Ответственный', summary.resolvedBy || fallbackRow?.dataset.responsible || '—'],
+        ['Ответственный', summary.responsible || fallbackRow?.dataset.responsible || '—'],
       ];
       if (detailsSummary) {
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => `
