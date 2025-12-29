@@ -37,10 +37,17 @@ public class UsersSqliteDataSourceProperties {
         }
 
         Path probe = Paths.get("").toAbsolutePath().normalize();
+        Path filenameOnly = configured.getFileName();
         while (probe != null) {
             Path candidate = probe.resolve(configured).normalize();
             if (Files.exists(candidate)) {
                 return candidate;
+            }
+            if (filenameOnly != null) {
+                Path fallback = probe.resolve(filenameOnly).normalize();
+                if (Files.exists(fallback)) {
+                    return fallback;
+                }
             }
             probe = probe.getParent();
         }
