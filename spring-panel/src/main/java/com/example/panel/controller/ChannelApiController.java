@@ -1,12 +1,15 @@
 package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.model.channel.BotCredential;
 import com.example.panel.repository.ChannelRepository;
+import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,10 +19,16 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -29,20 +38,54 @@ public class ChannelApiController {
 
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
+    private final SharedConfigService sharedConfigService;
 
-    public ChannelApiController(ChannelRepository channelRepository, ObjectMapper objectMapper) {
+    public ChannelApiController(ChannelRepository channelRepository,
+                                ObjectMapper objectMapper,
+                                SharedConfigService sharedConfigService) {
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
+        this.sharedConfigService = sharedConfigService;
     }
 
     @GetMapping("/channels")
     public ResponseEntity<Map<String, Object>> getChannels() {
         List<Channel> channels = channelRepository.findAll();
+        Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
+        List<Map<String, Object>> responseChannels = channels.stream()
+            .map(channel -> toChannelResponse(channel, credentials))
+            .toList();
         Map<String, Object> body = new HashMap<>();
-        body.put("channels", channels);
+        body.put("channels", responseChannels);
         body.put("success", true);
         log.info("Channels API returned {} channels", channels.size());
         return ResponseEntity.ok(body);
+    }
+
+    @PostMapping("/channels")
+    public ResponseEntity<Map<String, Object>> createChannel(@RequestBody(required = false) Map<String, Object> payload) {
+        Map<String, Object> data = payload != null ? payload : Collections.emptyMap();
+        String name = stringValue(firstValue(data, "channel_name", "name"));
+        if (name.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Название канала обязательно"));
+        }
+        Channel channel = new Channel();
+        channel.setChannelName(name);
+        channel.setDescription(stringValue(data.get("description")));
+        channel.setPlatform(stringValue(data.getOrDefault("platform", "telegram")));
+        channel.setCredentialId(parseLong(data.get("credential_id")));
+        channel.setActive(parseBoolean(data.getOrDefault("is_active", true)));
+        channel.setMaxQuestions(parseInteger(data.get("max_questions")));
+        channel.setToken(generateToken());
+        channel.setFilters("{}");
+        channel.setQuestionsCfg("{}");
+        channel.setDeliverySettings("{}");
+        channel.setCreatedAt(OffsetDateTime.now());
+        channel.setUpdatedAt(OffsetDateTime.now());
+
+        Channel saved = channelRepository.save(channel);
+        Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
+        return ResponseEntity.ok(Map.of("success", true, "channel", toChannelResponse(saved, credentials)));
     }
 
     @PatchMapping("/channels/{channelId}")
@@ -61,6 +104,31 @@ public class ChannelApiController {
     public ResponseEntity<Map<String, Object>> postChannel(@PathVariable long channelId,
                                                            @RequestBody(required = false) Map<String, Object> payload) {
         return applyChannelUpdate(channelId, payload);
+    }
+
+    @DeleteMapping("/channels/{channelId}")
+    public ResponseEntity<Map<String, Object>> deleteChannel(@PathVariable long channelId) {
+        Optional<Channel> channel = channelRepository.findById(channelId);
+        if (channel.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("success", false, "error", "Канал не найден"));
+        }
+        channelRepository.delete(channel.get());
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @PostMapping("/channels/{channelId}/test-message")
+    public ResponseEntity<Map<String, Object>> testChannel(@PathVariable long channelId,
+                                                           @RequestBody(required = false) Map<String, Object> payload) {
+        if (!channelRepository.existsById(channelId)) {
+            return ResponseEntity.status(404).body(Map.of("success", false, "error", "Канал не найден"));
+        }
+        String recipient = stringValue(payload != null ? payload.get("recipient") : null);
+        String message = stringValue(payload != null ? payload.get("message") : null);
+        if (recipient.isEmpty() || message.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Нужно указать получателя и текст"));
+        }
+        log.info("Test message requested for channel {} to {} ({} chars)", channelId, recipient, message.length());
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     private ResponseEntity<Map<String, Object>> applyChannelUpdate(long channelId,
@@ -124,6 +192,11 @@ public class ChannelApiController {
             updated = true;
         }
 
+        if (data.containsKey("credential_id")) {
+            channel.setCredentialId(parseLong(data.get("credential_id")));
+            updated = true;
+        }
+
         if (data.containsKey("question_template_id")) {
             channel.setQuestionTemplateId(stringValue(data.get("question_template_id")));
             updated = true;
@@ -157,16 +230,68 @@ public class ChannelApiController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Нет полей для обновления"));
         }
 
+        channel.setUpdatedAt(OffsetDateTime.now());
         channelRepository.save(channel);
-        return ResponseEntity.ok(Map.of("success", true, "channel", channel));
+        Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
+        return ResponseEntity.ok(Map.of("success", true, "channel", toChannelResponse(channel, credentials)));
     }
 
     @GetMapping("/bot-credentials")
     public ResponseEntity<Map<String, Object>> getBotCredentials() {
+        List<BotCredential> credentials = loadBotCredentials();
+        List<Map<String, Object>> response = credentials.stream()
+            .map(this::toCredentialResponse)
+            .toList();
         Map<String, Object> body = new HashMap<>();
-        body.put("credentials", Collections.emptyList());
+        body.put("credentials", response);
         body.put("success", true);
         return ResponseEntity.ok(body);
+    }
+
+    @PostMapping("/bot-credentials")
+    public ResponseEntity<Map<String, Object>> createBotCredential(@RequestBody(required = false) Map<String, Object> payload) {
+        Map<String, Object> data = payload != null ? payload : Collections.emptyMap();
+        String name = stringValue(data.get("name"));
+        String token = stringValue(data.get("token"));
+        if (name.isEmpty() || token.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Название и токен обязательны"));
+        }
+        String platform = stringValue(data.getOrDefault("platform", "telegram"));
+        boolean active = Boolean.TRUE.equals(parseBoolean(data.getOrDefault("is_active", true)));
+
+        List<BotCredential> credentials = new ArrayList<>(loadBotCredentials());
+        long nextId = credentials.stream()
+            .map(BotCredential::id)
+            .filter(Objects::nonNull)
+            .max(Long::compareTo)
+            .orElse(0L) + 1;
+        BotCredential credential = new BotCredential(nextId, name, platform, token, active);
+        credentials.add(credential);
+        sharedConfigService.saveBotCredentials(credentials);
+
+        return ResponseEntity.ok(Map.of("success", true, "credential", toCredentialResponse(credential)));
+    }
+
+    @DeleteMapping("/bot-credentials/{credentialId}")
+    public ResponseEntity<Map<String, Object>> deleteBotCredential(@PathVariable long credentialId) {
+        List<BotCredential> credentials = new ArrayList<>(loadBotCredentials());
+        boolean removed = credentials.removeIf(cred -> Objects.equals(cred.id(), credentialId));
+        if (!removed) {
+            return ResponseEntity.status(404).body(Map.of("success", false, "error", "Учётные данные не найдены"));
+        }
+        sharedConfigService.saveBotCredentials(credentials);
+        List<Channel> channels = channelRepository.findAll();
+        boolean updated = false;
+        for (Channel channel : channels) {
+            if (Objects.equals(channel.getCredentialId(), credentialId)) {
+                channel.setCredentialId(null);
+                updated = true;
+            }
+        }
+        if (updated) {
+            channelRepository.saveAll(channels);
+        }
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     @GetMapping("/channel-notifications")
@@ -213,6 +338,79 @@ public class ChannelApiController {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private Long parseLong(Object raw) {
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        String value = stringValue(raw);
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String generateToken() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private List<BotCredential> loadBotCredentials() {
+        return sharedConfigService.loadBotCredentials();
+    }
+
+    private Map<Long, Map<String, Object>> buildCredentialIndex(List<BotCredential> credentials) {
+        Map<Long, Map<String, Object>> index = new HashMap<>();
+        for (BotCredential credential : credentials) {
+            if (credential.id() != null) {
+                index.put(credential.id(), toCredentialResponse(credential));
+            }
+        }
+        return index;
+    }
+
+    private Map<String, Object> toChannelResponse(Channel channel, Map<Long, Map<String, Object>> credentials) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("id", channel.getId());
+        response.put("channel_name", channel.getChannelName());
+        response.put("platform", channel.getPlatform());
+        response.put("token", channel.getToken());
+        response.put("is_active", channel.getActive());
+        response.put("description", channel.getDescription());
+        response.put("max_questions", channel.getMaxQuestions());
+        response.put("credential_id", channel.getCredentialId());
+        if (channel.getCredentialId() != null) {
+            response.put("credential", credentials.get(channel.getCredentialId()));
+        }
+        return response;
+    }
+
+    private Map<String, Object> toCredentialResponse(BotCredential credential) {
+        String platform = credential.platform() != null && !credential.platform().isBlank()
+            ? credential.platform()
+            : "telegram";
+        String masked = maskToken(credential.token());
+        return Map.of(
+            "id", credential.id(),
+            "name", credential.name(),
+            "platform", platform,
+            "masked_token", masked,
+            "is_active", Boolean.TRUE.equals(credential.active())
+        );
+    }
+
+    private String maskToken(String token) {
+        if (token == null || token.isBlank()) {
+            return "";
+        }
+        String trimmed = token.trim();
+        int visible = Math.min(4, trimmed.length());
+        String suffix = trimmed.substring(trimmed.length() - visible);
+        return "*".repeat(Math.max(0, trimmed.length() - visible)) + suffix;
     }
 
     private String serializeIfNeeded(Object value) {
