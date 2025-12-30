@@ -15,7 +15,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -296,7 +295,8 @@ public class SettingsBridgeController {
         return Map.of("success", true, "items", items);
     }
 
-    @PatchMapping("/api/settings/it-equipment/{itemId}")
+    @RequestMapping(value = "/api/settings/it-equipment/{itemId}",
+        method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateItEquipment(@PathVariable long itemId,
                                                  @RequestBody Map<String, Object> payload) {
