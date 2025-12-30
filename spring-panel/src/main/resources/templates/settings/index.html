@@ -6034,7 +6034,7 @@
           state: payload.state,
         };
         response = await fetch(`/api/settings/parameters/${id}`, {
-          method: 'PATCH',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestPayload),
         });
@@ -7701,7 +7701,7 @@
     }
     try {
       const response = await fetch(`/api/settings/it-equipment/${id}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -7842,7 +7842,7 @@
         });
       } else {
         response = await fetch(`/api/settings/parameters/${id}`, {
-          method: 'PATCH',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
@@ -7913,7 +7913,7 @@
     if (button) button.disabled = true;
     try {
       const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_deleted: false }),
       });
@@ -8582,7 +8582,7 @@
       }
       Object.assign(payload, dependencyResult.values);
       const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -8610,7 +8610,7 @@
 
     try {
       const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: select.value })
       });
@@ -8674,7 +8674,7 @@
     trigger.disabled = true;
     try {
       const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_deleted: false })
       });
@@ -12537,7 +12537,7 @@
     }
 
     try {
-      let result = await saveChannelRequest('PATCH');
+      let result = await saveChannelRequest('POST');
       if (result.resp.status === 405) {
         result = await saveChannelRequest('POST');
       }
