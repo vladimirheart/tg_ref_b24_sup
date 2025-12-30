@@ -42,7 +42,7 @@ public class SettingsBridgeController {
         this.objectMapper = objectMapper;
     }
 
-    @PostMapping({"/settings", "/settings/"})
+    @RequestMapping(value = {"/settings", "/settings/"}, method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateSettings(@RequestBody Map<String, Object> payload) {
         Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
@@ -189,7 +189,10 @@ public class SettingsBridgeController {
         return Map.of("success", true, "data", data);
     }
 
-    @RequestMapping(value = "/api/settings/parameters/{paramId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    @RequestMapping(
+        value = {"/api/settings/parameters/{paramId}", "/api/settings/parameters/{paramId}/"},
+        method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH}
+    )
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateParameter(@PathVariable long paramId,
                                                @RequestBody Map<String, Object> payload) {
