@@ -36,7 +36,7 @@ public class SettingsApiController {
         this.objectMapper = objectMapper;
     }
 
-    @PostMapping("/client-statuses")
+    @PostMapping({"/client-statuses", "/client-statuses/"})
     public Map<String, Object> updateClientStatuses(@RequestBody Map<String, Object> payload) {
         List<String> statuses = normalizeStatusList(payload.get("client_statuses"));
         Map<String, String> colors = normalizeColorMap(payload.get("client_status_colors"));
@@ -51,7 +51,7 @@ public class SettingsApiController {
         return Map.of("ok", true);
     }
 
-    @PostMapping("/it-connection-categories")
+    @PostMapping({"/it-connection-categories", "/it-connection-categories/"})
     public Map<String, Object> createItConnectionCategory(HttpServletRequest request) throws IOException {
         Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
         String label = payload.get("label") != null ? String.valueOf(payload.get("label")).trim() : "";
