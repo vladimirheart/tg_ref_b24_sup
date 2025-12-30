@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import com.example.panel.model.channel.BotCredential;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -7,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -50,6 +53,14 @@ public class SharedConfigService {
 
     public void saveOrgStructure(Object payload) {
         writeJson("org_structure.json", payload);
+    }
+
+    public List<BotCredential> loadBotCredentials() {
+        return readAsList("bot_credentials.json", new TypeReference<List<BotCredential>>() {});
+    }
+
+    public void saveBotCredentials(List<BotCredential> credentials) {
+        writeJson("bot_credentials.json", credentials);
     }
 
     private Path resolveSharedDir(String configuredPath) {
@@ -102,6 +113,19 @@ public class SharedConfigService {
         } catch (IOException ex) {
             log.warn("Failed to read shared config {}: {}", file, ex.getMessage());
             return null;
+        }
+    }
+
+    private <T> List<T> readAsList(String fileName, TypeReference<List<T>> typeReference) {
+        Path file = sharedConfigDir.resolve(fileName);
+        if (!Files.isRegularFile(file)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(file.toFile(), typeReference);
+        } catch (IOException ex) {
+            log.warn("Failed to read shared config {}: {}", file, ex.getMessage());
+            return List.of();
         }
     }
 
