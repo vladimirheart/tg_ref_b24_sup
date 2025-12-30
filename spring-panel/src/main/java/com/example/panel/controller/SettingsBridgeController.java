@@ -42,7 +42,7 @@ public class SettingsBridgeController {
         this.objectMapper = objectMapper;
     }
 
-    @PostMapping("/settings")
+    @PostMapping({"/settings", "/settings/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateSettings(@RequestBody Map<String, Object> payload) {
         Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
@@ -167,7 +167,7 @@ public class SettingsBridgeController {
         return fetchParametersGrouped(true);
     }
 
-    @PostMapping("/api/settings/parameters")
+    @PostMapping({"/api/settings/parameters", "/api/settings/parameters/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> createParameter(HttpServletRequest request) throws IOException {
         Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
@@ -262,7 +262,7 @@ public class SettingsBridgeController {
         return Map.of("success", true, "items", items);
     }
 
-    @PostMapping("/api/settings/it-equipment")
+    @PostMapping({"/api/settings/it-equipment", "/api/settings/it-equipment/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> createItEquipment(HttpServletRequest request) throws IOException {
         Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
