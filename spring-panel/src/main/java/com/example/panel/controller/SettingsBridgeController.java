@@ -18,9 +18,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
 
@@ -189,8 +189,7 @@ public class SettingsBridgeController {
         return Map.of("success", true, "data", data);
     }
 
-    @PutMapping("/api/settings/parameters/{paramId}")
-    @PatchMapping("/api/settings/parameters/{paramId}")
+    @RequestMapping(value = "/api/settings/parameters/{paramId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateParameter(@PathVariable long paramId,
                                                @RequestBody Map<String, Object> payload) {
