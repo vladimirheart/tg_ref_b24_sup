@@ -127,7 +127,7 @@ public class AuthManagementApiController {
         );
     }
 
-    @PostMapping("/auth/org-structure")
+    @PostMapping({"/auth/org-structure", "/auth/org-structure/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> updateOrgStructure(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> payload) {
         Object structure = payload.getOrDefault("org_structure", payload);
@@ -141,7 +141,7 @@ public class AuthManagementApiController {
         return fetchUsers(authentication);
     }
 
-    @PostMapping("/users")
+    @PostMapping({"/users", "/users/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> createUser(HttpServletRequest request) throws IOException {
         return createUserFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
@@ -283,7 +283,7 @@ public class AuthManagementApiController {
         return fetchRoles();
     }
 
-    @PostMapping("/roles")
+    @PostMapping({"/roles", "/roles/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> createRole(HttpServletRequest request) throws IOException {
         return createRoleFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
@@ -366,7 +366,7 @@ public class AuthManagementApiController {
         return Map.of("success", true);
     }
 
-    @PostMapping(value = "/users/photo-upload", consumes = "multipart/form-data")
+    @PostMapping(value = {"/users/photo-upload", "/users/photo-upload/"}, consumes = "multipart/form-data")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> uploadUserPhoto(@RequestParam("photo") MultipartFile file) throws IOException {
         if (file.isEmpty()) {
