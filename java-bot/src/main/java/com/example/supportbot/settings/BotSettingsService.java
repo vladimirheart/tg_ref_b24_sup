@@ -21,9 +21,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 /**
- * Service that mirrors the behaviour of the Python {@code bot_settings_utils} module.
- * It sanitises raw settings received from the admin panel and exposes helpers for
- * rating scale management and location preset generation.
+ * Service that sanitises raw settings received from the admin panel and exposes
+ * helpers for rating scale management and location preset generation.
  */
 
 @Service
@@ -143,7 +142,7 @@ public class BotSettingsService {
         return Optional.ofNullable(ratingResponses(settings).get(key));
     }
 
-    // Internal helpers mirroring the Python implementation ------------------
+    // Internal helpers for settings sanitization ----------------------------
 
     private Map<String, Object> convertToMap(Object raw) {
         if (raw instanceof String json && !json.isBlank()) {
@@ -984,3 +983,4 @@ public class BotSettingsService {
     private record PresetKey(String group, String field) {
     }
 }
+
