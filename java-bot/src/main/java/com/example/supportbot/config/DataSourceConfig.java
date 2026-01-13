@@ -70,9 +70,8 @@ public class DataSourceConfig {
     private static Path resolveSqlitePath(String configured) {
         if (StringUtils.hasText(configured)) {
             Path candidate = normalizeAndEnsureParent(Paths.get(configured));
-            if (Files.exists(candidate)) {
-                return candidate;
-            }
+            ensureSqliteFile(candidate);
+            return candidate;
         }
 
         Path cwd = Paths.get("").toAbsolutePath().normalize();
@@ -81,10 +80,9 @@ public class DataSourceConfig {
             return existing;
         }
 
-        throw new IllegalStateException(
-                "SQLite database tickets.db not found near " + cwd
-                        + ". Set APP_DB_TICKETS (support-bot.database.path) to an existing Python panel DB."
-        );
+        Path fallback = normalizeAndEnsureParent(cwd.resolve("tickets.db"));
+        ensureSqliteFile(fallback);
+        return fallback;
     }
 
     private static Path normalizeAndEnsureParent(Path path) {
@@ -93,6 +91,16 @@ public class DataSourceConfig {
             normalized.getParent().toFile().mkdirs();
         }
         return normalized;
+    }
+
+    private static void ensureSqliteFile(Path path) {
+        try {
+            if (!Files.exists(path)) {
+                Files.createFile(path);
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to create SQLite database at " + path, ex);
+        }
     }
 
     private static Path findExistingSibling(Path start, String fileName) {
