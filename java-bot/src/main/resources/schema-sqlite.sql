@@ -1,6 +1,6 @@
--- Initialize the SQLite database with the tables required by the legacy bot.
--- The schema mirrors the Python stack so that tickets, chat history, tasks,
--- knowledge base, and feedback flows behave identically.
+-- Initialize the SQLite database with the tables required by the bot.
+-- The schema aligns with the Spring panel so that tickets, chat history, tasks,
+-- knowledge base, and feedback flows behave consistently.
 
 CREATE TABLE IF NOT EXISTS bot_credentials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
