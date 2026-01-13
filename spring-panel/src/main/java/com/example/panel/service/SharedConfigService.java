@@ -86,7 +86,7 @@ public class SharedConfigService {
 
         throw new IllegalStateException(
             "Shared config directory not found at " + absolute
-                + ". Set SHARED_CONFIG_DIR or shared-config.dir to point to the Python panel's config/shared." 
+                + ". Set SHARED_CONFIG_DIR or shared-config.dir to point to the shared config directory."
         );
     }
 
