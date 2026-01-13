@@ -19,15 +19,22 @@ import org.springframework.core.env.MutablePropertySources;
 import org.springframework.util.StringUtils;
 
 /**
- * Ensures the Spring panel automatically points to the same local SQLite files as the Python
- * stack without requiring manual {@code export APP_DB_*} calls.
+ * Ensures the Spring panel automatically points to the local SQLite files without requiring
+ * manual {@code export APP_DB_*} calls.
  */
 public class EnvDefaultsInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
     private static final Logger log = LoggerFactory.getLogger(EnvDefaultsInitializer.class);
 
     private static final String[] DB_KEYS = {
-        "APP_DB_TICKETS", "APP_DB_USERS", "APP_DB_BOT", "APP_DB_OBJECT_PASSPORTS"
+        "APP_DB_TICKETS",
+        "APP_DB_USERS",
+        "APP_DB_BOT",
+        "APP_DB_OBJECT_PASSPORTS",
+        "APP_DB_CLIENTS",
+        "APP_DB_KNOWLEDGE",
+        "APP_DB_OBJECTS",
+        "APP_DB_SETTINGS"
     };
 
     @Override
@@ -96,6 +103,10 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
             case "APP_DB_USERS" -> "users.db";
             case "APP_DB_BOT" -> "bot_database.db";
             case "APP_DB_OBJECT_PASSPORTS" -> "object_passports.db";
+            case "APP_DB_CLIENTS" -> "clients.db";
+            case "APP_DB_KNOWLEDGE" -> "knowledge_base.db";
+            case "APP_DB_OBJECTS" -> "objects.db";
+            case "APP_DB_SETTINGS" -> "settings.db";
             default -> key.toLowerCase();
         };
     }
@@ -141,6 +152,30 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         }
         if ("APP_DB_OBJECT_PASSPORTS".equals(key)) {
             String sibling = resolveSiblingPath(ticketsPath, "object_passports.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        if ("APP_DB_CLIENTS".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "clients.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        if ("APP_DB_KNOWLEDGE".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "knowledge_base.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        if ("APP_DB_OBJECTS".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "objects.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        if ("APP_DB_SETTINGS".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "settings.db");
             if (StringUtils.hasText(sibling)) {
                 return sibling;
             }
