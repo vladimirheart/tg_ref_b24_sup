@@ -1,4 +1,4 @@
--- Initialize PostgreSQL schema aligned with the legacy Python bot.
+-- Initialize PostgreSQL schema aligned with the Java bot and panel.
 
 CREATE TABLE IF NOT EXISTS bot_credentials (
     id SERIAL PRIMARY KEY,
