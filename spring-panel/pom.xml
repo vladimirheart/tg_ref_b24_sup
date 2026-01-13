@@ -9,7 +9,7 @@
     <packaging>jar</packaging>
 
     <name>panel</name>
-    <description>Spring Boot replacement for the Flask support panel</description>
+    <description>Spring Boot support panel</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
