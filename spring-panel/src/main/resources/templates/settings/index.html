@@ -3064,6 +3064,15 @@
               Можно оставить пустым — добавьте бота в нужную группу, и мы определим ID автоматически.
             </div>
           </div>
+          <div class="mt-4">
+            <div class="form-label">Управление ботом</div>
+            <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
+              <button type="button" class="btn btn-success" id="channelEditorBotStartBtn">Запустить бота</button>
+              <button type="button" class="btn btn-outline-danger" id="channelEditorBotStopBtn">Остановить</button>
+              <div class="small text-muted" data-channel-editor-bot-status>Статус: —</div>
+            </div>
+            <div class="form-text small">Бот запускается в отдельном Java-процессе и использует собственную SQLite-базу.</div>
+          </div>
           <div class="mt-4 d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
             <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
             <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
@@ -3104,7 +3113,7 @@
             <ol class="mb-0 ps-3">
               <li>В разделе «Работа с API» → «Callback API» задайте адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
               <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы проверять исходящие запросы.</li>
-              <li>Включите события сообщений и перед запуском сервиса выполните <code>python vk_webhook_support.py</code>.</li>
+              <li>Включите события сообщений и запустите Java-бот через панель или команду Spring Boot.</li>
             </ol>
           </div>
         </div>
@@ -11841,6 +11850,9 @@
   const channelEditorNewTokenInput = document.getElementById('channelEditorNewToken');
   const channelEditorSupportHint = document.querySelector('[data-channel-editor-support-hint]');
   const channelEditorVkBtn = document.getElementById('channelEditorVkButton');
+  const channelEditorBotStartBtn = document.getElementById('channelEditorBotStartBtn');
+  const channelEditorBotStopBtn = document.getElementById('channelEditorBotStopBtn');
+  const channelEditorBotStatusEl = document.querySelector('[data-channel-editor-bot-status]');
   const channelEditorSaveBtn = document.getElementById('channelEditorSaveBtn');
   const channelEditorDeleteBtn = document.getElementById('channelEditorDeleteBtn');
 
@@ -11909,6 +11921,42 @@
     }
   }
 
+  function updateBotStatusLabel(status, startedAt) {
+    if (!channelEditorBotStatusEl) return;
+    if (status === 'running') {
+      channelEditorBotStatusEl.textContent = startedAt
+        ? `Статус: запущен (с ${new Date(startedAt).toLocaleString()})`
+        : 'Статус: запущен';
+    } else if (status === 'stopped') {
+      channelEditorBotStatusEl.textContent = 'Статус: остановлен';
+    } else {
+      channelEditorBotStatusEl.textContent = `Статус: ${status || '—'}`;
+    }
+  }
+
+  function updateBotControls(running) {
+    if (channelEditorBotStartBtn) {
+      channelEditorBotStartBtn.disabled = running;
+    }
+    if (channelEditorBotStopBtn) {
+      channelEditorBotStopBtn.disabled = !running;
+    }
+  }
+
+  async function refreshBotStatus(channelId) {
+    if (!channelId) return;
+    try {
+      const response = await fetch(`/api/bots/${channelId}/status`);
+      const payload = await response.json();
+      updateBotStatusLabel(payload.status, payload.startedAt);
+      updateBotControls(payload.status === 'running');
+    } catch (error) {
+      console.error('Failed to load bot status', error);
+      updateBotStatusLabel('ошибка');
+      updateBotControls(false);
+    }
+  }
+
   function formatBotLabel(channel) {
     const parts = [];
     const botName = channel.bot_name || channel.botName;
@@ -11963,6 +12011,9 @@
     if (channelEditorVkBtn) {
       channelEditorVkBtn.classList.toggle('d-none', channel.platform !== 'vk');
     }
+    updateBotStatusLabel('загрузка');
+    updateBotControls(false);
+    refreshBotStatus(channel.id);
   }
 
   function refreshChannelEditorIfOpen() {
@@ -12624,6 +12675,39 @@
     });
   }
 
+  async function startBotForChannel(channelId) {
+    try {
+      const response = await fetch(`/api/bots/${channelId}/start`, { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || payload.status || ('HTTP ' + response.status));
+      }
+      updateBotStatusLabel(payload.status, payload.startedAt);
+      updateBotControls(payload.status === 'running');
+    } catch (error) {
+      console.error('Failed to start bot', error);
+      updateBotStatusLabel(error.message || 'Ошибка');
+      updateBotControls(false);
+      alert('Не удалось запустить бота: ' + error.message);
+    }
+  }
+
+  async function stopBotForChannel(channelId) {
+    try {
+      const response = await fetch(`/api/bots/${channelId}/stop`, { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || payload.status || ('HTTP ' + response.status));
+      }
+      updateBotStatusLabel(payload.status, payload.startedAt);
+      updateBotControls(false);
+    } catch (error) {
+      console.error('Failed to stop bot', error);
+      updateBotStatusLabel(error.message || 'Ошибка');
+      alert('Не удалось остановить бота: ' + error.message);
+    }
+  }
+
   function initChannelEditorControls() {
     channelEditorActiveInput?.addEventListener('change', () => {
       updateChannelEditorStatusLabel(channelEditorActiveInput.checked);
@@ -12652,6 +12736,16 @@
     channelEditorVkBtn?.addEventListener('click', () => {
       if (channelEditorState.channelId !== null) {
         openVkSettings(channelEditorState.channelId);
+      }
+    });
+    channelEditorBotStartBtn?.addEventListener('click', () => {
+      if (channelEditorState.channelId !== null) {
+        startBotForChannel(channelEditorState.channelId);
+      }
+    });
+    channelEditorBotStopBtn?.addEventListener('click', () => {
+      if (channelEditorState.channelId !== null) {
+        stopBotForChannel(channelEditorState.channelId);
       }
     });
     channelEditorSaveBtn?.addEventListener('click', () => {
