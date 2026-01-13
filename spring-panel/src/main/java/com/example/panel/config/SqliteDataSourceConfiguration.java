@@ -24,7 +24,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-@EnableConfigurationProperties(SqliteDataSourceProperties.class)
+@EnableConfigurationProperties({
+    SqliteDataSourceProperties.class,
+    ClientsSqliteDataSourceProperties.class,
+    KnowledgeSqliteDataSourceProperties.class,
+    ObjectsSqliteDataSourceProperties.class,
+    SettingsSqliteDataSourceProperties.class,
+    BotProcessProperties.class
+})
     public class SqliteDataSourceConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(SqliteDataSourceConfiguration.class);
@@ -125,3 +132,4 @@ import java.util.Map;
     private record DatabaseCredentials(String jdbcUrl, String username, String password) {
     }
 }
+
