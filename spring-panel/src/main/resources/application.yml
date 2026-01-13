@@ -39,6 +39,16 @@ app:
       path: ${APP_DB_USERS:users.db}
     bot-sqlite:
       path: ${APP_DB_BOT:bot_database.db}
+    clients-sqlite:
+      path: ${APP_DB_CLIENTS:clients.db}
+    knowledge-sqlite:
+      path: ${APP_DB_KNOWLEDGE:knowledge_base.db}
+    objects-sqlite:
+      path: ${APP_DB_OBJECTS:objects.db}
+    settings-sqlite:
+      path: ${APP_DB_SETTINGS:settings.db}
+  bots:
+    database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
@@ -54,3 +64,4 @@ logging:
   level:
     # Suppress noisy stack traces when HTTPS traffic accidentally hits the HTTP port
     org.apache.coyote.http11.Http11Processor: WARN
+
