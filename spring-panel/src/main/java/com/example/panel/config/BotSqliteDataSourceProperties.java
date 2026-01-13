@@ -2,6 +2,7 @@ package com.example.panel.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.io.IOException
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -55,10 +56,8 @@ public class BotSqliteDataSourceProperties {
             }
         }
 
-        throw new IllegalStateException(
-                "Bot SQLite database file not found at " + resolved +
-                        ". Set APP_DB_BOT (app.datasource.bot-sqlite.path) to point to an existing DB created by the bot."
-        );
+        ensureSqliteFile(resolved);
+        return resolved;
     }
 
     private Path findExistingSibling(Path start, Path fileName) {
@@ -75,6 +74,20 @@ public class BotSqliteDataSourceProperties {
             current = current.getParent();
         }
         return null;
+    }
+
+    private void ensureSqliteFile(Path resolved) {
+        try {
+            Path parent = resolved.getParent();
+            if (parent != null && !Files.exists(parent)) {
+                Files.createDirectories(parent);
+            }
+            if (!Files.exists(resolved)) {
+                Files.createFile(resolved);
+            }
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to create bot SQLite database at " + resolved, ex);
+        }
     }
 
     public String buildJdbcUrl() {
