@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.io.IOException;
 
 @ConfigurationProperties(prefix = "app.datasource.sqlite")
 public class SqliteDataSourceProperties {
@@ -67,10 +68,8 @@ public class SqliteDataSourceProperties {
             }
         }
 
-        throw new IllegalStateException(
-            "SQLite database file not found at " + resolved +
-                ". Set APP_DB_TICKETS (app.datasource.sqlite.path) to point to an existing DB created by the Python panel."
-        );
+        ensureSqliteFile(resolved);
+        return resolved;
     }
 
     private Path findExistingSibling(Path start, Path fileName) {
@@ -87,6 +86,20 @@ public class SqliteDataSourceProperties {
             current = current.getParent();
         }
         return null;
+    }
+
+    private void ensureSqliteFile(Path resolved) {
+        try {
+            Path parent = resolved.getParent();
+            if (parent != null && !Files.exists(parent)) {
+                Files.createDirectories(parent);
+            }
+            if (!Files.exists(resolved)) {
+                Files.createFile(resolved);
+            }
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to create SQLite database at " + resolved, ex);
+        }
     }
 
     public String buildJdbcUrl() {
@@ -117,3 +130,4 @@ public class SqliteDataSourceProperties {
         builder.append(key).append('=').append(value);
     }
 }
+
