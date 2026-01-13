@@ -39,7 +39,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void sanitizeShouldMirrorPythonImplementation() throws IOException {
+    void sanitizeShouldNormalizeSettings() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
                         {
@@ -132,7 +132,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void buildLocationPresetsShouldMatchPythonOutput() throws IOException {
+    void buildLocationPresetsShouldMatchExpectedOutput() throws IOException {
         Map<String, Object> locationTree = objectMapper.readValue(
                 """
                         {
