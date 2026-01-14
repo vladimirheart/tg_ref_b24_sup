@@ -1,0 +1,1 @@
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS credential_id BIGINT;
