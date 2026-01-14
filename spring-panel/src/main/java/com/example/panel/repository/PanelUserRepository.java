@@ -46,7 +46,7 @@ public class PanelUserRepository {
         user.setPasswordHash(getStringSafe(rs, "password_hash"));
         user.setRole(getStringSafe(rs, "role"));
 
-        Long roleId = getObjectSafe(rs, "role_id", Long.class);
+        Long roleId = getNumberSafe(rs, "role_id", Long.class);
         if (roleId != null) {
             Role roleRef = new Role();
             roleRef.setId(roleId);
@@ -60,7 +60,7 @@ public class PanelUserRepository {
         user.setDepartment(getStringSafe(rs, "department"));
         user.setPhones(getStringSafe(rs, "phones"));
         user.setFullName(getStringSafe(rs, "full_name"));
-        Integer blocked = getObjectSafe(rs, "is_blocked", Integer.class);
+        Integer blocked = getNumberSafe(rs, "is_blocked", Integer.class);
         user.setBlocked(blocked != null && blocked == 1);
         return user;
     }
@@ -78,8 +78,40 @@ public class PanelUserRepository {
         return hasColumn(rs, column) ? rs.getString(column) : null;
     }
 
-    private <T> T getObjectSafe(ResultSet rs, String column, Class<T> type) throws SQLException {
-        return hasColumn(rs, column) ? rs.getObject(column, type) : null;
+    private <T extends Number> T getNumberSafe(ResultSet rs, String column, Class<T> type) throws SQLException {
+        if (!hasColumn(rs, column)) {
+            return null;
+        }
+        Object value = rs.getObject(column);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return coerceNumber(number, type);
+        }
+        if (value instanceof String text && StringUtils.hasText(text)) {
+            try {
+                if (Long.class.equals(type)) {
+                    return type.cast(Long.parseLong(text));
+                }
+                if (Integer.class.equals(type)) {
+                    return type.cast(Integer.parseInt(text));
+                }
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private <T extends Number> T coerceNumber(Number number, Class<T> type) {
+        if (Long.class.equals(type)) {
+            return type.cast(number.longValue());
+        }
+        if (Integer.class.equals(type)) {
+            return type.cast(number.intValue());
+        }
+        return null;
     }
 
     private OffsetDateTime parseOffsetDateTime(String value) {
