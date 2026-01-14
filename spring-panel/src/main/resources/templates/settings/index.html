@@ -12678,7 +12678,10 @@
 
   async function startBotForChannel(channelId) {
     try {
-      const response = await fetch(`/api/bots/${channelId}/start`, { method: 'POST' });
+      const response = await fetch(`/api/bots/${channelId}/start`, {
+        method: 'POST',
+        headers: { 'X-XSRF-TOKEN': getCookieValue('XSRF-TOKEN') }
+      });
       const payload = await response.json();
       if (!response.ok || payload.success === false) {
         throw new Error(payload.error || payload.status || ('HTTP ' + response.status));
@@ -12695,7 +12698,10 @@
 
   async function stopBotForChannel(channelId) {
     try {
-      const response = await fetch(`/api/bots/${channelId}/stop`, { method: 'POST' });
+      const response = await fetch(`/api/bots/${channelId}/stop`, {
+        method: 'POST',
+        headers: { 'X-XSRF-TOKEN': getCookieValue('XSRF-TOKEN') }
+      });
       const payload = await response.json();
       if (!response.ok || payload.success === false) {
         throw new Error(payload.error || payload.status || ('HTTP ' + response.status));
