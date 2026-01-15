@@ -804,13 +804,13 @@ public class BotSettingsService {
         }
 
         Map<String, Map<String, Map<String, Object>>> finalizedDependencies = new LinkedHashMap<>();
-        for (Map.Entry<String, Map<String, Map<String, Object>>> entry : optionDependencies.entrySet()) {
+        for (Map.Entry<String, Map<String, Map<String, Set<Object>>>> entry : optionDependencies.entrySet()) {
             Map<String, Map<String, Object>> finalized = new LinkedHashMap<>();
-            for (Map.Entry<String, Map<String, Object>> optionEntry : entry.getValue().entrySet()) {
+            for (Map.Entry<String, Map<String, Set<Object>>> optionEntry : entry.getValue().entrySet()) {
                 Map<String, Object> optionMapEntry = new LinkedHashMap<>();
-                for (Map.Entry<String, Object> depEntry : optionEntry.getValue().entrySet()) {
+                for (Map.Entry<String, Set<Object>> depEntry : optionEntry.getValue().entrySet()) {
                     if ("paths".equals(depEntry.getKey())) {
-                        Set<?> paths = depEntry.getValue() instanceof Set<?> set ? set : Collections.emptySet();
+                        Set<?> paths = depEntry.getValue();
                         if (paths.isEmpty()) {
                             continue;
                         }
@@ -834,14 +834,12 @@ public class BotSettingsService {
                         }
                         continue;
                     }
-                    if (depEntry.getValue() instanceof Set<?> set) {
-                        List<String> values = set.stream()
-                                .map(Object::toString)
-                                .sorted()
-                                .collect(Collectors.toList());
-                        if (!values.isEmpty()) {
-                            optionMapEntry.put(depEntry.getKey(), values);
-                        }
+                    List<String> values = depEntry.getValue().stream()
+                            .map(Object::toString)
+                            .sorted()
+                            .collect(Collectors.toList());
+                    if (!values.isEmpty()) {
+                        optionMapEntry.put(depEntry.getKey(), values);
                     }
                 }
                 if (!optionMapEntry.isEmpty()) {
@@ -990,4 +988,3 @@ public class BotSettingsService {
     private record PresetKey(String group, String field) {
     }
 }
-
