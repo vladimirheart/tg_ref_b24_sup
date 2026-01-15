@@ -46,7 +46,13 @@ public class BotProcessService {
         }
 
         try {
-            ProcessBuilder builder = new ProcessBuilder(mvnwCommand(), "-q", "spring-boot:run");
+            ProcessBuilder builder = new ProcessBuilder(
+                mvnwCommand(),
+                "-q",
+                "-Dorg.slf4j.simpleLogger.showDateTime=true",
+                "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd HH:mm:ss.SSSXXX",
+                "spring-boot:run"
+            );
             Path botWorkingDir = resolveBotWorkingDir();
             builder.directory(botWorkingDir.toFile());
             Path logFile = resolveLogFile(botWorkingDir);
