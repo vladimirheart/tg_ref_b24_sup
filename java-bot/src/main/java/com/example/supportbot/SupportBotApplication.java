@@ -19,6 +19,9 @@ public class SupportBotApplication {
     @Value("${support-bot.attachments-dir:attachments}")
     private String attachmentsDir;
 
+    @Value("${logging.file.name:}")
+    private String logFileName;
+
     public static void main(String[] args) {
         SpringApplication.run(SupportBotApplication.class, args);
     }
@@ -28,6 +31,13 @@ public class SupportBotApplication {
         Path root = Paths.get(attachmentsDir);
         Files.createDirectories(root);
         Files.createDirectories(root.resolve("temp"));
+        if (logFileName != null && !logFileName.isBlank()) {
+            Path logPath = Paths.get(logFileName).toAbsolutePath().normalize();
+            Path parent = logPath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+        }
     }
 
     @Bean
