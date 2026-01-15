@@ -15,18 +15,34 @@ function getCookieValue(name) {
     return '';
 }
 
+function getCsrfTokenFromDom() {
+  // 1) meta
+  const meta = document.querySelector('meta[name="_csrf"]');
+  if (meta && meta.content) return meta.content;
+
+  // 2) hidden input
+  const input = document.querySelector('input[name="_csrf"]');
+  if (input && input.value) return input.value;
+
+  return '';
+}
+
 function attachCsrfToken(init = {}) {
-    const method = (init.method || 'GET').toUpperCase();
-    if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
-        return init;
-    }
-    const token = getCookieValue('XSRF-TOKEN');
-    if (!token) {
-        return init;
-    }
-    const headers = new Headers(init.headers || {});
-    headers.set('X-XSRF-TOKEN', token);
-    return { ...init, headers };
+  const method = (init.method || 'GET').toUpperCase();
+  if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+    return init;
+  }
+
+  const token = getCsrfTokenFromDom() || getCookieValue('XSRF-TOKEN');
+  if (!token) return init;
+
+  const headers = new Headers(init.headers || {});
+  headers.set('X-XSRF-TOKEN', token);
+
+  // важно: чтобы SESSION cookie точно уходила
+  const credentials = init.credentials || 'same-origin';
+
+  return { ...init, headers, credentials };
 }
 
 if (typeof window !== 'undefined' && window.fetch) {
