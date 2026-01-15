@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.media.Animation;
+import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -881,4 +883,3 @@ public class SupportBot extends TelegramLongPollingBot {
         return properties.getToken();
     }
 }
-
