@@ -9,7 +9,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,16 +95,38 @@ public class BotProcessService {
     private BotCredential resolveCredential(Channel channel) {
         Long credentialId = channel.getCredentialId();
         List<BotCredential> credentials = sharedConfigService.loadBotCredentials();
-        if (credentialId == null) {
+
+        if (credentialId != null) {
             return credentials.stream()
-                .filter(cred -> channel.getPlatform() == null || channel.getPlatform().equalsIgnoreCase(cred.platform()))
+                .filter(cred -> Objects.equals(cred.id(), credentialId))
                 .findFirst()
-                .orElse(null);
+                .orElse(fallbackToChannelToken(channel));
         }
-        Optional<BotCredential> match = credentials.stream()
-            .filter(cred -> Objects.equals(cred.id(), credentialId))
-            .findFirst();
-        return match.orElse(null);
+
+        BotCredential fromShared = credentials.stream()
+            .filter(cred -> channel.getPlatform() == null || channel.getPlatform().equalsIgnoreCase(cred.platform()))
+            .findFirst()
+            .orElse(null);
+
+        if (fromShared != null && fromShared.token() != null && !fromShared.token().isBlank()) {
+            return fromShared;
+        }
+
+        return fallbackToChannelToken(channel);
+    }
+
+    private BotCredential fallbackToChannelToken(Channel channel) {
+        String token = channel.getToken();
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        return new BotCredential(
+            null,
+            "db:channels#" + channel.getId(),
+            Objects.toString(channel.getPlatform(), "telegram"),
+            token,
+            true
+        );
     }
 
     private Path resolveBotWorkingDir() {
