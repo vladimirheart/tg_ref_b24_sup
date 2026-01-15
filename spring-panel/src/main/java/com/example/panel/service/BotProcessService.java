@@ -46,7 +46,7 @@ public class BotProcessService {
         }
 
         try {
-            ProcessBuilder builder = new ProcessBuilder("./mvnw", "-q", "spring-boot:run");
+            ProcessBuilder builder = new ProcessBuilder(mvnwCommand(), "-q", "spring-boot:run");
             builder.directory(resolveBotWorkingDir().toFile());
             Map<String, String> env = builder.environment();
             env.put("APP_DB_TICKETS", botDatabaseRegistry.ensureBotDatabase(channelId, channel.getPlatform()).toString());
@@ -139,6 +139,11 @@ public class BotProcessService {
             current = current.getParent();
         }
         throw new IllegalStateException("java-bot directory not found near " + Paths.get("").toAbsolutePath().normalize());
+    }
+
+    private String mvnwCommand() {
+        String os = System.getProperty("os.name").toLowerCase();
+        return os.contains("win") ? "mvnw.cmd" : "./mvnw";
     }
 
     public record BotProcessStatus(boolean running, String message, OffsetDateTime startedAt) {
