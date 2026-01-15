@@ -20,16 +20,15 @@ import com.vk.api.sdk.client.actors.GroupActor;
 import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.exceptions.LongPollServerKeyExpiredException;
 import com.vk.api.sdk.exceptions.LongPollServerTsException;
-import com.vk.api.sdk.exceptions.LongPollServerTsLongPollHistoryLostException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.messages.AudioMessage;
-import com.vk.api.sdk.objects.messages.Doc;
 import com.vk.api.sdk.objects.messages.Message;
 import com.vk.api.sdk.objects.messages.MessageAttachment;
 import com.vk.api.sdk.objects.messages.MessageAttachmentType;
-import com.vk.api.sdk.objects.messages.Photo;
-import com.vk.api.sdk.objects.messages.PhotoSizes;
-import com.vk.api.sdk.objects.messages.Video;
+import com.vk.api.sdk.objects.docs.Doc;
+import com.vk.api.sdk.objects.photos.Photo;
+import com.vk.api.sdk.objects.photos.PhotoSizes;
+import com.vk.api.sdk.objects.video.Video;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -120,7 +119,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         while (running) {
             try {
                 poller.runBot(response -> handleUpdates(actor, response));
-            } catch (LongPollServerTsException | LongPollServerKeyExpiredException | LongPollServerTsLongPollHistoryLostException e) {
+            } catch (LongPollServerTsException | LongPollServerKeyExpiredException e) {
                 log.warn("VK long poll server state expired, restarting", e);
             } catch (Exception ex) {
                 log.error("VK long poll failed", ex);
