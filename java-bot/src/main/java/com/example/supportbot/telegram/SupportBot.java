@@ -385,7 +385,7 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         String extension = Optional.ofNullable(getExtension(animation.getFileName()))
-                .orElseGet(() -> extensionFromMime(animation.getMimeType(), "mp4"));
+                .orElse("mp4");
         try (InputStream data = fetchFile(animation.getFileId())) {
             Path stored = attachmentService.store(getChannelPublicId(), extension, data);
             log.info("Animation saved for user {} at {}", message.getFrom().getId(), stored);
@@ -883,4 +883,3 @@ public class SupportBot extends TelegramLongPollingBot {
         return properties.getToken();
     }
 }
-
