@@ -179,7 +179,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
         if ("/unblock".equalsIgnoreCase(text)) {
-            blacklistService.registerUnblockRequest(fromId.longValue(), "", channel.getId());
+            Integer channelId = channel.getId() != null ? Math.toIntExact(channel.getId()) : null;
+            blacklistService.registerUnblockRequest(fromId.longValue(), "", channelId);
             sendText(actor, peerId, "Запрос на разблокировку отправлен оператору.");
             return;
         }
@@ -264,7 +265,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         Channel channel = getChannel();
         TicketService.TicketCreationResult result = ticketService.createTicket(session.userId(), null, session.answers(), channel);
         for (HistoryEvent event : session.history()) {
-            chatHistoryService.storeEntry(event.userId(), null, channel, result.ticketId(), event.text(), event.messageType(), event.attachment());
+            chatHistoryService.storeEntry(event.userId().longValue(), null, channel, result.ticketId(), event.text(), event.messageType(), event.attachment());
         }
         sendText(actor, session.peerId(), "Спасибо! Заявка отправлена оператору.");
         if (properties.getChannelId() != null && properties.getChannelId() > 0) {
@@ -312,14 +313,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (doc == null || doc.getUrl() == null) {
             return;
         }
-        storeFromUrl(doc.getUrl(), extensionFrom(doc.getExt(), "bin"), session, "document");
+        storeFromUrl(doc.getUrl().toString(), extensionFrom(doc.getExt(), "bin"), session, "document");
     }
 
     private void handleAudioMessage(AudioMessage audio, ConversationSession session) throws Exception {
         if (audio == null || audio.getLinkOgg() == null) {
             return;
         }
-        storeFromUrl(audio.getLinkOgg(), "ogg", session, MessageAttachmentType.AUDIO_MESSAGE.getValue());
+        storeFromUrl(audio.getLinkOgg().toString(), "ogg", session, MessageAttachmentType.AUDIO_MESSAGE.getValue());
     }
 
     private void handleVideo(Video video, ConversationSession session) throws Exception {
