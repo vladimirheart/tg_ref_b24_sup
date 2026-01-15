@@ -72,7 +72,7 @@ public class SecurityConfig {
 
                     response.sendRedirect("/error/403");
                 }))
-                .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class);
+                .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
 
         http.authenticationProvider(daoAuthenticationProvider);
@@ -111,5 +111,6 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 }
+
 
 
