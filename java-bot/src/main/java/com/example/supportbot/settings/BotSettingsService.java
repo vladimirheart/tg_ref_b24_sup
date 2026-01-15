@@ -466,11 +466,17 @@ public class BotSettingsService {
         for (Object item : (Iterable<?>) rawFlow) {
             Map<String, Object> entry = null;
             if (item instanceof Map<?, ?> map) {
-                String type = optionalString(map.getOrDefault("type", map.getOrDefault("kind", "custom"))).toLowerCase();
+                Object typeValue = map.containsKey("type") ? map.get("type") : map.get("kind");
+                String type = optionalString(typeValue);
+                if (type.isBlank()) {
+                    type = "custom";
+                }
+                type = type.toLowerCase();
                 if (!type.equals("custom") && !type.equals("preset")) {
                     type = "custom";
                 }
-                String text = optionalString(map.getOrDefault("text", map.get("label")));
+                Object textValue = map.containsKey("text") ? map.get("text") : map.get("label");
+                String text = optionalString(textValue);
                 String id = ensureUuid(map.get("id"));
                 entry = new LinkedHashMap<>();
                 entry.put("id", id);
@@ -570,7 +576,8 @@ public class BotSettingsService {
                 Object textRaw;
                 if (item instanceof Map<?, ?> mapItem) {
                     valueRaw = mapItem.get("value");
-                    textRaw = mapItem.getOrDefault("text", mapItem.get("label"));
+                    Object textValue = mapItem.containsKey("text") ? mapItem.get("text") : mapItem.get("label");
+                    textRaw = textValue;
                 } else if (item instanceof List<?> listItem && listItem.size() >= 2) {
                     valueRaw = listItem.get(0);
                     textRaw = listItem.get(1);
@@ -683,7 +690,7 @@ public class BotSettingsService {
         optionMap.put("location_name", new ArrayList<>(locationNames));
         optionMap.values().forEach(list -> list.sort(Comparator.naturalOrder()));
 
-        Map<String, Map<String, Map<String, Object>>> optionDependencies = new LinkedHashMap<>();
+        Map<String, Map<String, Map<String, Set<Object>>>> optionDependencies = new LinkedHashMap<>();
         optionDependencies.put("location_type", new LinkedHashMap<>());
         optionDependencies.put("city", new LinkedHashMap<>());
         optionDependencies.put("location_name", new LinkedHashMap<>());
@@ -693,8 +700,8 @@ public class BotSettingsService {
             for (String locType : entry.getValue()) {
                 optionDependencies.get("location_type")
                         .computeIfAbsent(locType, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("business", k -> new LinkedHashSet<>())
-                        .add(business);
+                    .computeIfAbsent("business", k -> new LinkedHashSet<>())
+                    .add(business);
             }
         }
         for (Map.Entry<String, Set<String>> entry : citiesByBusiness.entrySet()) {
@@ -702,8 +709,8 @@ public class BotSettingsService {
             for (String city : entry.getValue()) {
                 optionDependencies.get("city")
                         .computeIfAbsent(city, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("business", k -> new LinkedHashSet<>())
-                        .add(business);
+                    .computeIfAbsent("business", k -> new LinkedHashSet<>())
+                    .add(business);
             }
         }
         for (Map.Entry<String, Set<String>> entry : citiesByType.entrySet()) {
@@ -711,8 +718,8 @@ public class BotSettingsService {
             for (String city : entry.getValue()) {
                 optionDependencies.get("city")
                         .computeIfAbsent(city, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("location_type", k -> new LinkedHashSet<>())
-                        .add(locType);
+                    .computeIfAbsent("location_type", k -> new LinkedHashSet<>())
+                    .add(locType);
             }
         }
         for (Map.Entry<List<String>, Set<String>> entry : citiesByPath.entrySet()) {
@@ -720,8 +727,8 @@ public class BotSettingsService {
             for (String city : entry.getValue()) {
                 optionDependencies.get("city")
                         .computeIfAbsent(city, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("paths", k -> new LinkedHashSet<>())
-                        .add(List.copyOf(path));
+                    .computeIfAbsent("paths", k -> new LinkedHashSet<>())
+                    .add(List.copyOf(path));
             }
         }
         for (Map.Entry<String, Set<String>> entry : locationsByBusiness.entrySet()) {
@@ -729,8 +736,8 @@ public class BotSettingsService {
             for (String location : entry.getValue()) {
                 optionDependencies.get("location_name")
                         .computeIfAbsent(location, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("business", k -> new LinkedHashSet<>())
-                        .add(business);
+                    .computeIfAbsent("business", k -> new LinkedHashSet<>())
+                    .add(business);
             }
         }
         for (Map.Entry<String, Set<String>> entry : locationsByType.entrySet()) {
@@ -738,8 +745,8 @@ public class BotSettingsService {
             for (String location : entry.getValue()) {
                 optionDependencies.get("location_name")
                         .computeIfAbsent(location, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("location_type", k -> new LinkedHashSet<>())
-                        .add(locType);
+                    .computeIfAbsent("location_type", k -> new LinkedHashSet<>())
+                    .add(locType);
             }
         }
         for (Map.Entry<String, Set<String>> entry : locationsByCity.entrySet()) {
@@ -747,8 +754,8 @@ public class BotSettingsService {
             for (String location : entry.getValue()) {
                 optionDependencies.get("location_name")
                         .computeIfAbsent(location, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("city", k -> new LinkedHashSet<>())
-                        .add(city);
+                    .computeIfAbsent("city", k -> new LinkedHashSet<>())
+                    .add(city);
             }
         }
         for (Map.Entry<List<String>, Set<String>> entry : locationsByPath.entrySet()) {
@@ -756,8 +763,8 @@ public class BotSettingsService {
             for (String location : entry.getValue()) {
                 optionDependencies.get("location_name")
                         .computeIfAbsent(location, k -> new LinkedHashMap<>())
-                        .computeIfAbsent("paths", k -> new LinkedHashSet<>())
-                        .add(List.copyOf(path));
+                    .computeIfAbsent("paths", k -> new LinkedHashSet<>())
+                    .add(List.copyOf(path));
             }
         }
 
@@ -933,7 +940,7 @@ public class BotSettingsService {
     }
 
     private int normalizeScale(Object rawScale, Object altScale, Object camelScale, Map<String, Object> defaults, int maxScale) {
-        int fallback = tryParseInt(((Map<String, Object>) defaults.get("rating_system")).get("scale_size"));
+        Integer  fallback = tryParseInt(((Map<String, Object>) defaults.get("rating_system")).get("scale_size"));
         Integer value = tryParseInt(rawScale);
         if (value == null) {
             value = tryParseInt(altScale);
