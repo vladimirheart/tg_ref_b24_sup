@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>17</java.version>
-        <vk.java.sdk.version>1.0.17</vk.java.sdk.version>
+        <vk.java.sdk.version>1.0.16</vk.java.sdk.version>
     </properties>
 
     <dependencies>
@@ -87,3 +87,4 @@
         </plugins>
     </build>
 </project>
+
