@@ -59,7 +59,11 @@ public class ChannelApiController {
     @GetMapping("/channels")
     public ResponseEntity<Map<String, Object>> getChannels() {
         List<Channel> channels = channelRepository.findAll();
-        updateTelegramBotInfoIfMissing(channels);
+        try {
+            updateTelegramBotInfoIfMissing(channels);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to refresh Telegram bot info: {}", ex.getMessage());
+        }
         Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
         List<Map<String, Object>> responseChannels = channels.stream()
             .map(channel -> toChannelResponse(channel, credentials))
@@ -482,7 +486,11 @@ public class ChannelApiController {
             }
         }
         if (!updated.isEmpty()) {
-            channelRepository.saveAll(updated);
+            try {
+                channelRepository.saveAll(updated);
+            } catch (RuntimeException ex) {
+                log.warn("Failed to save refreshed Telegram bot info: {}", ex.getMessage());
+            }
         }
     }
 
