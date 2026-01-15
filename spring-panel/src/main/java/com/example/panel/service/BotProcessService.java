@@ -47,7 +47,12 @@ public class BotProcessService {
 
         try {
             ProcessBuilder builder = new ProcessBuilder(mvnwCommand(), "-q", "spring-boot:run");
-            builder.directory(resolveBotWorkingDir().toFile());
+            Path botWorkingDir = resolveBotWorkingDir();
+            builder.directory(botWorkingDir.toFile());
+            Path logFile = resolveLogFile(botWorkingDir);
+            Files.createDirectories(logFile.getParent());
+            builder.redirectErrorStream(true);
+            builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
             Map<String, String> env = builder.environment();
             env.put("APP_DB_TICKETS", botDatabaseRegistry.ensureBotDatabase(channelId, channel.getPlatform()).toString());
             env.put("TELEGRAM_BOT_TOKEN", credential.token());
@@ -59,6 +64,7 @@ public class BotProcessService {
                 env.put("VK_OPERATOR_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
             }
             env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
+            env.putIfAbsent("APP_BOT_LOG_PATH", logFile.toString());
             Process process = builder.start();
             processes.put(channelId, process);
             OffsetDateTime now = OffsetDateTime.now();
@@ -139,6 +145,15 @@ public class BotProcessService {
             current = current.getParent();
         }
         throw new IllegalStateException("java-bot directory not found near " + Paths.get("").toAbsolutePath().normalize());
+    }
+
+    private Path resolveLogFile(Path botWorkingDir) {
+        String override = System.getenv("APP_BOT_LOG_PATH");
+        if (override != null && !override.isBlank()) {
+            return Paths.get(override).toAbsolutePath().normalize();
+        }
+        Path logDir = botWorkingDir.resolve("../logs").normalize();
+        return logDir.resolve("support-bot.log").toAbsolutePath().normalize();
     }
 
     private String mvnwCommand() {
