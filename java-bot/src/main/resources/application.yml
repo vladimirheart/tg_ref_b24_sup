@@ -33,6 +33,8 @@ vk-bot:
   retry-delay-seconds: ${VK_RETRY_DELAY:5}
 
 logging:
+  file:
+    name: ${APP_BOT_LOG_PATH:${APP_BOT_LOG_DIR:../logs}/support-bot.log}
   level:
     root: INFO
     org.hibernate.SQL: WARN
