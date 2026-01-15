@@ -5,6 +5,7 @@ import com.example.panel.model.channel.BotCredential;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +20,14 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -35,6 +42,7 @@ import java.util.UUID;
 public class ChannelApiController {
 
     private static final Logger log = LoggerFactory.getLogger(ChannelApiController.class);
+    private static final HttpClient TELEGRAM_HTTP_CLIENT = HttpClient.newHttpClient();
 
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
@@ -51,6 +59,7 @@ public class ChannelApiController {
     @GetMapping("/channels")
     public ResponseEntity<Map<String, Object>> getChannels() {
         List<Channel> channels = channelRepository.findAll();
+        updateTelegramBotInfoIfMissing(channels);
         Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
         List<Map<String, Object>> responseChannels = channels.stream()
             .map(channel -> toChannelResponse(channel, credentials))
@@ -76,12 +85,14 @@ public class ChannelApiController {
         channel.setCredentialId(parseLong(data.get("credential_id")));
         channel.setActive(parseBoolean(data.getOrDefault("is_active", true)));
         channel.setMaxQuestions(parseInteger(data.get("max_questions")));
-        channel.setToken(generateToken());
+        String token = stringValue(data.get("token"));
+        channel.setToken(token.isEmpty() ? generateToken() : token);
         channel.setFilters("{}");
         channel.setQuestionsCfg("{}");
         channel.setDeliverySettings("{}");
         channel.setCreatedAt(OffsetDateTime.now());
         channel.setUpdatedAt(OffsetDateTime.now());
+        updateTelegramBotInfo(channel, false);
 
         Channel saved = channelRepository.save(channel);
         Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
@@ -129,6 +140,25 @@ public class ChannelApiController {
         }
         log.info("Test message requested for channel {} to {} ({} chars)", channelId, recipient, message.length());
         return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @PostMapping("/channels/{channelId}/bot-info")
+    public ResponseEntity<Map<String, Object>> refreshBotInfo(@PathVariable long channelId) {
+        Channel channel = channelRepository.findById(channelId).orElse(null);
+        if (channel == null) {
+            return ResponseEntity.status(404).body(Map.of("success", false, "error", "Канал не найден"));
+        }
+        if (!isTelegramPlatform(channel.getPlatform())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Обновление доступно только для Telegram"));
+        }
+        boolean updated = updateTelegramBotInfo(channel, true);
+        if (!updated) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Не удалось получить данные бота"));
+        }
+        channel.setUpdatedAt(OffsetDateTime.now());
+        channelRepository.save(channel);
+        Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
+        return ResponseEntity.ok(Map.of("success", true, "channel", toChannelResponse(channel, credentials)));
     }
 
     private ResponseEntity<Map<String, Object>> applyChannelUpdate(long channelId,
@@ -230,6 +260,10 @@ public class ChannelApiController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Нет полей для обновления"));
         }
 
+        channel.setUpdatedAt(OffsetDateTime.now());
+        if (data.containsKey("token") || data.containsKey("platform")) {
+            updateTelegramBotInfo(channel, false);
+        }
         channel.setUpdatedAt(OffsetDateTime.now());
         channelRepository.save(channel);
         Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
@@ -383,6 +417,8 @@ public class ChannelApiController {
         response.put("description", channel.getDescription());
         response.put("max_questions", channel.getMaxQuestions());
         response.put("credential_id", channel.getCredentialId());
+        response.put("bot_name", channel.getBotName());
+        response.put("bot_username", channel.getBotUsername());
         if (channel.getCredentialId() != null) {
             response.put("credential", credentials.get(channel.getCredentialId()));
         }
@@ -425,5 +461,108 @@ public class ChannelApiController {
         } catch (JsonProcessingException ex) {
             throw new IllegalArgumentException("Не удалось сериализовать JSON", ex);
         }
+    }
+
+    private void updateTelegramBotInfoIfMissing(List<Channel> channels) {
+        List<Channel> updated = new ArrayList<>();
+        for (Channel channel : channels) {
+            if (!isTelegramPlatform(channel.getPlatform())) {
+                continue;
+            }
+            if (isBlank(channel.getToken())) {
+                continue;
+            }
+            if (!isBlank(channel.getBotName()) || !isBlank(channel.getBotUsername())) {
+                continue;
+            }
+            boolean changed = updateTelegramBotInfo(channel, true);
+            if (changed) {
+                channel.setUpdatedAt(OffsetDateTime.now());
+                updated.add(channel);
+            }
+        }
+        if (!updated.isEmpty()) {
+            channelRepository.saveAll(updated);
+        }
+    }
+
+    private boolean updateTelegramBotInfo(Channel channel, boolean forceRefresh) {
+        if (!isTelegramPlatform(channel.getPlatform()) || isBlank(channel.getToken())) {
+            return false;
+        }
+        if (!forceRefresh && !isBlank(channel.getBotName()) && !isBlank(channel.getBotUsername())) {
+            return false;
+        }
+        Optional<TelegramBotInfo> info = fetchTelegramBotInfo(channel.getToken());
+        if (info.isEmpty()) {
+            return false;
+        }
+        TelegramBotInfo data = info.get();
+        if (!isBlank(data.name())) {
+            channel.setBotName(data.name());
+        }
+        if (!isBlank(data.username())) {
+            channel.setBotUsername(data.username());
+        }
+        return true;
+    }
+
+    private Optional<TelegramBotInfo> fetchTelegramBotInfo(String token) {
+        if (isBlank(token)) {
+            return Optional.empty();
+        }
+        String url = "https://api.telegram.org/bot" + token + "/getMe";
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .timeout(Duration.ofSeconds(8))
+            .GET()
+            .build();
+        try {
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                log.warn("Telegram getMe failed with status {}", response.statusCode());
+                return Optional.empty();
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            if (!root.path("ok").asBoolean(false)) {
+                log.warn("Telegram getMe returned ok=false");
+                return Optional.empty();
+            }
+            JsonNode result = root.path("result");
+            String username = result.path("username").asText("");
+            String firstName = result.path("first_name").asText("");
+            String lastName = result.path("last_name").asText("");
+            String name = buildDisplayName(firstName, lastName, username);
+            if (isBlank(name) && isBlank(username)) {
+                return Optional.empty();
+            }
+            return Optional.of(new TelegramBotInfo(name, username));
+        } catch (Exception ex) {
+            log.warn("Failed to load Telegram bot info: {}", ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private String buildDisplayName(String firstName, String lastName, String username) {
+        List<String> parts = Arrays.asList(stringValue(firstName), stringValue(lastName));
+        String joined = parts.stream()
+            .filter(value -> !value.isBlank())
+            .reduce((left, right) -> left + " " + right)
+            .orElse("");
+        if (!joined.isBlank()) {
+            return joined;
+        }
+        return stringValue(username);
+    }
+
+    private boolean isTelegramPlatform(String platform) {
+        return platform == null || platform.isBlank() || platform.equalsIgnoreCase("telegram");
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private record TelegramBotInfo(String name, String username) {
     }
 }
