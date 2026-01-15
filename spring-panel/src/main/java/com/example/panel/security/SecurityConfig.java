@@ -60,9 +60,18 @@ public class SecurityConfig {
                         .maximumSessions(5)
                         .maxSessionsPreventsLogin(false)
                 )
-                .exceptionHandling(configurer -> configurer
-                        .accessDeniedPage("/error/403")
-                )
+                .exceptionHandling(ex -> ex.accessDeniedHandler((request, response, accessDeniedException) -> {
+                    String uri = request.getRequestURI();
+
+                    if (uri.startsWith("/api/")) {
+                        response.setStatus(403);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"success\":false,\"error\":\"Forbidden (CSRF or access denied)\"}");
+                        return;
+                    }
+
+                    response.sendRedirect("/error/403");
+                }))
                 .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class);
                 .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
 
@@ -102,4 +111,5 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 }
+
 
