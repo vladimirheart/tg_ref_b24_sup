@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.Instant;
 import java.util.List;
 
 @Converter
@@ -33,12 +34,25 @@ public class LenientOffsetDateTimeConverter implements AttributeConverter<Offset
             return null;
         }
 
+        String trimmed = dbData.trim();
+        if (trimmed.matches("^\\d+$")) {
+            try {
+                long epoch = Long.parseLong(trimmed);
+                if (trimmed.length() <= 10) {
+                    return OffsetDateTime.ofInstant(Instant.ofEpochSecond(epoch), ZoneOffset.UTC);
+                }
+                return OffsetDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneOffset.UTC);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+
         for (DateTimeFormatter formatter : FALLBACK_FORMATTERS) {
             try {
                 if (formatter == DateTimeFormatter.ISO_OFFSET_DATE_TIME) {
-                    return OffsetDateTime.parse(dbData, formatter);
+                    return OffsetDateTime.parse(trimmed, formatter);
                 }
-                LocalDateTime localDateTime = LocalDateTime.parse(dbData, formatter);
+                LocalDateTime localDateTime = LocalDateTime.parse(trimmed, formatter);
                 return localDateTime.atOffset(ZoneOffset.UTC);
             } catch (Exception ignored) {
                 // try next formatter
