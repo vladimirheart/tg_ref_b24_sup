@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: support-bot
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:always}
+      platform: ${SQL_INIT_PLATFORM:sqlite}
+      schema-locations: classpath:schema-${spring.sql.init.platform:sqlite}.sql
+  main:
+    web-application-type: none
+
+support-bot:
+  token: ${TELEGRAM_BOT_TOKEN:YOUR_TELEGRAM_BOT_TOKEN}
+  username: ${TELEGRAM_BOT_USERNAME:your_bot_username}
+  channel-id: ${GROUP_CHAT_ID:0}
+  database:
+    path: ${APP_DB_TICKETS:${APP_DB_BOT:../tickets.db}}
+  attachments-dir: ${APP_STORAGE_ATTACHMENTS:../attachments}
+  knowledge-base-dir: ${APP_STORAGE_KB:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
+  webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}
+
+vk-bot:
+  enabled: ${VK_BOT_ENABLED:false}
+  token: ${VK_BOT_TOKEN:}
+  group-id: ${VK_GROUP_ID:0}
+  channel-id: ${VK_OPERATOR_CHAT_ID:0}
+  retry-delay-seconds: ${VK_RETRY_DELAY:5}
+
+logging:
+  file:
+    name: ${APP_BOT_LOG_PATH:${APP_BOT_LOG_DIR:../logs}/support-bot.log}
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
