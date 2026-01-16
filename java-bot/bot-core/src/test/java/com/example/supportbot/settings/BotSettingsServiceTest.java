@@ -3,6 +3,7 @@ package com.example.supportbot.settings;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.RatingTemplateDto;
+import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -11,10 +12,14 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class BotSettingsServiceTest {
+
+    @TempDir
+    java.nio.file.Path tempDir;
 
     private ObjectMapper objectMapper;
     private BotSettingsService service;
@@ -22,7 +27,8 @@ class BotSettingsServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        service = new BotSettingsService(objectMapper);
+        SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
+        service = new BotSettingsService(objectMapper, sharedConfigService);
     }
 
     @Test
@@ -34,7 +40,7 @@ class BotSettingsServiceTest {
         assertThat(defaults.getRatingTemplates()).hasSize(1);
         assertThat(defaults.getRatingSystem().getScaleSize()).isEqualTo(5);
         assertThat(defaults.getRatingSystem().getResponses())
-                .extracting("text")
+                .extracting(com.example.supportbot.settings.dto.RatingResponseDto::getText)
                 .allMatch(text -> text.contains("Спасибо"));
     }
 
