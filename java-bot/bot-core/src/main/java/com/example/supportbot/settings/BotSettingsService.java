@@ -429,12 +429,15 @@ public class BotSettingsService {
             activeRatingTemplateId = ratingTemplates.get(0).get("id").toString();
         }
 
+        String resolvedActiveTemplateId = activeTemplateId;
+        String resolvedActiveRatingTemplateId = activeRatingTemplateId;
+
         Map<String, Object> activeTemplate = templates.stream()
-                .filter(t -> Objects.equals(t.get("id"), activeTemplateId))
+                .filter(t -> Objects.equals(t.get("id"), resolvedActiveTemplateId))
                 .findFirst()
                 .orElse(templates.get(0));
         Map<String, Object> activeRatingTemplate = ratingTemplates.stream()
-                .filter(t -> Objects.equals(t.get("id"), activeRatingTemplateId))
+                .filter(t -> Objects.equals(t.get("id"), resolvedActiveRatingTemplateId))
                 .findFirst()
                 .orElse(ratingTemplates.get(0));
 
@@ -445,10 +448,10 @@ public class BotSettingsService {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("question_templates", templates);
-        result.put("active_template_id", activeTemplateId);
+        result.put("active_template_id", resolvedActiveTemplateId);
         result.put("question_flow", castList(activeTemplate.get("question_flow")));
         result.put("rating_templates", ratingTemplates);
-        result.put("active_rating_template_id", activeRatingTemplateId);
+        result.put("active_rating_template_id", resolvedActiveRatingTemplateId);
         result.put("rating_system", rating);
         return result;
     }
