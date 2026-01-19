@@ -51,14 +51,6 @@
         </dependencies>
     </dependencyManagement>
 
-    <dependencies>
-        <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>bot-telegram</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
-
     <build>
         <plugins>
             <plugin>
