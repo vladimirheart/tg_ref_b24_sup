@@ -46,11 +46,15 @@ public class BotProcessService {
         }
 
         try {
+            String botModule = resolveBotModule(channel);
             ProcessBuilder builder = new ProcessBuilder(
                 mvnwCommand(),
                 "-q",
                 "-Dorg.slf4j.simpleLogger.showDateTime=true",
                 "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd HH:mm:ss.SSSXXX",
+                "-pl",
+                botModule,
+                "-am",
                 "spring-boot:run"
             );
             Path botWorkingDir = resolveBotWorkingDir();
@@ -151,6 +155,13 @@ public class BotProcessService {
             current = current.getParent();
         }
         throw new IllegalStateException("java-bot directory not found near " + Paths.get("").toAbsolutePath().normalize());
+    }
+
+    private String resolveBotModule(Channel channel) {
+        if (channel != null && "vk".equalsIgnoreCase(channel.getPlatform())) {
+            return "bot-vk";
+        }
+        return "bot-telegram";
     }
 
     private Path resolveLogFile(Path botWorkingDir) {
