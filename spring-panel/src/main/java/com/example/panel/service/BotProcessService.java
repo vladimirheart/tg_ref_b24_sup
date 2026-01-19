@@ -70,7 +70,7 @@ public class BotProcessService {
                 env.put("VK_OPERATOR_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
             }
             env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
-            env.putIfAbsent("APP_BOT_LOG_PATH", logFile.toString());
+            env.put("APP_BOT_LOG_PATH", logFile.toString());
             Process process = builder.start();
             processes.put(channelId, process);
             OffsetDateTime now = OffsetDateTime.now();
