@@ -12,6 +12,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.util.List;
+
 @Controller
 public class DashboardController {
 
@@ -51,6 +53,7 @@ public class DashboardController {
             var dialogs = dialogService.loadDialogs();
             model.addAttribute("summary", summary);
             model.addAttribute("dialogs", dialogs);
+            model.addAttribute("restaurants", List.of());
             log.info("Rendering dashboard for user {} with {} dialogs", authentication != null ? authentication.getName() : "unknown", dialogs.size());
         } catch (Exception ex) {
             log.error("Failed to render dashboard for user {}", authentication != null ? authentication.getName() : "unknown", ex);
