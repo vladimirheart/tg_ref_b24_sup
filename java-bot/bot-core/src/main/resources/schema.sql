@@ -376,5 +376,5 @@ BEGIN
         CASE WHEN NEW.resolved_by = 'Авто-система' THEN 'auto_close' ELSE 'operator_close' END,
         datetime('now'),
         datetime('now', '+5 minutes')
-    );
+    )
 END;
