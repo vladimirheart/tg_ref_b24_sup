@@ -97,7 +97,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 && !message.hasAudio()
                 && !message.hasAnimation()
                 && message.getSticker() == null
-                && message.getVideoNote() == null)) {
+                && message.getVideoNote() == null) {
             log.info("Ignoring update {} from chat {} user {}: unsupported message payload",
                     update.getUpdateId(),
                     message.getChatId(),
@@ -976,3 +976,4 @@ public class SupportBot extends TelegramLongPollingBot {
         return properties.getToken();
     }
 }
+
