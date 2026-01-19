@@ -31,14 +31,6 @@ public class DashboardController {
         this.navigationService = navigationService;
     }
 
-    @GetMapping("/")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
-    public String index(Authentication authentication, Model model) {
-        navigationService.enrich(model, authentication);
-        model.addAttribute("activePage", "dialogs");
-        return renderDashboard(authentication, model);
-    }
-
     @GetMapping("/dashboard")
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
     public String dashboard(Authentication authentication, Model model) {
