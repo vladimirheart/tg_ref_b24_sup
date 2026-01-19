@@ -362,20 +362,3 @@ CREATE TABLE IF NOT EXISTS feedbacks (
     rating INTEGER,
     timestamp TEXT
 );
-
-CREATE TRIGGER IF NOT EXISTS trg_on_ticket_resolved
-AFTER UPDATE OF status ON tickets
-WHEN NEW.status = 'resolved'
-BEGIN
-    INSERT OR IGNORE INTO pending_feedback_requests(
-        user_id, channel_id, ticket_id, source, created_at, expires_at
-    )
-    VALUES(
-        NEW.user_id,
-        NEW.channel_id,
-        NEW.ticket_id,
-        CASE WHEN NEW.resolved_by = 'Авто-система' THEN 'auto_close' ELSE 'operator_close' END,
-        datetime('now'),
-        datetime('now', '+5 minutes')
-    )
-END;
