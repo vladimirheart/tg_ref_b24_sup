@@ -44,6 +44,7 @@ import java.util.regex.Pattern;
 public class SupportBot extends TelegramLongPollingBot {
 
     private static final Logger log = LoggerFactory.getLogger(SupportBot.class);
+    private static final int MAX_LOG_TEXT_LENGTH = 160;
 
     private final BotProperties properties;
     private final BlacklistService blacklistService;
@@ -81,7 +82,14 @@ public class SupportBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         Message message = update.getMessage();
-        if (message == null || (!message.hasText()
+        if (message == null) {
+            log.debug("Skipping update {} without message payload", update.getUpdateId());
+            return;
+        }
+
+        logIncomingMessage(update, message);
+
+        if (!message.hasText()
                 && !message.hasDocument()
                 && !message.hasPhoto()
                 && !message.hasVideo()
@@ -90,10 +98,15 @@ public class SupportBot extends TelegramLongPollingBot {
                 && !message.hasAnimation()
                 && message.getSticker() == null
                 && message.getVideoNote() == null)) {
+            log.info("Ignoring update {} from chat {} user {}: unsupported message payload",
+                    update.getUpdateId(),
+                    message.getChatId(),
+                    message.getFrom() != null ? message.getFrom().getId() : null);
             return;
         }
 
         if (handleOperatorMessage(message)) {
+            log.info("Handled operator message from chat {} in update {}", message.getChatId(), update.getUpdateId());
             return;
         }
 
@@ -101,20 +114,25 @@ public class SupportBot extends TelegramLongPollingBot {
         long userId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(0L);
         BlacklistService.BlacklistStatus status = blacklistService.getStatus(userId);
         if (status.blacklisted()) {
+            log.info("Blocked message from blacklisted user {} in update {}", userId, update.getUpdateId());
             handleBlacklistedUser(message, status);
             return;
         }
 
         ConversationSession session = conversations.get(userId);
         if (message.hasText() && tryHandleFeedback(message, channel)) {
+            log.info("Handled rating feedback from user {} in update {}", userId, update.getUpdateId());
             return;
         }
         if (message.hasText()) {
             if ("/start".equalsIgnoreCase(message.getText())) {
+                log.info("Received /start from user {} in update {}", userId, update.getUpdateId());
                 startConversation(message, session, channel);
             } else if ("/cancel".equalsIgnoreCase(message.getText())) {
+                log.info("Received /cancel from user {} in update {}", userId, update.getUpdateId());
                 cancelConversation(message);
             } else if (session != null) {
+                log.info("Received conversation answer from user {} in update {}", userId, update.getUpdateId());
                 handleConversationAnswer(message, session);
             } else {
                 handleTextMessage(message);
@@ -157,7 +175,12 @@ public class SupportBot extends TelegramLongPollingBot {
     private void handleTextMessage(Message message) {
         String text = message.getText();
         if ("/unblock".equalsIgnoreCase(text)) {
+            log.info("Received /unblock from user {}", message.getFrom() != null ? message.getFrom().getId() : null);
             requestUnblock(message);
+        } else {
+            log.info("Ignoring text message from user {}: {}",
+                    message.getFrom() != null ? message.getFrom().getId() : null,
+                    summarizeText(text));
         }
     }
 
@@ -176,6 +199,8 @@ public class SupportBot extends TelegramLongPollingBot {
         if (ticketReference.ticketId == null || ticketReference.outboundText.isBlank()) {
             return false;
         }
+
+        log.info("Operator reply resolved for ticket {} from chat {}", ticketReference.ticketId, chatId);
 
         Optional<TicketService.TicketWithUser> ticketOpt = ticketService.findByTicketId(ticketReference.ticketId);
         if (ticketOpt.isEmpty()) {
@@ -259,6 +284,8 @@ public class SupportBot extends TelegramLongPollingBot {
         if (pendingOpt.isEmpty()) {
             return false;
         }
+
+        log.info("Processing feedback rating {} from user {}", text, userId);
 
         BotSettingsDto settings = loadSettings();
         Set<String> allowed = botSettingsService.ratingAllowedValues(settings);
@@ -539,6 +566,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private void startConversation(Message message, ConversationSession existing, Channel channel) {
         if (existing != null) {
+            log.info("User {} attempted to start a new conversation while one is active", existing.userId());
             SendMessage warning = SendMessage.builder()
                     .chatId(message.getChatId())
                     .text("У вас уже есть активная заявка. Отправьте /cancel, чтобы начать заново.")
@@ -558,6 +586,10 @@ public class SupportBot extends TelegramLongPollingBot {
         flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
 
         ConversationSession session = new ConversationSession(flow, message.getChatId(), message.getFrom(), settings);
+        log.info("Starting conversation for user {} chat {} with {} questions",
+                session.userId(),
+                session.chatId(),
+                flow.size());
         ticketService.findLastMessage(message.getFrom().getId())
                 .ifPresent(last -> session.enableReusePrompt(Map.of(
                         "business", Optional.ofNullable(last.getBusiness()).orElse(""),
@@ -592,6 +624,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         session.recordAnswer(message);
+        log.info("Recorded answer for user {} at step {}", session.userId(), session.currentIndex);
         if (session.isComplete()) {
             finalizeConversation(session);
         } else {
@@ -601,6 +634,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private void askCurrentQuestion(ConversationSession session) {
         if (session.awaitingReuseDecision()) {
+            log.info("Prompting reuse decision for user {}", session.userId());
             SendMessage prompt = SendMessage.builder()
                     .chatId(session.chatId())
                     .text(session.reusePrompt())
@@ -615,8 +649,10 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         QuestionFlowItemDto current = session.currentQuestion();
         if (current == null) {
+            log.warn("No current question available for user {}", session.userId());
             return;
         }
+        log.info("Prompting question {} for user {}", current.getId(), session.userId());
         SendMessage prompt = SendMessage.builder()
                 .chatId(session.chatId())
                 .text(current.getText())
@@ -634,6 +670,10 @@ public class SupportBot extends TelegramLongPollingBot {
         Channel channel = getChannel();
         String username = Optional.ofNullable(session.user()).map(User::getUserName).orElse(null);
         TicketService.TicketCreationResult ticket = ticketService.createTicket(session.userId(), username, session.answers(), channel);
+        log.info("Created ticket {} for user {} with {} attachments",
+                ticket.ticketId(),
+                session.userId(),
+                session.attachments().size());
         String summary = session.buildSummary(ticket.ticketId());
 
         for (HistoryEvent event : session.historyEvents()) {
@@ -687,8 +727,11 @@ public class SupportBot extends TelegramLongPollingBot {
     private void cancelConversation(Message message) {
         ConversationSession session = conversations.remove(message.getFrom().getId());
         if (session == null) {
+            log.info("Cancel ignored: no active conversation for user {}",
+                    message.getFrom() != null ? message.getFrom().getId() : null);
             return;
         }
+        log.info("Conversation cancelled for user {}", session.userId());
         SendMessage cancelled = SendMessage.builder()
                 .chatId(message.getChatId())
                 .text("Текущая заявка отменена.")
@@ -872,6 +915,55 @@ public class SupportBot extends TelegramLongPollingBot {
         return Optional.ofNullable(message.getFrom())
                 .map(User::getUserName)
                 .orElse(null);
+    }
+
+    private void logIncomingMessage(Update update, Message message) {
+        log.info("Incoming update {} chat={} user={} text={} attachments={}",
+                update.getUpdateId(),
+                message.getChatId(),
+                message.getFrom() != null ? message.getFrom().getId() : null,
+                summarizeText(message.getText()),
+                describeAttachments(message));
+    }
+
+    private String summarizeText(String text) {
+        if (text == null) {
+            return "—";
+        }
+        String normalized = text.replace("\n", " ").replace("\r", " ").trim();
+        if (normalized.length() > MAX_LOG_TEXT_LENGTH) {
+            return normalized.substring(0, MAX_LOG_TEXT_LENGTH) + "…";
+        }
+        return normalized.isEmpty() ? "—" : normalized;
+    }
+
+    private String describeAttachments(Message message) {
+        List<String> parts = new ArrayList<>();
+        if (message.hasDocument()) {
+            parts.add("document");
+        }
+        if (message.hasPhoto()) {
+            parts.add("photo(" + message.getPhoto().size() + ")");
+        }
+        if (message.hasVideo()) {
+            parts.add("video");
+        }
+        if (message.hasVoice()) {
+            parts.add("voice");
+        }
+        if (message.hasAudio()) {
+            parts.add("audio");
+        }
+        if (message.hasAnimation()) {
+            parts.add("animation");
+        }
+        if (message.getSticker() != null) {
+            parts.add("sticker");
+        }
+        if (message.getVideoNote() != null) {
+            parts.add("video_note");
+        }
+        return parts.isEmpty() ? "none" : String.join(",", parts);
     }
 
     @Override
