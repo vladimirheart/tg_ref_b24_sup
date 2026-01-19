@@ -28,6 +28,7 @@
         <java.version>17</java.version>
         <vk.java.sdk.version>1.0.16</vk.java.sdk.version>
         <telegram.bots.version>6.9.7.1</telegram.bots.version>
+        <telegram.mainClass>com.example.supportbot.telegram.TelegramBotApplication</telegram.mainClass>
     </properties>
 
     <dependencyManagement>
@@ -49,4 +50,24 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>bot-telegram</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>${telegram.mainClass}</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
