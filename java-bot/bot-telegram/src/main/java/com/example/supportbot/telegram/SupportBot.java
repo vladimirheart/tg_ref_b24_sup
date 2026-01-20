@@ -623,6 +623,7 @@ public class SupportBot extends TelegramLongPollingBot {
                     .replyMarkup(new ReplyKeyboardRemove(true))
                     .build();
             try {
+                log.info("Sending active conversation warning to user {}", existing.userId());
                 execute(warning);
             } catch (TelegramApiException e) {
                 log.error("Failed to notify about existing conversation", e);
@@ -648,6 +649,7 @@ public class SupportBot extends TelegramLongPollingBot {
                         "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
                 )));
         conversations.put(message.getFrom().getId(), session);
+        log.info("Conversation initialized for user {} - sending first prompt", session.userId());
         askCurrentQuestion(session);
     }
 
