@@ -46,6 +46,7 @@ public class DataSourceConfig {
         dataSource.setUrl("jdbc:sqlite:" + normalized);
 
         registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
+        registerRuntimeProperty(environment, "spring.jpa.hibernate.ddl-auto", "none");
         registerRuntimeProperty(environment, "spring.sql.init.platform", "sqlite");
         return dataSource;
     }
