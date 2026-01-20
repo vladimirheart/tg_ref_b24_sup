@@ -8,10 +8,14 @@ import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
+import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +28,9 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.games.Animation;
 import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -57,11 +63,14 @@ public class SupportBot extends TelegramLongPollingBot {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
+    private final SharedConfigService sharedConfigService;
+    private final ObjectMapper objectMapper;
 
     private final Map<Long, ConversationSession> conversations = new ConcurrentHashMap<>();
 
     private volatile String cachedChannelPublicId;
     private volatile Channel cachedChannel;
+    private volatile Map<String, Object> cachedLocationTree;
 
     public SupportBot(BotProperties properties,
                       BlacklistService blacklistService,
@@ -70,7 +79,9 @@ public class SupportBot extends TelegramLongPollingBot {
                       BotSettingsService botSettingsService,
                       TicketService ticketService,
                       ChatHistoryService chatHistoryService,
-                      FeedbackService feedbackService) {
+                      FeedbackService feedbackService,
+                      SharedConfigService sharedConfigService,
+                      ObjectMapper objectMapper) {
         super(properties.getToken());
         this.properties = properties;
         this.blacklistService = blacklistService;
@@ -80,6 +91,8 @@ public class SupportBot extends TelegramLongPollingBot {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
+        this.sharedConfigService = sharedConfigService;
+        this.objectMapper = objectMapper;
     }
 
     @PostConstruct
@@ -685,6 +698,25 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
 
+        QuestionFlowItemDto current = session.currentQuestion();
+        if (isPresetQuestion(current)) {
+            List<String> options = resolvePresetOptions(current, session.answers());
+            String answer = Optional.ofNullable(message.getText()).orElse("");
+            if (!options.isEmpty() && !options.contains(answer)) {
+                SendMessage retry = SendMessage.builder()
+                        .chatId(session.chatId())
+                        .text("Выберите вариант кнопкой.")
+                        .replyMarkup(keyboardMarkup(options))
+                        .build();
+                try {
+                    execute(retry);
+                } catch (TelegramApiException e) {
+                    log.error("Failed to resend preset options", e);
+                }
+                return;
+            }
+        }
+
         session.recordAnswer(message);
         log.info("Recorded answer for user {} at step {}", session.userId(), session.currentIndex);
         if (session.isComplete()) {
@@ -715,16 +747,150 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         log.info("Prompting question {} for user {}", current.getId(), session.userId());
-        SendMessage prompt = SendMessage.builder()
+        SendMessage.SendMessageBuilder promptBuilder = SendMessage.builder()
                 .chatId(session.chatId())
-                .text(current.getText())
-                .replyMarkup(new ReplyKeyboardRemove(true))
-                .build();
+                .text(current.getText());
+        if (isPresetQuestion(current) && !session.isLastQuestion()) {
+            List<String> options = resolvePresetOptions(current, session.answers());
+            if (!options.isEmpty()) {
+                promptBuilder.replyMarkup(keyboardMarkup(options));
+            } else {
+                promptBuilder.replyMarkup(new ReplyKeyboardRemove(true));
+            }
+        } else {
+            promptBuilder.replyMarkup(new ReplyKeyboardRemove(true));
+        }
+        SendMessage prompt = promptBuilder.build();
         try {
             execute(prompt);
         } catch (TelegramApiException e) {
             log.error("Failed to send conversation prompt", e);
         }
+    }
+
+    private boolean isPresetQuestion(QuestionFlowItemDto current) {
+        if (current == null) {
+            return false;
+        }
+        if ("preset".equalsIgnoreCase(current.getType())) {
+            return true;
+        }
+        return current.getPreset() != null && current.getPreset().field() != null;
+    }
+
+    private ReplyKeyboardMarkup keyboardMarkup(List<String> options) {
+        List<KeyboardRow> rows = new ArrayList<>();
+        for (int i = 0; i < options.size(); i += 2) {
+            KeyboardRow row = new KeyboardRow();
+            row.add(options.get(i));
+            if (i + 1 < options.size()) {
+                row.add(options.get(i + 1));
+            }
+            rows.add(row);
+        }
+        ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup(rows);
+        markup.setResizeKeyboard(true);
+        markup.setOneTimeKeyboard(true);
+        markup.setSelective(true);
+        return markup;
+    }
+
+    private List<String> resolvePresetOptions(QuestionFlowItemDto current, Map<String, String> answers) {
+        if (current == null || current.getPreset() == null) {
+            return List.of();
+        }
+        String field = current.getPreset().field();
+        if (field == null || field.isBlank()) {
+            return List.of();
+        }
+        Map<String, Object> tree = locationTree();
+        List<String> options = resolveLocationOptions(field, answers, tree);
+        List<String> excluded = Optional.ofNullable(current.getExcludedOptions()).orElseGet(List::of);
+        if (!excluded.isEmpty() && !options.isEmpty()) {
+            options = options.stream()
+                    .filter(option -> !excluded.contains(option))
+                    .toList();
+        }
+        return options;
+    }
+
+    private List<String> resolveLocationOptions(String field, Map<String, String> answers, Map<String, Object> tree) {
+        if (tree.isEmpty()) {
+            return List.of();
+        }
+        String business = answers.get("business");
+        String locationType = answers.get("location_type");
+        String city = answers.get("city");
+        return switch (field) {
+            case "business" -> sortedKeys(tree);
+            case "location_type" -> business == null ? List.of() : sortedKeys(asMap(tree.get(business)));
+            case "city" -> {
+                if (business == null || locationType == null) {
+                    yield List.of();
+                }
+                Map<String, Object> businessNode = asMap(tree.get(business));
+                yield sortedKeys(asMap(businessNode.get(locationType)));
+            }
+            case "location_name" -> {
+                if (business == null || locationType == null || city == null) {
+                    yield List.of();
+                }
+                Map<String, Object> businessNode = asMap(tree.get(business));
+                Map<String, Object> typeNode = asMap(businessNode.get(locationType));
+                yield asList(typeNode.get(city));
+            }
+            default -> List.of();
+        };
+    }
+
+    private List<String> sortedKeys(Map<String, Object> node) {
+        if (node == null || node.isEmpty()) {
+            return List.of();
+        }
+        return node.keySet().stream()
+                .map(Object::toString)
+                .sorted()
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object node) {
+        if (node instanceof Map<?, ?> map) {
+            return new LinkedHashMap<>((Map<String, Object>) map);
+        }
+        return new LinkedHashMap<>();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> asList(Object node) {
+        if (node instanceof List<?> list) {
+            List<String> result = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null) {
+                    result.add(item.toString());
+                }
+            }
+            return result;
+        }
+        return List.of();
+    }
+
+    private Map<String, Object> locationTree() {
+        if (cachedLocationTree != null) {
+            return cachedLocationTree;
+        }
+        JsonNode locations = sharedConfigService.loadLocations();
+        if (locations == null || locations.isNull()) {
+            cachedLocationTree = new LinkedHashMap<>();
+            return cachedLocationTree;
+        }
+        JsonNode treeNode = locations.get("tree");
+        Map<String, Object> resolved = objectMapper.convertValue(
+                treeNode != null && !treeNode.isNull() ? treeNode : locations,
+                new TypeReference<>() {}
+        );
+        cachedLocationTree = resolved != null ? resolved : new LinkedHashMap<>();
+        return cachedLocationTree;
     }
 
     private void finalizeConversation(ConversationSession session) {
@@ -853,6 +1019,10 @@ public class SupportBot extends TelegramLongPollingBot {
 
         boolean isComplete() {
             return currentIndex >= flow.size();
+        }
+
+        boolean isLastQuestion() {
+            return currentIndex == flow.size() - 1;
         }
 
         void addAttachment(Path attachment) {
