@@ -12,6 +12,7 @@ import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -77,6 +78,27 @@ public class SupportBot extends TelegramLongPollingBot {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
+    }
+
+    @PostConstruct
+    private void logBotConfiguration() {
+        String token = properties.getToken();
+        String username = properties.getUsername();
+        Integer channelId = properties.getChannelId();
+        boolean tokenConfigured = token != null && !token.isBlank() && !"YOUR_TELEGRAM_BOT_TOKEN".equals(token);
+        boolean usernameConfigured = username != null && !username.isBlank() && !"your_bot_username".equalsIgnoreCase(username);
+
+        log.info("Telegram bot configuration: username='{}' token={} channelId={}",
+                usernameConfigured ? username : "(missing)",
+                tokenConfigured ? maskToken(token) : "(missing)",
+                channelId);
+
+        if (!tokenConfigured) {
+            log.warn("Telegram bot token is not configured; check TELEGRAM_BOT_TOKEN or support-bot.token");
+        }
+        if (!usernameConfigured) {
+            log.warn("Telegram bot username is not configured; check TELEGRAM_BOT_USERNAME or support-bot.username");
+        }
     }
 
     @Override
@@ -975,5 +997,15 @@ public class SupportBot extends TelegramLongPollingBot {
     public String getBotToken() {
         return properties.getToken();
     }
-}
 
+    private String maskToken(String token) {
+        if (token == null || token.isBlank()) {
+            return "(missing)";
+        }
+        String trimmed = token.trim();
+        if (trimmed.length() <= 8) {
+            return "****" + trimmed.length();
+        }
+        return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
+    }
+}
