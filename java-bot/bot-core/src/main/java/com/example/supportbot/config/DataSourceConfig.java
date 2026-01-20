@@ -55,6 +55,10 @@ public class DataSourceConfig {
         if (StringUtils.hasText(env.getProperty(key))) {
             return;
         }
+        registerRuntimePropertyOverride(env, key, value);
+    }
+
+    private static void registerRuntimePropertyOverride(ConfigurableEnvironment env, String key, String value) {
         MutablePropertySources propertySources = env.getPropertySources();
         PropertySource<?> existing = propertySources.get("runtime-properties");
         Map<String, Object> map;
@@ -64,7 +68,7 @@ public class DataSourceConfig {
         } else {
             map = new HashMap<>();
         }
-        map.putIfAbsent(key, value);
+        map.put(key, value);
         propertySources.addFirst(new MapPropertySource("runtime-properties", map));
     }
 
