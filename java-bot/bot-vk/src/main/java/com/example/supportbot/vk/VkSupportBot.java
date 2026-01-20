@@ -58,6 +58,7 @@ import org.springframework.stereotype.Component;
 public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(VkSupportBot.class);
+    private static final int MAX_LOG_TEXT_LENGTH = 160;
 
     private final VkBotProperties properties;
     private final BlacklistService blacklistService;
@@ -98,6 +99,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     @Override
     public void start() {
         if (!properties.isEnabled()) {
+            log.info("VK bot is disabled; skipping start");
             return;
         }
         running = true;
@@ -140,6 +142,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (response == null) {
             return;
         }
+        log.info("Received VK long poll response with {} update(s)", response.getUpdates().size());
         for (LongPollGroupUpdates update : response.getUpdates()) {
             if ("message_new".equals(update.getType())) {
                 Message message = update.getObject().getMessage();
@@ -155,11 +158,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         Integer peerId = message.getPeerId();
         if (fromId == null || peerId == null || !peerId.equals(fromId)) {
             // ignore group chats
+            log.info("Ignoring VK message from peer {} user {}: not a direct message", peerId, fromId);
             return;
         }
+        logIncomingMessage(message);
         Channel channel = getChannel();
         BlacklistService.BlacklistStatus status = blacklistService.getStatus(fromId.longValue());
         if (status.blacklisted()) {
+            log.info("Blocked message from blacklisted VK user {}", fromId);
             sendText(actor, peerId, status.unblockRequested()
                     ? "Ваш аккаунт заблокирован. Запрос уже на рассмотрении."
                     : "Ваш аккаунт заблокирован. Ответьте /unblock, чтобы подать запрос.");
@@ -167,17 +173,23 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
 
         String text = Optional.ofNullable(message.getText()).orElse("").trim();
+        if ("/start".equalsIgnoreCase(text)) {
+            log.info("Received /start from VK user {}", fromId);
+        }
         if (!text.isEmpty() && tryHandleFeedback(actor, message, channel, text)) {
+            log.info("Handled feedback from VK user {}", fromId);
             return;
         }
 
         ConversationSession session = sessions.computeIfAbsent(fromId, id -> startSession(actor, message, channel));
         if ("/cancel".equalsIgnoreCase(text)) {
+            log.info("Received /cancel from VK user {}", fromId);
             sessions.remove(fromId);
             sendText(actor, peerId, "Текущая заявка отменена.");
             return;
         }
         if ("/unblock".equalsIgnoreCase(text)) {
+            log.info("Received /unblock from VK user {}", fromId);
             Integer channelId = channel.getId() != null ? Math.toIntExact(channel.getId()) : null;
             blacklistService.registerUnblockRequest(fromId.longValue(), "", channelId);
             sendText(actor, peerId, "Запрос на разблокировку отправлен оператору.");
@@ -237,6 +249,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
 
         ConversationSession session = new ConversationSession(message.getPeerId(), message.getFromId(), flow, settings);
+        log.info("Starting VK conversation for user {} peer {} with {} questions",
+                session.userId(),
+                session.peerId(),
+                flow.size());
         ticketService.findLastMessage(message.getFromId())
                 .ifPresent(last -> session.enableReusePrompt(Map.of(
                         "business", Optional.ofNullable(last.getBusiness()).orElse(""),
@@ -263,6 +279,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         sessions.remove(session.userId());
         Channel channel = getChannel();
         TicketService.TicketCreationResult result = ticketService.createTicket(session.userId(), null, session.answers(), channel);
+        log.info("Created VK ticket {} for user {}", result.ticketId(), session.userId());
         for (HistoryEvent event : session.history()) {
             chatHistoryService.storeEntry(event.userId().longValue(), null, channel, result.ticketId(), event.text(), event.messageType(), event.attachment());
         }
@@ -388,6 +405,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     public void stop() {
         running = false;
         executor.shutdownNow();
+        log.info("VK long poll runner stopped");
     }
 
     @Override
@@ -543,6 +561,38 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
             return builder.toString();
         }
+    }
+
+    private void logIncomingMessage(Message message) {
+        log.info("Incoming VK message peer={} user={} text={} attachments={}",
+                message.getPeerId(),
+                message.getFromId(),
+                summarizeText(message.getText()),
+                describeAttachments(message));
+    }
+
+    private String summarizeText(String text) {
+        if (text == null) {
+            return "—";
+        }
+        String normalized = text.replace("\n", " ").replace("\r", " ").trim();
+        if (normalized.length() > MAX_LOG_TEXT_LENGTH) {
+            return normalized.substring(0, MAX_LOG_TEXT_LENGTH) + "…";
+        }
+        return normalized.isEmpty() ? "—" : normalized;
+    }
+
+    private String describeAttachments(Message message) {
+        List<MessageAttachment> attachments = Optional.ofNullable(message.getAttachments()).orElseGet(List::of);
+        if (attachments.isEmpty()) {
+            return "none";
+        }
+        List<String> parts = new ArrayList<>();
+        for (MessageAttachment attachment : attachments) {
+            MessageAttachmentType type = attachment.getType();
+            parts.add(type != null ? type.name().toLowerCase() : "unknown");
+        }
+        return String.join(",", parts);
     }
 
     private String extensionFrom(String ext, String fallback) {
