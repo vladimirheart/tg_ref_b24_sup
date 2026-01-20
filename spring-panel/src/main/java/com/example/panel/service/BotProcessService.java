@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import java.nio.file.Files;
@@ -20,14 +21,14 @@ public class BotProcessService {
     private static final Logger log = LoggerFactory.getLogger(BotProcessService.class);
 
     private final SharedConfigService sharedConfigService;
-    private final BotDatabaseRegistry botDatabaseRegistry;
+    private final SqliteDataSourceProperties ticketsDbProperties;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
     private final Map<Long, OffsetDateTime> startedAt = new ConcurrentHashMap<>();
 
     public BotProcessService(SharedConfigService sharedConfigService,
-                             BotDatabaseRegistry botDatabaseRegistry) {
+                             SqliteDataSourceProperties ticketsDbProperties) {
         this.sharedConfigService = sharedConfigService;
-        this.botDatabaseRegistry = botDatabaseRegistry;
+        this.ticketsDbProperties = ticketsDbProperties;
     }
 
     public BotProcessStatus start(Channel channel) {
@@ -64,7 +65,7 @@ public class BotProcessService {
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
             Map<String, String> env = builder.environment();
-            env.put("APP_DB_TICKETS", botDatabaseRegistry.ensureBotDatabase(channelId, channel.getPlatform()).toString());
+            env.put("APP_DB_TICKETS", ticketsDbProperties.getNormalizedPath().toString());
             env.put("TELEGRAM_BOT_TOKEN", credential.token());
             env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
             env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
