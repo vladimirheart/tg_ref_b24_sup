@@ -3025,6 +3025,10 @@
             </div>
             <div class="text-muted small">Токен: <span class="font-monospace" data-channel-editor-token>—</span></div>
             <div class="text-muted small" data-channel-editor-meta></div>
+            <div class="mt-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить имя бота</button>
+              <div class="form-text small mt-1">Принудительно обновляет имя и username через Telegram API.</div>
+            </div>
           </div>
           <div class="mb-3">
             <label class="form-label" for="channelEditorNewToken">Новый токен</label>
@@ -11855,6 +11859,7 @@
   const channelEditorBotStartBtn = document.getElementById('channelEditorBotStartBtn');
   const channelEditorBotStopBtn = document.getElementById('channelEditorBotStopBtn');
   const channelEditorBotStatusEl = document.querySelector('[data-channel-editor-bot-status]');
+  const channelEditorBotRefreshBtn = document.getElementById('channelEditorBotRefreshBtn');
   const channelEditorSaveBtn = document.getElementById('channelEditorSaveBtn');
   const channelEditorDeleteBtn = document.getElementById('channelEditorDeleteBtn');
 
@@ -11875,6 +11880,8 @@
   const channelEditorState = {
     channelId: null,
   };
+
+  const channelEditorBotRefreshDefaultLabel = channelEditorBotRefreshBtn?.textContent?.trim() || 'Обновить имя бота';
 
   let channelsInitialized = false;
 
@@ -11945,6 +11952,13 @@
     }
   }
 
+  function updateBotRefreshControl(isTelegram, isLoading = false) {
+    if (!channelEditorBotRefreshBtn) return;
+    channelEditorBotRefreshBtn.disabled = !isTelegram || isLoading;
+    channelEditorBotRefreshBtn.textContent = isLoading ? 'Обновляем…' : channelEditorBotRefreshDefaultLabel;
+    channelEditorBotRefreshBtn.title = isTelegram ? '' : 'Обновление доступно только для Telegram';
+  }
+
   async function refreshBotStatus(channelId) {
     if (!channelId) return;
     try {
@@ -11987,6 +12001,7 @@
     if (channelEditorBotEl) {
       channelEditorBotEl.textContent = formatBotLabel(channel);
     }
+    updateBotRefreshControl(channel.platform === 'telegram');
     if (channelEditorTokenEl) {
       channelEditorTokenEl.textContent = maskToken(channel.token);
     }
@@ -12137,6 +12152,34 @@
     if (!str) return '—';
     if (str.length <= 10) return str;
     return `${str.slice(0, 6)}…${str.slice(-4)}`;
+  }
+
+  async function refreshChannelBotInfo(channelId) {
+    if (!channelId) return;
+    const channel = CHANNELS_REGISTRY.get(String(channelId));
+    if (!channel) {
+      notifyChannelStatus('Канал не найден.', 'error');
+      return;
+    }
+    if (channel.platform !== 'telegram') {
+      notifyChannelStatus('Обновление имени доступно только для Telegram.', 'warning');
+      return;
+    }
+    updateBotRefreshControl(true, true);
+    try {
+      const resp = await fetch(`/api/channels/${channelId}/bot-info`, { method: 'POST' });
+      const data = await resp.json();
+      if (!resp.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + resp.status));
+      }
+      await loadChannels();
+      notifyChannelStatus('Имя бота обновлено.', 'success');
+    } catch (error) {
+      notifyChannelStatus(`Не удалось обновить имя бота: ${error.message}`, 'error');
+    } finally {
+      const updated = CHANNELS_REGISTRY.get(String(channelId));
+      updateBotRefreshControl(updated ? updated.platform === 'telegram' : true);
+    }
   }
 
   function pluralize(count, forms) {
@@ -12754,6 +12797,11 @@
     channelEditorBotStopBtn?.addEventListener('click', () => {
       if (channelEditorState.channelId !== null) {
         stopBotForChannel(channelEditorState.channelId);
+      }
+    });
+    channelEditorBotRefreshBtn?.addEventListener('click', () => {
+      if (channelEditorState.channelId !== null) {
+        refreshChannelBotInfo(channelEditorState.channelId);
       }
     });
     channelEditorSaveBtn?.addEventListener('click', () => {
