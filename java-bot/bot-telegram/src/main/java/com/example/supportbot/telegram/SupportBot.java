@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.games.Animation;
@@ -82,6 +83,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     @PostConstruct
     private void logBotConfiguration() {
+        log.info("Initializing Telegram bot configuration check");
         String token = properties.getToken();
         String username = properties.getUsername();
         Integer channelId = properties.getChannelId();
@@ -99,10 +101,36 @@ public class SupportBot extends TelegramLongPollingBot {
         if (!usernameConfigured) {
             log.warn("Telegram bot username is not configured; check TELEGRAM_BOT_USERNAME or support-bot.username");
         }
+
+        verifyBotCredentials(tokenConfigured, usernameConfigured);
+    }
+
+    private void verifyBotCredentials(boolean tokenConfigured, boolean usernameConfigured) {
+        if (!tokenConfigured) {
+            log.warn("Skipping Telegram credentials verification because token is missing");
+            return;
+        }
+
+        try {
+            User me = execute(new GetMe());
+            log.info("Telegram bot connected successfully: id={} username={}", me.getId(), me.getUserName());
+            if (usernameConfigured && me.getUserName() != null && !me.getUserName().equalsIgnoreCase(properties.getUsername())) {
+                log.warn("Configured Telegram bot username '{}' does not match API response '{}'",
+                        properties.getUsername(), me.getUserName());
+            }
+        } catch (TelegramApiException e) {
+            log.error("Telegram bot credentials verification failed; check token/username and network connectivity", e);
+        }
     }
 
     @Override
     public void onUpdateReceived(Update update) {
+        log.info("Received Telegram update {} (message={}, callbackQuery={}, editedMessage={}, channelPost={})",
+                update.getUpdateId(),
+                update.getMessage() != null,
+                update.getCallbackQuery() != null,
+                update.getEditedMessage() != null,
+                update.getChannelPost() != null);
         Message message = update.getMessage();
         if (message == null) {
             log.debug("Skipping update {} without message payload", update.getUpdateId());
