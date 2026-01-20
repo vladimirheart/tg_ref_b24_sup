@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
+import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.games.Animation;
@@ -120,6 +121,15 @@ public class SupportBot extends TelegramLongPollingBot {
             }
         } catch (TelegramApiException e) {
             log.error("Telegram bot credentials verification failed; check token/username and network connectivity", e);
+        }
+    }
+
+    public void deleteWebhookIfAny() {
+        try {
+            execute(new DeleteWebhook());
+            log.info("Telegram webhook deleted (if it existed). Long polling can receive updates now.");
+        } catch (TelegramApiException e) {
+            log.warn("Failed to delete Telegram webhook (may be OK if none set).", e);
         }
     }
 
