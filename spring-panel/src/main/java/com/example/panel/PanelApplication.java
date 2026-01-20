@@ -2,6 +2,7 @@ package com.example.panel;
 
 import com.example.panel.config.EnvDefaultsInitializer;
 import com.example.panel.security.SecurityBootstrap;
+import com.example.panel.service.AdditionalServicesHealthService;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -23,5 +24,10 @@ public class PanelApplication {
     @Bean
     public ApplicationRunner bootstrapSecurity(SecurityBootstrap securityBootstrap) {
         return args -> securityBootstrap.ensureDefaultAdmin();
+    }
+
+    @Bean
+    public ApplicationRunner checkAdditionalServices(AdditionalServicesHealthService healthService) {
+        return args -> healthService.checkServices();
     }
 }
