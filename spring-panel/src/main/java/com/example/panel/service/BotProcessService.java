@@ -96,6 +96,7 @@ public class BotProcessService {
         Path pidFile = resolvePidFile(botWorkingDir, channelId);
         stopProcessFromPidFile(pidFile, channelId);
         startedAt.remove(channelId);
+        log.info("Stopped bot process for channel {}", channelId);
         return BotProcessStatus.stopped();
     }
 
@@ -189,6 +190,7 @@ public class BotProcessService {
 
     private void stopProcessFromPidFile(Path pidFile, Long channelId) {
         if (!Files.exists(pidFile)) {
+            log.warn("PID file not found for channel {}", channelId);
             return;
         }
         try {
@@ -210,13 +212,14 @@ public class BotProcessService {
 
     private void stopProcess(ProcessHandle handle, String source, Long channelId) {
         if (!handle.isAlive()) {
+            log.warn("Process for channel {} is already not alive", channelId);
             return;
         }
         log.info("Stopping bot process for channel {} via {}", channelId, source);
         handle.destroy();
         try {
-            boolean exited = handle.onExit().get(5, TimeUnit.SECONDS) != null;
-            if (!exited && handle.isAlive()) {
+            handle.onExit().get(5, TimeUnit.SECONDS);
+            if (handle.isAlive()) {
                 log.warn("Bot process for channel {} did not stop gracefully, forcing termination", channelId);
                 handle.destroyForcibly();
             }
