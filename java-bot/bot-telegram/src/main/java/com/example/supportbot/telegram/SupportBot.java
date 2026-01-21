@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -117,6 +118,11 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         verifyBotCredentials(tokenConfigured, usernameConfigured);
+    }
+
+    @PreDestroy
+    private void logBotShutdown() {
+        log.info("Telegram bot stopped. username={}", getBotUsername());
     }
 
     private void verifyBotCredentials(boolean tokenConfigured, boolean usernameConfigured) {
