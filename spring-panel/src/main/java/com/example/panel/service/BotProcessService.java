@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,10 +37,7 @@ public class BotProcessService {
         if (channelId == null) {
             return BotProcessStatus.error("Канал не сохранён, сначала сохраните настройки.");
         }
-        Process existing = processes.get(channelId);
-        if (existing != null && existing.isAlive()) {
-            return BotProcessStatus.running(startedAt.get(channelId));
-        }
+        stop(channelId);
 
         BotCredential credential = resolveCredential(channel);
         if (credential == null || credential.token().isBlank()) {
@@ -80,6 +78,7 @@ public class BotProcessService {
             processes.put(channelId, process);
             OffsetDateTime now = OffsetDateTime.now();
             startedAt.put(channelId, now);
+            writePidFile(botWorkingDir, channelId, process.pid());
             log.info("Started bot process for channel {} at {}", channelId, now);
             return BotProcessStatus.running(now);
         } catch (Exception ex) {
@@ -89,14 +88,13 @@ public class BotProcessService {
     }
 
     public BotProcessStatus stop(Long channelId) {
-        Process process = processes.get(channelId);
-        if (process == null || !process.isAlive()) {
-            processes.remove(channelId);
-            startedAt.remove(channelId);
-            return BotProcessStatus.stopped();
+        Process process = processes.remove(channelId);
+        if (process != null) {
+            stopProcess(process.toHandle(), "in-memory", channelId);
         }
-        process.destroy();
-        processes.remove(channelId);
+        Path botWorkingDir = resolveBotWorkingDir();
+        Path pidFile = resolvePidFile(botWorkingDir, channelId);
+        stopProcessFromPidFile(pidFile, channelId);
         startedAt.remove(channelId);
         return BotProcessStatus.stopped();
     }
@@ -172,6 +170,59 @@ public class BotProcessService {
         }
         Path logDir = botWorkingDir.resolve("../logs").normalize();
         return logDir.resolve("support-bot.log").toAbsolutePath().normalize();
+    }
+
+    private Path resolvePidFile(Path botWorkingDir, Long channelId) {
+        Path runDir = botWorkingDir.resolve("../run").normalize();
+        return runDir.resolve("bot-" + channelId + ".pid").toAbsolutePath().normalize();
+    }
+
+    private void writePidFile(Path botWorkingDir, Long channelId, long pid) {
+        try {
+            Path pidFile = resolvePidFile(botWorkingDir, channelId);
+            Files.createDirectories(pidFile.getParent());
+            Files.writeString(pidFile, Long.toString(pid));
+        } catch (Exception ex) {
+            log.warn("Failed to write pid file for channel {}", channelId, ex);
+        }
+    }
+
+    private void stopProcessFromPidFile(Path pidFile, Long channelId) {
+        if (!Files.exists(pidFile)) {
+            return;
+        }
+        try {
+            String content = Files.readString(pidFile).trim();
+            if (!content.isEmpty()) {
+                long pid = Long.parseLong(content);
+                ProcessHandle.of(pid).ifPresent(handle -> stopProcess(handle, "pid-file", channelId));
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to stop process from pid file {} for channel {}", pidFile, channelId, ex);
+        } finally {
+            try {
+                Files.deleteIfExists(pidFile);
+            } catch (Exception ex) {
+                log.warn("Failed to delete pid file {} for channel {}", pidFile, channelId, ex);
+            }
+        }
+    }
+
+    private void stopProcess(ProcessHandle handle, String source, Long channelId) {
+        if (!handle.isAlive()) {
+            return;
+        }
+        log.info("Stopping bot process for channel {} via {}", channelId, source);
+        handle.destroy();
+        try {
+            boolean exited = handle.onExit().get(5, TimeUnit.SECONDS) != null;
+            if (!exited && handle.isAlive()) {
+                log.warn("Bot process for channel {} did not stop gracefully, forcing termination", channelId);
+                handle.destroyForcibly();
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to wait for bot process termination for channel {}", channelId, ex);
+        }
     }
 
     private String mvnwCommand() {
