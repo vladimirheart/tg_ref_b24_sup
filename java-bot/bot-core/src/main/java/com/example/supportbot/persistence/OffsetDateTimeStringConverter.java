@@ -3,6 +3,7 @@ package com.example.supportbot.persistence;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -17,6 +18,8 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
     private static final Logger log = LoggerFactory.getLogger(OffsetDateTimeStringConverter.class);
     private static final DateTimeFormatter LEGACY_FORMATTER =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final DateTimeFormatter DATE_ONLY_FORMATTER =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Override
     public String convertToDatabaseColumn(OffsetDateTime attribute) {
@@ -45,6 +48,12 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
         try {
             LocalDateTime localDateTime = LocalDateTime.parse(dbData, LEGACY_FORMATTER);
             return localDateTime.atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            // try date-only format
+        }
+        try {
+            LocalDate localDate = LocalDate.parse(dbData, DATE_ONLY_FORMATTER);
+            return localDate.atStartOfDay().atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ex) {
             log.warn("Failed to parse OffsetDateTime value '{}'", dbData, ex);
             return null;
