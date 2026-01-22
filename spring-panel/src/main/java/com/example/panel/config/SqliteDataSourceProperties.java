@@ -1,5 +1,7 @@
 package com.example.panel.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Files;
@@ -9,6 +11,7 @@ import java.io.IOException;
 
 @ConfigurationProperties(prefix = "app.datasource.sqlite")
 public class SqliteDataSourceProperties {
+    private static final Logger log = LoggerFactory.getLogger(SqliteDataSourceProperties.class);
 
     /**
      * Path to the SQLite database file. May be absolute or relative to the working directory.
@@ -94,8 +97,9 @@ public class SqliteDataSourceProperties {
             if (parent != null && !Files.exists(parent)) {
                 Files.createDirectories(parent);
             }
-            if (!Files.exists(resolved)) {
+            if (Files.notExists(resolved)) {
                 Files.createFile(resolved);
+                log.info("Created SQLite database file at {}", resolved);
             }
         } catch (IOException ex) {
             throw new IllegalStateException("Unable to create SQLite database at " + resolved, ex);
