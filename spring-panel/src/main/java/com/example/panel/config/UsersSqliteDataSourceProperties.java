@@ -1,13 +1,17 @@
 package com.example.panel.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @ConfigurationProperties(prefix = "app.datasource.users-sqlite")
 public class UsersSqliteDataSourceProperties {
+    private static final Logger log = LoggerFactory.getLogger(UsersSqliteDataSourceProperties.class);
 
     private String path = "users.db";
     private String journalMode = "WAL";
@@ -52,8 +56,7 @@ public class UsersSqliteDataSourceProperties {
             probe = probe.getParent();
         }
 
-        // users.db можно создавать на чистом развёртывании — поэтому НЕ падаем, если файла нет
-        // просто возвращаем абсолютный путь, чтобы SQLite создал файл при подключении
+        ensureSqliteFile(resolved);
         return resolved;
     }
 
@@ -81,5 +84,20 @@ public class UsersSqliteDataSourceProperties {
     private static void appendQueryParam(StringBuilder builder, String key, String value) {
         if (builder.length() > 0) builder.append('&');
         builder.append(key).append('=').append(value);
+    }
+
+    private void ensureSqliteFile(Path resolved) {
+        try {
+            Path parent = resolved.getParent();
+            if (parent != null && !Files.exists(parent)) {
+                Files.createDirectories(parent);
+            }
+            if (Files.notExists(resolved)) {
+                Files.createFile(resolved);
+                log.info("Created users SQLite database file at {}", resolved);
+            }
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to create users SQLite database at " + resolved, ex);
+        }
     }
 }
