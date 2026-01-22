@@ -8,7 +8,9 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +22,13 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     private static final DateTimeFormatter DATE_TIME_FORMATTER =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter SPACE_FRACTIONAL_DATE_TIME_FORMATTER =
+        new DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd HH:mm:ss")
+            .optionalStart()
+            .appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
+            .optionalEnd()
+            .toFormatter();
     private static final DateTimeFormatter DATE_ONLY_FORMATTER =
         DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -48,6 +57,12 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
             // try legacy format
         }
         try {
+            LocalDateTime localDateTime = LocalDateTime.parse(dbData, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            return localDateTime.atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            // try legacy format
+        }
+        try {
             LocalDateTime localDateTime = LocalDateTime.parse(dbData, LEGACY_FORMATTER);
             return localDateTime.atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
@@ -55,6 +70,12 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
         }
         try {
             LocalDateTime localDateTime = LocalDateTime.parse(dbData, DATE_TIME_FORMATTER);
+            return localDateTime.atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            // try date-time format with optional fractional seconds
+        }
+        try {
+            LocalDateTime localDateTime = LocalDateTime.parse(dbData, SPACE_FRACTIONAL_DATE_TIME_FORMATTER);
             return localDateTime.atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
             // try date-only format
