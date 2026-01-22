@@ -18,6 +18,8 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
     private static final Logger log = LoggerFactory.getLogger(OffsetDateTimeStringConverter.class);
     private static final DateTimeFormatter LEGACY_FORMATTER =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter DATE_ONLY_FORMATTER =
         DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -47,6 +49,12 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
         }
         try {
             LocalDateTime localDateTime = LocalDateTime.parse(dbData, LEGACY_FORMATTER);
+            return localDateTime.atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            // try date-time format without milliseconds
+        }
+        try {
+            LocalDateTime localDateTime = LocalDateTime.parse(dbData, DATE_TIME_FORMATTER);
             return localDateTime.atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
             // try date-only format
