@@ -12,6 +12,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,6 +29,7 @@ public class BotProcessService {
     private final SqliteDataSourceProperties ticketsDbProperties;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
     private final Map<Long, OffsetDateTime> startedAt = new ConcurrentHashMap<>();
+    private static final Pattern PID_FILE_PATTERN = Pattern.compile("bot-(\\d+)\\.pid");
 
     public BotProcessService(SharedConfigService sharedConfigService,
                              SqliteDataSourceProperties ticketsDbProperties) {
@@ -106,6 +111,27 @@ public class BotProcessService {
             return BotProcessStatus.running(startedAt.get(channelId));
         }
         return BotProcessStatus.stopped();
+    }
+
+    @PreDestroy
+    public void stopAll() {
+        log.info("Stopping all bot processes due to panel shutdown");
+        processes.forEach((channelId, process) -> stopProcess(process.toHandle(), "shutdown", channelId));
+        processes.clear();
+        try {
+            Path runDir = resolveBotWorkingDir().resolve("../run").normalize();
+            if (Files.isDirectory(runDir)) {
+                try (Stream<Path> files = Files.list(runDir)) {
+                    files.filter(path -> PID_FILE_PATTERN.matcher(path.getFileName().toString()).matches())
+                        .forEach(path -> {
+                            Long channelId = parseChannelIdFromPidFile(path.getFileName().toString());
+                            stopProcessFromPidFile(path, channelId);
+                        });
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to stop bot processes from pid files during shutdown", ex);
+        }
     }
 
     private BotCredential resolveCredential(Channel channel) {
@@ -216,21 +242,40 @@ public class BotProcessService {
             return;
         }
         log.info("Stopping bot process for channel {} via {}", channelId, source);
+        List<ProcessHandle> descendants = handle.descendants()
+            .filter(ProcessHandle::isAlive)
+            .toList();
+        descendants.forEach(ProcessHandle::destroy);
         handle.destroy();
-        try {
-            handle.onExit().get(5, TimeUnit.SECONDS);
-            if (handle.isAlive()) {
-                log.warn("Bot process for channel {} did not stop gracefully, forcing termination", channelId);
-                handle.destroyForcibly();
-            }
-        } catch (Exception ex) {
-            log.warn("Failed to wait for bot process termination for channel {}", channelId, ex);
+        waitForExit(handle, 5);
+        boolean stillAlive = handle.isAlive() || descendants.stream().anyMatch(ProcessHandle::isAlive);
+        if (stillAlive) {
+            log.warn("Bot process for channel {} did not stop gracefully, forcing termination", channelId);
+            descendants.forEach(ProcessHandle::destroyForcibly);
+            handle.destroyForcibly();
+            waitForExit(handle, 5);
         }
     }
 
     private String mvnwCommand() {
         String os = System.getProperty("os.name").toLowerCase();
         return os.contains("win") ? "mvnw.cmd" : "./mvnw";
+    }
+
+    private void waitForExit(ProcessHandle handle, long timeoutSeconds) {
+        try {
+            handle.onExit().get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            log.warn("Failed to wait for bot process termination for channel", ex);
+        }
+    }
+
+    private Long parseChannelIdFromPidFile(String fileName) {
+        Matcher matcher = PID_FILE_PATTERN.matcher(fileName);
+        if (matcher.matches()) {
+            return Long.parseLong(matcher.group(1));
+        }
+        return null;
     }
 
     public record BotProcessStatus(boolean running, String message, OffsetDateTime startedAt) {
