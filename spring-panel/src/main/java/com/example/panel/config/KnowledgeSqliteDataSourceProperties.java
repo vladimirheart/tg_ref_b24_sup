@@ -1,5 +1,7 @@
 package com.example.panel.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.io.IOException;
@@ -9,6 +11,7 @@ import java.nio.file.Paths;
 
 @ConfigurationProperties(prefix = "app.datasource.knowledge-sqlite")
 public class KnowledgeSqliteDataSourceProperties {
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeSqliteDataSourceProperties.class);
 
     private String path = "knowledge_base.db";
     private String journalMode = "WAL";
@@ -103,8 +106,9 @@ public class KnowledgeSqliteDataSourceProperties {
             if (parent != null && !Files.exists(parent)) {
                 Files.createDirectories(parent);
             }
-            if (!Files.exists(resolved)) {
+            if (Files.notExists(resolved)) {
                 Files.createFile(resolved);
+                log.info("Created knowledge SQLite database file at {}", resolved);
             }
         } catch (IOException ex) {
             throw new IllegalStateException("Unable to create knowledge SQLite database at " + resolved, ex);
