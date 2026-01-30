@@ -46,8 +46,12 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
 
         Map<String, Object> defaults = new HashMap<>();
         for (String key : DB_KEYS) {
-            if (environment.containsProperty(key)) {
+            String envValue = environment.getProperty(key);
+            if (StringUtils.hasText(envValue) && pathExists(envValue, projectRoot)) {
                 continue; // Respect values already provided via environment variables or system properties.
+            }
+            if (StringUtils.hasText(envValue)) {
+                log.warn("Environment variable {} points to missing file {}, falling back to defaults.", key, envValue);
             }
 
             String resolved = resolveDefaultPath(key, projectRoot, dotEnv, ticketsPath);
@@ -120,14 +124,11 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         if (!StringUtils.hasText(raw)) {
             return null;
         }
-        Path path = Paths.get(raw);
-        if (!path.isAbsolute()) {
-            Path candidate = projectRoot.resolve(path).normalize();
-            if (Files.exists(candidate)) {
-                return candidate.toString();
-            }
+        Path candidate = normalizeCandidate(raw, projectRoot);
+        if (Files.exists(candidate)) {
+            return candidate.toString();
         }
-        return path.normalize().toString();
+        return null;
     }
 
     private String resolveDefaultPath(String key,
@@ -136,7 +137,11 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
                                       String ticketsPath) {
         String fromEnv = dotEnv.get(key);
         if (StringUtils.hasText(fromEnv)) {
-            return fromEnv;
+            Path candidate = normalizeCandidate(fromEnv, projectRoot);
+            if (Files.exists(candidate)) {
+                return candidate.toString();
+            }
+            log.warn("Dotenv variable {} points to missing file {}, falling back to defaults.", key, fromEnv);
         }
         if ("APP_DB_USERS".equals(key)) {
             String sibling = resolveSiblingPath(ticketsPath, "users.db");
@@ -192,6 +197,25 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         if (base == null) {
             return null;
         }
-        return base.resolve(fileName).normalize().toString();
+        Path candidate = base.resolve(fileName).normalize();
+        if (Files.exists(candidate)) {
+            return candidate.toString();
+        }
+        return null;
+    }
+
+    private boolean pathExists(String raw, Path projectRoot) {
+        if (!StringUtils.hasText(raw)) {
+            return false;
+        }
+        return Files.exists(normalizeCandidate(raw, projectRoot));
+    }
+
+    private Path normalizeCandidate(String raw, Path projectRoot) {
+        Path path = Paths.get(raw);
+        if (!path.isAbsolute()) {
+            path = projectRoot.resolve(path);
+        }
+        return path.normalize();
     }
 }
