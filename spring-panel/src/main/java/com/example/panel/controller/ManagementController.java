@@ -166,6 +166,13 @@ public class ManagementController {
         return "passports/list";
     }
 
+    @GetMapping("/object-passports/new")
+    @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
+    public String newPassport(Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
+        return "passports/new";
+    }
+
     @GetMapping("/object-passports/{id}")
     @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public String passportDetails(@PathVariable Long id, Authentication authentication, Model model) {
