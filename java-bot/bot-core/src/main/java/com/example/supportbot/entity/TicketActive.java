@@ -11,6 +11,7 @@ public class TicketActive {
     @Column(name = "ticket_id")
     private String ticketId;
 
+    @Column(name = "user_identity")
     private String user;
 
     @Column(name = "last_seen")
