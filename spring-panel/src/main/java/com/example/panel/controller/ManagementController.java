@@ -297,7 +297,10 @@ public class ManagementController {
 
     private List<Object> toObjectList(Object raw) {
         if (raw instanceof List<?> list) {
-            return list.stream().filter(item -> item != null).toList();
+            return list.stream()
+                .filter(item -> item != null)
+                .map(item -> (Object) item)
+                .toList();
         }
         return List.of();
     }
