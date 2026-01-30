@@ -8060,6 +8060,26 @@
   const itEquipmentAddModal = itEquipmentAddModalEl
     ? new bootstrap.Modal(itEquipmentAddModalEl)
     : null;
+  const itConnectionsModalEl = document.getElementById('itConnectionsModal');
+  const itConnectionsModal = itConnectionsModalEl
+    ? new bootstrap.Modal(itConnectionsModalEl)
+    : null;
+
+  function openItEquipmentModalFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('open') !== 'it-equipment') {
+      return;
+    }
+    if (itEquipmentAddModal) {
+      itEquipmentAddModal.show();
+    } else if (itConnectionsModal) {
+      itConnectionsModal.show();
+    }
+    params.delete('open');
+    const search = params.toString();
+    const newUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash || ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }
 
   function populateItEquipmentAddOptions(selectedValues = {}) {
     const optionSets = collectEquipmentOptionSets();
@@ -8386,6 +8406,7 @@
   renderNetworkProfiles();
   renderItConnectionsTable();
   loadItEquipment();
+  openItEquipmentModalFromQuery();
 
   const itSectionTilesContainer = document.querySelector('[data-it-section-tiles]');
 
