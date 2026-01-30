@@ -170,6 +170,7 @@ public class ManagementController {
     @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public String newPassport(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
+        populatePassportEditor(model, true);
         return "passports/new";
     }
 
@@ -177,11 +178,127 @@ public class ManagementController {
     @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public String passportDetails(@PathVariable Long id, Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
-        return equipmentRepository.findById(id)
-                .map(item -> {
-                    model.addAttribute("item", item);
-                    return "passports/detail";
-                })
-                .orElse("redirect:/object-passports");
+        populatePassportEditor(model, false);
+        return "passports/new";
+    }
+
+    private void populatePassportEditor(Model model, boolean isNew) {
+        Map<String, String> parameterTypes = settingsCatalogService.getParameterTypes();
+        Map<String, List<String>> parameterDependencies = settingsCatalogService.getParameterDependencies();
+
+        Map<String, List<String>> parameterValues = new java.util.LinkedHashMap<>();
+        Map<String, List<Map<String, Object>>> parameterValuesPayload = new java.util.LinkedHashMap<>();
+        parameterTypes.keySet().forEach(key -> {
+            List<SettingsParameter> items = settingsParameterRepository.findByParamType(key);
+            List<String> values = items.stream()
+                .filter(item -> item.getDeleted() == null || !item.getDeleted())
+                .map(SettingsParameter::getValue)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .toList();
+            parameterValues.put(key, values);
+            List<Map<String, Object>> payloadItems = values.stream()
+                .map(value -> Map.<String, Object>of("value", value, "is_deleted", false))
+                .toList();
+            parameterValuesPayload.put(key, payloadItems);
+        });
+
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        List<String> statuses = toStringList(settings.get("object_statuses"));
+        if (statuses.isEmpty()) {
+            statuses = toStringList(settings.get("client_statuses"));
+        }
+        List<String> statusesRequiringTask = toStringList(settings.get("statuses_requiring_task"));
+
+        List<Map<String, String>> dayLabels = List.of(
+            Map.of("key", "mon", "full", "Понедельник", "short", "Пн"),
+            Map.of("key", "tue", "full", "Вторник", "short", "Вт"),
+            Map.of("key", "wed", "full", "Среда", "short", "Ср"),
+            Map.of("key", "thu", "full", "Четверг", "short", "Чт"),
+            Map.of("key", "fri", "full", "Пятница", "short", "Пт"),
+            Map.of("key", "sat", "full", "Суббота", "short", "Сб"),
+            Map.of("key", "sun", "full", "Воскресенье", "short", "Вс")
+        );
+
+        List<ItEquipmentCatalog> equipmentItems = equipmentRepository.findAll();
+        List<Map<String, Object>> equipmentCatalog = equipmentItems.stream()
+            .map(item -> Map.<String, Object>of(
+                "equipment_type", item.getEquipmentType(),
+                "equipment_vendor", item.getEquipmentVendor(),
+                "equipment_model", item.getEquipmentModel(),
+                "serial_number", item.getSerialNumber(),
+                "photo_url", item.getPhotoUrl(),
+                "accessories", item.getAccessories()
+            ))
+            .toList();
+
+        Map<String, Object> itEquipmentOptions = new java.util.LinkedHashMap<>();
+        itEquipmentOptions.put("types", equipmentItems.stream()
+            .map(ItEquipmentCatalog::getEquipmentType)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList());
+        itEquipmentOptions.put("vendors", equipmentItems.stream()
+            .map(ItEquipmentCatalog::getEquipmentVendor)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList());
+        itEquipmentOptions.put("models", equipmentItems.stream()
+            .map(ItEquipmentCatalog::getEquipmentModel)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList());
+        itEquipmentOptions.put("serials", equipmentItems.stream()
+            .map(ItEquipmentCatalog::getSerialNumber)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList());
+        itEquipmentOptions.put("statuses", statuses);
+
+        String passportPayloadJson = "{\"is_new\":true}";
+        try {
+            passportPayloadJson = objectMapper.writeValueAsString(Map.of("is_new", isNew));
+        } catch (Exception ex) {
+            log.warn("Failed to serialize passport payload: {}", ex.getMessage());
+        }
+
+        model.addAttribute("parameterTypes", parameterTypes);
+        model.addAttribute("parameterDependencies", parameterDependencies);
+        model.addAttribute("parameterValues", parameterValues);
+        model.addAttribute("parameterValuesPayload", parameterValuesPayload);
+        model.addAttribute("statuses", statuses);
+        model.addAttribute("statusesRequiringTask", statusesRequiringTask);
+        model.addAttribute("dayLabels", dayLabels);
+        model.addAttribute("networkProfiles", toObjectList(settings.get("network_profiles")));
+        model.addAttribute("itEquipmentOptions", itEquipmentOptions);
+        model.addAttribute("itEquipmentCatalog", equipmentCatalog);
+        model.addAttribute("itConnectionOptions", toObjectList(settings.get("it_connection_options")));
+        model.addAttribute("iikoServerOptions", toStringList(settings.get("iiko_server_options")));
+        model.addAttribute("networkProviderOptions", toStringList(settings.get("network_provider_options")));
+        model.addAttribute("networkContractOptions", toStringList(settings.get("network_contract_options")));
+        model.addAttribute("networkRestaurantIdOptions", toStringList(settings.get("network_restaurant_id_options")));
+        model.addAttribute("networkSupportPhoneOptions", toStringList(settings.get("network_support_phone_options")));
+        model.addAttribute("networkSpeedOptions", toStringList(settings.get("network_speed_options")));
+        model.addAttribute("networkLegalEntityOptions", toStringList(settings.get("network_legal_entity_options")));
+        model.addAttribute("cities", toStringList(settings.get("cities")));
+        model.addAttribute("passportPayloadJson", passportPayloadJson);
+    }
+
+    private List<String> toStringList(Object raw) {
+        if (raw instanceof List<?> list) {
+            return list.stream()
+                .filter(item -> item != null && !item.toString().isBlank())
+                .map(Object::toString)
+                .distinct()
+                .toList();
+        }
+        return List.of();
+    }
+
+    private List<Object> toObjectList(Object raw) {
+        if (raw instanceof List<?> list) {
+            return list.stream().filter(item -> item != null).toList();
+        }
+        return List.of();
     }
 }
