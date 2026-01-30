@@ -12,36 +12,35 @@ import java.sql.Statement;
 public class V4_1__add_user_identity_to_notifications extends BaseJavaMigration {
     @Override
     public void migrate(Context context) throws Exception {
-        try (Connection connection = context.getConnection()) {
-            if (!tableExists(connection, "notifications")) {
-                return;
+        Connection connection = context.getConnection();
+        if (!tableExists(connection, "notifications")) {
+            return;
+        }
+
+        boolean hasUserIdentity = columnExists(connection, "notifications", "user_identity");
+        boolean hasLegacyUser = columnExists(connection, "notifications", "user");
+
+        if (!hasUserIdentity) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("ALTER TABLE notifications ADD COLUMN user_identity TEXT");
             }
+        }
 
-            boolean hasUserIdentity = columnExists(connection, "notifications", "user_identity");
-            boolean hasLegacyUser = columnExists(connection, "notifications", "user");
-
-            if (!hasUserIdentity) {
-                try (Statement statement = connection.createStatement()) {
-                    statement.execute("ALTER TABLE notifications ADD COLUMN user_identity TEXT");
-                }
-            }
-
-            if (hasLegacyUser) {
-                try (Statement statement = connection.createStatement()) {
-                    statement.execute(
-                        "UPDATE notifications " +
-                            "SET user_identity = user " +
-                            "WHERE user_identity IS NULL"
-                    );
-                }
-            }
-
+        if (hasLegacyUser) {
             try (Statement statement = connection.createStatement()) {
                 statement.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_notifications_user_identity " +
-                        "ON notifications(user_identity)"
+                    "UPDATE notifications " +
+                        "SET user_identity = user " +
+                        "WHERE user_identity IS NULL"
                 );
             }
+        }
+
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(
+                "CREATE INDEX IF NOT EXISTS idx_notifications_user_identity " +
+                    "ON notifications(user_identity)"
+            );
         }
     }
 
