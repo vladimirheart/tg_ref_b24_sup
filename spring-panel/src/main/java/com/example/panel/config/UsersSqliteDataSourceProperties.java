@@ -32,7 +32,12 @@ public class UsersSqliteDataSourceProperties {
         }
         Path configured = Paths.get(path);
         if (configured.isAbsolute()) {
-            return configured.normalize();
+            Path normalized = configured.normalize();
+            if (Files.exists(normalized)) {
+                return normalized;
+            }
+            ensureSqliteFile(normalized);
+            return normalized;
         }
 
         Path resolved = Paths.get("").toAbsolutePath().normalize().resolve(configured).normalize();
