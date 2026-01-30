@@ -1,0 +1,4010 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Новый паспорт объекта — Bender</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='bender-icon.svg') }}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='sidebar.css') }}" rel="stylesheet" />
+  <style>
+    body.with-sidebar .main-content {
+      background-color: #f4f6fb;
+      min-height: 100vh;
+    }
+    .passport-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .passport-overview,
+    .passport-card {
+      border: 0;
+      border-radius: 1rem;
+      background: #ffffff;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    }
+    .passport-card {
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+    }
+    .passport-overview .card-body {
+      padding: 1.75rem 2rem;
+    }
+    .passport-card .card-header {
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), rgba(32, 201, 151, 0.08));
+      border: 0;
+      border-radius: 1rem 1rem 0 0;
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+      color: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .passport-card .card-body {
+      padding: 1.5rem;
+    }
+    .passport-card .card-body .row.g-3,
+    .passport-card .card-body .row.g-4 {
+      --bs-gutter-y: 0.75rem;
+      --bs-gutter-x: 0.75rem;
+    }
+    .card h5 { margin-bottom: 0; }
+    .schedule-table input[type="time"] { max-width: 120px; }
+    .photo-card img { object-fit: cover; height: 180px; }
+    .photo-card .card-body { font-size: 0.9rem; }
+    .equipment-card textarea { min-height: 80px; }
+    .equipment-card .card-header { flex-wrap: wrap; gap: 0.75rem; }
+    .equipment-card .equipment-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .equipment-card .card-header {
+      gap: 1rem;
+    }
+    .equipment-card .equipment-header-toggle {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      margin: -0.25rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: inherit;
+      text-align: left;
+      flex: 1;
+      cursor: pointer;
+    }
+    .equipment-card .equipment-header-toggle:focus {
+      outline: none;
+      box-shadow: none;
+    }
+    .equipment-card .equipment-header-summary { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 0; }
+    .equipment-card .equipment-header-title {
+      font-weight: 600;
+      color: #0f172a;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .equipment-card .equipment-header-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.85rem; color: #475569; }
+    .equipment-card .equipment-header-meta strong { color: #334155; font-weight: 600; }
+    .equipment-card .equipment-header-meta span { display: inline-flex; gap: 0.35rem; align-items: baseline; min-width: 0; }
+    .equipment-card .equipment-header-meta span span { white-space: normal; word-break: break-word; }
+    .equipment-card .equipment-header-icon { font-size: 0.65rem; transition: transform 0.2s ease; }
+    .equipment-card .equipment-header-toggle.collapsed .equipment-header-icon { transform: rotate(-90deg); }
+    .equipment-card .equipment-header-toggle[tabindex="0"]:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+      border-radius: 0.5rem;
+    }
+    .equipment-card .equipment-fields-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .equipment-card .equipment-field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .equipment-card .equipment-field-placeholder { visibility: hidden; }
+    .equipment-card .equipment-field-span-3 { grid-column: span 3; }
+    .equipment-photo img { object-fit: cover; height: 150px; }
+    .equipment-photo .card-body { font-size: 0.85rem; }
+    .form-control-plaintext { padding-left: 0; }
+    .object-title { font-size: 1.15rem; }
+    .title-photo-preview { width: 180px; height: 120px; border-radius: 0.75rem; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(15, 23, 42, 0.08); }
+    .title-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .section-collapse { display: none; }
+    .section-collapse.show { display: block; }
+    .card-toggle-btn { white-space: nowrap; border-radius: 999px; }
+    .table-row-link { cursor: pointer; }
+    .passport-card .card-body .form-label { font-weight: 600; font-size: 0.85rem; color: #2f3b52; }
+     #itBlock { border-top: 1px solid rgba(15, 23, 42, 0.08); padding-top: 1.5rem; }
+    .it-equipment-list { border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 0.75rem; padding: 0.75rem 1rem; background-color: #f8fafc; }
+    .it-equipment-item { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.9rem; padding: 0.25rem 0; }
+    .it-equipment-item + .it-equipment-item { border-top: 1px dashed rgba(15, 23, 42, 0.12); }
+    .it-equipment-name { font-weight: 600; color: #0f172a; }
+    .it-equipment-ip { font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: #475569; }
+    .it-equipment-empty { color: #64748b; font-size: 0.9rem; }
+    .network-equipment-summary { border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 0.75rem; padding: 0.75rem 1rem; background-color: #f8fafc; min-height: 3rem; display: flex; align-items: center; }
+    .network-equipment-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .network-equipment-list li { width: 100%; }
+    .network-equipment-entry {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      border: 0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .network-equipment-entry:focus { outline: none; box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15); }
+    .network-equipment-list li:nth-child(odd) .network-equipment-entry { background: #ffffff; }
+    .network-equipment-list li:nth-child(even) .network-equipment-entry { background: #e2e8f0; }
+    .network-equipment-entry:hover { background: #dbeafe; }
+    .network-equipment-name { font-weight: 600; color: #0f172a; }
+    .network-equipment-ip { font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; color: #475569; }
+    .network-equipment-separator { color: #94a3b8; font-weight: 600; }
+    .network-equipment-empty { font-size: 0.9rem; }
+    .passport-card .form-control,
+    .passport-card .form-select { font-size: 0.9rem; }
+    .passport-card .form-select {
+      width: 100%;
+      max-width: 30ch;
+      min-width: 14ch;
+    }
+    .searchable-select .dropdown-toggle {
+      max-width: 30ch;
+      min-width: 14ch;
+    }
+    .searchable-select .dropdown-toggle .searchable-select-label { max-width: 100%; }
+    .form-control.auto-resize-input {
+      width: 100% !important;
+      display: block;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .equipment-card.equipment-highlight {
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.2);
+      transition: box-shadow 0.3s ease;
+    }
+    .searchable-select.dropdown { width: 100%; }
+    .searchable-select .dropdown-toggle { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .searchable-select .dropdown-toggle .searchable-select-label { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .searchable-select .dropdown-menu { width: 100%; max-height: 320px; overflow: hidden; }
+    .searchable-select .searchable-select-options { max-height: 240px; overflow-y: auto; }
+    .searchable-select .dropdown-item.active { background-color: rgba(13, 110, 253, 0.15); color: #0d6efd; }
+    .searchable-select .dropdown-item.active:hover { background-color: rgba(13, 110, 253, 0.25); }
+    .searchable-select .dropdown-item { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .select-search-wrapper { display: flex; flex-direction: column; gap: 0.25rem; }
+    .select-search-wrapper .input-group { flex-wrap: nowrap; }
+    .select-search-input { font-size: 0.85rem; }
+    .status-history-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .status-history-entry { padding: 0.75rem 1rem; border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 0.75rem; background: #f8fafc; }
+    .status-history-entry .history-dates { font-weight: 600; }
+    .status-history-entry .history-duration { font-size: 0.85rem; color: #64748b; }
+    .title-photo-preview { cursor: zoom-in; }
+    .photo-card { position: relative; overflow: hidden; }
+    .photo-card .card-img-top { cursor: zoom-in; border-radius: 0.75rem 0.75rem 0 0; }
+    .photo-card .photo-toolbar { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2; }
+    .photo-card .title-indicator { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(25, 135, 84, 0.9); color: #fff; font-size: 1rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); }
+    .photo-card .photo-caption-text { white-space: pre-wrap; word-break: break-word; }
+    .photo-card .photo-meta { font-size: 0.8rem; color: #6b7280; }
+    .photo-card .photo-edit-form { background-color: #f8fafc; border-radius: 0.75rem; padding: 0.75rem; }
+    .passport-photo { cursor: zoom-in; }
+    .equipment-photo img { cursor: zoom-in; }
+    .equipment-photos-toggle::after { content: '▼'; margin-left: 0.35rem; transition: transform 0.2s ease; font-size: 0.75rem; }
+    .equipment-photos-toggle.collapsed::after { transform: rotate(-90deg); }
+    #saveStatus {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1080;
+      min-width: min(24rem, calc(100% - 2rem));
+      max-width: min(32rem, calc(100% - 2rem));
+      pointer-events: none;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+    }
+    @media (max-width: 992px) {
+      .equipment-card .equipment-fields-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .equipment-card .equipment-field-placeholder { display: none; }
+    }
+    @media (max-width: 576px) {
+      .equipment-card .equipment-fields-grid { grid-template-columns: 1fr; }
+      .title-photo-preview { width: 140px; height: 90px; }
+      .passport-overview .card-body { padding: 1.25rem; }
+      .passport-card .card-header { padding: 0.75rem 1rem; }
+      .passport-card .card-body { padding: 1rem; }
+      .form-control.auto-resize-input { width: 100% !important; }
+      .passport-card .form-select,
+      .searchable-select .dropdown-toggle { max-width: 100%; min-width: 0; }
+    }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  {% include "_sidebar.html" %}
+  <main class="main-content container-fluid">
+    <div class="passport-container container-xxl mt-4">
+      <div class="card passport-overview mb-4">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex flex-wrap align-items-start gap-3">
+              <div>
+                <h2 class="mb-1">🗂 Паспорт объекта</h2>
+                <div class="text-muted object-title" id="objectTitle">—</div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                  <span class="badge bg-secondary status-badge" id="statusBadge">—</span>
+                  <span class="badge bg-secondary status-badge" id="networkBadge">Внутренняя сеть: —</span>
+                </div>
+              </div>
+              <div class="title-photo-preview d-none" id="titlePhotoPreview">
+                <img src="" alt="Титульное фото" id="titlePhotoImage" />
+              </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <a class="btn btn-outline-secondary" href="/object_passports" target="_self">← К списку</a>
+              <button class="btn btn-primary" id="savePassportBtn" type="button">💾 Сохранить</button>
+            </div>
+          </div>
+          <div class="alert d-none mt-3 mb-0" role="alert" id="saveStatus"></div>
+        </div>
+      </div>
+
+      <div class="card passport-card mb-4" id="basicInfoCard">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#basicInfoBody">
+          <span>Основная информация</span>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary card-toggle-btn" type="button" id="toggleItBlockBtn" aria-expanded="false">Раскрыть IT-блок</button>
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#basicInfoBody" aria-expanded="true">Свернуть ▲</button>
+          </div>
+        </div>
+        <div class="section-collapse show" id="basicInfoBody">
+          <div class="card-body">
+          <div class="row g-3">
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Департамент<span class="text-danger">*</span></label>
+              <div class="searchable-select dropdown" data-select-id="departmentSelect" data-force-custom-dropdown>
+                <select class="form-select d-none" id="departmentSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('department', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <div class="input-group input-group-sm">
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Бизнес</label>
+              <div class="searchable-select dropdown" data-select-id="businessSelect" data-force-custom-dropdown>
+                <select class="form-select d-none" id="businessSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('business', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <div class="input-group input-group-sm">
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="business" data-target="businessSelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Тип партнёра</label>
+              <div class="searchable-select dropdown" data-select-id="partnerTypeSelect" data-force-custom-dropdown>
+                <select class="form-select d-none" id="partnerTypeSelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('partner_type', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <div class="input-group input-group-sm">
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="partner_type" data-target="partnerTypeSelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Страна</label>
+              <div class="searchable-select dropdown" data-select-id="countrySelect" data-force-custom-dropdown>
+                <select class="form-select d-none" id="countrySelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('country', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <div class="input-group input-group-sm">
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="country" data-target="countrySelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Юридическое лицо</label>
+              <div class="searchable-select dropdown" data-select-id="legalEntitySelect" data-force-custom-dropdown>
+                <select class="form-select d-none" id="legalEntitySelect">
+                  <option value="">Не выбрано</option>
+                  {% for value in parameter_values.get('legal_entity', []) %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <div class="input-group input-group-sm">
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="legal_entity" data-target="legalEntitySelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Город</label>
+              <input type="text" id="cityInput" class="form-control form-control-sm" list="citiesList" placeholder="Например, Москва" />
+              <datalist id="citiesList">
+                {% for value in cities %}
+                <option value="{{ value }}"></option>
+                {% endfor %}
+              </datalist>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Адрес локации</label>
+              <input type="text" class="form-control form-control-sm" id="locationAddressInput" placeholder="Например, г. Волгоград ул. Ленина, 1" data-no-auto-expand="true" />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Статус</label>
+              <div class="searchable-select dropdown" data-select-id="statusSelect" data-force-custom-dropdown>
+                <select class="form-select d-none" id="statusSelect">
+                  {% for value in statuses %}
+                  <option value="{{ value }}">{{ value }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                  <span class="searchable-select-label">Не выбрано</span>
+                </button>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Номер телефона объекта</label>
+              <input type="text" class="form-control form-control-sm" id="itObjectPhoneInput" placeholder="+7..." />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Управляющий</label>
+              <input type="text" class="form-control form-control-sm" id="itManagerNameInput" placeholder="ФИО управляющего" />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Телефон управляющего</label>
+              <input type="text" class="form-control form-control-sm" id="itManagerPhoneInput" placeholder="+7..." />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Дата запуска</label>
+              <input type="date" class="form-control form-control-sm" id="startDateInput" />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Дата закрытия</label>
+              <input type="date" class="form-control form-control-sm" id="endDateInput" />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Дата приостановки</label>
+              <input type="date" class="form-control form-control-sm" id="suspensionDateInput" />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Дата разморозки</label>
+              <input type="date" class="form-control form-control-sm" id="resumeDateInput" />
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Общее время работы</label>
+              <div class="form-control-plaintext fw-semibold" id="totalTimeDisplay">—</div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Время в статусах приостановки</label>
+              <div class="form-control-plaintext fw-semibold" id="statusHistoryTotal">—</div>
+            </div>
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label mb-0" for="statusHistoryCollapse">История приостановок</label>
+                <button class="btn btn-sm btn-outline-secondary d-none" type="button" id="statusHistoryToggle" data-bs-toggle="collapse" data-bs-target="#statusHistoryCollapse" aria-expanded="false">Показать ▼</button>
+              </div>
+              <div class="text-muted small" id="statusHistoryEmpty">История ещё не добавлена.</div>
+              <div class="collapse mt-2" id="statusHistoryCollapse">
+                <div class="status-history-list" id="statusHistoryList"></div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6 d-none" id="statusTaskContainer">
+              <label class="form-label">Связанная задача<span class="text-danger">*</span></label>
+              <div class="select-search-wrapper">
+                <input type="text" class="form-control form-control-sm mb-2 select-search-input" data-select-target="statusTaskSelect" id="statusTaskSearchInput" placeholder="Поиск по номеру или названию" autocomplete="off" data-no-auto-resize="true" data-unsaved-ignore="true" />
+                <select class="form-select form-select-sm" id="statusTaskSelect">
+                  <option value="">Не выбрано</option>
+                </select>
+              </div>
+              <div class="form-text" id="statusTaskHint">Выберите задачу, отражающую текущее состояние объекта.</div>
+              <div class="small mt-2 text-muted" id="statusTaskInfo"></div>
+            </div>
+          </div>
+          <div class="mt-4 it-block d-none" id="itBlock" data-user-collapsed="true">
+            <h6 class="text-uppercase text-muted small mb-3">IT-блок</h6>
+            <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Оборудование и IP-адреса</label>
+              <div class="it-equipment-list" id="itEquipmentList">
+                <div class="it-equipment-empty">Оборудование ещё не добавлено.</div>
+              </div>
+            </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">Адрес сервера iiko</label>
+                <select class="form-select form-select-sm" id="iikoServerSelect">
+                  <option value="">Не выбрано</option>
+                  {% for option in iiko_server_options %}
+                  <option value="{{ option }}">{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Затраченное время по обращениям</label>
+                <div class="form-control-plaintext fw-semibold" id="caseTimeDisplay">—</div>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Затраченное время по задачам</label>
+                <div class="form-control-plaintext fw-semibold" id="taskTimeDisplay">—</div>
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="card passport-card mb-4" id="networkCard">
+      <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#networkBody">
+          <span>Информация о сети</span>
+          <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#networkBody" aria-expanded="false">Развернуть ▼</button>
+        </div>
+        <div class="section-collapse" id="networkBody">
+          <div class="card-body network-info">
+            <div class="row g-4">
+              <div class="col-12 col-xl-6">
+                <h6 class="text-uppercase text-muted small mb-3">Внутренняя сеть</h6>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Внутренняя сеть</label>
+                    <input type="text" class="form-control form-control-sm" id="internalNetworkInput" list="internalNetworkOptions" placeholder="Например, CorpLAN" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Туннель</label>
+                    <input type="text" class="form-control form-control-sm" id="networkTunnelInput" placeholder="Например, VPN-01" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Оборудование (наименование и IP)</label>
+                    <div class="network-equipment-summary" id="networkEquipmentSummary">
+                      <div class="network-equipment-empty text-muted">Оборудование ещё не добавлено.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-xl-6">
+                <h6 class="text-uppercase text-muted small mb-3">Провайдер</h6>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Наименование провайдера</label>
+                    <input type="text" class="form-control form-control-sm" id="networkProviderInput" list="networkProviderOptions" placeholder="Например, Ростелеком" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">Номер договора</label>
+                    <input type="text" class="form-control form-control-sm" id="networkContractInput" list="networkContractOptions" placeholder="№ договора" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">ID ресторана</label>
+                    <input type="text" class="form-control form-control-sm" id="networkRestaurantIdInput" list="networkRestaurantOptions" placeholder="ID ресторана" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">ЮЛ</label>
+                    <input type="text" class="form-control form-control-sm" id="networkLegalEntityInput" list="networkLegalEntityOptions" placeholder="Юридическое лицо" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">Телефон ТП провайдера</label>
+                    <input type="text" class="form-control form-control-sm" id="networkSupportPhoneInput" list="networkSupportPhoneOptions" placeholder="Контакт ТП" />
+                  </div>
+                  <div class="col-sm-6 col-xl-6">
+                    <label class="form-label">Скорость подключения</label>
+                    <input type="text" class="form-control form-control-sm" id="networkSpeedInput" list="networkSpeedOptions" placeholder="Например, 100 Мбит/с" />
+                  </div>
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Параметры подключения к сети интернет</label>
+                <textarea class="form-control form-control-sm" id="networkParamsInput" rows="3" placeholder="IP, VLAN, логин/пароль и т.д."></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Файлы</label>
+                <form class="row g-2 align-items-end" id="networkFilesForm">
+                  <div class="col-md-6 col-lg-4">
+                    <input type="file" class="form-control form-control-sm" name="file" required />
+                  </div>
+                  <div class="col-md-2 col-lg-2">
+                    <button class="btn btn-outline-primary btn-sm w-100" type="submit">Загрузить</button>
+                  </div>
+                </form>
+                <div class="list-group list-group-flush mt-3" id="networkFilesList"></div>
+                <div class="text-muted small" id="networkFilesEmptyText">Файлы ещё не добавлены.</div>
+              </div>
+            </div>
+            <datalist id="internalNetworkOptions">
+              {% for value in parameter_values.get('network', []) %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+            <datalist id="networkProviderOptions">
+              {% for value in network_provider_options %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+            <datalist id="networkContractOptions">
+              {% for value in network_contract_options %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+            <datalist id="networkRestaurantOptions">
+              {% for value in network_restaurant_id_options %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+            <datalist id="networkSupportPhoneOptions">
+              {% for value in network_support_phone_options %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+            <datalist id="networkSpeedOptions">
+              {% for value in network_speed_options %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+            <datalist id="networkLegalEntityOptions">
+              {% for value in network_legal_entity_options %}
+              {% if value %}
+              <option value="{{ value }}"></option>
+              {% endif %}
+              {% endfor %}
+            </datalist>
+          </div>
+        </div>
+      </div>
+
+      <div class="card passport-card mb-4" id="scheduleCard">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#scheduleBody">
+          <span>Расписание</span>
+          <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#scheduleBody" aria-expanded="false">Развернуть ▼</button>
+        </div>
+        <div class="section-collapse" id="scheduleBody">
+          <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle schedule-table" id="scheduleTable">
+              <thead>
+                <tr>
+                  <th>День недели</th>
+                  <th>С</th>
+                  <th>По</th>
+                  <th>24 часа</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for key, full, short in day_labels %}
+                <tr data-day="{{ key }}">
+                  <td>{{ full }}</td>
+                  <td><input type="time" class="form-control form-control-sm schedule-from" /></td>
+                  <td><input type="time" class="form-control form-control-sm schedule-to" /></td>
+                  <td>
+                    <div class="form-check">
+                      <input class="form-check-input schedule-24" type="checkbox" id="schedule24_{{ key }}" />
+                      <label class="form-check-label" for="schedule24_{{ key }}">Круглосуточно</label>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+		  </div>
+        </div>
+      </div>
+
+      <div class="card passport-card mb-4" id="casesCard">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#casesBody">
+          <span>Обращения по локации</span>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#casesBody" aria-expanded="false">Развернуть ▼</button>
+            <button class="btn btn-sm btn-outline-primary" id="refreshCasesBtn" type="button">🔄 Обновить</button>
+          </div>
+        </div>
+        <div class="section-collapse" id="casesBody">
+          <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped">
+              <thead>
+                <tr>
+                  <th>ID заявки</th>
+                  <th>Бизнес</th>
+                  <th>Город</th>
+                  <th>Описание</th>
+                  <th>Создано</th>
+                </tr>
+              </thead>
+              <tbody id="casesTableBody"></tbody>
+            </table>
+          </div>
+          <div class="text-muted" id="casesEmptyText">Обращения не найдены.</div>
+		  </div>
+        </div>
+      </div>
+
+      <div class="card passport-card mb-4" id="tasksCard">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#tasksBody">
+          <span>Задачи по локации</span>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#tasksBody" aria-expanded="false">Развернуть ▼</button>
+            <button class="btn btn-sm btn-outline-primary" id="refreshTasksBtn" type="button">🔄 Обновить</button>
+          </div>
+        </div>
+        <div class="section-collapse" id="tasksBody">
+          <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle">
+              <thead>
+                <tr>
+                  <th>№ задачи</th>
+                  <th>Название</th>
+                  <th>Статус</th>
+                  <th>Исполнитель</th>
+                  <th>Дедлайн</th>
+                  <th>Обновлено</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody"></tbody>
+            </table>
+          </div>
+          <div class="text-muted" id="tasksEmptyText">Задачи не найдены.</div>
+                  </div>
+        </div>
+      </div>
+
+      <div class="card passport-card mb-4" id="photosSection">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#photosBody">
+          <span>Фотографии объекта</span>
+          <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#photosBody" aria-expanded="false">Развернуть ▼</button>
+        </div>
+        <div class="section-collapse" id="photosBody">
+          <div class="card-body">
+          <div class="alert alert-warning d-none" id="photosDisabledHint">Сохраните паспорт, чтобы добавлять фотографии.</div>
+          <form class="row g-3 align-items-end mb-3" id="photoUploadForm">
+            <div class="col-md-3">
+              <label class="form-label">Тип фото</label>
+              <select class="form-select form-select-sm" name="category" required>
+                <option value="title">Титульное</option>
+                <option value="archive">Архивное</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Подпись</label>
+              <input type="text" class="form-control form-control-sm" name="caption" placeholder="Описание" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Файл</label>
+              <input type="file" class="form-control form-control-sm" name="file" accept="image/*" required />
+            </div>
+            <div class="col-md-1">
+              <button class="btn btn-outline-primary btn-sm w-100" type="submit">Добавить</button>
+            </div>
+          </form>
+          <div class="row g-3" id="photosContainer"></div>
+          <div class="text-muted" id="photosEmptyText">Фотографии ещё не добавлены.</div>
+		  </div>
+        </div>
+      </div>
+
+      <div class="card passport-card mb-5" id="equipmentSection">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#equipmentBody">
+          <span>Структура оборудования</span>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#equipmentBody" aria-expanded="false">Развернуть ▼</button>
+            <button class="btn btn-sm btn-outline-success" id="addEquipmentBtn" type="button">➕ Добавить оборудование</button>
+          </div>
+        </div>
+        <div class="section-collapse" id="equipmentBody">
+          <div class="card-body">
+          <div class="alert alert-warning d-none" id="equipmentDisabledHint">Сохраните паспорт, чтобы управлять оборудованием.</div>
+          <div id="equipmentContainer"></div>
+          <div class="text-muted" id="equipmentEmptyText">Оборудование ещё не добавлено.</div>
+		  </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal fade" id="photoPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div id="photoPreviewCarousel" class="carousel slide">
+            <div class="carousel-inner" id="photoPreviewCarouselInner"></div>
+            <button class="carousel-control-prev d-none" type="button" id="photoPreviewPrev" data-bs-target="#photoPreviewCarousel" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Предыдущее</span>
+            </button>
+            <button class="carousel-control-next d-none" type="button" id="photoPreviewNext" data-bs-target="#photoPreviewCarousel" data-bs-slide="next">
+              <span class="carousel-control-next-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Следующее</span>
+            </button>
+          </div>
+          <div class="mt-3" id="photoPreviewMeta">
+            <div class="text-muted small">Подпись</div>
+            <div id="photoPreviewCaption" class="fw-semibold"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="#" class="btn btn-primary" id="photoPreviewDownload" download>Скачать</a>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='edit-guard.js') }}"></script>
+  <script id="passportData" type="application/json">{{ passport_payload | safe }}</script>
+  <script>
+    function escapeHtml(value) {
+      if (value === null || value === undefined) return '';
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function setupAutoExpandTextarea(textarea) {
+      if (!textarea) return;
+      const storedMinHeight = textarea.dataset.autoExpandMinHeight
+        ? Number(textarea.dataset.autoExpandMinHeight)
+        : null;
+      const minHeight = storedMinHeight || Math.max(textarea.clientHeight || textarea.scrollHeight, 80);
+      const adjustHeight = () => {
+        const shouldExpand = (textarea.value || '').length > 50;
+        textarea.style.height = shouldExpand ? 'auto' : `${minHeight}px`;
+        if (shouldExpand) {
+          textarea.style.height = `${Math.max(minHeight, textarea.scrollHeight)}px`;
+        }
+      };
+      if (textarea.dataset.autoExpandInitialized !== 'true') {
+        textarea.dataset.autoExpandInitialized = 'true';
+        textarea.dataset.autoExpandMinHeight = String(minHeight);
+        textarea.style.overflowY = 'hidden';
+        textarea.addEventListener('input', adjustHeight);
+        textarea.addEventListener('change', adjustHeight);
+      }
+      adjustHeight();
+    }
+
+    function initializeAutoExpandTextareas(root = document) {
+      const scope = root instanceof Element ? root : document;
+      scope.querySelectorAll('textarea.form-control.form-control-sm').forEach((textarea) => {
+        if (textarea.dataset.noAutoExpand === 'true') return;
+        setupAutoExpandTextarea(textarea);
+      });
+    }
+
+    function setupAutoResizeInput(input) {
+      if (!input) return;
+      input.dataset.autoResizeInitialized = 'true';
+      input.classList.add('auto-resize-input');
+      input.style.width = '100%';
+      input.style.maxWidth = '100%';
+    }
+
+    function initializeAutoResizeInputs(root = document) {
+      const scope = root instanceof Element ? root : document;
+      scope
+        .querySelectorAll('input.form-control.form-control-sm[type="text"]')
+        .forEach((input) => {
+          if (input.dataset.noAutoResize === 'true') return;
+          const context = input.closest('.passport-card, .equipment-card');
+          if (!context) return;
+          if (input.closest('.dropdown-menu')) return;
+          setupAutoResizeInput(input);
+        });
+    }
+
+    function ensureEquipmentKey(item, fallbackIndex) {
+      if (!item || typeof item !== 'object') {
+        return `index-${fallbackIndex}`;
+      }
+      if (item.id !== null && typeof item.id !== 'undefined') {
+        return String(item.id);
+      }
+      if (item._internalKey) {
+        return String(item._internalKey);
+      }
+      const uniqueKey = `temp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      try {
+        Object.defineProperty(item, '_internalKey', {
+          value: uniqueKey,
+          enumerable: false,
+          configurable: true,
+        });
+      } catch (error) {
+        item._internalKey = uniqueKey;
+      }
+      return uniqueKey;
+    }
+
+    let highlightedEquipmentCard = null;
+    let highlightedEquipmentTimeoutId = null;
+
+    function highlightEquipmentCard(card) {
+      if (!card) return;
+      if (highlightedEquipmentCard && highlightedEquipmentCard !== card) {
+        highlightedEquipmentCard.classList.remove('equipment-highlight');
+      }
+      card.classList.add('equipment-highlight');
+      if (highlightedEquipmentTimeoutId) {
+        clearTimeout(highlightedEquipmentTimeoutId);
+      }
+      highlightedEquipmentCard = card;
+      highlightedEquipmentTimeoutId = window.setTimeout(() => {
+        card.classList.remove('equipment-highlight');
+        if (highlightedEquipmentCard === card) {
+          highlightedEquipmentCard = null;
+        }
+      }, 2000);
+    }
+
+    function revealEquipmentCardByKey(key) {
+      if (!equipmentContainer) return false;
+      const normalizedKey = String(key || '');
+      if (!normalizedKey) return false;
+      const cards = Array.from(equipmentContainer.querySelectorAll('[data-equipment-key]'));
+      const targetCard = cards.find((element) => element.dataset.equipmentKey === normalizedKey);
+      if (!targetCard) return false;
+      const detailsId = targetCard.dataset.detailsTarget;
+      if (detailsId) {
+        const detailsElement = document.getElementById(detailsId);
+        if (detailsElement) {
+          if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+            bootstrap.Collapse.getOrCreateInstance(detailsElement, { toggle: false }).show();
+          } else {
+            const wasShown = detailsElement.classList.contains('show');
+            detailsElement.classList.add('show');
+            if (!wasShown) {
+              detailsElement.dispatchEvent(new Event('shown.bs.collapse'));
+            }
+          }
+        }
+      }
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      highlightEquipmentCard(targetCard);
+      return true;
+    }
+
+    const PARAMETER_TITLES = {{ parameter_types | tojson }} || {};
+    const PARAMETER_DEPENDENCIES = {{ parameter_dependencies | default({}) | tojson }} || {};
+    const parameterValuesInitial = {{ parameter_values | tojson }};
+    const statuses = {{ statuses | tojson }};
+    const statusesRequiringTask = new Set({{ statuses_requiring_task | tojson }});
+    const dayLabels = {{ day_labels | tojson }};
+    const networkProfilesRaw = {{ network_profiles | tojson }};
+    const networkProfiles = Array.isArray(networkProfilesRaw) ? networkProfilesRaw : [];
+    const equipmentOptionSetsRaw = {{ it_equipment_options | tojson }};
+    const equipmentOptionSets = {
+      types: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.types)
+        ? equipmentOptionSetsRaw.types
+        : [],
+      vendors: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.vendors)
+        ? equipmentOptionSetsRaw.vendors
+        : [],
+      models: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.models)
+        ? equipmentOptionSetsRaw.models
+        : [],
+      serials: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.serials)
+        ? equipmentOptionSetsRaw.serials
+        : [],
+      statuses: Array.isArray(equipmentOptionSetsRaw && equipmentOptionSetsRaw.statuses)
+        ? equipmentOptionSetsRaw.statuses
+        : [],
+    };
+    const itEquipmentCatalogRaw = {{ it_equipment_catalog | tojson }};
+    const equipmentCatalog = Array.isArray(itEquipmentCatalogRaw)
+      ? itEquipmentCatalogRaw
+          .filter((item) => item && typeof item === 'object')
+          .map((item) => ({
+            equipment_type: normalizeCatalogValue(item.equipment_type),
+            equipment_vendor: normalizeCatalogValue(item.equipment_vendor),
+            equipment_model: normalizeCatalogValue(item.equipment_model),
+            serial_number: normalizeCatalogValue(item.serial_number),
+            accessories: typeof item.accessories === 'string' ? item.accessories.trim() : '',
+            photo_url: typeof item.photo_url === 'string' ? item.photo_url.trim() : '',
+          }))
+      : [];
+    equipmentCatalog.forEach((item) => {
+      addUniqueOption(equipmentOptionSets.types, item.equipment_type);
+      addUniqueOption(equipmentOptionSets.vendors, item.equipment_vendor);
+      addUniqueOption(equipmentOptionSets.models, item.equipment_model);
+      addUniqueOption(equipmentOptionSets.serials, item.serial_number);
+    });
+    const itConnectionChoicesRaw = {{ it_connection_options | tojson }};
+    const itConnectionChoices = Array.isArray(itConnectionChoicesRaw) ? itConnectionChoicesRaw : [];
+
+    const passportIdFromUrlMatch = window.location.pathname.match(/object_passports\/(\d+)/);
+    const passportIdFromUrl = passportIdFromUrlMatch ? Number(passportIdFromUrlMatch[1]) : null;
+    const hasValidPassportIdInUrl = Number.isFinite(passportIdFromUrl) && passportIdFromUrl > 0;
+    const passportDataElement = document.getElementById('passportData');
+    let initialPassportParseFailed = false;
+    let passportDataRaw = passportDataElement ? passportDataElement.textContent : '';
+    if (!passportDataRaw || !passportDataRaw.trim()) {
+      passportDataRaw = '{}';
+      if (hasValidPassportIdInUrl) {
+        initialPassportParseFailed = true;
+      }
+    }
+    let passportData = {};
+    try {
+      passportData = JSON.parse(passportDataRaw);
+    } catch (error) {
+      console.error('Failed to parse initial passport payload:', error);
+      initialPassportParseFailed = true;
+      passportData = {};
+    }
+    if (!passportData || typeof passportData !== 'object') {
+      passportData = {};
+    }
+    if (hasValidPassportIdInUrl) {
+      if (!passportData.id) {
+        passportData.id = passportIdFromUrl;
+      }
+      passportData.is_new = false;
+    } else if (typeof passportData.is_new !== 'boolean') {
+      passportData.is_new = true;
+    }
+
+    enrichEquipmentOptionSetsFromEquipment(passportData.equipment);
+
+    let parameterValues = (typeof structuredClone === 'function')
+      ? structuredClone(parameterValuesInitial)
+      : JSON.parse(JSON.stringify(parameterValuesInitial));
+    const parameterKeys = Object.keys(parameterValuesInitial || {});
+
+    function normalizeParameterResponse(source) {
+      const data = source && typeof source === 'object' ? source : {};
+      const result = {};
+      parameterKeys.forEach((key) => {
+        const items = Array.isArray(data[key]) ? data[key] : [];
+        const values = items
+          .filter((item) => item && !item.is_deleted && typeof item.value === 'string' && item.value.trim())
+          .map((item) => item.value.trim());
+        result[key] = Array.from(new Set(values));
+      });
+      return result;
+    }
+
+    function buildSelectOptions(values, currentValue) {
+      const list = Array.isArray(values) ? values.filter(Boolean) : [];
+      const normalizedCurrent = (currentValue || '').trim();
+      const unique = [];
+      list.forEach((item) => {
+        const value = typeof item === 'string' ? item.trim() : '';
+        if (value && !unique.includes(value)) {
+          unique.push(value);
+        }
+      });
+      if (normalizedCurrent && !unique.includes(normalizedCurrent)) {
+        unique.push(normalizedCurrent);
+      }
+      const options = ['<option value="">Не выбрано</option>'];
+      unique.forEach((item) => {
+        const escaped = escapeHtml(item);
+        const selected = item === normalizedCurrent ? ' selected' : '';
+        options.push(`<option value="${escaped}"${selected}>${escaped}</option>`);
+      });
+      return options.join('');
+    }
+
+    function normalizeCatalogValue(value) {
+      return typeof value === 'string' ? value.trim() : '';
+    }
+
+    function addUniqueOption(list, value) {
+      if (!Array.isArray(list)) return;
+      const normalized = normalizeCatalogValue(value);
+      if (!normalized || list.includes(normalized)) return;
+      list.push(normalized);
+    }
+
+    function buildDatalistOptions(values, currentValue) {
+      const list = Array.isArray(values) ? values.filter(Boolean) : [];
+      const normalizedCurrent = normalizeCatalogValue(currentValue || '');
+      const unique = [];
+      list.forEach((item) => {
+        const normalized = normalizeCatalogValue(item);
+        if (normalized && !unique.includes(normalized)) {
+          unique.push(normalized);
+        }
+      });
+      if (normalizedCurrent && !unique.includes(normalizedCurrent)) {
+        unique.push(normalizedCurrent);
+      }
+      return unique.map((item) => `<option value="${escapeHtml(item)}"></option>`).join('');
+    }
+
+    function enrichEquipmentOptionSetsFromEquipment(list) {
+      if (!Array.isArray(list)) return;
+      list.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        addUniqueOption(equipmentOptionSets.types, item.equipment_type);
+        addUniqueOption(equipmentOptionSets.vendors, item.vendor);
+        addUniqueOption(equipmentOptionSets.models, item.model);
+        addUniqueOption(equipmentOptionSets.serials, item.serial_number);
+        addUniqueOption(equipmentOptionSets.statuses, item.status);
+      });
+    }
+
+    function collectCatalogValues(field, filters = {}) {
+      if (!Array.isArray(equipmentCatalog) || !equipmentCatalog.length) {
+        return [];
+      }
+      const normalizedFilters = {
+        equipment_type: normalizeCatalogValue(filters.equipment_type || filters.type),
+        equipment_vendor: normalizeCatalogValue(filters.equipment_vendor || filters.vendor),
+        equipment_model: normalizeCatalogValue(filters.equipment_model || filters.model),
+        serial_number: normalizeCatalogValue(filters.serial_number || filters.serial),
+      };
+      const result = new Set();
+      equipmentCatalog.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const typeValue = normalizeCatalogValue(item.equipment_type);
+        const vendorValue = normalizeCatalogValue(item.equipment_vendor);
+        const modelValue = normalizeCatalogValue(item.equipment_model);
+        const serialValue = normalizeCatalogValue(item.serial_number);
+        if (field !== 'equipment_type' && normalizedFilters.equipment_type && typeValue !== normalizedFilters.equipment_type) {
+          return;
+        }
+        if (field !== 'equipment_vendor' && normalizedFilters.equipment_vendor && vendorValue !== normalizedFilters.equipment_vendor) {
+          return;
+        }
+        if (field !== 'equipment_model' && normalizedFilters.equipment_model && modelValue !== normalizedFilters.equipment_model) {
+          return;
+        }
+        if (field !== 'serial_number' && normalizedFilters.serial_number && serialValue !== normalizedFilters.serial_number) {
+          return;
+        }
+        let valueToAdd = '';
+        if (field === 'equipment_type') {
+          valueToAdd = typeValue;
+        } else if (field === 'equipment_vendor') {
+          valueToAdd = vendorValue;
+        } else if (field === 'equipment_model') {
+          valueToAdd = modelValue;
+        } else if (field === 'serial_number') {
+          valueToAdd = serialValue;
+        }
+        if (valueToAdd) {
+          result.add(valueToAdd);
+        }
+      });
+      return Array.from(result).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    function getCombinedCatalogOptions(field, filters = {}) {
+      const normalizedFilters = {
+        equipment_type: normalizeCatalogValue(filters.equipment_type || filters.type),
+        equipment_vendor: normalizeCatalogValue(filters.equipment_vendor || filters.vendor),
+        equipment_model: normalizeCatalogValue(filters.equipment_model || filters.model),
+        serial_number: normalizeCatalogValue(filters.serial_number || filters.serial),
+      };
+      let baseList = [];
+      if (field === 'equipment_type') {
+        baseList = equipmentOptionSets.types || [];
+      } else if (field === 'equipment_vendor') {
+        baseList = equipmentOptionSets.vendors || [];
+      } else if (field === 'equipment_model') {
+        baseList = equipmentOptionSets.models || [];
+      } else if (field === 'serial_number') {
+        baseList = equipmentOptionSets.serials || [];
+      }
+      const values = new Set();
+      baseList.forEach((item) => {
+        const normalized = normalizeCatalogValue(item);
+        if (normalized) {
+          values.add(normalized);
+        }
+      });
+      collectCatalogValues(field, normalizedFilters).forEach((value) => {
+        const normalized = normalizeCatalogValue(value);
+        if (normalized) {
+          values.add(normalized);
+        }
+      });
+      return Array.from(values).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    function rebuildEquipmentSelect(select, options, currentValue) {
+      if (!select) return;
+      const normalizedCurrent = normalizeCatalogValue(currentValue || select.value);
+      const fragment = document.createDocumentFragment();
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Не выбрано';
+      fragment.appendChild(placeholder);
+      const seen = new Set();
+      options.forEach((value) => {
+        const normalized = normalizeCatalogValue(value);
+        if (!normalized || seen.has(normalized)) return;
+        const option = document.createElement('option');
+        option.value = normalized;
+        option.textContent = normalized;
+        if (normalized === normalizedCurrent) {
+          option.selected = true;
+        }
+        fragment.appendChild(option);
+        seen.add(normalized);
+      });
+      if (normalizedCurrent && !seen.has(normalizedCurrent)) {
+        const option = document.createElement('option');
+        option.value = normalizedCurrent;
+        option.textContent = normalizedCurrent;
+        option.selected = true;
+        fragment.appendChild(option);
+      }
+      select.innerHTML = '';
+      select.appendChild(fragment);
+      if (normalizedCurrent) {
+        select.value = normalizedCurrent;
+      } else {
+        select.value = '';
+      }
+    }
+
+    function rebuildEquipmentSerialOptions(datalist, options, currentValue) {
+      if (!datalist) return;
+      const normalizedCurrent = normalizeCatalogValue(currentValue);
+      const fragment = document.createDocumentFragment();
+      const seen = new Set();
+      options.forEach((value) => {
+        const normalized = normalizeCatalogValue(value);
+        if (!normalized || seen.has(normalized)) return;
+        const option = document.createElement('option');
+        option.value = normalized;
+        fragment.appendChild(option);
+        seen.add(normalized);
+      });
+      if (normalizedCurrent && !seen.has(normalizedCurrent)) {
+        const option = document.createElement('option');
+        option.value = normalizedCurrent;
+        fragment.appendChild(option);
+      }
+      datalist.innerHTML = '';
+      datalist.appendChild(fragment);
+    }
+
+    function findCatalogMatches(filters = {}) {
+      if (!Array.isArray(equipmentCatalog) || !equipmentCatalog.length) {
+        return [];
+      }
+      const normalizedFilters = {
+        equipment_type: normalizeCatalogValue(filters.equipment_type || filters.type),
+        equipment_vendor: normalizeCatalogValue(filters.equipment_vendor || filters.vendor),
+        equipment_model: normalizeCatalogValue(filters.equipment_model || filters.model),
+        serial_number: normalizeCatalogValue(filters.serial_number || filters.serial),
+      };
+      return equipmentCatalog.filter((item) => {
+        if (!item || typeof item !== 'object') return false;
+        if (normalizedFilters.equipment_type && normalizeCatalogValue(item.equipment_type) !== normalizedFilters.equipment_type) {
+          return false;
+        }
+        if (normalizedFilters.equipment_vendor && normalizeCatalogValue(item.equipment_vendor) !== normalizedFilters.equipment_vendor) {
+          return false;
+        }
+        if (normalizedFilters.equipment_model && normalizeCatalogValue(item.equipment_model) !== normalizedFilters.equipment_model) {
+          return false;
+        }
+        if (normalizedFilters.serial_number && normalizeCatalogValue(item.serial_number) !== normalizedFilters.serial_number) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function applyCatalogMatchToCard(card, changedField) {
+      if (!card) return;
+      const typeSelect = card.querySelector('.equipment-type');
+      const vendorSelect = card.querySelector('.equipment-vendor');
+      const modelSelect = card.querySelector('.equipment-model');
+      const serialInput = card.querySelector('.equipment-serial');
+      if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      const state = {
+        equipment_type: normalizeCatalogValue(typeSelect.value),
+        equipment_vendor: normalizeCatalogValue(vendorSelect.value),
+        equipment_model: normalizeCatalogValue(modelSelect.value),
+        serial_number: normalizeCatalogValue(serialInput.value),
+      };
+      const attempts = [];
+      attempts.push(state);
+      attempts.push({
+        equipment_type: state.equipment_type,
+        equipment_vendor: state.equipment_vendor,
+        equipment_model: state.equipment_model,
+      });
+      attempts.push({ equipment_type: state.equipment_type, equipment_vendor: state.equipment_vendor });
+      attempts.push({ equipment_type: state.equipment_type, equipment_model: state.equipment_model });
+      attempts.push({ equipment_vendor: state.equipment_vendor, equipment_model: state.equipment_model });
+      if (state.serial_number) {
+        attempts.push({ serial_number: state.serial_number });
+      }
+      let matches = [];
+      for (const candidate of attempts) {
+        if (!candidate) continue;
+        const hasValue = Object.values(candidate).some((value) => normalizeCatalogValue(value));
+        if (!hasValue) continue;
+        matches = findCatalogMatches(candidate);
+        if (matches.length) {
+          break;
+        }
+      }
+      if (!matches.length) {
+        card.dataset.catalogMatched = '';
+        return;
+      }
+
+      const selectedFieldMap = {
+        equipment_type: 'equipment_type',
+        equipment_vendor: 'equipment_vendor',
+        equipment_model: 'equipment_model',
+        serial_number: 'serial_number',
+      };
+
+      let matchToApply = null;
+      const selectedFieldKey = changedField ? selectedFieldMap[changedField] : null;
+      const selectedValue = selectedFieldKey ? state[selectedFieldKey] : '';
+      if (selectedFieldKey && selectedValue) {
+        matchToApply = matches.find((match) => {
+          const catalogValue = normalizeCatalogValue(match[selectedFieldKey]);
+          return catalogValue && catalogValue === selectedValue;
+        });
+      }
+      if (!matchToApply) {
+        if (selectedFieldKey && selectedValue) {
+          card.dataset.catalogMatched = '';
+          return;
+        }
+        matchToApply = matches[0];
+      }
+
+      const fieldsToApply = [
+        { select: typeSelect, key: 'equipment_type' },
+        { select: vendorSelect, key: 'equipment_vendor' },
+        { select: modelSelect, key: 'equipment_model' },
+      ];
+      fieldsToApply.forEach(({ select, key }) => {
+        if (!select) return;
+        const valueFromMatch = matchToApply ? normalizeCatalogValue(matchToApply[key]) : '';
+        const shouldApplyValue = valueFromMatch || !state[key] || !matches.some((match) => normalizeCatalogValue(match[key]) === state[key]);
+        if (shouldApplyValue) {
+          if (valueFromMatch) {
+            ensureSelectHasOption(select, valueFromMatch);
+            select.value = valueFromMatch;
+            state[key] = valueFromMatch;
+          } else {
+            select.value = '';
+            state[key] = '';
+          }
+        }
+      });
+
+      const serialValueFromMatch = matchToApply ? normalizeCatalogValue(matchToApply.serial_number) : '';
+      const shouldApplySerial =
+        serialValueFromMatch ||
+        !state.serial_number ||
+        !matches.some((match) => normalizeCatalogValue(match.serial_number) === state.serial_number);
+      if (shouldApplySerial) {
+        serialInput.value = serialValueFromMatch || '';
+        state.serial_number = serialValueFromMatch || '';
+      }
+
+      const nameInput = card.querySelector('.equipment-name');
+      if (nameInput && !nameInput.value.trim() && matchToApply) {
+        const pieces = [matchToApply.equipment_vendor, matchToApply.equipment_model]
+          .map((value) => normalizeCatalogValue(value))
+          .filter(Boolean);
+        if (pieces.length) {
+          nameInput.value = pieces.join(' ');
+        }
+      }
+
+      card.dataset.catalogMatched = matches.length === 1 ? 'true' : 'partial';
+    }
+
+    function updateEquipmentCardOptions(card) {
+      if (!card) return;
+      const typeSelect = card.querySelector('.equipment-type');
+      const vendorSelect = card.querySelector('.equipment-vendor');
+      const modelSelect = card.querySelector('.equipment-model');
+      const serialInput = card.querySelector('.equipment-serial');
+      const serialDatalist = card.querySelector('.equipment-serial-options');
+      if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      const typeValue = normalizeCatalogValue(typeSelect.value);
+      const vendorValue = normalizeCatalogValue(vendorSelect.value);
+      const modelValue = normalizeCatalogValue(modelSelect.value);
+      const serialValue = normalizeCatalogValue(serialInput.value);
+      const typeOptions = getCombinedCatalogOptions('equipment_type', {
+        equipment_vendor: vendorValue,
+        equipment_model: modelValue,
+        serial_number: serialValue,
+      });
+      rebuildEquipmentSelect(typeSelect, typeOptions, typeValue);
+      const vendorOptions = getCombinedCatalogOptions('equipment_vendor', {
+        equipment_type: typeValue,
+        equipment_model: modelValue,
+        serial_number: serialValue,
+      });
+      rebuildEquipmentSelect(vendorSelect, vendorOptions, vendorValue);
+      const modelOptions = getCombinedCatalogOptions('equipment_model', {
+        equipment_type: typeValue,
+        equipment_vendor: vendorValue,
+        serial_number: serialValue,
+      });
+      rebuildEquipmentSelect(modelSelect, modelOptions, modelValue);
+      const serialOptions = getCombinedCatalogOptions('serial_number', {
+        equipment_type: typeValue,
+        equipment_vendor: vendorValue,
+        equipment_model: modelValue,
+      });
+      rebuildEquipmentSerialOptions(serialDatalist, serialOptions, serialValue);
+    }
+
+    function getEquipmentIpPreviewValue() {
+      if (internalNetworkInput) {
+        const blocks = (internalNetworkInput.value || '').match(/\d{1,3}/g);
+        if (blocks && blocks.length >= 3) {
+          return `${blocks.slice(0, 3).join('.')}.xxx`;
+        }
+      }
+      return '192.168.0.1';
+    }
+
+    function applyEquipmentIpPreview(card, previewValue) {
+      if (!card) return;
+      const ipInput = card.querySelector('.equipment-ip');
+      const headerIpValue = card.querySelector('[data-role="equipment-header-ip"]');
+      const preview = typeof previewValue === 'string' ? previewValue : getEquipmentIpPreviewValue();
+      if (ipInput) {
+        ipInput.placeholder = preview;
+      }
+      if (headerIpValue && ipInput && !ipInput.value.trim()) {
+        headerIpValue.textContent = preview;
+      }
+    }
+
+    function initializeEquipmentCard(card) {
+      if (!card) return;
+      const typeSelect = card.querySelector('.equipment-type');
+      const vendorSelect = card.querySelector('.equipment-vendor');
+      const modelSelect = card.querySelector('.equipment-model');
+      const serialInput = card.querySelector('.equipment-serial');
+      const nameInput = card.querySelector('.equipment-name');
+      const ipInput = card.querySelector('.equipment-ip');
+      const statusSelect = card.querySelector('.equipment-status')
+      const headerTitle = card.querySelector('.equipment-header-title');
+      const headerModelValue = card.querySelector('[data-role="equipment-header-model"]');
+      const headerIpValue = card.querySelector('[data-role="equipment-header-ip"]');
+      const headerStatusValue = card.querySelector('[data-role="equipment-header-status"]');
+      if (!typeSelect || !vendorSelect || !modelSelect || !serialInput) return;
+      initializeAutoResizeInputs(card);
+      const headerToggle = card.querySelector('.equipment-header-toggle');
+      const cardHeader = card.querySelector('.card-header');
+      const collapseTargetSelector =
+        (headerToggle && headerToggle.dataset.collapseTarget) ||
+        (card.dataset.detailsTarget ? `#${card.dataset.detailsTarget}` : null);
+      const collapseElement = collapseTargetSelector
+        ? (card.querySelector(collapseTargetSelector) || document.querySelector(collapseTargetSelector))
+        : null;
+      const syncDetailsCollapseState = (expanded) => {
+        if (headerToggle) {
+          headerToggle.classList.toggle('collapsed', !expanded);
+          headerToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+        if (cardHeader) {
+          cardHeader.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+      };
+      if (collapseElement) {
+        const initialExpanded = collapseElement.classList.contains('show');
+        syncDetailsCollapseState(initialExpanded);
+        const useBootstrapCollapse = typeof bootstrap !== 'undefined' && bootstrap.Collapse;
+        let collapseInstance = null;
+        const getCollapseInstance = () => {
+          if (!useBootstrapCollapse) return null;
+          if (!collapseInstance) {
+            collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapseElement, { toggle: false });
+          }
+          return collapseInstance;
+        };
+        if (useBootstrapCollapse && collapseElement.dataset.collapseEventsBound !== 'true') {
+          collapseElement.addEventListener('shown.bs.collapse', () => syncDetailsCollapseState(true));
+          collapseElement.addEventListener('hidden.bs.collapse', () => syncDetailsCollapseState(false));
+          collapseElement.dataset.collapseEventsBound = 'true';
+        }
+        const getCurrentExpandedState = () => {
+          if (headerToggle && headerToggle.hasAttribute('aria-expanded')) {
+            return headerToggle.getAttribute('aria-expanded') === 'true';
+          }
+          return collapseElement.classList.contains('show');
+        };
+        const applyCollapseState = (shouldExpand) => {
+          const expanded = getCurrentExpandedState();
+          const targetState = typeof shouldExpand === 'boolean' ? shouldExpand : !expanded;
+          if (targetState === expanded) return;
+          if (useBootstrapCollapse) {
+            const instance = getCollapseInstance();
+            if (!instance) {
+              collapseElement.classList.toggle('show', targetState);
+              syncDetailsCollapseState(targetState);
+              return;
+            }
+            if (targetState) {
+              instance.show();
+            } else {
+              instance.hide();
+            }
+          } else {
+            collapseElement.classList.toggle('show', targetState);
+            syncDetailsCollapseState(targetState);
+          }
+        };
+        const attachToggleHandler = (element) => {
+          if (!element || element.dataset.collapseInitialized === 'true') return;
+          element.addEventListener('click', (event) => {
+            if (event.target.closest('.equipment-actions')) return;
+            event.preventDefault();
+            event.stopPropagation();
+            applyCollapseState();
+          });
+          element.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              applyCollapseState();
+            }
+          });
+          element.dataset.collapseInitialized = 'true';
+        };
+        attachToggleHandler(headerToggle);
+        if (cardHeader && cardHeader.dataset.collapseHeaderInitialized !== 'true') {
+          cardHeader.addEventListener('click', (event) => {
+            if (!headerToggle) return;
+            if (event.target.closest('.equipment-actions')) return;
+            applyCollapseState();
+          });
+          cardHeader.dataset.collapseHeaderInitialized = 'true';
+        }
+      }
+      const updateHeaderSummary = () => {
+        if (headerTitle && nameInput) {
+          const value = nameInput.value.trim();
+          headerTitle.textContent = value || 'Оборудование';
+        }
+        if (headerModelValue && modelSelect) {
+          const option = modelSelect.options[modelSelect.selectedIndex];
+          const text = option ? option.text : modelSelect.value;
+          headerModelValue.textContent = (text || modelSelect.value || '—').trim() || '—';
+        }
+        if (ipInput) {
+          const value = ipInput.value.trim();
+          const previewValue = getEquipmentIpPreviewValue();
+          ipInput.placeholder = previewValue;
+          if (headerIpValue) {
+            headerIpValue.textContent = value || previewValue;
+          }
+        }
+        if (headerStatusValue && statusSelect) {
+          const option = statusSelect.options[statusSelect.selectedIndex];
+          const text = option ? option.text : statusSelect.value;
+          headerStatusValue.textContent = (text || statusSelect.value || '—').trim() || '—';
+        }
+      };
+      typeSelect.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'equipment_type');
+        updateEquipmentCardOptions(card);
+        updateHeaderSummary();
+      });
+      vendorSelect.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'equipment_vendor');
+        updateEquipmentCardOptions(card);
+        updateHeaderSummary();
+      });
+      modelSelect.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'equipment_model');
+        updateEquipmentCardOptions(card);
+        updateHeaderSummary();
+      });
+      serialInput.addEventListener('change', () => {
+        applyCatalogMatchToCard(card, 'serial_number');
+        updateEquipmentCardOptions(card);
+        updateHeaderSummary();
+      });
+      serialInput.addEventListener('input', () => {
+        updateEquipmentCardOptions(card);
+        updateHeaderSummary();
+      });
+      if (nameInput) {
+        nameInput.addEventListener('input', updateHeaderSummary);
+        nameInput.addEventListener('change', updateHeaderSummary);
+      }
+      if (ipInput) {
+        ipInput.addEventListener('input', updateHeaderSummary);
+        ipInput.addEventListener('change', updateHeaderSummary);
+      }
+      if (statusSelect) {
+        statusSelect.addEventListener('change', () => {
+          addUniqueOption(equipmentOptionSets.statuses, statusSelect.value);
+          updateHeaderSummary();
+        });
+      }
+      updateEquipmentCardOptions(card);
+      applyCatalogMatchToCard(card);
+      updateEquipmentCardOptions(card);
+      updateHeaderSummary();
+    }
+
+    const departmentSelect = document.getElementById('departmentSelect');
+    const businessSelect = document.getElementById('businessSelect');
+    const partnerTypeSelect = document.getElementById('partnerTypeSelect');
+    const countrySelect = document.getElementById('countrySelect');
+    const legalEntitySelect = document.getElementById('legalEntitySelect');
+    const cityInput = document.getElementById('cityInput');
+    const locationAddressInput = document.getElementById('locationAddressInput');
+    const statusSelect = document.getElementById('statusSelect');
+    const internalNetworkInput = document.getElementById('internalNetworkInput');
+    const networkTunnelInput = document.getElementById('networkTunnelInput');
+    const networkProviderInput = document.getElementById('networkProviderInput');
+    const networkContractInput = document.getElementById('networkContractInput');
+    const networkRestaurantIdInput = document.getElementById('networkRestaurantIdInput');
+    const networkRestaurantOptionsList = document.getElementById('networkRestaurantOptions');
+    const defaultNetworkRestaurantOptionValues = (() => {
+      if (!networkRestaurantOptionsList) {
+        return [];
+      }
+      const seen = new Set();
+      const values = [];
+      networkRestaurantOptionsList.querySelectorAll('option').forEach((option) => {
+        const value = (option && option.value != null ? String(option.value) : '').trim();
+        if (value && !seen.has(value)) {
+          seen.add(value);
+          values.push(value);
+        }
+      });
+      return values;
+    })();
+    let currentNetworkRestaurantOptionsSignature = defaultNetworkRestaurantOptionValues.join('|');
+    const networkLegalEntityInput = document.getElementById('networkLegalEntityInput');
+    const networkSupportPhoneInput = document.getElementById('networkSupportPhoneInput');
+    const networkSpeedInput = document.getElementById('networkSpeedInput');
+    const networkParamsInput = document.getElementById('networkParamsInput');
+    const networkEquipmentSummary = document.getElementById('networkEquipmentSummary');
+    if (networkEquipmentSummary) {
+      networkEquipmentSummary.addEventListener('click', (event) => {
+        const button = event.target.closest('.network-equipment-entry[data-equipment-key]');
+        if (!button || !networkEquipmentSummary.contains(button)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        revealEquipmentCardByKey(button.dataset.equipmentKey);
+      });
+    }
+    const itBlock = document.getElementById('itBlock');
+    const toggleItBlockBtn = document.getElementById('toggleItBlockBtn');
+    const itEquipmentList = document.getElementById('itEquipmentList');
+    const itObjectPhoneInput = document.getElementById('itObjectPhoneInput');
+    const itManagerNameInput = document.getElementById('itManagerNameInput');
+    const itManagerPhoneInput = document.getElementById('itManagerPhoneInput');
+    const iikoServerSelect = document.getElementById('iikoServerSelect');
+    const caseTimeDisplay = document.getElementById('caseTimeDisplay');
+    const taskTimeDisplay = document.getElementById('taskTimeDisplay');
+    const networkFilesForm = document.getElementById('networkFilesForm');
+    const networkFilesList = document.getElementById('networkFilesList');
+    const networkFilesEmptyText = document.getElementById('networkFilesEmptyText');
+    const startDateInput = document.getElementById('startDateInput');
+    const endDateInput = document.getElementById('endDateInput');
+    const suspensionDateInput = document.getElementById('suspensionDateInput');
+    const resumeDateInput = document.getElementById('resumeDateInput');
+    const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+    const statusHistoryTotal = document.getElementById('statusHistoryTotal');
+    const statusHistoryList = document.getElementById('statusHistoryList');
+    const statusHistoryCollapse = document.getElementById('statusHistoryCollapse');
+    const statusHistoryToggle = document.getElementById('statusHistoryToggle');
+    const statusHistoryEmpty = document.getElementById('statusHistoryEmpty');
+    const saveStatusAlert = document.getElementById('saveStatus');
+    let saveStatusTimeoutId = null;
+    const statusBadge = document.getElementById('statusBadge');
+    const networkBadge = document.getElementById('networkBadge');
+    const objectTitle = document.getElementById('objectTitle');
+    const titlePhotoPreview = document.getElementById('titlePhotoPreview');
+    const titlePhotoImage = document.getElementById('titlePhotoImage');
+    const photoUploadForm = document.getElementById('photoUploadForm');
+    const photosContainer = document.getElementById('photosContainer');
+    const photosEmptyText = document.getElementById('photosEmptyText');
+    const photosDisabledHint = document.getElementById('photosDisabledHint');
+    const equipmentContainer = document.getElementById('equipmentContainer');
+    const equipmentEmptyText = document.getElementById('equipmentEmptyText');
+    const equipmentDisabledHint = document.getElementById('equipmentDisabledHint');
+    const addEquipmentBtn = document.getElementById('addEquipmentBtn');
+    initializeAutoExpandTextareas();
+    initializeAutoResizeInputs();
+    const casesTableBody = document.getElementById('casesTableBody');
+    const casesEmptyText = document.getElementById('casesEmptyText');
+    const refreshCasesBtn = document.getElementById('refreshCasesBtn');
+    const tasksTableBody = document.getElementById('tasksTableBody');
+    const tasksEmptyText = document.getElementById('tasksEmptyText');
+    const refreshTasksBtn = document.getElementById('refreshTasksBtn');
+    const statusTaskContainer = document.getElementById('statusTaskContainer');
+    const statusTaskSelect = document.getElementById('statusTaskSelect');
+    const statusTaskInfo = document.getElementById('statusTaskInfo');
+    const statusTaskSearchInput = document.getElementById('statusTaskSearchInput');
+    const statusTaskHint = document.getElementById('statusTaskHint');
+    const photoPreviewModalEl = document.getElementById('photoPreviewModal');
+    const photoPreviewCarouselEl = document.getElementById('photoPreviewCarousel');
+    const photoPreviewCarouselInner = document.getElementById('photoPreviewCarouselInner');
+    const photoPreviewPrev = document.getElementById('photoPreviewPrev');
+    const photoPreviewNext = document.getElementById('photoPreviewNext');
+    const photoPreviewCaption = document.getElementById('photoPreviewCaption');
+    const photoPreviewDownload = document.getElementById('photoPreviewDownload');
+    let photoPreviewModalInstance = null;
+    let photoPreviewCarouselInstance = null;
+    let currentPhotoPreviewList = [];
+    let statusHistoryCollapseInstance = null;
+    const searchableSelectRegistry = new Map();
+    const passportDirtyRoot = document.querySelector('.passport-container');
+    let hasPassportUnsavedChanges = false;
+    let passportDirtyPauseCount = 0;
+    let passportDirtyReady = false;
+
+    function handlePassportBeforeUnload(event) {
+      if (!hasPassportUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    }
+
+    function syncPassportBeforeUnload() {
+      if (hasPassportUnsavedChanges) {
+        window.addEventListener('beforeunload', handlePassportBeforeUnload);
+      } else {
+        window.removeEventListener('beforeunload', handlePassportBeforeUnload);
+      }
+    }
+
+    function pausePassportDirtyTracking() {
+      passportDirtyPauseCount += 1;
+    }
+
+    function resumePassportDirtyTracking() {
+      passportDirtyPauseCount = Math.max(0, passportDirtyPauseCount - 1);
+      if (passportDirtyPauseCount === 0) {
+        passportDirtyReady = true;
+      }
+    }
+
+    function resetPassportDirty() {
+      if (!hasPassportUnsavedChanges) {
+        syncPassportBeforeUnload();
+        return;
+      }
+      hasPassportUnsavedChanges = false;
+      syncPassportBeforeUnload();
+    }
+
+    function markPassportDirty() {
+      if (!passportDirtyReady || passportDirtyPauseCount > 0 || hasPassportUnsavedChanges) {
+        return;
+      }
+      hasPassportUnsavedChanges = true;
+      syncPassportBeforeUnload();
+    }
+
+    function shouldTrackPassportElement(target) {
+      if (!(target instanceof HTMLElement)) return false;
+      if (!passportDirtyRoot || !passportDirtyRoot.contains(target)) return false;
+      if (target.closest('[data-unsaved-ignore="true"]')) return false;
+      if (!target.matches('input, textarea, select')) return false;
+      if (target.matches('input[type="file"]')) return false;
+      return Boolean(target.closest('.passport-card'));
+    }
+
+    ['input', 'change'].forEach((eventName) => {
+      document.addEventListener(
+        eventName,
+        (event) => {
+          if (!shouldTrackPassportElement(event.target)) return;
+          markPassportDirty();
+        },
+        true,
+      );
+    });
+
+    function closeOtherSearchableSelects(exceptId) {
+      searchableSelectRegistry.forEach((state, id) => {
+        if (id === exceptId || !state || typeof state.hide !== 'function') return;
+        state.hide();
+      });
+    }
+    const savePassportBtn = document.getElementById('savePassportBtn');
+
+    function ensureStatusHistoryCollapse() {
+      if (!statusHistoryCollapse || typeof bootstrap === 'undefined') return null;
+      if (!statusHistoryCollapseInstance) {
+        statusHistoryCollapseInstance = bootstrap.Collapse.getOrCreateInstance(statusHistoryCollapse, {
+          toggle: false,
+        });
+      }
+      return statusHistoryCollapseInstance;
+    }
+
+    function updateStatusHistoryToggleLabel(isExpanded) {
+      if (!statusHistoryToggle) return;
+      statusHistoryToggle.textContent = isExpanded ? 'Скрыть ▲' : 'Показать ▼';
+      statusHistoryToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+
+    function refreshSearchableSelect(select) {
+      if (!select) return;
+      const state = searchableSelectRegistry.get(select.id);
+      if (state && typeof state.refresh === 'function') {
+        state.refresh();
+      }
+    }
+
+    function registerSearchableSelect(wrapper) {
+      if (!wrapper) return;
+      const selectId = wrapper.dataset.selectId;
+      if (!selectId) return;
+      const select = document.getElementById(selectId);
+      if (!select) return;
+
+      const dropdownToggle = wrapper.querySelector('[data-bs-toggle="dropdown"]');
+      const labelEl = wrapper.querySelector('.searchable-select-label');
+      const searchInput = wrapper.querySelector('.searchable-select-search');
+      const optionsContainer = wrapper.querySelector('.searchable-select-options');
+      const dropdownMenu = wrapper.querySelector('.dropdown-menu');
+      if (!dropdownToggle || !labelEl || !searchInput || !optionsContainer || !dropdownMenu) return;
+
+      const shouldUseBootstrapDropdown =
+        typeof bootstrap !== 'undefined' && !wrapper.hasAttribute('data-force-custom-dropdown');
+
+      const dropdownInstance = shouldUseBootstrapDropdown
+        ? bootstrap.Dropdown.getOrCreateInstance(dropdownToggle, { autoClose: false })
+        : null;
+
+      const showMenu = () => {
+        if (dropdownInstance) {
+          dropdownInstance.show();
+          return;
+        }
+        wrapper.classList.add('show');
+        dropdownMenu.classList.add('show');
+        dropdownMenu.style.display = 'block';
+        dropdownToggle.setAttribute('aria-expanded', 'true');
+      };
+
+      const hideMenu = () => {
+        if (dropdownInstance) {
+          dropdownInstance.hide();
+          return;
+        }
+        wrapper.classList.remove('show');
+        dropdownMenu.classList.remove('show');
+        dropdownMenu.style.display = '';
+        dropdownToggle.setAttribute('aria-expanded', 'false');
+      };
+
+      const handleDropdownShown = () => {
+        searchInput.value = '';
+        filterOptions('');
+        setTimeout(() => searchInput.focus(), 50);
+      };
+
+      const handleDropdownHidden = () => {
+        searchInput.value = '';
+        filterOptions('');
+      };
+
+      const isMenuShown = () =>
+        dropdownInstance
+          ? dropdownToggle.getAttribute('aria-expanded') === 'true'
+          : dropdownMenu.classList.contains('show');
+
+      function buildOptions() {
+        optionsContainer.innerHTML = '';
+        Array.from(select.options).forEach((option) => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'dropdown-item text-start';
+          item.dataset.value = option.value;
+          item.dataset.label = option.text;
+          item.textContent = option.text || '—';
+          if (option.selected) {
+            item.classList.add('active');
+          }
+          optionsContainer.appendChild(item);
+        });
+      }
+
+      function updateLabel() {
+        const option = select.options[select.selectedIndex];
+        labelEl.textContent = option ? option.text : 'Не выбрано';
+      }
+
+      function filterOptions(value) {
+        const normalized = (value || '').trim().toLowerCase();
+        optionsContainer.querySelectorAll('.dropdown-item').forEach((item) => {
+          const label = (item.dataset.label || item.textContent || '').toLowerCase();
+          item.classList.toggle('d-none', Boolean(normalized) && !label.includes(normalized));
+        });
+      }
+
+      optionsContainer.addEventListener('click', (event) => {
+        const button = event.target.closest('.dropdown-item');
+        if (!button) return;
+        const value = button.dataset.value || '';
+        if (select.value !== value) {
+          select.value = value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        updateLabel();
+        optionsContainer.querySelectorAll('.dropdown-item').forEach((item) => {
+          item.classList.toggle('active', item === button);
+        });
+        hideMenu();
+        handleDropdownHidden();
+      });
+
+      searchInput.addEventListener('input', () => filterOptions(searchInput.value));
+
+      const refreshState = () => {
+        buildOptions();
+        updateLabel();
+        filterOptions(searchInput.value);
+      };
+
+      const state = {
+        refresh: refreshState,
+        select,
+        labelEl,
+        hide: () => {
+          if (!isMenuShown()) return;
+          hideMenu();
+          if (!dropdownInstance) {
+            handleDropdownHidden();
+          }
+        },
+        isShown: isMenuShown,
+      };
+
+      searchableSelectRegistry.set(selectId, state);
+
+      if (dropdownInstance) {
+        wrapper.addEventListener('show.bs.dropdown', () => closeOtherSearchableSelects(selectId));
+        wrapper.addEventListener('shown.bs.dropdown', handleDropdownShown);
+        wrapper.addEventListener('hidden.bs.dropdown', handleDropdownHidden);
+      } else {
+        dropdownToggle.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (isMenuShown()) {
+            state.hide();
+          } else {
+            closeOtherSearchableSelects(selectId);
+            showMenu();
+            handleDropdownShown();
+          }
+        });
+
+        document.addEventListener('click', (event) => {
+          if (!wrapper.contains(event.target)) {
+            state.hide();
+          }
+        });
+      }
+
+      state.refresh();
+
+      select.addEventListener('change', () => {
+        updateLabel();
+        optionsContainer.querySelectorAll('.dropdown-item').forEach((item) => {
+          item.classList.toggle('active', item.dataset.value === select.value);
+        });
+      });
+    }
+
+    function initializeSearchableSelects() {
+      document.querySelectorAll('.searchable-select').forEach((wrapper) => registerSearchableSelect(wrapper));
+    }
+
+    function ensureSelectHasOption(select, value) {
+      if (!select) return;
+      const normalized = typeof value === 'string' ? value.trim() : '';
+      if (!normalized) return;
+      const hasOption = Array.from(select.options).some(
+        (option) => (option.value || '').trim() === normalized,
+      );
+      if (!hasOption) {
+        const option = document.createElement('option');
+        option.value = normalized;
+        option.textContent = normalized;
+        select.appendChild(option);
+      }
+    }
+
+    function syncSelectSearchInput(select) {
+      if (!select) return;
+      const input = document.querySelector(`.select-search-input[data-select-target="${select.id}"]`);
+      if (!input) return;
+      const option = select.options[select.selectedIndex];
+      input.value = option ? option.text : '';
+    }
+
+    function filterSelectOptions(select, value) {
+      if (!select) return;
+      const normalized = (value || '').trim().toLowerCase();
+      Array.from(select.options).forEach((option) => {
+        if (!option.value) {
+          option.hidden = false;
+          return;
+        }
+        const match = option.text.toLowerCase().includes(normalized);
+        option.hidden = Boolean(normalized) && !match && !option.selected;
+      });
+    }
+
+    function showSaveMessage(type, text) {
+      saveStatusAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
+      saveStatusAlert.classList.add(type === 'error' ? 'alert-danger' : 'alert-success');
+      saveStatusAlert.textContent = text;
+      if (saveStatusTimeoutId) {
+        clearTimeout(saveStatusTimeoutId);
+      }
+      saveStatusTimeoutId = window.setTimeout(() => {
+        saveStatusAlert.classList.add('d-none');
+        saveStatusTimeoutId = null;
+      }, 5000);
+    }
+
+    function updateStatusBadge() {
+      const value = statusSelect.value || '—';
+      statusBadge.textContent = value || '—';
+      statusBadge.classList.remove('bg-success', 'bg-warning', 'bg-secondary', 'bg-dark', 'bg-info', 'text-dark');
+      if (value === 'Открыт') {
+        statusBadge.classList.add('bg-success');
+      } else if (value === 'Стройка') {
+        statusBadge.classList.add('bg-warning', 'text-dark');
+      } else if (value === 'Закрыт') {
+        statusBadge.classList.add('bg-dark');
+      } else if (value === 'Реконструкция') {
+        statusBadge.classList.add('bg-info', 'text-dark');
+      } else if (value === 'Заморожен') {
+        statusBadge.classList.add('bg-warning', 'text-dark');
+      } else {
+        statusBadge.classList.add('bg-secondary');
+      }
+    }
+    function updateNetworkBadge() {
+      const value = internalNetworkInput ? internalNetworkInput.value.trim() : '';
+      const display = value || '—';
+      networkBadge.textContent = `Внутренняя сеть: ${display}`;
+      networkBadge.classList.remove('bg-info', 'bg-secondary', 'text-dark');
+      if (value) {
+        networkBadge.classList.add('bg-info', 'text-dark');
+      } else {
+        networkBadge.classList.add('bg-secondary');
+      }
+    }
+
+    function updatePageTitle() {
+      const departmentName = departmentSelect ? (departmentSelect.value || '').trim() : '';
+      document.title = departmentName ? `Паспорт ${departmentName}` : 'Новый паспорт объекта';
+    }
+
+    function updateObjectTitle() {
+      const parts = [businessSelect.value, cityInput.value, departmentSelect.value]
+        .map((part) => (part || '').trim())
+        .filter(Boolean);
+      objectTitle.textContent = parts.length ? parts.join(' · ') : '—';
+      updatePageTitle();
+    }
+
+    function hasItBlockContent(data) {
+      if (!data || typeof data !== 'object') return false;
+      const equipmentList = Array.isArray(data.equipment) ? data.equipment : [];
+      if (
+        equipmentList.some((item) => {
+          if (!item) return false;
+          const name = typeof item.name === 'string' ? item.name.trim() : '';
+          const ip = typeof item.ip_address === 'string' ? item.ip_address.trim() : '';
+          return Boolean(name || ip);
+        })
+      ) {
+        return true;
+      }
+      const textFields = [data.it_iiko_server];
+      if (textFields.some((value) => typeof value === 'string' && value.trim())) {
+        return true;
+      }
+      const numericFields = [data.case_time_minutes, data.task_time_minutes];
+      if (numericFields.some((value) => typeof value === 'number' && value > 0)) {
+        return true;
+      }
+      return false;
+    }
+
+    function syncItBlockToggleButton() {
+      if (!toggleItBlockBtn || !itBlock) return;
+      const hidden = itBlock.classList.contains('d-none');
+      toggleItBlockBtn.textContent = hidden ? 'Раскрыть IT-блок' : 'Свернуть IT-блок';
+      toggleItBlockBtn.setAttribute('aria-expanded', String(!hidden));
+    }
+
+    function refreshItBlockState(data) {
+      if (!itBlock) return;
+      const hasContent = hasItBlockContent(data);
+      if (!hasContent) {
+        itBlock.classList.add('d-none');
+        itBlock.dataset.userCollapsed = 'true';
+      } else if (itBlock.dataset.userCollapsed !== 'true') {
+        itBlock.classList.remove('d-none');
+      }
+      syncItBlockToggleButton();
+    }
+
+    function updateItEquipmentList(equipmentList) {
+      if (!itEquipmentList) return;
+      const list = Array.isArray(equipmentList) ? equipmentList.filter(Boolean) : [];
+      if (!list.length) {
+        itEquipmentList.innerHTML = '<div class="it-equipment-empty">Оборудование ещё не добавлено.</div>';
+        return;
+      }
+      itEquipmentList.innerHTML = '';
+      list.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'it-equipment-item';
+        const name = escapeHtml((item && item.name) || '—');
+        const ip = escapeHtml((item && item.ip_address) || '—');
+        row.innerHTML = `<span class="it-equipment-name">${name}</span><span class="it-equipment-ip">${ip}</span>`;
+        itEquipmentList.appendChild(row);
+      });
+      refreshItBlockState(passportData);
+    }
+
+    function updateNetworkEquipmentSummary(equipmentList) {
+      if (!networkEquipmentSummary) return;
+      const list = Array.isArray(equipmentList) ? equipmentList : [];
+      const items = list
+        .map((item, index) => {
+          if (!item) return null;
+          const name = typeof item.name === 'string' ? item.name.trim() : '';
+          const ip = typeof item.ip_address === 'string' ? item.ip_address.trim() : '';
+          if (!name && !ip) return null;
+          const key = ensureEquipmentKey(item, index);
+          const keyAttr = escapeHtml(String(key));
+          const nameHtml = escapeHtml(name || '—');
+          const ipHtml = escapeHtml(ip || '—');
+          return `<li><button type="button" class="network-equipment-entry" data-equipment-key="${keyAttr}"><span class="network-equipment-name">${nameHtml}</span><span class="network-equipment-separator"></span><span class="network-equipment-ip">${ipHtml}</span></button></li>`;
+        })
+        .filter(Boolean);
+      if (!items.length) {
+        networkEquipmentSummary.innerHTML = '<div class="network-equipment-empty text-muted">Оборудование ещё не добавлено.</div>';
+        return;
+      }
+      networkEquipmentSummary.innerHTML = `<ul class="list-unstyled mb-0 network-equipment-list">${items.join('')}</ul>`;
+    }
+
+    function updateItMetrics(metrics = {}) {
+      if (!passportData || typeof passportData !== 'object') {
+        passportData = {};
+      }
+      if (typeof metrics.caseMinutes === 'number' && !Number.isNaN(metrics.caseMinutes)) {
+        passportData.case_time_minutes = metrics.caseMinutes;
+      }
+      if (typeof metrics.caseDisplay === 'string') {
+        passportData.case_time_display = metrics.caseDisplay;
+      }
+      if (caseTimeDisplay) {
+        caseTimeDisplay.textContent = passportData.case_time_display || '—';
+      }
+      if (typeof metrics.taskMinutes === 'number' && !Number.isNaN(metrics.taskMinutes)) {
+        passportData.task_time_minutes = metrics.taskMinutes;
+      }
+      if (typeof metrics.taskDisplay === 'string') {
+        passportData.task_time_display = metrics.taskDisplay;
+      }
+      if (taskTimeDisplay) {
+        taskTimeDisplay.textContent = passportData.task_time_display || '—';
+      }
+      refreshItBlockState(passportData);
+    }
+
+    function updateTitlePhotoPreview(photos) {
+      if (!titlePhotoPreview || !titlePhotoImage) return;
+      const list = Array.isArray(photos) ? photos : [];
+      const titlePhoto = list.find((photo) => photo && photo.category === 'title' && photo.url);
+      if (titlePhoto) {
+        titlePhotoImage.src = titlePhoto.url;
+        titlePhotoImage.dataset.photoId = titlePhoto.id != null ? String(titlePhoto.id) : '';
+        titlePhotoPreview.dataset.photoId = titlePhotoImage.dataset.photoId;
+        titlePhotoPreview.classList.remove('d-none');
+      } else {
+        titlePhotoImage.src = '';
+        delete titlePhotoImage.dataset.photoId;
+        delete titlePhotoPreview.dataset.photoId;
+        titlePhotoPreview.classList.add('d-none');
+      }
+    }
+
+    function formatNetworkSpeedValue(value) {
+      const raw = (value || '').trim();
+      if (!raw) return '';
+
+      const normalized = raw.replace(/\s+/g, ' ');
+      const numericFrom = (source) => {
+        const cleaned = source.replace(/[\s,]/g, (match) => (match === ',' ? '.' : ''));
+        const numeric = cleaned.replace(/[^0-9.]/g, '');
+        return /^\d+(?:\.\d+)?$/.test(numeric) ? numeric : '';
+      };
+
+      const ensureSuffix = (base) => {
+        const trimmed = base.trim();
+        const numeric = numericFrom(trimmed);
+        return `${numeric || trimmed} Мбит/с`.trim();
+      };
+
+      if (/мбит\s*\/\s*с$/i.test(normalized)) {
+        const base = normalized.replace(/мбит\s*\/\s*с$/i, '');
+        return ensureSuffix(base);
+      }
+
+      if (/бит\s*\/\s*с$/i.test(normalized)) {
+        const base = normalized.replace(/бит\s*\/\s*с$/i, '');
+        return ensureSuffix(base);
+      }
+
+      const numeric = numericFrom(normalized);
+      if (numeric) {
+        return `${numeric} Мбит/с`;
+      }
+      return normalized;
+    }
+
+    const handleSpeedFormatting = () => {
+      if (!networkSpeedInput) return;
+      networkSpeedInput.value = formatNetworkSpeedValue(networkSpeedInput.value);
+    };
+
+    const networkProfileFieldMapping = {
+      provider: networkProviderInput,
+      restaurant_id: networkRestaurantIdInput,
+      contract_number: networkContractInput,
+      support_phone: networkSupportPhoneInput,
+      legal_entity: networkLegalEntityInput,
+    };
+
+    function normalizeNetworkProfileValue(value) {
+      return (value == null ? '' : String(value)).trim().toLowerCase();
+    }
+
+    function isRostelecomProviderName(name) {
+      if (!name) return false;
+      const upper = String(name).toUpperCase();
+      if (upper.includes('РОСТЕЛЕКОМ')) {
+        return true;
+      }
+      if (/(?:^|[^A-ZА-Я0-9])РТ/.test(upper)) {
+        return true;
+      }
+      if (/(?:^|[^A-ZА-Я0-9])RT/.test(upper)) {
+        return true;
+      }
+      return false;
+    }
+
+    const rostelecomRestaurantIdOptionsByProvider = (() => {
+      const map = new Map();
+      const pushValue = (targetSet, raw) => {
+        const value = raw == null ? '' : String(raw).trim();
+        if (!value) return;
+        targetSet.add(value);
+      };
+      networkProfiles.forEach((profile) => {
+        if (!profile || !isRostelecomProviderName(profile.provider)) {
+          return;
+        }
+        const key = normalizeNetworkProfileValue(profile.provider);
+        if (!key) return;
+        const set = map.get(key) || new Set();
+        if (Array.isArray(profile.restaurant_ids)) {
+          profile.restaurant_ids.forEach((item) => pushValue(set, item));
+        }
+        pushValue(set, profile.restaurant_id);
+        if (set.size) {
+          map.set(key, set);
+        }
+      });
+      return map;
+    })();
+
+    function rebuildNetworkRestaurantIdDatalist(values) {
+      if (!networkRestaurantOptionsList) {
+        return;
+      }
+      const unique = [];
+      const seen = new Set();
+      (values || []).forEach((raw) => {
+        const value = raw == null ? '' : String(raw).trim();
+        if (!value || seen.has(value)) return;
+        seen.add(value);
+        unique.push(value);
+      });
+      const signature = unique.join('|');
+      if (signature === currentNetworkRestaurantOptionsSignature) {
+        return;
+      }
+      currentNetworkRestaurantOptionsSignature = signature;
+      networkRestaurantOptionsList.innerHTML = '';
+      unique.forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        networkRestaurantOptionsList.appendChild(option);
+      });
+    }
+
+    function updateNetworkRestaurantIdOptionsForProvider(providerValue) {
+      if (!networkRestaurantOptionsList) {
+        return;
+      }
+      const providerKey = normalizeNetworkProfileValue(providerValue);
+      const providerOptions = providerKey
+        ? rostelecomRestaurantIdOptionsByProvider.get(providerKey)
+        : null;
+      if (providerOptions && providerOptions.size) {
+        const combined = Array.from(providerOptions).concat(defaultNetworkRestaurantOptionValues);
+        rebuildNetworkRestaurantIdDatalist(combined);
+      } else {
+        rebuildNetworkRestaurantIdDatalist(defaultNetworkRestaurantOptionValues);
+      }
+    }
+
+    let suppressNetworkProfileSync = false;
+
+    function findNetworkProfileByField(field, value) {
+      const normalized = normalizeNetworkProfileValue(value);
+      if (!normalized) return null;
+      return (
+        networkProfiles.find((profile) => {
+          if (!profile) return false;
+          if (field === 'restaurant_id') {
+            const candidates = [];
+            if (Array.isArray(profile.restaurant_ids)) {
+              profile.restaurant_ids.forEach((entry) => {
+                const trimmed = normalizeNetworkProfileValue(entry);
+                if (trimmed) {
+                  candidates.push(trimmed);
+                }
+              });
+            }
+            const fallback = normalizeNetworkProfileValue(profile.restaurant_id);
+            if (fallback) {
+              candidates.push(fallback);
+            }
+            return candidates.includes(normalized);
+          }
+          const candidate = profile[field];
+          return normalizeNetworkProfileValue(candidate) === normalized;
+        }) || null
+      );
+    }
+
+    function fillNetworkProfileFields(profile, overrides) {
+      if (!profile) return;
+      suppressNetworkProfileSync = true;
+      Object.entries(networkProfileFieldMapping).forEach(([key, input]) => {
+        if (!input) return;
+        if (key === 'restaurant_id') {
+          const ids = Array.isArray(profile.restaurant_ids) ? profile.restaurant_ids.filter((id) => id) : [];
+          const overrideValue = overrides && Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : undefined;
+          const value = overrideValue != null
+            ? overrideValue
+            : ids.length
+              ? ids[0]
+              : profile[key] || '';
+          input.value = value || '';
+        } else {
+          const overrideValue = overrides && Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : undefined;
+          input.value = overrideValue != null ? overrideValue : profile[key] || '';
+        }
+        setupAutoResizeInput(input);
+      });
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput ? networkProviderInput.value : profile.provider);
+      suppressNetworkProfileSync = false;
+    }
+
+    function handleNetworkProfileSelection(field, value) {
+      if (suppressNetworkProfileSync) return;
+      const profile = findNetworkProfileByField(field, value);
+      if (profile) {
+        const overrides = {};
+        if (field === 'restaurant_id') {
+          overrides.restaurant_id = typeof value === 'string' ? value.trim() : value;
+        }
+        fillNetworkProfileFields(profile, overrides);
+        return;
+      }
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput ? networkProviderInput.value : '');
+    }
+
+    function toggleScheduleInputs(row, is24) {
+      const fromInput = row.querySelector('.schedule-from');
+      const toInput = row.querySelector('.schedule-to');
+      fromInput.disabled = is24;
+      toInput.disabled = is24;
+      if (is24) {
+        fromInput.value = '';
+        toInput.value = '';
+      }
+    }
+
+    function populateSchedule(schedule) {
+      const mapping = {};
+      (schedule || []).forEach((entry) => {
+        if (entry && entry.day) {
+          mapping[entry.day] = entry;
+        }
+      });
+      document.querySelectorAll('#scheduleTable tbody tr').forEach((row) => {
+        const day = row.dataset.day;
+        const data = mapping[day] || {};
+        const is24 = Boolean(data.is_24);
+        row.querySelector('.schedule-24').checked = is24;
+        row.querySelector('.schedule-from').value = is24 ? '' : (data.from || '');
+        row.querySelector('.schedule-to').value = is24 ? '' : (data.to || '');
+        toggleScheduleInputs(row, is24);
+      });
+    }
+
+    function collectSchedule() {
+      return Array.from(document.querySelectorAll('#scheduleTable tbody tr')).map((row) => {
+        const day = row.dataset.day;
+        const is24 = row.querySelector('.schedule-24').checked;
+        const fromInput = row.querySelector('.schedule-from').value;
+        const toInput = row.querySelector('.schedule-to').value;
+        return {
+          day,
+          from: is24 ? '' : fromInput,
+          to: is24 ? '' : toInput,
+          is_24: is24,
+        };
+      });
+    }
+
+    function toggleSectionsAvailability() {
+      const disabled = Boolean(passportData.is_new);
+      photoUploadForm.querySelectorAll('input, select, button').forEach((el) => {
+        el.disabled = disabled;
+      });
+      if (networkFilesForm) {
+        networkFilesForm.querySelectorAll('input, button').forEach((el) => {
+          el.disabled = disabled;
+        });
+      }
+      addEquipmentBtn.disabled = disabled;
+      if (refreshTasksBtn) {
+        refreshTasksBtn.disabled = disabled;
+      }
+      photosDisabledHint.classList.toggle('d-none', !disabled);
+      equipmentDisabledHint.classList.toggle('d-none', !disabled);
+    }
+
+    function populateForm() {
+      pausePassportDirtyTracking();
+      const data = passportData || {};
+      ensureSelectHasOption(departmentSelect, data.department || '');
+      departmentSelect.value = data.department || '';
+      refreshSearchableSelect(departmentSelect);
+      ensureSelectHasOption(businessSelect, data.business || '');
+      businessSelect.value = data.business || '';
+      refreshSearchableSelect(businessSelect);
+      ensureSelectHasOption(partnerTypeSelect, data.partner_type || '');
+      partnerTypeSelect.value = data.partner_type || '';
+      refreshSearchableSelect(partnerTypeSelect);
+      ensureSelectHasOption(countrySelect, data.country || '');
+      countrySelect.value = data.country || '';
+      refreshSearchableSelect(countrySelect);
+      ensureSelectHasOption(legalEntitySelect, data.legal_entity || '');
+      legalEntitySelect.value = data.legal_entity || '';
+      refreshSearchableSelect(legalEntitySelect);
+      cityInput.value = data.city || '';
+      if (locationAddressInput) {
+        locationAddressInput.value = data.location_address || '';
+      }
+      ensureSelectHasOption(statusSelect, data.status || (statuses[0] || ''));
+      statusSelect.value = data.status || (statuses[0] || '');
+      refreshSearchableSelect(statusSelect);
+      internalNetworkInput.value = data.network || '';
+      networkTunnelInput.value = data.network_tunnel || '';
+      networkProviderInput.value = data.network_provider || '';
+      networkRestaurantIdInput.value = data.network_restaurant_id || '';
+      networkContractInput.value = data.network_contract_number || '';
+      networkLegalEntityInput.value = data.network_legal_entity || '';
+      networkSupportPhoneInput.value = data.network_support_phone || '';
+      networkSpeedInput.value = formatNetworkSpeedValue(data.network_speed || '');
+      networkParamsInput.value = data.network_connection_params || '';
+      setupAutoExpandTextarea(networkParamsInput);
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput ? networkProviderInput.value : '');
+      startDateInput.value = data.start_date || '';
+      endDateInput.value = data.end_date || '';
+      suspensionDateInput.value = data.suspension_date || '';
+      resumeDateInput.value = data.resume_date || '';
+      if (itObjectPhoneInput) itObjectPhoneInput.value = data.it_object_phone || '';
+      if (itManagerNameInput) itManagerNameInput.value = data.it_manager_name || '';
+      if (itManagerPhoneInput) itManagerPhoneInput.value = data.it_manager_phone || '';
+      if (iikoServerSelect) iikoServerSelect.value = data.it_iiko_server || '';
+      passportData.status_task_id = data.status_task_id != null ? data.status_task_id : null;
+      passportData.status_task = data.status_task || null;
+      totalTimeDisplay.textContent = data.total_work_time || '—';
+      statusHistoryTotal.textContent = data.status_history_total || '—';
+      passportData.status_history_total = data.status_history_total || '—';
+      refreshItBlockState(data);
+      updateItMetrics({
+        caseMinutes: typeof data.case_time_minutes === 'number' ? data.case_time_minutes : undefined,
+        caseDisplay: data.case_time_display,
+        taskMinutes: typeof data.task_time_minutes === 'number' ? data.task_time_minutes : undefined,
+        taskDisplay: data.task_time_display,
+      });
+      renderStatusHistory(data.status_history || []);
+      updateStatusBadge();
+      updateNetworkBadge();
+      updateObjectTitle();
+      populateSchedule(data.schedule || []);
+      renderPhotos(data.photos || []);
+      renderNetworkFiles(data.network_files || []);
+      renderEquipment(data.equipment || []);
+      renderTasks(data.tasks || [], {
+        totalMinutes: typeof data.task_time_minutes === 'number' ? data.task_time_minutes : undefined,
+        totalDisplay: data.task_time_display,
+      });
+      renderCases(data.cases || [], {
+        totalMinutes: typeof data.case_time_minutes === 'number' ? data.case_time_minutes : undefined,
+        totalDisplay: data.case_time_display,
+      });
+      initializeAutoResizeInputs();
+      toggleSectionsAvailability();
+      updateStatusTaskRequirement();
+      resetPassportDirty();
+      resumePassportDirtyTracking();
+    }
+
+    function collectFormData() {
+      return {
+        department: departmentSelect.value.trim(),
+        business: businessSelect.value.trim(),
+        partner_type: partnerTypeSelect.value.trim(),
+        country: countrySelect.value.trim(),
+        legal_entity: legalEntitySelect.value.trim(),
+        city: cityInput.value.trim(),
+        location_address: locationAddressInput ? locationAddressInput.value.trim() : '',
+        status: statusSelect.value.trim(),
+        network: internalNetworkInput.value.trim(),
+        network_provider: networkProviderInput.value.trim(),
+        network_restaurant_id: networkRestaurantIdInput.value.trim(),
+        network_contract_number: networkContractInput.value.trim(),
+        network_legal_entity: networkLegalEntityInput.value.trim(),
+        network_support_phone: networkSupportPhoneInput.value.trim(),
+        network_speed: formatNetworkSpeedValue(networkSpeedInput.value),
+        network_tunnel: networkTunnelInput.value.trim(),
+        network_connection_params: networkParamsInput.value.trim(),
+        it_connection_type: passportData.it_connection_type || '',
+        it_connection_id: passportData.it_connection_id || '',
+        it_connection_password: passportData.it_connection_password || '',
+        it_object_phone: itObjectPhoneInput ? itObjectPhoneInput.value.trim() : '',
+        it_manager_name: itManagerNameInput ? itManagerNameInput.value.trim() : '',
+        it_manager_phone: itManagerPhoneInput ? itManagerPhoneInput.value.trim() : '',
+        it_iiko_server: iikoServerSelect ? iikoServerSelect.value.trim() : '',
+        start_date: startDateInput.value || '',
+        end_date: endDateInput.value || '',
+        suspension_date: suspensionDateInput.value || '',
+        resume_date: resumeDateInput.value || '',
+        status_task_id: statusTaskSelect ? statusTaskSelect.value : '',
+        schedule: collectSchedule(),
+      };
+    }
+
+    async function savePassport() {
+      const payload = collectFormData();
+      if (!payload.department) {
+        showSaveMessage('error', 'Поле «Департамент» обязательно для заполнения.');
+      return false;
+      }
+      if (statusesRequiringTask.has(payload.status) && !payload.status_task_id) {
+        showSaveMessage('error', 'Для выбранного статуса необходимо выбрать задачу.');
+      return false;
+      }
+      const isNew = Boolean(passportData.is_new);
+      const url = isNew ? '/api/object_passports' : `/api/object_passports/${passportData.id}`;
+      const method = isNew ? 'POST' : 'PUT';
+      savePassportBtn.disabled = true;
+      savePassportBtn.innerText = 'Сохранение...';
+      let saved = false;
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить паспорт');
+        }
+        if (isNew && data.id) {
+          window.location.href = `/object_passports/${data.id}`;
+          return true;
+        }
+        passportData = data.passport || passportData;
+        passportData.is_new = false;
+        populateForm();
+        if (payload.resume_date) {
+          resumeDateInput.value = '';
+          passportData.resume_date = '';
+        }
+        showSaveMessage('success', 'Изменения сохранены.');
+        saved = true;
+        if (window.EditGuard) {
+          window.EditGuard.markAllSaved();
+        }
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Произошла ошибка при сохранении.');
+        return false;
+      } finally {
+        savePassportBtn.disabled = false;
+        savePassportBtn.innerText = '💾 Сохранить';
+      }
+      return saved;
+    }
+
+    async function addParameter(paramType, selectId) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const value = prompt('Введите новое значение:');
+      if (!value || !value.trim()) return;
+      try {
+        const payload = { param_type: paramType, value: value.trim() };
+        const dependencies = Array.isArray(PARAMETER_DEPENDENCIES[paramType])
+          ? PARAMETER_DEPENDENCIES[paramType]
+          : [];
+        for (const dep of dependencies) {
+          const label = PARAMETER_TITLES[dep] || dep;
+          const suggestions = Array.isArray(parameterValues[dep]) ? parameterValues[dep] : [];
+          const hint = suggestions.length ? ` (например: ${suggestions.slice(0, 5).join(', ')})` : '';
+          const input = window.prompt(`Укажите значение для «${label}»${hint}:`);
+          if (input === null) {
+            return;
+          }
+          const trimmed = typeof input === 'string' ? input.trim() : '';
+          if (!trimmed) {
+            alert(`Поле «${label}» обязательно`);
+            return;
+          }
+          payload[dep] = trimmed;
+        }
+        const response = await fetch('/api/settings/parameters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось добавить значение');
+        }
+        parameterValues = normalizeParameterResponse((data && data.data) || parameterValues);
+        updateSelectOptions();
+        select.value = value.trim();
+        refreshSearchableSelect(select);
+        if (select === businessSelect || select === departmentSelect) {
+          updateObjectTitle();
+        }
+        showSaveMessage('success', 'Значение успешно добавлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при добавлении значения.');
+      }
+    }
+
+    function updateSelectOptions() {
+      const mapping = [
+        { select: departmentSelect, key: 'department' },
+        { select: businessSelect, key: 'business' },
+        { select: partnerTypeSelect, key: 'partner_type' },
+        { select: countrySelect, key: 'country' },
+        { select: legalEntitySelect, key: 'legal_entity' },
+      ];
+      mapping.forEach(({ select, key }) => {
+        const current = (select.value || '').trim();
+        const options = parameterValues[key] || [];
+        select.innerHTML = '<option value="">Не выбрано</option>' + options.map((val) => `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`).join('');
+        if (current) {
+          ensureSelectHasOption(select, current);
+          select.value = current;
+        } else {
+          select.value = '';
+        }
+        refreshSearchableSelect(select);
+      });
+      updateObjectTitle();
+    }
+
+    function renderCases(cases, summary) {
+      const items = Array.isArray(cases) ? cases : [];
+      passportData.cases = items;
+      const summaryData = summary && typeof summary === 'object' ? summary : {};
+      const summaryMinutesRaw = summaryData.totalMinutes ?? summaryData.total_minutes;
+      const summaryDisplayRaw = summaryData.formattedTotal || summaryData.totalDisplay || summaryData.total_display;
+      if (typeof summaryMinutesRaw === 'number' && !Number.isNaN(summaryMinutesRaw)) {
+        passportData.case_time_minutes = summaryMinutesRaw;
+      }
+      if (typeof summaryDisplayRaw === 'string') {
+        passportData.case_time_display = summaryDisplayRaw;
+      }
+      const caseMinutesValue =
+        typeof summaryMinutesRaw === 'number' && !Number.isNaN(summaryMinutesRaw)
+          ? summaryMinutesRaw
+          : passportData.case_time_minutes;
+      const caseDisplayValue =
+        typeof summaryDisplayRaw === 'string' && summaryDisplayRaw
+          ? summaryDisplayRaw
+          : passportData.case_time_display;
+      updateItMetrics({
+        caseMinutes: typeof caseMinutesValue === 'number' && !Number.isNaN(caseMinutesValue)
+          ? caseMinutesValue
+          : undefined,
+        caseDisplay: caseDisplayValue,
+      });
+      casesTableBody.innerHTML = '';
+      if (!items.length) {
+        casesEmptyText.classList.remove('d-none');
+        return;
+      }
+      casesEmptyText.classList.add('d-none');
+      items.forEach((item) => {
+        const tr = document.createElement('tr');
+        const ticketId = item.ticket_id || '';
+        const ticketLink = ticketId ? `/#open=ticket:${encodeURIComponent(ticketId)}` : '';
+        const ticketCell = ticketLink
+          ? `<a href="${ticketLink}" target="_blank" rel="noopener" class="link-primary text-decoration-none">${escapeHtml(ticketId)}</a>`
+          : `<span>${escapeHtml(ticketId)}</span>`;
+        tr.innerHTML = `
+          <td>${ticketCell}</td>
+          <td>${escapeHtml(item.business || '')}</td>
+          <td>${escapeHtml(item.city || '')}</td>
+          <td>${escapeHtml(item.problem || '')}</td>
+          <td>${escapeHtml(item.created_at_display || item.created_at || '')}</td>
+        `;
+        if (ticketLink) {
+          tr.classList.add('table-row-link');
+          tr.addEventListener('click', (event) => {
+            if (event.target.closest('a')) return;
+            window.open(ticketLink, '_blank', 'noopener');
+          });
+        }
+        casesTableBody.appendChild(tr);
+      });
+    }
+
+    async function refreshCases() {
+      if (passportData.is_new) return;
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}/cases`);
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при загрузке обращений');
+        }
+        renderCases(data.items || [], {
+          totalMinutes: typeof data.total_minutes === 'number' ? data.total_minutes : undefined,
+          totalDisplay: data.total_display,
+        });
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось обновить обращения.');
+      }
+    }
+
+    function renderTasks(tasks, summary) {
+      if (!tasksTableBody || !tasksEmptyText) return;
+      const list = Array.isArray(tasks) ? tasks : [];
+      passportData.tasks = list;
+      if (passportData.status_task_id != null) {
+        const matchedTask = list.find((task) => String(task.id) === String(passportData.status_task_id));
+        if (matchedTask) {
+          passportData.status_task = matchedTask;
+        }
+      }
+      const summaryData = summary && typeof summary === 'object' ? summary : {};
+      const taskMinutesRaw = summaryData.totalMinutes ?? summaryData.total_minutes;
+      const taskDisplayRaw = summaryData.formattedTotal || summaryData.totalDisplay || summaryData.total_display;
+      if (typeof taskMinutesRaw === 'number' && !Number.isNaN(taskMinutesRaw)) {
+        passportData.task_time_minutes = taskMinutesRaw;
+      }
+      if (typeof taskDisplayRaw === 'string') {
+        passportData.task_time_display = taskDisplayRaw;
+      }
+      const taskMinutesValue =
+        typeof taskMinutesRaw === 'number' && !Number.isNaN(taskMinutesRaw)
+          ? taskMinutesRaw
+          : passportData.task_time_minutes;
+      const taskDisplayValue =
+        typeof taskDisplayRaw === 'string' && taskDisplayRaw
+          ? taskDisplayRaw
+          : passportData.task_time_display;
+      updateItMetrics({
+        taskMinutes: typeof taskMinutesValue === 'number' && !Number.isNaN(taskMinutesValue)
+          ? taskMinutesValue
+          : undefined,
+        taskDisplay: taskDisplayValue,
+      });
+      tasksTableBody.innerHTML = '';
+      if (!list.length) {
+        tasksEmptyText.classList.remove('d-none');
+      } else {
+        tasksEmptyText.classList.add('d-none');
+        list.forEach((task) => {
+          const tr = document.createElement('tr');
+          const displayNo = escapeHtml(task.display_no || (task.id != null ? String(task.id) : ''));
+          const title = escapeHtml(task.title || '');
+          const status = escapeHtml(task.status || '');
+          const assignee = escapeHtml(task.assignee || '');
+          const due = escapeHtml(task.due_at_display || task.due_at || '—');
+          const updated = escapeHtml(task.last_activity_display || task.last_activity || '—');
+          tr.innerHTML = `
+            <td>${displayNo || '—'}</td>
+            <td>${title || '—'}</td>
+            <td>${status || '—'}</td>
+            <td>${assignee || '—'}</td>
+            <td>${due}</td>
+            <td>${updated}</td>
+          `;
+          if (task.id) {
+            tr.classList.add('table-row-link');
+            tr.addEventListener('click', () => {
+              window.open(`/tasks#task=${encodeURIComponent(task.id)}`, '_blank');
+            });
+          }
+          tasksTableBody.appendChild(tr);
+        });
+      }
+      renderStatusTaskOptions(list);
+    }
+
+    async function refreshTasks() {
+      if (passportData.is_new) return;
+      if (!passportData.id) return;
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}/tasks`);
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при загрузке задач');
+        }
+        renderTasks(data.items || [], {
+          totalMinutes: typeof data.total_minutes === 'number' ? data.total_minutes : undefined,
+          totalDisplay: data.total_display,
+        });
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось обновить задачи.');
+      }
+    }
+
+    function renderStatusTaskOptions(tasks) {
+      if (!statusTaskSelect) return;
+      const list = Array.isArray(tasks) ? tasks : [];
+      const preservedValue = passportData.status_task_id != null ? String(passportData.status_task_id) : (statusTaskSelect.value || '');
+      const options = ['<option value="">Не выбрано</option>'];
+      list.forEach((task) => {
+        const descriptor = [task.display_no || (task.id != null ? String(task.id) : ''), task.title || '']
+          .filter(Boolean)
+          .join(' · ');
+        options.push(`<option value="${task.id}">${escapeHtml(descriptor || String(task.id || ''))}</option>`);
+      });
+      if (passportData.status_task && passportData.status_task.id && !list.some((task) => String(task.id) === String(passportData.status_task.id))) {
+        const descriptor = [passportData.status_task.display_no || String(passportData.status_task.id), passportData.status_task.title || '']
+          .filter(Boolean)
+          .join(' · ');
+        options.push(`<option value="${passportData.status_task.id}">${escapeHtml(descriptor)}</option>`);
+      }
+      statusTaskSelect.innerHTML = options.join('');
+      if (preservedValue) {
+        statusTaskSelect.value = preservedValue;
+      }
+      if (!statusTaskSelect.value && preservedValue) {
+        statusTaskSelect.value = preservedValue;
+      }
+      if (statusTaskSearchInput) {
+        filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value);
+        if (document.activeElement !== statusTaskSearchInput) {
+          syncSelectSearchInput(statusTaskSelect);
+        }
+      } else {
+        syncSelectSearchInput(statusTaskSelect);
+      }
+      updateStatusTaskInfo();
+    }
+
+    function updateStatusTaskRequirement() {
+      if (!statusTaskContainer || !statusTaskSelect) return;
+      const requiresTask = statusesRequiringTask.has(statusSelect.value);
+      statusTaskContainer.classList.toggle('d-none', !requiresTask);
+      if (statusTaskHint) {
+        statusTaskHint.textContent = passportData.is_new
+          ? 'Сохраните паспорт, чтобы выбрать задачу.'
+          : 'Выберите задачу, отражающую текущее состояние объекта.';
+      }
+      if (requiresTask) {
+        if (!Array.isArray(passportData.tasks) || !passportData.tasks.length) {
+          if (!passportData.is_new) {
+            refreshTasks();
+          }
+        } else {
+          renderStatusTaskOptions(passportData.tasks);
+        }
+      } else if (statusTaskInfo) {
+        statusTaskInfo.textContent = '';
+      }
+    }
+
+    function updateStatusTaskInfo() {
+      if (!statusTaskInfo || !statusTaskSelect) return;
+      const selectedValue = statusTaskSelect.value;
+      if (!selectedValue) {
+        statusTaskInfo.textContent = '';
+        return;
+      }
+      let task = (passportData.tasks || []).find((item) => String(item.id) === selectedValue);
+      if (!task && passportData.status_task && String(passportData.status_task.id) === selectedValue) {
+        task = passportData.status_task;
+      }
+      if (!task) {
+        statusTaskInfo.textContent = '';
+        return;
+      }
+      const parts = [];
+      if (task.status) parts.push(`Статус: ${task.status}`);
+      if (task.assignee) parts.push(`Исполнитель: ${task.assignee}`);
+      if (task.due_at_display || task.due_at) parts.push(`Дедлайн: ${task.due_at_display || task.due_at}`);
+      if (task.last_activity_display || task.last_activity) parts.push(`Обновлено: ${task.last_activity_display || task.last_activity}`);
+      statusTaskInfo.textContent = parts.join(' · ');
+    }
+
+    function renderStatusHistory(history) {
+      if (!statusHistoryList) return;
+      const items = Array.isArray(history) ? history : [];
+      passportData.status_history = items;
+      if (!items.length) {
+        statusHistoryList.innerHTML = '';
+        if (statusHistoryEmpty) {
+          statusHistoryEmpty.classList.remove('d-none');
+        }
+        if (statusHistoryToggle) {
+          statusHistoryToggle.classList.add('d-none');
+        }
+        if (statusHistoryCollapse) {
+          statusHistoryCollapse.classList.remove('show');
+        }
+        updateStatusHistoryToggleLabel(false);
+        return;
+      }
+      statusHistoryList.innerHTML = '';
+      items.forEach((item) => {
+        const entry = document.createElement('div');
+        entry.className = 'status-history-entry';
+        const statusLabel = escapeHtml(item.status || '—');
+        const startDisplay = escapeHtml(item.started_display || item.started_at || '—');
+        const endRaw = item.ended_display || item.ended_at || '';
+        const endDisplay = escapeHtml(endRaw || '');
+        const durationDisplay = escapeHtml(item.duration_display || '—');
+        const isActive = Boolean(item.is_active) || !endRaw;
+        const periodText = endDisplay ? `с ${startDisplay} по ${endDisplay}` : `с ${startDisplay}`;
+        entry.innerHTML = `
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-light text-dark">${statusLabel}</span>
+            ${isActive ? '<span class="badge bg-warning text-dark">Активно</span>' : ''}
+          </div>
+          <div class="history-dates">${periodText}</div>
+          <div class="history-duration">Длительность: ${durationDisplay}</div>
+        `;
+        statusHistoryList.appendChild(entry);
+      });
+      if (statusHistoryEmpty) {
+        statusHistoryEmpty.classList.add('d-none');
+      }
+      if (statusHistoryToggle) {
+        statusHistoryToggle.classList.remove('d-none');
+      }
+      const collapseInstance = ensureStatusHistoryCollapse();
+      if (collapseInstance) {
+        collapseInstance.hide();
+      } else if (statusHistoryCollapse) {
+        statusHistoryCollapse.classList.remove('show');
+      }
+      updateStatusHistoryToggleLabel(false);
+    }
+
+    function renderPhotos(photos) {
+      const list = Array.isArray(photos) ? photos : [];
+      const sorted = list.slice().sort((a, b) => {
+        const aIsTitle = ((a && a.category) || '').toLowerCase() === 'title';
+        const bIsTitle = ((b && b.category) || '').toLowerCase() === 'title';
+        if (aIsTitle === bIsTitle) return 0;
+        return aIsTitle ? -1 : 1;
+      });
+      passportData.photos = sorted;
+      photosContainer.innerHTML = '';
+      updateTitlePhotoPreview(sorted);
+      if (!sorted.length) {
+        photosEmptyText.classList.remove('d-none');
+        return;
+      }
+      photosEmptyText.classList.add('d-none');
+      sorted.forEach((photo) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4';
+        const captionRaw = photo.caption || '';
+        const captionHtml = escapeHtml(captionRaw).replace(/\n/g, '<br>');
+        const categoryValue = ((photo && photo.category) || '').toLowerCase();
+        const isTitleCategory = categoryValue === 'title';
+        const categoryLabel = isTitleCategory ? 'Титульное' : 'Архивное';
+        col.innerHTML = `
+          <div class="card h-100 photo-card" data-id="${photo.id != null ? photo.id : ''}">
+            <div class="position-relative">
+              ${isTitleCategory ? '<span class="title-indicator">✔</span>' : ''}
+              <div class="dropdown photo-toolbar">
+                <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="#" data-action="toggle-photo-edit">Редактировать</a></li>
+                  <li><a class="dropdown-item" href="${escapeHtml(photo.url)}" download>Скачать</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="#" data-action="delete-photo">Удалить</a></li>
+                </ul>
+              </div>
+              <img src="${escapeHtml(photo.url)}" class="card-img-top passport-photo" alt="Фото" data-photo-id="${photo.id != null ? photo.id : ''}" />
+            </div>
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge bg-light text-dark">${categoryLabel}</span>
+              </div>
+              <div class="photo-caption-text">${captionHtml || '—'}</div>
+              <form class="photo-edit-form mt-3 d-none">
+                <div class="mb-2">
+                  <label class="form-label">Подпись</label>
+                  <input type="text" class="form-control form-control-sm photo-caption" value="${escapeHtml(photo.caption || '')}" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Тип</label>
+                  <select class="form-select form-select-sm photo-category">
+                    <option value="title" ${isTitleCategory ? 'selected' : ''}>Титульное</option>
+                    <option value="archive" ${isTitleCategory ? '' : 'selected'}>Архивное</option>
+                  </select>
+                </div>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-primary" type="button" data-action="save-photo">Сохранить</button>
+                  <button class="btn btn-sm btn-outline-secondary" type="button" data-action="cancel-photo-edit">Отмена</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+        photosContainer.appendChild(col);
+      });
+      if (photosContainer) {
+        initializeAutoResizeInputs(photosContainer);
+      }
+    }
+
+    function updatePhotoPreviewMeta(activeIndex) {
+      if (!Array.isArray(currentPhotoPreviewList) || !currentPhotoPreviewList.length) return;
+      const index = typeof activeIndex === 'number' ? activeIndex : 0;
+      const boundedIndex = Math.max(0, Math.min(index, currentPhotoPreviewList.length - 1));
+      const photo = currentPhotoPreviewList[boundedIndex];
+      if (!photo) return;
+      const captionHtml = escapeHtml(photo.caption || '').replace(/\n/g, '<br>');
+      if (photoPreviewCaption) {
+        photoPreviewCaption.innerHTML = captionHtml || '—';
+      }
+      if (photoPreviewDownload) {
+        if (photo.url) {
+          photoPreviewDownload.href = photo.url;
+          photoPreviewDownload.classList.remove('disabled');
+        } else {
+          photoPreviewDownload.href = '#';
+          photoPreviewDownload.classList.add('disabled');
+        }
+      }
+    }
+
+    function buildPhotoPreviewCarousel(photos, activeIndex) {
+      if (!photoPreviewCarouselInner) return;
+      photoPreviewCarouselInner.innerHTML = '';
+      photos.forEach((photo, index) => {
+        const item = document.createElement('div');
+        item.className = `carousel-item${index === activeIndex ? ' active' : ''}`;
+        item.innerHTML = `<img src="${escapeHtml(photo.url)}" class="d-block w-100 rounded" alt="Фото" data-photo-id="${photo.id != null ? photo.id : ''}" />`;
+        photoPreviewCarouselInner.appendChild(item);
+      });
+      const hasMultiple = photos.length > 1;
+      if (photoPreviewPrev) {
+        photoPreviewPrev.classList.toggle('d-none', !hasMultiple);
+      }
+      if (photoPreviewNext) {
+        photoPreviewNext.classList.toggle('d-none', !hasMultiple);
+      }
+    }
+
+    function openPhotoPreviewById(photoId) {
+      if (!photoPreviewModalEl || !photoPreviewCarouselEl) return;
+      const photos = Array.isArray(passportData.photos) ? passportData.photos : [];
+      if (!photos.length) return;
+      currentPhotoPreviewList = photos;
+      let activeIndex = photos.findIndex((photo) => String(photo.id) === String(photoId));
+      if (activeIndex < 0) {
+        activeIndex = 0;
+      }
+      buildPhotoPreviewCarousel(currentPhotoPreviewList, activeIndex);
+      if (typeof bootstrap !== 'undefined') {
+        const existingCarousel = bootstrap.Carousel.getInstance(photoPreviewCarouselEl);
+        if (existingCarousel) {
+          existingCarousel.dispose();
+        }
+        photoPreviewCarouselInstance = bootstrap.Carousel.getOrCreateInstance(photoPreviewCarouselEl, {
+          interval: false,
+          ride: false,
+          wrap: true,
+        });
+        if (typeof photoPreviewCarouselInstance.to === 'function') {
+          photoPreviewCarouselInstance.to(activeIndex);
+        }
+        updatePhotoPreviewMeta(activeIndex);
+        if (!photoPreviewModalInstance) {
+          photoPreviewModalInstance = new bootstrap.Modal(photoPreviewModalEl);
+        }
+        photoPreviewModalInstance.show();
+      } else {
+        updatePhotoPreviewMeta(activeIndex);
+      }
+    }
+
+    function openSinglePhotoPreview(url, caption) {
+      if (!photoPreviewModalEl || !photoPreviewCarouselEl) return;
+      const safeUrl = url || '';
+      if (!safeUrl) return;
+      let decodedCaption = '';
+      if (caption) {
+        try {
+          decodedCaption = decodeURIComponent(caption);
+        } catch (error) {
+          decodedCaption = caption;
+        }
+      }
+      currentPhotoPreviewList = [
+        {
+          id: '__single__',
+          url: safeUrl,
+          caption: decodedCaption,
+        },
+      ];
+      buildPhotoPreviewCarousel(currentPhotoPreviewList, 0);
+      if (typeof bootstrap !== 'undefined') {
+        const existingCarousel = bootstrap.Carousel.getInstance(photoPreviewCarouselEl);
+        if (existingCarousel) {
+          existingCarousel.dispose();
+        }
+        photoPreviewCarouselInstance = bootstrap.Carousel.getOrCreateInstance(photoPreviewCarouselEl, {
+          interval: false,
+          ride: false,
+          wrap: false,
+        });
+        if (typeof photoPreviewCarouselInstance.to === 'function') {
+          photoPreviewCarouselInstance.to(0);
+        }
+        updatePhotoPreviewMeta(0);
+        if (!photoPreviewModalInstance) {
+          photoPreviewModalInstance = new bootstrap.Modal(photoPreviewModalEl);
+        }
+        photoPreviewModalInstance.show();
+      } else {
+        updatePhotoPreviewMeta(0);
+      }
+    }
+
+    if (photoPreviewCarouselEl) {
+      photoPreviewCarouselEl.addEventListener('slid.bs.carousel', (event) => {
+        const nextIndex = typeof event.to === 'number' ? event.to : 0;
+        updatePhotoPreviewMeta(nextIndex);
+      });
+    }
+
+    function renderNetworkFiles(files) {
+      const list = Array.isArray(files) ? files : [];
+      passportData.network_files = list;
+      if (networkFilesList) {
+        networkFilesList.innerHTML = '';
+      }
+      if (!list.length) {
+        if (networkFilesEmptyText) {
+          networkFilesEmptyText.classList.remove('d-none');
+        }
+        return;
+      }
+      if (networkFilesEmptyText) {
+        networkFilesEmptyText.classList.add('d-none');
+      }
+      list.forEach((file) => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2';
+        item.dataset.id = file.id;
+        const sizePart = file.size_display ? escapeHtml(file.size_display) : '';
+        const createdPart = file.created_at_display ? escapeHtml(file.created_at_display) : '';
+        const metaParts = [sizePart, createdPart].filter(Boolean).join(' · ');
+        const downloadUrl = escapeHtml(file.download_url || file.url || '#');
+        const viewUrl = escapeHtml(file.url || downloadUrl);
+        item.innerHTML = `
+          <div class="me-auto">
+            <a href="${viewUrl}" target="_blank" rel="noopener" class="fw-semibold text-decoration-none">${escapeHtml(file.original_name || 'Файл')}</a>
+            ${metaParts ? `<div class="text-muted small">${metaParts}</div>` : ''}
+          </div>
+          <div class="btn-group btn-group-sm" role="group">
+            <a class="btn btn-outline-primary" href="${downloadUrl}" download>
+              ⬇️ Скачать
+            </a>
+            <button class="btn btn-outline-danger" type="button" data-action="delete-network-file">Удалить</button>
+          </div>
+        `;
+        if (networkFilesList) {
+          networkFilesList.appendChild(item);
+        }
+      });
+    }
+
+    async function handlePhotoSave(card) {
+      const photoId = card.dataset.id;
+      const caption = card.querySelector('.photo-caption').value;
+      const category = card.querySelector('.photo-category').value;
+      try {
+        const response = await fetch(`/api/object_passports/photos/${photoId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caption, category }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при сохранении фото');
+        }
+        renderPhotos(data.photos || []);
+        showSaveMessage('success', 'Фото обновлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось обновить фото.');
+      }
+    }
+
+    async function handlePhotoDelete(card) {
+      const photoId = card.dataset.id;
+      if (!confirm('Удалить фото?')) return;
+      try {
+        const response = await fetch(`/api/object_passports/photos/${photoId}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при удалении фото');
+        }
+        renderPhotos(data.photos || []);
+        showSaveMessage('success', 'Фото удалено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось удалить фото.');
+      }
+    }
+
+    function togglePhotoEdit(card, forceState) {
+      if (!card) return;
+      const form = card.querySelector('.photo-edit-form');
+      if (!form) return;
+      let show;
+      if (typeof forceState === 'boolean') {
+        show = forceState;
+      } else {
+        show = form.classList.contains('d-none');
+      }
+      if (show) {
+        const photoId = card.dataset.id;
+        const currentPhoto = (passportData.photos || []).find((item) => String(item.id) === String(photoId));
+        if (currentPhoto) {
+          const captionInput = form.querySelector('.photo-caption');
+          const categorySelect = form.querySelector('.photo-category');
+          if (captionInput) {
+            captionInput.value = currentPhoto.caption || '';
+            setupAutoResizeInput(captionInput);
+          }
+          if (categorySelect) categorySelect.value = currentPhoto.category || 'archive';
+        }
+        form.classList.remove('d-none');
+      } else {
+        form.classList.add('d-none');
+      }
+    }
+
+    photosContainer.addEventListener('click', (event) => {
+      const actionEl = event.target.closest('[data-action]');
+      if (!actionEl) {
+        const previewTarget = event.target.closest('.passport-photo');
+        if (previewTarget) {
+          openPhotoPreviewById(previewTarget.dataset.photoId);
+        }
+        return;
+      }
+      event.preventDefault();
+      const card = actionEl.closest('.photo-card');
+      if (!card) return;
+      const action = actionEl.dataset.action;
+      if (action === 'save-photo') {
+        handlePhotoSave(card);
+      } else if (action === 'delete-photo') {
+        handlePhotoDelete(card);
+      } else if (action === 'toggle-photo-edit') {
+        togglePhotoEdit(card);
+      } else if (action === 'cancel-photo-edit') {
+        togglePhotoEdit(card, false);
+      }
+    });
+
+    function showPhotoPreview(url, caption) {
+      openSinglePhotoPreview(url, caption);
+    }
+
+    photoUploadForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      const formData = new FormData(photoUploadForm);
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}/photos`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при загрузке фото');
+        }
+        photoUploadForm.reset();
+        initializeAutoResizeInputs(photoUploadForm);
+        renderPhotos(data.photos || []);
+        showSaveMessage('success', 'Фото добавлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось загрузить фото.');
+      }
+    });
+
+     if (networkFilesForm) {
+      networkFilesForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (passportData.is_new) {
+          showSaveMessage('error', 'Сначала сохраните паспорт.');
+          return;
+        }
+        const formData = new FormData(networkFilesForm);
+        const uploadedFile = formData.get('file');
+        if (!uploadedFile || !uploadedFile.name) {
+          showSaveMessage('error', 'Выберите файл для загрузки.');
+          return;
+        }
+        try {
+          const response = await fetch(`/api/object_passports/${passportData.id}/network_files`, {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await response.json();
+          if (!response.ok || data.success === false) {
+            throw new Error(data.error || 'Ошибка при загрузке файла');
+          }
+          networkFilesForm.reset();
+          renderNetworkFiles(data.files || []);
+          showSaveMessage('success', 'Файл добавлен.');
+        } catch (error) {
+          console.error(error);
+          showSaveMessage('error', error.message || 'Не удалось загрузить файл.');
+        }
+      });
+    }
+
+    if (networkFilesList) {
+      networkFilesList.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-action="delete-network-file"]');
+        if (!button) return;
+        const item = button.closest('.list-group-item');
+        if (!item) return;
+        if (!confirm('Удалить файл?')) return;
+        const fileId = item.dataset.id;
+        try {
+          const response = await fetch(`/api/object_passports/network_files/${fileId}`, { method: 'DELETE' });
+          const data = await response.json();
+          if (!response.ok || data.success === false) {
+            throw new Error(data.error || 'Ошибка при удалении файла');
+          }
+          renderNetworkFiles(data.files || []);
+          showSaveMessage('success', 'Файл удалён.');
+        } catch (error) {
+          console.error(error);
+          showSaveMessage('error', error.message || 'Не удалось удалить файл.');
+        }
+      });
+    }
+
+    function refreshEquipmentIpPreviews() {
+      if (!equipmentContainer) return;
+      const previewValue = getEquipmentIpPreviewValue();
+      equipmentContainer.querySelectorAll('.equipment-card').forEach((card) => {
+        applyEquipmentIpPreview(card, previewValue);
+      });
+    }
+
+    function renderEquipment(equipmentList) {
+      const list = Array.isArray(equipmentList) ? equipmentList : [];
+      passportData.equipment = list;
+      enrichEquipmentOptionSetsFromEquipment(list);
+      equipmentContainer.innerHTML = '';
+      if (!list.length) {
+        equipmentEmptyText.classList.remove('d-none');
+      } else {
+        equipmentEmptyText.classList.add('d-none');
+      }
+      updateItEquipmentList(list);
+      list.forEach((item, index) => {
+        const isNew = item.id === null || typeof item.id === 'undefined';
+        const equipmentKey = ensureEquipmentKey(item, index);
+        const card = document.createElement('div');
+        card.className = 'card mb-4 equipment-card';
+        card.dataset.id = isNew ? `new-${index}` : item.id;
+        card.dataset.equipmentKey = equipmentKey;
+        const typeValues = getCombinedCatalogOptions('equipment_type', {
+          equipment_vendor: item.vendor,
+          equipment_model: item.model,
+          serial_number: item.serial_number,
+        });
+        const vendorValues = getCombinedCatalogOptions('equipment_vendor', {
+          equipment_type: item.equipment_type,
+          equipment_model: item.model,
+          serial_number: item.serial_number,
+        });
+        const modelValues = getCombinedCatalogOptions('equipment_model', {
+          equipment_type: item.equipment_type,
+          equipment_vendor: item.vendor,
+          serial_number: item.serial_number,
+        });
+        const typeOptions = buildSelectOptions(typeValues, item.equipment_type || '');
+        const vendorOptions = buildSelectOptions(vendorValues, item.vendor || '');
+        const modelOptions = buildSelectOptions(modelValues, item.model || '');
+        const statusOptions = buildSelectOptions(equipmentOptionSets.statuses, item.status || '');
+        const connectionOptions = buildSelectOptions(itConnectionChoices, item.connection_type || '');
+        const collapseId = `equipmentPhotos-${equipmentKey}`;
+        const detailsCollapseId = `equipmentDetails-${equipmentKey}`;
+        const hasPhotos = Array.isArray(item.photos) && item.photos.length > 0;
+        const collapseShowClass = hasPhotos ? ' show' : '';
+        const collapseButtonClass = hasPhotos ? '' : ' collapsed';
+        const collapseExpanded = hasPhotos ? 'true' : 'false';
+        const detailsShowClass = isNew ? ' show' : '';
+        const detailsToggleClass = isNew ? '' : ' collapsed';
+        const detailsExpanded = isNew ? 'true' : 'false';
+        const headerName = escapeHtml(item.name || 'Оборудование');
+        const headerModel = escapeHtml(item.model || '—');
+        const ipPreview = getEquipmentIpPreviewValue();
+        const headerIp = escapeHtml(item.ip_address || ipPreview);
+        const headerStatus = escapeHtml(item.status || '—');
+        const serialOptionsId = `equipmentSerialOptions-${equipmentKey}`;
+        const serialOptions = buildDatalistOptions(equipmentOptionSets.serials, item.serial_number || '');
+        card.innerHTML = `
+          <div class="card-header d-flex justify-content-between align-items-center" data-collapse-target="#${detailsCollapseId}">
+            <div class="equipment-header-toggle${detailsToggleClass}" role="button" tabindex="0" data-collapse-target="#${detailsCollapseId}" aria-expanded="${detailsExpanded}" aria-controls="${detailsCollapseId}">
+              <div class="equipment-header-summary">
+                <div class="equipment-header-title">${headerName}</div>
+                <div class="equipment-header-meta">
+                  <span><strong>Модель:</strong> <span data-role="equipment-header-model">${headerModel}</span></span>
+                  <span><strong>IP-адрес:</strong> <span data-role="equipment-header-ip">${headerIp}</span></span>
+                  <span><strong>Статус:</strong> <span data-role="equipment-header-status">${headerStatus}</span></span>
+                </div>
+              </div>
+              <span class="equipment-header-icon">▼</span>
+            </div>
+            <div class="equipment-actions">
+              <button class="btn btn-sm btn-success" data-action="save-equipment">💾 Сохранить</button>
+              ${isNew ? '<button class="btn btn-sm btn-outline-secondary" data-action="cancel-equipment">Отменить</button>' : '<button class="btn btn-sm btn-outline-danger" data-action="delete-equipment">Удалить</button>'}
+            </div>
+          </div>
+          <div class="collapse${detailsShowClass}" id="${detailsCollapseId}">
+            <div class="card-body">
+            <div class="equipment-fields-grid">
+              <div class="equipment-field">
+                <label class="form-label">Тип</label>
+                <select class="form-select form-select-sm equipment-type">${typeOptions}</select>
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">Производитель</label>
+                <select class="form-select form-select-sm equipment-vendor">${vendorOptions}</select>
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">Наименование</label>
+                <input type="text" class="form-control form-control-sm equipment-name" value="${escapeHtml(item.name || '')}" />
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">Модель</label>
+                <select class="form-select form-select-sm equipment-model">${modelOptions}</select>
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">Серийный номер</label>
+                <input type="text" class="form-control form-control-sm equipment-serial" value="${escapeHtml(item.serial_number || '')}" list="${serialOptionsId}" placeholder="SN..." />
+                <datalist id="${serialOptionsId}" class="equipment-serial-options">${serialOptions}</datalist>
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">Статус</label>
+                <select class="form-select form-select-sm equipment-status">${statusOptions}</select>
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">IP-адрес</label>
+                <input type="text" class="form-control form-control-sm equipment-ip" value="${escapeHtml(item.ip_address || '')}" placeholder="${escapeHtml(ipPreview)}" />
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">Подключение</label>
+                <select class="form-select form-select-sm equipment-connection-type">${connectionOptions}</select>
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">ID подключения</label>
+                <input type="text" class="form-control form-control-sm equipment-connection-id" value="${escapeHtml(item.connection_id || '')}" placeholder="введите id" />
+              </div>
+              <div class="equipment-field">
+                <label class="form-label">Пароль подключения</label>
+                <input type="text" class="form-control form-control-sm equipment-connection-password" value="${escapeHtml(item.connection_password || '')}" placeholder="введите пароль" />
+              </div>
+              <div class="equipment-field equipment-field-placeholder" aria-hidden="true"></div>
+              <div class="equipment-field equipment-field-placeholder" aria-hidden="true"></div>
+            </div>
+            <div class="mt-3">
+              <label class="form-label">Описание</label>
+              <textarea class="form-control form-control-sm equipment-description">${escapeHtml(item.description || '')}</textarea>
+            </div>
+            ${isNew
+              ? '<div class="alert alert-info mt-3 mb-0">Сохраните запись, чтобы добавить фотографии оборудования.</div>'
+              : `
+            <hr>
+            <div class="mt-3">
+              <button class="btn btn-sm btn-outline-secondary equipment-photos-toggle${collapseButtonClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${collapseExpanded}" aria-controls="${collapseId}">
+                Общие фотографии оборудования
+              </button>
+              <div class="collapse${collapseShowClass}" id="${collapseId}">
+                <form class="row g-2 align-items-end equipment-photo-form mt-3" data-id="${item.id}">
+                  <div class="col-md-6">
+                    <label class="form-label">Подпись</label>
+                    <input type="text" class="form-control form-control-sm" name="caption" placeholder="Описание" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Файл</label>
+                    <input type="file" class="form-control form-control-sm" name="file" accept="image/*" required />
+                  </div>
+                  <div class="col-md-2">
+                    <button class="btn btn-outline-primary btn-sm w-100" type="submit">Добавить</button>
+                  </div>
+                </form>
+                <div class="row g-3 equipment-photos" data-id="${item.id}"></div>
+                <div class="text-muted small" data-empty-photos="${item.id}">Фотографии ещё не добавлены.</div>
+            </div>
+          `}
+            </div>
+          </div>
+        `;
+        equipmentContainer.appendChild(card);
+        card.dataset.detailsTarget = detailsCollapseId;
+        card.id = `equipment-card-${equipmentKey}`;
+        initializeAutoExpandTextareas(card);
+        initializeEquipmentCard(card);
+        applyEquipmentIpPreview(card);
+        if (!isNew) {
+          renderEquipmentPhotos(item.id, item.photos || []);
+        }
+      });
+      updateNetworkEquipmentSummary(list);
+      refreshEquipmentIpPreviews();
+    }
+
+    function renderEquipmentPhotos(equipmentId, photos) {
+      const container = equipmentContainer.querySelector(`.equipment-photos[data-id="${equipmentId}"]`);
+      const emptyText = equipmentContainer.querySelector(`[data-empty-photos="${equipmentId}"]`);
+      if (!container) return;
+      container.innerHTML = '';
+      const list = Array.isArray(photos) ? photos : [];
+      if (!list.length) {
+        if (emptyText) {
+          emptyText.classList.remove('d-none');
+        }
+        return;
+      }
+      if (emptyText) {
+        emptyText.classList.add('d-none');
+      }
+      list.forEach((photo) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4';
+        const captionRaw = photo.caption || '';
+        const captionData = encodeURIComponent(captionRaw);
+        col.innerHTML = `
+          <div class="card equipment-photo h-100" data-id="${photo.id}" data-equipment="${equipmentId}">
+            <img src="${escapeHtml(photo.url)}" class="card-img-top passport-photo" alt="Фото оборудования" data-photo-url="${escapeHtml(photo.url)}" data-photo-caption="${captionData}" />
+            <div class="card-body">
+              <div class="mb-2">
+                <label class="form-label">Подпись</label>
+                <input type="text" class="form-control form-control-sm equipment-photo-caption" value="${escapeHtml(photo.caption || '')}" />
+              </div>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-success" data-action="save-equipment-photo">Сохранить</button>
+                <button class="btn btn-sm btn-outline-danger" data-action="delete-equipment-photo">Удалить</button>
+                <a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(photo.url)}" download>Скачать</a>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(col);
+      });
+      initializeAutoResizeInputs(container);
+    }
+
+    equipmentContainer.addEventListener('click', async (event) => {
+      const previewTarget = event.target.closest('.passport-photo');
+      if (previewTarget) {
+        showPhotoPreview(previewTarget.dataset.photoUrl, previewTarget.dataset.photoCaption || '');
+        return;
+      }
+      const card = event.target.closest('.equipment-card');
+      const photosToggle = event.target.closest('.equipment-photos-toggle');
+      if (photosToggle) {
+        event.preventDefault();
+        event.stopPropagation();
+        const targetSelector = photosToggle.getAttribute('data-bs-target');
+        const collapseElement = targetSelector
+          ? (card ? card.querySelector(targetSelector) : document.querySelector(targetSelector))
+          : null;
+        if (collapseElement) {
+          const isShown = collapseElement.classList.contains('show');
+          if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+            const collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapseElement, {
+              toggle: false,
+            });
+            if (isShown) {
+              collapseInstance.hide();
+            } else {
+              collapseInstance.show();
+            }
+          } else {
+            collapseElement.classList.toggle('show');
+          }
+          photosToggle.classList.toggle('collapsed', isShown);
+          photosToggle.setAttribute('aria-expanded', (!isShown).toString());
+        }
+        return;
+      }
+      if (!card) return;
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const action = button.dataset.action;
+      if (action === 'save-equipment') {
+        handleEquipmentSave(card);
+      } else if (action === 'delete-equipment') {
+        handleEquipmentDelete(card);
+      } else if (action === 'cancel-equipment') {
+        handleEquipmentCancel(card);
+      } else if (action === 'save-equipment-photo') {
+        handleEquipmentPhotoSave(button.closest('.equipment-photo'));
+      } else if (action === 'delete-equipment-photo') {
+        handleEquipmentPhotoDelete(button.closest('.equipment-photo'));
+      }
+    });
+
+    equipmentContainer.addEventListener('submit', async (event) => {
+      if (!event.target.classList.contains('equipment-photo-form')) return;
+      event.preventDefault();
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      const equipmentId = event.target.dataset.id;
+      const formData = new FormData(event.target);
+      try {
+        const response = await fetch(`/api/object_passports/equipment/${equipmentId}/photos`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Ошибка при добавлении фото оборудования');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Фото оборудования добавлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Не удалось добавить фото оборудования.');
+      }
+    });
+    function handleEquipmentCancel(card) {
+      const id = card.dataset.id;
+      passportData.equipment = passportData.equipment.filter((item, index) => `new-${index}` !== id);
+      renderEquipment(passportData.equipment);
+    }
+
+    async function handleEquipmentSave(card) {
+      const id = card.dataset.id;
+      const payload = {
+        equipment_type: card.querySelector('.equipment-type').value.trim(),
+        vendor: card.querySelector('.equipment-vendor').value.trim(),
+        name: card.querySelector('.equipment-name').value.trim(),
+        model: card.querySelector('.equipment-model').value.trim(),
+        serial_number: card.querySelector('.equipment-serial').value.trim(),
+        status: card.querySelector('.equipment-status').value.trim(),
+        ip_address: card.querySelector('.equipment-ip').value.trim(),
+        connection_type: card.querySelector('.equipment-connection-type').value.trim(),
+        connection_id: card.querySelector('.equipment-connection-id').value.trim(),
+        connection_password: card.querySelector('.equipment-connection-password').value.trim(),
+        description: card.querySelector('.equipment-description').value.trim(),
+      };
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      try {
+        let response;
+        if (id && id.startsWith('new-')) {
+          response = await fetch(`/api/object_passports/${passportData.id}/equipment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          response = await fetch(`/api/object_passports/equipment/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить оборудование');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Данные оборудования сохранены.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при сохранении оборудования.');
+      }
+    }
+
+    async function handleEquipmentDelete(card) {
+      const id = card.dataset.id;
+      if (id && id.startsWith('new-')) {
+        handleEquipmentCancel(card);
+        return;
+      }
+      if (!confirm('Удалить оборудование?')) return;
+      try {
+        const response = await fetch(`/api/object_passports/equipment/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось удалить оборудование');
+        }
+        passportData.equipment = data.equipment || passportData.equipment.filter((item) => item.id !== id);
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Оборудование удалено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при удалении оборудования.');
+      }
+    }
+
+    async function handleEquipmentPhotoSave(card) {
+      if (!card) return;
+      const photoId = card.dataset.id;
+      const caption = card.querySelector('.equipment-photo-caption').value;
+      try {
+        const response = await fetch(`/api/object_passports/equipment/photos/${photoId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caption }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить фото оборудования');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Фото оборудования обновлено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при обновлении фото оборудования.');
+      }
+    }
+
+    async function handleEquipmentPhotoDelete(card) {
+      if (!card) return;
+      if (!confirm('Удалить фото оборудования?')) return;
+      const photoId = card.dataset.id;
+      try {
+        const response = await fetch(`/api/object_passports/equipment/photos/${photoId}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось удалить фото оборудования');
+        }
+        passportData.equipment = data.equipment || passportData.equipment;
+        renderEquipment(passportData.equipment);
+        showSaveMessage('success', 'Фото оборудования удалено.');
+      } catch (error) {
+        console.error(error);
+        showSaveMessage('error', error.message || 'Ошибка при удалении фото оборудования.');
+      }
+    }
+
+    async function ensurePassportDataLoaded() {
+      if (!initialPassportParseFailed || passportData.is_new || !passportData.id) {
+        populateForm();
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/object_passports/${passportData.id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.passport) {
+          passportData = data.passport;
+          passportData.is_new = false;
+        }
+      } catch (error) {
+        console.error('Failed to fetch passport data:', error);
+        showSaveMessage('error', 'Не удалось загрузить паспорт. Попробуйте обновить страницу.');
+      }
+
+      populateForm();
+    }
+
+    document.querySelectorAll('[data-action="add-parameter"]').forEach((button) => {
+      button.addEventListener('click', () => addParameter(button.dataset.paramType, button.dataset.target));
+    });
+
+    document.querySelectorAll('#scheduleTable .schedule-24').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        toggleScheduleInputs(checkbox.closest('tr'), checkbox.checked);
+      });
+    });
+
+    initializeSearchableSelects();
+
+    if (statusHistoryCollapse) {
+      statusHistoryCollapse.addEventListener('shown.bs.collapse', () => updateStatusHistoryToggleLabel(true));
+      statusHistoryCollapse.addEventListener('hidden.bs.collapse', () => updateStatusHistoryToggleLabel(false));
+    }
+    updateStatusHistoryToggleLabel(false);
+
+    function handleTitlePhotoClick() {
+      if (!titlePhotoPreview || !titlePhotoImage) return;
+      const photoId = titlePhotoPreview.dataset.photoId || titlePhotoImage.dataset.photoId;
+      if (photoId) {
+        openPhotoPreviewById(photoId);
+      } else if (titlePhotoImage.src) {
+        openSinglePhotoPreview(titlePhotoImage.src, '');
+      }
+    }
+
+    if (titlePhotoPreview) {
+      titlePhotoPreview.addEventListener('click', handleTitlePhotoClick);
+    }
+    if (titlePhotoImage) {
+      titlePhotoImage.addEventListener('click', handleTitlePhotoClick);
+    }
+
+    statusSelect.addEventListener('change', () => {
+      updateStatusBadge();
+      updateStatusTaskRequirement();
+    });
+    const handleInternalNetworkChange = () => {
+      updateNetworkBadge();
+      refreshEquipmentIpPreviews();
+    };
+    internalNetworkInput.addEventListener('input', handleInternalNetworkChange);
+    internalNetworkInput.addEventListener('change', handleInternalNetworkChange);
+    networkProviderInput.addEventListener('input', () => {
+      updateNetworkRestaurantIdOptionsForProvider(networkProviderInput.value);
+    });
+    networkProviderInput.addEventListener('change', () => handleNetworkProfileSelection('provider', networkProviderInput.value));
+    networkContractInput.addEventListener('change', () => handleNetworkProfileSelection('contract_number', networkContractInput.value));
+    networkRestaurantIdInput.addEventListener('change', () => handleNetworkProfileSelection('restaurant_id', networkRestaurantIdInput.value));
+    networkSupportPhoneInput.addEventListener('change', () => handleNetworkProfileSelection('support_phone', networkSupportPhoneInput.value));
+    networkSpeedInput.addEventListener('change', handleSpeedFormatting);
+    networkSpeedInput.addEventListener('blur', handleSpeedFormatting);
+    networkLegalEntityInput.addEventListener('change', () => handleNetworkProfileSelection('legal_entity', networkLegalEntityInput.value));
+    [businessSelect, departmentSelect].forEach((select) => {
+      select.addEventListener('change', updateObjectTitle);
+    });
+    cityInput.addEventListener('input', updateObjectTitle);
+    if (toggleItBlockBtn && itBlock) {
+      toggleItBlockBtn.addEventListener('click', () => {
+        const hiddenNow = itBlock.classList.toggle('d-none');
+        itBlock.dataset.userCollapsed = hiddenNow ? 'true' : 'false';
+        syncItBlockToggleButton();
+      });
+      syncItBlockToggleButton();
+    }
+    refreshCasesBtn.addEventListener('click', refreshCases);
+    if (refreshTasksBtn) {
+      refreshTasksBtn.addEventListener('click', refreshTasks);
+    }
+    if (statusTaskSelect) {
+      statusTaskSelect.addEventListener('change', () => {
+        const rawValue = statusTaskSelect.value;
+        const numericValue = rawValue ? Number(rawValue) : null;
+        passportData.status_task_id = Number.isNaN(numericValue) ? null : numericValue;
+        if (rawValue) {
+          const selectedTask = (passportData.tasks || []).find((task) => String(task.id) === rawValue);
+          passportData.status_task = selectedTask || passportData.status_task;
+        } else {
+          passportData.status_task = null;
+        }
+        syncSelectSearchInput(statusTaskSelect);
+        updateStatusTaskInfo();
+      });
+    }
+    if (statusTaskSearchInput && statusTaskSelect) {
+      statusTaskSearchInput.addEventListener('input', () => filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value));
+      statusTaskSearchInput.addEventListener('focus', () => filterSelectOptions(statusTaskSelect, statusTaskSearchInput.value));
+    }
+    savePassportBtn.addEventListener('click', async () => {
+      await savePassport();
+    });
+
+    document.querySelectorAll('[data-section-toggle]').forEach((button) => {
+      const targetSelector = button.dataset.target;
+      const target = targetSelector ? document.querySelector(targetSelector) : null;
+      if (!target) return;
+      const updateState = () => {
+        const expanded = target.classList.contains('show');
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        button.textContent = expanded ? 'Свернуть ▲' : 'Развернуть ▼';
+      };
+      updateState();
+      button.addEventListener('click', () => {
+        target.classList.toggle('show');
+        updateState();
+      });
+    });
+
+    document.querySelectorAll('[data-section-header]').forEach((header) => {
+      header.addEventListener('click', (event) => {
+        const interactiveTarget = event.target.closest(
+          'button, a, input, select, textarea, [data-bs-toggle], [data-no-header-toggle]'
+        );
+        if (interactiveTarget) {
+          return;
+        }
+        const toggleButton = header.querySelector('[data-section-toggle]');
+        if (toggleButton) {
+          toggleButton.click();
+        }
+      });
+    });
+
+    addEquipmentBtn.addEventListener('click', () => {
+      if (passportData.is_new) {
+        showSaveMessage('error', 'Сначала сохраните паспорт.');
+        return;
+      }
+      passportData.equipment = Array.isArray(passportData.equipment) ? passportData.equipment : [];
+      passportData.equipment.push({
+        id: null,
+        equipment_type: '',
+        vendor: '',
+        name: '',
+        model: '',
+        serial_number: '',
+        status: '',
+        ip_address: '',
+        connection_type: '',
+        connection_id: '',
+        connection_password: '',
+        description: '',
+        photos: [],
+      });
+      renderEquipment(passportData.equipment);
+    });
+
+    if (window.EditGuard) {
+      const passportBlocks = [
+        'basicInfoCard',
+        'networkCard',
+        'scheduleCard'
+      ];
+      passportBlocks.forEach((blockId) => {
+        const blockEl = document.getElementById(blockId);
+        if (!blockEl) return;
+        window.EditGuard.registerBlock(blockEl, {
+          onSave: () => savePassport()
+        });
+      });
+    }
+
+    ensurePassportDataLoaded();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
+  <script src="{{ url_for('static', filename='modal-transitions.js') }}"></script>
+</body>
+</html>
