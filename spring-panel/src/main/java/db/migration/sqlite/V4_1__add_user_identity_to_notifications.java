@@ -9,7 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class V4__add_user_identity_to_notifications extends BaseJavaMigration {
+public class V4_1__add_user_identity_to_notifications extends BaseJavaMigration {
     @Override
     public void migrate(Context context) throws Exception {
         try (Connection connection = context.getConnection()) {
