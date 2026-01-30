@@ -17,6 +17,9 @@
             <h1 class="h3 mb-1">Паспорта объектов</h1>
             <p class="text-muted mb-0">Каталог оборудования и его характеристики.</p>
         </div>
+        <div class="d-flex gap-2" th:if="${canViewSettings}">
+            <a class="btn btn-primary" th:href="@{/settings(open='it-equipment')}">Создать паспорт</a>
+        </div>
     </div>
 
     <div class="card shadow-sm">
