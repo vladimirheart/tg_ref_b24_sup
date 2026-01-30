@@ -271,13 +271,13 @@ CREATE TABLE IF NOT EXISTS ticket_responsibles (
 
 CREATE TABLE IF NOT EXISTS ticket_active (
     ticket_id TEXT PRIMARY KEY,
-    user TEXT NOT NULL,
+    user_identity TEXT NOT NULL,
     last_seen TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
-    user TEXT NOT NULL,
+    user_identity TEXT NOT NULL,
     text TEXT NOT NULL,
     url TEXT,
     is_read BOOLEAN DEFAULT FALSE,
