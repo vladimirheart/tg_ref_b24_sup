@@ -97,5 +97,20 @@ public class DialogApiController {
         ));
     }
 
+    @PostMapping("/{ticketId}/resolve")
+    public ResponseEntity<?> resolve(@PathVariable String ticketId,
+                                     Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator);
+        if (!result.exists()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "error", "Диалог не найден"));
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "updated", result.updated()
+        ));
+    }
+
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 }
