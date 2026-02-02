@@ -310,9 +310,13 @@
 
   function formatTimestamp(value) {
     if (!value) return '';
-    const parsed = new Date(value);
+    const normalized = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+    const parsed = new Date(normalized);
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleString();
+      const day = String(parsed.getDate()).padStart(2, '0');
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const year = parsed.getFullYear();
+      return `${day}:${month}:${year}`;
     }
     return value;
   }
@@ -332,7 +336,9 @@
       const attachment = msg.attachment
         ? `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`
         : '';
-      const body = msg.message ? msg.message.replace(/\n/g, '<br>') : '—';
+      const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
+      const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
+      const body = bodyText || fallbackType || '—';
       return `
         <div class="chat-message ${senderType}">
           <div class="d-flex justify-content-between small text-muted mb-1">
