@@ -19,9 +19,18 @@
   const viewTabs = document.querySelectorAll('[data-dialog-view]');
 
   const detailsMeta = document.getElementById('dialogDetailsMeta');
+  const detailsAvatar = document.getElementById('dialogDetailsAvatar');
+  const detailsClientName = document.getElementById('dialogDetailsClientName');
+  const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
   const detailsSummary = document.getElementById('dialogDetailsSummary');
   const detailsHistory = document.getElementById('dialogDetailsHistory');
   const detailsCreateTask = document.getElementById('dialogDetailsCreateTask');
+  const detailsProblem = document.getElementById('dialogDetailsProblem');
+  const detailsMetrics = document.getElementById('dialogDetailsMetrics');
+  const detailsSidebar = document.getElementById('dialogDetailsSidebar');
+  const detailsResizeHandle = document.getElementById('dialogDetailsResizeHandle');
+  const detailsReplyText = document.getElementById('dialogReplyText');
+  const detailsReplySend = document.getElementById('dialogReplySend');
 
   const filtersModal = (typeof bootstrap !== 'undefined' && filtersModalEl)
     ? new bootstrap.Modal(filtersModalEl)
@@ -36,6 +45,8 @@
   const STORAGE_COLUMNS = 'bender:dialogs:columns';
   const STORAGE_WIDTHS = 'bender:dialogs:column-widths';
   const STORAGE_TASK = 'bender:dialogs:create-task';
+
+  let activeDialogTicketId = null;
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -262,6 +273,33 @@
     });
   }
 
+  function initDetailsResize() {
+    if (!detailsSidebar || !detailsResizeHandle) return;
+    let startX = 0;
+    let startWidth = 0;
+
+    function onMouseMove(event) {
+      const delta = event.clientX - startX;
+      const nextWidth = Math.min(480, Math.max(220, startWidth + delta));
+      detailsSidebar.style.flexBasis = `${nextWidth}px`;
+    }
+
+    function onMouseUp() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.documentElement.classList.remove('resizing');
+    }
+
+    detailsResizeHandle.addEventListener('mousedown', (event) => {
+      startX = event.clientX;
+      startWidth = detailsSidebar.getBoundingClientRect().width;
+      document.documentElement.classList.add('resizing');
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      event.preventDefault();
+    });
+  }
+
   function normalizeMessageSender(sender) {
     const value = String(sender || '').toLowerCase();
     if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
@@ -288,6 +326,9 @@
     detailsHistory.innerHTML = messages.map((msg) => {
       const senderType = normalizeMessageSender(msg.sender);
       const timestamp = formatTimestamp(msg.timestamp);
+      const replyPreview = msg.replyPreview
+        ? `<div class="small text-muted border-start ps-2 mb-1">${msg.replyPreview}</div>`
+        : '';
       const attachment = msg.attachment
         ? `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`
         : '';
@@ -298,6 +339,7 @@
             <span>${msg.sender || 'Пользователь'}</span>
             <span>${timestamp}</span>
           </div>
+          ${replyPreview}
           <div>${body}</div>
           ${attachment}
         </div>
@@ -305,11 +347,28 @@
     }).join('');
   }
 
+  function appendOperatorMessage(message, timestamp) {
+    if (!detailsHistory) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-message support';
+    wrapper.innerHTML = `
+      <div class="d-flex justify-content-between small text-muted mb-1">
+        <span>Оператор</span>
+        <span>${formatTimestamp(timestamp)}</span>
+      </div>
+      <div>${message.replace(/\n/g, '<br>')}</div>
+    `;
+    detailsHistory.appendChild(wrapper);
+    detailsHistory.scrollTop = detailsHistory.scrollHeight;
+  }
+
   async function openDialogDetails(ticketId, fallbackRow) {
     if (!ticketId || !detailsModal) return;
+    activeDialogTicketId = ticketId;
     if (detailsMeta) detailsMeta.textContent = `ID диалога: ${ticketId}`;
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
+    if (detailsReplyText) detailsReplyText.value = '';
 
     try {
       const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}`, { credentials: 'same-origin' });
@@ -318,6 +377,7 @@
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const summary = data.summary || {};
+
       const resolvedBy = summary.resolvedBy || summary.resolved_by;
       const resolvedAt = summary.resolvedAt || summary.resolved_at;
       const createdDate = summary.createdDate || summary.created_date;
@@ -326,10 +386,29 @@
       const createdLabel = [createdDate, createdTime].filter(Boolean).join(' ')
         || createdAt
         || '—';
+      const createdDisplay = formatTimestamp(createdLabel);
+      const resolvedDisplay = formatTimestamp(resolvedAt || '');
       const responsibleLabel = summary.responsible
         || resolvedBy
         || fallbackRow?.dataset.responsible
         || '—';
+      const clientName = summary.clientName
+        || summary.username
+        || fallbackRow?.dataset.client
+        || '—';
+      const clientStatus = summary.clientStatus || fallbackRow?.dataset.clientStatus || '—';
+      const channelLabel = summary.channelName || fallbackRow?.dataset.channel || '—';
+      const businessLabel = summary.business || fallbackRow?.dataset.business || '—';
+      const statusLabel = summary.status ? summary.statusLabel || summary.status : fallbackRow?.dataset.status || '—';
+      const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
+      const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
+      if (detailsAvatar) {
+        const initial = clientName && clientName !== '—' ? clientName.trim().charAt(0).toUpperCase() : '—';
+        detailsAvatar.textContent = initial || '—';
+      }
+      if (detailsClientName) detailsClientName.textContent = clientName;
+      if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
+      if (detailsProblem) detailsProblem.textContent = problemLabel;
       const summaryItems = [
         ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
         ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
@@ -346,6 +425,21 @@
           <div class="d-flex justify-content-between gap-2">
             <span>${label}</span>
             <span class="text-dark">${value || '—'}</span>
+          </div>
+        `).join('');
+      }
+      if (detailsMetrics) {
+        const metrics = [
+          ['Создано', createdDisplay],
+          ['Закрыто', resolvedDisplay || '—'],
+          ['Канал', channelLabel],
+          ['Бизнес', businessLabel],
+          ['Ответственный', responsibleLabel],
+        ];
+        detailsMetrics.innerHTML = metrics.map(([label, value]) => `
+          <div class="dialog-metric-item">
+            <span>${label}</span>
+            <span>${value || '—'}</span>
           </div>
         `).join('');
       }
@@ -382,6 +476,42 @@
       const meta = (detailsMeta?.textContent || '').match(/ID диалога:\s*(.+)$/);
       if (meta && meta[1]) {
         setTaskDraft({ ticketId: meta[1].trim() });
+      }
+    });
+  }
+
+  if (detailsReplySend && detailsReplyText) {
+    const sendReply = async () => {
+      const message = detailsReplyText.value.trim();
+      if (!message || !activeDialogTicketId) return;
+      detailsReplySend.disabled = true;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        detailsReplyText.value = '';
+        appendOperatorMessage(message, data.timestamp || new Date().toISOString());
+        if (typeof showNotification === 'function') {
+          showNotification('Сообщение отправлено', 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось отправить сообщение', 'error');
+        }
+      } finally {
+        detailsReplySend.disabled = false;
+      }
+    };
+    detailsReplySend.addEventListener('click', sendReply);
+    detailsReplyText.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        sendReply();
       }
     });
   }
@@ -460,6 +590,13 @@
     });
   }
 
+  if (detailsModalEl) {
+    detailsModalEl.addEventListener('hidden.bs.modal', () => {
+      activeDialogTicketId = null;
+      if (detailsReplyText) detailsReplyText.value = '';
+    });
+  }
+
   loadColumnState();
   buildColumnsList();
   applyColumnState();
@@ -471,4 +608,5 @@
   }
   initColumnResize();
   restoreColumnWidths();
+  initDetailsResize();
 })();
