@@ -577,6 +577,13 @@ public class SupportBot extends TelegramLongPollingBot {
         String ticketId = activeTicketId.get();
         String username = Optional.ofNullable(message.getFrom()).map(User::getUserName).orElse(null);
         Long userId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(null);
+        log.info("Active ticket message received: ticketId={} userId={} username={} messageType={} telegramMessageId={} attachment={}",
+                ticketId,
+                userId,
+                username,
+                messageType,
+                message.getMessageId(),
+                attachmentPath);
         ticketService.findByTicketId(ticketId)
                 .filter(ticket -> ticket.status() != null && ticket.status().equalsIgnoreCase("closed"))
                 .ifPresent(ticket -> ticketService.reopenTicket(ticketId));
@@ -589,6 +596,11 @@ public class SupportBot extends TelegramLongPollingBot {
                 messageType,
                 attachmentPath
         );
+        log.info("Stored client message in history: ticketId={} userId={} messageType={} attachment={}",
+                ticketId,
+                userId,
+                messageType,
+                attachmentPath);
         ticketService.registerActivity(ticketId, username != null ? username : (userId != null ? userId.toString() : null));
         relayActiveMessageToOperators(ticketId, messageType, text, attachmentPath, username, userId);
         return true;
@@ -611,6 +623,12 @@ public class SupportBot extends TelegramLongPollingBot {
         if (channelId == null || channelId <= 0) {
             return;
         }
+        log.info("Relaying client message to operator chat {}: ticketId={} userId={} messageType={} attachment={}",
+                channelId,
+                ticketId,
+                userId,
+                messageType,
+                attachmentPath);
         String senderLabel = username != null && !username.isBlank()
                 ? "@" + username
                 : (userId != null ? String.valueOf(userId) : "клиент");
@@ -698,6 +716,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (chatId == null || text == null || text.isBlank()) {
             return false;
         }
+        log.info("Sending direct Telegram message to chat {}: {}", chatId, summarizeText(text));
         SendMessage message = SendMessage.builder()
                 .chatId(chatId)
                 .text(text)
@@ -707,7 +726,7 @@ public class SupportBot extends TelegramLongPollingBot {
             execute(message);
             return true;
         } catch (TelegramApiException e) {
-            log.error("Failed to send direct message", e);
+            log.error("Failed to send direct Telegram message to chat {}", chatId, e);
             return false;
         }
     }
