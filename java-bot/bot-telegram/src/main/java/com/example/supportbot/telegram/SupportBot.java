@@ -3,6 +3,7 @@ package com.example.supportbot.telegram;
 import com.example.supportbot.config.BotProperties;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.PendingFeedbackRequest;
+import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
@@ -256,7 +257,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if ("/unblock".equalsIgnoreCase(text)) {
             log.info("Received /unblock from user {}", message.getFrom() != null ? message.getFrom().getId() : null);
             requestUnblock(message);
-        } else {
+        } else if (!handleActiveTextMessage(message)) {
             log.info("Ignoring text message from user {}: {}",
                     message.getFrom() != null ? message.getFrom().getId() : null,
                     summarizeText(text));
@@ -407,11 +408,12 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "document", stored.toString());
+            } else {
+                handleActiveAttachment(message, "document", stored.toString(), message.getCaption());
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store document", e);
         }
-    }
 
     private void handlePhoto(Message message, ConversationSession session) {
         List<PhotoSize> photos = message.getPhoto();
@@ -425,6 +427,8 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "photo", stored.toString());
+            } else {
+                handleActiveAttachment(message, "photo", stored.toString(), message.getCaption());
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store photo", e);
@@ -442,6 +446,8 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "video", stored.toString());
+            } else {
+                handleActiveAttachment(message, "video", stored.toString(), message.getCaption());
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store video", e);
@@ -460,6 +466,8 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "voice", stored.toString());
+            } else {
+                handleActiveAttachment(message, "voice", stored.toString(), message.getCaption());
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store voice", e);
@@ -479,6 +487,8 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "audio", stored.toString());
+            } else {
+                handleActiveAttachment(message, "audio", stored.toString(), message.getCaption());
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store audio", e);
@@ -498,6 +508,8 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "animation", stored.toString());
+            } else {
+                handleActiveAttachment(message, "animation", stored.toString(), message.getCaption());
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store animation", e);
@@ -518,6 +530,8 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "sticker", stored.toString());
+            } else {
+                handleActiveAttachment(message, "sticker", stored.toString(), null);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store sticker", e);
@@ -535,9 +549,90 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "video_note", stored.toString());
+            } else {
+                handleActiveAttachment(message, "video_note", stored.toString(), message.getCaption());
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store video note", e);
+        }
+    }
+
+    private boolean handleActiveTextMessage(Message message) {
+        String text = message.getText();
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        return handleActiveTicketMessage(message, text, "text", null);
+    }
+
+    private void handleActiveAttachment(Message message, String messageType, String attachmentPath, String caption) {
+        handleActiveTicketMessage(message, caption, messageType, attachmentPath);
+    }
+
+    private boolean handleActiveTicketMessage(Message message, String text, String messageType, String attachmentPath) {
+        Optional<String> activeTicketId = resolveActiveTicketId(message);
+        if (activeTicketId.isEmpty()) {
+            return false;
+        }
+        String ticketId = activeTicketId.get();
+        String username = Optional.ofNullable(message.getFrom()).map(User::getUserName).orElse(null);
+        Long userId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(null);
+        ticketService.findByTicketId(ticketId)
+                .filter(ticket -> ticket.status() != null && ticket.status().equalsIgnoreCase("closed"))
+                .ifPresent(ticket -> ticketService.reopenTicket(ticketId));
+        chatHistoryService.storeUserMessage(
+                userId,
+                message.getMessageId() != null ? message.getMessageId().longValue() : null,
+                text,
+                getChannel(),
+                ticketId,
+                messageType,
+                attachmentPath
+        );
+        ticketService.registerActivity(ticketId, username != null ? username : (userId != null ? userId.toString() : null));
+        relayActiveMessageToOperators(ticketId, messageType, text, attachmentPath, username, userId);
+        return true;
+    }
+
+    private Optional<String> resolveActiveTicketId(Message message) {
+        User user = message.getFrom();
+        Long userId = user != null ? user.getId() : null;
+        String username = user != null ? user.getUserName() : null;
+        return ticketService.findActiveTicketForUser(userId, username).map(TicketActive::getTicketId);
+    }
+
+    private void relayActiveMessageToOperators(String ticketId,
+                                               String messageType,
+                                               String text,
+                                               String attachmentPath,
+                                               String username,
+                                               Long userId) {
+        Integer channelId = properties.getChannelId();
+        if (channelId == null || channelId <= 0) {
+            return;
+        }
+        String senderLabel = username != null && !username.isBlank()
+                ? "@" + username
+                : (userId != null ? String.valueOf(userId) : "клиент");
+        StringBuilder builder = new StringBuilder();
+        builder.append("Новый ответ клиента ").append(senderLabel).append("\n");
+        builder.append("ID заявки: #").append(ticketId).append("\n");
+        if (text != null && !text.isBlank()) {
+            builder.append(text);
+        } else {
+            builder.append("[").append(messageType).append("]");
+        }
+        if (attachmentPath != null && !attachmentPath.isBlank()) {
+            builder.append("\nВложение: ").append(attachmentPath);
+        }
+        SendMessage toChannel = SendMessage.builder()
+                .chatId(channelId.longValue())
+                .text(builder.toString())
+                .build();
+        try {
+            execute(toChannel);
+        } catch (TelegramApiException e) {
+            log.error("Failed to relay active ticket message to operator channel", e);
         }
     }
 
