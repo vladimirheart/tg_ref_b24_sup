@@ -916,7 +916,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
         ticketService.registerActivity(ticket.ticketId(), Optional.ofNullable(session.user()).map(User::getUserName).orElse(null));
 
-        if (properties.getChannelId() != null) {
+        if (properties.getChannelId() != null && properties.getChannelId() > 0) {
             SendMessage toChannel = SendMessage.builder()
                     .chatId(properties.getChannelId().longValue())
                     .text(summary)
@@ -939,23 +939,7 @@ public class SupportBot extends TelegramLongPollingBot {
             log.error("Failed to send confirmation", e);
         }
 
-        int scale = botSettingsService.ratingScale(session.settings(), 5);
-        String promptTemplate = botSettingsService.ratingPrompt(session.settings(), "Оцените заявку {ticket_id} по шкале 1-{scale}");
-        String promptText = promptTemplate
-                .replace("{ticket_id}", ticket.ticketId())
-                .replace("{scale}", Integer.toString(scale));
-        SendMessage ratingPrompt = SendMessage.builder()
-                .chatId(session.chatId())
-                .text(promptText)
-                .replyMarkup(new ReplyKeyboardRemove(true))
-                .build();
-        try {
-            execute(ratingPrompt);
-        } catch (TelegramApiException e) {
-            log.error("Failed to send rating prompt", e);
-        }
-
-        ticketService.ensureFeedbackRequest(ticket.ticketId(), session.userId(), channel, "user_prompt");
+        ticketService.ensureFeedbackRequest(ticket.ticketId(), session.userId(), channel, "created");
     }
 
     private void cancelConversation(Message message) {
