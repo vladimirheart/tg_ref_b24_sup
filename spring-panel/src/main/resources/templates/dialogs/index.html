@@ -180,7 +180,7 @@
     </div>
 </div>
 
-<div class="modal fade" id="dialogDetailsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade resizable-modal" id="dialogDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -236,6 +236,7 @@
             </div>
             <div class="modal-footer">
                 <a class="btn btn-outline-secondary" id="dialogDetailsCreateTask" th:href="@{/tasks}">Создать задачу</a>
+                <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Закрыть обращение</button>
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
