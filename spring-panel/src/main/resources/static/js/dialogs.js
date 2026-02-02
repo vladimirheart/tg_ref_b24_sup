@@ -26,6 +26,7 @@
   const detailsHistory = document.getElementById('dialogDetailsHistory');
   const detailsCreateTask = document.getElementById('dialogDetailsCreateTask');
   const detailsResolve = document.getElementById('dialogDetailsResolve');
+  const detailsReopen = document.getElementById('dialogDetailsReopen');
   const detailsProblem = document.getElementById('dialogDetailsProblem');
   const detailsMetrics = document.getElementById('dialogDetailsMetrics');
   const detailsSidebar = document.getElementById('dialogDetailsSidebar');
@@ -308,13 +309,13 @@
 
   function normalizeMessageSender(sender) {
     const value = String(sender || '').toLowerCase();
-    if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
+    if (value.includes('support') || value.includes('operator') || value.includes('admin') || value.includes('system')) {
       return 'support';
     }
     return 'user';
   }
 
-  function formatTimestamp(value) {
+  function formatTimestamp(value, options = {}) {
     if (!value) return '';
     const normalized = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
     const parsed = new Date(normalized);
@@ -322,7 +323,13 @@
       const day = String(parsed.getDate()).padStart(2, '0');
       const month = String(parsed.getMonth() + 1).padStart(2, '0');
       const year = parsed.getFullYear();
-      return `${day}:${month}:${year}`;
+      const base = `${day}:${month}:${year}`;
+      if (options.includeTime) {
+        const hours = String(parsed.getHours()).padStart(2, '0');
+        const minutes = String(parsed.getMinutes()).padStart(2, '0');
+        return `${base} ${hours}:${minutes}`;
+      }
+      return base;
     }
     return value;
   }
@@ -429,6 +436,10 @@
     const resolved = String(statusRaw || '').toLowerCase() === 'resolved';
     detailsResolve.disabled = resolved;
     detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
+    if (detailsReopen) {
+      detailsReopen.disabled = !resolved;
+      detailsReopen.classList.toggle('d-none', !resolved);
+    }
   }
 
   function updateRowStatus(row, statusRaw, statusLabel) {
@@ -484,7 +495,7 @@
         || createdAt
         || '—';
       const createdDisplay = formatTimestamp(createdLabel);
-      const resolvedDisplay = formatTimestamp(resolvedAt || '');
+      const resolvedDisplay = formatTimestamp(resolvedAt || '', { includeTime: true });
       const responsibleLabel = summary.responsible
         || resolvedBy
         || fallbackRow?.dataset.responsible
@@ -605,6 +616,33 @@
           showNotification(error.message || 'Не удалось закрыть диалог', 'error');
         }
         detailsResolve.disabled = false;
+      }
+    });
+  }
+
+  if (detailsReopen) {
+    detailsReopen.addEventListener('click', async () => {
+      if (!activeDialogTicketId) return;
+      detailsReopen.disabled = true;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reopen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        await openDialogDetails(activeDialogTicketId, activeDialogRow);
+        if (typeof showNotification === 'function') {
+          showNotification('Диалог переоткрыт', 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
+        }
+      } finally {
+        detailsReopen.disabled = false;
       }
     });
   }
