@@ -3,9 +3,9 @@ package com.example.panel.controller;
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
-import com.example.panel.service.DialogService;
 import com.example.panel.service.DialogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,21 +130,6 @@ public class DialogApiController {
             dialogNotificationService.notifyReopened(ticketId);
         }
         return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
-    }
-
-    @PostMapping("/{ticketId}/resolve")
-    public ResponseEntity<?> resolve(@PathVariable String ticketId,
-                                     Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator);
-        if (!result.exists()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("success", false, "error", "Диалог не найден"));
-        }
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "updated", result.updated()
-        ));
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
