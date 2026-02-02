@@ -4,6 +4,7 @@ import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import org.slf4j.Logger;
@@ -34,10 +35,14 @@ public class DialogApiController {
 
     private final DialogService dialogService;
     private final DialogReplyService dialogReplyService;
+    private final DialogNotificationService dialogNotificationService;
 
-    public DialogApiController(DialogService dialogService, DialogReplyService dialogReplyService) {
+    public DialogApiController(DialogService dialogService,
+                               DialogReplyService dialogReplyService,
+                               DialogNotificationService dialogNotificationService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
+        this.dialogNotificationService = dialogNotificationService;
     }
 
     @GetMapping
@@ -106,10 +111,25 @@ public class DialogApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));
         }
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "updated", result.updated()
-        ));
+        if (result.updated()) {
+            dialogNotificationService.notifyResolved(ticketId);
+        }
+        return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
+    }
+
+    @PostMapping("/{ticketId}/reopen")
+    public ResponseEntity<?> reopen(@PathVariable String ticketId,
+                                    Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        DialogService.ResolveResult result = dialogService.reopenTicket(ticketId, operator);
+        if (!result.exists()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "error", "Диалог не найден"));
+        }
+        if (result.updated()) {
+            dialogNotificationService.notifyReopened(ticketId);
+        }
+        return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
