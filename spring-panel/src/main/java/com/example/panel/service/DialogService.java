@@ -146,26 +146,37 @@ public class DialogService {
             return;
         }
         try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ? LIMIT 1",
-                    ticketId
+            jdbcTemplate.update(
+                    "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) "
+                            + "SELECT ?, ?, ? WHERE NOT EXISTS ("
+                            + "SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?)",
+                    ticketId, username, username, ticketId
             );
-            if (rows.isEmpty()) {
-                jdbcTemplate.update(
-                        "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?, ?, ?)",
-                        ticketId, username, username
-                );
-                return;
-            }
-            Object existing = rows.get(0).get("responsible");
-            if (existing == null || existing.toString().trim().isEmpty()) {
+        } catch (DataAccessException ex) {
+            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, ex.getMessage());
+        }
+    }
+
+    public void assignResponsibleIfMissingOrRedirected(String ticketId, String newResponsible, String assignedBy) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(newResponsible)) {
+            return;
+        }
+        String actor = StringUtils.hasText(assignedBy) ? assignedBy : newResponsible;
+        try {
+            int inserted = jdbcTemplate.update(
+                    "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) "
+                            + "SELECT ?, ?, ? WHERE NOT EXISTS ("
+                            + "SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?)",
+                    ticketId, newResponsible, actor, ticketId
+            );
+            if (inserted == 0) {
                 jdbcTemplate.update(
                         "UPDATE ticket_responsibles SET responsible = ?, assigned_by = ? WHERE ticket_id = ?",
-                        username, username, ticketId
+                        newResponsible, actor, ticketId
                 );
             }
         } catch (DataAccessException ex) {
-            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to update responsible for ticket {}: {}", ticketId, ex.getMessage());
         }
     }
 
@@ -210,12 +221,13 @@ public class DialogService {
                     String key = previewKey(toLong(row.get("channel_id")), replyTo);
                     replyPreview = previewByMessage.get(key);
                 }
+                String attachment = toAttachmentUrl(ticketId, value(row.get("attachment")));
                 history.add(new ChatMessageDto(
                         value(row.get("sender")),
                         value(row.get("message")),
                         value(row.get("timestamp")),
                         value(row.get("message_type")),
-                        value(row.get("attachment")),
+                        attachment,
                         toLong(row.get("tg_message_id")),
                         replyTo,
                         replyPreview
@@ -253,6 +265,21 @@ public class DialogService {
 
     private static String previewKey(Long channelId, Long telegramMessageId) {
         return channelId + ":" + telegramMessageId;
+    }
+
+    private static String toAttachmentUrl(String ticketId, String attachment) {
+        if (!StringUtils.hasText(attachment)) {
+            return null;
+        }
+        if (attachment.startsWith("/api/attachments/") || attachment.startsWith("http://") || attachment.startsWith("https://")) {
+            return attachment;
+        }
+        try {
+            String filename = java.nio.file.Paths.get(attachment).getFileName().toString();
+            return "/api/attachments/tickets/" + ticketId + "/" + filename;
+        } catch (Exception ex) {
+            return attachment;
+        }
     }
 
     private static Long toLong(Object value) {
