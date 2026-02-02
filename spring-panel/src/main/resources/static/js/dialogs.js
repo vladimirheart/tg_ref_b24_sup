@@ -317,13 +317,20 @@
 
   function formatTimestamp(value, options = {}) {
     if (!value) return '';
-    const normalized = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+    const rawValue = typeof value === 'string' ? value.trim() : value;
+    let normalized = rawValue;
+    if (typeof rawValue === 'string' && /^\d+(\.\d+)?$/.test(rawValue)) {
+      normalized = Number(rawValue);
+    }
+    if (typeof normalized === 'number' && normalized < 1000000000000) {
+      normalized *= 1000;
+    }
     const parsed = new Date(normalized);
     if (!Number.isNaN(parsed.getTime())) {
       const day = String(parsed.getDate()).padStart(2, '0');
       const month = String(parsed.getMonth() + 1).padStart(2, '0');
       const year = parsed.getFullYear();
-      const base = `${day}:${month}:${year}`;
+      const base = `${day}.${month}.${year}`;
       if (options.includeTime) {
         const hours = String(parsed.getHours()).padStart(2, '0');
         const minutes = String(parsed.getMinutes()).padStart(2, '0');
