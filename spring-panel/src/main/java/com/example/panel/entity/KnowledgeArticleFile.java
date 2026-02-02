@@ -8,15 +8,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "knowledge_article_files")
-@Getter
-@Setter
 public class KnowledgeArticleFile {
 
     @Id
@@ -38,4 +34,68 @@ public class KnowledgeArticleFile {
     private Long fileSize;
 
     private OffsetDateTime uploadedAt;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public KnowledgeArticle getArticle() {
+        return article;
+    }
+
+    public void setArticle(KnowledgeArticle article) {
+        this.article = article;
+    }
+
+    public String getDraftToken() {
+        return draftToken;
+    }
+
+    public void setDraftToken(String draftToken) {
+        this.draftToken = draftToken;
+    }
+
+    public String getStoredPath() {
+        return storedPath;
+    }
+
+    public void setStoredPath(String storedPath) {
+        this.storedPath = storedPath;
+    }
+
+    public String getOriginalName() {
+        return originalName;
+    }
+
+    public void setOriginalName(String originalName) {
+        this.originalName = originalName;
+    }
+
+    public String getMimeType() {
+        return mimeType;
+    }
+
+    public void setMimeType(String mimeType) {
+        this.mimeType = mimeType;
+    }
+
+    public Long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(Long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public OffsetDateTime getUploadedAt() {
+        return uploadedAt;
+    }
+
+    public void setUploadedAt(OffsetDateTime uploadedAt) {
+        this.uploadedAt = uploadedAt;
+    }
 }
