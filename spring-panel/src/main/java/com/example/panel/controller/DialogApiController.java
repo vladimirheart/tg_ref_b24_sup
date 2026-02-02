@@ -56,9 +56,6 @@ public class DialogApiController {
     public ResponseEntity<?> details(@PathVariable String ticketId,
                                      @RequestParam(value = "channelId", required = false) Long channelId,
                                      Authentication authentication) {
-        if (authentication != null && authentication.getName() != null) {
-            dialogService.assignResponsibleIfMissing(ticketId, authentication.getName());
-        }
         Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId);
         log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
                 details.map(d -> "found").orElse("not found"));
@@ -80,11 +77,15 @@ public class DialogApiController {
 
     @PostMapping("/{ticketId}/reply")
     public ResponseEntity<?> reply(@PathVariable String ticketId,
-                                   @RequestBody DialogReplyRequest request) {
+                                   @RequestBody DialogReplyRequest request,
+                                   Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(
                 ticketId,
                 request.message(),
-                request.replyToTelegramId()
+                request.replyToTelegramId(),
+                operator
+        );    request.replyToTelegramId()
         );
         if (!result.success()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
