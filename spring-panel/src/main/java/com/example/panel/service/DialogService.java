@@ -244,6 +244,34 @@ public class DialogService {
         return findDialog(ticketId).map(item -> new DialogDetails(item, loadHistory(ticketId, channelId)));
     }
 
+    public ResolveResult resolveTicket(String ticketId, String operator) {
+        if (!StringUtils.hasText(ticketId)) {
+            return new ResolveResult(false, false);
+        }
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tickets WHERE ticket_id = ?",
+                    Integer.class,
+                    ticketId
+            );
+            if (count == null || count == 0) {
+                return new ResolveResult(false, false);
+            }
+            String resolvedBy = StringUtils.hasText(operator) ? operator : "Оператор";
+            int updated = jdbcTemplate.update(
+                    "UPDATE tickets SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, "
+                            + "resolved_by = ?, closed_count = COALESCE(closed_count, 0) + 1 "
+                            + "WHERE ticket_id = ? AND (status IS NULL OR status != 'resolved')",
+                    resolvedBy,
+                    ticketId
+            );
+            return new ResolveResult(updated > 0, true);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to resolve ticket {}: {}", ticketId, ex.getMessage());
+            return new ResolveResult(false, false);
+        }
+    }
+
     private static String buildPreview(Object message, Object messageType) {
         String base = value(message);
         if (StringUtils.hasText(base)) {
@@ -298,5 +326,8 @@ public class DialogService {
 
     private static String value(Object value) {
         return value != null ? value.toString() : null;
+    }
+
+    public record ResolveResult(boolean updated, boolean exists) {
     }
 }
