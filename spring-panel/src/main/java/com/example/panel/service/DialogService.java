@@ -54,6 +54,7 @@ public class DialogService {
         try {
             String sql = """
                     SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business,
+                           COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
                        m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
@@ -75,6 +76,7 @@ public class DialogService {
                     rs.getString("username"),
                     rs.getString("client_name"),
                     rs.getString("business"),
+                    rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
                     rs.getString("channel_name"),
                     rs.getString("city"),
                     rs.getString("location_name"),
@@ -98,6 +100,7 @@ public class DialogService {
         try {
             String sql = """
                     SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business,
+                           COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
                            m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
@@ -121,6 +124,7 @@ public class DialogService {
                     rs.getString("username"),
                     rs.getString("client_name"),
                     rs.getString("business"),
+                    rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
                     rs.getString("channel_name"),
                     rs.getString("city"),
                     rs.getString("location_name"),
