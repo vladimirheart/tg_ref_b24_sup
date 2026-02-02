@@ -1,99 +1,101 @@
 package com.example.panel.controller;
 
-import com.example.panel.model.dialog.DialogChannelStat;
+import com.example.panel.model.dialog.ChatMessageDto;
+import com.example.panel.model.dialog.DialogDetails;
+import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
-public class DashboardApiController {
+@RequestMapping("/api/dialogs")
+@Validated
+public class DialogApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(DialogApiController.class);
 
     private final DialogService dialogService;
+    private final DialogReplyService dialogReplyService;
 
-    public DashboardApiController(DialogService dialogService) {
+    public DialogApiController(DialogService dialogService, DialogReplyService dialogReplyService) {
         this.dialogService = dialogService;
+        this.dialogReplyService = dialogReplyService;
     }
 
-    @PostMapping("/api/dashboard/data")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
-    public DashboardResponse loadDashboard(@RequestBody(required = false) DashboardFilter filter) {
+    @GetMapping
+    public Map<String, Object> list() {
         DialogSummary summary = dialogService.loadSummary();
-        DashboardStatsPeriod current = new DashboardStatsPeriod(
-                summary.totalTickets(),
-                summary.resolvedTickets(),
-                summary.pendingTickets()
-        );
-        DashboardStatsPeriod previous = new DashboardStatsPeriod(0, 0, 0);
-        DashboardStats stats = new DashboardStats(current, previous);
-        DashboardTimeStats timeStats = new DashboardTimeStats("0 ч", "0 мин", summary.resolvedTickets());
-        DashboardCharts charts = new DashboardCharts(
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyMap()
-        );
-        return new DashboardResponse(stats, timeStats, List.of(), charts);
+        List<DialogListItem> dialogs = dialogService.loadDialogs();
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("summary", summary);
+        payload.put("dialogs", dialogs);
+        payload.put("success", true);
+        log.info("Loaded dialogs API payload: {} dialogs, summary stats loaded", dialogs.size());
+        return payload;
     }
 
-    @GetMapping("/stats_data")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
-    public Map<String, Object> loadChannelStats() {
-        DialogSummary summary = dialogService.loadSummary();
-        List<Map<String, Object>> byChannel = summary.channelStats().stream()
-                .map(this::toChannelMap)
-                .toList();
-        return Map.of("by_channel", byChannel);
+    @GetMapping("/{ticketId}")
+    public ResponseEntity<?> details(@PathVariable String ticketId,
+                                     @RequestParam(value = "channelId", required = false) Long channelId,
+                                     Authentication authentication) {
+        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId);
+        log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
+                details.map(d -> "found").orElse("not found"));
+        return details.<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден")));
     }
 
-    private Map<String, Object> toChannelMap(DialogChannelStat stat) {
+    @GetMapping("/{ticketId}/history")
+    public Map<String, Object> history(@PathVariable String ticketId,
+                                        @RequestParam(value = "channelId", required = false) Long channelId) {
+        List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
+        log.info("History requested for ticket {} (channelId={}): {} messages", ticketId, channelId, history.size());
         return Map.of(
-                "name", stat.name(),
-                "total", stat.total()
+                "success", true,
+                "messages", history
         );
     }
 
-    public record DashboardFilter(String startDate, String endDate, List<String> restaurants) {
+    @PostMapping("/{ticketId}/reply")
+    public ResponseEntity<?> reply(@PathVariable String ticketId,
+                                   @RequestBody DialogReplyRequest request,
+                                   Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(
+                ticketId,
+                request.message(),
+                request.replyToTelegramId(),
+                operator
+        );
+        if (!result.success()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", result.error()));
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "timestamp", result.timestamp(),
+                "telegramMessageId", result.telegramMessageId()
+        ));
     }
 
-    public record DashboardResponse(DashboardStats stats,
-                                    @JsonProperty("time_stats") DashboardTimeStats timeStats,
-                                    @JsonProperty("staff_time_stats") List<StaffTimeStat> staffTimeStats,
-                                    DashboardCharts charts) {
-    }
-
-    public record DashboardStats(DashboardStatsPeriod current, DashboardStatsPeriod previous) {
-    }
-
-    public record DashboardStatsPeriod(long total, long resolved, long pending) {
-    }
-
-    public record DashboardTimeStats(@JsonProperty("formatted_total") String formattedTotal,
-                                     @JsonProperty("formatted_avg") String formattedAvg,
-                                     @JsonProperty("resolved_count") long resolvedCount) {
-    }
-
-    public record StaffTimeStat(String name,
-                                @JsonProperty("formatted_total") String formattedTotal,
-                                @JsonProperty("resolved_count") long resolvedCount,
-                                @JsonProperty("formatted_avg") String formattedAvg,
-                                @JsonProperty("formatted_avg_response") String formattedAvgResponse,
-                                @JsonProperty("total_minutes") long totalMinutes) {
-    }
-
-    public record DashboardCharts(Map<String, Long> business,
-                                  Map<String, Long> network,
-                                  Map<String, Long> category,
-                                  Map<String, Long> city,
-                                  Map<String, Long> restaurant) {
-    }
+    public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 }
