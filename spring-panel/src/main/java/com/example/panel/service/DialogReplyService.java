@@ -25,16 +25,19 @@ public class DialogReplyService {
     private final JdbcTemplate jdbcTemplate;
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
+    private final DialogService dialogService;
 
     public DialogReplyService(JdbcTemplate jdbcTemplate,
                               ChannelRepository channelRepository,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              DialogService dialogService) {
         this.jdbcTemplate = jdbcTemplate;
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
+        this.dialogService = dialogService;
     }
 
-    public DialogReplyResult sendReply(String ticketId, String message, Long replyToTelegramId) {
+    public DialogReplyResult sendReply(String ticketId, String message, Long replyToTelegramId, String operator) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(message)) {
             return DialogReplyResult.error("Сообщение не может быть пустым.");
         }
@@ -94,6 +97,7 @@ public class DialogReplyService {
                 telegramMessageId,
                 replyToTelegramId
         );
+        dialogService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(timestamp, telegramMessageId);
     }
 
