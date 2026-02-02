@@ -50,6 +50,7 @@
   const HISTORY_POLL_INTERVAL = 8000;
 
   let activeDialogTicketId = null;
+  let activeDialogChannelId = null;
   let activeDialogRow = null;
   let historyPollTimer = null;
   let lastHistoryMarker = null;
@@ -403,12 +404,20 @@
     ].join('|');
   }
 
+  function withChannelParam(path, channelId) {
+    if (!channelId) return path;
+    const separator = path.includes('?') ? '&' : '?';
+    return `${path}${separator}channelId=${encodeURIComponent(channelId)}`;
+  }
+
   async function refreshHistory() {
     if (!activeDialogTicketId || historyLoading) return;
     historyLoading = true;
     try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/history`, {
+      const url = withChannelParam(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/history`, activeDialogChannelId);
+      const resp = await fetch(url, {
         credentials: 'same-origin',
+        cache: 'no-store',
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
@@ -480,18 +489,26 @@
     if (!ticketId || !detailsModal) return;
     activeDialogTicketId = ticketId;
     activeDialogRow = fallbackRow || null;
+    activeDialogChannelId = fallbackRow?.dataset?.channelId || null;
     if (detailsMeta) detailsMeta.textContent = `ID диалога: ${ticketId}`;
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
     if (detailsReplyText) detailsReplyText.value = '';
 
     try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}`, { credentials: 'same-origin' });
+      const url = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}`, activeDialogChannelId);
+      const resp = await fetch(url, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
       const data = await resp.json();
       if (!resp.ok) {
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const summary = data.summary || {};
+      if (summary.channelId) {
+        activeDialogChannelId = summary.channelId;
+      }
 
       const resolvedBy = summary.resolvedBy || summary.resolved_by;
       const resolvedAt = summary.resolvedAt || summary.resolved_at;
@@ -770,6 +787,7 @@
     });
     detailsModalEl.addEventListener('hidden.bs.modal', () => {
       activeDialogTicketId = null;
+      activeDialogChannelId = null;
       activeDialogRow = null;
       if (detailsReplyText) detailsReplyText.value = '';
       stopHistoryPolling();
