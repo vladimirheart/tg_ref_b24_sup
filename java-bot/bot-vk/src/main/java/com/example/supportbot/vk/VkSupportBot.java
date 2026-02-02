@@ -363,6 +363,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         GroupActor actor = createActor();
         try {
+            log.info("Sending VK direct message to peer {}: {}", peerId, summarizeText(text));
             vkClient.messages()
                     .send(actor)
                     .peerId(peerId)
@@ -371,7 +372,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     .execute();
             return true;
         } catch (ClientException e) {
-            log.error("Failed to send VK message", e);
+            log.error("Failed to send VK message to peer {}", peerId, e);
             return false;
         }
     }
@@ -381,6 +382,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
         try {
+            log.info("Sending VK message to peer {}: {}", peerId, summarizeText(text));
             vkClient.messages()
                     .send(actor)
                     .peerId(peerId)
@@ -388,7 +390,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     .message(text)
                     .execute();
         } catch (ClientException e) {
-            log.error("Failed to send VK message", e);
+            log.error("Failed to send VK message to peer {}", peerId, e);
         }
     }
 
