@@ -4,6 +4,7 @@ import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,9 +33,11 @@ public class DialogApiController {
     private static final Logger log = LoggerFactory.getLogger(DialogApiController.class);
 
     private final DialogService dialogService;
+    private final DialogReplyService dialogReplyService;
 
-    public DialogApiController(DialogService dialogService) {
+    public DialogApiController(DialogService dialogService, DialogReplyService dialogReplyService) {
         this.dialogService = dialogService;
+        this.dialogReplyService = dialogReplyService;
     }
 
     @GetMapping
@@ -72,4 +77,25 @@ public class DialogApiController {
                 "messages", history
         );
     }
+
+    @PostMapping("/{ticketId}/reply")
+    public ResponseEntity<?> reply(@PathVariable String ticketId,
+                                   @RequestBody DialogReplyRequest request) {
+        DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(
+                ticketId,
+                request.message(),
+                request.replyToTelegramId()
+        );
+        if (!result.success()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", result.error()));
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "timestamp", result.timestamp(),
+                "telegramMessageId", result.telegramMessageId()
+        ));
+    }
+
+    public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 }
