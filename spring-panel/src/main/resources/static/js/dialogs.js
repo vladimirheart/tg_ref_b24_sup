@@ -516,7 +516,7 @@
         ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
         ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
         ['Ответственный', responsibleLabel],
-        ['Создан', createdLabel],
+        ['Создан', createdDisplay || createdLabel],
       ];
       if (detailsSummary) {
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => `
