@@ -16,6 +16,8 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -101,6 +103,22 @@ public class TicketService {
     @Transactional(readOnly = true)
     public Optional<TicketMessage> findLastMessage(long userId) {
         return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TicketActive> findActiveTicketForUser(Long userId, String username) {
+        List<String> identities = new ArrayList<>();
+        if (userId != null && userId > 0) {
+            identities.add(userId.toString());
+        }
+        if (username != null && !username.isBlank()) {
+            identities.add(username);
+        }
+        if (identities.isEmpty()) {
+            return Optional.empty();
+        }
+        List<TicketActive> active = ticketActiveRepository.findByUserInOrderByLastSeenDesc(identities);
+        return active.isEmpty() ? Optional.empty() : Optional.of(active.get(0));
     }
 
     @Transactional(readOnly = true)
