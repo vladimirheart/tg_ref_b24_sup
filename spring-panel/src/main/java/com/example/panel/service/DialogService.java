@@ -272,6 +272,36 @@ public class DialogService {
         }
     }
 
+    public ResolveResult reopenTicket(String ticketId, String operator) {
+        if (!StringUtils.hasText(ticketId)) {
+            return new ResolveResult(false, false);
+        }
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tickets WHERE ticket_id = ?",
+                    Integer.class,
+                    ticketId
+            );
+            if (count == null || count == 0) {
+                return new ResolveResult(false, false);
+            }
+            int updated = jdbcTemplate.update(
+                    "UPDATE tickets SET status = 'pending', resolved_at = NULL, resolved_by = NULL, "
+                            + "reopen_count = COALESCE(reopen_count, 0) + 1, "
+                            + "last_reopen_at = CURRENT_TIMESTAMP "
+                            + "WHERE ticket_id = ? AND status = 'resolved'",
+                    ticketId
+            );
+            if (updated > 0 && StringUtils.hasText(operator)) {
+                assignResponsibleIfMissing(ticketId, operator);
+            }
+            return new ResolveResult(updated > 0, true);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to reopen ticket {}: {}", ticketId, ex.getMessage());
+            return new ResolveResult(false, false);
+        }
+    }
+
     private static String buildPreview(Object message, Object messageType) {
         String base = value(message);
         if (StringUtils.hasText(base)) {
