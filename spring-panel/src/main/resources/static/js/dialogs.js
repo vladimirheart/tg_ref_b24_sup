@@ -318,12 +318,28 @@
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const summary = data.summary || {};
+      const resolvedBy = summary.resolvedBy || summary.resolved_by;
+      const resolvedAt = summary.resolvedAt || summary.resolved_at;
+      const createdDate = summary.createdDate || summary.created_date;
+      const createdTime = summary.createdTime || summary.created_time;
+      const createdAt = summary.createdAt || summary.created_at;
+      const createdLabel = [createdDate, createdTime].filter(Boolean).join(' ')
+        || createdAt
+        || '—';
+      const responsibleLabel = summary.responsible
+        || resolvedBy
+        || fallbackRow?.dataset.responsible
+        || '—';
       const summaryItems = [
         ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
+        ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
         ['Статус', summary.status ? summary.statusLabel || summary.status : fallbackRow?.dataset.status || '—'],
+        ['Канал', summary.channelName || fallbackRow?.dataset.channel || '—'],
+        ['Бизнес', summary.business || fallbackRow?.dataset.business || '—'],
         ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
         ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
-        ['Ответственный', summary.responsible || fallbackRow?.dataset.responsible || '—'],
+        ['Ответственный', responsibleLabel],
+        ['Создан', createdLabel],
       ];
       if (detailsSummary) {
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => `
