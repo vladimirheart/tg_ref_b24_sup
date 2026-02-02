@@ -25,6 +25,7 @@
   const detailsSummary = document.getElementById('dialogDetailsSummary');
   const detailsHistory = document.getElementById('dialogDetailsHistory');
   const detailsCreateTask = document.getElementById('dialogDetailsCreateTask');
+  const detailsResolve = document.getElementById('dialogDetailsResolve');
   const detailsProblem = document.getElementById('dialogDetailsProblem');
   const detailsMetrics = document.getElementById('dialogDetailsMetrics');
   const detailsSidebar = document.getElementById('dialogDetailsSidebar');
@@ -45,8 +46,13 @@
   const STORAGE_COLUMNS = 'bender:dialogs:columns';
   const STORAGE_WIDTHS = 'bender:dialogs:column-widths';
   const STORAGE_TASK = 'bender:dialogs:create-task';
+  const HISTORY_POLL_INTERVAL = 8000;
 
   let activeDialogTicketId = null;
+  let activeDialogRow = null;
+  let historyPollTimer = null;
+  let lastHistoryMarker = null;
+  let historyLoading = false;
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -325,8 +331,10 @@
     if (!detailsHistory) return;
     if (!Array.isArray(messages) || messages.length === 0) {
       detailsHistory.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
+      lastHistoryMarker = 'empty';
       return;
     }
+    lastHistoryMarker = historyMarker(messages);
     detailsHistory.innerHTML = messages.map((msg) => {
       const senderType = normalizeMessageSender(msg.sender);
       const timestamp = formatTimestamp(msg.timestamp);
@@ -366,11 +374,94 @@
     `;
     detailsHistory.appendChild(wrapper);
     detailsHistory.scrollTop = detailsHistory.scrollHeight;
+    lastHistoryMarker = `local:${Date.now()}`;
+  }
+
+  function historyMarker(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) return 'empty';
+    const last = messages[messages.length - 1] || {};
+    return [
+      messages.length,
+      last.telegramMessageId || '',
+      last.timestamp || '',
+      last.sender || '',
+      last.message || '',
+    ].join('|');
+  }
+
+  async function refreshHistory() {
+    if (!activeDialogTicketId || historyLoading) return;
+    historyLoading = true;
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/history`, {
+        credentials: 'same-origin',
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data?.success) {
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
+      }
+      const messages = data.messages || [];
+      const marker = historyMarker(messages);
+      if (marker !== lastHistoryMarker) {
+        renderHistory(messages);
+      }
+    } catch (error) {
+      // ignore polling errors
+    } finally {
+      historyLoading = false;
+    }
+  }
+
+  function startHistoryPolling() {
+    if (historyPollTimer) return;
+    historyPollTimer = setInterval(refreshHistory, HISTORY_POLL_INTERVAL);
+  }
+
+  function stopHistoryPolling() {
+    if (historyPollTimer) {
+      clearInterval(historyPollTimer);
+      historyPollTimer = null;
+    }
+  }
+
+  function updateResolveButton(statusRaw) {
+    if (!detailsResolve) return;
+    const resolved = String(statusRaw || '').toLowerCase() === 'resolved';
+    detailsResolve.disabled = resolved;
+    detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
+  }
+
+  function updateRowStatus(row, statusRaw, statusLabel) {
+    if (!row) return;
+    row.dataset.status = statusLabel;
+    row.dataset.statusRaw = statusRaw;
+    const badge = row.querySelector('.badge');
+    if (badge) {
+      badge.textContent = statusLabel;
+      badge.classList.remove('bg-primary-subtle', 'text-primary', 'bg-warning-subtle', 'text-warning', 'bg-success-subtle', 'text-success', 'bg-secondary-subtle', 'text-secondary');
+      if (statusRaw === 'resolved') {
+        badge.classList.add('bg-success-subtle', 'text-success');
+      } else if (statusRaw === 'pending') {
+        badge.classList.add('bg-warning-subtle', 'text-warning');
+      } else {
+        badge.classList.add('bg-primary-subtle', 'text-primary');
+      }
+    }
+  }
+
+  function formatStatusLabel(raw, fallback) {
+    if (fallback) return fallback;
+    const normalized = String(raw || '').toLowerCase();
+    if (normalized === 'resolved') return 'Закрыт';
+    if (normalized === 'pending') return 'В ожидании';
+    if (normalized) return 'Открыт';
+    return '—';
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
     if (!ticketId || !detailsModal) return;
     activeDialogTicketId = ticketId;
+    activeDialogRow = fallbackRow || null;
     if (detailsMeta) detailsMeta.textContent = `ID диалога: ${ticketId}`;
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
@@ -405,7 +496,8 @@
       const clientStatus = summary.clientStatus || fallbackRow?.dataset.clientStatus || '—';
       const channelLabel = summary.channelName || fallbackRow?.dataset.channel || '—';
       const businessLabel = summary.business || fallbackRow?.dataset.business || '—';
-      const statusLabel = summary.status ? summary.statusLabel || summary.status : fallbackRow?.dataset.status || '—';
+      const statusRaw = summary.status || fallbackRow?.dataset.statusRaw || '';
+      const statusLabel = formatStatusLabel(statusRaw, fallbackRow?.dataset.status);
       const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
       const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
       if (detailsAvatar) {
@@ -418,7 +510,7 @@
       const summaryItems = [
         ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
         ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
-        ['Статус', summary.status ? summary.statusLabel || summary.status : fallbackRow?.dataset.status || '—'],
+        ['Статус', statusLabel || '—'],
         ['Канал', summary.channelName || fallbackRow?.dataset.channel || '—'],
         ['Бизнес', summary.business || fallbackRow?.dataset.business || '—'],
         ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
@@ -450,6 +542,10 @@
         `).join('');
       }
       renderHistory(data.history || []);
+      updateResolveButton(statusRaw);
+      if (statusRaw) {
+        updateRowStatus(activeDialogRow, statusRaw, statusLabel);
+      }
     } catch (error) {
       if (detailsSummary) {
         detailsSummary.innerHTML = `<div class="text-danger">Не удалось загрузить детали: ${error.message}</div>`;
@@ -457,6 +553,7 @@
     }
 
     detailsModal.show();
+    startHistoryPolling();
   }
 
   table.addEventListener('click', (event) => {
@@ -482,6 +579,32 @@
       const meta = (detailsMeta?.textContent || '').match(/ID диалога:\s*(.+)$/);
       if (meta && meta[1]) {
         setTaskDraft({ ticketId: meta[1].trim() });
+      }
+    });
+  }
+
+  if (detailsResolve) {
+    detailsResolve.addEventListener('click', async () => {
+      if (!activeDialogTicketId) return;
+      detailsResolve.disabled = true;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        await openDialogDetails(activeDialogTicketId, activeDialogRow);
+        if (typeof showNotification === 'function') {
+          showNotification('Диалог закрыт', 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+        }
+        detailsResolve.disabled = false;
       }
     });
   }
@@ -597,9 +720,14 @@
   }
 
   if (detailsModalEl) {
+    detailsModalEl.addEventListener('shown.bs.modal', () => {
+      startHistoryPolling();
+    });
     detailsModalEl.addEventListener('hidden.bs.modal', () => {
       activeDialogTicketId = null;
+      activeDialogRow = null;
       if (detailsReplyText) detailsReplyText.value = '';
+      stopHistoryPolling();
     });
   }
 
