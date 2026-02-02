@@ -704,9 +704,13 @@
 
     function formatMessageTimestamp(value) {
         if (!value) return '';
-        const parsed = new Date(value);
+        const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+        const parsed = new Date(numeric);
         if (!Number.isNaN(parsed.getTime())) {
-            return parsed.toLocaleString();
+            const day = String(parsed.getDate()).padStart(2, '0');
+            const month = String(parsed.getMonth() + 1).padStart(2, '0');
+            const year = parsed.getFullYear();
+            return `${day}:${month}:${year}`;
         }
         return value;
     }
@@ -721,12 +725,12 @@
         container.innerHTML = messages.map((msg) => {
             const senderType = normalizeMessageSender(msg.sender);
             const timestamp = formatMessageTimestamp(msg.timestamp);
-            const body = msg.message ? msg.message.replace(/\n/g, '<br>') : '—';
+            const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
+            const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
+            const body = bodyText || fallbackType || '—';
             let attachment = '';
             if (msg.attachment) {
-                const name = msg.attachment.split('/').pop();
-                const url = `/api/attachments/tickets/${encodeURIComponent(clientHistoryTicketId || '')}/${encodeURIComponent(name)}`;
-                attachment = `<div class="small"><a href="${url}" target="_blank" rel="noopener">Вложение</a></div>`;
+                attachment = `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`;`;
             }
             return `
                 <div class="chat-message ${senderType}">
