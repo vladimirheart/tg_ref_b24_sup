@@ -414,6 +414,7 @@ public class SupportBot extends TelegramLongPollingBot {
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store document", e);
         }
+    }
 
     private void handlePhoto(Message message, ConversationSession session) {
         List<PhotoSize> photos = message.getPhoto();
