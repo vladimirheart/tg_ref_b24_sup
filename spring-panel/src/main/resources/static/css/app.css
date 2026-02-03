@@ -261,6 +261,15 @@ body {
   font-weight: 500;
 }
 
+.dialog-time-metric-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #212529;
+}
+
 @media (max-width: 991.98px) {
   .dialog-details-layout {
     flex-direction: column;
