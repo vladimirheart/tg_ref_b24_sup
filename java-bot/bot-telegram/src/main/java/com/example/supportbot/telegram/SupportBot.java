@@ -205,7 +205,10 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         if (message.hasText()) {
-            if ("/start".equalsIgnoreCase(message.getText())) {
+            if (isMyTicketsCommand(message.getText())) {
+                log.info("Received my tickets command from user {} in update {}", userId, update.getUpdateId());
+                handleMyTickets(message);
+            } else if ("/start".equalsIgnoreCase(message.getText())) {
                 log.info("Received /start from user {} in update {}", userId, update.getUpdateId());
                 startConversation(message, session, channel);
             } else if ("/cancel".equalsIgnoreCase(message.getText())) {
@@ -257,6 +260,8 @@ public class SupportBot extends TelegramLongPollingBot {
         if ("/unblock".equalsIgnoreCase(text)) {
             log.info("Received /unblock from user {}", message.getFrom() != null ? message.getFrom().getId() : null);
             requestUnblock(message);
+        } else if (isMyTicketsCommand(text)) {
+            handleMyTickets(message);
         } else if (!handleActiveTextMessage(message)) {
             log.info("Ignoring text message from user {}: {}",
                     message.getFrom() != null ? message.getFrom().getId() : null,
@@ -853,7 +858,7 @@ public class SupportBot extends TelegramLongPollingBot {
             SendMessage prompt = SendMessage.builder()
                     .chatId(session.chatId())
                     .text(session.reusePrompt())
-                    .replyMarkup(new ReplyKeyboardRemove(true))
+                    .replyMarkup(keyboardMarkup(List.of("Да", "Нет")))
                     .build();
             try {
                 execute(prompt);
@@ -886,6 +891,63 @@ public class SupportBot extends TelegramLongPollingBot {
             execute(prompt);
         } catch (TelegramApiException e) {
             log.error("Failed to send conversation prompt", e);
+        }
+    }
+
+    private boolean isMyTicketsCommand(String text) {
+        if (text == null) {
+            return false;
+        }
+        String normalized = text.trim().toLowerCase().replaceAll("\\s+", " ");
+        return "мои заявки".equals(normalized);
+    }
+
+    private void handleMyTickets(Message message) {
+        if (message.getFrom() == null) {
+            return;
+        }
+        List<TicketService.TicketSummary> tickets = ticketService.findRecentTicketsForUser(message.getFrom().getId(), 10);
+        String response = formatTicketsResponse(tickets);
+        SendMessage reply = SendMessage.builder()
+                .chatId(message.getChatId())
+                .text(response)
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(reply);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send my tickets response", e);
+        }
+    }
+
+    private String formatTicketsResponse(List<TicketService.TicketSummary> tickets) {
+        if (tickets.isEmpty()) {
+            return "У вас пока нет заявок.";
+        }
+        StringBuilder builder = new StringBuilder("Ваши заявки:\n\n");
+        for (TicketService.TicketSummary ticket : tickets) {
+            builder.append("#").append(Optional.ofNullable(ticket.ticketId()).orElse("—")).append("\n");
+            builder.append("Ресторан: ").append(formatRestaurant(ticket)).append("\n");
+            builder.append("Проблема: ").append(Optional.ofNullable(ticket.problem()).filter(s -> !s.isBlank()).orElse("—"))
+                    .append("\n");
+            builder.append("Оценка: ").append(Optional.ofNullable(ticket.rating()).map(Object::toString).orElse("—"))
+                    .append("\n\n");
+        }
+        return builder.toString().trim();
+    }
+
+    private String formatRestaurant(TicketService.TicketSummary ticket) {
+        List<String> parts = new ArrayList<>();
+        addIfPresent(parts, ticket.business());
+        addIfPresent(parts, ticket.locationType());
+        addIfPresent(parts, ticket.city());
+        addIfPresent(parts, ticket.locationName());
+        return parts.isEmpty() ? "—" : String.join(", ", parts);
+    }
+
+    private void addIfPresent(List<String> parts, String value) {
+        if (value != null && !value.isBlank()) {
+            parts.add(value);
         }
     }
 
