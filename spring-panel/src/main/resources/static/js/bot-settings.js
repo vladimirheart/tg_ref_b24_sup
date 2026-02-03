@@ -1218,10 +1218,10 @@ const id = ensureQuestionId(source.id);
       if (visibleOptions.length) {
         const badges = visibleOptions
           .slice(0, 12)
-          .map((value) => `<span class="badge rounded-pill text-bg-light border bot-question-preview__badge">${html(value)}</span>`);
+          .map((value) => `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>${html(value)}</button>`);
         if (visibleOptions.length > 12) {
           badges.push(
-            `<span class="badge rounded-pill text-bg-light border bot-question-preview__badge">+${visibleOptions.length - 12} ещё</span>`,
+            `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>+${visibleOptions.length - 12} ещё</button>`,
           );
         }
         optionsEl.innerHTML = badges.join(' ');
@@ -1479,7 +1479,7 @@ const id = ensureQuestionId(source.id);
           <div class="row g-3 align-items-end">
             <div class="col-lg-6">
               <label class="form-label">Текст вопроса</label>
-              <input type="text" class="form-control" value="${html(question.text || '')}" data-bot-question-text>
+              <input type="text" class="form-control" value="${html(question.text || '')}" data-bot-question-text${isPreset ? ' readonly aria-readonly="true"' : ''}>
             </div>
             <div class="col-lg-3">
               <label class="form-label">Тип вопроса</label>
@@ -1970,9 +1970,15 @@ const id = ensureQuestionId(source.id);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bot_settings: payload }),
       });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error((data && data.error) || `HTTP ${response.status}`);
+      let data = null;
+      let rawText = '';
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        rawText = await response.text();
+      }
+      if (!response.ok || (data && data.success === false)) {
+        throw new Error((data && data.error) || rawText || `HTTP ${response.status}`);
       }
       setStatus('Настройки сохранены.', false);
       initialState = normalizeSettings(payload);
