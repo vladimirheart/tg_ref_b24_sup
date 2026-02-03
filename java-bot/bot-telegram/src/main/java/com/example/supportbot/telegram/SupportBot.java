@@ -73,6 +73,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private volatile String cachedChannelPublicId;
     private volatile Channel cachedChannel;
     private volatile Map<String, Object> cachedLocationTree;
+    private volatile Map<String, Object> cachedPresetDefinitions;
 
     public SupportBot(BotProperties properties,
                       BlacklistService blacklistService,
@@ -876,7 +877,7 @@ public class SupportBot extends TelegramLongPollingBot {
         SendMessage.SendMessageBuilder promptBuilder = SendMessage.builder()
                 .chatId(session.chatId())
                 .text(current.getText());
-        if (isPresetQuestion(current) && !session.isLastQuestion()) {
+        if (isPresetQuestion(current)) {
             List<String> options = resolvePresetOptions(current, session.answers());
             if (!options.isEmpty()) {
                 promptBuilder.replyMarkup(keyboardMarkup(options));
@@ -982,12 +983,16 @@ public class SupportBot extends TelegramLongPollingBot {
         if (current == null || current.getPreset() == null) {
             return List.of();
         }
+        String group = current.getPreset().group();
         String field = current.getPreset().field();
-        if (field == null || field.isBlank()) {
+        if (field == null || field.isBlank() || group == null || group.isBlank()) {
             return List.of();
         }
-        Map<String, Object> tree = locationTree();
-        List<String> options = resolveLocationOptions(field, answers, tree);
+        List<String> options = resolvePresetDefinitionOptions(group, field);
+        if (options.isEmpty() && "locations".equalsIgnoreCase(group)) {
+            Map<String, Object> tree = locationTree();
+            options = resolveLocationOptions(field, answers, tree);
+        }
         List<String> excluded = Optional.ofNullable(current.getExcludedOptions()).orElseGet(List::of);
         if (!excluded.isEmpty() && !options.isEmpty()) {
             options = options.stream()
@@ -995,6 +1000,17 @@ public class SupportBot extends TelegramLongPollingBot {
                     .toList();
         }
         return options;
+    }
+
+    private List<String> resolvePresetDefinitionOptions(String group, String field) {
+        if (group == null || field == null) {
+            return List.of();
+        }
+        Map<String, Object> definitions = presetDefinitions();
+        Map<String, Object> groupData = asMap(definitions.get(group));
+        Map<String, Object> fields = asMap(groupData.get("fields"));
+        Map<String, Object> fieldData = asMap(fields.get(field));
+        return asList(fieldData.get("options"));
     }
 
     private List<String> resolveLocationOptions(String field, Map<String, String> answers, Map<String, Object> tree) {
@@ -1074,6 +1090,16 @@ public class SupportBot extends TelegramLongPollingBot {
         );
         cachedLocationTree = resolved != null ? resolved : new LinkedHashMap<>();
         return cachedLocationTree;
+    }
+
+    private Map<String, Object> presetDefinitions() {
+        if (cachedPresetDefinitions != null) {
+            return cachedPresetDefinitions;
+        }
+        Map<String, Object> baseDefinitions = sharedConfigService.presetDefinitions();
+        Map<String, Object> merged = botSettingsService.buildLocationPresets(locationTree(), baseDefinitions);
+        cachedPresetDefinitions = merged != null ? merged : new LinkedHashMap<>();
+        return cachedPresetDefinitions;
     }
 
     private void finalizeConversation(ConversationSession session) {
