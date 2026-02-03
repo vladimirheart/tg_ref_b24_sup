@@ -215,6 +215,30 @@
                             <div class="fw-semibold mb-2">Метрики</div>
                             <div class="d-flex flex-column gap-2 small" id="dialogDetailsMetrics"></div>
                         </div>
+                        <div class="dialog-details-section" id="dialogCategoryTemplatesSection">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="fw-semibold">Категории</div>
+                                <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
+                            <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
+                        </div>
+                        <div class="dialog-details-section" id="dialogQuestionTemplatesSection">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="fw-semibold">Шаблоны вопросов</div>
+                                <select class="form-select form-select-sm w-auto" id="dialogQuestionTemplateSelect"></select>
+                            </div>
+                            <div class="d-flex flex-column gap-2" id="dialogQuestionTemplateList"></div>
+                            <div class="text-muted small d-none" id="dialogQuestionTemplateEmpty">Шаблоны вопросов не настроены.</div>
+                        </div>
+                        <div class="dialog-details-section" id="dialogCompletionTemplatesSection">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="fw-semibold">Шаблоны действий</div>
+                                <select class="form-select form-select-sm w-auto" id="dialogCompletionTemplateSelect"></select>
+                            </div>
+                            <div class="d-flex flex-column gap-2 small" id="dialogCompletionTemplateList"></div>
+                            <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
+                        </div>
                         <div class="dialog-details-resize-handle" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
                     </div>
                     <div class="dialog-details-main">
@@ -246,6 +270,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:inline="javascript">
+  const RAW_DIALOG_CONFIG = /*[[${settingsPayload['dialog_config']}]]*/ {};
+  const DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
+</script>
 <script th:src="@{/js/dialogs.js}"></script>
 </body>
 </html>
