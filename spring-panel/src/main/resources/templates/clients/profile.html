@@ -83,7 +83,8 @@
                                 </button>
                             </div>
                             <div class="mt-3">
-                                <button class="btn btn-sm btn-outline-secondary" type="button" id="refreshExternalInfoBtn">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" id="refreshExternalInfoBtn"
+                                        th:text="${profile.header.platform != null ? '🔄 Обновить данные из ' + (${profile.header.platform} == 'vk' ? 'VK' : 'Telegram') : '🔄 Обновить данные из …'}">
                                     🔄 Обновить данные из Telegram/VK
                                 </button>
                                 <div class="text-muted small mt-1">Обновит имя и юзернейм из внешних источников.</div>
@@ -649,7 +650,9 @@
                 if (clientUsernameDisplay && payload.username) {
                     clientUsernameDisplay.textContent = payload.username;
                 }
-                showNotification('Данные обновлены.', 'success');
+                const level = payload.level || 'success';
+                const message = payload.message || 'Данные обновлены.';
+                showNotification(message, level);
             } catch (error) {
                 showNotification(error?.message || 'Ошибка соединения', 'error');
             } finally {
