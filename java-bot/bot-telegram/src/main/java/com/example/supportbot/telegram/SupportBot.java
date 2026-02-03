@@ -1218,7 +1218,10 @@ public class SupportBot extends TelegramLongPollingBot {
                 return;
             }
             String answer = message.getText();
-            answers.put(current.getId(), answer);
+            String answerKey = answerKeyFor(current);
+            if (answerKey != null) {
+                answers.put(answerKey, answer);
+            }
             currentIndex += 1;
             addHistoryEvent(message, "text", null);
         }
@@ -1308,8 +1311,9 @@ public class SupportBot extends TelegramLongPollingBot {
         private void applyCachedAnswers() {
             for (int i = 0; i < flow.size(); i++) {
                 QuestionFlowItemDto item = flow.get(i);
-                if (cachedAnswers.containsKey(item.getId())) {
-                    answers.put(item.getId(), cachedAnswers.get(item.getId()));
+                String answerKey = answerKeyFor(item);
+                if (answerKey != null && cachedAnswers.containsKey(answerKey)) {
+                    answers.put(answerKey, cachedAnswers.get(answerKey));
                     currentIndex = i + 1;
                 } else {
                     currentIndex = i;
@@ -1332,7 +1336,8 @@ public class SupportBot extends TelegramLongPollingBot {
             builder.append("Новая заявка #").append(ticketId).append(" от пользователя ").append(userId()).append("\n");
             builder.append("Создана: ").append(startedAt).append("\n\n");
             for (QuestionFlowItemDto item : flow) {
-                String answer = answers.getOrDefault(item.getId(), "");
+                String answerKey = answerKeyFor(item);
+                String answer = answerKey != null ? answers.getOrDefault(answerKey, "") : "";
                 builder.append(item.getText()).append(": ").append(answer).append("\n");
             }
             if (!attachments.isEmpty()) {
@@ -1342,6 +1347,19 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
             }
             return builder.toString();
+        }
+
+        private String answerKeyFor(QuestionFlowItemDto item) {
+            if (item == null) {
+                return null;
+            }
+            if (item.getPreset() != null) {
+                String field = Optional.ofNullable(item.getPreset().field()).orElse("").trim();
+                if (!field.isEmpty()) {
+                    return field;
+                }
+            }
+            return item.getId();
         }
     }
 
