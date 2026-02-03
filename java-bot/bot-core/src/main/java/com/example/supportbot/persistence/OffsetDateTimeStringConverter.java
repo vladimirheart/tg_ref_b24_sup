@@ -45,43 +45,55 @@ public class OffsetDateTimeStringConverter implements AttributeConverter<OffsetD
         if (dbData == null || dbData.isBlank()) {
             return null;
         }
+        String trimmed = dbData.trim();
+        if (trimmed.chars().allMatch(Character::isDigit)) {
+            try {
+                long epochValue = Long.parseLong(trimmed);
+                Instant instant = epochValue > 100000000000L
+                    ? Instant.ofEpochMilli(epochValue)
+                    : Instant.ofEpochSecond(epochValue);
+                return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
+            } catch (NumberFormatException ex) {
+                log.warn("Failed to parse epoch OffsetDateTime value '{}'", dbData, ex);
+            }
+        }
         try {
-            return OffsetDateTime.parse(dbData, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            return OffsetDateTime.parse(trimmed, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         } catch (DateTimeParseException ignored) {
             // try legacy and instant formats
         }
         try {
-            Instant instant = Instant.parse(dbData);
+            Instant instant = Instant.parse(trimmed);
             return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
             // try legacy format
         }
         try {
-            LocalDateTime localDateTime = LocalDateTime.parse(dbData, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            LocalDateTime localDateTime = LocalDateTime.parse(trimmed, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             return localDateTime.atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
             // try legacy format
         }
         try {
-            LocalDateTime localDateTime = LocalDateTime.parse(dbData, LEGACY_FORMATTER);
+            LocalDateTime localDateTime = LocalDateTime.parse(trimmed, LEGACY_FORMATTER);
             return localDateTime.atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
             // try date-time format without milliseconds
         }
         try {
-            LocalDateTime localDateTime = LocalDateTime.parse(dbData, DATE_TIME_FORMATTER);
+            LocalDateTime localDateTime = LocalDateTime.parse(trimmed, DATE_TIME_FORMATTER);
             return localDateTime.atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
             // try date-time format with optional fractional seconds
         }
         try {
-            LocalDateTime localDateTime = LocalDateTime.parse(dbData, SPACE_FRACTIONAL_DATE_TIME_FORMATTER);
+            LocalDateTime localDateTime = LocalDateTime.parse(trimmed, SPACE_FRACTIONAL_DATE_TIME_FORMATTER);
             return localDateTime.atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
             // try date-only format
         }
         try {
-            LocalDate localDate = LocalDate.parse(dbData, DATE_ONLY_FORMATTER);
+            LocalDate localDate = LocalDate.parse(trimmed, DATE_ONLY_FORMATTER);
             return localDate.atStartOfDay().atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ex) {
             log.warn("Failed to parse OffsetDateTime value '{}'", dbData, ex);
