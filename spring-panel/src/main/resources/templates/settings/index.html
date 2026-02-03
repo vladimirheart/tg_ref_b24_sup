@@ -1727,80 +1727,163 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <section class="mb-4">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">Шаблоны категорий обращений</h6>
-                <button class="btn btn-sm btn-outline-success" type="button" onclick="addCategoryTemplate()">+ Шаблон</button>
-              </div>
-              <p class="small text-muted">Сгруппируйте категории обращений в отдельные шаблоны и задайте имена, чтобы быстро переключаться между наборами категорий.</p>
-              <div id="categoryTemplatesList" class="d-flex flex-column gap-3"></div>
-            </section>
+            <ul class="nav nav-tabs" id="dialogSettingsTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link active"
+                  id="dialog-settings-categories-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-categories"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-categories"
+                  aria-selected="true"
+                >
+                  Категории
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-questions-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-questions"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-questions"
+                  aria-selected="false"
+                >
+                  Вопросы
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-completions-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-completions"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-completions"
+                  aria-selected="false"
+                >
+                  Действия
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-metrics-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-metrics"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-metrics"
+                  aria-selected="false"
+                >
+                  Время
+                </button>
+              </li>
+            </ul>
 
-            <hr>
-
-            <section class="mb-4">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">Шаблоны типовых вопросов</h6>
-                <button class="btn btn-sm btn-outline-success" type="button" onclick="addQuestionTemplate()">+ Шаблон</button>
-              </div>
-              <p class="small text-muted">Создайте наборы вопросов, которые можно использовать при общении с клиентом. Они будут доступны в окне диалога.</p>
-              <div id="questionTemplatesList" class="d-flex flex-column gap-3"></div>
-            </section>
-
-            <hr>
-
-            <section>
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">Шаблоны действий после завершения</h6>
-                <button class="btn btn-sm btn-outline-success" type="button" onclick="addCompletionTemplate()">+ Шаблон</button>
-              </div>
-              <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
-              <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
-            </section>
-
-            <hr>
-
-            <section>
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">Цветовая индикация времени</h6>
-              </div>
-              <p class="small text-muted">Настройте пороги и цвета подсветки блока «Время обращения» в окне истории диалога.</p>
-              <div class="row g-3 align-items-end">
-                <div class="col-md-4">
-                  <label for="timeMetricGoodLimit" class="form-label">Зелёная зона, мин</label>
-                  <input type="number" class="form-control" id="timeMetricGoodLimit" min="1" step="1">
-                  <div class="invalid-feedback">Укажите положительное число минут.</div>
-                  <div class="form-text">До этого значения блок подсвечивается зеленоватым цветом.</div>
-                </div>
-                <div class="col-md-4">
-                  <label for="timeMetricWarningLimit" class="form-label">Жёлтая зона, мин</label>
-                  <input type="number" class="form-control" id="timeMetricWarningLimit" min="1" step="1">
-                  <div class="invalid-feedback">Значение должно быть больше зелёной зоны.</div>
-                  <div class="form-text">После этого порога цвет станет красным.</div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Цветовые маркеры</label>
-                  <div class="d-flex flex-column gap-2">
-                    <label class="d-flex align-items-center gap-2">
-                      <span class="small text-muted flex-grow-1">Зелёный</span>
-                      <input type="color" class="form-control form-control-color" id="timeMetricColorGood" title="Цвет зелёной зоны">
-                    </label>
-                    <label class="d-flex align-items-center gap-2">
-                      <span class="small text-muted flex-grow-1">Жёлтый</span>
-                      <input type="color" class="form-control form-control-color" id="timeMetricColorWarning" title="Цвет жёлтой зоны">
-                    </label>
-                    <label class="d-flex align-items-center gap-2">
-                      <span class="small text-muted flex-grow-1">Красный</span>
-                      <input type="color" class="form-control form-control-color" id="timeMetricColorDanger" title="Цвет красной зоны">
-                    </label>
+            <div class="tab-content pt-3" id="dialogSettingsTabsContent">
+              <div
+                class="tab-pane fade show active"
+                id="dialog-settings-categories"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-categories-tab"
+              >
+                <section class="mb-4">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Шаблоны категорий обращений</h6>
+                    <button class="btn btn-sm btn-outline-success" type="button" onclick="addCategoryTemplate()">+ Шаблон</button>
                   </div>
-                </div>
+                  <p class="small text-muted">Сгруппируйте категории обращений в отдельные шаблоны и задайте имена, чтобы быстро переключаться между наборами категорий.</p>
+                  <div id="categoryTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
               </div>
-              <div class="mt-3">
-                <label class="form-label">Предпросмотр</label>
-                <div id="timeMetricPreview" class="dialog-time-metrics-preview"></div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-questions"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-questions-tab"
+              >
+                <section class="mb-4">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Шаблоны типовых вопросов</h6>
+                    <button class="btn btn-sm btn-outline-success" type="button" onclick="addQuestionTemplate()">+ Шаблон</button>
+                  </div>
+                  <p class="small text-muted">Создайте наборы вопросов, которые можно использовать при общении с клиентом. Они будут доступны в окне диалога.</p>
+                  <div id="questionTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
               </div>
-            </section>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-completions"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-completions-tab"
+              >
+                <section>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Шаблоны действий после завершения</h6>
+                    <button class="btn btn-sm btn-outline-success" type="button" onclick="addCompletionTemplate()">+ Шаблон</button>
+                  </div>
+                  <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
+                  <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-metrics"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-metrics-tab"
+              >
+                <section>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Цветовая индикация времени</h6>
+                  </div>
+                  <p class="small text-muted">Настройте пороги и цвета подсветки блока «Время обращения» в окне истории диалога.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <label for="timeMetricGoodLimit" class="form-label">Зелёная зона, мин</label>
+                      <input type="number" class="form-control" id="timeMetricGoodLimit" min="1" step="1">
+                      <div class="invalid-feedback">Укажите положительное число минут.</div>
+                      <div class="form-text">До этого значения блок подсвечивается зеленоватым цветом.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="timeMetricWarningLimit" class="form-label">Жёлтая зона, мин</label>
+                      <input type="number" class="form-control" id="timeMetricWarningLimit" min="1" step="1">
+                      <div class="invalid-feedback">Значение должно быть больше зелёной зоны.</div>
+                      <div class="form-text">После этого порога цвет станет красным.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Цветовые маркеры</label>
+                      <div class="d-flex flex-column gap-2">
+                        <label class="d-flex align-items-center gap-2">
+                          <span class="small text-muted flex-grow-1">Зелёный</span>
+                          <input type="color" class="form-control form-control-color" id="timeMetricColorGood" title="Цвет зелёной зоны">
+                        </label>
+                        <label class="d-flex align-items-center gap-2">
+                          <span class="small text-muted flex-grow-1">Жёлтый</span>
+                          <input type="color" class="form-control form-control-color" id="timeMetricColorWarning" title="Цвет жёлтой зоны">
+                        </label>
+                        <label class="d-flex align-items-center gap-2">
+                          <span class="small text-muted flex-grow-1">Красный</span>
+                          <input type="color" class="form-control form-control-color" id="timeMetricColorDanger" title="Цвет красной зоны">
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <label class="form-label">Предпросмотр</label>
+                    <div id="timeMetricPreview" class="dialog-time-metrics-preview"></div>
+                  </div>
+                </section>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <div class="small text-muted me-auto">Изменения вступят в силу после сохранения.</div>
