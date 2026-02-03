@@ -1,12 +1,14 @@
 package com.example.supportbot.service;
 
 import com.example.supportbot.entity.Channel;
+import com.example.supportbot.entity.Feedback;
 import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.Ticket;
 import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.entity.TicketId;
 import com.example.supportbot.entity.TicketMessage;
 import com.example.supportbot.entity.TicketSpan;
+import com.example.supportbot.repository.FeedbackRepository;
 import com.example.supportbot.repository.PendingFeedbackRequestRepository;
 import com.example.supportbot.repository.TicketActiveRepository;
 import com.example.supportbot.repository.TicketMessageRepository;
@@ -17,10 +19,13 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,19 +40,22 @@ public class TicketService {
     private final TicketSpanRepository ticketSpanRepository;
     private final TicketActiveRepository ticketActiveRepository;
     private final ChatHistoryService chatHistoryService;
+    private final FeedbackRepository feedbackRepository;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
                          PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                          TicketSpanRepository ticketSpanRepository,
                          TicketActiveRepository ticketActiveRepository,
-                         ChatHistoryService chatHistoryService) {
+                         ChatHistoryService chatHistoryService,
+                         FeedbackRepository feedbackRepository) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.ticketSpanRepository = ticketSpanRepository;
         this.ticketActiveRepository = ticketActiveRepository;
         this.chatHistoryService = chatHistoryService;
+        this.feedbackRepository = feedbackRepository;
     }
 
     @Transactional
@@ -103,6 +111,43 @@ public class TicketService {
     @Transactional(readOnly = true)
     public Optional<TicketMessage> findLastMessage(long userId) {
         return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketSummary> findRecentTicketsForUser(long userId, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        List<TicketMessage> messages = messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId);
+        if (messages.isEmpty()) {
+            return List.of();
+        }
+        if (messages.size() > limit) {
+            messages = messages.subList(0, limit);
+        }
+        List<String> ticketIds = messages.stream()
+                .map(TicketMessage::getTicketId)
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+        Map<String, Feedback> latestFeedback = feedbackRepository.findByTicketIdIn(ticketIds).stream()
+                .filter(feedback -> feedback.getTicketId() != null)
+                .collect(Collectors.toMap(
+                        Feedback::getTicketId,
+                        Function.identity(),
+                        (left, right) -> pickLatestFeedback(left, right)));
+        return messages.stream()
+                .map(message -> new TicketSummary(
+                        message.getTicketId(),
+                        message.getProblem(),
+                        message.getBusiness(),
+                        message.getLocationType(),
+                        message.getCity(),
+                        message.getLocationName(),
+                        Optional.ofNullable(latestFeedback.get(message.getTicketId()))
+                                .map(Feedback::getRating)
+                                .orElse(null),
+                        message.getCreatedAt()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -277,5 +322,30 @@ public class TicketService {
     }
 
     public record TicketWithUser(Long userId, String ticketId, String status) {
+    }
+
+    public record TicketSummary(String ticketId,
+                                String problem,
+                                String business,
+                                String locationType,
+                                String city,
+                                String locationName,
+                                Integer rating,
+                                OffsetDateTime createdAt) {
+    }
+
+    private static Feedback pickLatestFeedback(Feedback left, Feedback right) {
+        OffsetDateTime leftTime = left.getTimestamp();
+        OffsetDateTime rightTime = right.getTimestamp();
+        if (leftTime == null && rightTime == null) {
+            return right;
+        }
+        if (leftTime == null) {
+            return right;
+        }
+        if (rightTime == null) {
+            return left;
+        }
+        return Comparator.comparing(Feedback::getTimestamp).compare(left, right) >= 0 ? left : right;
     }
 }
