@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -36,11 +37,14 @@ public class ClientsService {
     private static final DateTimeFormatter DISPLAY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private final JdbcTemplate jdbcTemplate;
     private final ClientUsernameRepository clientUsernameRepository;
+    private final JdbcTemplate botJdbcTemplate;
 
     public ClientsService(JdbcTemplate jdbcTemplate,
-                          ClientUsernameRepository clientUsernameRepository) {
+                          ClientUsernameRepository clientUsernameRepository,
+                          @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.clientUsernameRepository = clientUsernameRepository;
+        this.botJdbcTemplate = botJdbcTemplate;
     }
 
     public List<ClientListItem> loadClients(String blacklistFilter, String statusFilter) {
@@ -390,7 +394,7 @@ public class ClientsService {
     }
 
     private Double loadAverageRating(long userId) {
-        return jdbcTemplate.query(
+        return botJdbcTemplate.query(
             "SELECT AVG(rating) AS avg_rating FROM feedbacks WHERE user_id = ?",
             rs -> {
                 if (!rs.next()) {
