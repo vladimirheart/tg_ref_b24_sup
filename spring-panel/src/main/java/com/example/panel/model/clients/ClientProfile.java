@@ -8,6 +8,8 @@ public record ClientProfile(
         List<ClientProfileTicket> tickets,
         ClientBlacklistInfo blacklist,
         Double averageRating,
+        List<ClientAnalyticsItem> ratingStats,
+        long ratingTotal,
         String clientStatus,
         List<ClientUsernameEntry> usernameHistory,
         List<ClientAnalyticsItem> categoryStats,
