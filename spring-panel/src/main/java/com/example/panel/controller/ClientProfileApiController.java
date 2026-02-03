@@ -6,6 +6,7 @@ import com.example.panel.repository.ClientPhoneRepository;
 import com.example.panel.repository.ClientStatusRepository;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,13 +31,16 @@ public class ClientProfileApiController {
     private static final Logger log = LoggerFactory.getLogger(ClientProfileApiController.class);
 
     private final JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate botJdbcTemplate;
     private final ClientStatusRepository clientStatusRepository;
     private final ClientPhoneRepository clientPhoneRepository;
 
     public ClientProfileApiController(JdbcTemplate jdbcTemplate,
+                                      @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
                                       ClientStatusRepository clientStatusRepository,
                                       ClientPhoneRepository clientPhoneRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.botJdbcTemplate = botJdbcTemplate;
         this.clientStatusRepository = clientStatusRepository;
         this.clientPhoneRepository = clientPhoneRepository;
     }
@@ -122,6 +127,52 @@ public class ClientProfileApiController {
         }
         clientPhoneRepository.save(entry);
         return Map.of("ok", true);
+    }
+
+    @PostMapping("/{userId}/refresh")
+    @Transactional
+    public Map<String, Object> refreshExternalProfile(@PathVariable("userId") long userId) {
+        Map<String, String> userInfo = botJdbcTemplate.query(
+            "SELECT username, first_name, last_name FROM users WHERE user_id = ?",
+            rs -> {
+                if (!rs.next()) {
+                    return null;
+                }
+                String username = rs.getString("username");
+                String firstName = rs.getString("first_name");
+                String lastName = rs.getString("last_name");
+                String combinedName = String.join(" ",
+                    firstName != null ? firstName.trim() : "",
+                    lastName != null ? lastName.trim() : ""
+                ).trim();
+                Map<String, String> result = new HashMap<>();
+                result.put("username", username);
+                result.put("client_name", combinedName);
+                return result;
+            },
+            userId
+        );
+
+        if (userInfo == null) {
+            return Map.of("ok", false, "error", "Данные пользователя не найдены");
+        }
+
+        String username = StringUtils.hasText(userInfo.get("username")) ? userInfo.get("username").trim() : null;
+        String clientName = StringUtils.hasText(userInfo.get("client_name")) ? userInfo.get("client_name").trim() : null;
+
+        if (username != null) {
+            jdbcTemplate.update("UPDATE messages SET username = ? WHERE user_id = ?", username, userId);
+        }
+        if (clientName != null) {
+            jdbcTemplate.update("UPDATE messages SET client_name = ? WHERE user_id = ?", clientName, userId);
+        }
+
+        log.info("Refreshed external info for client {}", userId);
+        return Map.of(
+            "ok", true,
+            "username", username,
+            "client_name", clientName
+        );
     }
 
     private boolean userIdEquals(Long stored, long incoming) {
