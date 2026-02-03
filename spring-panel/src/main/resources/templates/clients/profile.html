@@ -49,8 +49,8 @@
                              onerror="this.onerror=null;this.src='/avatar_default.svg';">
                         <div>
                             <div><strong>ID Telegram:</strong> <code th:text="${profile.header.userId}">0</code></div>
-                            <div><strong>Имя:</strong> <span th:text="${profile.header.clientName} ?: '—'">—</span></div>
-                            <div><strong>Юзернейм:</strong> <span th:text="${profile.header.username} ?: '—'">—</span></div>
+                            <div><strong>Имя:</strong> <span id="clientExternalName" th:text="${profile.header.clientName} ?: '—'">—</span></div>
+                            <div><strong>Юзернейм:</strong> <span id="clientUsernameDisplay" th:text="${profile.header.username} ?: '—'">—</span></div>
                             <div class="mt-2">
                                 <strong>Blacklist:</strong>
                                 <span class="badge text-bg-danger" th:if="${profile.blacklist.blacklisted}">Да</span>
@@ -82,6 +82,12 @@
                                     🏷️ Изменить статус
                                 </button>
                             </div>
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" id="refreshExternalInfoBtn">
+                                    🔄 Обновить данные из Telegram/VK
+                                </button>
+                                <div class="text-muted small mt-1">Обновит имя и юзернейм из внешних источников.</div>
+                            </div>
                         </div>
                     </div>
                     <div class="border rounded p-3 bg-light">
@@ -97,6 +103,12 @@
             <div class="card shadow-sm h-100">
                 <div class="card-body">
                     <h5 class="card-title">Статистика</h5>
+                    <div class="stats-chart mb-3" role="img" aria-label="Диаграмма обращений">
+                        <div class="stats-chart-segment stats-chart-resolved"
+                             th:style="'width:' + (${profile.stats.total} > 0 ? (${profile.stats.resolved} * 100.0 / ${profile.stats.total}) : 0) + '%'"></div>
+                        <div class="stats-chart-segment stats-chart-pending"
+                             th:style="'width:' + (${profile.stats.total} > 0 ? (${profile.stats.pending} * 100.0 / ${profile.stats.total}) : 0) + '%'"></div>
+                    </div>
                     <div class="d-flex flex-wrap gap-3">
                         <div>
                             <div class="text-muted small">Всего заявок</div>
@@ -110,6 +122,20 @@
                             <div class="text-muted small">Ожидают</div>
                             <div class="h4 mb-0" th:text="${profile.stats.pending}">0</div>
                         </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-muted small text-uppercase fw-semibold">Оценки диалогов</div>
+                        <div class="rating-chart mt-2">
+                            <div class="rating-chart-row" th:each="stat : ${profile.ratingStats}">
+                                <div class="rating-chart-label" th:text="${stat.label}">5★</div>
+                                <div class="rating-chart-bar">
+                                    <div class="rating-chart-fill"
+                                         th:style="'width:' + (${profile.ratingTotal} > 0 ? (${stat.count} * 100.0 / ${profile.ratingTotal}) : 0) + '%'"></div>
+                                </div>
+                                <div class="rating-chart-value" th:text="${stat.count}">0</div>
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-2" th:text="'Всего оценок: ' + ${profile.ratingTotal}">Всего оценок: 0</div>
                     </div>
                 </div>
             </div>
@@ -564,6 +590,9 @@
     const clientStatusSelect = document.getElementById('clientStatusSelect');
     const clientStatusDisplay = document.getElementById('clientStatusDisplay');
     const clientStatusError = document.getElementById('clientStatusError');
+    const refreshExternalInfoBtn = document.getElementById('refreshExternalInfoBtn');
+    const clientExternalName = document.getElementById('clientExternalName');
+    const clientUsernameDisplay = document.getElementById('clientUsernameDisplay');
 
     if (clientStatusForm) {
         clientStatusForm.addEventListener('submit', async (event) => {
@@ -595,6 +624,37 @@
                     clientStatusError.textContent = error?.message || 'Ошибка соединения';
                     clientStatusError.classList.remove('d-none');
                 }
+            }
+        });
+    }
+
+    if (refreshExternalInfoBtn) {
+        refreshExternalInfoBtn.addEventListener('click', async () => {
+            if (!clientUserId) return;
+            const originalText = refreshExternalInfoBtn.innerHTML;
+            refreshExternalInfoBtn.disabled = true;
+            refreshExternalInfoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Обновляем...';
+            try {
+                const response = await fetch(`/api/clients/${clientUserId}/refresh`, { method: 'POST' });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || 'Не удалось обновить данные');
+                }
+                if (clientExternalName && payload.client_name) {
+                    clientExternalName.textContent = payload.client_name;
+                }
+                if (clientNameDisplay && payload.client_name) {
+                    clientNameDisplay.textContent = payload.client_name;
+                }
+                if (clientUsernameDisplay && payload.username) {
+                    clientUsernameDisplay.textContent = payload.username;
+                }
+                showNotification('Данные обновлены.', 'success');
+            } catch (error) {
+                showNotification(error?.message || 'Ошибка соединения', 'error');
+            } finally {
+                refreshExternalInfoBtn.disabled = false;
+                refreshExternalInfoBtn.innerHTML = originalText;
             }
         });
     }
