@@ -829,7 +829,20 @@ public class SupportBot extends TelegramLongPollingBot {
         if (isPresetQuestion(current)) {
             List<String> options = resolvePresetOptions(current, session.answers());
             String answer = Optional.ofNullable(message.getText()).orElse("");
-            if (!options.isEmpty() && !options.contains(answer)) {
+            if (options.isEmpty()) {
+                SendMessage retry = SendMessage.builder()
+                        .chatId(session.chatId())
+                        .text("Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.")
+                        .replyMarkup(new ReplyKeyboardRemove(true))
+                        .build();
+                try {
+                    execute(retry);
+                } catch (TelegramApiException e) {
+                    log.error("Failed to notify about missing preset options", e);
+                }
+                return;
+            }
+            if (!options.contains(answer)) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
                         .text("Выберите вариант кнопкой.")
