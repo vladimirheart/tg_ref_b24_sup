@@ -1,6 +1,8 @@
 package com.example.panel.entity;
 
+import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -19,6 +21,7 @@ public class ClientBlacklist {
 
     private String reason;
 
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime addedAt;
 
     private String addedBy;
@@ -26,6 +29,7 @@ public class ClientBlacklist {
     @Column(name = "unblock_requested")
     private Boolean unblockRequested;
 
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime unblockRequestedAt;
 
     public String getUserId() {
