@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,6 +27,8 @@ import org.springframework.util.StringUtils;
 
 @RestController
 public class SettingsBridgeController {
+
+    private static final Logger log = LoggerFactory.getLogger(SettingsBridgeController.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
@@ -44,120 +48,129 @@ public class SettingsBridgeController {
     @RequestMapping(value = {"/settings", "/settings/"}, method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateSettings(@RequestBody Map<String, Object> payload) {
-        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
-        boolean modified = false;
+        try {
+            Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+            boolean modified = false;
 
-        if (payload.containsKey("auto_close_hours")) {
-            Object raw = payload.get("auto_close_hours");
-            settings.put("auto_close_hours", raw);
-            modified = true;
-        }
+            if (payload.containsKey("auto_close_hours")) {
+                Object raw = payload.get("auto_close_hours");
+                settings.put("auto_close_hours", raw);
+                modified = true;
+            }
 
-        if (payload.containsKey("auto_close_config")) {
-            settings.put("auto_close_config", payload.get("auto_close_config"));
-            modified = true;
-        }
+            if (payload.containsKey("auto_close_config")) {
+                settings.put("auto_close_config", payload.get("auto_close_config"));
+                modified = true;
+            }
 
-        if (payload.containsKey("categories")) {
-            Object raw = payload.get("categories");
-            List<String> categories = new ArrayList<>();
-            if (raw instanceof List<?> list) {
-                for (Object item : list) {
-                    String value = item != null ? item.toString().trim() : "";
-                    if (!value.isEmpty()) {
-                        categories.add(value);
+            if (payload.containsKey("categories")) {
+                Object raw = payload.get("categories");
+                List<String> categories = new ArrayList<>();
+                if (raw instanceof List<?> list) {
+                    for (Object item : list) {
+                        String value = item != null ? item.toString().trim() : "";
+                        if (!value.isEmpty()) {
+                            categories.add(value);
+                        }
                     }
                 }
+                settings.put("categories", categories);
+                modified = true;
             }
-            settings.put("categories", categories);
-            modified = true;
-        }
 
-        if (payload.containsKey("client_statuses")) {
-            List<String> statuses = new ArrayList<>();
-            Object raw = payload.get("client_statuses");
-            if (raw instanceof List<?> list) {
-                for (Object item : list) {
-                    String value = item != null ? item.toString().trim() : "";
-                    if (!value.isEmpty() && !statuses.contains(value)) {
-                        statuses.add(value);
+            if (payload.containsKey("client_statuses")) {
+                List<String> statuses = new ArrayList<>();
+                Object raw = payload.get("client_statuses");
+                if (raw instanceof List<?> list) {
+                    for (Object item : list) {
+                        String value = item != null ? item.toString().trim() : "";
+                        if (!value.isEmpty() && !statuses.contains(value)) {
+                            statuses.add(value);
+                        }
                     }
                 }
+                settings.put("client_statuses", statuses);
+                modified = true;
             }
-            settings.put("client_statuses", statuses);
-            modified = true;
-        }
 
-        if (payload.containsKey("client_status_colors")) {
-            Map<String, String> colors = new LinkedHashMap<>();
-            Object raw = payload.get("client_status_colors");
-            if (raw instanceof Map<?, ?> map) {
-                map.forEach((key, value) -> {
-                    String name = key != null ? key.toString().trim() : "";
-                    String color = value != null ? value.toString().trim() : "";
-                    if (StringUtils.hasText(name) && StringUtils.hasText(color)) {
-                        colors.put(name, color);
-                    }
-                });
+            if (payload.containsKey("client_status_colors")) {
+                Map<String, String> colors = new LinkedHashMap<>();
+                Object raw = payload.get("client_status_colors");
+                if (raw instanceof Map<?, ?> map) {
+                    map.forEach((key, value) -> {
+                        String name = key != null ? key.toString().trim() : "";
+                        String color = value != null ? value.toString().trim() : "";
+                        if (StringUtils.hasText(name) && StringUtils.hasText(color)) {
+                            colors.put(name, color);
+                        }
+                    });
+                }
+                settings.put("client_status_colors", colors);
+                modified = true;
             }
-            settings.put("client_status_colors", colors);
-            modified = true;
-        }
 
-        if (payload.containsKey("business_cell_styles")) {
-            settings.put("business_cell_styles", payload.get("business_cell_styles"));
-            modified = true;
-        }
-
-        if (payload.containsKey("network_profiles")) {
-            settings.put("network_profiles", payload.get("network_profiles"));
-            modified = true;
-        }
-
-        if (payload.containsKey("bot_settings")) {
-            settings.put("bot_settings", payload.get("bot_settings"));
-            modified = true;
-        }
-
-        if (payload.containsKey("dialog_category_templates")
-            || payload.containsKey("dialog_question_templates")
-            || payload.containsKey("dialog_completion_templates")
-            || payload.containsKey("dialog_time_metrics")) {
-            Map<String, Object> dialogConfig = new LinkedHashMap<>();
-            Object existing = settings.get("dialog_config");
-            if (existing instanceof Map<?, ?> existingMap) {
-                existingMap.forEach((key, value) -> dialogConfig.put(String.valueOf(key), value));
+            if (payload.containsKey("business_cell_styles")) {
+                settings.put("business_cell_styles", payload.get("business_cell_styles"));
+                modified = true;
             }
-            if (payload.containsKey("dialog_category_templates")) {
-                dialogConfig.put("category_templates", payload.get("dialog_category_templates"));
-            }
-            if (payload.containsKey("dialog_question_templates")) {
-                dialogConfig.put("question_templates", payload.get("dialog_question_templates"));
-            }
-            if (payload.containsKey("dialog_completion_templates")) {
-                dialogConfig.put("completion_templates", payload.get("dialog_completion_templates"));
-            }
-            if (payload.containsKey("dialog_time_metrics")) {
-                dialogConfig.put("time_metrics", payload.get("dialog_time_metrics"));
-            }
-            settings.put("dialog_config", dialogConfig);
-            modified = true;
-        }
 
-        if (payload.containsKey("reporting_config")) {
-            settings.put("reporting_config", payload.get("reporting_config"));
-            modified = true;
-        }
+            if (payload.containsKey("network_profiles")) {
+                settings.put("network_profiles", payload.get("network_profiles"));
+                modified = true;
+            }
 
-        if (modified) {
-            sharedConfigService.saveSettings(settings);
-        }
+            if (payload.containsKey("bot_settings")) {
+                settings.put("bot_settings", payload.get("bot_settings"));
+                modified = true;
+            }
 
-        if (payload.containsKey("locations")) {
-            sharedConfigService.saveLocations(payload.get("locations"));
-        }
+            if (payload.containsKey("dialog_category_templates")
+                || payload.containsKey("dialog_question_templates")
+                || payload.containsKey("dialog_completion_templates")
+                || payload.containsKey("dialog_time_metrics")) {
+                Map<String, Object> dialogConfig = new LinkedHashMap<>();
+                Object existing = settings.get("dialog_config");
+                if (existing instanceof Map<?, ?> existingMap) {
+                    existingMap.forEach((key, value) -> dialogConfig.put(String.valueOf(key), value));
+                }
+                if (payload.containsKey("dialog_category_templates")) {
+                    dialogConfig.put("category_templates", payload.get("dialog_category_templates"));
+                }
+                if (payload.containsKey("dialog_question_templates")) {
+                    dialogConfig.put("question_templates", payload.get("dialog_question_templates"));
+                }
+                if (payload.containsKey("dialog_completion_templates")) {
+                    dialogConfig.put("completion_templates", payload.get("dialog_completion_templates"));
+                }
+                if (payload.containsKey("dialog_time_metrics")) {
+                    dialogConfig.put("time_metrics", payload.get("dialog_time_metrics"));
+                }
+                settings.put("dialog_config", dialogConfig);
+                modified = true;
+            }
 
-        return Map.of("success", true);
+            if (payload.containsKey("reporting_config")) {
+                settings.put("reporting_config", payload.get("reporting_config"));
+                modified = true;
+            }
+
+            if (modified) {
+                sharedConfigService.saveSettings(settings);
+            }
+
+            if (payload.containsKey("locations")) {
+                sharedConfigService.saveLocations(payload.get("locations"));
+            }
+
+            return Map.of("success", true);
+        } catch (Exception ex) {
+            log.error("Failed to update settings payload", ex);
+            String message = ex.getMessage();
+            if (!StringUtils.hasText(message)) {
+                message = "Не удалось сохранить настройки. Проверьте журнал приложения.";
+            }
+            return Map.of("success", false, "error", message);
+        }
     }
 
     @GetMapping("/api/settings/parameters")
