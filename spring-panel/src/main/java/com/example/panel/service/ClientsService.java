@@ -141,7 +141,12 @@ public class ClientsService {
                         ORDER BY created_at DESC
                         LIMIT 1
                     ) AS client_name
+                    ,
+                    m.channel_id,
+                    c.channel_name,
+                    c.platform
                 FROM messages m
+                LEFT JOIN channels c ON m.channel_id = c.id
                 WHERE m.user_id = ?
                 ORDER BY m.created_at DESC
                 LIMIT 1
@@ -150,7 +155,10 @@ public class ClientsService {
                 ? new ClientProfileHeader(
                     rs.getLong("user_id"),
                     rs.getString("username"),
-                    rs.getString("client_name")
+                    rs.getString("client_name"),
+                    rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
+                    rs.getString("channel_name"),
+                    rs.getString("platform")
                 )
                 : null,
             userId
