@@ -1,2588 +1,1625 @@
-2026-02-03 09:12:14.009+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-02-03 09:12:14.115+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db}
-2026-02-03 09:12:14.126+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\object_passports.db, falling back to defaults.
-2026-02-03 09:12:14.129+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\object_passports.db}
-2026-02-03 09:12:14.137+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 9604 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel)
-2026-02-03 09:12:14.140+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
-2026-02-03 09:12:15.956+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-02-03 09:12:16.247+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 276 ms. Found 31 JPA repository interfaces.
-2026-02-03 09:12:18.162+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
-2026-02-03 09:12:18.184+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
-2026-02-03 09:12:18.191+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-02-03 09:12:18.192+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-02-03 09:12:18.360+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-02-03 09:12:18.363+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 4108 ms
-2026-02-03 09:12:18.611+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db
-2026-02-03 09:12:19.161+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db (SQLite 3.43)
-2026-02-03 09:12:19.269+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 14 migrations (execution time 00:00.063s)
-2026-02-03 09:12:19.284+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 13
-2026-02-03 09:12:19.291+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
-2026-02-03 09:12:19.431+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-02-03 09:12:19.544+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-02-03 09:12:19.629+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-02-03 09:12:20.107+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-02-03 09:12:23.223+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-02-03 09:12:23.230+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-02-03 09:12:23.480+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\users.db (users)
-2026-02-03 09:12:23.651+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\config\shared
-2026-02-03 09:12:25.636+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\bot_database.db
-2026-02-03 09:12:26.052+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\users.db
-2026-02-03 09:12:26.133+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-02-03 09:12:27.066+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@67add4c9, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@491afa9b, org.springframework.security.web.context.SecurityContextHolderFilter@3644d12a, org.springframework.security.web.header.HeaderWriterFilter@290ebbbe, org.springframework.web.filter.CorsFilter@147a8d7c, org.springframework.security.web.csrf.CsrfFilter@57f8a3cf, com.example.panel.security.SecurityHeadersFilter@22d477c2, org.springframework.security.web.authentication.logout.LogoutFilter@d56d9f6, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@76e56b17, org.springframework.security.web.session.ConcurrentSessionFilter@6d985720, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@4f9e32f2, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@432e242d, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@60bd11f7, org.springframework.security.web.session.SessionManagementFilter@5ebd3708, org.springframework.security.web.access.ExceptionTranslationFilter@6cc91654, org.springframework.security.web.access.intercept.AuthorizationFilter@20c1cb0c]
-2026-02-03 09:12:27.613+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-02-03 09:12:29.315+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
-2026-02-03 09:12:29.336+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
-2026-02-03 09:12:29.365+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 16.581 seconds (process running for 17.482)
-2026-02-03 09:12:29.377+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\bot_databases
-2026-02-03 09:12:29.379+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\java-bot
-2026-02-03 09:12:29.515+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
-2026-02-03 09:12:29.516+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
-2026-02-03 09:12:29.527+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\clients.db
-2026-02-03 09:12:29.534+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\knowledge_base.db
-2026-02-03 09:12:29.541+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\objects.db
-2026-02-03 09:12:29.856+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\bot_databases\bot-1.db
-2026-02-03 09:12:38.557+03:00 INFO  [http-nio-8080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-02-03 09:12:38.559+03:00 INFO  [http-nio-8080-exec-2] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2026-02-03 09:12:38.568+03:00 INFO  [http-nio-8080-exec-2] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
-2026-02-03 09:12:39.797+03:00 ERROR [http-nio-8080-exec-2] org.thymeleaf.TemplateEngine - [THYMELEAF][http-nio-8080-exec-2] Exception processing template "clients/profile": An error happened during template parsing (template: "
-    const clientUserId = /*[[${profile.header.userId}]]*/ 0;
-    const avatarImg = document.querySelector('.zoomable-avatar');
-    const avatarModalEl = document.getElementById('avatarModal');
-    const avatarModalImage = document.getElementById('avatarModalImage');
-    let avatarModalInstance = null;
-
-    if (avatarImg && avatarModalEl && avatarModalImage) {
-        avatarImg.addEventListener('click', () => {
-            avatarModalImage.src = avatarImg.dataset.fullsrc || avatarImg.src;
-            if (!avatarModalInstance) {
-                avatarModalInstance = new bootstrap.Modal(avatarModalEl);
-            }
-            avatarModalInstance.show();
-        });
-    }
-
-    const blacklistModalEl = document.getElementById('blacklistModal');
-    const blacklistForm = document.getElementById('blacklistForm');
-    const blacklistReason = document.getElementById('blacklistReason');
-    const blacklistUserPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
-    const blacklistSubmit = blacklistModalEl?.querySelector('[data-blacklist-submit]');
-    const blacklistSubmitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
-    const blacklistLoading = blacklistModalEl?.querySelector('[data-blacklist-loading]');
-    const blacklistError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
-    const blacklistSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
-    let blacklistModalInstance = null;
-
-    function resetBlacklistFeedback() {
-        if (blacklistError) {
-            blacklistError.classList.add('d-none');
-            blacklistError.textContent = '';
-        }
-        if (blacklistSuccess) {
-            blacklistSuccess.classList.add('d-none');
-            blacklistSuccess.textContent = '';
-        }
-    }
-
-    window.openBlacklistModal = function (button) {
-        if (!blacklistModalEl) return;
-        const userId = button?.dataset?.blacklistUserId;
-        if (blacklistUserPlaceholder) {
-            blacklistUserPlaceholder.textContent = userId || '';
-        }
-        blacklistModalEl.dataset.userId = userId || '';
-        if (blacklistReason) {
-            blacklistReason.value = '';
-        }
-        resetBlacklistFeedback();
-        if (!blacklistModalInstance) {
-            blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
-        }
-        blacklistModalInstance.show();
-    };
-
-    if (blacklistForm) {
-        blacklistForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const userId = blacklistModalEl?.dataset?.userId;
-            if (!userId) return;
-            resetBlacklistFeedback();
-            if (blacklistSubmit) {
-                blacklistSubmit.disabled = true;
-            }
-            if (blacklistLoading) {
-                blacklistLoading.classList.remove('d-none');
-            }
-            try {
-                const formData = new FormData();
-                formData.append('user_id', userId);
-                formData.append('reason', blacklistReason?.value?.trim() || '');
-                const response = await fetch('/api/blacklist/add', {
-                    method: 'POST',
-                    body: formData
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    const message = payload.error || 'Не удалось добавить в blacklist';
-                    if (blacklistError) {
-                        blacklistError.textContent = message;
-                        blacklistError.classList.remove('d-none');
-                    }
-                    return;
-                }
-                if (blacklistSuccess) {
-                    blacklistSuccess.textContent = payload.message || 'Клиент заблокирован';
-                    blacklistSuccess.classList.remove('d-none');
-                }
-                setTimeout(() => window.location.reload(), 600);
-            } catch (error) {
-                if (blacklistError) {
-                    blacklistError.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
-                    blacklistError.classList.remove('d-none');
-                }
-            } finally {
-                if (blacklistSubmit) {
-                    blacklistSubmit.disabled = false;
-                }
-                if (blacklistLoading) {
-                    blacklistLoading.classList.add('d-none');
-                }
-            }
-        });
-    }
-
-    window.removeBlacklist = async function (button) {
-        const userId = button?.dataset?.blacklistUserId;
-        if (!userId) return;
-        if (!confirm('Разблокировать клиента?')) {
-            return;
-        }
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        const response = await fetch('/api/blacklist/remove', {
-            method: 'POST',
-            body: formData
-        });
-        const payload = await response.json();
-        if (response.ok && payload.ok) {
-            window.location.reload();
-        } else {
-            alert(payload.error || 'Не удалось снять блокировку');
-        }
-    };
-
-    const clientNameForm = document.getElementById('clientNameForm');
-    const clientNameInput = document.getElementById('clientNameInput');
-    const clientNameDisplay = document.getElementById('clientNameDisplay');
-    const clientNameError = document.getElementById('clientNameError');
-
-    if (clientNameForm) {
-        clientNameForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientNameInput) return;
-            if (clientNameError) {
-                clientNameError.classList.add('d-none');
-                clientNameError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/name`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_name: clientNameInput.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения имени');
-                }
-                if (clientNameDisplay) {
-                    clientNameDisplay.textContent = payload.client_name || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientNameModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientNameError) {
-                    clientNameError.textContent = error?.message || 'Ошибка соединения';
-                    clientNameError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    const clientStatusForm = document.getElementById('clientStatusForm');
-    const clientStatusSelect = document.getElementById('clientStatusSelect');
-    const clientStatusDisplay = document.getElementById('clientStatusDisplay');
-    const clientStatusError = document.getElementById('clientStatusError');
-
-    if (clientStatusForm) {
-        clientStatusForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientStatusSelect) return;
-            if (clientStatusError) {
-                clientStatusError.classList.add('d-none');
-                clientStatusError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_status: clientStatusSelect.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения статуса');
-                }
-                if (clientStatusDisplay) {
-                    clientStatusDisplay.textContent = payload.client_status || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientStatusModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientStatusError) {
-                    clientStatusError.textContent = error?.message || 'Ошибка соединения';
-                    clientStatusError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    function ensureManualPhonesPlaceholderHidden() {
-        const tbody = document.getElementById('manualPhonesTbody');
-        if (!tbody) return;
-        const placeholder = tbody.querySelector('tr td[colspan="4"]');
-        if (placeholder) {
-            placeholder.parentElement?.remove();
-        }
-    }
-
-    window.addManualPhone = async function () {
-        const phoneInput = document.getElementById('newPhoneInput');
-        const labelInput = document.getElementById('newPhoneLabelInput');
-        const phone = (phoneInput?.value || '').trim();
-        const label = (labelInput?.value || '').trim();
-        if (!phone) {
-            alert('Введите телефон');
-            return;
-        }
-        try {
-            const response = await fetch(`/api/clients/${clientUserId}/phones`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, label })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось добавить телефон');
-            }
-            const tbody = document.getElementById('manualPhonesTbody');
-            if (tbody) {
-                ensureManualPhonesPlaceholderHidden();
-                const row = document.createElement('tr');
-                row.dataset.id = payload.id;
-                row.innerHTML = `
-                    <td><strong>${payload.phone}</strong></td>
-                    <td><input class="form-control form-control-sm phone-label-input" value="${payload.label || ''}" placeholder="личный/рабочий/…"></td>
-                    <td><small class="text-muted">${payload.created_at || '—'}</small></td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="savePhoneLabel(this)">?</button>
-                        <button class="btn btn-sm btn-outline-danger" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="archivePhone(this)">?</button>
-                    </td>
-                `;
-                tbody.prepend(row);
-            }
-            if (phoneInput) phoneInput.value = '';
-            if (labelInput) labelInput.value = '';
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.savePhoneLabel = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        const row = button?.closest('tr');
-        const input = row?.querySelector('.phone-label-input');
-        if (!userId || !phoneId || !input) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ label: input.value || '' })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось сохранить метку');
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.archivePhone = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        if (!userId || !phoneId) return;
-        if (!confirm('Убрать телефон из активных?')) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: false })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось убрать телефон');
-            }
-            const row = button.closest('tr');
-            if (row) {
-                row.remove();
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    function normalizeMessageSender(sender) {
-        const value = String(sender || '').toLowerCase();
-        if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
-            return 'support';
-        }
-        return 'user';
-    }
-
-    function formatMessageTimestamp(value) {
-        if (!value) return '';
-        const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-        const parsed = new Date(numeric);
-        if (!Number.isNaN(parsed.getTime())) {
-            const day = String(parsed.getDate()).padStart(2, '0');
-            const month = String(parsed.getMonth() + 1).padStart(2, '0');
-            const year = parsed.getFullYear();
-            return `${day}:${month}:${year}`;
-        }
-        return value;
-    }
-
-    function renderClientHistory(messages) {
-        const container = document.getElementById('clientHistoryMessages');
-        if (!container) return;
-        if (!Array.isArray(messages) || messages.length === 0) {
-            container.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
-            return;
-        }
-        container.innerHTML = messages.map((msg) => {
-            const senderType = normalizeMessageSender(msg.sender);
-            const timestamp = formatMessageTimestamp(msg.timestamp);
-            const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
-            const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
-            const body = bodyText || fallbackType || '—';
-            let attachment = '';
-            if (msg.attachment) {
-                attachment = `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`;`;
-            }
-            return `
-                <div class="chat-message ${senderType}">
-                    <div class="d-flex justify-content-between small text-muted mb-1">
-                        <span>${msg.sender || 'Пользователь'}</span>
-                        <span>${timestamp}</span>
-                    </div>
-                    <div>${body}</div>
-                    ${attachment}
-                </div>
-            `;
-        }).join('');
-    }
-
-    let clientHistoryModalInstance = null;
-    let clientHistoryTicketId = null;
-
-    window.openClientHistory = async function (button) {
-        const ticketId = button?.dataset?.ticketId;
-        const channelId = button?.dataset?.channelId;
-        if (!ticketId) return;
-        clientHistoryTicketId = ticketId;
-        const meta = document.getElementById('clientHistoryMeta');
-        if (meta) {
-            meta.textContent = `ID заявки: ${ticketId}`;
-        }
-        const container = document.getElementById('clientHistoryMessages');
-        if (container) {
-            container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';
-        }
-        if (!clientHistoryModalInstance) {
-            clientHistoryModalInstance = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
-        }
-        clientHistoryModalInstance.show();
-
-        try {
-            const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error || 'Не удалось загрузить историю');
-            }
-            renderClientHistory(payload.history || []);
-        } catch (error) {
-            if (container) {
-                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
-            }
-        }
-    };
-
-    const ticketsSearch = document.getElementById('clientTicketsSearch');
-    if (ticketsSearch) {
-        ticketsSearch.addEventListener('input', () => {
-            const query = ticketsSearch.value.trim().toLowerCase();
-            let visibleCount = 0;
-            document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
-                const haystack = (item.dataset.searchValue || '').toLowerCase();
-                const matches = !query || haystack.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                }
-            });
-            const emptyIndicator = document.getElementById('clientTicketsEmpty');
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        });
-    }
-
-    function initSearch(inputId, selector, options = {}) {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        const items = Array.from(document.querySelectorAll(selector));
-        if (!items.length) return;
-
-        const groupContainers = {};
-        if (options.groupContainerSelector) {
-            document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
-                const key = el.dataset.groupContainer;
-                if (key) groupContainers[key] = el;
-            });
-        }
-
-        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
-
-        const applyFilter = () => {
-            const query = input.value.trim().toLowerCase();
-            let visibleCount = 0;
-            const visibleByGroup = {};
-            items.forEach((item) => {
-                const value = (item.dataset.searchValue || '').toLowerCase();
-                const groupKey = item.dataset.groupKey || '';
-                const matches = !query || value.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                    visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
-                }
-            });
-
-            Object.entries(groupContainers).forEach(([key, container]) => {
-                const hasVisible = (visibleByGroup[key] || 0) > 0;
-                container.classList.toggle('d-none', !hasVisible);
-            });
-
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        };
-
-        input.addEventListener('input', applyFilter);
-        applyFilter();
-    }
-
-    initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
-        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
-        emptyIndicatorId: 'clientAnalyticsEmpty',
-    });
-" - line 2, col 58)
-org.thymeleaf.exceptions.TemplateInputException: An error happened during template parsing (template: "
-    const clientUserId = /*[[${profile.header.userId}]]*/ 0;
-    const avatarImg = document.querySelector('.zoomable-avatar');
-    const avatarModalEl = document.getElementById('avatarModal');
-    const avatarModalImage = document.getElementById('avatarModalImage');
-    let avatarModalInstance = null;
-
-    if (avatarImg && avatarModalEl && avatarModalImage) {
-        avatarImg.addEventListener('click', () => {
-            avatarModalImage.src = avatarImg.dataset.fullsrc || avatarImg.src;
-            if (!avatarModalInstance) {
-                avatarModalInstance = new bootstrap.Modal(avatarModalEl);
-            }
-            avatarModalInstance.show();
-        });
-    }
-
-    const blacklistModalEl = document.getElementById('blacklistModal');
-    const blacklistForm = document.getElementById('blacklistForm');
-    const blacklistReason = document.getElementById('blacklistReason');
-    const blacklistUserPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
-    const blacklistSubmit = blacklistModalEl?.querySelector('[data-blacklist-submit]');
-    const blacklistSubmitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
-    const blacklistLoading = blacklistModalEl?.querySelector('[data-blacklist-loading]');
-    const blacklistError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
-    const blacklistSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
-    let blacklistModalInstance = null;
-
-    function resetBlacklistFeedback() {
-        if (blacklistError) {
-            blacklistError.classList.add('d-none');
-            blacklistError.textContent = '';
-        }
-        if (blacklistSuccess) {
-            blacklistSuccess.classList.add('d-none');
-            blacklistSuccess.textContent = '';
-        }
-    }
-
-    window.openBlacklistModal = function (button) {
-        if (!blacklistModalEl) return;
-        const userId = button?.dataset?.blacklistUserId;
-        if (blacklistUserPlaceholder) {
-            blacklistUserPlaceholder.textContent = userId || '';
-        }
-        blacklistModalEl.dataset.userId = userId || '';
-        if (blacklistReason) {
-            blacklistReason.value = '';
-        }
-        resetBlacklistFeedback();
-        if (!blacklistModalInstance) {
-            blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
-        }
-        blacklistModalInstance.show();
-    };
-
-    if (blacklistForm) {
-        blacklistForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const userId = blacklistModalEl?.dataset?.userId;
-            if (!userId) return;
-            resetBlacklistFeedback();
-            if (blacklistSubmit) {
-                blacklistSubmit.disabled = true;
-            }
-            if (blacklistLoading) {
-                blacklistLoading.classList.remove('d-none');
-            }
-            try {
-                const formData = new FormData();
-                formData.append('user_id', userId);
-                formData.append('reason', blacklistReason?.value?.trim() || '');
-                const response = await fetch('/api/blacklist/add', {
-                    method: 'POST',
-                    body: formData
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    const message = payload.error || 'Не удалось добавить в blacklist';
-                    if (blacklistError) {
-                        blacklistError.textContent = message;
-                        blacklistError.classList.remove('d-none');
-                    }
-                    return;
-                }
-                if (blacklistSuccess) {
-                    blacklistSuccess.textContent = payload.message || 'Клиент заблокирован';
-                    blacklistSuccess.classList.remove('d-none');
-                }
-                setTimeout(() => window.location.reload(), 600);
-            } catch (error) {
-                if (blacklistError) {
-                    blacklistError.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
-                    blacklistError.classList.remove('d-none');
-                }
-            } finally {
-                if (blacklistSubmit) {
-                    blacklistSubmit.disabled = false;
-                }
-                if (blacklistLoading) {
-                    blacklistLoading.classList.add('d-none');
-                }
-            }
-        });
-    }
-
-    window.removeBlacklist = async function (button) {
-        const userId = button?.dataset?.blacklistUserId;
-        if (!userId) return;
-        if (!confirm('Разблокировать клиента?')) {
-            return;
-        }
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        const response = await fetch('/api/blacklist/remove', {
-            method: 'POST',
-            body: formData
-        });
-        const payload = await response.json();
-        if (response.ok && payload.ok) {
-            window.location.reload();
-        } else {
-            alert(payload.error || 'Не удалось снять блокировку');
-        }
-    };
-
-    const clientNameForm = document.getElementById('clientNameForm');
-    const clientNameInput = document.getElementById('clientNameInput');
-    const clientNameDisplay = document.getElementById('clientNameDisplay');
-    const clientNameError = document.getElementById('clientNameError');
-
-    if (clientNameForm) {
-        clientNameForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientNameInput) return;
-            if (clientNameError) {
-                clientNameError.classList.add('d-none');
-                clientNameError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/name`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_name: clientNameInput.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения имени');
-                }
-                if (clientNameDisplay) {
-                    clientNameDisplay.textContent = payload.client_name || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientNameModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientNameError) {
-                    clientNameError.textContent = error?.message || 'Ошибка соединения';
-                    clientNameError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    const clientStatusForm = document.getElementById('clientStatusForm');
-    const clientStatusSelect = document.getElementById('clientStatusSelect');
-    const clientStatusDisplay = document.getElementById('clientStatusDisplay');
-    const clientStatusError = document.getElementById('clientStatusError');
-
-    if (clientStatusForm) {
-        clientStatusForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientStatusSelect) return;
-            if (clientStatusError) {
-                clientStatusError.classList.add('d-none');
-                clientStatusError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_status: clientStatusSelect.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения статуса');
-                }
-                if (clientStatusDisplay) {
-                    clientStatusDisplay.textContent = payload.client_status || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientStatusModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientStatusError) {
-                    clientStatusError.textContent = error?.message || 'Ошибка соединения';
-                    clientStatusError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    function ensureManualPhonesPlaceholderHidden() {
-        const tbody = document.getElementById('manualPhonesTbody');
-        if (!tbody) return;
-        const placeholder = tbody.querySelector('tr td[colspan="4"]');
-        if (placeholder) {
-            placeholder.parentElement?.remove();
-        }
-    }
-
-    window.addManualPhone = async function () {
-        const phoneInput = document.getElementById('newPhoneInput');
-        const labelInput = document.getElementById('newPhoneLabelInput');
-        const phone = (phoneInput?.value || '').trim();
-        const label = (labelInput?.value || '').trim();
-        if (!phone) {
-            alert('Введите телефон');
-            return;
-        }
-        try {
-            const response = await fetch(`/api/clients/${clientUserId}/phones`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, label })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось добавить телефон');
-            }
-            const tbody = document.getElementById('manualPhonesTbody');
-            if (tbody) {
-                ensureManualPhonesPlaceholderHidden();
-                const row = document.createElement('tr');
-                row.dataset.id = payload.id;
-                row.innerHTML = `
-                    <td><strong>${payload.phone}</strong></td>
-                    <td><input class="form-control form-control-sm phone-label-input" value="${payload.label || ''}" placeholder="личный/рабочий/…"></td>
-                    <td><small class="text-muted">${payload.created_at || '—'}</small></td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="savePhoneLabel(this)">?</button>
-                        <button class="btn btn-sm btn-outline-danger" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="archivePhone(this)">?</button>
-                    </td>
-                `;
-                tbody.prepend(row);
-            }
-            if (phoneInput) phoneInput.value = '';
-            if (labelInput) labelInput.value = '';
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.savePhoneLabel = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        const row = button?.closest('tr');
-        const input = row?.querySelector('.phone-label-input');
-        if (!userId || !phoneId || !input) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ label: input.value || '' })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось сохранить метку');
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.archivePhone = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        if (!userId || !phoneId) return;
-        if (!confirm('Убрать телефон из активных?')) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: false })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось убрать телефон');
-            }
-            const row = button.closest('tr');
-            if (row) {
-                row.remove();
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    function normalizeMessageSender(sender) {
-        const value = String(sender || '').toLowerCase();
-        if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
-            return 'support';
-        }
-        return 'user';
-    }
-
-    function formatMessageTimestamp(value) {
-        if (!value) return '';
-        const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-        const parsed = new Date(numeric);
-        if (!Number.isNaN(parsed.getTime())) {
-            const day = String(parsed.getDate()).padStart(2, '0');
-            const month = String(parsed.getMonth() + 1).padStart(2, '0');
-            const year = parsed.getFullYear();
-            return `${day}:${month}:${year}`;
-        }
-        return value;
-    }
-
-    function renderClientHistory(messages) {
-        const container = document.getElementById('clientHistoryMessages');
-        if (!container) return;
-        if (!Array.isArray(messages) || messages.length === 0) {
-            container.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
-            return;
-        }
-        container.innerHTML = messages.map((msg) => {
-            const senderType = normalizeMessageSender(msg.sender);
-            const timestamp = formatMessageTimestamp(msg.timestamp);
-            const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
-            const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
-            const body = bodyText || fallbackType || '—';
-            let attachment = '';
-            if (msg.attachment) {
-                attachment = `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`;`;
-            }
-            return `
-                <div class="chat-message ${senderType}">
-                    <div class="d-flex justify-content-between small text-muted mb-1">
-                        <span>${msg.sender || 'Пользователь'}</span>
-                        <span>${timestamp}</span>
-                    </div>
-                    <div>${body}</div>
-                    ${attachment}
-                </div>
-            `;
-        }).join('');
-    }
-
-    let clientHistoryModalInstance = null;
-    let clientHistoryTicketId = null;
-
-    window.openClientHistory = async function (button) {
-        const ticketId = button?.dataset?.ticketId;
-        const channelId = button?.dataset?.channelId;
-        if (!ticketId) return;
-        clientHistoryTicketId = ticketId;
-        const meta = document.getElementById('clientHistoryMeta');
-        if (meta) {
-            meta.textContent = `ID заявки: ${ticketId}`;
-        }
-        const container = document.getElementById('clientHistoryMessages');
-        if (container) {
-            container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';
-        }
-        if (!clientHistoryModalInstance) {
-            clientHistoryModalInstance = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
-        }
-        clientHistoryModalInstance.show();
-
-        try {
-            const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error || 'Не удалось загрузить историю');
-            }
-            renderClientHistory(payload.history || []);
-        } catch (error) {
-            if (container) {
-                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
-            }
-        }
-    };
-
-    const ticketsSearch = document.getElementById('clientTicketsSearch');
-    if (ticketsSearch) {
-        ticketsSearch.addEventListener('input', () => {
-            const query = ticketsSearch.value.trim().toLowerCase();
-            let visibleCount = 0;
-            document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
-                const haystack = (item.dataset.searchValue || '').toLowerCase();
-                const matches = !query || haystack.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                }
-            });
-            const emptyIndicator = document.getElementById('clientTicketsEmpty');
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        });
-    }
-
-    function initSearch(inputId, selector, options = {}) {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        const items = Array.from(document.querySelectorAll(selector));
-        if (!items.length) return;
-
-        const groupContainers = {};
-        if (options.groupContainerSelector) {
-            document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
-                const key = el.dataset.groupContainer;
-                if (key) groupContainers[key] = el;
-            });
-        }
-
-        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
-
-        const applyFilter = () => {
-            const query = input.value.trim().toLowerCase();
-            let visibleCount = 0;
-            const visibleByGroup = {};
-            items.forEach((item) => {
-                const value = (item.dataset.searchValue || '').toLowerCase();
-                const groupKey = item.dataset.groupKey || '';
-                const matches = !query || value.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                    visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
-                }
-            });
-
-            Object.entries(groupContainers).forEach(([key, container]) => {
-                const hasVisible = (visibleByGroup[key] || 0) > 0;
-                container.classList.toggle('d-none', !hasVisible);
-            });
-
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        };
-
-        input.addEventListener('input', applyFilter);
-        applyFilter();
-    }
-
-    initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
-        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
-        emptyIndicatorId: 'clientAnalyticsEmpty',
-    });
-" - line 2, col 58)
-	at org.thymeleaf.templateparser.text.AbstractTextTemplateParser.parse(AbstractTextTemplateParser.java:178)
-	at org.thymeleaf.templateparser.text.AbstractTextTemplateParser.parseString(AbstractTextTemplateParser.java:113)
-	at org.thymeleaf.engine.TemplateManager.parseString(TemplateManager.java:452)
-	at org.thymeleaf.standard.inline.AbstractStandardInliner.inlineSwitchTemplateMode(AbstractStandardInliner.java:153)
-	at org.thymeleaf.standard.inline.AbstractStandardInliner.inline(AbstractStandardInliner.java:114)
-	at org.thymeleaf.standard.processor.StandardInliningTextProcessor.doProcess(StandardInliningTextProcessor.java:62)
-	at org.thymeleaf.processor.text.AbstractTextProcessor.process(AbstractTextProcessor.java:57)
-	at org.thymeleaf.util.ProcessorConfigurationUtils$TextProcessorWrapper.process(ProcessorConfigurationUtils.java:749)
-	at org.thymeleaf.engine.ProcessorTemplateHandler.handleText(ProcessorTemplateHandler.java:560)
-	at org.thymeleaf.engine.Text.beHandled(Text.java:97)
-	at org.thymeleaf.engine.TemplateModel.process(TemplateModel.java:136)
-	at org.thymeleaf.engine.TemplateManager.parseAndProcess(TemplateManager.java:661)
-	at org.thymeleaf.TemplateEngine.process(TemplateEngine.java:1103)
-	at org.thymeleaf.TemplateEngine.process(TemplateEngine.java:1077)
-	at org.thymeleaf.spring6.view.ThymeleafView.renderFragment(ThymeleafView.java:372)
-	at org.thymeleaf.spring6.view.ThymeleafView.render(ThymeleafView.java:192)
-	at org.springframework.web.servlet.DispatcherServlet.render(DispatcherServlet.java:1431)
-	at org.springframework.web.servlet.DispatcherServlet.processDispatchResult(DispatcherServlet.java:1167)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1106)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
-	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
-	at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
-	at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:117)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
-	at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
-	at java.base/java.lang.Thread.run(Thread.java:840)
-Caused by: org.thymeleaf.templateparser.text.TextParseException: (Line = 2, Column = 58) Incomplete structure: " 0;
-    const avatarImg = document.querySelector('.zoomable-avatar');
-    const avatarModalEl = document.getElementById('avatarModal');
-    const avatarModalImage = document.getElementById('avatarModalImage');
-    let avatarModalInstance = null;
-
-    if (avatarImg && avatarModalEl && avatarModalImage) {
-        avatarImg.addEventListener('click', () => {
-            avatarModalImage.src = avatarImg.dataset.fullsrc || avatarImg.src;
-            if (!avatarModalInstance) {
-                avatarModalInstance = new bootstrap.Modal(avatarModalEl);
-            }
-            avatarModalInstance.show();
-        });
-    }
-
-    const blacklistModalEl = document.getElementById('blacklistModal');
-    const blacklistForm = document.getElementById('blacklistForm');
-    const blacklistReason = document.getElementById('blacklistReason');
-    const blacklistUserPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
-    const blacklistSubmit = blacklistModalEl?.querySelector('[data-blacklist-submit]');
-    const blacklistSubmitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
-    const blacklistLoading = blacklistModalEl?.querySelector('[data-blacklist-loading]');
-    const blacklistError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
-    const blacklistSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
-    let blacklistModalInstance = null;
-
-    function resetBlacklistFeedback() {
-        if (blacklistError) {
-            blacklistError.classList.add('d-none');
-            blacklistError.textContent = '';
-        }
-        if (blacklistSuccess) {
-            blacklistSuccess.classList.add('d-none');
-            blacklistSuccess.textContent = '';
-        }
-    }
-
-    window.openBlacklistModal = function (button) {
-        if (!blacklistModalEl) return;
-        const userId = button?.dataset?.blacklistUserId;
-        if (blacklistUserPlaceholder) {
-            blacklistUserPlaceholder.textContent = userId || '';
-        }
-        blacklistModalEl.dataset.userId = userId || '';
-        if (blacklistReason) {
-            blacklistReason.value = '';
-        }
-        resetBlacklistFeedback();
-        if (!blacklistModalInstance) {
-            blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
-        }
-        blacklistModalInstance.show();
-    };
-
-    if (blacklistForm) {
-        blacklistForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const userId = blacklistModalEl?.dataset?.userId;
-            if (!userId) return;
-            resetBlacklistFeedback();
-            if (blacklistSubmit) {
-                blacklistSubmit.disabled = true;
-            }
-            if (blacklistLoading) {
-                blacklistLoading.classList.remove('d-none');
-            }
-            try {
-                const formData = new FormData();
-                formData.append('user_id', userId);
-                formData.append('reason', blacklistReason?.value?.trim() || '');
-                const response = await fetch('/api/blacklist/add', {
-                    method: 'POST',
-                    body: formData
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    const message = payload.error || 'Не удалось добавить в blacklist';
-                    if (blacklistError) {
-                        blacklistError.textContent = message;
-                        blacklistError.classList.remove('d-none');
-                    }
-                    return;
-                }
-                if (blacklistSuccess) {
-                    blacklistSuccess.textContent = payload.message || 'Клиент заблокирован';
-                    blacklistSuccess.classList.remove('d-none');
-                }
-                setTimeout(() => window.location.reload(), 600);
-            } catch (error) {
-                if (blacklistError) {
-                    blacklistError.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
-                    blacklistError.classList.remove('d-none');
-                }
-            } finally {
-                if (blacklistSubmit) {
-                    blacklistSubmit.disabled = false;
-                }
-                if (blacklistLoading) {
-                    blacklistLoading.classList.add('d-none');
-                }
-            }
-        });
-    }
-
-    window.removeBlacklist = async function (button) {
-        const userId = button?.dataset?.blacklistUserId;
-        if (!userId) return;
-        if (!confirm('Разблокировать клиента?')) {
-            return;
-        }
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        const response = await fetch('/api/blacklist/remove', {
-            method: 'POST',
-            body: formData
-        });
-        const payload = await response.json();
-        if (response.ok && payload.ok) {
-            window.location.reload();
-        } else {
-            alert(payload.error || 'Не удалось снять блокировку');
-        }
-    };
-
-    const clientNameForm = document.getElementById('clientNameForm');
-    const clientNameInput = document.getElementById('clientNameInput');
-    const clientNameDisplay = document.getElementById('clientNameDisplay');
-    const clientNameError = document.getElementById('clientNameError');
-
-    if (clientNameForm) {
-        clientNameForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientNameInput) return;
-            if (clientNameError) {
-                clientNameError.classList.add('d-none');
-                clientNameError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/name`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_name: clientNameInput.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения имени');
-                }
-                if (clientNameDisplay) {
-                    clientNameDisplay.textContent = payload.client_name || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientNameModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientNameError) {
-                    clientNameError.textContent = error?.message || 'Ошибка соединения';
-                    clientNameError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    const clientStatusForm = document.getElementById('clientStatusForm');
-    const clientStatusSelect = document.getElementById('clientStatusSelect');
-    const clientStatusDisplay = document.getElementById('clientStatusDisplay');
-    const clientStatusError = document.getElementById('clientStatusError');
-
-    if (clientStatusForm) {
-        clientStatusForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientStatusSelect) return;
-            if (clientStatusError) {
-                clientStatusError.classList.add('d-none');
-                clientStatusError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_status: clientStatusSelect.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения статуса');
-                }
-                if (clientStatusDisplay) {
-                    clientStatusDisplay.textContent = payload.client_status || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientStatusModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientStatusError) {
-                    clientStatusError.textContent = error?.message || 'Ошибка соединения';
-                    clientStatusError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    function ensureManualPhonesPlaceholderHidden() {
-        const tbody = document.getElementById('manualPhonesTbody');
-        if (!tbody) return;
-        const placeholder = tbody.querySelector('tr td[colspan="4"]');
-        if (placeholder) {
-            placeholder.parentElement?.remove();
-        }
-    }
-
-    window.addManualPhone = async function () {
-        const phoneInput = document.getElementById('newPhoneInput');
-        const labelInput = document.getElementById('newPhoneLabelInput');
-        const phone = (phoneInput?.value || '').trim();
-        const label = (labelInput?.value || '').trim();
-        if (!phone) {
-            alert('Введите телефон');
-            return;
-        }
-        try {
-            const response = await fetch(`/api/clients/${clientUserId}/phones`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, label })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось добавить телефон');
-            }
-            const tbody = document.getElementById('manualPhonesTbody');
-            if (tbody) {
-                ensureManualPhonesPlaceholderHidden();
-                const row = document.createElement('tr');
-                row.dataset.id = payload.id;
-                row.innerHTML = `
-                    <td><strong>${payload.phone}</strong></td>
-                    <td><input class="form-control form-control-sm phone-label-input" value="${payload.label || ''}" placeholder="личный/рабочий/…"></td>
-                    <td><small class="text-muted">${payload.created_at || '—'}</small></td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="savePhoneLabel(this)">?</button>
-                        <button class="btn btn-sm btn-outline-danger" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="archivePhone(this)">?</button>
-                    </td>
-                `;
-                tbody.prepend(row);
-            }
-            if (phoneInput) phoneInput.value = '';
-            if (labelInput) labelInput.value = '';
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.savePhoneLabel = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        const row = button?.closest('tr');
-        const input = row?.querySelector('.phone-label-input');
-        if (!userId || !phoneId || !input) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ label: input.value || '' })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось сохранить метку');
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.archivePhone = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        if (!userId || !phoneId) return;
-        if (!confirm('Убрать телефон из активных?')) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: false })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось убрать телефон');
-            }
-            const row = button.closest('tr');
-            if (row) {
-                row.remove();
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    function normalizeMessageSender(sender) {
-        const value = String(sender || '').toLowerCase();
-        if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
-            return 'support';
-        }
-        return 'user';
-    }
-
-    function formatMessageTimestamp(value) {
-        if (!value) return '';
-        const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-        const parsed = new Date(numeric);
-        if (!Number.isNaN(parsed.getTime())) {
-            const day = String(parsed.getDate()).padStart(2, '0');
-            const month = String(parsed.getMonth() + 1).padStart(2, '0');
-            const year = parsed.getFullYear();
-            return `${day}:${month}:${year}`;
-        }
-        return value;
-    }
-
-    function renderClientHistory(messages) {
-        const container = document.getElementById('clientHistoryMessages');
-        if (!container) return;
-        if (!Array.isArray(messages) || messages.length === 0) {
-            container.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
-            return;
-        }
-        container.innerHTML = messages.map((msg) => {
-            const senderType = normalizeMessageSender(msg.sender);
-            const timestamp = formatMessageTimestamp(msg.timestamp);
-            const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
-            const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
-            const body = bodyText || fallbackType || '—';
-            let attachment = '';
-            if (msg.attachment) {
-                attachment = `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`;`;
-            }
-            return `
-                <div class="chat-message ${senderType}">
-                    <div class="d-flex justify-content-between small text-muted mb-1">
-                        <span>${msg.sender || 'Пользователь'}</span>
-                        <span>${timestamp}</span>
-                    </div>
-                    <div>${body}</div>
-                    ${attachment}
-                </div>
-            `;
-        }).join('');
-    }
-
-    let clientHistoryModalInstance = null;
-    let clientHistoryTicketId = null;
-
-    window.openClientHistory = async function (button) {
-        const ticketId = button?.dataset?.ticketId;
-        const channelId = button?.dataset?.channelId;
-        if (!ticketId) return;
-        clientHistoryTicketId = ticketId;
-        const meta = document.getElementById('clientHistoryMeta');
-        if (meta) {
-            meta.textContent = `ID заявки: ${ticketId}`;
-        }
-        const container = document.getElementById('clientHistoryMessages');
-        if (container) {
-            container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';
-        }
-        if (!clientHistoryModalInstance) {
-            clientHistoryModalInstance = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
-        }
-        clientHistoryModalInstance.show();
-
-        try {
-            const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error || 'Не удалось загрузить историю');
-            }
-            renderClientHistory(payload.history || []);
-        } catch (error) {
-            if (container) {
-                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
-            }
-        }
-    };
-
-    const ticketsSearch = document.getElementById('clientTicketsSearch');
-    if (ticketsSearch) {
-        ticketsSearch.addEventListener('input', () => {
-            const query = ticketsSearch.value.trim().toLowerCase();
-            let visibleCount = 0;
-            document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
-                const haystack = (item.dataset.searchValue || '').toLowerCase();
-                const matches = !query || haystack.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                }
-            });
-            const emptyIndicator = document.getElementById('clientTicketsEmpty');
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        });
-    }
-
-    function initSearch(inputId, selector, options = {}) {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        const items = Array.from(document.querySelectorAll(selector));
-        if (!items.length) return;
-
-        const groupContainers = {};
-        if (options.groupContainerSelector) {
-            document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
-                const key = el.dataset.groupContainer;
-                if (key) groupContainers[key] = el;
-            });
-        }
-
-        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
-
-        const applyFilter = () => {
-            const query = input.value.trim().toLowerCase();
-            let visibleCount = 0;
-            const visibleByGroup = {};
-            items.forEach((item) => {
-                const value = (item.dataset.searchValue || '').toLowerCase();
-                const groupKey = item.dataset.groupKey || '';
-                const matches = !query || value.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                    visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
-                }
-            });
-
-            Object.entries(groupContainers).forEach(([key, container]) => {
-                const hasVisible = (visibleByGroup[key] || 0) > 0;
-                container.classList.toggle('d-none', !hasVisible);
-            });
-
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        };
-
-        input.addEventListener('input', applyFilter);
-        applyFilter();
-    }
-
-    initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
-        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
-        emptyIndicatorId: 'clientAnalyticsEmpty',
-    });
-"
-	at org.thymeleaf.templateparser.text.TextParser.parseDocument(TextParser.java:209)
-	at org.thymeleaf.templateparser.text.TextParser.parse(TextParser.java:100)
-	at org.thymeleaf.templateparser.text.AbstractTextTemplateParser.parse(AbstractTextTemplateParser.java:169)
-	... 125 common frames omitted
-2026-02-03 09:12:39.953+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
-2026-02-03 09:12:40.027+03:00 ERROR [http-nio-8080-exec-2] o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.thymeleaf.exceptions.TemplateInputException: An error happened during template parsing (template: "
-    const clientUserId = /*[[${profile.header.userId}]]*/ 0;
-    const avatarImg = document.querySelector('.zoomable-avatar');
-    const avatarModalEl = document.getElementById('avatarModal');
-    const avatarModalImage = document.getElementById('avatarModalImage');
-    let avatarModalInstance = null;
-
-    if (avatarImg && avatarModalEl && avatarModalImage) {
-        avatarImg.addEventListener('click', () => {
-            avatarModalImage.src = avatarImg.dataset.fullsrc || avatarImg.src;
-            if (!avatarModalInstance) {
-                avatarModalInstance = new bootstrap.Modal(avatarModalEl);
-            }
-            avatarModalInstance.show();
-        });
-    }
-
-    const blacklistModalEl = document.getElementById('blacklistModal');
-    const blacklistForm = document.getElementById('blacklistForm');
-    const blacklistReason = document.getElementById('blacklistReason');
-    const blacklistUserPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
-    const blacklistSubmit = blacklistModalEl?.querySelector('[data-blacklist-submit]');
-    const blacklistSubmitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
-    const blacklistLoading = blacklistModalEl?.querySelector('[data-blacklist-loading]');
-    const blacklistError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
-    const blacklistSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
-    let blacklistModalInstance = null;
-
-    function resetBlacklistFeedback() {
-        if (blacklistError) {
-            blacklistError.classList.add('d-none');
-            blacklistError.textContent = '';
-        }
-        if (blacklistSuccess) {
-            blacklistSuccess.classList.add('d-none');
-            blacklistSuccess.textContent = '';
-        }
-    }
-
-    window.openBlacklistModal = function (button) {
-        if (!blacklistModalEl) return;
-        const userId = button?.dataset?.blacklistUserId;
-        if (blacklistUserPlaceholder) {
-            blacklistUserPlaceholder.textContent = userId || '';
-        }
-        blacklistModalEl.dataset.userId = userId || '';
-        if (blacklistReason) {
-            blacklistReason.value = '';
-        }
-        resetBlacklistFeedback();
-        if (!blacklistModalInstance) {
-            blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
-        }
-        blacklistModalInstance.show();
-    };
-
-    if (blacklistForm) {
-        blacklistForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const userId = blacklistModalEl?.dataset?.userId;
-            if (!userId) return;
-            resetBlacklistFeedback();
-            if (blacklistSubmit) {
-                blacklistSubmit.disabled = true;
-            }
-            if (blacklistLoading) {
-                blacklistLoading.classList.remove('d-none');
-            }
-            try {
-                const formData = new FormData();
-                formData.append('user_id', userId);
-                formData.append('reason', blacklistReason?.value?.trim() || '');
-                const response = await fetch('/api/blacklist/add', {
-                    method: 'POST',
-                    body: formData
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    const message = payload.error || 'Не удалось добавить в blacklist';
-                    if (blacklistError) {
-                        blacklistError.textContent = message;
-                        blacklistError.classList.remove('d-none');
-                    }
-                    return;
-                }
-                if (blacklistSuccess) {
-                    blacklistSuccess.textContent = payload.message || 'Клиент заблокирован';
-                    blacklistSuccess.classList.remove('d-none');
-                }
-                setTimeout(() => window.location.reload(), 600);
-            } catch (error) {
-                if (blacklistError) {
-                    blacklistError.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
-                    blacklistError.classList.remove('d-none');
-                }
-            } finally {
-                if (blacklistSubmit) {
-                    blacklistSubmit.disabled = false;
-                }
-                if (blacklistLoading) {
-                    blacklistLoading.classList.add('d-none');
-                }
-            }
-        });
-    }
-
-    window.removeBlacklist = async function (button) {
-        const userId = button?.dataset?.blacklistUserId;
-        if (!userId) return;
-        if (!confirm('Разблокировать клиента?')) {
-            return;
-        }
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        const response = await fetch('/api/blacklist/remove', {
-            method: 'POST',
-            body: formData
-        });
-        const payload = await response.json();
-        if (response.ok && payload.ok) {
-            window.location.reload();
-        } else {
-            alert(payload.error || 'Не удалось снять блокировку');
-        }
-    };
-
-    const clientNameForm = document.getElementById('clientNameForm');
-    const clientNameInput = document.getElementById('clientNameInput');
-    const clientNameDisplay = document.getElementById('clientNameDisplay');
-    const clientNameError = document.getElementById('clientNameError');
-
-    if (clientNameForm) {
-        clientNameForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientNameInput) return;
-            if (clientNameError) {
-                clientNameError.classList.add('d-none');
-                clientNameError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/name`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_name: clientNameInput.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения имени');
-                }
-                if (clientNameDisplay) {
-                    clientNameDisplay.textContent = payload.client_name || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientNameModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientNameError) {
-                    clientNameError.textContent = error?.message || 'Ошибка соединения';
-                    clientNameError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    const clientStatusForm = document.getElementById('clientStatusForm');
-    const clientStatusSelect = document.getElementById('clientStatusSelect');
-    const clientStatusDisplay = document.getElementById('clientStatusDisplay');
-    const clientStatusError = document.getElementById('clientStatusError');
-
-    if (clientStatusForm) {
-        clientStatusForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientStatusSelect) return;
-            if (clientStatusError) {
-                clientStatusError.classList.add('d-none');
-                clientStatusError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_status: clientStatusSelect.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения статуса');
-                }
-                if (clientStatusDisplay) {
-                    clientStatusDisplay.textContent = payload.client_status || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientStatusModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientStatusError) {
-                    clientStatusError.textContent = error?.message || 'Ошибка соединения';
-                    clientStatusError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    function ensureManualPhonesPlaceholderHidden() {
-        const tbody = document.getElementById('manualPhonesTbody');
-        if (!tbody) return;
-        const placeholder = tbody.querySelector('tr td[colspan="4"]');
-        if (placeholder) {
-            placeholder.parentElement?.remove();
-        }
-    }
-
-    window.addManualPhone = async function () {
-        const phoneInput = document.getElementById('newPhoneInput');
-        const labelInput = document.getElementById('newPhoneLabelInput');
-        const phone = (phoneInput?.value || '').trim();
-        const label = (labelInput?.value || '').trim();
-        if (!phone) {
-            alert('Введите телефон');
-            return;
-        }
-        try {
-            const response = await fetch(`/api/clients/${clientUserId}/phones`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, label })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось добавить телефон');
-            }
-            const tbody = document.getElementById('manualPhonesTbody');
-            if (tbody) {
-                ensureManualPhonesPlaceholderHidden();
-                const row = document.createElement('tr');
-                row.dataset.id = payload.id;
-                row.innerHTML = `
-                    <td><strong>${payload.phone}</strong></td>
-                    <td><input class="form-control form-control-sm phone-label-input" value="${payload.label || ''}" placeholder="личный/рабочий/…"></td>
-                    <td><small class="text-muted">${payload.created_at || '—'}</small></td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="savePhoneLabel(this)">?</button>
-                        <button class="btn btn-sm btn-outline-danger" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="archivePhone(this)">?</button>
-                    </td>
-                `;
-                tbody.prepend(row);
-            }
-            if (phoneInput) phoneInput.value = '';
-            if (labelInput) labelInput.value = '';
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.savePhoneLabel = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        const row = button?.closest('tr');
-        const input = row?.querySelector('.phone-label-input');
-        if (!userId || !phoneId || !input) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ label: input.value || '' })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось сохранить метку');
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.archivePhone = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        if (!userId || !phoneId) return;
-        if (!confirm('Убрать телефон из активных?')) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: false })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось убрать телефон');
-            }
-            const row = button.closest('tr');
-            if (row) {
-                row.remove();
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    function normalizeMessageSender(sender) {
-        const value = String(sender || '').toLowerCase();
-        if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
-            return 'support';
-        }
-        return 'user';
-    }
-
-    function formatMessageTimestamp(value) {
-        if (!value) return '';
-        const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-        const parsed = new Date(numeric);
-        if (!Number.isNaN(parsed.getTime())) {
-            const day = String(parsed.getDate()).padStart(2, '0');
-            const month = String(parsed.getMonth() + 1).padStart(2, '0');
-            const year = parsed.getFullYear();
-            return `${day}:${month}:${year}`;
-        }
-        return value;
-    }
-
-    function renderClientHistory(messages) {
-        const container = document.getElementById('clientHistoryMessages');
-        if (!container) return;
-        if (!Array.isArray(messages) || messages.length === 0) {
-            container.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
-            return;
-        }
-        container.innerHTML = messages.map((msg) => {
-            const senderType = normalizeMessageSender(msg.sender);
-            const timestamp = formatMessageTimestamp(msg.timestamp);
-            const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
-            const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
-            const body = bodyText || fallbackType || '—';
-            let attachment = '';
-            if (msg.attachment) {
-                attachment = `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`;`;
-            }
-            return `
-                <div class="chat-message ${senderType}">
-                    <div class="d-flex justify-content-between small text-muted mb-1">
-                        <span>${msg.sender || 'Пользователь'}</span>
-                        <span>${timestamp}</span>
-                    </div>
-                    <div>${body}</div>
-                    ${attachment}
-                </div>
-            `;
-        }).join('');
-    }
-
-    let clientHistoryModalInstance = null;
-    let clientHistoryTicketId = null;
-
-    window.openClientHistory = async function (button) {
-        const ticketId = button?.dataset?.ticketId;
-        const channelId = button?.dataset?.channelId;
-        if (!ticketId) return;
-        clientHistoryTicketId = ticketId;
-        const meta = document.getElementById('clientHistoryMeta');
-        if (meta) {
-            meta.textContent = `ID заявки: ${ticketId}`;
-        }
-        const container = document.getElementById('clientHistoryMessages');
-        if (container) {
-            container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';
-        }
-        if (!clientHistoryModalInstance) {
-            clientHistoryModalInstance = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
-        }
-        clientHistoryModalInstance.show();
-
-        try {
-            const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error || 'Не удалось загрузить историю');
-            }
-            renderClientHistory(payload.history || []);
-        } catch (error) {
-            if (container) {
-                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
-            }
-        }
-    };
-
-    const ticketsSearch = document.getElementById('clientTicketsSearch');
-    if (ticketsSearch) {
-        ticketsSearch.addEventListener('input', () => {
-            const query = ticketsSearch.value.trim().toLowerCase();
-            let visibleCount = 0;
-            document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
-                const haystack = (item.dataset.searchValue || '').toLowerCase();
-                const matches = !query || haystack.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                }
-            });
-            const emptyIndicator = document.getElementById('clientTicketsEmpty');
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        });
-    }
-
-    function initSearch(inputId, selector, options = {}) {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        const items = Array.from(document.querySelectorAll(selector));
-        if (!items.length) return;
-
-        const groupContainers = {};
-        if (options.groupContainerSelector) {
-            document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
-                const key = el.dataset.groupContainer;
-                if (key) groupContainers[key] = el;
-            });
-        }
-
-        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
-
-        const applyFilter = () => {
-            const query = input.value.trim().toLowerCase();
-            let visibleCount = 0;
-            const visibleByGroup = {};
-            items.forEach((item) => {
-                const value = (item.dataset.searchValue || '').toLowerCase();
-                const groupKey = item.dataset.groupKey || '';
-                const matches = !query || value.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                    visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
-                }
-            });
-
-            Object.entries(groupContainers).forEach(([key, container]) => {
-                const hasVisible = (visibleByGroup[key] || 0) > 0;
-                container.classList.toggle('d-none', !hasVisible);
-            });
-
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        };
-
-        input.addEventListener('input', applyFilter);
-        applyFilter();
-    }
-
-    initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
-        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
-        emptyIndicatorId: 'clientAnalyticsEmpty',
-    });
-" - line 2, col 58)] with root cause
-org.thymeleaf.templateparser.text.TextParseException: (Line = 2, Column = 58) Incomplete structure: " 0;
-    const avatarImg = document.querySelector('.zoomable-avatar');
-    const avatarModalEl = document.getElementById('avatarModal');
-    const avatarModalImage = document.getElementById('avatarModalImage');
-    let avatarModalInstance = null;
-
-    if (avatarImg && avatarModalEl && avatarModalImage) {
-        avatarImg.addEventListener('click', () => {
-            avatarModalImage.src = avatarImg.dataset.fullsrc || avatarImg.src;
-            if (!avatarModalInstance) {
-                avatarModalInstance = new bootstrap.Modal(avatarModalEl);
-            }
-            avatarModalInstance.show();
-        });
-    }
-
-    const blacklistModalEl = document.getElementById('blacklistModal');
-    const blacklistForm = document.getElementById('blacklistForm');
-    const blacklistReason = document.getElementById('blacklistReason');
-    const blacklistUserPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
-    const blacklistSubmit = blacklistModalEl?.querySelector('[data-blacklist-submit]');
-    const blacklistSubmitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
-    const blacklistLoading = blacklistModalEl?.querySelector('[data-blacklist-loading]');
-    const blacklistError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
-    const blacklistSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
-    let blacklistModalInstance = null;
-
-    function resetBlacklistFeedback() {
-        if (blacklistError) {
-            blacklistError.classList.add('d-none');
-            blacklistError.textContent = '';
-        }
-        if (blacklistSuccess) {
-            blacklistSuccess.classList.add('d-none');
-            blacklistSuccess.textContent = '';
-        }
-    }
-
-    window.openBlacklistModal = function (button) {
-        if (!blacklistModalEl) return;
-        const userId = button?.dataset?.blacklistUserId;
-        if (blacklistUserPlaceholder) {
-            blacklistUserPlaceholder.textContent = userId || '';
-        }
-        blacklistModalEl.dataset.userId = userId || '';
-        if (blacklistReason) {
-            blacklistReason.value = '';
-        }
-        resetBlacklistFeedback();
-        if (!blacklistModalInstance) {
-            blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
-        }
-        blacklistModalInstance.show();
-    };
-
-    if (blacklistForm) {
-        blacklistForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const userId = blacklistModalEl?.dataset?.userId;
-            if (!userId) return;
-            resetBlacklistFeedback();
-            if (blacklistSubmit) {
-                blacklistSubmit.disabled = true;
-            }
-            if (blacklistLoading) {
-                blacklistLoading.classList.remove('d-none');
-            }
-            try {
-                const formData = new FormData();
-                formData.append('user_id', userId);
-                formData.append('reason', blacklistReason?.value?.trim() || '');
-                const response = await fetch('/api/blacklist/add', {
-                    method: 'POST',
-                    body: formData
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    const message = payload.error || 'Не удалось добавить в blacklist';
-                    if (blacklistError) {
-                        blacklistError.textContent = message;
-                        blacklistError.classList.remove('d-none');
-                    }
-                    return;
-                }
-                if (blacklistSuccess) {
-                    blacklistSuccess.textContent = payload.message || 'Клиент заблокирован';
-                    blacklistSuccess.classList.remove('d-none');
-                }
-                setTimeout(() => window.location.reload(), 600);
-            } catch (error) {
-                if (blacklistError) {
-                    blacklistError.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
-                    blacklistError.classList.remove('d-none');
-                }
-            } finally {
-                if (blacklistSubmit) {
-                    blacklistSubmit.disabled = false;
-                }
-                if (blacklistLoading) {
-                    blacklistLoading.classList.add('d-none');
-                }
-            }
-        });
-    }
-
-    window.removeBlacklist = async function (button) {
-        const userId = button?.dataset?.blacklistUserId;
-        if (!userId) return;
-        if (!confirm('Разблокировать клиента?')) {
-            return;
-        }
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        const response = await fetch('/api/blacklist/remove', {
-            method: 'POST',
-            body: formData
-        });
-        const payload = await response.json();
-        if (response.ok && payload.ok) {
-            window.location.reload();
-        } else {
-            alert(payload.error || 'Не удалось снять блокировку');
-        }
-    };
-
-    const clientNameForm = document.getElementById('clientNameForm');
-    const clientNameInput = document.getElementById('clientNameInput');
-    const clientNameDisplay = document.getElementById('clientNameDisplay');
-    const clientNameError = document.getElementById('clientNameError');
-
-    if (clientNameForm) {
-        clientNameForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientNameInput) return;
-            if (clientNameError) {
-                clientNameError.classList.add('d-none');
-                clientNameError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/name`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_name: clientNameInput.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения имени');
-                }
-                if (clientNameDisplay) {
-                    clientNameDisplay.textContent = payload.client_name || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientNameModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientNameError) {
-                    clientNameError.textContent = error?.message || 'Ошибка соединения';
-                    clientNameError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    const clientStatusForm = document.getElementById('clientStatusForm');
-    const clientStatusSelect = document.getElementById('clientStatusSelect');
-    const clientStatusDisplay = document.getElementById('clientStatusDisplay');
-    const clientStatusError = document.getElementById('clientStatusError');
-
-    if (clientStatusForm) {
-        clientStatusForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!clientStatusSelect) return;
-            if (clientStatusError) {
-                clientStatusError.classList.add('d-none');
-                clientStatusError.textContent = '';
-            }
-            try {
-                const response = await fetch(`/api/clients/${clientUserId}/status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_status: clientStatusSelect.value || '' })
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || 'Ошибка сохранения статуса');
-                }
-                if (clientStatusDisplay) {
-                    clientStatusDisplay.textContent = payload.client_status || '—';
-                }
-                const modal = bootstrap.Modal.getInstance(document.getElementById('clientStatusModal'));
-                if (modal) {
-                    modal.hide();
-                }
-            } catch (error) {
-                if (clientStatusError) {
-                    clientStatusError.textContent = error?.message || 'Ошибка соединения';
-                    clientStatusError.classList.remove('d-none');
-                }
-            }
-        });
-    }
-
-    function ensureManualPhonesPlaceholderHidden() {
-        const tbody = document.getElementById('manualPhonesTbody');
-        if (!tbody) return;
-        const placeholder = tbody.querySelector('tr td[colspan="4"]');
-        if (placeholder) {
-            placeholder.parentElement?.remove();
-        }
-    }
-
-    window.addManualPhone = async function () {
-        const phoneInput = document.getElementById('newPhoneInput');
-        const labelInput = document.getElementById('newPhoneLabelInput');
-        const phone = (phoneInput?.value || '').trim();
-        const label = (labelInput?.value || '').trim();
-        if (!phone) {
-            alert('Введите телефон');
-            return;
-        }
-        try {
-            const response = await fetch(`/api/clients/${clientUserId}/phones`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, label })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось добавить телефон');
-            }
-            const tbody = document.getElementById('manualPhonesTbody');
-            if (tbody) {
-                ensureManualPhonesPlaceholderHidden();
-                const row = document.createElement('tr');
-                row.dataset.id = payload.id;
-                row.innerHTML = `
-                    <td><strong>${payload.phone}</strong></td>
-                    <td><input class="form-control form-control-sm phone-label-input" value="${payload.label || ''}" placeholder="личный/рабочий/…"></td>
-                    <td><small class="text-muted">${payload.created_at || '—'}</small></td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="savePhoneLabel(this)">?</button>
-                        <button class="btn btn-sm btn-outline-danger" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="archivePhone(this)">?</button>
-                    </td>
-                `;
-                tbody.prepend(row);
-            }
-            if (phoneInput) phoneInput.value = '';
-            if (labelInput) labelInput.value = '';
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.savePhoneLabel = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        const row = button?.closest('tr');
-        const input = row?.querySelector('.phone-label-input');
-        if (!userId || !phoneId || !input) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ label: input.value || '' })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось сохранить метку');
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    window.archivePhone = async function (button) {
-        const userId = button?.dataset?.userId;
-        const phoneId = button?.dataset?.phoneId;
-        if (!userId || !phoneId) return;
-        if (!confirm('Убрать телефон из активных?')) return;
-        try {
-            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: false })
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) {
-                throw new Error(payload.error || 'Не удалось убрать телефон');
-            }
-            const row = button.closest('tr');
-            if (row) {
-                row.remove();
-            }
-        } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
-        }
-    };
-
-    function normalizeMessageSender(sender) {
-        const value = String(sender || '').toLowerCase();
-        if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
-            return 'support';
-        }
-        return 'user';
-    }
-
-    function formatMessageTimestamp(value) {
-        if (!value) return '';
-        const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-        const parsed = new Date(numeric);
-        if (!Number.isNaN(parsed.getTime())) {
-            const day = String(parsed.getDate()).padStart(2, '0');
-            const month = String(parsed.getMonth() + 1).padStart(2, '0');
-            const year = parsed.getFullYear();
-            return `${day}:${month}:${year}`;
-        }
-        return value;
-    }
-
-    function renderClientHistory(messages) {
-        const container = document.getElementById('clientHistoryMessages');
-        if (!container) return;
-        if (!Array.isArray(messages) || messages.length === 0) {
-            container.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
-            return;
-        }
-        container.innerHTML = messages.map((msg) => {
-            const senderType = normalizeMessageSender(msg.sender);
-            const timestamp = formatMessageTimestamp(msg.timestamp);
-            const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
-            const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
-            const body = bodyText || fallbackType || '—';
-            let attachment = '';
-            if (msg.attachment) {
-                attachment = `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`;`;
-            }
-            return `
-                <div class="chat-message ${senderType}">
-                    <div class="d-flex justify-content-between small text-muted mb-1">
-                        <span>${msg.sender || 'Пользователь'}</span>
-                        <span>${timestamp}</span>
-                    </div>
-                    <div>${body}</div>
-                    ${attachment}
-                </div>
-            `;
-        }).join('');
-    }
-
-    let clientHistoryModalInstance = null;
-    let clientHistoryTicketId = null;
-
-    window.openClientHistory = async function (button) {
-        const ticketId = button?.dataset?.ticketId;
-        const channelId = button?.dataset?.channelId;
-        if (!ticketId) return;
-        clientHistoryTicketId = ticketId;
-        const meta = document.getElementById('clientHistoryMeta');
-        if (meta) {
-            meta.textContent = `ID заявки: ${ticketId}`;
-        }
-        const container = document.getElementById('clientHistoryMessages');
-        if (container) {
-            container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';
-        }
-        if (!clientHistoryModalInstance) {
-            clientHistoryModalInstance = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
-        }
-        clientHistoryModalInstance.show();
-
-        try {
-            const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error || 'Не удалось загрузить историю');
-            }
-            renderClientHistory(payload.history || []);
-        } catch (error) {
-            if (container) {
-                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
-            }
-        }
-    };
-
-    const ticketsSearch = document.getElementById('clientTicketsSearch');
-    if (ticketsSearch) {
-        ticketsSearch.addEventListener('input', () => {
-            const query = ticketsSearch.value.trim().toLowerCase();
-            let visibleCount = 0;
-            document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
-                const haystack = (item.dataset.searchValue || '').toLowerCase();
-                const matches = !query || haystack.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                }
-            });
-            const emptyIndicator = document.getElementById('clientTicketsEmpty');
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        });
-    }
-
-    function initSearch(inputId, selector, options = {}) {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        const items = Array.from(document.querySelectorAll(selector));
-        if (!items.length) return;
-
-        const groupContainers = {};
-        if (options.groupContainerSelector) {
-            document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
-                const key = el.dataset.groupContainer;
-                if (key) groupContainers[key] = el;
-            });
-        }
-
-        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
-
-        const applyFilter = () => {
-            const query = input.value.trim().toLowerCase();
-            let visibleCount = 0;
-            const visibleByGroup = {};
-            items.forEach((item) => {
-                const value = (item.dataset.searchValue || '').toLowerCase();
-                const groupKey = item.dataset.groupKey || '';
-                const matches = !query || value.includes(query);
-                item.classList.toggle('d-none', !matches);
-                if (matches) {
-                    visibleCount += 1;
-                    visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
-                }
-            });
-
-            Object.entries(groupContainers).forEach(([key, container]) => {
-                const hasVisible = (visibleByGroup[key] || 0) > 0;
-                container.classList.toggle('d-none', !hasVisible);
-            });
-
-            if (emptyIndicator) {
-                emptyIndicator.style.display = visibleCount ? 'none' : '';
-            }
-        };
-
-        input.addEventListener('input', applyFilter);
-        applyFilter();
-    }
-
-    initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
-        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
-        emptyIndicatorId: 'clientAnalyticsEmpty',
-    });
-"
-	at org.thymeleaf.templateparser.text.TextParser.parseDocument(TextParser.java:209)
-	at org.thymeleaf.templateparser.text.TextParser.parse(TextParser.java:100)
-	at org.thymeleaf.templateparser.text.AbstractTextTemplateParser.parse(AbstractTextTemplateParser.java:169)
-	at org.thymeleaf.templateparser.text.AbstractTextTemplateParser.parseString(AbstractTextTemplateParser.java:113)
-	at org.thymeleaf.engine.TemplateManager.parseString(TemplateManager.java:452)
-	at org.thymeleaf.standard.inline.AbstractStandardInliner.inlineSwitchTemplateMode(AbstractStandardInliner.java:153)
-	at org.thymeleaf.standard.inline.AbstractStandardInliner.inline(AbstractStandardInliner.java:114)
-	at org.thymeleaf.standard.processor.StandardInliningTextProcessor.doProcess(StandardInliningTextProcessor.java:62)
-	at org.thymeleaf.processor.text.AbstractTextProcessor.process(AbstractTextProcessor.java:57)
-	at org.thymeleaf.util.ProcessorConfigurationUtils$TextProcessorWrapper.process(ProcessorConfigurationUtils.java:749)
-	at org.thymeleaf.engine.ProcessorTemplateHandler.handleText(ProcessorTemplateHandler.java:560)
-	at org.thymeleaf.engine.Text.beHandled(Text.java:97)
-	at org.thymeleaf.engine.TemplateModel.process(TemplateModel.java:136)
-	at org.thymeleaf.engine.TemplateManager.parseAndProcess(TemplateManager.java:661)
-	at org.thymeleaf.TemplateEngine.process(TemplateEngine.java:1103)
-	at org.thymeleaf.TemplateEngine.process(TemplateEngine.java:1077)
-	at org.thymeleaf.spring6.view.ThymeleafView.renderFragment(ThymeleafView.java:372)
-	at org.thymeleaf.spring6.view.ThymeleafView.render(ThymeleafView.java:192)
-	at org.springframework.web.servlet.DispatcherServlet.render(DispatcherServlet.java:1431)
-	at org.springframework.web.servlet.DispatcherServlet.processDispatchResult(DispatcherServlet.java:1167)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1106)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
-	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
-	at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
-	at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:117)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
-	at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
-	at java.base/java.lang.Thread.run(Thread.java:840)
+Starting Spring panel with C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\mvnw.cmd
+[INFO] Scanning for projects...
+[INFO]
+[INFO] -------------------------< com.example:panel >--------------------------
+[INFO] Building panel 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] >>> spring-boot:3.2.5:run (default-cli) > test-compile @ panel >>>
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ panel ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 54 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.11.0:compile (default-compile) @ panel ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 174 source files with javac [debug release 17] to target\classes
+[INFO] /C:/Users/SinicinVV/Documents/tg_bot/tg_ref_b24_sup-main/spring-panel/src/main/java/com/example/panel/config/MvcConfig.java: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\src\main\java\com\example\panel\config\MvcConfig.java uses or overrides a deprecated API.
+[INFO] /C:/Users/SinicinVV/Documents/tg_bot/tg_ref_b24_sup-main/spring-panel/src/main/java/com/example/panel/config/MvcConfig.java: Recompile with -Xlint:deprecation for details.
+[INFO] /C:/Users/SinicinVV/Documents/tg_bot/tg_ref_b24_sup-main/spring-panel/src/main/java/com/example/panel/service/SharedConfigService.java: Some input files use unchecked or unsafe operations.
+[INFO] /C:/Users/SinicinVV/Documents/tg_bot/tg_ref_b24_sup-main/spring-panel/src/main/java/com/example/panel/service/SharedConfigService.java: Recompile with -Xlint:unchecked for details.
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ panel ---
+[INFO] skip non existing resourceDirectory C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\src\test\resources
+[INFO]
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ panel ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 3 source files with javac [debug release 17] to target\test-classes
+[INFO]
+[INFO] <<< spring-boot:3.2.5:run (default-cli) < test-compile @ panel <<<
+[INFO]
+[INFO]
+[INFO] --- spring-boot:3.2.5:run (default-cli) @ panel ---
+[INFO] Attaching agents: []
+2026-02-03 10:12:38.261+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-02-03 10:12:38.377+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db}
+2026-02-03 10:12:38.386+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\object_passports.db, falling back to defaults.
+2026-02-03 10:12:38.389+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\object_passports.db}
+2026-02-03 10:12:38.397+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 6844 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel)
+2026-02-03 10:12:38.400+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-02-03 10:12:40.266+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-03 10:12:40.595+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 307 ms. Found 31 JPA repository interfaces.
+2026-02-03 10:12:42.155+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-02-03 10:12:42.174+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8081"]
+2026-02-03 10:12:42.178+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-02-03 10:12:42.179+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-02-03 10:12:42.308+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-02-03 10:12:42.311+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3809 ms
+2026-02-03 10:12:42.537+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db
+2026-02-03 10:12:43.063+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db (SQLite 3.43)
+2026-02-03 10:12:43.169+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 14 migrations (execution time 00:00.071s)
+2026-02-03 10:12:43.184+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 13
+2026-02-03 10:12:43.191+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-02-03 10:12:43.335+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-02-03 10:12:43.460+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-02-03 10:12:43.537+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-02-03 10:12:44.028+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-03 10:12:47.420+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-03 10:12:47.429+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-03 10:12:47.691+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\tickets.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\users.db (users)
+2026-02-03 10:12:47.857+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\config\shared
+2026-02-03 10:12:50.050+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\bot_database.db
+2026-02-03 10:12:50.448+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\users.db
+2026-02-03 10:12:50.511+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-02-03 10:12:51.446+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@373e09c7, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@3f04847e, org.springframework.security.web.context.SecurityContextHolderFilter@4ec25389, org.springframework.security.web.header.HeaderWriterFilter@72de1d86, org.springframework.web.filter.CorsFilter@2a7b4b19, org.springframework.security.web.csrf.CsrfFilter@4390b78f, com.example.panel.security.SecurityHeadersFilter@7f0f84d4, org.springframework.security.web.authentication.logout.LogoutFilter@5a36a405, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@693f9ab5, org.springframework.security.web.session.ConcurrentSessionFilter@2a64cb1f, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@34c31a34, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@6b5f91a5, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@26415b5e, org.springframework.security.web.session.SessionManagementFilter@524250ec, org.springframework.security.web.access.ExceptionTranslationFilter@284e68ae, org.springframework.security.web.access.intercept.AuthorizationFilter@60bd11f7]
+2026-02-03 10:12:52.038+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-03 10:12:53.701+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8081"]
+2026-02-03 10:12:53.734+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-02-03 10:12:53.767+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 16.588 seconds (process running for 17.324)
+2026-02-03 10:12:53.784+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\bot_databases
+2026-02-03 10:12:53.786+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\java-bot
+2026-02-03 10:12:53.917+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-02-03 10:12:53.919+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-02-03 10:12:53.931+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\clients.db
+2026-02-03 10:12:53.941+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\knowledge_base.db
+2026-02-03 10:12:53.948+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\spring-panel\objects.db
+2026-02-03 10:12:54.346+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup-main\bot_databases\bot-1.db
+2026-02-03 10:12:58.391+03:00 INFO  [http-nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-02-03 10:12:58.392+03:00 INFO  [http-nio-8081-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-02-03 10:12:58.401+03:00 INFO  [http-nio-8081-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 4 ms
+2026-02-03 10:13:00.004+03:00 INFO  [http-nio-8081-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-03 10:13:02.396+03:00 WARN  [http-nio-8081-exec-4] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 0, SQLState: null
+2026-02-03 10:13:02.397+03:00 ERROR [http-nio-8081-exec-4] o.h.e.jdbc.spi.SqlExceptionHelper - Error parsing time stamp
+2026-02-03 10:13:02.405+03:00 INFO  [http-nio-8081-exec-4] o.h.e.i.DefaultLoadEventListener - HHH000327: Error performing load command
+org.hibernate.exception.GenericJDBCException: Could not extract column [2] from JDBC ResultSet [Error parsing time stamp] [n/a]
+        at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:63)
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108)
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:94)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:310)
+        at org.hibernate.sql.results.internal.RowProcessingStateStandardImpl.getJdbcValue(RowProcessingStateStandardImpl.java:119)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.extractRawValue(BasicResultAssembler.java:52)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.assemble(BasicResultAssembler.java:59)
+        at org.hibernate.sql.results.graph.DomainResultAssembler.assemble(DomainResultAssembler.java:33)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.extractConcreteTypeStateValues(AbstractEntityInitializer.java:1081)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntityInstance(AbstractEntityInitializer.java:838)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntity(AbstractEntityInitializer.java:813)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeInstance(AbstractEntityInitializer.java:799)
+        at org.hibernate.sql.results.internal.InitializersList.initializeInstance(InitializersList.java:70)
+        at org.hibernate.sql.results.internal.StandardRowReader.coordinateInitializers(StandardRowReader.java:109)
+        at org.hibernate.sql.results.internal.StandardRowReader.readRow(StandardRowReader.java:86)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:188)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:33)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:209)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:83)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:76)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:65)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:145)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:117)
+        at org.hibernate.loader.ast.internal.SingleIdEntityLoaderStandardImpl.load(SingleIdEntityLoaderStandardImpl.java:75)
+        at org.hibernate.persister.entity.AbstractEntityPersister.doLoad(AbstractEntityPersister.java:3748)
+        at org.hibernate.persister.entity.AbstractEntityPersister.load(AbstractEntityPersister.java:3737)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromDatasource(DefaultLoadEventListener.java:604)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromCacheOrDatasource(DefaultLoadEventListener.java:590)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:560)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doLoad(DefaultLoadEventListener.java:544)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:207)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadWithRegularProxy(DefaultLoadEventListener.java:290)
+        at org.hibernate.event.internal.DefaultLoadEventListener.proxyOrLoad(DefaultLoadEventListener.java:242)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doOnLoad(DefaultLoadEventListener.java:111)
+        at org.hibernate.event.internal.DefaultLoadEventListener.onLoad(DefaultLoadEventListener.java:68)
+        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+        at org.hibernate.internal.SessionImpl.fireLoadNoChecks(SessionImpl.java:1222)
+        at org.hibernate.internal.SessionImpl.fireLoad(SessionImpl.java:1210)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:209)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.doLoad(IdentifierLoadAccessImpl.java:160)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.lambda$load$1(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.perform(IdentifierLoadAccessImpl.java:112)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2424)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2395)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.ExtendedEntityManagerCreator$ExtendedEntityManagerInvocationHandler.invoke(ExtendedEntityManagerCreator.java:364)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.findById(SimpleJpaRepository.java:313)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+        at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:516)
+        at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+        at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:628)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:168)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:143)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:70)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:164)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+        at jdk.proxy2/jdk.proxy2.$Proxy151.findById(Unknown Source)
+        at com.example.panel.controller.ClientBlacklistApiController.remove(ClientBlacklistApiController.java:64)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+        at com.example.panel.controller.ClientBlacklistApiController$$SpringCGLIB$$0.remove(<generated>)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+        at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590)
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+        at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+        at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:131)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+        at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+        at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+        at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+        at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.sql.SQLException: Error parsing time stamp
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:483)
+        at org.hibernate.type.descriptor.jdbc.TimestampUtcAsJdbcTimestampJdbcType$2.doExtract(TimestampUtcAsJdbcTimestampJdbcType.java:103)
+        at org.hibernate.type.descriptor.jdbc.BasicExtractor.extract(BasicExtractor.java:44)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:302)
+        ... 220 common frames omitted
+Caused by: java.text.ParseException: Unparseable date: "1770102051462" does not match (\p{Nd}++)\Q-\E(\p{Nd}++)\Q-\E(\p{Nd}++)\Q \E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q.\E(\p{Nd}++)
+        at org.sqlite.date.FastDateParser.parse(FastDateParser.java:311)
+        at org.sqlite.date.FastDateFormat.parse(FastDateFormat.java:449)
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:481)
+        ... 223 common frames omitted
+2026-02-03 10:13:02.460+03:00 ERROR [http-nio-8081-exec-4] o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.orm.jpa.JpaSystemException: Could not extract column [2] from JDBC ResultSet [Error parsing time stamp] [n/a]] with root cause
+java.text.ParseException: Unparseable date: "1770102051462" does not match (\p{Nd}++)\Q-\E(\p{Nd}++)\Q-\E(\p{Nd}++)\Q \E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q.\E(\p{Nd}++)
+        at org.sqlite.date.FastDateParser.parse(FastDateParser.java:311)
+        at org.sqlite.date.FastDateFormat.parse(FastDateFormat.java:449)
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:481)
+        at org.hibernate.type.descriptor.jdbc.TimestampUtcAsJdbcTimestampJdbcType$2.doExtract(TimestampUtcAsJdbcTimestampJdbcType.java:103)
+        at org.hibernate.type.descriptor.jdbc.BasicExtractor.extract(BasicExtractor.java:44)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:302)
+        at org.hibernate.sql.results.internal.RowProcessingStateStandardImpl.getJdbcValue(RowProcessingStateStandardImpl.java:119)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.extractRawValue(BasicResultAssembler.java:52)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.assemble(BasicResultAssembler.java:59)
+        at org.hibernate.sql.results.graph.DomainResultAssembler.assemble(DomainResultAssembler.java:33)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.extractConcreteTypeStateValues(AbstractEntityInitializer.java:1081)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntityInstance(AbstractEntityInitializer.java:838)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntity(AbstractEntityInitializer.java:813)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeInstance(AbstractEntityInitializer.java:799)
+        at org.hibernate.sql.results.internal.InitializersList.initializeInstance(InitializersList.java:70)
+        at org.hibernate.sql.results.internal.StandardRowReader.coordinateInitializers(StandardRowReader.java:109)
+        at org.hibernate.sql.results.internal.StandardRowReader.readRow(StandardRowReader.java:86)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:188)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:33)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:209)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:83)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:76)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:65)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:145)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:117)
+        at org.hibernate.loader.ast.internal.SingleIdEntityLoaderStandardImpl.load(SingleIdEntityLoaderStandardImpl.java:75)
+        at org.hibernate.persister.entity.AbstractEntityPersister.doLoad(AbstractEntityPersister.java:3748)
+        at org.hibernate.persister.entity.AbstractEntityPersister.load(AbstractEntityPersister.java:3737)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromDatasource(DefaultLoadEventListener.java:604)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromCacheOrDatasource(DefaultLoadEventListener.java:590)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:560)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doLoad(DefaultLoadEventListener.java:544)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:207)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadWithRegularProxy(DefaultLoadEventListener.java:290)
+        at org.hibernate.event.internal.DefaultLoadEventListener.proxyOrLoad(DefaultLoadEventListener.java:242)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doOnLoad(DefaultLoadEventListener.java:111)
+        at org.hibernate.event.internal.DefaultLoadEventListener.onLoad(DefaultLoadEventListener.java:68)
+        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+        at org.hibernate.internal.SessionImpl.fireLoadNoChecks(SessionImpl.java:1222)
+        at org.hibernate.internal.SessionImpl.fireLoad(SessionImpl.java:1210)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:209)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.doLoad(IdentifierLoadAccessImpl.java:160)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.lambda$load$1(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.perform(IdentifierLoadAccessImpl.java:112)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2424)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2395)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.ExtendedEntityManagerCreator$ExtendedEntityManagerInvocationHandler.invoke(ExtendedEntityManagerCreator.java:364)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.findById(SimpleJpaRepository.java:313)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+        at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:516)
+        at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+        at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:628)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:168)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:143)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:70)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:164)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+        at jdk.proxy2/jdk.proxy2.$Proxy151.findById(Unknown Source)
+        at com.example.panel.controller.ClientBlacklistApiController.remove(ClientBlacklistApiController.java:64)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+        at com.example.panel.controller.ClientBlacklistApiController$$SpringCGLIB$$0.remove(<generated>)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+        at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590)
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+        at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+        at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:131)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+        at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+        at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+        at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+        at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+2026-02-03 10:13:14.966+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-03 10:13:17.727+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.ClientProfileApiController - Added manual phone 1 for 380742186
+2026-02-03 10:13:17.743+03:00 ERROR [http-nio-8081-exec-2] o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: java.lang.NullPointerException] with root cause
+java.lang.NullPointerException: null
+        at java.base/java.util.Objects.requireNonNull(Objects.java:209)
+        at java.base/java.util.ImmutableCollections$MapN.<init>(ImmutableCollections.java:1186)
+        at java.base/java.util.Map.of(Map.java:1445)
+        at com.example.panel.controller.ClientProfileApiController.addPhone(ClientProfileApiController.java:94)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+        at com.example.panel.controller.ClientProfileApiController$$SpringCGLIB$$0.addPhone(<generated>)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+        at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590)
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+        at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+        at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:131)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+        at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+        at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+        at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+        at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+2026-02-03 10:13:20.074+03:00 INFO  [http-nio-8081-exec-1] c.e.p.c.ClientProfileApiController - Added manual phone 1 for 380742186
+2026-02-03 10:13:26.784+03:00 WARN  [http-nio-8081-exec-3] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 0, SQLState: null
+2026-02-03 10:13:26.785+03:00 ERROR [http-nio-8081-exec-3] o.h.e.jdbc.spi.SqlExceptionHelper - Error parsing time stamp
+2026-02-03 10:13:26.790+03:00 INFO  [http-nio-8081-exec-3] o.h.e.i.DefaultLoadEventListener - HHH000327: Error performing load command
+org.hibernate.exception.GenericJDBCException: Could not extract column [2] from JDBC ResultSet [Error parsing time stamp] [n/a]
+        at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:63)
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108)
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:94)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:310)
+        at org.hibernate.sql.results.internal.RowProcessingStateStandardImpl.getJdbcValue(RowProcessingStateStandardImpl.java:119)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.extractRawValue(BasicResultAssembler.java:52)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.assemble(BasicResultAssembler.java:59)
+        at org.hibernate.sql.results.graph.DomainResultAssembler.assemble(DomainResultAssembler.java:33)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.extractConcreteTypeStateValues(AbstractEntityInitializer.java:1081)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntityInstance(AbstractEntityInitializer.java:838)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntity(AbstractEntityInitializer.java:813)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeInstance(AbstractEntityInitializer.java:799)
+        at org.hibernate.sql.results.internal.InitializersList.initializeInstance(InitializersList.java:70)
+        at org.hibernate.sql.results.internal.StandardRowReader.coordinateInitializers(StandardRowReader.java:109)
+        at org.hibernate.sql.results.internal.StandardRowReader.readRow(StandardRowReader.java:86)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:188)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:33)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:209)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:83)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:76)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:65)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:145)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:117)
+        at org.hibernate.loader.ast.internal.SingleIdEntityLoaderStandardImpl.load(SingleIdEntityLoaderStandardImpl.java:75)
+        at org.hibernate.persister.entity.AbstractEntityPersister.doLoad(AbstractEntityPersister.java:3748)
+        at org.hibernate.persister.entity.AbstractEntityPersister.load(AbstractEntityPersister.java:3737)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromDatasource(DefaultLoadEventListener.java:604)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromCacheOrDatasource(DefaultLoadEventListener.java:590)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:560)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doLoad(DefaultLoadEventListener.java:544)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:207)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadWithRegularProxy(DefaultLoadEventListener.java:290)
+        at org.hibernate.event.internal.DefaultLoadEventListener.proxyOrLoad(DefaultLoadEventListener.java:242)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doOnLoad(DefaultLoadEventListener.java:111)
+        at org.hibernate.event.internal.DefaultLoadEventListener.onLoad(DefaultLoadEventListener.java:68)
+        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+        at org.hibernate.internal.SessionImpl.fireLoadNoChecks(SessionImpl.java:1222)
+        at org.hibernate.internal.SessionImpl.fireLoad(SessionImpl.java:1210)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:209)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.doLoad(IdentifierLoadAccessImpl.java:160)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.lambda$load$1(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.perform(IdentifierLoadAccessImpl.java:112)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2424)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2395)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.ExtendedEntityManagerCreator$ExtendedEntityManagerInvocationHandler.invoke(ExtendedEntityManagerCreator.java:364)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.findById(SimpleJpaRepository.java:313)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+        at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:516)
+        at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+        at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:628)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:168)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:143)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:70)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:164)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+        at jdk.proxy2/jdk.proxy2.$Proxy151.findById(Unknown Source)
+        at com.example.panel.controller.ClientBlacklistApiController.remove(ClientBlacklistApiController.java:64)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+        at com.example.panel.controller.ClientBlacklistApiController$$SpringCGLIB$$0.remove(<generated>)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+        at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590)
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+        at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+        at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:131)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+        at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+        at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+        at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+        at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.sql.SQLException: Error parsing time stamp
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:483)
+        at org.hibernate.type.descriptor.jdbc.TimestampUtcAsJdbcTimestampJdbcType$2.doExtract(TimestampUtcAsJdbcTimestampJdbcType.java:103)
+        at org.hibernate.type.descriptor.jdbc.BasicExtractor.extract(BasicExtractor.java:44)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:302)
+        ... 220 common frames omitted
+Caused by: java.text.ParseException: Unparseable date: "1770102051462" does not match (\p{Nd}++)\Q-\E(\p{Nd}++)\Q-\E(\p{Nd}++)\Q \E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q.\E(\p{Nd}++)
+        at org.sqlite.date.FastDateParser.parse(FastDateParser.java:311)
+        at org.sqlite.date.FastDateFormat.parse(FastDateFormat.java:449)
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:481)
+        ... 223 common frames omitted
+2026-02-03 10:13:26.845+03:00 ERROR [http-nio-8081-exec-3] o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.orm.jpa.JpaSystemException: Could not extract column [2] from JDBC ResultSet [Error parsing time stamp] [n/a]] with root cause
+java.text.ParseException: Unparseable date: "1770102051462" does not match (\p{Nd}++)\Q-\E(\p{Nd}++)\Q-\E(\p{Nd}++)\Q \E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q.\E(\p{Nd}++)
+        at org.sqlite.date.FastDateParser.parse(FastDateParser.java:311)
+        at org.sqlite.date.FastDateFormat.parse(FastDateFormat.java:449)
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:481)
+        at org.hibernate.type.descriptor.jdbc.TimestampUtcAsJdbcTimestampJdbcType$2.doExtract(TimestampUtcAsJdbcTimestampJdbcType.java:103)
+        at org.hibernate.type.descriptor.jdbc.BasicExtractor.extract(BasicExtractor.java:44)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:302)
+        at org.hibernate.sql.results.internal.RowProcessingStateStandardImpl.getJdbcValue(RowProcessingStateStandardImpl.java:119)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.extractRawValue(BasicResultAssembler.java:52)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.assemble(BasicResultAssembler.java:59)
+        at org.hibernate.sql.results.graph.DomainResultAssembler.assemble(DomainResultAssembler.java:33)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.extractConcreteTypeStateValues(AbstractEntityInitializer.java:1081)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntityInstance(AbstractEntityInitializer.java:838)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntity(AbstractEntityInitializer.java:813)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeInstance(AbstractEntityInitializer.java:799)
+        at org.hibernate.sql.results.internal.InitializersList.initializeInstance(InitializersList.java:70)
+        at org.hibernate.sql.results.internal.StandardRowReader.coordinateInitializers(StandardRowReader.java:109)
+        at org.hibernate.sql.results.internal.StandardRowReader.readRow(StandardRowReader.java:86)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:188)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:33)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:209)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:83)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:76)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:65)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:145)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:117)
+        at org.hibernate.loader.ast.internal.SingleIdEntityLoaderStandardImpl.load(SingleIdEntityLoaderStandardImpl.java:75)
+        at org.hibernate.persister.entity.AbstractEntityPersister.doLoad(AbstractEntityPersister.java:3748)
+        at org.hibernate.persister.entity.AbstractEntityPersister.load(AbstractEntityPersister.java:3737)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromDatasource(DefaultLoadEventListener.java:604)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromCacheOrDatasource(DefaultLoadEventListener.java:590)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:560)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doLoad(DefaultLoadEventListener.java:544)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:207)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadWithRegularProxy(DefaultLoadEventListener.java:290)
+        at org.hibernate.event.internal.DefaultLoadEventListener.proxyOrLoad(DefaultLoadEventListener.java:242)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doOnLoad(DefaultLoadEventListener.java:111)
+        at org.hibernate.event.internal.DefaultLoadEventListener.onLoad(DefaultLoadEventListener.java:68)
+        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+        at org.hibernate.internal.SessionImpl.fireLoadNoChecks(SessionImpl.java:1222)
+        at org.hibernate.internal.SessionImpl.fireLoad(SessionImpl.java:1210)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:209)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.doLoad(IdentifierLoadAccessImpl.java:160)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.lambda$load$1(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.perform(IdentifierLoadAccessImpl.java:112)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2424)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2395)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.ExtendedEntityManagerCreator$ExtendedEntityManagerInvocationHandler.invoke(ExtendedEntityManagerCreator.java:364)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.findById(SimpleJpaRepository.java:313)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+        at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:516)
+        at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+        at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:628)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:168)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:143)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:70)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:164)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+        at jdk.proxy2/jdk.proxy2.$Proxy151.findById(Unknown Source)
+        at com.example.panel.controller.ClientBlacklistApiController.remove(ClientBlacklistApiController.java:64)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+        at com.example.panel.controller.ClientBlacklistApiController$$SpringCGLIB$$0.remove(<generated>)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+        at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590)
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+        at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+        at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:131)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+        at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+        at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+        at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+        at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+2026-02-03 10:13:29.963+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-03 10:13:32.354+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-03 10:13:38.727+03:00 WARN  [http-nio-8081-exec-3] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 0, SQLState: null
+2026-02-03 10:13:38.728+03:00 ERROR [http-nio-8081-exec-3] o.h.e.jdbc.spi.SqlExceptionHelper - Error parsing time stamp
+2026-02-03 10:13:38.736+03:00 INFO  [http-nio-8081-exec-3] o.h.e.i.DefaultLoadEventListener - HHH000327: Error performing load command
+org.hibernate.exception.GenericJDBCException: Could not extract column [3] from JDBC ResultSet [Error parsing time stamp] [n/a]
+        at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:63)
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108)
+        at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:94)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:310)
+        at org.hibernate.sql.results.internal.RowProcessingStateStandardImpl.getJdbcValue(RowProcessingStateStandardImpl.java:119)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.extractRawValue(BasicResultAssembler.java:52)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.assemble(BasicResultAssembler.java:59)
+        at org.hibernate.sql.results.graph.DomainResultAssembler.assemble(DomainResultAssembler.java:33)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.extractConcreteTypeStateValues(AbstractEntityInitializer.java:1081)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntityInstance(AbstractEntityInitializer.java:838)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntity(AbstractEntityInitializer.java:813)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeInstance(AbstractEntityInitializer.java:799)
+        at org.hibernate.sql.results.internal.InitializersList.initializeInstance(InitializersList.java:70)
+        at org.hibernate.sql.results.internal.StandardRowReader.coordinateInitializers(StandardRowReader.java:109)
+        at org.hibernate.sql.results.internal.StandardRowReader.readRow(StandardRowReader.java:86)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:188)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:33)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:209)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:83)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:76)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:65)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:145)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:117)
+        at org.hibernate.loader.ast.internal.SingleIdEntityLoaderStandardImpl.load(SingleIdEntityLoaderStandardImpl.java:75)
+        at org.hibernate.persister.entity.AbstractEntityPersister.doLoad(AbstractEntityPersister.java:3748)
+        at org.hibernate.persister.entity.AbstractEntityPersister.load(AbstractEntityPersister.java:3737)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromDatasource(DefaultLoadEventListener.java:604)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromCacheOrDatasource(DefaultLoadEventListener.java:590)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:560)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doLoad(DefaultLoadEventListener.java:544)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:207)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadWithRegularProxy(DefaultLoadEventListener.java:290)
+        at org.hibernate.event.internal.DefaultLoadEventListener.proxyOrLoad(DefaultLoadEventListener.java:242)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doOnLoad(DefaultLoadEventListener.java:111)
+        at org.hibernate.event.internal.DefaultLoadEventListener.onLoad(DefaultLoadEventListener.java:68)
+        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+        at org.hibernate.internal.SessionImpl.fireLoadNoChecks(SessionImpl.java:1222)
+        at org.hibernate.internal.SessionImpl.fireLoad(SessionImpl.java:1210)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:209)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.doLoad(IdentifierLoadAccessImpl.java:160)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.lambda$load$1(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.perform(IdentifierLoadAccessImpl.java:112)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2424)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2395)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.ExtendedEntityManagerCreator$ExtendedEntityManagerInvocationHandler.invoke(ExtendedEntityManagerCreator.java:364)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.findById(SimpleJpaRepository.java:313)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+        at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:516)
+        at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+        at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:628)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:168)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:143)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:70)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:164)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+        at jdk.proxy2/jdk.proxy2.$Proxy153.findById(Unknown Source)
+        at com.example.panel.controller.ClientProfileApiController.updatePhone(ClientProfileApiController.java:108)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+        at com.example.panel.controller.ClientProfileApiController$$SpringCGLIB$$0.updatePhone(<generated>)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:888)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+        at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+        at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:131)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+        at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+        at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+        at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+        at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.sql.SQLException: Error parsing time stamp
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:483)
+        at org.hibernate.type.descriptor.jdbc.TimestampUtcAsJdbcTimestampJdbcType$2.doExtract(TimestampUtcAsJdbcTimestampJdbcType.java:103)
+        at org.hibernate.type.descriptor.jdbc.BasicExtractor.extract(BasicExtractor.java:44)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:302)
+        ... 218 common frames omitted
+Caused by: java.text.ParseException: Unparseable date: "1770102800070" does not match (\p{Nd}++)\Q-\E(\p{Nd}++)\Q-\E(\p{Nd}++)\Q \E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q.\E(\p{Nd}++)
+        at org.sqlite.date.FastDateParser.parse(FastDateParser.java:311)
+        at org.sqlite.date.FastDateFormat.parse(FastDateFormat.java:449)
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:481)
+        ... 221 common frames omitted
+2026-02-03 10:13:38.786+03:00 ERROR [http-nio-8081-exec-3] o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.orm.jpa.JpaSystemException: Could not extract column [3] from JDBC ResultSet [Error parsing time stamp] [n/a]] with root cause
+java.text.ParseException: Unparseable date: "1770102800070" does not match (\p{Nd}++)\Q-\E(\p{Nd}++)\Q-\E(\p{Nd}++)\Q \E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q:\E(\p{Nd}++)\Q.\E(\p{Nd}++)
+        at org.sqlite.date.FastDateParser.parse(FastDateParser.java:311)
+        at org.sqlite.date.FastDateFormat.parse(FastDateFormat.java:449)
+        at org.sqlite.jdbc3.JDBC3ResultSet.getTimestamp(JDBC3ResultSet.java:481)
+        at org.hibernate.type.descriptor.jdbc.TimestampUtcAsJdbcTimestampJdbcType$2.doExtract(TimestampUtcAsJdbcTimestampJdbcType.java:103)
+        at org.hibernate.type.descriptor.jdbc.BasicExtractor.extract(BasicExtractor.java:44)
+        at org.hibernate.sql.results.jdbc.internal.JdbcValuesResultSetImpl.getCurrentRowValue(JdbcValuesResultSetImpl.java:302)
+        at org.hibernate.sql.results.internal.RowProcessingStateStandardImpl.getJdbcValue(RowProcessingStateStandardImpl.java:119)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.extractRawValue(BasicResultAssembler.java:52)
+        at org.hibernate.sql.results.graph.basic.BasicResultAssembler.assemble(BasicResultAssembler.java:59)
+        at org.hibernate.sql.results.graph.DomainResultAssembler.assemble(DomainResultAssembler.java:33)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.extractConcreteTypeStateValues(AbstractEntityInitializer.java:1081)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntityInstance(AbstractEntityInitializer.java:838)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeEntity(AbstractEntityInitializer.java:813)
+        at org.hibernate.sql.results.graph.entity.AbstractEntityInitializer.initializeInstance(AbstractEntityInitializer.java:799)
+        at org.hibernate.sql.results.internal.InitializersList.initializeInstance(InitializersList.java:70)
+        at org.hibernate.sql.results.internal.StandardRowReader.coordinateInitializers(StandardRowReader.java:109)
+        at org.hibernate.sql.results.internal.StandardRowReader.readRow(StandardRowReader.java:86)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:188)
+        at org.hibernate.sql.results.spi.ListResultsConsumer.consume(ListResultsConsumer.java:33)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:209)
+        at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:83)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:76)
+        at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:65)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:145)
+        at org.hibernate.loader.ast.internal.SingleIdLoadPlan.load(SingleIdLoadPlan.java:117)
+        at org.hibernate.loader.ast.internal.SingleIdEntityLoaderStandardImpl.load(SingleIdEntityLoaderStandardImpl.java:75)
+        at org.hibernate.persister.entity.AbstractEntityPersister.doLoad(AbstractEntityPersister.java:3748)
+        at org.hibernate.persister.entity.AbstractEntityPersister.load(AbstractEntityPersister.java:3737)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromDatasource(DefaultLoadEventListener.java:604)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadFromCacheOrDatasource(DefaultLoadEventListener.java:590)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:560)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doLoad(DefaultLoadEventListener.java:544)
+        at org.hibernate.event.internal.DefaultLoadEventListener.load(DefaultLoadEventListener.java:207)
+        at org.hibernate.event.internal.DefaultLoadEventListener.loadWithRegularProxy(DefaultLoadEventListener.java:290)
+        at org.hibernate.event.internal.DefaultLoadEventListener.proxyOrLoad(DefaultLoadEventListener.java:242)
+        at org.hibernate.event.internal.DefaultLoadEventListener.doOnLoad(DefaultLoadEventListener.java:111)
+        at org.hibernate.event.internal.DefaultLoadEventListener.onLoad(DefaultLoadEventListener.java:68)
+        at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+        at org.hibernate.internal.SessionImpl.fireLoadNoChecks(SessionImpl.java:1222)
+        at org.hibernate.internal.SessionImpl.fireLoad(SessionImpl.java:1210)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:209)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.doLoad(IdentifierLoadAccessImpl.java:160)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.lambda$load$1(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.perform(IdentifierLoadAccessImpl.java:112)
+        at org.hibernate.loader.internal.IdentifierLoadAccessImpl.load(IdentifierLoadAccessImpl.java:149)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2424)
+        at org.hibernate.internal.SessionImpl.find(SessionImpl.java:2395)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.ExtendedEntityManagerCreator$ExtendedEntityManagerInvocationHandler.invoke(ExtendedEntityManagerCreator.java:364)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
+        at jdk.proxy2/jdk.proxy2.$Proxy143.find(Unknown Source)
+        at org.springframework.data.jpa.repository.support.SimpleJpaRepository.findById(SimpleJpaRepository.java:313)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170)
+        at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+        at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:516)
+        at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+        at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:628)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:168)
+        at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:143)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:70)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:164)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+        at jdk.proxy2/jdk.proxy2.$Proxy153.findById(Unknown Source)
+        at com.example.panel.controller.ClientProfileApiController.updatePhone(ClientProfileApiController.java:108)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+        at com.example.panel.controller.ClientProfileApiController$$SpringCGLIB$$0.updatePhone(<generated>)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:888)
+        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+        at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+        at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+        at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+        at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+        at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+        at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+        at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:131)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+        at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+        at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+        at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+        at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+        at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+        at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+        at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+        at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+        at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+        at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+        at java.base/java.lang.Thread.run(Thread.java:840)
