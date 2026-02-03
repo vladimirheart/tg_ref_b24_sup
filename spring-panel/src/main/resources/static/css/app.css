@@ -344,6 +344,69 @@ body {
     cursor: zoom-in;
 }
 
+.stats-chart {
+    display: flex;
+    align-items: stretch;
+    gap: 0.25rem;
+    height: 14px;
+    background: rgba(13, 110, 253, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.stats-chart-segment {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.stats-chart-resolved {
+    background: #198754;
+}
+
+.stats-chart-pending {
+    background: #ffc107;
+}
+
+.rating-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.rating-chart-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 32px;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.rating-chart-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.rating-chart-bar {
+    height: 8px;
+    background: rgba(13, 110, 253, 0.12);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.rating-chart-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0d6efd, #20c997);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.rating-chart-value {
+    font-weight: 600;
+    text-align: right;
+    color: #212529;
+    font-size: 0.9rem;
+}
+
 .searchable-collapse .card-header button {
     width: 100%;
     text-align: left;
