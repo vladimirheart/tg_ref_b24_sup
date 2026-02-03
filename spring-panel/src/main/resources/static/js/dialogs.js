@@ -33,6 +33,18 @@
   const detailsResizeHandle = document.getElementById('dialogDetailsResizeHandle');
   const detailsReplyText = document.getElementById('dialogReplyText');
   const detailsReplySend = document.getElementById('dialogReplySend');
+  const categoryTemplatesSection = document.getElementById('dialogCategoryTemplatesSection');
+  const categoryTemplateSelect = document.getElementById('dialogCategoryTemplateSelect');
+  const categoryTemplateList = document.getElementById('dialogCategoryTemplateList');
+  const categoryTemplateEmpty = document.getElementById('dialogCategoryTemplateEmpty');
+  const questionTemplatesSection = document.getElementById('dialogQuestionTemplatesSection');
+  const questionTemplateSelect = document.getElementById('dialogQuestionTemplateSelect');
+  const questionTemplateList = document.getElementById('dialogQuestionTemplateList');
+  const questionTemplateEmpty = document.getElementById('dialogQuestionTemplateEmpty');
+  const completionTemplatesSection = document.getElementById('dialogCompletionTemplatesSection');
+  const completionTemplateSelect = document.getElementById('dialogCompletionTemplateSelect');
+  const completionTemplateList = document.getElementById('dialogCompletionTemplateList');
+  const completionTemplateEmpty = document.getElementById('dialogCompletionTemplateEmpty');
 
   const filtersModal = (typeof bootstrap !== 'undefined' && filtersModalEl)
     ? new bootstrap.Modal(filtersModalEl)
@@ -48,6 +60,28 @@
   const STORAGE_WIDTHS = 'bender:dialogs:column-widths';
   const STORAGE_TASK = 'bender:dialogs:create-task';
   const HISTORY_POLL_INTERVAL = 8000;
+
+  const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
+    good_limit: 30,
+    warning_limit: 60,
+    colors: Object.freeze({
+      good: '#d1f7d1',
+      warning: '#fff4d6',
+      danger: '#f8d7da',
+    }),
+  });
+
+  const DIALOG_TEMPLATES = {
+    categoryTemplates: Array.isArray(window.DIALOG_CONFIG?.category_templates)
+      ? window.DIALOG_CONFIG.category_templates
+      : [],
+    questionTemplates: Array.isArray(window.DIALOG_CONFIG?.question_templates)
+      ? window.DIALOG_CONFIG.question_templates
+      : [],
+    completionTemplates: Array.isArray(window.DIALOG_CONFIG?.completion_templates)
+      ? window.DIALOG_CONFIG.completion_templates
+      : [],
+  };
 
   let activeDialogTicketId = null;
   let activeDialogChannelId = null;
@@ -223,6 +257,215 @@
     } catch (error) {
       // ignore restore errors
     }
+  }
+
+  function sanitizeHexColor(value, fallback) {
+    const raw = typeof value === 'string' ? value.trim() : '';
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) {
+      return raw;
+    }
+    return fallback;
+  }
+
+  function normalizeDialogTimeMetrics(raw) {
+    const base = {
+      good_limit: DEFAULT_DIALOG_TIME_METRICS.good_limit,
+      warning_limit: DEFAULT_DIALOG_TIME_METRICS.warning_limit,
+      colors: {
+        ...DEFAULT_DIALOG_TIME_METRICS.colors,
+      },
+    };
+
+    if (raw && typeof raw === 'object') {
+      const good = Number.parseInt(raw.good_limit, 10);
+      const warning = Number.parseInt(raw.warning_limit, 10);
+      if (Number.isFinite(good) && good > 0) {
+        base.good_limit = good;
+      }
+      if (Number.isFinite(warning) && warning > 0) {
+        base.warning_limit = warning;
+      }
+      if (raw.colors && typeof raw.colors === 'object') {
+        base.colors.good = sanitizeHexColor(raw.colors.good, base.colors.good);
+        base.colors.warning = sanitizeHexColor(raw.colors.warning, base.colors.warning);
+        base.colors.danger = sanitizeHexColor(raw.colors.danger, base.colors.danger);
+      }
+    }
+
+    if (!Number.isFinite(base.good_limit) || base.good_limit <= 0) {
+      base.good_limit = DEFAULT_DIALOG_TIME_METRICS.good_limit;
+    }
+
+    if (!Number.isFinite(base.warning_limit) || base.warning_limit <= base.good_limit) {
+      base.warning_limit = Math.max(base.good_limit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
+    }
+
+    return base;
+  }
+
+  function parseDialogTimestamp(summary, fallbackRow) {
+    const candidates = [
+      summary?.createdAt,
+      summary?.created_at,
+      summary?.createdDate,
+      summary?.created_date,
+      summary?.createdTime,
+      summary?.created_time,
+      fallbackRow?.dataset?.createdAt,
+      fallbackRow?.dataset?.created_at,
+    ];
+    for (const raw of candidates) {
+      if (!raw) continue;
+      const text = String(raw).trim();
+      if (!text) continue;
+      if (/^\d{10,13}$/.test(text)) {
+        const value = text.length === 10 ? Number(text) * 1000 : Number(text);
+        if (Number.isFinite(value)) return value;
+      }
+      const parsed = Date.parse(text.replace(' ', 'T'));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  }
+
+  function formatDuration(totalMinutes) {
+    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '—';
+    const minutes = Math.floor(totalMinutes);
+    if (minutes < 60) return `${minutes} мин`;
+    const hours = Math.floor(minutes / 60);
+    const restMinutes = minutes % 60;
+    if (hours < 24) return `${hours} ч ${restMinutes} мин`;
+    const days = Math.floor(hours / 24);
+    const restHours = hours % 24;
+    return `${days} д ${restHours} ч`;
+  }
+
+  function resolveTimeMetricColor(totalMinutes, config) {
+    if (!Number.isFinite(totalMinutes) || !config) return null;
+    if (totalMinutes <= config.good_limit) return config.colors.good;
+    if (totalMinutes <= config.warning_limit) return config.colors.warning;
+    return config.colors.danger;
+  }
+
+  function buildTemplateOptions(selectEl, templates, labelPrefix) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    templates.forEach((template, index) => {
+      const option = document.createElement('option');
+      option.value = template?.id || String(index);
+      option.textContent = template?.name || `${labelPrefix} ${index + 1}`;
+      selectEl.appendChild(option);
+    });
+  }
+
+  function findTemplateByValue(templates, value) {
+    return templates.find((template, index) => template?.id === value || String(index) === value);
+  }
+
+  function renderCategoryTemplate(template) {
+    if (!categoryTemplateList || !categoryTemplateEmpty) return;
+    const categories = Array.isArray(template?.categories) ? template.categories.filter(Boolean) : [];
+    categoryTemplateList.innerHTML = '';
+    categories.forEach((category) => {
+      const badge = document.createElement('span');
+      badge.className = 'badge rounded-pill text-bg-light border';
+      badge.textContent = category;
+      categoryTemplateList.appendChild(badge);
+    });
+    const hasItems = categories.length > 0;
+    categoryTemplateList.classList.toggle('d-none', !hasItems);
+    categoryTemplateEmpty.classList.toggle('d-none', hasItems);
+  }
+
+  function renderQuestionTemplate(template) {
+    if (!questionTemplateList || !questionTemplateEmpty) return;
+    const questions = Array.isArray(template?.questions) ? template.questions.filter(Boolean) : [];
+    questionTemplateList.innerHTML = '';
+    questions.forEach((question) => {
+      const button = document.createElement('button');
+      button.className = 'btn btn-outline-secondary btn-sm text-start';
+      button.type = 'button';
+      button.dataset.questionTemplateItem = '';
+      button.dataset.questionValue = question;
+      button.textContent = question;
+      questionTemplateList.appendChild(button);
+    });
+    const hasItems = questions.length > 0;
+    questionTemplateList.classList.toggle('d-none', !hasItems);
+    questionTemplateEmpty.classList.toggle('d-none', hasItems);
+  }
+
+  function renderCompletionTemplate(template) {
+    if (!completionTemplateList || !completionTemplateEmpty) return;
+    const items = Array.isArray(template?.items) ? template.items.filter(Boolean) : [];
+    completionTemplateList.innerHTML = '';
+    items.forEach((item) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'border rounded p-2 bg-light';
+      const question = document.createElement('div');
+      question.className = 'fw-semibold';
+      question.textContent = item?.question || 'Контрольный вопрос';
+      const action = document.createElement('div');
+      action.className = 'text-muted';
+      action.textContent = item?.action || 'Действие';
+      wrapper.appendChild(question);
+      wrapper.appendChild(action);
+      completionTemplateList.appendChild(wrapper);
+    });
+    const hasItems = items.length > 0;
+    completionTemplateList.classList.toggle('d-none', !hasItems);
+    completionTemplateEmpty.classList.toggle('d-none', hasItems);
+  }
+
+  function initDialogTemplates() {
+    if (categoryTemplatesSection) {
+      const templates = DIALOG_TEMPLATES.categoryTemplates;
+      const hasTemplates = templates.length > 0;
+      categoryTemplatesSection.classList.toggle('d-none', !hasTemplates);
+      if (hasTemplates && categoryTemplateSelect) {
+        buildTemplateOptions(categoryTemplateSelect, templates, 'Шаблон категорий');
+        renderCategoryTemplate(templates[0]);
+        categoryTemplateSelect.addEventListener('change', () => {
+          const selected = findTemplateByValue(templates, categoryTemplateSelect.value);
+          renderCategoryTemplate(selected);
+        });
+      }
+    }
+
+    if (questionTemplatesSection) {
+      const templates = DIALOG_TEMPLATES.questionTemplates;
+      const hasTemplates = templates.length > 0;
+      questionTemplatesSection.classList.toggle('d-none', !hasTemplates);
+      if (hasTemplates && questionTemplateSelect) {
+        buildTemplateOptions(questionTemplateSelect, templates, 'Шаблон вопросов');
+        renderQuestionTemplate(templates[0]);
+        questionTemplateSelect.addEventListener('change', () => {
+          const selected = findTemplateByValue(templates, questionTemplateSelect.value);
+          renderQuestionTemplate(selected);
+        });
+      }
+    }
+
+    if (completionTemplatesSection) {
+      const templates = DIALOG_TEMPLATES.completionTemplates;
+      const hasTemplates = templates.length > 0;
+      completionTemplatesSection.classList.toggle('d-none', !hasTemplates);
+      if (hasTemplates && completionTemplateSelect) {
+        buildTemplateOptions(completionTemplateSelect, templates, 'Шаблон действий');
+        renderCompletionTemplate(templates[0]);
+        completionTemplateSelect.addEventListener('change', () => {
+          const selected = findTemplateByValue(templates, completionTemplateSelect.value);
+          renderCompletionTemplate(selected);
+        });
+      }
+    }
+  }
+
+  function insertReplyText(value) {
+    if (!detailsReplyText || !value) return;
+    const existing = detailsReplyText.value.trim();
+    detailsReplyText.value = existing ? `${existing}\n${value}` : value;
+    detailsReplyText.focus();
   }
 
   function saveColumnWidths() {
@@ -562,17 +805,29 @@
         `).join('');
       }
       if (detailsMetrics) {
+        const timeMetricsConfig = normalizeDialogTimeMetrics(window.DIALOG_CONFIG?.time_metrics);
+        const createdAtTimestamp = parseDialogTimestamp(summary, fallbackRow);
+        const totalMinutes = Number.isFinite(createdAtTimestamp)
+          ? Math.max(0, Math.floor((Date.now() - createdAtTimestamp) / 60000))
+          : null;
+        const timeLabel = totalMinutes === null ? '—' : formatDuration(totalMinutes);
+        const timeColor = totalMinutes === null ? null : resolveTimeMetricColor(totalMinutes, timeMetricsConfig);
         const metrics = [
-          ['Создано', createdDisplay],
-          ['Закрыто', resolvedDisplay || '—'],
-          ['Канал', channelLabel],
-          ['Бизнес', businessLabel],
-          ['Ответственный', responsibleLabel],
+          { label: 'Создано', value: createdDisplay },
+          { label: 'Время обращения', value: timeLabel, color: timeColor },
+          { label: 'Закрыто', value: resolvedDisplay || '—' },
+          { label: 'Канал', value: channelLabel },
+          { label: 'Бизнес', value: businessLabel },
+          { label: 'Ответственный', value: responsibleLabel },
         ];
-        detailsMetrics.innerHTML = metrics.map(([label, value]) => `
+        detailsMetrics.innerHTML = metrics.map((item) => `
           <div class="dialog-metric-item">
-            <span>${label}</span>
-            <span>${value || '—'}</span>
+            <span>${item.label}</span>
+            ${
+              item.color
+                ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color};">${item.value || '—'}</span>`
+                : `<span>${item.value || '—'}</span>`
+            }
           </div>
         `).join('');
       }
@@ -794,6 +1049,15 @@
     });
   }
 
+  if (questionTemplateList) {
+    questionTemplateList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-question-template-item]');
+      if (!button) return;
+      insertReplyText(button.dataset.questionValue || '');
+    });
+  }
+
+  initDialogTemplates();
   loadColumnState();
   buildColumnsList();
   applyColumnState();
