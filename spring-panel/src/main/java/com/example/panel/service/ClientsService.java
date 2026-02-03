@@ -227,6 +227,8 @@ public class ClientsService {
 
         ClientBlacklistInfo blacklistInfo = loadClientBlacklist(userId);
         Double averageRating = loadAverageRating(userId);
+        List<ClientAnalyticsItem> ratingStats = loadRatingStats(userId);
+        long ratingTotal = ratingStats.stream().mapToLong(ClientAnalyticsItem::count).sum();
         String clientStatus = loadClientStatus(userId);
         List<ClientUsernameEntry> usernameHistory = loadUsernameHistory(userId);
         List<ClientAnalyticsItem> categoryStats = buildCategoryStats(tickets);
@@ -240,6 +242,8 @@ public class ClientsService {
             tickets,
             blacklistInfo,
             averageRating,
+            ratingStats,
+            ratingTotal,
             clientStatus,
             usernameHistory,
             categoryStats,
@@ -405,6 +409,31 @@ public class ClientsService {
             },
             userId
         );
+    }
+
+    private List<ClientAnalyticsItem> loadRatingStats(long userId) {
+        Map<Integer, Long> counts = new HashMap<>();
+        botJdbcTemplate.query(
+            "SELECT rating, COUNT(*) AS rating_count FROM feedbacks WHERE user_id = ? GROUP BY rating",
+            rs -> {
+                while (rs.next()) {
+                    Integer rating = rs.getObject("rating") != null ? rs.getInt("rating") : null;
+                    if (rating == null || rating < 1 || rating > 5) {
+                        continue;
+                    }
+                    counts.put(rating, rs.getLong("rating_count"));
+                }
+                return null;
+            },
+            userId
+        );
+
+        List<ClientAnalyticsItem> stats = new ArrayList<>();
+        for (int rating = 5; rating >= 1; rating -= 1) {
+            long value = counts.getOrDefault(rating, 0L);
+            stats.add(new ClientAnalyticsItem(rating + "★", value));
+        }
+        return stats;
     }
 
     private Map<String, BlacklistInfo> loadBlacklistInfo() {
