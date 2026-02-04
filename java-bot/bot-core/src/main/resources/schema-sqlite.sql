@@ -358,7 +358,10 @@ CREATE TABLE IF NOT EXISTS web_form_sessions (
 );
 
 CREATE TABLE IF NOT EXISTS feedbacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     rating INTEGER,
-    timestamp TEXT
+    timestamp TEXT,
+    ticket_id TEXT,
+    channel_id INTEGER REFERENCES channels(id)
 );
