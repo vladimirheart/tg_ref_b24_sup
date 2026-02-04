@@ -59,7 +59,45 @@ public class DialogService {
                            m.city, m.location_name,
                        m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
                        tr.responsible AS responsible,
-                       m.created_date, m.created_time, cs.status AS client_status
+                       m.created_date, m.created_time, cs.status AS client_status,
+                       (
+                           SELECT sender
+                             FROM chat_history ch
+                            WHERE ch.ticket_id = m.ticket_id
+                            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                                     COALESCE(ch.tg_message_id, 0) DESC,
+                                     ch.id DESC
+                            LIMIT 1
+                       ) AS last_sender,
+                       (
+                           SELECT timestamp
+                             FROM chat_history ch
+                            WHERE ch.ticket_id = m.ticket_id
+                            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                                     COALESCE(ch.tg_message_id, 0) DESC,
+                                     ch.id DESC
+                            LIMIT 1
+                       ) AS last_sender_time,
+                       (
+                           SELECT COUNT(*)
+                             FROM chat_history ch
+                            WHERE ch.ticket_id = m.ticket_id
+                              AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                              AND (
+                                  (
+                                      SELECT MAX(op.timestamp)
+                                        FROM chat_history op
+                                       WHERE op.ticket_id = m.ticket_id
+                                         AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                                  ) IS NULL
+                                  OR ch.timestamp > (
+                                      SELECT MAX(op.timestamp)
+                                        FROM chat_history op
+                                       WHERE op.ticket_id = m.ticket_id
+                                         AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                                  )
+                              )
+                       ) AS unread_count
                   FROM messages m
                   LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
                   LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
@@ -88,7 +126,10 @@ public class DialogService {
                     rs.getString("responsible"),
                     rs.getString("created_date"),
                     rs.getString("created_time"),
-                    rs.getString("client_status")
+                    rs.getString("client_status"),
+                    rs.getString("last_sender"),
+                    rs.getString("last_sender_time"),
+                    rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0
             ));
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialogs, returning empty list: {}", ex.getMessage());
@@ -105,7 +146,45 @@ public class DialogService {
                            m.city, m.location_name,
                            m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
                            tr.responsible AS responsible,
-                           m.created_date, m.created_time, cs.status AS client_status
+                           m.created_date, m.created_time, cs.status AS client_status,
+                           (
+                               SELECT sender
+                                 FROM chat_history ch
+                                WHERE ch.ticket_id = m.ticket_id
+                                ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                                         COALESCE(ch.tg_message_id, 0) DESC,
+                                         ch.id DESC
+                                LIMIT 1
+                           ) AS last_sender,
+                           (
+                               SELECT timestamp
+                                 FROM chat_history ch
+                                WHERE ch.ticket_id = m.ticket_id
+                                ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                                         COALESCE(ch.tg_message_id, 0) DESC,
+                                         ch.id DESC
+                                LIMIT 1
+                           ) AS last_sender_time,
+                           (
+                               SELECT COUNT(*)
+                                 FROM chat_history ch
+                                WHERE ch.ticket_id = m.ticket_id
+                                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                                  AND (
+                                      (
+                                          SELECT MAX(op.timestamp)
+                                            FROM chat_history op
+                                           WHERE op.ticket_id = m.ticket_id
+                                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                                      ) IS NULL
+                                      OR ch.timestamp > (
+                                          SELECT MAX(op.timestamp)
+                                            FROM chat_history op
+                                           WHERE op.ticket_id = m.ticket_id
+                                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                                      )
+                                  )
+                           ) AS unread_count
                       FROM messages m
                       LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
@@ -136,7 +215,10 @@ public class DialogService {
                     rs.getString("responsible"),
                     rs.getString("created_date"),
                     rs.getString("created_time"),
-                    rs.getString("client_status")
+                    rs.getString("client_status"),
+                    rs.getString("last_sender"),
+                    rs.getString("last_sender_time"),
+                    rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0
             ), ticketId);
             return items.isEmpty() ? Optional.empty() : Optional.of(items.get(0));
         } catch (DataAccessException ex) {
