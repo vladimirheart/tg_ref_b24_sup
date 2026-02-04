@@ -4,6 +4,7 @@
   if (!table) return;
 
   const quickSearch = document.getElementById('dialogQuickSearch');
+  const pageSizeSelect = document.getElementById('dialogPageSize');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
   const columnsBtn = document.getElementById('dialogColumnsBtn');
   const filtersModalEl = document.getElementById('dialogFiltersModal');
@@ -59,7 +60,13 @@
   const STORAGE_COLUMNS = 'bender:dialogs:columns';
   const STORAGE_WIDTHS = 'bender:dialogs:column-widths';
   const STORAGE_TASK = 'bender:dialogs:create-task';
+  const STORAGE_PAGE_SIZE = 'bender:dialogs:page-size';
   const HISTORY_POLL_INTERVAL = 8000;
+  const DEFAULT_PAGE_SIZE = 20;
+
+  const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
+    ? window.BUSINESS_CELL_STYLES
+    : {};
 
   const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
     good_limit: 30,
@@ -122,6 +129,29 @@
     } catch (error) {
       columnState = { ...defaultColumnState };
     }
+  }
+
+  function normalizePageSize(value) {
+    if (value === 'all') return Infinity;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PAGE_SIZE;
+  }
+
+  function loadPageSize() {
+    const raw = localStorage.getItem(STORAGE_PAGE_SIZE);
+    const normalized = normalizePageSize(raw);
+    filterState.pageSize = normalized;
+    if (pageSizeSelect) {
+      pageSizeSelect.value = normalized === Infinity ? 'all' : String(normalized);
+    }
+  }
+
+  function persistPageSize() {
+    if (filterState.pageSize === Infinity) {
+      localStorage.setItem(STORAGE_PAGE_SIZE, 'all');
+      return;
+    }
+    localStorage.setItem(STORAGE_PAGE_SIZE, String(filterState.pageSize));
   }
 
   function persistColumnState() {
@@ -189,7 +219,7 @@
   }
 
   const emptyRow = document.createElement('tr');
-  emptyRow.innerHTML = '<td colspan="12" class="text-center text-muted py-4">Нет результатов</td>';
+  emptyRow.innerHTML = '<td colspan="10" class="text-center text-muted py-4">Нет результатов</td>';
   emptyRow.classList.add('d-none');
 
   function ensureEmptyRow() {
@@ -198,18 +228,19 @@
     }
   }
 
-  const filterState = { search: '', status: '', view: 'all' };
+  const filterState = { search: '', status: '', view: 'all', pageSize: DEFAULT_PAGE_SIZE };;
 
   function isResolved(row) {
     const raw = (row.dataset.statusRaw || '').toLowerCase();
     const label = (row.dataset.status || '').toLowerCase();
-    return raw === 'resolved' || label === 'закрыт';
+    const key = (row.dataset.statusKey || '').toLowerCase();
+    return raw === 'resolved' || raw === 'closed' || label.startsWith('закрыт') || key.includes('closed');
   }
 
   function applyFilters() {
     const search = (filterState.search || '').trim().toLowerCase();
     const status = (filterState.status || '').trim().toLowerCase();
-    let visibleCount = 0;
+    const matchedRows = [];
     rowsList().forEach((row) => {
       const text = collectRowSearchText(row);
       const statusValue = (row.dataset.status || '').toLowerCase();
@@ -218,8 +249,12 @@
       const matchesView = filterState.view === 'active' ? !isResolved(row) : true;
       const visible = matchesSearch && matchesStatus && matchesView;
       row.classList.toggle('d-none', !visible);
-      if (visible) visibleCount += 1;
+      if (visible) {
+        matchedRows.push(row);
+      }
     });
+    const visibleCount = applyPageSize(matchedRows);
+    updateZebraRows(matchedRows);
     ensureEmptyRow();
     emptyRow.classList.toggle('d-none', visibleCount !== 0);
   }
@@ -265,6 +300,81 @@
       return raw;
     }
     return fallback;
+  }
+
+  function normalizeBusinessStyles(raw) {
+    const styles = {};
+    if (!raw || typeof raw !== 'object') return styles;
+    Object.entries(raw).forEach(([key, value]) => {
+      if (typeof key !== 'string') return;
+      const business = key.trim();
+      if (!business) return;
+      const config = value && typeof value === 'object' ? value : {};
+      styles[business] = {
+        background: sanitizeHexColor(config.background_color, ''),
+        text: sanitizeHexColor(config.text_color, ''),
+        icon: typeof config.icon === 'string' ? config.icon.trim() : '',
+      };
+    });
+    return styles;
+  }
+
+  const BUSINESS_STYLE_MAP = normalizeBusinessStyles(BUSINESS_STYLES);
+
+  function applyBusinessCellStyles() {
+    if (!Object.keys(BUSINESS_STYLE_MAP).length) return;
+    rowsList().forEach((row) => {
+      const cell = row.querySelector('.dialog-business-cell');
+      if (!cell) return;
+      const business = (cell.dataset.business || row.dataset.business || '').trim();
+      const config = BUSINESS_STYLE_MAP[business];
+      const pill = cell.querySelector('.dialog-business-pill');
+      const icon = cell.querySelector('.dialog-business-icon');
+      if (!pill) return;
+      pill.style.backgroundColor = '';
+      pill.style.color = '';
+      if (icon) {
+        icon.classList.add('d-none');
+        icon.innerHTML = '';
+      }
+      if (!config) return;
+      if (config.background) {
+        pill.style.backgroundColor = config.background;
+      }
+      if (config.text) {
+        pill.style.color = config.text;
+      }
+      if (icon && config.icon) {
+        icon.innerHTML = `<img src="${config.icon}" alt="" />`;
+        icon.classList.remove('d-none');
+      }
+    });
+  }
+
+  function applyPageSize(matchedRows) {
+    let limit = filterState.pageSize;
+    if (limit === Infinity) {
+      return matchedRows.length;
+    }
+    if (!Number.isFinite(limit) || limit <= 0) {
+      limit = DEFAULT_PAGE_SIZE;
+    }
+    let visibleCount = 0;
+    matchedRows.forEach((row, index) => {
+      const visible = index < limit;
+      row.classList.toggle('d-none', !visible);
+      if (visible) visibleCount += 1;
+    });
+    return visibleCount;
+  }
+
+  function updateZebraRows(matchedRows) {
+    rowsList().forEach((row) => {
+      row.classList.remove('dialog-row-even', 'dialog-row-odd');
+    });
+    matchedRows.filter((row) => !row.classList.contains('d-none')).forEach((row, index) => {
+      row.classList.add(index % 2 === 0 ? 'dialog-row-odd' : 'dialog-row-even');
+    });
   }
 
   function normalizeDialogTimeMetrics(raw) {
@@ -701,30 +811,60 @@
     }
   }
 
-  function updateRowStatus(row, statusRaw, statusLabel) {
+  function updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount = 0) {
     if (!row) return;
     row.dataset.status = statusLabel;
     row.dataset.statusRaw = statusRaw;
+    if (statusKey) {
+      row.dataset.statusKey = statusKey;
+    }
     const badge = row.querySelector('.badge');
     if (badge) {
       badge.textContent = statusLabel;
-      badge.classList.remove('bg-primary-subtle', 'text-primary', 'bg-warning-subtle', 'text-warning', 'bg-success-subtle', 'text-success', 'bg-secondary-subtle', 'text-secondary');
-      if (statusRaw === 'resolved') {
+      badge.classList.remove('bg-primary-subtle', 'text-primary', 'bg-warning-subtle', 'text-warning', 'bg-success-subtle', 'text-success', 'bg-secondary-subtle', 'text-secondary', 'bg-info-subtle', 'text-info');
+      const normalizedKey = (statusKey || '').toLowerCase();
+      if (normalizedKey === 'auto_closed') {
+        badge.classList.add('bg-secondary-subtle', 'text-secondary');
+      } else if (normalizedKey === 'closed') {
         badge.classList.add('bg-success-subtle', 'text-success');
-      } else if (statusRaw === 'pending') {
+      } else if (normalizedKey === 'waiting_operator') {
         badge.classList.add('bg-warning-subtle', 'text-warning');
+      } else if (normalizedKey === 'waiting_client') {
+        badge.classList.add('bg-info-subtle', 'text-info');
       } else {
         badge.classList.add('bg-primary-subtle', 'text-primary');
       }
     }
+    const unreadBadge = row.querySelector('.dialog-unread-count');
+    if (unreadBadge) {
+      const count = Number(unreadCount) || 0;
+      unreadBadge.textContent = count;
+      unreadBadge.classList.toggle('d-none', count <= 0);
+    }
   }
 
-  function formatStatusLabel(raw, fallback) {
+  function formatStatusLabel(raw, fallback, statusKey) {
     if (fallback) return fallback;
+    if (statusKey) {
+      switch (statusKey) {
+        case 'auto_closed':
+          return 'Закрыт автоматически';
+        case 'closed':
+          return 'Закрыт';
+        case 'waiting_operator':
+          return 'ожидает ответа оператора';
+        case 'waiting_client':
+          return 'ожидает ответа клиента';
+        case 'new':
+          return 'новый';
+        default:
+          return '—';
+      }
+    }
     const normalized = String(raw || '').toLowerCase();
-    if (normalized === 'resolved') return 'Закрыт';
-    if (normalized === 'pending') return 'В ожидании';
-    if (normalized) return 'Открыт';
+    if (normalized === 'resolved' || normalized === 'closed') return 'Закрыт';
+    if (normalized === 'pending') return 'ожидает ответа оператора';
+    if (normalized) return 'ожидает ответа клиента';
     return '—';
   }
 
@@ -775,7 +915,8 @@
       const channelLabel = summary.channelName || fallbackRow?.dataset.channel || '—';
       const businessLabel = summary.business || fallbackRow?.dataset.business || '—';
       const statusRaw = summary.status || fallbackRow?.dataset.statusRaw || '';
-      const statusLabel = formatStatusLabel(statusRaw, fallbackRow?.dataset.status);
+      const statusKey = summary.statusKey || fallbackRow?.dataset.statusKey || '';
+      const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset.status, statusKey);
       const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
       const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
       if (detailsAvatar) {
@@ -833,8 +974,8 @@
       }
       renderHistory(data.history || []);
       updateResolveButton(statusRaw);
-      if (statusRaw) {
-        updateRowStatus(activeDialogRow, statusRaw, statusLabel);
+      if (statusRaw || statusKey) {
+        updateRowStatus(activeDialogRow, statusRaw, statusLabel, statusKey, summary.unreadCount);
       }
     } catch (error) {
       if (detailsSummary) {
@@ -943,6 +1084,17 @@
         }
         detailsReplyText.value = '';
         appendOperatorMessage(message, data.timestamp || new Date().toISOString());
+        if (activeDialogRow) {
+          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+          const rowCells = activeDialogRow.children;
+          const responsibleIndex = table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1;
+          const responsibleValue = data.responsible || activeDialogRow.dataset.responsible;
+          if (responsibleValue && responsibleIndex >= 0 && rowCells[responsibleIndex]) {
+            rowCells[responsibleIndex].textContent = responsibleValue;
+            activeDialogRow.dataset.responsible = responsibleValue;
+          }
+          applyFilters();
+        }
         if (typeof showNotification === 'function') {
           showNotification('Сообщение отправлено', 'success');
         }
@@ -964,6 +1116,14 @@
 
   if (quickSearch) {
     quickSearch.addEventListener('input', () => applyQuickSearch(quickSearch.value));
+  }
+
+  if (pageSizeSelect) {
+    pageSizeSelect.addEventListener('change', () => {
+      filterState.pageSize = normalizePageSize(pageSizeSelect.value);
+      persistPageSize();
+      applyFilters();
+    });
   }
 
   if (filtersBtn && filtersModal) {
@@ -1059,8 +1219,10 @@
 
   initDialogTemplates();
   loadColumnState();
+  loadPageSize();
   buildColumnsList();
   applyColumnState();
+  applyBusinessCellStyles();
   if (viewTabs.length) {
     const activeTab = Array.from(viewTabs).find((tab) => tab.classList.contains('active'));
     setViewTab(activeTab?.dataset.dialogView || 'all');
