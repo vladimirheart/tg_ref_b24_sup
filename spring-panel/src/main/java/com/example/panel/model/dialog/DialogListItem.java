@@ -1,8 +1,10 @@
 package com.example.panel.model.dialog;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import org.springframework.util.StringUtils;
 
 public record DialogListItem(String ticketId,
                              Long userId,
@@ -21,7 +23,10 @@ public record DialogListItem(String ticketId,
                              String responsible,
                              String createdDate,
                              String createdTime,
-                             String clientStatus) {
+                             String clientStatus,
+                             String lastMessageSender,
+                             String lastMessageTimestamp,
+                             Integer unreadCount) {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -44,25 +49,43 @@ public record DialogListItem(String ticketId,
         return "Неизвестный клиент";
     }
 
+    @JsonProperty("statusLabel")
     public String statusLabel() {
-        if (status == null || status.isBlank()) {
-            return "Неизвестно";
+        if (isClosed()) {
+            return isAutoClosed() ? "Закрыт автоматически" : "Закрыт";
         }
-        return switch (status.toLowerCase()) {
-            case "resolved" -> "Закрыт";
-            case "pending" -> "В ожидании";
-            default -> "Открыт";
-        };
+        if (!StringUtils.hasText(responsible) && !hasOperatorReply()) {
+            return "новый";
+        }
+        if (!hasOperatorReply()) {
+            return "ожидает ответа оператора";
+        }
+        return "ожидает ответа клиента";
     }
 
-    public String statusClass() {
-        if (status == null || status.isBlank()) {
-            return " bg-secondary-subtle text-secondary";
+    @JsonProperty("statusKey")
+    public String statusKey() {
+        if (isClosed()) {
+            return isAutoClosed() ? "auto_closed" : "closed";
         }
-        return switch (status.toLowerCase()) {
-            case "resolved" -> " bg-success-subtle text-success";
-            case "pending" -> " bg-warning-subtle text-warning";
-            default -> " bg-primary-subtle text-primary";
+        if (!StringUtils.hasText(responsible) && !hasOperatorReply()) {
+            return "new";
+        }
+        if (!hasOperatorReply()) {
+            return "waiting_operator";
+        }
+        return "waiting_client";
+    }
+
+    @JsonProperty("statusClass")
+    public String statusClass() {
+        return switch (statusKey()) {
+            case "auto_closed" -> " bg-secondary-subtle text-secondary";
+            case "closed" -> " bg-success-subtle text-success";
+            case "waiting_operator" -> " bg-warning-subtle text-warning";
+            case "waiting_client" -> " bg-info-subtle text-info";
+            case "new" -> " bg-primary-subtle text-primary";
+            default -> " bg-secondary-subtle text-secondary";
         };
     }
 
@@ -99,10 +122,10 @@ public record DialogListItem(String ticketId,
 
     public String responsible() {
         if (responsible != null && !responsible.isBlank()) {
-            return resolvedBy;
+            return responsible;
         }
         if (resolvedBy != null && !resolvedBy.isBlank()) {
-            return username;
+            return resolvedBy;
         }
         return null;
     }
@@ -145,6 +168,38 @@ public record DialogListItem(String ticketId,
             return problem;
         }
         return "Проблема не указана";
+    }
+
+    @JsonProperty("unreadCount")
+    public Integer unreadCount() {
+        return unreadCount != null ? unreadCount : 0;
+    }
+
+    private boolean isClosed() {
+        if (status == null) {
+            return false;
+        }
+        String normalized = status.trim().toLowerCase();
+        return "resolved".equals(normalized) || "closed".equals(normalized);
+    }
+
+    private boolean isAutoClosed() {
+        if (!isClosed() || !StringUtils.hasText(resolvedBy)) {
+            return false;
+        }
+        String normalized = resolvedBy.trim().toLowerCase();
+        return normalized.contains("auto") || normalized.contains("авто");
+    }
+
+    private boolean hasOperatorReply() {
+        if (!StringUtils.hasText(lastMessageSender)) {
+            return false;
+        }
+        String normalized = lastMessageSender.trim().toLowerCase();
+        return normalized.contains("support")
+                || normalized.contains("operator")
+                || normalized.contains("admin")
+                || normalized.contains("system");
     }
 
     private static String formatEpoch(String raw, DateTimeFormatter formatter) {
