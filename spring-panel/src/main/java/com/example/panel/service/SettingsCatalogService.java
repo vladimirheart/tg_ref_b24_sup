@@ -143,7 +143,10 @@ public class SettingsCatalogService {
         return candidate;
     }
 
-    public Map<String, Object> buildLocationPresets(Map<String, Object> locationTree) {
+    private static final String STATUS_CLOSED = "Закрыт";
+
+    public Map<String, Object> buildLocationPresets(Map<String, Object> locationTree, Map<String, Object> statusMap) {
+        Map<String, String> normalizedStatuses = normalizeStatuses(statusMap);
         Set<String> businesses = new LinkedHashSet<>();
         Set<String> locationTypes = new LinkedHashSet<>();
         Set<String> cities = new LinkedHashSet<>();
@@ -155,6 +158,9 @@ public class SettingsCatalogService {
                 if (!StringUtils.hasText(business)) {
                     continue;
                 }
+                if (isClosed(normalizedStatuses, "business", business)) {
+                    continue;
+                }
                 businesses.add(business);
                 if (!(businessEntry.getValue() instanceof Map<?, ?> typeMap)) {
                     continue;
@@ -162,6 +168,9 @@ public class SettingsCatalogService {
                 for (Map.Entry<?, ?> typeEntry : typeMap.entrySet()) {
                     String type = normalizeKey(typeEntry.getKey());
                     if (!StringUtils.hasText(type)) {
+                        continue;
+                    }
+                    if (isClosed(normalizedStatuses, "type", business, type)) {
                         continue;
                     }
                     locationTypes.add(type);
@@ -173,11 +182,20 @@ public class SettingsCatalogService {
                         if (!StringUtils.hasText(city)) {
                             continue;
                         }
+                        if (isClosed(normalizedStatuses, "city", business, type, city)) {
+                            continue;
+                        }
                         cities.add(city);
                         Object locations = cityEntry.getValue();
                         if (locations instanceof Iterable<?> iterable) {
                             for (Object location : iterable) {
                                 String name = normalizeKey(location);
+                                if (!StringUtils.hasText(name)) {
+                                    continue;
+                                }
+                                if (isClosed(normalizedStatuses, "location", business, type, city, name)) {
+                                    continue;
+                                }
                                 if (StringUtils.hasText(name)) {
                                     locationNames.add(name);
                                 }
@@ -201,6 +219,44 @@ public class SettingsCatalogService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("locations", locationsGroup);
         return result;
+    }
+
+    private Map<String, String> normalizeStatuses(Map<String, Object> statusMap) {
+        Map<String, String> result = new LinkedHashMap<>();
+        if (statusMap == null) {
+            return result;
+        }
+        statusMap.forEach((key, value) -> {
+            if (key == null) {
+                return;
+            }
+            String normalizedKey = key.toString().trim();
+            if (!StringUtils.hasText(normalizedKey)) {
+                return;
+            }
+            String normalizedValue = value != null ? value.toString().trim() : "";
+            result.put(normalizedKey, normalizedValue);
+        });
+        return result;
+    }
+
+    private boolean isClosed(Map<String, String> statuses, String level, String... parts) {
+        if (statuses == null || statuses.isEmpty()) {
+            return false;
+        }
+        String key = makeStatusKey(level, parts);
+        String status = statuses.getOrDefault(key, "");
+        return STATUS_CLOSED.equalsIgnoreCase(status.trim());
+    }
+
+    private String makeStatusKey(String level, String... parts) {
+        StringBuilder builder = new StringBuilder(level);
+        if (parts != null) {
+            for (String part : parts) {
+                builder.append("::").append(part == null ? "" : part.trim());
+            }
+        }
+        return builder.toString();
     }
 
     public List<String> collectCities(Map<String, Object> locationTree) {
