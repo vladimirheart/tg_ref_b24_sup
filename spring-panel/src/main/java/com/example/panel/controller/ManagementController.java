@@ -140,7 +140,12 @@ public class ManagementController {
             model.addAttribute("parameterDependencies", settingsCatalogService.getParameterDependencies());
             model.addAttribute("itConnectionCategories", settingsCatalogService.getItConnectionCategories(settings));
             model.addAttribute("itConnectionCategoryFields", settingsCatalogService.getItConnectionCategoryFields());
-            model.addAttribute("botQuestionPresets", settingsCatalogService.buildLocationPresets(locationTree));
+            Map<String, Object> locationStatuses = Map.of();
+            if (locationsMap.get("statuses") instanceof Map<?, ?> statuses) {
+                locationStatuses = (Map<String, Object>) statuses;
+            }
+            model.addAttribute("botQuestionPresets",
+                settingsCatalogService.buildLocationPresets(locationTree, locationStatuses));
             model.addAttribute("contractUsage", Map.of());
             model.addAttribute("statusUsage", Map.of());
             log.info("Loaded settings for user {}: {} app settings, {} system parameters", authentication.getName(), appSettings.size(), systemParameters.size());
