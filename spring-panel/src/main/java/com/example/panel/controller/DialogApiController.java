@@ -7,10 +7,12 @@ import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.storage.AttachmentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +22,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,13 +40,16 @@ public class DialogApiController {
     private final DialogService dialogService;
     private final DialogReplyService dialogReplyService;
     private final DialogNotificationService dialogNotificationService;
+    private final AttachmentService attachmentService;
 
     public DialogApiController(DialogService dialogService,
                                DialogReplyService dialogReplyService,
-                               DialogNotificationService dialogNotificationService) {
+                               DialogNotificationService dialogNotificationService,
+                               AttachmentService attachmentService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
+        this.attachmentService = attachmentService;
     }
 
     @GetMapping
@@ -100,6 +107,30 @@ public class DialogApiController {
                 "timestamp", result.timestamp(),
                 "telegramMessageId", result.telegramMessageId(),
                 "responsible", operator
+        ));
+    }
+
+    @PostMapping(value = "/{ticketId}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> replyWithMedia(@PathVariable String ticketId,
+                                            @RequestParam("file") MultipartFile file,
+                                            @RequestParam(value = "message", required = false) String message,
+                                            Authentication authentication) throws IOException {
+        String operator = authentication != null ? authentication.getName() : null;
+        var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, file);
+        var result = dialogReplyService.sendMediaReply(ticketId, file, message, operator, metadata.storedName(), metadata.originalName());
+        if (!result.success()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", result.error()));
+        }
+        String attachmentUrl = "/api/attachments/tickets/" + ticketId + "/" + result.storedName();
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "timestamp", result.timestamp(),
+                "telegramMessageId", result.telegramMessageId(),
+                "responsible", operator,
+                "attachment", attachmentUrl,
+                "messageType", result.messageType(),
+                "message", result.message()
         ));
     }
 
