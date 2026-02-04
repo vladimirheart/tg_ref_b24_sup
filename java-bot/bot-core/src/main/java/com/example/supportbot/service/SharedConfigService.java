@@ -26,7 +26,30 @@ public class SharedConfigService {
     public SharedConfigService(ObjectMapper objectMapper,
                                @Value("${shared-config.dir:config/shared}") String sharedDir) {
         this.objectMapper = objectMapper;
-        this.sharedConfigDir = Paths.get(sharedDir).toAbsolutePath().normalize();
+        this.sharedConfigDir = resolveSharedConfigDir(sharedDir);
+    }
+
+    private Path resolveSharedConfigDir(String sharedDir) {
+        if (sharedDir == null || sharedDir.isBlank()) {
+            sharedDir = "config/shared";
+        }
+        Path base = Paths.get("").toAbsolutePath().normalize();
+        Path resolved = Paths.get(sharedDir);
+        if (!resolved.isAbsolute()) {
+            resolved = base.resolve(resolved);
+        }
+        if (Files.isDirectory(resolved)) {
+            return resolved.normalize();
+        }
+        Path cursor = base;
+        while (cursor != null) {
+            Path candidate = cursor.resolve(sharedDir);
+            if (Files.isDirectory(candidate)) {
+                return candidate.toAbsolutePath().normalize();
+            }
+            cursor = cursor.getParent();
+        }
+        return resolved.normalize();
     }
 
     public Map<String, Object> loadSettings() {
