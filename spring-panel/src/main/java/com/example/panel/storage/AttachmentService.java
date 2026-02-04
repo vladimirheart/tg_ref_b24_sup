@@ -73,6 +73,21 @@ public class AttachmentService {
         return new AttachmentUploadMetadata(safeName, storedName, file.getSize(), OffsetDateTime.now());
     }
 
+    public AttachmentUploadMetadata storeTicketAttachment(Authentication authentication, String ticketId, MultipartFile file) throws IOException {
+        requireAuthority(authentication, "PAGE_DIALOGS");
+        if (file.isEmpty() || !StringUtils.hasText(ticketId)) {
+            throw new IllegalArgumentException("File is empty");
+        }
+        String safeName = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file.bin");
+        String storedName = UUID.randomUUID() + "_" + safeName;
+        Path ticketDir = ensureDirectory(attachmentsRoot.resolve(ticketId).toString());
+        Path target = ticketDir.resolve(storedName);
+        try (InputStream in = file.getInputStream()) {
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return new AttachmentUploadMetadata(safeName, storedName, file.getSize(), OffsetDateTime.now());
+    }
+
     public void deleteKnowledgeBaseFile(Authentication authentication, String storedName) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
         Path target = knowledgeBaseRoot.resolve(storedName).normalize();
