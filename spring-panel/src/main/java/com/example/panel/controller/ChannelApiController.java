@@ -89,6 +89,7 @@ public class ChannelApiController {
         channel.setCredentialId(parseLong(data.get("credential_id")));
         channel.setActive(parseBoolean(data.getOrDefault("is_active", true)));
         channel.setMaxQuestions(parseInteger(data.get("max_questions")));
+        channel.setSupportChatId(stringValue(firstValue(data, "support_chat_id", "supportChatId")));
         String token = stringValue(data.get("token"));
         channel.setToken(token.isEmpty() ? generateToken() : token);
         channel.setFilters("{}");
@@ -423,6 +424,7 @@ public class ChannelApiController {
         response.put("credential_id", channel.getCredentialId());
         response.put("bot_name", channel.getBotName());
         response.put("bot_username", channel.getBotUsername());
+        response.put("support_chat_id", channel.getSupportChatId());
         if (channel.getCredentialId() != null) {
             response.put("credential", credentials.get(channel.getCredentialId()));
         }
