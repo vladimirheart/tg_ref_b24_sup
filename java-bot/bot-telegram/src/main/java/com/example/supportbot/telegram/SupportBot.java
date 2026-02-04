@@ -56,6 +56,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private static final Logger log = LoggerFactory.getLogger(SupportBot.class);
     private static final int MAX_LOG_TEXT_LENGTH = 160;
+    private static final String BACK_BUTTON = "Назад";
 
     private final BotProperties properties;
     private final BlacklistService blacklistService;
@@ -391,8 +392,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
         int rating = Integer.parseInt(text);
         feedbackService.storeFeedback(pendingOpt.get(), rating);
-        String response = botSettingsService.ratingResponseFor(settings, rating)
-                .orElse("Спасибо за оценку!");
+        String response = "Спасибо за оценку";
         SendMessage confirmation = SendMessage.builder()
                 .chatId(message.getChatId())
                 .text(response)
@@ -825,6 +825,13 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
 
+        if (BACK_BUTTON.equalsIgnoreCase(Optional.ofNullable(message.getText()).orElse("").trim())) {
+            if (session.stepBack()) {
+                askCurrentQuestion(session);
+            }
+            return;
+        }
+
         QuestionFlowItemDto current = session.currentQuestion();
         if (isPresetQuestion(current)) {
             List<String> options = resolvePresetOptions(current, session.answers());
@@ -846,7 +853,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
                         .text("Выберите вариант кнопкой.")
-                        .replyMarkup(keyboardMarkup(options))
+                        .replyMarkup(keyboardMarkup(options, session.canGoBack()))
                         .build();
                 try {
                     execute(retry);
@@ -872,7 +879,7 @@ public class SupportBot extends TelegramLongPollingBot {
             SendMessage prompt = SendMessage.builder()
                     .chatId(session.chatId())
                     .text(session.reusePrompt())
-                    .replyMarkup(keyboardMarkup(List.of("Да", "Нет")))
+                    .replyMarkup(keyboardMarkup(List.of("Да", "Нет"), false))
                     .build();
             try {
                 execute(prompt);
@@ -890,15 +897,20 @@ public class SupportBot extends TelegramLongPollingBot {
         SendMessage.SendMessageBuilder promptBuilder = SendMessage.builder()
                 .chatId(session.chatId())
                 .text(current.getText());
+        boolean includeBack = session.canGoBack();
         if (isPresetQuestion(current)) {
             List<String> options = resolvePresetOptions(current, session.answers());
             if (!options.isEmpty()) {
-                promptBuilder.replyMarkup(keyboardMarkup(options));
+                promptBuilder.replyMarkup(keyboardMarkup(options, includeBack));
             } else {
                 promptBuilder.replyMarkup(new ReplyKeyboardRemove(true));
             }
         } else {
-            promptBuilder.replyMarkup(new ReplyKeyboardRemove(true));
+            if (includeBack) {
+                promptBuilder.replyMarkup(keyboardMarkup(List.of(), true));
+            } else {
+                promptBuilder.replyMarkup(new ReplyKeyboardRemove(true));
+            }
         }
         SendMessage prompt = promptBuilder.build();
         try {
@@ -975,7 +987,7 @@ public class SupportBot extends TelegramLongPollingBot {
         return current.getPreset() != null && current.getPreset().field() != null;
     }
 
-    private ReplyKeyboardMarkup keyboardMarkup(List<String> options) {
+    private ReplyKeyboardMarkup keyboardMarkup(List<String> options, boolean includeBack) {
         List<KeyboardRow> rows = new ArrayList<>();
         for (int i = 0; i < options.size(); i += 2) {
             KeyboardRow row = new KeyboardRow();
@@ -984,6 +996,11 @@ public class SupportBot extends TelegramLongPollingBot {
                 row.add(options.get(i + 1));
             }
             rows.add(row);
+        }
+        if (includeBack) {
+            KeyboardRow backRow = new KeyboardRow();
+            backRow.add(BACK_BUTTON);
+            rows.add(backRow);
         }
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup(rows);
         markup.setResizeKeyboard(true);
@@ -1001,10 +1018,15 @@ public class SupportBot extends TelegramLongPollingBot {
         if (field == null || field.isBlank() || group == null || group.isBlank()) {
             return List.of();
         }
-        List<String> options = resolvePresetDefinitionOptions(group, field);
-        if (options.isEmpty() && "locations".equalsIgnoreCase(group)) {
+        List<String> options;
+        if ("locations".equalsIgnoreCase(group)) {
             Map<String, Object> tree = locationTree();
             options = resolveLocationOptions(field, answers, tree);
+            if (options.isEmpty()) {
+                options = resolvePresetDefinitionOptions(group, field);
+            }
+        } else {
+            options = resolvePresetDefinitionOptions(group, field);
         }
         List<String> excluded = Optional.ofNullable(current.getExcludedOptions()).orElseGet(List::of);
         if (!excluded.isEmpty() && !options.isEmpty()) {
@@ -1146,7 +1168,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
         SendMessage confirmation = SendMessage.builder()
                 .chatId(session.chatId())
-                .text("Спасибо! Заявка отправлена оператору. Мы свяжемся с вами после обработки.")
+                .text("Спасибо! Ваше обращение №" + ticket.ticketId() + " отправлено оператору. Мы свяжемся с вами после обработки.")
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -1154,8 +1176,6 @@ public class SupportBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             log.error("Failed to send confirmation", e);
         }
-
-        ticketService.ensureFeedbackRequest(ticket.ticketId(), session.userId(), channel, "created");
     }
 
     private void cancelConversation(Message message) {
@@ -1232,6 +1252,23 @@ public class SupportBot extends TelegramLongPollingBot {
 
         boolean isLastQuestion() {
             return currentIndex == flow.size() - 1;
+        }
+
+        boolean canGoBack() {
+            return currentIndex > 0;
+        }
+
+        boolean stepBack() {
+            if (currentIndex <= 0) {
+                return false;
+            }
+            currentIndex -= 1;
+            QuestionFlowItemDto previous = flow.get(currentIndex);
+            String answerKey = answerKeyFor(previous);
+            if (answerKey != null) {
+                answers.remove(answerKey);
+            }
+            return true;
         }
 
         void addAttachment(Path attachment) {
