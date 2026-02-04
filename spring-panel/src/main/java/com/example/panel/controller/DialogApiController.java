@@ -98,7 +98,8 @@ public class DialogApiController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "timestamp", result.timestamp(),
-                "telegramMessageId", result.telegramMessageId()
+                "telegramMessageId", result.telegramMessageId(),
+                "responsible", operator
         ));
     }
 
