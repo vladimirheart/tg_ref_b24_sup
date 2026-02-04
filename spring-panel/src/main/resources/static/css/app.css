@@ -152,6 +152,31 @@ body {
 .dialog-table .dot-primary { background: #0d6efd; }
 .dialog-table .dot-success { background: #198754; }
 
+.dialog-table .dialog-row-odd {
+    background-color: #f8fafc;
+}
+
+.dialog-table .dialog-row-even {
+    background-color: #ffffff;
+}
+
+.dialog-business-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background-color: #f1f3f5;
+    font-weight: 500;
+}
+
+.dialog-business-icon img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    display: block;
+}
+
 .dialog-table th[data-resizable="true"] {
     position: relative;
 }
