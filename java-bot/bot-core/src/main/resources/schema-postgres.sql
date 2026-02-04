@@ -353,9 +353,12 @@ CREATE TABLE IF NOT EXISTS web_form_sessions (
 );
 
 CREATE TABLE IF NOT EXISTS feedbacks (
+    id SERIAL PRIMARY KEY,
     user_id BIGINT,
     rating INTEGER,
-    timestamp TIMESTAMPTZ
+    timestamp TIMESTAMPTZ,
+    ticket_id TEXT,
+    channel_id INTEGER REFERENCES channels(id)
 );
 
 CREATE OR REPLACE FUNCTION trg_on_ticket_resolved_fn()
