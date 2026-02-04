@@ -34,6 +34,10 @@
   const detailsResizeHandle = document.getElementById('dialogDetailsResizeHandle');
   const detailsReplyText = document.getElementById('dialogReplyText');
   const detailsReplySend = document.getElementById('dialogReplySend');
+  const detailsReplyMedia = document.getElementById('dialogReplyMedia');
+  const detailsReplyMediaTrigger = document.getElementById('dialogReplyMediaTrigger');
+  const mediaPreviewModalEl = document.getElementById('dialogMediaPreviewModal');
+  const mediaPreviewVideo = document.getElementById('dialogMediaPreviewVideo');
   const categoryTemplatesSection = document.getElementById('dialogCategoryTemplatesSection');
   const categoryTemplateSelect = document.getElementById('dialogCategoryTemplateSelect');
   const categoryTemplateList = document.getElementById('dialogCategoryTemplateList');
@@ -46,6 +50,9 @@
   const completionTemplateSelect = document.getElementById('dialogCompletionTemplateSelect');
   const completionTemplateList = document.getElementById('dialogCompletionTemplateList');
   const completionTemplateEmpty = document.getElementById('dialogCompletionTemplateEmpty');
+  const completionTemplatesToggle = document.getElementById('dialogCompletionTemplatesToggle');
+  const completionTemplatesMenu = document.getElementById('dialogCompletionTemplatesMenu');
+  const templateToggleButtons = document.querySelectorAll('[data-template-toggle]');
 
   const filtersModal = (typeof bootstrap !== 'undefined' && filtersModalEl)
     ? new bootstrap.Modal(filtersModalEl)
@@ -55,6 +62,9 @@
     : null;
   const detailsModal = (typeof bootstrap !== 'undefined' && detailsModalEl)
     ? new bootstrap.Modal(detailsModalEl)
+    : null;
+  const mediaPreviewModal = (typeof bootstrap !== 'undefined' && mediaPreviewModalEl)
+    ? new bootstrap.Modal(mediaPreviewModalEl)
     : null;
 
   const STORAGE_COLUMNS = 'bender:dialogs:columns';
@@ -96,6 +106,10 @@
   let historyPollTimer = null;
   let lastHistoryMarker = null;
   let historyLoading = false;
+  let activeDialogContext = { clientName: '—', operatorName: '—' };
+  let completionHideTimer = null;
+  let activeAudioPlayer = null;
+  let activeAudioSource = null;
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -413,6 +427,18 @@
     return base;
   }
 
+  function parseTimestampValue(raw) {
+    if (!raw) return null;
+    const text = String(raw).trim();
+    if (!text) return null;
+    if (/^\d{10,13}$/.test(text)) {
+      const value = text.length === 10 ? Number(text) * 1000 : Number(text);
+      return Number.isFinite(value) ? value : null;
+    }
+    const parsed = Date.parse(text.replace(' ', 'T'));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
   function parseDialogTimestamp(summary, fallbackRow) {
     const candidates = [
       summary?.createdAt,
@@ -425,15 +451,8 @@
       fallbackRow?.dataset?.created_at,
     ];
     for (const raw of candidates) {
-      if (!raw) continue;
-      const text = String(raw).trim();
-      if (!text) continue;
-      if (/^\d{10,13}$/.test(text)) {
-        const value = text.length === 10 ? Number(text) * 1000 : Number(text);
-        if (Number.isFinite(value)) return value;
-      }
-      const parsed = Date.parse(text.replace(' ', 'T'));
-      if (Number.isFinite(parsed)) return parsed;
+      const parsed = parseTimestampValue(raw);
+      if (parsed) return parsed;
     }
     return null;
   }
@@ -669,6 +688,24 @@
     return 'user';
   }
 
+  function normalizeMessageSenderByType(messageType, sender) {
+    const type = String(messageType || '').toLowerCase();
+    if (type.includes('operator')) return 'support';
+    if (type.includes('system')) return 'system';
+    return normalizeMessageSender(sender);
+  }
+
+  function resolveSenderLabel(message, context) {
+    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
+    if (senderType === 'support') {
+      return context?.operatorName || message?.sender || 'Оператор';
+    }
+    if (senderType === 'system') {
+      return message?.sender || 'Система';
+    }
+    return context?.clientName || message?.sender || 'Клиент';
+  }
+
   function formatTimestamp(value, options = {}) {
     if (!value) return '';
     const rawValue = typeof value === 'string' ? value.trim() : value;
@@ -695,6 +732,106 @@
     return value;
   }
 
+  function resolveAttachmentKind(messageType, attachment) {
+    const type = String(messageType || '').toLowerCase();
+    if (type.includes('animation')) return 'animation';
+    if (type.includes('video') || type.includes('videonote') || type.includes('video_note')) return 'video';
+    if (type.includes('audio') || type.includes('voice')) return 'audio';
+    if (type.includes('photo') || type.includes('image')) return 'image';
+    if (attachment) {
+      const lower = attachment.toLowerCase();
+      if (lower.endsWith('.gif')) return 'animation';
+      if (/\.(mp4|webm|mov|m4v)$/i.test(lower)) return 'video';
+      if (/\.(mp3|wav|ogg|m4a)$/i.test(lower)) return 'audio';
+      if (/\.(png|jpe?g|webp|bmp)$/i.test(lower)) return 'image';
+    }
+    return 'file';
+  }
+
+  function resolveAttachmentName(message, attachment) {
+    if (message) return message;
+    if (!attachment) return 'Файл';
+    const parts = attachment.split('/');
+    return parts[parts.length - 1] || 'Файл';
+  }
+
+  function buildMediaMarkup(message) {
+    if (!message?.attachment) return '';
+    const kind = resolveAttachmentKind(message.messageType, message.attachment);
+    const name = resolveAttachmentName(message.message, message.attachment);
+    const downloadLink = `
+      <a class="btn btn-sm btn-outline-secondary" href="${message.attachment}" download target="_blank" rel="noopener">
+        Скачать
+      </a>
+    `;
+    if (kind === 'audio') {
+      return `
+        <div class="chat-media">
+          <div class="chat-media-actions">
+            <button class="btn btn-sm btn-outline-primary chat-audio-play" type="button"
+              data-audio-src="${message.attachment}">Воспроизвести</button>
+            ${downloadLink}
+            <span class="chat-media-file-name">${name}</span>
+          </div>
+        </div>
+      `;
+    }
+    if (kind === 'video') {
+      return `
+        <div class="chat-media">
+          <video class="chat-media-preview video" src="${message.attachment}" data-video-src="${message.attachment}" muted playsinline preload="metadata"></video>
+          <div class="chat-media-actions">
+            ${downloadLink}
+            <span class="chat-media-file-name">${name}</span>
+          </div>
+        </div>
+      `;
+    }
+    if (kind === 'image' || kind === 'animation') {
+      return `
+        <div class="chat-media">
+          <img class="chat-media-preview" src="${message.attachment}" alt="${name}">
+          <div class="chat-media-actions">
+            ${downloadLink}
+            <span class="chat-media-file-name">${name}</span>
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div class="chat-media">
+        <div class="chat-media-actions">
+          ${downloadLink}
+          <span class="chat-media-file-name">${name}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function messageToHtml(message) {
+    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
+    const senderLabel = resolveSenderLabel(message, activeDialogContext);
+    const timestamp = formatTimestamp(message?.timestamp, { includeTime: true });
+    const replyPreview = message?.replyPreview
+      ? `<div class="small text-muted border-start ps-2 mb-1">${message.replyPreview}</div>`
+      : '';
+    const bodyText = message?.message ? message.message.replace(/\n/g, '<br>') : '';
+    const fallbackType = message?.messageType && !bodyText ? `[${message.messageType}]` : '';
+    const body = bodyText || fallbackType || '—';
+    const media = buildMediaMarkup(message);
+    return `
+      <div class="chat-message ${senderType}">
+        <div class="chat-message-header">
+          <span>${senderLabel}</span>
+          <span>${timestamp}</span>
+        </div>
+        ${replyPreview}
+        <div>${body}</div>
+        ${media}
+      </div>
+    `;
+  }
+
   function renderHistory(messages) {
     if (!detailsHistory) return;
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -703,44 +840,17 @@
       return;
     }
     lastHistoryMarker = historyMarker(messages);
-    detailsHistory.innerHTML = messages.map((msg) => {
-      const senderType = normalizeMessageSender(msg.sender);
-      const timestamp = formatTimestamp(msg.timestamp);
-      const replyPreview = msg.replyPreview
-        ? `<div class="small text-muted border-start ps-2 mb-1">${msg.replyPreview}</div>`
-        : '';
-      const attachment = msg.attachment
-        ? `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`
-        : '';
-      const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
-      const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
-      const body = bodyText || fallbackType || '—';
-      return `
-        <div class="chat-message ${senderType}">
-          <div class="d-flex justify-content-between small text-muted mb-1">
-            <span>${msg.sender || 'Пользователь'}</span>
-            <span>${timestamp}</span>
-          </div>
-          ${replyPreview}
-          <div>${body}</div>
-          ${attachment}
-        </div>
-      `;
-    }).join('');
+    detailsHistory.innerHTML = messages.map((msg) => messageToHtml(msg)).join('');
   }
 
-  function appendOperatorMessage(message, timestamp) {
+  function appendHistoryMessage(message) {
     if (!detailsHistory) return;
     const wrapper = document.createElement('div');
-    wrapper.className = 'chat-message support';
-    wrapper.innerHTML = `
-      <div class="d-flex justify-content-between small text-muted mb-1">
-        <span>Оператор</span>
-        <span>${formatTimestamp(timestamp)}</span>
-      </div>
-      <div>${message.replace(/\n/g, '<br>')}</div>
-    `;
-    detailsHistory.appendChild(wrapper);
+    wrapper.innerHTML = messageToHtml(message);
+    const node = wrapper.firstElementChild;
+    if (node) {
+      detailsHistory.appendChild(node);
+    }
     detailsHistory.scrollTop = detailsHistory.scrollHeight;
     lastHistoryMarker = `local:${Date.now()}`;
   }
@@ -868,6 +978,13 @@
     return '—';
   }
 
+  function isResolvedStatus(statusRaw, statusKey, statusLabel) {
+    const raw = String(statusRaw || '').toLowerCase();
+    const key = String(statusKey || '').toLowerCase();
+    const label = String(statusLabel || '').toLowerCase();
+    return raw === 'resolved' || raw === 'closed' || key === 'closed' || key === 'auto_closed' || label.startsWith('закрыт');
+  }
+
   async function openDialogDetails(ticketId, fallbackRow) {
     if (!ticketId || !detailsModal) return;
     activeDialogTicketId = ticketId;
@@ -901,7 +1018,7 @@
       const createdLabel = [createdDate, createdTime].filter(Boolean).join(' ')
         || createdAt
         || '—';
-      const createdDisplay = formatTimestamp(createdLabel);
+      const createdDisplay = formatTimestamp(createdLabel, { includeTime: true });
       const resolvedDisplay = formatTimestamp(resolvedAt || '', { includeTime: true });
       const responsibleLabel = summary.responsible
         || resolvedBy
@@ -937,6 +1054,10 @@
         ['Ответственный', responsibleLabel],
         ['Создан', createdDisplay || createdLabel],
       ];
+      activeDialogContext = {
+        clientName,
+        operatorName: responsibleLabel || 'Оператор',
+      };
       if (detailsSummary) {
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => `
           <div class="d-flex justify-content-between gap-2">
@@ -948,8 +1069,11 @@
       if (detailsMetrics) {
         const timeMetricsConfig = normalizeDialogTimeMetrics(window.DIALOG_CONFIG?.time_metrics);
         const createdAtTimestamp = parseDialogTimestamp(summary, fallbackRow);
+        const resolvedAtTimestamp = parseTimestampValue(resolvedAt);
+        const shouldUseResolvedTime = isResolvedStatus(statusRaw, statusKey, statusLabel) && Number.isFinite(resolvedAtTimestamp);
+        const endTimestamp = shouldUseResolvedTime ? resolvedAtTimestamp : Date.now();
         const totalMinutes = Number.isFinite(createdAtTimestamp)
-          ? Math.max(0, Math.floor((Date.now() - createdAtTimestamp) / 60000))
+          ? Math.max(0, Math.floor((endTimestamp - createdAtTimestamp) / 60000))
           : null;
         const timeLabel = totalMinutes === null ? '—' : formatDuration(totalMinutes);
         const timeColor = totalMinutes === null ? null : resolveTimeMetricColor(totalMinutes, timeMetricsConfig);
@@ -1083,7 +1207,13 @@
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         detailsReplyText.value = '';
-        appendOperatorMessage(message, data.timestamp || new Date().toISOString());
+        activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
+        appendHistoryMessage({
+          sender: data.responsible || 'Оператор',
+          message,
+          timestamp: data.timestamp || new Date().toISOString(),
+          messageType: 'operator_message',
+        });
         if (activeDialogRow) {
           updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
           const rowCells = activeDialogRow.children;
@@ -1112,6 +1242,53 @@
         sendReply();
       }
     });
+  }
+
+  async function sendMediaFiles(files) {
+    if (!activeDialogTicketId || !files || files.length === 0) return;
+    const caption = detailsReplyText?.value?.trim() || '';
+    detailsReplySend.disabled = true;
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (caption) {
+          formData.append('message', caption);
+        }
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/media`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
+        appendHistoryMessage({
+          sender: data.responsible || 'Оператор',
+          message: data.message || '',
+          timestamp: data.timestamp || new Date().toISOString(),
+          messageType: data.messageType || 'operator_media',
+          attachment: data.attachment || null,
+        });
+        if (activeDialogRow) {
+          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+        }
+      }
+      if (detailsReplyText) detailsReplyText.value = '';
+      if (typeof showNotification === 'function') {
+        showNotification('Медиа отправлено', 'success');
+      }
+    } catch (error) {
+      if (typeof showNotification === 'function') {
+        showNotification(error.message || 'Не удалось отправить медиа', 'error');
+      }
+    } finally {
+      detailsReplySend.disabled = false;
+      if (detailsReplyMedia) {
+        detailsReplyMedia.value = '';
+      }
+    }
   }
 
   if (quickSearch) {
@@ -1205,6 +1382,7 @@
       activeDialogChannelId = null;
       activeDialogRow = null;
       if (detailsReplyText) detailsReplyText.value = '';
+      if (detailsReplyMedia) detailsReplyMedia.value = '';
       stopHistoryPolling();
     });
   }
@@ -1214,6 +1392,94 @@
       const button = event.target.closest('[data-question-template-item]');
       if (!button) return;
       insertReplyText(button.dataset.questionValue || '');
+    });
+  }
+
+  if (detailsReplyMediaTrigger && detailsReplyMedia) {
+    detailsReplyMediaTrigger.addEventListener('click', () => {
+      detailsReplyMedia.click();
+    });
+    detailsReplyMedia.addEventListener('change', () => {
+      sendMediaFiles(detailsReplyMedia.files);
+    });
+  }
+
+  if (templateToggleButtons.length) {
+    templateToggleButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.dataset.templateToggle;
+        const section = target === 'category' ? categoryTemplatesSection : questionTemplatesSection;
+        if (!section) return;
+        section.classList.toggle('is-open');
+      });
+    });
+  }
+
+  if (completionTemplatesSection) {
+    const openCompletion = () => {
+      completionTemplatesSection.classList.add('is-open');
+    };
+    const scheduleClose = () => {
+      if (completionHideTimer) {
+        clearTimeout(completionHideTimer);
+      }
+      completionHideTimer = setTimeout(() => {
+        completionTemplatesSection.classList.remove('is-open');
+      }, 2000);
+    };
+    completionTemplatesSection.addEventListener('mouseenter', () => {
+      if (completionHideTimer) clearTimeout(completionHideTimer);
+      openCompletion();
+    });
+    completionTemplatesSection.addEventListener('mouseleave', scheduleClose);
+    if (completionTemplatesToggle) {
+      completionTemplatesToggle.addEventListener('click', () => {
+        completionTemplatesSection.classList.toggle('is-open');
+      });
+    }
+  }
+
+  if (detailsHistory) {
+    detailsHistory.addEventListener('click', (event) => {
+      const playButton = event.target.closest('.chat-audio-play');
+      if (playButton) {
+        const src = playButton.dataset.audioSrc;
+        if (!src) return;
+        if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
+          activeAudioPlayer.pause();
+          playButton.textContent = 'Воспроизвести';
+          return;
+        }
+        if (activeAudioPlayer) {
+          activeAudioPlayer.pause();
+        }
+        activeAudioPlayer = new Audio(src);
+        activeAudioSource = src;
+        playButton.textContent = 'Пауза';
+        activeAudioPlayer.addEventListener('ended', () => {
+          playButton.textContent = 'Воспроизвести';
+        });
+        activeAudioPlayer.play().catch(() => {
+          playButton.textContent = 'Воспроизвести';
+        });
+        return;
+      }
+      const videoPreview = event.target.closest('[data-video-src]');
+      if (videoPreview && mediaPreviewModal && mediaPreviewVideo) {
+        const src = videoPreview.dataset.videoSrc;
+        if (!src) return;
+        mediaPreviewVideo.src = src;
+        mediaPreviewVideo.play().catch(() => {});
+        mediaPreviewModal.show();
+      }
+    });
+  }
+
+  if (mediaPreviewModalEl && mediaPreviewVideo) {
+    mediaPreviewModalEl.addEventListener('hidden.bs.modal', () => {
+      mediaPreviewVideo.pause();
+      mediaPreviewVideo.removeAttribute('src');
+      mediaPreviewVideo.load();
     });
   }
 
