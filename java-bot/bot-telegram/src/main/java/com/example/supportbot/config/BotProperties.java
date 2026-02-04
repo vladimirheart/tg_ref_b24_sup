@@ -9,7 +9,7 @@ public class BotProperties {
 
     private String token;
     private String username;
-    private Integer channelId;
+    private Long channelId;
 
     public String getToken() {
         return token;
@@ -27,11 +27,11 @@ public class BotProperties {
         this.username = username;
     }
 
-    public Integer getChannelId() {
+    public Long getChannelId() {
         return channelId;
     }
 
-    public void setChannelId(Integer channelId) {
+    public void setChannelId(Long channelId) {
         this.channelId = channelId;
     }
 }
