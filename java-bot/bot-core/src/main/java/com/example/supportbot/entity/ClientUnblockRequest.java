@@ -16,7 +16,7 @@ public class ClientUnblockRequest {
     private String userId;
 
     @Column(name = "channel_id")
-    private Integer channelId;
+    private Long channelId;
 
     @Column(name = "reason", columnDefinition = "TEXT")
     private String reason;
@@ -52,11 +52,11 @@ public class ClientUnblockRequest {
         this.userId = userId;
     }
 
-    public Integer getChannelId() {
+    public Long getChannelId() {
         return channelId;
     }
 
-    public void setChannelId(Integer channelId) {
+    public void setChannelId(Long channelId) {
         this.channelId = channelId;
     }
 
