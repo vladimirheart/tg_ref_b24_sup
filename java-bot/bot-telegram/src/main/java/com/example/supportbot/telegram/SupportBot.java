@@ -103,7 +103,7 @@ public class SupportBot extends TelegramLongPollingBot {
         log.info("Initializing Telegram bot configuration check");
         String token = properties.getToken();
         String username = properties.getUsername();
-        Integer channelId = properties.getChannelId();
+        Long channelId = properties.getChannelId();
         boolean tokenConfigured = token != null && !token.isBlank() && !"YOUR_TELEGRAM_BOT_TOKEN".equals(token);
         boolean usernameConfigured = username != null && !username.isBlank() && !"your_bot_username".equalsIgnoreCase(username);
 
@@ -271,12 +271,12 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private boolean handleOperatorMessage(Message message) {
-        Integer configuredChannelId = properties.getChannelId();
+        Long configuredChannelId = properties.getChannelId();
         if (configuredChannelId == null) {
             return false;
         }
         long chatId = message.getChatId();
-        if (chatId != configuredChannelId.longValue()) {
+        if (chatId != configuredChannelId) {
             return false;
         }
 
@@ -626,7 +626,7 @@ public class SupportBot extends TelegramLongPollingBot {
                                                String attachmentPath,
                                                String username,
                                                Long userId) {
-        Integer channelId = properties.getChannelId();
+        Long channelId = properties.getChannelId();
         if (channelId == null || channelId <= 0) {
             return;
         }
@@ -651,7 +651,7 @@ public class SupportBot extends TelegramLongPollingBot {
             builder.append("\nВложение: ").append(attachmentPath);
         }
         SendMessage toChannel = SendMessage.builder()
-                .chatId(channelId.longValue())
+                .chatId(channelId)
                 .text(builder.toString())
                 .build();
         try {
@@ -1134,7 +1134,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
         if (properties.getChannelId() != null && properties.getChannelId() > 0) {
             SendMessage toChannel = SendMessage.builder()
-                    .chatId(properties.getChannelId().longValue())
+                    .chatId(properties.getChannelId())
                     .text(summary)
                     .build();
             try {
