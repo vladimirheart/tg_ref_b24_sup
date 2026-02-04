@@ -852,6 +852,7 @@ public class BotSettingsService {
             finalizedDependencies.put(entry.getKey(), finalized);
         }
 
+        Set<String> locationFields = Set.of("business", "location_type", "city", "location_name");
         for (Map.Entry<String, Object> groupEntry : baseDefinitions.entrySet()) {
             Map<String, Object> groupData = groupEntry.getValue() instanceof Map<?, ?> ? convertToMap(groupEntry.getValue()) : new LinkedHashMap<>();
             String groupLabel = optionalString(groupData.get("label"));
@@ -861,18 +862,49 @@ public class BotSettingsService {
                 String fieldKey = fieldEntry.getKey();
                 Map<String, Object> fieldMeta = fieldEntry.getValue() instanceof Map<?, ?> ? convertToMap(fieldEntry.getValue()) : new LinkedHashMap<>();
                 String fieldLabel = optionalString(fieldMeta.get("label"));
+                boolean isLocationField = locationFields.contains(fieldKey);
+                List<String> fieldOptions = new ArrayList<>();
+                Object fieldOptionsRaw = fieldMeta.get("options");
+                if (!isLocationField && fieldOptionsRaw instanceof Iterable<?> iterable) {
+                    for (Object option : toCollection(iterable)) {
+                        String value = optionalString(option);
+                        if (!value.isBlank()) {
+                            fieldOptions.add(value);
+                        }
+                    }
+                }
+                if (isLocationField) {
+                    fieldOptions = new ArrayList<>(optionMap.getOrDefault(fieldKey, List.of()));
+                }
                 Map<String, Object> fieldResult = new LinkedHashMap<>();
                 fieldResult.put("label", fieldLabel.isBlank() ? fieldKey : fieldLabel);
-                fieldResult.put("options", optionMap.getOrDefault(fieldKey, List.of()));
-                Map<String, Map<String, Object>> deps = finalizedDependencies.get(fieldKey);
+                fieldResult.put("options", fieldOptions);
+                Map<String, Object> deps = null;
+                if (isLocationField) {
+                    Map<String, Map<String, Object>> locationDeps = finalizedDependencies.get(fieldKey);
+                    if (locationDeps != null && !locationDeps.isEmpty()) {
+                        deps = new LinkedHashMap<>(locationDeps);
+                    }
+                }
+                if (deps == null || deps.isEmpty()) {
+                    Object rawDeps = fieldMeta.get("option_dependencies");
+                    if (rawDeps instanceof Map<?, ?> rawDepsMap && !rawDepsMap.isEmpty()) {
+                        deps = new LinkedHashMap<>();
+                        for (Map.Entry<?, ?> entry : rawDepsMap.entrySet()) {
+                            if (entry.getKey() != null) {
+                                deps.put(entry.getKey().toString(), entry.getValue());
+                            }
+                        }
+                    }
+                }
                 if (deps != null && !deps.isEmpty()) {
                     fieldResult.put("option_dependencies", deps);
                 }
-                if ("location_type".equals(fieldKey) && !locationTypeTree.isEmpty()) {
+                if (isLocationField && "location_type".equals(fieldKey) && !locationTypeTree.isEmpty()) {
                     fieldResult.put("tree", locationTypeTree);
-                } else if ("city".equals(fieldKey) && !cityTree.isEmpty()) {
+                } else if (isLocationField && "city".equals(fieldKey) && !cityTree.isEmpty()) {
                     fieldResult.put("tree", cityTree);
-                } else if ("location_name".equals(fieldKey) && !locationTreeMap.isEmpty()) {
+                } else if (isLocationField && "location_name".equals(fieldKey) && !locationTreeMap.isEmpty()) {
                     fieldResult.put("tree", locationTreeMap);
                 }
                 preparedFields.put(fieldKey, fieldResult);
