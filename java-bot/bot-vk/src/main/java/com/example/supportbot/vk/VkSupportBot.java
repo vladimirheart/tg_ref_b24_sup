@@ -200,7 +200,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         if ("/unblock".equalsIgnoreCase(text)) {
             log.info("Received /unblock from VK user {}", fromId);
-            Integer channelId = channel.getId() != null ? Math.toIntExact(channel.getId()) : null;
+            Long channelId = channel.getId();
             blacklistService.registerUnblockRequest(fromId.longValue(), "", channelId);
             sendText(actor, peerId, "Запрос на разблокировку отправлен оператору.");
             return;
