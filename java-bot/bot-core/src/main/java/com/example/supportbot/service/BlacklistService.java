@@ -33,7 +33,7 @@ public class BlacklistService {
     }
 
     @Transactional
-    public ClientUnblockRequest registerUnblockRequest(long userId, String reason, Integer channelId) {
+    public ClientUnblockRequest registerUnblockRequest(long userId, String reason, Long channelId) {
         String key = String.valueOf(userId);
         OffsetDateTime now = OffsetDateTime.now();
 
