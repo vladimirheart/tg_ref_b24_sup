@@ -235,29 +235,19 @@
                             <div class="fw-semibold mb-2">Метрики</div>
                             <div class="d-flex flex-column gap-2 small" id="dialogDetailsMetrics"></div>
                         </div>
-                        <div class="dialog-details-section" id="dialogCategoryTemplatesSection">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <div class="fw-semibold">Категории</div>
-                                <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
+                        <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
+                            <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">
+                                Шаблоны действий
+                                <span class="dialog-templates-caret" aria-hidden="true">▾</span>
+                            </button>
+                            <div class="dialog-templates-menu" id="dialogCompletionTemplatesMenu">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="fw-semibold small">Набор шаблонов</div>
+                                    <select class="form-select form-select-sm w-auto" id="dialogCompletionTemplateSelect"></select>
+                                </div>
+                                <div class="d-flex flex-column gap-2 small" id="dialogCompletionTemplateList"></div>
+                                <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
                             </div>
-                            <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
-                            <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
-                        </div>
-                        <div class="dialog-details-section" id="dialogQuestionTemplatesSection">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <div class="fw-semibold">Шаблоны вопросов</div>
-                                <select class="form-select form-select-sm w-auto" id="dialogQuestionTemplateSelect"></select>
-                            </div>
-                            <div class="d-flex flex-column gap-2" id="dialogQuestionTemplateList"></div>
-                            <div class="text-muted small d-none" id="dialogQuestionTemplateEmpty">Шаблоны вопросов не настроены.</div>
-                        </div>
-                        <div class="dialog-details-section" id="dialogCompletionTemplatesSection">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <div class="fw-semibold">Шаблоны действий</div>
-                                <select class="form-select form-select-sm w-auto" id="dialogCompletionTemplateSelect"></select>
-                            </div>
-                            <div class="d-flex flex-column gap-2 small" id="dialogCompletionTemplateList"></div>
-                            <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
                         </div>
                         <div class="dialog-details-resize-handle" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
                     </div>
@@ -268,7 +258,40 @@
                                 <div class="d-flex flex-column gap-2 chat-history flex-grow-1" id="dialogDetailsHistory"></div>
                                 <div class="dialog-details-composer mt-3">
                                     <label class="form-label small text-muted" for="dialogReplyText">Ответ клиенту</label>
-                                    <div class="input-group">
+                                    <div class="dialog-composer-tools">
+                                        <button class="dialog-template-icon" type="button" data-template-toggle="category"
+                                                aria-label="Категории обращений" data-tooltip="Категории обращений">
+                                            🏷️
+                                        </button>
+                                        <button class="dialog-template-icon" type="button" data-template-toggle="question"
+                                                aria-label="Шаблоны вопросов" data-tooltip="Шаблоны вопросов">
+                                            ❓
+                                        </button>
+                                        <button class="dialog-template-icon" type="button" id="dialogReplyMediaTrigger"
+                                                aria-label="Добавить медиа" data-tooltip="Добавить медиа">
+                                            📎
+                                        </button>
+                                        <input class="d-none" type="file" id="dialogReplyMedia" multiple>
+                                    </div>
+                                    <div class="dialog-composer-panels">
+                                        <div class="dialog-template-panel" id="dialogCategoryTemplatesSection">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <div class="fw-semibold small">Категории обращений</div>
+                                                <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
+                                            <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
+                                        </div>
+                                        <div class="dialog-template-panel" id="dialogQuestionTemplatesSection">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <div class="fw-semibold small">Шаблоны вопросов</div>
+                                                <select class="form-select form-select-sm w-auto" id="dialogQuestionTemplateSelect"></select>
+                                            </div>
+                                            <div class="d-flex flex-column gap-2" id="dialogQuestionTemplateList"></div>
+                                            <div class="text-muted small d-none" id="dialogQuestionTemplateEmpty">Шаблоны вопросов не настроены.</div>
+                                        </div>
+                                    </div>
+                                    <div class="input-group mt-2">
                                         <textarea class="form-control" id="dialogReplyText" rows="2" placeholder="Введите ответ..."></textarea>
                                         <button class="btn btn-primary" type="button" id="dialogReplySend">Отправить</button>
                                     </div>
@@ -284,6 +307,20 @@
                 <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Закрыть обращение</button>
                 <button type="button" class="btn btn-outline-warning d-none" id="dialogDetailsReopen">Переоткрыть обращение</button>
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogMediaPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Просмотр медиа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <video class="w-100" id="dialogMediaPreviewVideo" controls></video>
             </div>
         </div>
     </div>
