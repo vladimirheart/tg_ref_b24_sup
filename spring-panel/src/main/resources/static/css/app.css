@@ -80,12 +80,147 @@ body {
     margin-bottom: 0.75rem;
     max-width: 80%;
     word-break: break-word;
+    align-self: flex-start;
 }
 
-.chat-message.user { background: #e8f1ff; margin-left: auto; }
+.chat-message.user { background: #e8f1ff; margin-right: auto; }
 .chat-message.support { background: #e9fbef; margin-right: auto; }
+.chat-message.system { background: #f1f3f5; margin-right: auto; }
 
-.chat-history { max-height: 400px; overflow-y: auto; }
+.chat-history {
+    max-height: 400px;
+    overflow-y: auto;
+    align-items: flex-start;
+}
+
+.chat-message-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.chat-media {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.chat-media-preview {
+    max-width: 220px;
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    object-fit: cover;
+}
+
+.chat-media-preview.video {
+    cursor: pointer;
+}
+
+.chat-media-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.chat-media-file-name {
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+.dialog-composer-tools {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.dialog-template-icon {
+    border: 1px solid #ced4da;
+    background: #fff;
+    border-radius: 0.5rem;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    position: relative;
+}
+
+.dialog-template-icon:hover {
+    background: #e7f1ff;
+    border-color: #86b7fe;
+}
+
+.dialog-template-icon[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #212529;
+    color: #fff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.4rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 20;
+}
+
+.dialog-composer-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.dialog-template-panel {
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    display: none;
+}
+
+.dialog-template-panel.is-open {
+    display: block;
+}
+
+.dialog-templates-dropdown {
+    position: relative;
+}
+
+.dialog-templates-toggle {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0;
+}
+
+.dialog-templates-caret {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.dialog-templates-menu {
+    margin-top: 0.75rem;
+    display: none;
+}
+
+.dialog-templates-dropdown.is-open .dialog-templates-menu {
+    display: block;
+}
 
 .metric-card {
     border-radius: 1rem;
