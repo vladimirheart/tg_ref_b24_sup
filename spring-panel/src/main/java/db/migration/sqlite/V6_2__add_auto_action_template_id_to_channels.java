@@ -8,7 +8,7 @@ import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
-public class V6__add_auto_action_template_id_to_channels extends BaseJavaMigration {
+public class V6_2__add_auto_action_template_id_to_channels extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {
