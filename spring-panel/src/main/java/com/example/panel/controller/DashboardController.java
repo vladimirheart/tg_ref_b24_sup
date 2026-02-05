@@ -42,7 +42,7 @@ public class DashboardController {
     private String renderDashboard(Authentication authentication, Model model) {
         try {
             DialogSummary summary = dialogService.loadSummary();
-            var dialogs = dialogService.loadDialogs();
+            var dialogs = dialogService.loadDialogs(authentication != null ? authentication.getName() : null);
             model.addAttribute("summary", summary);
             model.addAttribute("dialogs", dialogs);
             model.addAttribute("restaurants", List.of());
@@ -54,3 +54,4 @@ public class DashboardController {
         return "dashboard/index";
     }
 }
+
