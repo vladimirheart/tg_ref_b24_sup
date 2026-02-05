@@ -155,6 +155,16 @@ public class AttachmentService {
             throw new IllegalArgumentException("File not found");
         }
         String normalized = rawPath.trim().replace('\\', '/');
+        if (normalized.contains("/attachments/")) {
+            try {
+                Path originalPath = Paths.get(rawPath.trim()).toAbsolutePath().normalize();
+                if (Files.exists(originalPath) && Files.isRegularFile(originalPath)) {
+                    return originalPath;
+                }
+            } catch (Exception ignored) {
+                // Fallback to relative resolution against attachments root.
+            }
+        }
         while (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
         }
