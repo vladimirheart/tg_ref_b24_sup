@@ -68,6 +68,8 @@ public class DialogApiController {
     public ResponseEntity<?> details(@PathVariable String ticketId,
                                      @RequestParam(value = "channelId", required = false) Long channelId,
                                      Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        dialogService.markDialogAsRead(ticketId, operator);
         Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId);
         log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
                 details.map(d -> "found").orElse("not found"));
@@ -78,7 +80,10 @@ public class DialogApiController {
 
     @GetMapping("/{ticketId}/history")
     public Map<String, Object> history(@PathVariable String ticketId,
-                                        @RequestParam(value = "channelId", required = false) Long channelId) {
+                                        @RequestParam(value = "channelId", required = false) Long channelId,
+                                        Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        dialogService.markDialogAsRead(ticketId, operator);
         List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
         log.info("History requested for ticket {} (channelId={}): {} messages", ticketId, channelId, history.size());
         return Map.of(
