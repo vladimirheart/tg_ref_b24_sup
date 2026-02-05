@@ -318,7 +318,8 @@ CREATE TABLE IF NOT EXISTS ticket_responsibles (
     ticket_id    VARCHAR(255) PRIMARY KEY,
     responsible  TEXT NOT NULL,
     assigned_at  DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
-    assigned_by  TEXT
+    assigned_by  TEXT,
+    last_read_at DATETIME(6)
 );
 
 CREATE TABLE IF NOT EXISTS client_unblock_requests (
