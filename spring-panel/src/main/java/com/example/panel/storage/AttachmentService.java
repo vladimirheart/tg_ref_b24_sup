@@ -47,6 +47,13 @@ public class AttachmentService {
         return buildDownloadResponse(resolved, filename);
     }
 
+
+    public ResponseEntity<Resource> downloadTicketAttachmentByPath(Authentication authentication, String path) throws IOException {
+        requireAuthority(authentication, "PAGE_DIALOGS");
+        Path resolved = resolveByStoredPath(attachmentsRoot, path);
+        return buildInlineResponse(resolved);
+    }
+
     public ResponseEntity<Resource> downloadKnowledgeBaseFile(Authentication authentication, String fileId) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
         Path resolved = resolveAttachment(knowledgeBaseRoot, "", fileId);
@@ -111,10 +118,19 @@ public class AttachmentService {
     }
 
     private ResponseEntity<Resource> buildDownloadResponse(Path file, String downloadName) throws IOException {
+        return buildResponse(file, "attachment; filename=" + downloadName);
+    }
+
+    private ResponseEntity<Resource> buildInlineResponse(Path file) throws IOException {
+        String filename = file.getFileName() != null ? file.getFileName().toString() : "file";
+        return buildResponse(file, "inline; filename=" + filename);
+    }
+
+    private ResponseEntity<Resource> buildResponse(Path file, String disposition) throws IOException {
         MediaType mediaType = MediaTypeFactory.detect(file);
         InputStreamResource resource = new InputStreamResource(Files.newInputStream(file));
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + downloadName)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
                 .contentType(mediaType)
                 .contentLength(Files.size(file))
                 .body(resource);
@@ -127,6 +143,37 @@ public class AttachmentService {
             throw new IllegalArgumentException("Invalid path");
         }
         if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new IllegalArgumentException("File not found");
+        }
+        return resolved;
+    }
+
+
+
+    private Path resolveByStoredPath(Path root, String rawPath) {
+        if (!StringUtils.hasText(rawPath)) {
+            throw new IllegalArgumentException("File not found");
+        }
+        String normalized = rawPath.trim().replace('\\', '/');
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        String[] segments = normalized.split("/");
+        int attachmentsIndex = -1;
+        for (int i = 0; i < segments.length; i++) {
+            if ("attachments".equalsIgnoreCase(segments[i])) {
+                attachmentsIndex = i;
+                break;
+            }
+        }
+        if (attachmentsIndex >= 0) {
+            normalized = String.join("/", java.util.Arrays.copyOfRange(segments, attachmentsIndex + 1, segments.length));
+        }
+        if (!StringUtils.hasText(normalized)) {
+            throw new IllegalArgumentException("File not found");
+        }
+        Path resolved = root.resolve(normalized).normalize();
+        if (!resolved.startsWith(root) || !Files.exists(resolved) || !Files.isRegularFile(resolved)) {
             throw new IllegalArgumentException("File not found");
         }
         return resolved;
