@@ -70,7 +70,7 @@ public class DialogApiController {
                                      Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         dialogService.markDialogAsRead(ticketId, operator);
-        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
+        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId);
         log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
                 details.map(d -> "found").orElse("not found"));
         return details.<ResponseEntity<?>>map(ResponseEntity::ok)
@@ -223,3 +223,4 @@ public class DialogApiController {
 
     public record DialogDeleteRequest(Long telegramMessageId) {}
 }
+
