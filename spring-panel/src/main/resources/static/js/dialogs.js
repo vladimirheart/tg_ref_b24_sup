@@ -889,6 +889,7 @@
     }
     lastHistoryMarker = historyMarker(messages);
     detailsHistory.innerHTML = messages.map((msg) => messageToHtml(msg)).join('');
+    detailsHistory.scrollTop = detailsHistory.scrollHeight;
   }
 
   function appendHistoryMessage(message) {
