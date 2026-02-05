@@ -74,10 +74,11 @@ if defined SPRING_OPTS (
 )
 
 echo Starting Spring panel with %MVN_CMD%
+echo [INFO] Running Maven clean phase before startup to remove stale compiled classes.
 if "%MVN_CMD%"=="mvn" (
-    call mvn %EXTRA_JVM_ARG% %EXTRA_APP_ARG% spring-boot:run %*
+    call mvn %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
 ) else (
-    call "%MVN_CMD%" %EXTRA_JVM_ARG% %EXTRA_APP_ARG% spring-boot:run %*
+    call "%MVN_CMD%" %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"
