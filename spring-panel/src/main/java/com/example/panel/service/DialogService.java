@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -457,7 +458,20 @@ public class DialogService {
         if (!StringUtils.hasText(attachment)) {
             return null;
         }
-        if (attachment.startsWith("/api/attachments/") || attachment.startsWith("http://") || attachment.startsWith("https://")) {
+        if (attachment.startsWith("/api/attachments/")) {
+            return attachment;
+        }
+        if (attachment.startsWith("http://") || attachment.startsWith("https://")) {
+            try {
+                URI uri = URI.create(attachment);
+                if (uri.getPath() != null && uri.getPath().startsWith("/api/attachments/")) {
+                    String query = StringUtils.hasText(uri.getQuery()) ? "?" + uri.getQuery() : "";
+                    String fragment = StringUtils.hasText(uri.getFragment()) ? "#" + uri.getFragment() : "";
+                    return uri.getPath() + query + fragment;
+                }
+            } catch (IllegalArgumentException ignored) {
+                return attachment;
+            }
             return attachment;
         }
         try {
