@@ -113,6 +113,17 @@ public class ManagementController {
         return "users/index";
     }
 
+
+    @GetMapping("/users/{username}")
+    @PreAuthorize("hasAuthority('PAGE_USERS')")
+    public String userCard(@PathVariable String username, Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
+        PanelUser user = panelUserRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
+        model.addAttribute("panelUser", user);
+        return "users/detail";
+    }
+
     @GetMapping("/settings")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public String settings(Authentication authentication, Model model) {
