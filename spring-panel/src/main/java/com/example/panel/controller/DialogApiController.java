@@ -115,6 +115,42 @@ public class DialogApiController {
         ));
     }
 
+
+    @PostMapping("/{ticketId}/edit")
+    public ResponseEntity<?> editMessage(@PathVariable String ticketId,
+                                         @RequestBody DialogEditRequest request,
+                                         Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        DialogReplyService.DialogReplyResult result = dialogReplyService.editOperatorMessage(
+                ticketId,
+                request.telegramMessageId(),
+                request.message(),
+                operator
+        );
+        if (!result.success()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", result.error()));
+        }
+        return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
+    }
+
+    @PostMapping("/{ticketId}/delete")
+    public ResponseEntity<?> deleteMessage(@PathVariable String ticketId,
+                                           @RequestBody DialogDeleteRequest request,
+                                           Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        DialogReplyService.DialogReplyResult result = dialogReplyService.deleteOperatorMessage(
+                ticketId,
+                request.telegramMessageId(),
+                operator
+        );
+        if (!result.success()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", result.error()));
+        }
+        return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
+    }
+
     @PostMapping(value = "/{ticketId}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> replyWithMedia(@PathVariable String ticketId,
                                             @RequestParam("file") MultipartFile file,
@@ -182,5 +218,8 @@ public class DialogApiController {
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 
     public record DialogResolveRequest(List<String> categories) {}
-}
 
+    public record DialogEditRequest(Long telegramMessageId, String message) {}
+
+    public record DialogDeleteRequest(Long telegramMessageId) {}
+}
