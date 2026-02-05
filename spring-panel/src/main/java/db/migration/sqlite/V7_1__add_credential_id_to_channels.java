@@ -8,7 +8,7 @@ import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
-public class V7__add_credential_id_to_channels extends BaseJavaMigration {
+public class V7_1__add_credential_id_to_channels extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {
