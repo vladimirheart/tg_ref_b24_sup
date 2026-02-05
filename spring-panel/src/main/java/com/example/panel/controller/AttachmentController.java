@@ -63,5 +63,4 @@ public class AttachmentController {
     public void delete(Authentication authentication, @PathVariable String storedName) throws IOException {
         attachmentService.deleteKnowledgeBaseFile(authentication, storedName);
     }
-
 }
