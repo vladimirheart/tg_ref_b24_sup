@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS chat_history (
     channel_id INTEGER REFERENCES channels(id),
     tg_message_id INTEGER,
     reply_to_tg_id INTEGER,
+    original_message TEXT,
+    forwarded_from TEXT,
     edited_at TEXT,
     deleted_at TEXT
 );
