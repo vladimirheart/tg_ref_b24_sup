@@ -123,6 +123,7 @@
   let activeAudioPlayer = null;
   let activeAudioSource = null;
   let selectedCategories = new Set();
+  let activeReplyToTelegramId = null;
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -1075,22 +1076,47 @@
     const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
     const senderLabel = resolveSenderLabel(message, activeDialogContext);
     const timestamp = formatTimestamp(message?.timestamp, { includeTime: true });
+    const isDeleted = Boolean(message?.deletedAt);
+    const isEdited = Boolean(message?.editedAt);
+    const isSupport = senderType === 'support';
     const replyPreview = message?.replyPreview
-      ? `<div class="small text-muted border-start ps-2 mb-1">${message.replyPreview}</div>`
+      ? `<div class="small text-muted border-start ps-2 mb-1">↪ ${escapeHtml(message.replyPreview)}</div>`
       : '';
-    const bodyText = message?.message ? message.message.replace(/\n/g, '<br>') : '';
-    const fallbackType = message?.messageType && !bodyText ? `[${message.messageType}]` : '';
-    const body = bodyText || fallbackType || '—';
-    const media = buildMediaMarkup(message);
+    const forwardedBadge = message?.forwardedFrom
+      ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
+      : '';
+    const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
+    const fallbackType = message?.messageType && !bodyText ? `[${escapeHtml(message.messageType)}]` : '';
+    const body = isDeleted ? '<span class="text-muted">Сообщение удалено</span>' : (bodyText || fallbackType || '—');
+    const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
+      ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
+      : '';
+    const statusBadges = [
+      isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
+      isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : ''
+    ].join(' ');
+    const media = isDeleted ? '' : buildMediaMarkup(message);
+    const actionButtons = isSupport && message?.telegramMessageId
+      ? `<div class="chat-message-actions mt-2">
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>
+          <button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>
+        </div>`
+      : '';
+
     return `
-      <div class="chat-message ${senderType}">
+      <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''}" data-telegram-message-id="${message?.telegramMessageId || ''}">
         <div class="chat-message-header">
-          <span>${senderLabel}</span>
-          <span>${timestamp}</span>
+          <span>${escapeHtml(senderLabel)}</span>
+          <span>${escapeHtml(timestamp)}</span>
         </div>
+        ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
+        ${forwardedBadge}
         ${replyPreview}
         <div>${body}</div>
+        ${originalBlock}
         ${media}
+        ${actionButtons}
       </div>
     `;
   }
@@ -1478,13 +1504,15 @@
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reply`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, replyToTelegramId: activeReplyToTelegramId }),
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         detailsReplyText.value = '';
+        activeReplyToTelegramId = null;
+        detailsReplyText.placeholder = 'Введите ответ...';
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         appendHistoryMessage({
           sender: data.responsible || 'Оператор',
@@ -1567,6 +1595,50 @@
         detailsReplyMedia.value = '';
       }
     }
+  }
+
+
+  if (detailsHistory) {
+    detailsHistory.addEventListener('click', async (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button || !activeDialogTicketId) return;
+      const messageId = Number.parseInt(button.dataset.messageId, 10);
+      if (!Number.isFinite(messageId)) return;
+      const action = button.dataset.action;
+      if (action === 'reply') {
+        activeReplyToTelegramId = messageId;
+        if (detailsReplyText) {
+          detailsReplyText.focus();
+          detailsReplyText.placeholder = `Ответ на сообщение #${messageId}`;
+        }
+        return;
+      }
+      if (action === 'edit') {
+        const current = button.closest('.chat-message')?.querySelector('div:nth-of-type(2)')?.textContent || '';
+        const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
+        if (!nextText || !nextText.trim()) return;
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/edit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
+        await refreshHistory();
+        return;
+      }
+      if (action === 'delete') {
+        if (!window.confirm('Удалить сообщение у клиента?')) return;
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramMessageId: messageId }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
+        await refreshHistory();
+      }
+    });
   }
 
   if (quickSearch) {
