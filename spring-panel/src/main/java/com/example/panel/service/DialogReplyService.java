@@ -107,6 +107,104 @@ public class DialogReplyService {
         return DialogReplyResult.success(timestamp, telegramMessageId);
     }
 
+
+    public DialogReplyResult editOperatorMessage(String ticketId, Long telegramMessageId, String message, String operator) {
+        if (!StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(message)) {
+            return DialogReplyResult.error("Некорректные параметры редактирования.");
+        }
+        Optional<DialogReplyTarget> targetOpt = loadReplyTarget(ticketId);
+        if (targetOpt.isEmpty()) {
+            return DialogReplyResult.error("Не удалось определить получателя сообщения.");
+        }
+        DialogReplyTarget target = targetOpt.get();
+        Channel channel = channelRepository.findById(target.channelId()).orElse(null);
+        if (channel == null || !StringUtils.hasText(channel.getToken())) {
+            return DialogReplyResult.error("Канал Telegram не найден.");
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("chat_id", target.userId());
+            payload.put("message_id", telegramMessageId);
+            payload.put("text", message);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/editMessageText"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                return DialogReplyResult.error("Ошибка редактирования сообщения в Telegram.");
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return DialogReplyResult.error("Не удалось отредактировать сообщение в Telegram.");
+        } catch (IOException ex) {
+            return DialogReplyResult.error("Не удалось отредактировать сообщение в Telegram.");
+        }
+
+        int updated = jdbcTemplate.update("""
+                UPDATE chat_history
+                   SET original_message = COALESCE(original_message, message),
+                       message = ?,
+                       edited_at = CURRENT_TIMESTAMP
+                 WHERE ticket_id = ?
+                   AND tg_message_id = ?
+                   AND sender = 'operator'
+                """, message, ticketId, telegramMessageId);
+        if (updated == 0) {
+            return DialogReplyResult.error("Сообщение оператора не найдено.");
+        }
+        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId);
+    }
+
+    public DialogReplyResult deleteOperatorMessage(String ticketId, Long telegramMessageId, String operator) {
+        if (!StringUtils.hasText(ticketId) || telegramMessageId == null) {
+            return DialogReplyResult.error("Некорректные параметры удаления.");
+        }
+        Optional<DialogReplyTarget> targetOpt = loadReplyTarget(ticketId);
+        if (targetOpt.isEmpty()) {
+            return DialogReplyResult.error("Не удалось определить получателя сообщения.");
+        }
+        DialogReplyTarget target = targetOpt.get();
+        Channel channel = channelRepository.findById(target.channelId()).orElse(null);
+        if (channel == null || !StringUtils.hasText(channel.getToken())) {
+            return DialogReplyResult.error("Канал Telegram не найден.");
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("chat_id", target.userId());
+            payload.put("message_id", telegramMessageId);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/deleteMessage"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                return DialogReplyResult.error("Ошибка удаления сообщения в Telegram.");
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return DialogReplyResult.error("Не удалось удалить сообщение в Telegram.");
+        } catch (IOException ex) {
+            return DialogReplyResult.error("Не удалось удалить сообщение в Telegram.");
+        }
+
+        int updated = jdbcTemplate.update("""
+                UPDATE chat_history
+                   SET deleted_at = CURRENT_TIMESTAMP
+                 WHERE ticket_id = ?
+                   AND tg_message_id = ?
+                   AND sender = 'operator'
+                """, ticketId, telegramMessageId);
+        if (updated == 0) {
+            return DialogReplyResult.error("Сообщение оператора не найдено.");
+        }
+        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId);
+    }
+
     public DialogMediaReplyResult sendMediaReply(String ticketId,
                                                  MultipartFile file,
                                                  String caption,
