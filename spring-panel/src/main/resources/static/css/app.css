@@ -132,6 +132,25 @@ body {
     color: #495057;
 }
 
+
+.dialog-category-badge {
+    cursor: pointer;
+}
+
+.dialog-category-badge.is-selected {
+    background: #0d6efd !important;
+    color: #fff !important;
+    border-color: #0d6efd !important;
+}
+
+.dialog-summary-value-link {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.dialog-summary-value-link:hover {
+    color: #0d6efd;
+}
 .dialog-composer-tools {
     display: flex;
     gap: 0.5rem;
