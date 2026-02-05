@@ -18,6 +18,9 @@
   const columnsApply = document.getElementById('dialogColumnsApply');
   const columnsReset = document.getElementById('dialogColumnsReset');
   const viewTabs = document.querySelectorAll('[data-dialog-view]');
+  const summaryTotal = document.getElementById('dialogsSummaryTotal');
+  const summaryPending = document.getElementById('dialogsSummaryPending');
+  const summaryResolved = document.getElementById('dialogsSummaryResolved');
 
   const detailsMeta = document.getElementById('dialogDetailsMeta');
   const detailsAvatar = document.getElementById('dialogDetailsAvatar');
@@ -75,6 +78,7 @@
   const STORAGE_TASK = 'bender:dialogs:create-task';
   const STORAGE_PAGE_SIZE = 'bender:dialogs:page-size';
   const HISTORY_POLL_INTERVAL = 8000;
+  const LIST_POLL_INTERVAL = 8000;
   const DEFAULT_PAGE_SIZE = 20;
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -109,8 +113,11 @@
   let activeDialogChannelId = null;
   let activeDialogRow = null;
   let historyPollTimer = null;
+  let listPollTimer = null;
   let lastHistoryMarker = null;
+  let lastListMarker = null;
   let historyLoading = false;
+  let listLoading = false;
   let activeDialogContext = { clientName: '—', operatorName: '—' };
   let completionHideTimer = null;
   let activeAudioPlayer = null;
@@ -236,6 +243,200 @@
   function rowsList() {
     return Array.from(table.tBodies[0].rows)
       .filter((row) => row.dataset && row.dataset.ticketId);
+  }
+
+  function buildDialogsMarker(dialogs) {
+    if (!Array.isArray(dialogs) || dialogs.length === 0) return 'empty';
+    return dialogs
+      .map((item) => ({
+        ticketId: item?.ticketId || '',
+        channelId: item?.channelId || '',
+        status: item?.status || '',
+        statusKey: item?.statusKey || '',
+        unreadCount: Number(item?.unreadCount) || 0,
+        lastMessageTimestamp: item?.lastMessageTimestamp || '',
+      }))
+      .sort((a, b) => `${a.ticketId}:${a.channelId}`.localeCompare(`${b.ticketId}:${b.channelId}`))
+      .map((item) => [
+        item.ticketId,
+        item.channelId,
+        item.status,
+        item.statusKey,
+        item.unreadCount,
+        item.lastMessageTimestamp,
+      ].join('|'))
+      .join('||');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function statusClassByKey(statusKey) {
+    const normalizedKey = String(statusKey || '').toLowerCase();
+    if (normalizedKey === 'auto_closed') return 'bg-secondary-subtle text-secondary';
+    if (normalizedKey === 'closed') return 'bg-success-subtle text-success';
+    if (normalizedKey === 'waiting_operator') return 'bg-warning-subtle text-warning';
+    if (normalizedKey === 'waiting_client') return 'bg-info-subtle text-info';
+    return 'bg-primary-subtle text-primary';
+  }
+
+
+  function escapeSelectorValue(value) {
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+      return CSS.escape(value);
+    }
+    return String(value).replace(/"/g, '\\"');
+  }
+
+  function avatarInitial(name) {
+    const normalized = String(name || '').trim();
+    return normalized ? normalized.charAt(0).toUpperCase() : '—';
+  }
+
+  function renderDialogRow(item) {
+    const ticketId = item?.ticketId || '—';
+    const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
+    const clientStatus = item?.clientStatus || 'статус не указан';
+    const channelLabel = item?.channelName || 'Без канала';
+    const businessLabel = item?.business || 'Без бизнеса';
+    const problemLabel = item?.problem || 'Проблема не указана';
+    const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || '—';
+    const statusRaw = item?.status || '';
+    const statusKey = item?.statusKey || '';
+    const statusLabel = formatStatusLabel(statusRaw, item?.statusLabel || '', statusKey);
+    const responsible = item?.responsible || item?.resolvedBy || '—';
+    const unreadCount = Number(item?.unreadCount) || 0;
+    const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
+    const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
+
+    return `
+      <tr data-ticket-id="${escapeHtml(ticketId)}"
+          data-client="${escapeHtml(clientName)}"
+          data-client-status="${escapeHtml(clientStatus)}"
+          data-channel-id="${escapeHtml(item?.channelId || '')}"
+          data-channel="${escapeHtml(channelLabel)}"
+          data-business="${escapeHtml(businessLabel)}"
+          data-problem="${escapeHtml(problemLabel)}"
+          data-status="${escapeHtml(statusLabel)}"
+          data-status-raw="${escapeHtml(statusRaw)}"
+          data-status-key="${escapeHtml(statusKey)}"
+          data-location="${escapeHtml(locationLabel)}"
+          data-responsible="${escapeHtml(responsible === '—' ? '' : responsible)}"
+          data-created-at="${escapeHtml(item?.createdAt || '')}"
+          data-unread="${unreadCount}"
+          data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
+        <td>${escapeHtml(ticketId)}</td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div class="dialog-avatar">
+              <span class="avatar-circle">${escapeHtml(avatarInitial(clientName))}</span>
+            </div>
+            <div>
+              <div class="fw-semibold">${escapeHtml(clientName)}</div>
+              <div class="small text-muted">${escapeHtml(clientStatus)}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge rounded-pill ${statusClassByKey(statusKey)}">${escapeHtml(statusLabel)}</span>
+            <span class="badge text-bg-danger dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
+          </div>
+        </td>
+        <td>${escapeHtml(channelLabel)}</td>
+        <td class="dialog-business-cell" data-business="${escapeHtml(businessLabel)}">
+          <div class="dialog-business-pill">
+            <span class="dialog-business-icon d-none" aria-hidden="true"></span>
+            <span class="dialog-business-text">${escapeHtml(businessLabel)}</span>
+          </div>
+        </td>
+        <td class="text-truncate" style="max-width: 260px;">${escapeHtml(problemLabel)}</td>
+        <td>${escapeHtml(locationLabel)}</td>
+        <td>${escapeHtml(responsible)}</td>
+        <td>
+          <div class="small text-muted">${escapeHtml(createdDate)}</div>
+          <div class="small">${escapeHtml(createdTime)}</div>
+        </td>
+        <td class="dialog-actions">
+          <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+          <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
+             data-ticket-id="${escapeHtml(ticketId)}"
+             data-client="${escapeHtml(clientName)}">Задача</a>
+        </td>
+      </tr>
+    `;
+  }
+
+  function refreshSummaryCounters(summary) {
+    if (summaryTotal) summaryTotal.textContent = String(summary?.totalTickets ?? 0);
+    if (summaryPending) summaryPending.textContent = String(summary?.pendingTickets ?? 0);
+    if (summaryResolved) summaryResolved.textContent = String(summary?.resolvedTickets ?? 0);
+  }
+
+  function syncDialogsTable(dialogs) {
+    const tbody = table.tBodies[0];
+    if (!tbody) return;
+    tbody.innerHTML = Array.isArray(dialogs) && dialogs.length
+      ? dialogs.map((item) => renderDialogRow(item)).join('')
+      : '';
+    applyColumnState();
+    applyBusinessCellStyles();
+    restoreColumnWidths();
+    applyFilters();
+
+    if (activeDialogTicketId) {
+      const selector = `.dialog-open-btn[data-ticket-id="${escapeSelectorValue(activeDialogTicketId)}"]`;
+      const openBtn = table.querySelector(selector);
+      activeDialogRow = openBtn ? openBtn.closest('tr') : null;
+    }
+  }
+
+  async function refreshDialogsList() {
+    if (listLoading) return;
+    if (document.visibilityState === 'hidden') return;
+    listLoading = true;
+    try {
+      const resp = await fetch('/api/dialogs', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data?.success) {
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
+      }
+      const dialogs = data.dialogs || [];
+      const marker = buildDialogsMarker(dialogs);
+      if (lastListMarker === null) {
+        lastListMarker = marker;
+      }
+      if (marker !== lastListMarker) {
+        syncDialogsTable(dialogs);
+        refreshSummaryCounters(data.summary || {});
+        lastListMarker = marker;
+      }
+    } catch (error) {
+      // ignore polling errors
+    } finally {
+      listLoading = false;
+    }
+  }
+
+  function startDialogsPolling() {
+    if (listPollTimer) return;
+    listPollTimer = setInterval(refreshDialogsList, LIST_POLL_INTERVAL);
+  }
+
+  function stopDialogsPolling() {
+    if (listPollTimer) {
+      clearInterval(listPollTimer);
+      listPollTimer = null;
+    }
   }
 
   const emptyRow = document.createElement('tr');
@@ -1578,6 +1779,15 @@
 
   initDialogTemplates();
   renderEmojiPanel();
+  lastListMarker = buildDialogsMarker(rowsList().map((row) => ({
+    ticketId: row.dataset.ticketId || '',
+    channelId: row.dataset.channelId || '',
+    status: row.dataset.statusRaw || row.dataset.status || '',
+    statusKey: row.dataset.statusKey || '',
+    unreadCount: Number(row.dataset.unread || 0) || 0,
+    lastMessageTimestamp: row.dataset.lastMessageTimestamp || row.dataset.createdAt || '',
+  })));
+  startDialogsPolling();
   loadColumnState();
   loadPageSize();
   buildColumnsList();
