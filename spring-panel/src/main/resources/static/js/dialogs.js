@@ -36,6 +36,9 @@
   const detailsReplySend = document.getElementById('dialogReplySend');
   const detailsReplyMedia = document.getElementById('dialogReplyMedia');
   const detailsReplyMediaTrigger = document.getElementById('dialogReplyMediaTrigger');
+  const detailsReplyEmojiTrigger = document.getElementById('dialogReplyEmojiTrigger');
+  const emojiPanel = document.getElementById('dialogEmojiPanel');
+  const emojiList = document.getElementById('dialogEmojiList');
   const mediaPreviewModalEl = document.getElementById('dialogMediaPreviewModal');
   const mediaPreviewVideo = document.getElementById('dialogMediaPreviewVideo');
   const categoryTemplatesSection = document.getElementById('dialogCategoryTemplatesSection');
@@ -88,6 +91,8 @@
     }),
   });
 
+  const DIALOG_EMOJI = ['😀','😁','😂','😊','😍','🤔','😢','😡','👍','🙏','🔥','🎉','✅','❗','📌'];
+
   const DIALOG_TEMPLATES = {
     categoryTemplates: Array.isArray(window.DIALOG_CONFIG?.category_templates)
       ? window.DIALOG_CONFIG.category_templates
@@ -110,6 +115,7 @@
   let completionHideTimer = null;
   let activeAudioPlayer = null;
   let activeAudioSource = null;
+  let selectedCategories = new Set();
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -496,9 +502,13 @@
     const categories = Array.isArray(template?.categories) ? template.categories.filter(Boolean) : [];
     categoryTemplateList.innerHTML = '';
     categories.forEach((category) => {
-      const badge = document.createElement('span');
-      badge.className = 'badge rounded-pill text-bg-light border';
-      badge.textContent = category;
+      const badge = document.createElement('button');
+      const normalized = String(category).trim();
+      badge.className = 'badge rounded-pill text-bg-light border dialog-category-badge';
+      badge.type = 'button';
+      badge.dataset.categoryValue = normalized;
+      badge.textContent = normalized;
+      badge.classList.toggle('is-selected', selectedCategories.has(normalized));
       categoryTemplateList.appendChild(badge);
     });
     const hasItems = categories.length > 0;
@@ -554,9 +564,11 @@
       if (hasTemplates && categoryTemplateSelect) {
         buildTemplateOptions(categoryTemplateSelect, templates, 'Шаблон категорий');
         renderCategoryTemplate(templates[0]);
+        syncCategorySelections();
         categoryTemplateSelect.addEventListener('change', () => {
           const selected = findTemplateByValue(templates, categoryTemplateSelect.value);
           renderCategoryTemplate(selected);
+          syncCategorySelections();
         });
       }
     }
@@ -588,6 +600,27 @@
         });
       }
     }
+  }
+
+  function syncCategorySelections() {
+    if (!categoryTemplateList) return;
+    categoryTemplateList.querySelectorAll('[data-category-value]').forEach((item) => {
+      const value = item.dataset.categoryValue || '';
+      item.classList.toggle('is-selected', selectedCategories.has(value));
+    });
+  }
+
+  function renderEmojiPanel() {
+    if (!emojiList) return;
+    emojiList.innerHTML = '';
+    DIALOG_EMOJI.forEach((emoji) => {
+      const button = document.createElement('button');
+      button.className = 'btn btn-outline-secondary btn-sm';
+      button.type = 'button';
+      button.dataset.emojiValue = emoji;
+      button.textContent = emoji;
+      emojiList.appendChild(button);
+    });
   }
 
   function insertReplyText(value) {
@@ -787,7 +820,22 @@
         </div>
       `;
     }
-    if (kind === 'image' || kind === 'animation') {
+    if (kind === 'animation') {
+      const isGif = /\.gif($|\?)/i.test(message.attachment);
+      const preview = isGif
+        ? `<img class=\"chat-media-preview\" src=\"${message.attachment}\" alt=\"${name}\">`
+        : `<video class=\"chat-media-preview\" src=\"${message.attachment}\" autoplay loop muted playsinline></video>`;
+      return `
+        <div class="chat-media">
+          ${preview}
+          <div class="chat-media-actions">
+            ${downloadLink}
+            <span class="chat-media-file-name">${name}</span>
+          </div>
+        </div>
+      `;
+    }
+    if (kind === 'image') {
       return `
         <div class="chat-media">
           <img class="chat-media-preview" src="${message.attachment}" alt="${name}">
@@ -1006,6 +1054,8 @@
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const summary = data.summary || {};
+      selectedCategories = new Set(Array.isArray(data.categories) ? data.categories.filter(Boolean).map((item) => String(item).trim()) : []);
+      syncCategorySelections();
       if (summary.channelId) {
         activeDialogChannelId = summary.channelId;
       }
@@ -1048,7 +1098,7 @@
         ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
         ['Статус', statusLabel || '—'],
         ['Канал', summary.channelName || fallbackRow?.dataset.channel || '—'],
-        ['Бизнес', summary.business || fallbackRow?.dataset.business || '—'],
+        ['Бизнес', businessLabel],
         ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
         ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
         ['Ответственный', responsibleLabel],
@@ -1059,12 +1109,19 @@
         operatorName: responsibleLabel || 'Оператор',
       };
       if (detailsSummary) {
-        detailsSummary.innerHTML = summaryItems.map(([label, value]) => `
+        detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
+          const safeValue = value || '—';
+          let renderedValue = `<span class="text-dark">${safeValue}</span>`;
+          if (label === 'Ответственный' && safeValue !== '—') {
+            renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${safeValue}</a>`;
+          }
+          return `
           <div class="d-flex justify-content-between gap-2">
             <span>${label}</span>
-            <span class="text-dark">${value || '—'}</span>
+            ${renderedValue}
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
       if (detailsMetrics) {
         const timeMetricsConfig = normalizeDialogTimeMetrics(window.DIALOG_CONFIG?.time_metrics);
@@ -1143,9 +1200,14 @@
       if (!activeDialogTicketId) return;
       detailsResolve.disabled = true;
       try {
+        const categories = Array.from(selectedCategories);
+        if (!categories.length) {
+          throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
+        }
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/resolve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories }),
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
@@ -1383,7 +1445,37 @@
       activeDialogRow = null;
       if (detailsReplyText) detailsReplyText.value = '';
       if (detailsReplyMedia) detailsReplyMedia.value = '';
+      selectedCategories = new Set();
       stopHistoryPolling();
+    });
+  }
+
+  if (categoryTemplateList) {
+    categoryTemplateList.addEventListener('click', (event) => {
+      const badge = event.target.closest('[data-category-value]');
+      if (!badge) return;
+      const value = badge.dataset.categoryValue || '';
+      if (!value) return;
+      if (selectedCategories.has(value)) {
+        selectedCategories.delete(value);
+      } else {
+        selectedCategories.add(value);
+      }
+      syncCategorySelections();
+    });
+  }
+
+  if (detailsReplyEmojiTrigger && emojiPanel) {
+    detailsReplyEmojiTrigger.addEventListener('click', () => {
+      emojiPanel.classList.toggle('is-open');
+    });
+  }
+
+  if (emojiList) {
+    emojiList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-emoji-value]');
+      if (!button) return;
+      insertReplyText(button.dataset.emojiValue || '');
     });
   }
 
@@ -1484,6 +1576,7 @@
   }
 
   initDialogTemplates();
+  renderEmojiPanel();
   loadColumnState();
   loadPageSize();
   buildColumnsList();
