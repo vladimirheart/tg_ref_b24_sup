@@ -983,10 +983,24 @@
   }
 
   function resolveAttachmentName(message, attachment) {
-    if (message) return message;
+    const extractExtension = (value) => {
+      if (!value) return '';
+      const clean = String(value).split('?')[0].split('#')[0];
+      const lastSegment = clean.split('/').pop()?.split('\\').pop() || clean;
+      const dotIndex = lastSegment.lastIndexOf('.');
+      return dotIndex > 0 ? lastSegment.slice(dotIndex) : '';
+    };
+
+    if (message) {
+      const hasPath = /[\\/]/.test(message) || /^https?:\/\//i.test(message);
+      if (!hasPath) return message;
+      const extension = extractExtension(message);
+      return extension ? `Файл ${extension}` : 'Файл';
+    }
+
     if (!attachment) return 'Файл';
-    const parts = attachment.split('/');
-    return parts[parts.length - 1] || 'Файл';
+    const extension = extractExtension(attachment);
+    return extension ? `Файл ${extension}` : 'Файл';
   }
 
   function buildMediaMarkup(message) {
