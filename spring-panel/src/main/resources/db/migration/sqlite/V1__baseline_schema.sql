@@ -319,7 +319,8 @@ CREATE TABLE IF NOT EXISTS ticket_responsibles (
     ticket_id    VARCHAR(255) PRIMARY KEY,
     responsible  TEXT NOT NULL,
     assigned_at  TEXT DEFAULT CURRENT_TIMESTAMP,
-    assigned_by  TEXT
+    assigned_by  TEXT,
+    last_read_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS client_unblock_requests (
@@ -424,3 +425,4 @@ CREATE TABLE IF NOT EXISTS panel_users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_panel_users_role_id ON panel_users(role_id);
+
