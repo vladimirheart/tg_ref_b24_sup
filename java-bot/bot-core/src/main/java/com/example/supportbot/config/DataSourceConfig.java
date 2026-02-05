@@ -9,6 +9,7 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
 import org.springframework.util.StringUtils;
+import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
 
 import javax.sql.DataSource;
@@ -22,6 +23,8 @@ import java.util.Map;
 
 @Configuration
 public class DataSourceConfig {
+
+    private static final int SQLITE_BUSY_TIMEOUT_MS = 10_000;
 
     @Bean
     @Primary
@@ -42,12 +45,23 @@ public class DataSourceConfig {
 
         String configuredPath = environment.getProperty("support-bot.database.path", "");
         Path normalized = resolveSqlitePath(configuredPath);
-        SQLiteDataSource dataSource = new SQLiteDataSource();
-        dataSource.setUrl("jdbc:sqlite:" + normalized);
+        SQLiteDataSource dataSource = buildSqliteDataSource(normalized);
 
         registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
         registerRuntimeProperty(environment, "spring.jpa.hibernate.ddl-auto", "none");
         registerRuntimeProperty(environment, "spring.sql.init.platform", "sqlite");
+        return dataSource;
+    }
+
+    private static SQLiteDataSource buildSqliteDataSource(Path dbPath) {
+        SQLiteConfig sqliteConfig = new SQLiteConfig();
+        sqliteConfig.setBusyTimeout(SQLITE_BUSY_TIMEOUT_MS);
+        sqliteConfig.setJournalMode(SQLiteConfig.JournalMode.WAL);
+        sqliteConfig.setSynchronous(SQLiteConfig.SynchronousMode.NORMAL);
+        sqliteConfig.enforceForeignKeys(true);
+
+        SQLiteDataSource dataSource = new SQLiteDataSource(sqliteConfig);
+        dataSource.setUrl("jdbc:sqlite:" + dbPath);
         return dataSource;
     }
 
