@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class DialogService {
@@ -287,13 +289,26 @@ public class DialogService {
             return Collections.emptyList();
         }
         try {
+            Set<String> columns = loadTableColumns("chat_history");
+            String originalMessageColumn = columns.contains("original_message")
+                    ? "original_message"
+                    : "NULL AS original_message";
+            String forwardedFromColumn = columns.contains("forwarded_from")
+                    ? "forwarded_from"
+                    : "NULL AS forwarded_from";
+            String editedAtColumn = columns.contains("edited_at")
+                    ? "edited_at"
+                    : "NULL AS edited_at";
+            String deletedAtColumn = columns.contains("deleted_at")
+                    ? "deleted_at"
+                    : "NULL AS deleted_at";
             String baseSql = """
                     SELECT sender, message, timestamp, message_type, attachment,
                            tg_message_id, reply_to_tg_id, channel_id,
-                           original_message, edited_at, deleted_at, forwarded_from
+                           %s, %s, %s, %s
                       FROM chat_history
                      WHERE ticket_id = ?
-                    """;
+                    """.formatted(originalMessageColumn, editedAtColumn, deletedAtColumn, forwardedFromColumn);
             List<Object> args = new ArrayList<>();
             args.add(ticketId);
             if (channelId != null) {
@@ -352,6 +367,32 @@ public class DialogService {
 
     public Optional<DialogDetails> loadDialogDetails(String ticketId, Long channelId) {
         return findDialog(ticketId).map(item -> new DialogDetails(item, loadHistory(ticketId, channelId), loadTicketCategories(ticketId)));
+    }
+
+    private Set<String> loadTableColumns(String tableName) {
+        try {
+            return jdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
+                Set<String> columns = new java.util.HashSet<>();
+                var metaData = connection.getMetaData();
+                try (var resultSet = metaData.getColumns(null, null, tableName, null)) {
+                    while (resultSet.next()) {
+                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase());
+                    }
+                }
+                if (!columns.isEmpty()) {
+                    return columns;
+                }
+                try (var resultSet = metaData.getColumns(null, null, tableName.toUpperCase(), null)) {
+                    while (resultSet.next()) {
+                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase());
+                    }
+                }
+                return columns;
+            });
+        } catch (DataAccessException ex) {
+            log.warn("Unable to inspect {} columns: {}", tableName, ex.getMessage());
+            return Set.of();
+        }
     }
 
     public List<String> loadTicketCategories(String ticketId) {
