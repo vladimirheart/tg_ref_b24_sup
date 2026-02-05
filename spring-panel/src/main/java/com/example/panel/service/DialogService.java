@@ -327,21 +327,60 @@ public class DialogService {
     }
 
     public Optional<DialogDetails> loadDialogDetails(String ticketId, Long channelId) {
-        return findDialog(ticketId).map(item -> new DialogDetails(item, loadHistory(ticketId, channelId)));
+        return findDialog(ticketId).map(item -> new DialogDetails(item, loadHistory(ticketId, channelId), loadTicketCategories(ticketId)));
     }
 
-    public ResolveResult resolveTicket(String ticketId, String operator) {
+    public List<String> loadTicketCategories(String ticketId) {
         if (!StringUtils.hasText(ticketId)) {
-            return new ResolveResult(false, false);
+            return List.of();
         }
         try {
+            return jdbcTemplate.query(
+                    "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category ASC",
+                    (rs, rowNum) -> rs.getString("category"),
+                    ticketId
+            );
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load categories for ticket {}: {}", ticketId, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    public void setTicketCategories(String ticketId, List<String> categories) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        List<String> normalized = normalizeCategories(categories);
+        try {
+            jdbcTemplate.update("DELETE FROM ticket_categories WHERE ticket_id = ?", ticketId);
+            for (String category : normalized) {
+                jdbcTemplate.update(
+                        "INSERT INTO ticket_categories(ticket_id, category, created_at, updated_at) VALUES(?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                        ticketId,
+                        category
+                );
+            }
+        } catch (DataAccessException ex) {
+            log.warn("Unable to set categories for ticket {}: {}", ticketId, ex.getMessage());
+        }
+    }
+
+    public ResolveResult resolveTicket(String ticketId, String operator, List<String> categories) {
+        if (!StringUtils.hasText(ticketId)) {
+            return new ResolveResult(false, false, null);
+        }
+        try {
+            List<String> normalizedCategories = normalizeCategories(categories);
             Integer count = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM tickets WHERE ticket_id = ?",
                     Integer.class,
                     ticketId
             );
             if (count == null || count == 0) {
-                return new ResolveResult(false, false);
+                return new ResolveResult(false, false, null);
+            }
+            if (normalizedCategories.isEmpty()) {
+                return new ResolveResult(false, true, "Укажите хотя бы одну категорию обращения перед закрытием.");
             }
             String resolvedBy = StringUtils.hasText(operator) ? operator : "Оператор";
             int updated = jdbcTemplate.update(
@@ -351,16 +390,19 @@ public class DialogService {
                     resolvedBy,
                     ticketId
             );
-            return new ResolveResult(updated > 0, true);
+            if (updated > 0) {
+                setTicketCategories(ticketId, normalizedCategories);
+            }
+            return new ResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
             log.warn("Unable to resolve ticket {}: {}", ticketId, ex.getMessage());
-            return new ResolveResult(false, false);
+            return new ResolveResult(false, false, null);
         }
     }
 
     public ResolveResult reopenTicket(String ticketId, String operator) {
         if (!StringUtils.hasText(ticketId)) {
-            return new ResolveResult(false, false);
+            return new ResolveResult(false, false, null);
         }
         try {
             Integer count = jdbcTemplate.queryForObject(
@@ -369,7 +411,7 @@ public class DialogService {
                     ticketId
             );
             if (count == null || count == 0) {
-                return new ResolveResult(false, false);
+                return new ResolveResult(false, false, null);
             }
             int updated = jdbcTemplate.update(
                     "UPDATE tickets SET status = 'pending', resolved_at = NULL, resolved_by = NULL, "
@@ -381,10 +423,10 @@ public class DialogService {
             if (updated > 0 && StringUtils.hasText(operator)) {
                 assignResponsibleIfMissing(ticketId, operator);
             }
-            return new ResolveResult(updated > 0, true);
+            return new ResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
             log.warn("Unable to reopen ticket {}: {}", ticketId, ex.getMessage());
-            return new ResolveResult(false, false);
+            return new ResolveResult(false, false, null);
         }
     }
 
@@ -444,6 +486,17 @@ public class DialogService {
         return value != null ? value.toString() : null;
     }
 
-    public record ResolveResult(boolean updated, boolean exists) {
+    private List<String> normalizeCategories(List<String> categories) {
+        if (categories == null || categories.isEmpty()) {
+            return List.of();
+        }
+        return categories.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
+    }
+
+    public record ResolveResult(boolean updated, boolean exists, String error) {
     }
 }
