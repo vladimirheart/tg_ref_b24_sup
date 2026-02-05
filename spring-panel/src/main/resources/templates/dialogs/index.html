@@ -44,7 +44,7 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">Всего обращений</div>
-                    <div class="h4 mb-0" th:text="${summary != null ? summary.totalTickets : 0}">0</div>
+                    <div class="h4 mb-0" id="dialogsSummaryTotal" th:text="${summary != null ? summary.totalTickets : 0}">0</div>
                 </div>
             </div>
         </div>
@@ -52,7 +52,7 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">В ожидании</div>
-                    <div class="h4 mb-0" th:text="${summary != null ? summary.pendingTickets : 0}">0</div>
+                    <div class="h4 mb-0" id="dialogsSummaryPending" th:text="${summary != null ? summary.pendingTickets : 0}">0</div>
                 </div>
             </div>
         </div>
@@ -60,7 +60,7 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">Закрыто</div>
-                    <div class="h4 mb-0" th:text="${summary != null ? summary.resolvedTickets : 0}">0</div>
+                    <div class="h4 mb-0" id="dialogsSummaryResolved" th:text="${summary != null ? summary.resolvedTickets : 0}">0</div>
                 </div>
             </div>
         </div>
@@ -100,7 +100,10 @@
                         th:data-status-raw="${dialog.status()}"
                         th:data-status-key="${dialog.statusKey()}"
                         th:data-location="${dialog.location()}"
-                        th:data-responsible="${dialog.responsible()}">
+                        th:data-responsible="${dialog.responsible()}"
+                        th:data-created-at="${dialog.createdAt()}"
+                        th:data-unread="${dialog.unreadCount()}"
+                        th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
                         <td th:text="${dialog.ticketId}">—</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
