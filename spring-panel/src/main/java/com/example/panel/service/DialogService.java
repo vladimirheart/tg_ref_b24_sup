@@ -475,7 +475,12 @@ public class DialogService {
             return attachment;
         }
         try {
-            String filename = java.nio.file.Paths.get(attachment).getFileName().toString();
+            java.nio.file.Path parsed = java.nio.file.Paths.get(attachment);
+            String normalized = parsed.toString().replace('\\', '/');
+            if (normalized.contains("/")) {
+                return "/api/attachments/tickets/by-path?path=" + java.net.URLEncoder.encode(normalized, java.nio.charset.StandardCharsets.UTF_8);
+            }
+            String filename = parsed.getFileName().toString();
             return "/api/attachments/tickets/" + ticketId + "/" + filename;
         } catch (Exception ex) {
             return attachment;
