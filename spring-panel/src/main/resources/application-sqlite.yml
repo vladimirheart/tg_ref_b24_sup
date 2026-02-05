@@ -10,8 +10,10 @@ spring:
   flyway:
     locations:
       - classpath:db/migration/sqlite
+    out-of-order: true
     placeholders:
       autoIncrement: AUTOINCREMENT
   sql:
     init:
       mode: never
+
