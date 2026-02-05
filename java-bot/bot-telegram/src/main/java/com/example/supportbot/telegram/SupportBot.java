@@ -163,6 +163,12 @@ public class SupportBot extends TelegramLongPollingBot {
                 update.getCallbackQuery() != null,
                 update.getEditedMessage() != null,
                 update.getChannelPost() != null);
+        Message editedMessage = update.getEditedMessage();
+        if (editedMessage != null) {
+            handleEditedClientMessage(editedMessage);
+            return;
+        }
+
         Message message = update.getMessage();
         if (message == null) {
             log.debug("Skipping update {} without message payload", update.getUpdateId());
@@ -601,7 +607,11 @@ public class SupportBot extends TelegramLongPollingBot {
                 getChannel(),
                 ticketId,
                 messageType,
-                attachmentPath
+                attachmentPath,
+                message.getReplyToMessage() != null && message.getReplyToMessage().getMessageId() != null
+                        ? message.getReplyToMessage().getMessageId().longValue()
+                        : null,
+                resolveForwardedFrom(message)
         );
         log.info("Stored client message in history: ticketId={} userId={} messageType={} attachment={}",
                 ticketId,
@@ -611,6 +621,51 @@ public class SupportBot extends TelegramLongPollingBot {
         ticketService.registerActivity(ticketId, username != null ? username : (userId != null ? userId.toString() : null));
         relayActiveMessageToOperators(ticketId, messageType, text, attachmentPath, username, userId);
         return true;
+    }
+
+    private void handleEditedClientMessage(Message editedMessage) {
+        if (editedMessage == null || editedMessage.getMessageId() == null) {
+            return;
+        }
+        Long chatId = editedMessage.getChatId();
+        if (chatId == null || chatId.equals(properties.getChannelId())) {
+            return;
+        }
+        String text = editedMessage.getText();
+        if (text == null) {
+            return;
+        }
+        Channel channel = getChannel();
+        Long channelId = channel != null ? channel.getId() : null;
+        if (channelId == null) {
+            return;
+        }
+        boolean updated = chatHistoryService.markClientMessageEdited(channelId, editedMessage.getMessageId().longValue(), text);
+        if (updated) {
+            log.info("Updated edited client message in history: telegramMessageId={} chatId={}", editedMessage.getMessageId(), chatId);
+        }
+    }
+
+    private String resolveForwardedFrom(Message message) {
+        if (message == null) return null;
+        if (message.getForwardFrom() != null) {
+            User from = message.getForwardFrom();
+            if (from.getUserName() != null && !from.getUserName().isBlank()) {
+                return "@" + from.getUserName();
+            }
+            String fullName = ((from.getFirstName() != null ? from.getFirstName() : "") + " "
+                    + (from.getLastName() != null ? from.getLastName() : "")).trim();
+            if (!fullName.isBlank()) {
+                return fullName;
+            }
+        }
+        if (message.getForwardSenderName() != null && !message.getForwardSenderName().isBlank()) {
+            return message.getForwardSenderName();
+        }
+        if (message.getForwardFromChat() != null && message.getForwardFromChat().getTitle() != null) {
+            return message.getForwardFromChat().getTitle();
+        }
+        return null;
     }
 
     private Optional<String> resolveActiveTicketId(Message message) {
