@@ -10,7 +10,7 @@ import java.util.Set;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
-public class V6__fix_client_phones_schema extends BaseJavaMigration {
+public class V6_1__fix_client_phones_schema extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {
