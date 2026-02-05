@@ -53,9 +53,9 @@ public class DialogApiController {
     }
 
     @GetMapping
-    public Map<String, Object> list() {
+    public Map<String, Object> list(Authentication authentication) {
         DialogSummary summary = dialogService.loadSummary();
-        List<DialogListItem> dialogs = dialogService.loadDialogs();
+        List<DialogListItem> dialogs = dialogService.loadDialogs(authentication != null ? authentication.getName() : null);
         Map<String, Object> payload = new HashMap<>();
         payload.put("summary", summary);
         payload.put("dialogs", dialogs);
