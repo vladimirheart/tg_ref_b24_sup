@@ -38,6 +38,12 @@ public class ChatHistory {
     @Column(name = "reply_to_tg_id")
     private Long replyToTelegramId;
 
+    @Column(name = "original_message")
+    private String originalMessage;
+
+    @Column(name = "forwarded_from")
+    private String forwardedFrom;
+
     @Column(name = "edited_at")
     private OffsetDateTime editedAt;
 
@@ -130,6 +136,22 @@ public class ChatHistory {
 
     public void setReplyToTelegramId(Long replyToTelegramId) {
         this.replyToTelegramId = replyToTelegramId;
+    }
+
+    public String getOriginalMessage() {
+        return originalMessage;
+    }
+
+    public void setOriginalMessage(String originalMessage) {
+        this.originalMessage = originalMessage;
+    }
+
+    public String getForwardedFrom() {
+        return forwardedFrom;
+    }
+
+    public void setForwardedFrom(String forwardedFrom) {
+        this.forwardedFrom = forwardedFrom;
     }
 
     public OffsetDateTime getEditedAt() {
