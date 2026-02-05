@@ -85,15 +85,15 @@ public class DialogService {
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = m.ticket_id
                                   AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
-                                  AND ch.timestamp > COALESCE(
-                                      tr.last_read_at,
+                                  AND datetime(replace(substr(ch.timestamp, 1, 19), 'T', ' ')) > COALESCE(
+                                      datetime(replace(substr(tr.last_read_at, 1, 19), 'T', ' ')),
                                       (
-                                          SELECT MAX(op.timestamp)
+                                          SELECT MAX(datetime(replace(substr(op.timestamp, 1, 19), 'T', ' ')))
                                             FROM chat_history op
                                            WHERE op.ticket_id = m.ticket_id
                                              AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
                                       ),
-                                      ''
+                                      datetime('1970-01-01 00:00:00')
                                   )
                            )
                            ELSE 0
@@ -137,7 +137,7 @@ public class DialogService {
         }
     }
 
-    public Optional<DialogListItem> findDialog(String ticketId) {
+    public Optional<DialogListItem> findDialog(String ticketId, String currentOperator) {
         try {
             String sql = """
                     SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business,
@@ -165,26 +165,25 @@ public class DialogService {
                                          ch.id DESC
                                 LIMIT 1
                            ) AS last_sender_time,
-                           (
+                           CASE
+                               WHEN tr.responsible = ? THEN (
                                SELECT COUNT(*)
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = m.ticket_id
                                   AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
-                                  AND (
+                                  AND datetime(replace(substr(ch.timestamp, 1, 19), 'T', ' ')) > COALESCE(
+                                      datetime(replace(substr(tr.last_read_at, 1, 19), 'T', ' ')),
                                       (
-                                          SELECT MAX(op.timestamp)
+                                          SELECT MAX(datetime(replace(substr(op.timestamp, 1, 19), 'T', ' ')))
                                             FROM chat_history op
                                            WHERE op.ticket_id = m.ticket_id
                                              AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
-                                      ) IS NULL
-                                      OR ch.timestamp > (
-                                          SELECT MAX(op.timestamp)
-                                            FROM chat_history op
-                                           WHERE op.ticket_id = m.ticket_id
-                                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
-                                      )
+                                      ),
+                                      datetime('1970-01-01 00:00:00')
                                   )
-                           ) AS unread_count
+                           )
+                           ELSE 0
+                       END AS unread_count
                       FROM messages m
                       LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
@@ -219,7 +218,7 @@ public class DialogService {
                     rs.getString("last_sender"),
                     rs.getString("last_sender_time"),
                     rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0
-            ), ticketId);
+            ), currentOperator, ticketId);
             return items.isEmpty() ? Optional.empty() : Optional.of(items.get(0));
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialog {} details: {}", ticketId, ex.getMessage());
@@ -342,8 +341,9 @@ public class DialogService {
         }
     }
 
-    public Optional<DialogDetails> loadDialogDetails(String ticketId, Long channelId) {
-        return findDialog(ticketId).map(item -> new DialogDetails(item, loadHistory(ticketId, channelId), loadTicketCategories(ticketId)));
+    public Optional<DialogDetails> loadDialogDetails(String ticketId, Long channelId, String currentOperator) {
+        return findDialog(ticketId, currentOperator)
+                .map(item -> new DialogDetails(item, loadHistory(ticketId, channelId), loadTicketCategories(ticketId)));
     }
 
     public List<String> loadTicketCategories(String ticketId) {
