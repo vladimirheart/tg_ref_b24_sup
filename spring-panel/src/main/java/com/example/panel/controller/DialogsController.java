@@ -37,7 +37,7 @@ public class DialogsController {
         try {
             DialogSummary summary = dialogService.loadSummary();
             model.addAttribute("summary", summary);
-            model.addAttribute("dialogs", dialogService.loadDialogs());
+            model.addAttribute("dialogs", dialogService.loadDialogs(authentication != null ? authentication.getName() : null));
             model.addAttribute("settingsPayload", sharedConfigService.loadSettings());
             log.info("Loaded dialogs page for user {}", authentication != null ? authentication.getName() : "unknown");
         } catch (Exception ex) {
