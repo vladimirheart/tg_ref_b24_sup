@@ -136,12 +136,18 @@ public class DialogApiController {
 
     @PostMapping("/{ticketId}/resolve")
     public ResponseEntity<?> resolve(@PathVariable String ticketId,
+                                     @RequestBody(required = false) DialogResolveRequest request,
                                      Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
-        DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator);
+        List<String> categories = request != null ? request.categories() : List.of();
+        DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator, categories);
         if (!result.exists()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));
+        }
+        if (result.error() != null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", result.error()));
         }
         if (result.updated()) {
             dialogNotificationService.notifyResolved(ticketId);
@@ -158,6 +164,10 @@ public class DialogApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));
         }
+        if (result.error() != null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "error", result.error()));
+        }
         if (result.updated()) {
             dialogNotificationService.notifyReopened(ticketId);
         }
@@ -165,4 +175,6 @@ public class DialogApiController {
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
+
+    public record DialogResolveRequest(List<String> categories) {}
 }
