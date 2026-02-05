@@ -32,6 +32,12 @@ public class AttachmentController {
         return attachmentService.downloadTicketAttachment(authentication, ticketId, filename);
     }
 
+    @GetMapping("/tickets/by-path")
+    public ResponseEntity<?> downloadTicketByPath(Authentication authentication,
+                                                  @RequestParam("path") String path) throws IOException {
+        return attachmentService.downloadTicketAttachmentByPath(authentication, path);
+    }
+
     @GetMapping("/knowledge-base/{fileId:.+}")
     public ResponseEntity<?> downloadKnowledge(Authentication authentication, @PathVariable String fileId) throws IOException {
         return attachmentService.downloadKnowledgeBaseFile(authentication, fileId);
@@ -57,4 +63,5 @@ public class AttachmentController {
     public void delete(Authentication authentication, @PathVariable String storedName) throws IOException {
         attachmentService.deleteKnowledgeBaseFile(authentication, storedName);
     }
+
 }
