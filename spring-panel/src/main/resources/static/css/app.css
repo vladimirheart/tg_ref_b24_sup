@@ -87,6 +87,21 @@ body {
 .chat-message.support { background: #e9fbef; margin-right: auto; }
 .chat-message.system { background: #f1f3f5; margin-right: auto; }
 
+
+.chat-message.is-deleted {
+    opacity: 0.55;
+}
+
+.chat-message-meta-badge {
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.chat-message-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
 .chat-history {
     max-height: 400px;
     overflow-y: auto;
