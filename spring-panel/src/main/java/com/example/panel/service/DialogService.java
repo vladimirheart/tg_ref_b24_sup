@@ -85,19 +85,15 @@ public class DialogService {
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = m.ticket_id
                                   AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
-                                  AND (
+                                  AND ch.timestamp > COALESCE(
+                                      tr.last_read_at,
                                       (
                                           SELECT MAX(op.timestamp)
                                             FROM chat_history op
                                            WHERE op.ticket_id = m.ticket_id
                                              AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
-                                      ) IS NULL
-                                      OR ch.timestamp > (
-                                          SELECT MAX(op.timestamp)
-                                            FROM chat_history op
-                                           WHERE op.ticket_id = m.ticket_id
-                                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
-                                      )
+                                      ),
+                                      ''
                                   )
                            )
                            ELSE 0
@@ -244,6 +240,22 @@ public class DialogService {
             );
         } catch (DataAccessException ex) {
             log.warn("Unable to assign responsible for ticket {}: {}", ticketId, ex.getMessage());
+        }
+    }
+
+    public void markDialogAsRead(String ticketId, String operator) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(operator)) {
+            return;
+        }
+        assignResponsibleIfMissing(ticketId, operator);
+        try {
+            jdbcTemplate.update(
+                    "UPDATE ticket_responsibles SET last_read_at = CURRENT_TIMESTAMP WHERE ticket_id = ? AND responsible = ?",
+                    ticketId,
+                    operator
+            );
+        } catch (DataAccessException ex) {
+            log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, ex.getMessage());
         }
     }
 
