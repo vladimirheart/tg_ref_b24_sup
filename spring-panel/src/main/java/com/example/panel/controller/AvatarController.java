@@ -22,8 +22,10 @@ public class AvatarController {
     @GetMapping("/avatar/{userId}")
     public ResponseEntity<Resource> avatar(Authentication authentication,
                                            @PathVariable long userId,
-                                           @RequestParam(name = "full", required = false) String full) throws IOException {
-        return avatarService.loadAvatar(authentication, userId, isTruthy(full));
+                                           @RequestParam(name = "full", required = false) String full,
+                                           @RequestParam(name = "strict", required = false) String strict) throws IOException {
+        boolean allowFallback = !isTruthy(strict);
+        return avatarService.loadAvatar(authentication, userId, isTruthy(full), allowFallback);
     }
 
     private boolean isTruthy(String value) {
