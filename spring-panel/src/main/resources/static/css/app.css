@@ -166,6 +166,19 @@ body {
 .dialog-summary-value-link:hover {
     color: #0d6efd;
 }
+
+.dialog-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    background-color: #f1f3f5;
+    color: #1f2937;
+    white-space: nowrap;
+}
 .dialog-composer-tools {
     display: flex;
     gap: 0.5rem;
