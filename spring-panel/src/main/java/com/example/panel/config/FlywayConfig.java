@@ -20,7 +20,11 @@ public class FlywayConfig {
             } catch (FlywayValidateException ex) {
                 logger.warn("Flyway validation failed, attempting repair before retrying migration", ex);
                 flyway.repair();
-                flyway.migrate();
+                logger.warn("Retrying Flyway migration with out-of-order enabled to apply missed migrations.");
+                flyway.configure()
+                        .outOfOrder(true)
+                        .load()
+                        .migrate();
             }
         };
     }
