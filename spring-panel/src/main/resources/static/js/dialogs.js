@@ -27,6 +27,7 @@
   const detailsClientName = document.getElementById('dialogDetailsClientName');
   const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
   const detailsCategories = document.getElementById('dialogDetailsCategories');
+  const detailsRating = document.getElementById('dialogDetailsRating');
   const detailsSummary = document.getElementById('dialogDetailsSummary');
   const detailsHistory = document.getElementById('dialogDetailsHistory');
   const detailsCreateTask = document.getElementById('dialogDetailsCreateTask');
@@ -262,22 +263,26 @@
     return dialogs
       .map((item) => ({
         ticketId: item?.ticketId || '',
+        requestNumber: item?.requestNumber || '',
         channelId: item?.channelId || '',
         status: item?.status || '',
         statusKey: item?.statusKey || '',
         unreadCount: Number(item?.unreadCount) || 0,
         lastMessageTimestamp: item?.lastMessageTimestamp || '',
         categories: item?.categories || '',
+        rating: Number(item?.rating) || 0,
       }))
       .sort((a, b) => `${a.ticketId}:${a.channelId}`.localeCompare(`${b.ticketId}:${b.channelId}`))
       .map((item) => [
         item.ticketId,
+        item.requestNumber,
         item.channelId,
         item.status,
         item.statusKey,
         item.unreadCount,
         item.lastMessageTimestamp,
         item.categories,
+        item.rating,
       ].join('|'))
       .join('||');
   }
@@ -392,8 +397,29 @@
     return normalized ? normalized.charAt(0).toUpperCase() : '—';
   }
 
+  function formatRatingStars(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return '';
+    const capped = Math.min(5, Math.max(1, Math.round(numeric)));
+    return '★'.repeat(capped);
+  }
+
+  function formatDialogMeta(ticketId, requestNumber) {
+    const normalizedTicketId = ticketId ? String(ticketId) : '';
+    const normalizedRequest = requestNumber ? String(requestNumber) : '';
+    if (normalizedRequest) {
+      if (normalizedTicketId && normalizedRequest !== normalizedTicketId) {
+        return `№ обращения: ${normalizedRequest} · ID: ${normalizedTicketId}`;
+      }
+      return `№ обращения: ${normalizedRequest}`;
+    }
+    return normalizedTicketId ? `ID диалога: ${normalizedTicketId}` : '';
+  }
+
   function renderDialogRow(item) {
     const ticketId = item?.ticketId || '—';
+    const requestNumber = item?.requestNumber;
+    const displayNumber = requestNumber || ticketId;
     const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
     const clientStatus = item?.clientStatus || 'статус не указан';
     const channelLabel = item?.channelName || 'Без канала';
@@ -408,9 +434,12 @@
     const unreadCount = Number(item?.unreadCount) || 0;
     const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
     const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
+    const ratingValue = Number(item?.rating);
+    const ratingStars = formatRatingStars(ratingValue);
 
     return `
       <tr data-ticket-id="${escapeHtml(ticketId)}"
+          data-request-number="${escapeHtml(requestNumber || '')}"
           data-client="${escapeHtml(clientName)}"
           data-client-status="${escapeHtml(clientStatus)}"
           data-channel-id="${escapeHtml(item?.channelId || '')}"
@@ -426,8 +455,9 @@
           data-responsible="${escapeHtml(responsible === '—' ? '' : responsible)}"
           data-created-at="${escapeHtml(item?.createdAt || '')}"
           data-unread="${unreadCount}"
+          data-rating="${Number.isFinite(ratingValue) ? ratingValue : ''}"
           data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
-        <td>${escapeHtml(ticketId)}</td>
+        <td>${escapeHtml(displayNumber)}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
             <div class="dialog-avatar">
@@ -444,6 +474,7 @@
             <span class="badge rounded-pill ${statusClassByKey(statusKey)}">${escapeHtml(statusLabel)}</span>
             <span class="badge text-bg-danger dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
           </div>
+          ${ratingStars ? `<div class="small text-warning">${escapeHtml(ratingStars)}</div>` : ''}
         </td>
         <td>${escapeHtml(channelLabel)}</td>
         <td class="dialog-business-cell" data-business="${escapeHtml(businessLabel)}">
@@ -1377,7 +1408,14 @@
     activeDialogTicketId = ticketId;
     activeDialogRow = fallbackRow || null;
     activeDialogChannelId = fallbackRow?.dataset?.channelId || null;
-    if (detailsMeta) detailsMeta.textContent = `ID диалога: ${ticketId}`;
+    if (detailsMeta) {
+      const fallbackRequestNumber = fallbackRow?.dataset?.requestNumber || '';
+      detailsMeta.textContent = formatDialogMeta(ticketId, fallbackRequestNumber);
+    }
+    if (detailsRating) {
+      detailsRating.textContent = '';
+      detailsRating.classList.add('d-none');
+    }
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
     if (detailsReplyText) detailsReplyText.value = '';
@@ -1426,6 +1464,9 @@
       const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
       const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
       const categoriesLabel = summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || '—';
+      const requestNumber = summary.requestNumber || fallbackRow?.dataset.requestNumber || '';
+      const ratingValue = summary.rating ?? fallbackRow?.dataset.rating;
+      const ratingStars = formatRatingStars(ratingValue);
       if (detailsAvatar) {
         const initial = clientName && clientName !== '—' ? clientName.trim().charAt(0).toUpperCase() : '—';
         detailsAvatar.textContent = initial || '—';
@@ -1434,6 +1475,16 @@
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
       if (detailsCategories) detailsCategories.textContent = `Категории: ${categoriesLabel || '—'}`;
       if (detailsProblem) detailsProblem.textContent = problemLabel;
+      if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
+      if (detailsRating) {
+        if (ratingStars) {
+          detailsRating.textContent = ratingStars;
+          detailsRating.classList.remove('d-none');
+        } else {
+          detailsRating.textContent = '';
+          detailsRating.classList.add('d-none');
+        }
+      }
       const summaryItems = [
         ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
         ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
@@ -2004,11 +2055,13 @@
   renderEmojiPanel();
   lastListMarker = buildDialogsMarker(rowsList().map((row) => ({
     ticketId: row.dataset.ticketId || '',
+    requestNumber: row.dataset.requestNumber || '',
     channelId: row.dataset.channelId || '',
     status: row.dataset.statusRaw || row.dataset.status || '',
     statusKey: row.dataset.statusKey || '',
     unreadCount: Number(row.dataset.unread || 0) || 0,
     lastMessageTimestamp: row.dataset.lastMessageTimestamp || row.dataset.createdAt || '',
+    rating: Number(row.dataset.rating) || 0,
   })));
   startDialogsPolling();
   loadColumnState();
