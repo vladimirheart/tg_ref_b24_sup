@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="_csrf" th:content="${_csrf.token}" />
-  <title>Настройки — Bender</title>
-  <link rel="icon" type="image/svg+xml" href="/bender-icon.svg" />
+  <title>Настройки — iguana</title>
+  <link rel="icon" type="image/svg+xml" href="/iguana-icon.svg" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
@@ -3274,24 +3274,24 @@
     const showConfirmActionModal = window.showConfirmActionModal;
   (function () {
     const form = document.querySelector('[data-theme-form]');
-    if (!form || !window.BenderTheme) {
+    if (!form || !window.iguanaTheme) {
       return;
     }
     const radios = Array.from(form.querySelectorAll('input[name="themeOption"]'));
     const sync = (theme) => {
-      const normalized = typeof theme === 'string' ? theme : window.BenderTheme.get();
+      const normalized = typeof theme === 'string' ? theme : window.iguanaTheme.get();
       radios.forEach((radio) => {
         radio.checked = radio.value === normalized;
       });
     };
-    sync(window.BenderTheme.get());
+    sync(window.iguanaTheme.get());
     form.addEventListener('change', (event) => {
       const target = event.target;
       if (!target || target.name !== 'themeOption') return;
-      window.BenderTheme.set(target.value);
+      window.iguanaTheme.set(target.value);
     });
     document.addEventListener('theme:change', (event) => {
-      const next = event && event.detail && event.detail.theme ? event.detail.theme : window.BenderTheme.get();
+      const next = event && event.detail && event.detail.theme ? event.detail.theme : window.iguanaTheme.get();
       sync(next);
     });
   })();
