@@ -16,13 +16,13 @@ Java-панель и Java-бот используют отдельные SQLite-
 ## Пример
 
 ```bash
-export APP_DB_TICKETS="/srv/bender/tickets.db"
-export APP_DB_USERS="/srv/bender/users.db"
-export APP_DB_CLIENTS="/srv/bender/clients.db"
-export APP_DB_KNOWLEDGE="/srv/bender/knowledge_base.db"
-export APP_DB_OBJECTS="/srv/bender/objects.db"
-export APP_DB_SETTINGS="/srv/bender/settings.db"
-export APP_BOT_DATABASE_DIR="/srv/bender/bots"
+export APP_DB_TICKETS="/srv/iguana/tickets.db"
+export APP_DB_USERS="/srv/iguana/users.db"
+export APP_DB_CLIENTS="/srv/iguana/clients.db"
+export APP_DB_KNOWLEDGE="/srv/iguana/knowledge_base.db"
+export APP_DB_OBJECTS="/srv/iguana/objects.db"
+export APP_DB_SETTINGS="/srv/iguana/settings.db"
+export APP_BOT_DATABASE_DIR="/srv/iguana/bots"
 ```
 
 Панель автоматически зарегистрирует пути в таблице `database_registry` внутри `settings.db`, чтобы фиксировать связи между базами.
