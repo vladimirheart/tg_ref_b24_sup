@@ -72,7 +72,7 @@
                 <table class="table table-hover align-middle dialog-table" id="dialogsTable">
                     <thead>
                     <tr>
-                        <th data-column-key="ticket">ID</th>
+                        <th data-column-key="ticket">№ обращения</th>
                         <th data-column-key="client">Клиент</th>
                         <th data-column-key="status">Статус</th>
                         <th data-column-key="channel">Канал</th>
@@ -106,8 +106,10 @@
                         th:data-responsible="${dialog.responsible()}"
                         th:data-created-at="${dialog.createdAt()}"
                         th:data-unread="${dialog.unreadCount()}"
+                        th:data-rating="${dialog.rating()}"
+                        th:data-request-number="${dialog.requestNumber()}"
                         th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
-                        <td th:text="${dialog.ticketId}">—</td>
+                        <td th:text="${dialog.displayTicketNumber()}">—</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <div class="dialog-avatar">
@@ -126,6 +128,7 @@
                                       th:classappend="${dialog.unreadCount() != null and dialog.unreadCount() > 0} ? '' : ' d-none'"
                                       th:text="${dialog.unreadCount()}">0</span>
                             </div>
+                            <div class="small text-warning" th:if="${dialog.ratingStars() != ''}" th:text="${dialog.ratingStars()}">★★★★★</div>
                         </td>
                         <td th:text="${dialog.channelLabel()}">—</td>
                         <td class="dialog-business-cell" th:data-business="${dialog.businessLabel()}">
@@ -218,7 +221,10 @@
                     </div>
                     <div>
                         <h5 class="modal-title mb-1">Детали диалога</h5>
-                        <div class="text-muted small" id="dialogDetailsMeta"></div>
+                        <div class="text-muted small d-flex flex-wrap gap-2">
+                            <span id="dialogDetailsMeta"></span>
+                            <span class="text-warning d-none" id="dialogDetailsRating"></span>
+                        </div>
                         <div class="small text-muted" id="dialogDetailsCategories">Категории: —</div>
                         <div class="small">
                             <span class="fw-semibold" id="dialogDetailsClientName">—</span>
