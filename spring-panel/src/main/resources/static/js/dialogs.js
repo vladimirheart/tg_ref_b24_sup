@@ -85,11 +85,11 @@
     ? new bootstrap.Modal(mediaPreviewModalEl)
     : null;
 
-  const STORAGE_COLUMNS = 'bender:dialogs:columns';
-  const STORAGE_WIDTHS = 'bender:dialogs:column-widths';
-  const STORAGE_TASK = 'bender:dialogs:create-task';
-  const STORAGE_PAGE_SIZE = 'bender:dialogs:page-size';
-  const STORAGE_DIALOG_FONT = 'bender:dialogs:font-size';
+  const STORAGE_COLUMNS = 'iguana:dialogs:columns';
+  const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
+  const STORAGE_TASK = 'iguana:dialogs:create-task';
+  const STORAGE_PAGE_SIZE = 'iguana:dialogs:page-size';
+  const STORAGE_DIALOG_FONT = 'iguana:dialogs:font-size';
   const HISTORY_POLL_INTERVAL = 8000;
   const LIST_POLL_INTERVAL = 8000;
   const DEFAULT_PAGE_SIZE = 20;
