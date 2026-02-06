@@ -55,14 +55,28 @@ public class DialogService {
 
     public List<DialogListItem> loadDialogs(String currentOperator) {
         try {
+            boolean feedbackHasTicketId = loadTableColumns("feedbacks").contains("ticket_id");
+            String ratingSelect = feedbackHasTicketId
+                    ? """
+                       (
+                           SELECT rating
+                             FROM feedbacks f
+                            WHERE f.ticket_id = m.ticket_id
+                            ORDER BY f.timestamp DESC, f.id DESC
+                            LIMIT 1
+                       ) AS rating,
+                       """
+                    : "NULL AS rating,";
             String sql = """
-                    SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business,
+                    SELECT m.ticket_id, m.group_msg_id AS request_number,
+                           m.user_id, m.username, m.client_name, m.business,
                            COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
                        m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
                        tr.responsible AS responsible,
                        m.created_date, m.created_time, cs.status AS client_status,
+                       %s
                        (
                            SELECT sender
                              FROM chat_history ch
@@ -114,9 +128,10 @@ public class DialogService {
                            SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
                        )
                   ORDER BY m.created_at DESC
-                    """;
+                    """.formatted(ratingSelect);
             return jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
+                    rs.getObject("request_number") != null ? rs.getLong("request_number") : null,
                     rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
                     rs.getString("username"),
                     rs.getString("client_name"),
@@ -137,6 +152,7 @@ public class DialogService {
                     rs.getString("last_sender"),
                     rs.getString("last_sender_time"),
                     rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0,
+                    rs.getObject("rating") != null ? rs.getInt("rating") : null,
                     rs.getString("categories")
             ), currentOperator);
         } catch (DataAccessException ex) {
@@ -147,14 +163,28 @@ public class DialogService {
 
     public Optional<DialogListItem> findDialog(String ticketId) {
         try {
+            boolean feedbackHasTicketId = loadTableColumns("feedbacks").contains("ticket_id");
+            String ratingSelect = feedbackHasTicketId
+                    ? """
+                       (
+                           SELECT rating
+                             FROM feedbacks f
+                            WHERE f.ticket_id = m.ticket_id
+                            ORDER BY f.timestamp DESC, f.id DESC
+                            LIMIT 1
+                       ) AS rating,
+                       """
+                    : "NULL AS rating,";
             String sql = """
-                    SELECT m.ticket_id, m.user_id, m.username, m.client_name, m.business,
+                    SELECT m.ticket_id, m.group_msg_id AS request_number,
+                           m.user_id, m.username, m.client_name, m.business,
                            COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
                            m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
                            tr.responsible AS responsible,
                            m.created_date, m.created_time, cs.status AS client_status,
+                           %s
                            (
                                SELECT sender
                                  FROM chat_history ch
@@ -209,9 +239,10 @@ public class DialogService {
                      WHERE m.ticket_id = ?
                      ORDER BY m.created_at DESC
                      LIMIT 1
-                    """;
+                    """.formatted(ratingSelect);
             List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
+                    rs.getObject("request_number") != null ? rs.getLong("request_number") : null,
                     rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
                     rs.getString("username"),
                     rs.getString("client_name"),
@@ -232,6 +263,7 @@ public class DialogService {
                     rs.getString("last_sender"),
                     rs.getString("last_sender_time"),
                     rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0,
+                    rs.getObject("rating") != null ? rs.getInt("rating") : null,
                     rs.getString("categories")
             ), ticketId);
             return items.isEmpty() ? Optional.empty() : Optional.of(items.get(0));
