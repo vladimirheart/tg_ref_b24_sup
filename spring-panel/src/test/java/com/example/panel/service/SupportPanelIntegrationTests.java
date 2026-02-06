@@ -89,7 +89,7 @@ class SupportPanelIntegrationTests {
         assertThat(summary.pendingTickets()).isEqualTo(1);
         assertThat(summary.channelStats()).extracting("name").contains("Demo");
 
-        DialogDetails details = dialogService.loadDialogDetails("T-1", 1L).orElseThrow();
+        DialogDetails details = dialogService.loadDialogDetails("T-1", 1L, null).orElseThrow();
         assertThat(details.summary().clientName()).isEqualTo("Иван");
         assertThat(details.history()).hasSize(1);
     }
@@ -137,4 +137,5 @@ class SupportPanelIntegrationTests {
         NotificationSummary after = notificationService.summary("operator");
         assertThat(after.unreadCount()).isEqualTo(1);
     }
+
 }
