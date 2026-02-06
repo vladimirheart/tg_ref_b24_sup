@@ -1,13 +1,26 @@
 package com.example.panel.controller;
 
+import com.example.panel.entity.Channel;
 import com.example.panel.entity.ClientPhone;
 import com.example.panel.entity.ClientStatus;
+import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.ClientPhoneRepository;
 import com.example.panel.repository.ClientStatusRepository;
 import com.example.panel.service.BotDatabaseRegistry;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,6 +32,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,23 +52,36 @@ import org.sqlite.SQLiteDataSource;
 public class ClientProfileApiController {
 
     private static final Logger log = LoggerFactory.getLogger(ClientProfileApiController.class);
+    private static final HttpClient TELEGRAM_HTTP_CLIENT = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(5))
+        .build();
 
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate botJdbcTemplate;
     private final ClientStatusRepository clientStatusRepository;
     private final ClientPhoneRepository clientPhoneRepository;
     private final BotDatabaseRegistry botDatabaseRegistry;
+    private final ChannelRepository channelRepository;
+    private final ObjectMapper objectMapper;
+    private final Path avatarsRoot;
 
     public ClientProfileApiController(JdbcTemplate jdbcTemplate,
                                       @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
                                       ClientStatusRepository clientStatusRepository,
                                       ClientPhoneRepository clientPhoneRepository,
-                                      BotDatabaseRegistry botDatabaseRegistry) {
+                                      BotDatabaseRegistry botDatabaseRegistry,
+                                      ChannelRepository channelRepository,
+                                      ObjectMapper objectMapper,
+                                      @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir)
+        throws IOException {
         this.jdbcTemplate = jdbcTemplate;
         this.botJdbcTemplate = botJdbcTemplate;
         this.clientStatusRepository = clientStatusRepository;
         this.clientPhoneRepository = clientPhoneRepository;
         this.botDatabaseRegistry = botDatabaseRegistry;
+        this.channelRepository = channelRepository;
+        this.objectMapper = objectMapper;
+        this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
     @PostMapping("/{userId}/name")
@@ -171,35 +198,50 @@ public class ClientProfileApiController {
 
         ChannelSnapshot primaryChannel = channels.get(0);
         List<Map<String, Object>> updatedChannels = new ArrayList<>();
+        List<Map<String, Object>> unchangedChannels = new ArrayList<>();
         List<Map<String, Object>> missingChannels = new ArrayList<>();
         String username = null;
         String clientName = null;
+        boolean avatarUpdated = false;
 
         for (ChannelSnapshot channel : channels) {
             Optional<ExternalUserInfo> userInfo = loadExternalUserInfo(userId, channel.channelId());
-            if (userInfo.isEmpty()) {
-                missingChannels.add(channelToPayload(channel, "Нет данных в источнике"));
-                continue;
-            }
-            ExternalUserInfo info = userInfo.get();
-            String channelUsername = StringUtils.hasText(info.username()) ? info.username().trim() : null;
-            String channelClientName = StringUtils.hasText(info.clientName()) ? info.clientName().trim() : null;
+            ExternalUserInfo info = userInfo.orElse(null);
+            String channelUsername = info != null && StringUtils.hasText(info.username()) ? info.username().trim() : null;
+            String channelClientName = info != null && StringUtils.hasText(info.clientName()) ? info.clientName().trim() : null;
+            boolean updated = false;
 
-            if (channelUsername != null) {
+            if (channelUsername != null && shouldUpdateField("username", channelUsername, userId, channel.channelId())) {
                 jdbcTemplate.update(
                     "UPDATE messages SET username = ? WHERE user_id = ? AND channel_id = ?",
                     channelUsername,
                     userId,
                     channel.channelId()
                 );
+                updated = true;
             }
-            if (channelClientName != null) {
+            if (channelClientName != null && shouldUpdateField("client_name", channelClientName, userId, channel.channelId())) {
                 jdbcTemplate.update(
                     "UPDATE messages SET client_name = ? WHERE user_id = ? AND channel_id = ?",
                     channelClientName,
                     userId,
                     channel.channelId()
                 );
+                updated = true;
+            }
+
+            Optional<Channel> storedChannel = channelRepository.findById(channel.channelId());
+            if (storedChannel.isPresent()
+                && isTelegramPlatform(channel.platform())
+                && StringUtils.hasText(storedChannel.get().getToken())) {
+                Optional<TelegramProfilePhoto> photo = fetchTelegramProfilePhoto(storedChannel.get().getToken(), userId);
+                if (photo.isPresent()) {
+                    boolean saved = storeAvatar(userId, photo.get());
+                    if (saved) {
+                        updated = true;
+                        avatarUpdated = true;
+                    }
+                }
             }
 
             if (channel.channelId() == primaryChannel.channelId()) {
@@ -210,11 +252,19 @@ public class ClientProfileApiController {
             Map<String, Object> payload = channelToPayload(channel, null);
             payload.put("username", channelUsername);
             payload.put("client_name", channelClientName);
-            updatedChannels.add(payload);
+            if (updated) {
+                updatedChannels.add(payload);
+            } else if (info != null) {
+                unchangedChannels.add(payload);
+            } else {
+                missingChannels.add(channelToPayload(channel, "Нет данных в источнике"));
+            }
         }
 
-        String message = buildRefreshMessage(updatedChannels, missingChannels);
-        String level = missingChannels.isEmpty() ? "success" : (updatedChannels.isEmpty() ? "warning" : "info");
+        String message = buildRefreshMessage(updatedChannels, unchangedChannels, missingChannels);
+        String level = missingChannels.isEmpty() && unchangedChannels.isEmpty()
+            ? "success"
+            : (updatedChannels.isEmpty() ? "warning" : "info");
 
         log.info("Refreshed external info for client {} with {} updates", userId, updatedChannels.size());
         Map<String, Object> response = new HashMap<>();
@@ -222,7 +272,9 @@ public class ClientProfileApiController {
         response.put("username", username);
         response.put("client_name", clientName);
         response.put("updated_channels", updatedChannels);
+        response.put("unchanged_channels", unchangedChannels);
         response.put("missing_channels", missingChannels);
+        response.put("avatar_updated", avatarUpdated);
         response.put("message", message);
         response.put("level", level);
         return response;
@@ -420,10 +472,14 @@ public class ClientProfileApiController {
     }
 
     private String buildRefreshMessage(List<Map<String, Object>> updatedChannels,
+                                       List<Map<String, Object>> unchangedChannels,
                                        List<Map<String, Object>> missingChannels) {
         List<String> parts = new ArrayList<>();
         if (!updatedChannels.isEmpty()) {
             parts.add("Обновлено: " + joinChannelLabels(updatedChannels));
+        }
+        if (!unchangedChannels.isEmpty()) {
+            parts.add("Без изменений: " + joinChannelLabels(unchangedChannels));
         }
         if (!missingChannels.isEmpty()) {
             parts.add("Нет данных: " + joinChannelLabels(missingChannels));
@@ -446,5 +502,177 @@ public class ClientProfileApiController {
     }
 
     private record ExternalUserInfo(String username, String clientName) {
+    }
+
+    private boolean shouldUpdateField(String field, String value, long userId, long channelId) {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM messages WHERE user_id = ? AND channel_id = ? AND (" + field + " IS NULL OR " + field + " != ?)",
+            Integer.class,
+            userId,
+            channelId,
+            value
+        );
+        return count != null && count > 0;
+    }
+
+    private Optional<TelegramProfilePhoto> fetchTelegramProfilePhoto(String token, long userId) {
+        if (!StringUtils.hasText(token)) {
+            return Optional.empty();
+        }
+        try {
+            String url = "https://api.telegram.org/bot" + token + "/getUserProfilePhotos?user_id="
+                + URLEncoder.encode(String.valueOf(userId), java.nio.charset.StandardCharsets.UTF_8)
+                + "&limit=1";
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(8))
+                .GET()
+                .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                log.warn("Telegram getUserProfilePhotos failed with status {}", response.statusCode());
+                return Optional.empty();
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            if (!root.path("ok").asBoolean(false)) {
+                log.warn("Telegram getUserProfilePhotos returned ok=false");
+                return Optional.empty();
+            }
+            JsonNode photos = root.path("result").path("photos");
+            if (!photos.isArray() || photos.isEmpty()) {
+                return Optional.empty();
+            }
+            JsonNode sizes = photos.get(0);
+            if (!sizes.isArray() || sizes.isEmpty()) {
+                return Optional.empty();
+            }
+            JsonNode smallest = sizes.get(0);
+            JsonNode largest = sizes.get(0);
+            for (JsonNode size : sizes) {
+                if (comparePhotoSize(size, smallest) < 0) {
+                    smallest = size;
+                }
+                if (comparePhotoSize(size, largest) > 0) {
+                    largest = size;
+                }
+            }
+            String thumbFileId = smallest.path("file_id").asText("");
+            String fullFileId = largest.path("file_id").asText("");
+            if (!StringUtils.hasText(fullFileId)) {
+                return Optional.empty();
+            }
+            byte[] full = downloadTelegramFile(token, fullFileId);
+            if (full == null) {
+                return Optional.empty();
+            }
+            byte[] thumb = full;
+            if (StringUtils.hasText(thumbFileId) && !thumbFileId.equals(fullFileId)) {
+                byte[] thumbBytes = downloadTelegramFile(token, thumbFileId);
+                if (thumbBytes != null) {
+                    thumb = thumbBytes;
+                }
+            }
+            return Optional.of(new TelegramProfilePhoto(thumb, full));
+        } catch (Exception ex) {
+            log.warn("Failed to load Telegram profile photo: {}", ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private byte[] downloadTelegramFile(String token, String fileId) throws IOException, InterruptedException {
+        String filePath = fetchTelegramFilePath(token, fileId);
+        if (!StringUtils.hasText(filePath)) {
+            return null;
+        }
+        String fileUrl = "https://api.telegram.org/file/bot" + token + "/" + filePath;
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(fileUrl))
+            .timeout(Duration.ofSeconds(10))
+            .GET()
+            .build();
+        HttpResponse<byte[]> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        if (response.statusCode() != 200) {
+            log.warn("Telegram file download failed with status {}", response.statusCode());
+            return null;
+        }
+        return response.body();
+    }
+
+    private String fetchTelegramFilePath(String token, String fileId) throws IOException, InterruptedException {
+        String url = "https://api.telegram.org/bot" + token + "/getFile?file_id="
+            + URLEncoder.encode(fileId, java.nio.charset.StandardCharsets.UTF_8);
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .timeout(Duration.ofSeconds(8))
+            .GET()
+            .build();
+        HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            log.warn("Telegram getFile failed with status {}", response.statusCode());
+            return null;
+        }
+        JsonNode root = objectMapper.readTree(response.body());
+        if (!root.path("ok").asBoolean(false)) {
+            log.warn("Telegram getFile returned ok=false");
+            return null;
+        }
+        return root.path("result").path("file_path").asText(null);
+    }
+
+    private int comparePhotoSize(JsonNode left, JsonNode right) {
+        int leftSize = left.path("file_size").asInt(0);
+        int rightSize = right.path("file_size").asInt(0);
+        if (leftSize != 0 || rightSize != 0) {
+            return Integer.compare(leftSize, rightSize);
+        }
+        int leftArea = left.path("width").asInt(0) * left.path("height").asInt(0);
+        int rightArea = right.path("width").asInt(0) * right.path("height").asInt(0);
+        return Integer.compare(leftArea, rightArea);
+    }
+
+    private boolean storeAvatar(long userId, TelegramProfilePhoto photo) {
+        boolean updated = false;
+        try {
+            Path thumbPath = resolveAvatarPath(userId, false);
+            Path fullPath = resolveAvatarPath(userId, true);
+            updated |= storeAvatarFile(thumbPath, photo.thumbBytes());
+            updated |= storeAvatarFile(fullPath, photo.fullBytes());
+        } catch (IOException ex) {
+            log.warn("Failed to store avatar for user {}: {}", userId, ex.getMessage());
+        }
+        return updated;
+    }
+
+    private boolean storeAvatarFile(Path target, byte[] data) throws IOException {
+        if (data == null || data.length == 0) {
+            return false;
+        }
+        long existingSize = Files.isRegularFile(target) ? Files.size(target) : -1;
+        if (existingSize == data.length) {
+            return false;
+        }
+        Files.createDirectories(target.getParent());
+        Path tempFile = Files.createTempFile(target.getParent(), "avatar", ".tmp");
+        Files.write(tempFile, data);
+        Files.move(tempFile, target, StandardCopyOption.REPLACE_EXISTING);
+        return true;
+    }
+
+    private Path resolveAvatarPath(long userId, boolean full) {
+        String suffix = full ? "_full" : "";
+        return avatarsRoot.resolve(userId + suffix + ".jpg").normalize();
+    }
+
+    private Path ensureDirectory(String directory) throws IOException {
+        Path path = Paths.get(directory).toAbsolutePath().normalize();
+        Files.createDirectories(path);
+        return path;
+    }
+
+    private boolean isTelegramPlatform(String platform) {
+        return platform == null || platform.isBlank() || platform.equalsIgnoreCase("telegram");
+    }
+
+    private record TelegramProfilePhoto(byte[] thumbBytes, byte[] fullBytes) {
     }
 }
