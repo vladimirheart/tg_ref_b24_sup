@@ -24,11 +24,17 @@ public class FeedbackService {
 
     @Transactional(readOnly = true)
     public Optional<PendingFeedbackRequest> findActiveRequest(long userId, Channel channel) {
-        if (channel == null || channel.getId() == null) {
-            return Optional.empty();
+        OffsetDateTime now = OffsetDateTime.now();
+        Optional<PendingFeedbackRequest> request = Optional.empty();
+        if (channel != null && channel.getId() != null) {
+            request = pendingFeedbackRequestRepository
+                    .findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(userId, channel.getId(), now);
+        }
+        if (request.isPresent()) {
+            return request;
         }
         return pendingFeedbackRequestRepository
-                .findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(userId, channel.getId(), OffsetDateTime.now());
+                .findFirstByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(userId, now);
     }
 
     @Transactional
