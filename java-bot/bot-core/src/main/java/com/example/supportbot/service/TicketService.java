@@ -246,6 +246,16 @@ public class TicketService {
         int closed = 0;
         for (TicketActive active : ticketActiveRepository.findAll()) {
             if (active.getLastSeen() != null && active.getLastSeen().isBefore(threshold)) {
+                Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(active.getTicketId());
+                if (ticketOpt.isEmpty()) {
+                    ticketActiveRepository.delete(active);
+                    continue;
+                }
+                Ticket ticket = ticketOpt.get();
+                if (isResolvedStatus(ticket.getStatus())) {
+                    ticketActiveRepository.delete(active);
+                    continue;
+                }
                 if (closeTicket(active.getTicketId(), "auto_close", "inactivity")) {
                     closed++;
                 }
@@ -316,6 +326,14 @@ public class TicketService {
         request.setCreatedAt(now);
         request.setExpiresAt(now.plusDays(1));
         pendingFeedbackRequestRepository.save(request);
+    }
+
+    private boolean isResolvedStatus(String status) {
+        if (status == null) {
+            return false;
+        }
+        String normalized = status.trim().toLowerCase();
+        return "resolved".equals(normalized) || "closed".equals(normalized);
     }
 
     public record TicketCreationResult(String ticketId, Long groupMessageId, String status) {
