@@ -25,4 +25,8 @@ public class Feedback {
     private Integer rating;
 
     private OffsetDateTime timestamp;
+
+    private String ticketId;
+
+    private Long channelId;
 }
