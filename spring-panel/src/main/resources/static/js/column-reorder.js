@@ -5,7 +5,7 @@
     return;
   }
 
-  const STORAGE_PREFIX = 'bender:table-columns:';
+  const STORAGE_PREFIX = 'iguana:table-columns:';
 
   function storageKey(table) {
     const explicit = table.dataset.reorderKey;
@@ -233,4 +233,5 @@
       }
     });
   };
+
 })();
