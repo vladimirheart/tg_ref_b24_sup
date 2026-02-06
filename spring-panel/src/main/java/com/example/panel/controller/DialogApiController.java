@@ -70,7 +70,7 @@ public class DialogApiController {
                                      Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         dialogService.markDialogAsRead(ticketId, operator);
-        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId);
+        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
         log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
                 details.map(d -> "found").orElse("not found"));
         return details.<ResponseEntity<?>>map(ResponseEntity::ok)
@@ -215,6 +215,16 @@ public class DialogApiController {
         return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
     }
 
+    @PostMapping("/{ticketId}/categories")
+    public ResponseEntity<?> updateCategories(@PathVariable String ticketId,
+                                              @RequestBody(required = false) DialogCategoriesRequest request,
+                                              Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        dialogService.setTicketCategories(ticketId, request != null ? request.categories() : List.of());
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 
     public record DialogResolveRequest(List<String> categories) {}
@@ -222,5 +232,7 @@ public class DialogApiController {
     public record DialogEditRequest(Long telegramMessageId, String message) {}
 
     public record DialogDeleteRequest(Long telegramMessageId) {}
-}
 
+    public record DialogCategoriesRequest(List<String> categories) {}
+}ublic record DialogDeleteRequest(Long telegramMessageId) {}
+}
