@@ -527,6 +527,45 @@
     return normalized ? normalized.charAt(0).toUpperCase() : '—';
   }
 
+  function buildAvatarUrl(userId) {
+    const normalized = String(userId || '').trim();
+    if (!normalized) return '';
+    return `/avatar/${encodeURIComponent(normalized)}?strict=1`;
+  }
+
+  function bindAvatar(container, userId, name) {
+    if (!container) return;
+    const img = container.querySelector('[data-avatar-img]');
+    const initialEl = container.querySelector('[data-avatar-initial]');
+    if (initialEl) {
+      initialEl.textContent = avatarInitial(name);
+      initialEl.classList.remove('d-none');
+    }
+    if (!img) return;
+    img.classList.add('d-none');
+    if (!userId) {
+      return;
+    }
+    const src = buildAvatarUrl(userId);
+    if (!src) return;
+    img.onload = () => {
+      img.classList.remove('d-none');
+      if (initialEl) initialEl.classList.add('d-none');
+    };
+    img.onerror = () => {
+      img.classList.add('d-none');
+      if (initialEl) initialEl.classList.remove('d-none');
+    };
+    img.src = src;
+  }
+
+  function hydrateAvatars(root) {
+    const scope = root || document;
+    scope.querySelectorAll('[data-avatar-user-id]').forEach((container) => {
+      bindAvatar(container, container.dataset.avatarUserId, container.dataset.avatarName);
+    });
+  }
+
   function formatRatingStars(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) return '';
@@ -590,8 +629,10 @@
         <td>${escapeHtml(displayNumber)}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
-            <div class="dialog-avatar">
-              <span class="avatar-circle">${escapeHtml(avatarInitial(clientName))}</span>
+            <div class="dialog-avatar" data-avatar-user-id="${escapeHtml(item?.userId || '')}"
+                 data-avatar-name="${escapeHtml(clientName)}">
+              <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
+              <span class="avatar-circle" data-avatar-initial>${escapeHtml(avatarInitial(clientName))}</span>
             </div>
             <div>
               <div class="fw-semibold">${escapeHtml(clientName)}</div>
@@ -643,6 +684,7 @@
     tbody.innerHTML = Array.isArray(dialogs) && dialogs.length
       ? dialogs.map((item) => renderDialogRow(item)).join('')
       : '';
+    hydrateAvatars(tbody);
     applyColumnState();
     applyBusinessCellStyles();
     restoreColumnWidths();
@@ -1140,6 +1182,12 @@
       button.textContent = emoji;
       emojiList.appendChild(button);
     });
+  }
+
+  function openCategoryPanel() {
+    if (!categoryTemplatesSection || categoryTemplatesSection.classList.contains('d-none')) return;
+    categoryTemplatesSection.classList.add('is-open');
+    categoryTemplatesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function insertReplyText(value) {
@@ -1682,8 +1730,8 @@
       const ratingValue = summary.rating ?? fallbackRow?.dataset.rating;
       const ratingStars = formatRatingStars(ratingValue);
       if (detailsAvatar) {
-        const initial = clientName && clientName !== '—' ? clientName.trim().charAt(0).toUpperCase() : '—';
-        detailsAvatar.textContent = initial || '—';
+        const clientUserId = summary.userId || fallbackRow?.dataset.userId || '';
+        bindAvatar(detailsAvatar, clientUserId, clientName);
       }
       if (detailsClientName) detailsClientName.textContent = clientName;
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
@@ -1832,6 +1880,7 @@
       try {
         const categories = Array.from(selectedCategories);
         if (!categories.length) {
+          openCategoryPanel();
           throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
         }
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/resolve`, {
@@ -2332,6 +2381,7 @@
   buildColumnsList();
   applyColumnState();
   applyBusinessCellStyles();
+  hydrateAvatars(table);
   if (viewTabs.length) {
     const activeTab = Array.from(viewTabs).find((tab) => tab.classList.contains('active'));
     setViewTab(activeTab?.dataset.dialogView || 'all');
