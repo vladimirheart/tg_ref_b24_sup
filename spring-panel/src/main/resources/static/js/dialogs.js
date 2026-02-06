@@ -95,6 +95,10 @@
     ? window.BUSINESS_CELL_STYLES
     : {};
 
+  const SUMMARY_BADGE_SETTINGS = (window.DIALOG_CONFIG?.summary_badges && typeof window.DIALOG_CONFIG.summary_badges === 'object')
+    ? window.DIALOG_CONFIG.summary_badges
+    : {};
+
   const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
     good_limit: 30,
     warning_limit: 60,
@@ -651,6 +655,45 @@
     return fallback;
   }
 
+  function normalizeSummaryBadgeStyle(value) {
+    if (!value) return {};
+    if (typeof value === 'string') {
+      return { background: sanitizeHexColor(value, ''), text: '' };
+    }
+    if (typeof value === 'object') {
+      return {
+        background: sanitizeHexColor(value.background || value.bg || value.fill || '', ''),
+        text: sanitizeHexColor(value.text || value.color || value.foreground || '', ''),
+      };
+    }
+    return {};
+  }
+
+  function normalizeSummaryBadgeSettings(raw) {
+    const fallback = normalizeSummaryBadgeStyle(raw?.default) || {};
+    const base = {
+      default: {
+        background: fallback.background || '#f1f3f5',
+        text: fallback.text || '#1f2937',
+      },
+      status: {},
+      channel: {},
+    };
+    const status = raw?.status && typeof raw.status === 'object' ? raw.status : {};
+    const channel = raw?.channel && typeof raw.channel === 'object' ? raw.channel : {};
+    Object.entries(status).forEach(([key, value]) => {
+      if (!key) return;
+      base.status[key.toLowerCase()] = normalizeSummaryBadgeStyle(value);
+    });
+    Object.entries(channel).forEach(([key, value]) => {
+      if (!key) return;
+      base.channel[key.toLowerCase()] = normalizeSummaryBadgeStyle(value);
+    });
+    return base;
+  }
+
+  const SUMMARY_BADGE_STYLES = normalizeSummaryBadgeSettings(SUMMARY_BADGE_SETTINGS);
+
   function normalizeBusinessStyles(raw) {
     const styles = {};
     if (!raw || typeof raw !== 'object') return styles;
@@ -669,6 +712,27 @@
   }
 
   const BUSINESS_STYLE_MAP = normalizeBusinessStyles(BUSINESS_STYLES);
+
+  function resolveSummaryBadgeStyle(type, value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    const base = SUMMARY_BADGE_STYLES.default || {};
+    const style = (SUMMARY_BADGE_STYLES[type] && normalized)
+      ? SUMMARY_BADGE_STYLES[type][normalized]
+      : null;
+    return {
+      background: style?.background || base.background || '',
+      text: style?.text || base.text || '',
+    };
+  }
+
+  function renderSummaryBadge(value, style) {
+    const safeValue = escapeHtml(value || '—');
+    const background = style?.background ? `background-color: ${style.background}` : '';
+    const color = style?.text ? `color: ${style.text}` : '';
+    const inlineStyle = [background, color].filter(Boolean).join('; ');
+    const styleAttr = inlineStyle ? ` style="${inlineStyle}"` : '';
+    return `<span class="dialog-summary-badge"${styleAttr}>${safeValue}</span>`;
+  }
 
   function applyBusinessCellStyles() {
     if (!Object.keys(BUSINESS_STYLE_MAP).length) return;
@@ -1505,12 +1569,26 @@
         const clientUserId = summary.userId || fallbackRow?.dataset.userId || '';
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
           const safeValue = value || '—';
-          let renderedValue = `<span class="text-dark">${safeValue}</span>`;
+          let renderedValue = `<span class="text-dark">${escapeHtml(safeValue)}</span>`;
+          if (label === 'Статус') {
+            renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('status', safeValue));
+          }
+          if (label === 'Канал') {
+            renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('channel', safeValue));
+          }
+          if (label === 'Бизнес') {
+            const businessKey = String(safeValue || '').trim();
+            const businessStyle = BUSINESS_STYLE_MAP[businessKey] || {};
+            renderedValue = renderSummaryBadge(safeValue, {
+              background: businessStyle.background || SUMMARY_BADGE_STYLES.default.background,
+              text: businessStyle.text || SUMMARY_BADGE_STYLES.default.text,
+            });
+          }
           if (label === 'Клиент' && safeValue !== '—' && clientUserId) {
-            renderedValue = `<a class="dialog-summary-value-link" href="/client/${encodeURIComponent(clientUserId)}" target="_blank" rel="noopener">${safeValue}</a>`;
+            renderedValue = `<a class="dialog-summary-value-link" href="/client/${encodeURIComponent(clientUserId)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
           if (label === 'Ответственный' && safeValue !== '—') {
-            renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${safeValue}</a>`;
+            renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
           return `
           <div class="d-flex justify-content-between gap-2">
