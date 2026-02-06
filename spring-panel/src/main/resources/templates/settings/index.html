@@ -411,6 +411,23 @@
       text-align: center;
       color: #212529;
     }
+    .dialog-status-badge-row {
+      border: 1px solid rgba(13, 110, 253, 0.15);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: #f8fafc;
+    }
+    .dialog-status-badge-preview {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 0.2rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      min-width: 6rem;
+    }
     .partner-contact-details__header {
       display: flex;
       align-items: center;
@@ -1784,6 +1801,20 @@
                   Время
                 </button>
               </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-badges-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-badges"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-badges"
+                  aria-selected="false"
+                >
+                  Бейджи
+                </button>
+              </li>
             </ul>
 
             <div class="tab-content pt-3" id="dialogSettingsTabsContent">
@@ -1881,6 +1912,24 @@
                     <label class="form-label">Предпросмотр</label>
                     <div id="timeMetricPreview" class="dialog-time-metrics-preview"></div>
                   </div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-badges"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-badges-tab"
+              >
+                <section>
+                  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                    <h6 class="mb-0">Цвета бейджа «Статус»</h6>
+                    <button class="btn btn-sm btn-outline-success" type="button" data-dialog-status-badge-add>+ Статус</button>
+                  </div>
+                  <p class="small text-muted">
+                    Настройте фон и цвет текста для статусов диалогов. Значения применяются в карточке обращения.
+                  </p>
+                  <div id="dialogStatusBadgesList" class="d-flex flex-column gap-2"></div>
                 </section>
               </div>
             </div>
@@ -3264,6 +3313,13 @@
     }),
   });
 
+  const DEFAULT_SUMMARY_BADGES = Object.freeze({
+    default: Object.freeze({
+      background: '#f1f3f5',
+      text: '#1f2937',
+    }),
+  });
+
   function sanitizeHexColor(value, fallback) {
     const raw = typeof value === 'string' ? value.trim() : '';
     if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) {
@@ -3305,6 +3361,44 @@
       base.warning_limit = Math.max(base.good_limit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
     }
 
+    return base;
+  }
+
+  function isValidHexColor(value) {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
+  }
+
+  function normalizeSummaryBadgeStyle(value) {
+    if (!value) return {};
+    if (typeof value === 'string') {
+      return { background: sanitizeHexColor(value, ''), text: '' };
+    }
+    if (typeof value === 'object') {
+      return {
+        background: sanitizeHexColor(value.background || value.bg || value.fill || '', ''),
+        text: sanitizeHexColor(value.text || value.color || value.foreground || '', ''),
+      };
+    }
+    return {};
+  }
+
+  function normalizeSummaryBadgeSettings(raw) {
+    const fallback = normalizeSummaryBadgeStyle(raw?.default) || {};
+    const base = {
+      default: {
+        background: fallback.background || DEFAULT_SUMMARY_BADGES.default.background,
+        text: fallback.text || DEFAULT_SUMMARY_BADGES.default.text,
+      },
+      status: {},
+    };
+    const status = raw?.status && typeof raw.status === 'object' ? raw.status : {};
+    Object.entries(status).forEach(([key, value]) => {
+      if (!key) return;
+      base.status[key.toLowerCase()] = normalizeSummaryBadgeStyle(value);
+    });
     return base;
   }
 
@@ -11765,6 +11859,145 @@
     return { config, errors };
   }
 
+  const dialogStatusBadgesList = document.getElementById('dialogStatusBadgesList');
+  const dialogStatusBadgeAddBtn = document.querySelector('[data-dialog-status-badge-add]');
+
+  function updateDialogStatusBadgePreview(row) {
+    if (!row) return;
+    const nameInput = row.querySelector('[data-dialog-status-label]');
+    const bgInput = row.querySelector('[data-dialog-status-bg]');
+    const textInput = row.querySelector('[data-dialog-status-text]');
+    const preview = row.querySelector('[data-dialog-status-preview]');
+    if (!preview) return;
+    const normalized = normalizeSummaryBadgeSettings(DIALOG_CONFIG.summary_badges);
+    const base = normalized.default || DEFAULT_SUMMARY_BADGES.default;
+    const label = nameInput?.value?.trim() || 'Статус';
+    const background = sanitizeHexColor(bgInput?.value, base.background || '');
+    const text = sanitizeHexColor(textInput?.value, base.text || '');
+    preview.textContent = label;
+    preview.style.backgroundColor = background;
+    preview.style.color = text;
+  }
+
+  function buildDialogStatusBadgeRow(entry) {
+    const row = document.createElement('div');
+    row.className = 'dialog-status-badge-row';
+    row.dataset.dialogStatusBadge = 'true';
+    row.innerHTML = `
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label mb-1">Статус</label>
+          <input type="text" class="form-control form-control-sm" data-dialog-status-label placeholder="Например, Новый">
+        </div>
+        <div class="col-6 col-lg-3">
+          <label class="form-label mb-1">Фон</label>
+          <input type="text" class="form-control form-control-sm" data-dialog-status-bg placeholder="#e7f1ff">
+          <div class="invalid-feedback">Укажите корректный HEX-цвет.</div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <label class="form-label mb-1">Текст</label>
+          <input type="text" class="form-control form-control-sm" data-dialog-status-text placeholder="#0d6efd">
+          <div class="invalid-feedback">Укажите корректный HEX-цвет.</div>
+        </div>
+        <div class="col-8 col-lg-2">
+          <label class="form-label mb-1">Превью</label>
+          <div class="dialog-status-badge-preview" data-dialog-status-preview>Статус</div>
+        </div>
+        <div class="col-4 col-lg-12 text-end text-lg-start">
+          <button class="btn btn-sm btn-outline-danger" type="button" data-dialog-status-remove>Удалить</button>
+        </div>
+      </div>
+    `;
+    if (entry) {
+      const nameInput = row.querySelector('[data-dialog-status-label]');
+      const bgInput = row.querySelector('[data-dialog-status-bg]');
+      const textInput = row.querySelector('[data-dialog-status-text]');
+      if (nameInput) nameInput.value = entry.label || '';
+      if (bgInput) bgInput.value = entry.background || '';
+      if (textInput) textInput.value = entry.text || '';
+    }
+    row.querySelectorAll('input').forEach((input) => {
+      input.addEventListener('input', () => {
+        if (input.classList.contains('is-invalid')) {
+          input.classList.remove('is-invalid');
+        }
+        updateDialogStatusBadgePreview(row);
+      });
+    });
+    const removeBtn = row.querySelector('[data-dialog-status-remove]');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        row.remove();
+      });
+    }
+    updateDialogStatusBadgePreview(row);
+    return row;
+  }
+
+  function addDialogStatusBadgeRow(entry) {
+    if (!dialogStatusBadgesList) return;
+    dialogStatusBadgesList.appendChild(buildDialogStatusBadgeRow(entry));
+  }
+
+  function initDialogStatusBadges() {
+    if (!dialogStatusBadgesList) return;
+    dialogStatusBadgesList.innerHTML = '';
+    const normalized = normalizeSummaryBadgeSettings(DIALOG_CONFIG.summary_badges);
+    const entries = Object.entries(normalized.status || {});
+    if (entries.length) {
+      entries.forEach(([label, style]) => {
+        addDialogStatusBadgeRow({
+          label,
+          background: style.background || '',
+          text: style.text || '',
+        });
+      });
+    } else {
+      addDialogStatusBadgeRow();
+    }
+    if (dialogStatusBadgeAddBtn) {
+      dialogStatusBadgeAddBtn.addEventListener('click', () => addDialogStatusBadgeRow());
+    }
+  }
+
+  function collectDialogSummaryBadges() {
+    const errors = [];
+    const status = {};
+    if (!dialogStatusBadgesList) {
+      return { status, errors };
+    }
+    dialogStatusBadgesList.querySelectorAll('[data-dialog-status-badge]').forEach((row) => {
+      const labelInput = row.querySelector('[data-dialog-status-label]');
+      const bgInput = row.querySelector('[data-dialog-status-bg]');
+      const textInput = row.querySelector('[data-dialog-status-text]');
+      const label = labelInput?.value?.trim() || '';
+      const bgRaw = bgInput?.value?.trim() || '';
+      const textRaw = textInput?.value?.trim() || '';
+      if (!label) {
+        return;
+      }
+      let hasError = false;
+      if (bgRaw && !isValidHexColor(bgRaw)) {
+        bgInput?.classList.add('is-invalid');
+        errors.push(`Некорректный цвет фона для статуса «${label}».`);
+        hasError = true;
+      }
+      if (textRaw && !isValidHexColor(textRaw)) {
+        textInput?.classList.add('is-invalid');
+        errors.push(`Некорректный цвет текста для статуса «${label}».`);
+        hasError = true;
+      }
+      if (hasError) {
+        return;
+      }
+      status[label.toLowerCase()] = {
+        background: bgRaw,
+        text: textRaw,
+      };
+    });
+    return { status, errors };
+  }
+
   function initDialogTemplates() {
     const categoryTemplates = Array.isArray(DIALOG_CONFIG.category_templates)
       ? DIALOG_CONFIG.category_templates
@@ -11820,6 +12053,13 @@
       const timeMetricsState = collectTimeMetricsConfig();
       if (timeMetricsState.errors && timeMetricsState.errors.length) {
         const uniqueErrors = Array.from(new Set(timeMetricsState.errors));
+        alert(uniqueErrors.join('\n'));
+        return;
+      }
+
+      const summaryBadgesState = collectDialogSummaryBadges();
+      if (summaryBadgesState.errors && summaryBadgesState.errors.length) {
+        const uniqueErrors = Array.from(new Set(summaryBadgesState.errors));
         alert(uniqueErrors.join('\n'));
         return;
       }
@@ -11899,6 +12139,7 @@
           dialog_question_templates: questionTemplates,
           dialog_completion_templates: completionTemplates,
           dialog_time_metrics: timeMetricsState.config,
+          dialog_summary_badges: { status: summaryBadgesState.status },
           auto_close_config: autoClosePayload,
           auto_close_hours: autoCloseHours,
         })
@@ -11922,6 +12163,7 @@
     initAutoCloseTemplates();
     initDialogTemplates();
     initTimeMetricsControls();
+    initDialogStatusBadges();
     initLocationWizard();
     buildLocationsTree();
     initChannelsManagement();
