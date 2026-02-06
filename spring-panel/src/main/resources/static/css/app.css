@@ -483,7 +483,8 @@ body {
 .dialog-details-layout {
   display: flex;
   gap: 1rem;
-  min-height: 60vh;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .dialog-details-sidebar {
@@ -499,6 +500,18 @@ body {
 .dialog-details-main {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  min-height: 0;
+}
+
+.dialog-details-main .card {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dialog-details-main .card-body {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .dialog-details-section {
@@ -536,6 +549,23 @@ body {
   min-height: 420px;
   max-width: 95vw;
   max-height: 95vh;
+}
+
+#dialogDetailsModal .modal-content {
+  height: 100%;
+}
+
+#dialogDetailsModal .modal-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#dialogDetailsModal .chat-history {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .dialog-details-problem {
