@@ -21,7 +21,8 @@ public class FlywayConfig {
                 logger.warn("Flyway validation failed, attempting repair before retrying migration", ex);
                 flyway.repair();
                 logger.warn("Retrying Flyway migration with out-of-order enabled to apply missed migrations.");
-                flyway.configure()
+                org.flywaydb.core.Flyway.configure()
+                        .configuration(flyway.getConfiguration())
                         .outOfOrder(true)
                         .load()
                         .migrate();
