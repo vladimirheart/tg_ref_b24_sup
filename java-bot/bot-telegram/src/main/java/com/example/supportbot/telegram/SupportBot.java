@@ -585,11 +585,21 @@ public class SupportBot extends TelegramLongPollingBot {
     private boolean handleActiveTicketMessage(Message message, String text, String messageType, String attachmentPath) {
         Optional<String> activeTicketId = resolveActiveTicketId(message);
         if (activeTicketId.isEmpty()) {
-            return false;
+            notifyNoActiveDialog(message);
+            return true;
         }
         String ticketId = activeTicketId.get();
         String username = Optional.ofNullable(message.getFrom()).map(User::getUserName).orElse(null);
         Long userId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(null);
+        Optional<TicketService.TicketWithUser> ticketDetails = ticketService.findByTicketId(ticketId);
+        if (ticketDetails.isEmpty()) {
+            notifyNoActiveDialog(message);
+            return true;
+        }
+        if (ticketDetails.get().status() != null && ticketDetails.get().status().equalsIgnoreCase("closed")) {
+            notifyClosedDialog(message);
+            return true;
+        }
         log.info("Active ticket message received: ticketId={} userId={} username={} messageType={} telegramMessageId={} attachment={}",
                 ticketId,
                 userId,
@@ -597,9 +607,6 @@ public class SupportBot extends TelegramLongPollingBot {
                 messageType,
                 message.getMessageId(),
                 attachmentPath);
-        ticketService.findByTicketId(ticketId)
-                .filter(ticket -> ticket.status() != null && ticket.status().equalsIgnoreCase("closed"))
-                .ifPresent(ticket -> ticketService.reopenTicket(ticketId));
         chatHistoryService.storeUserMessage(
                 userId,
                 message.getMessageId() != null ? message.getMessageId().longValue() : null,
@@ -621,6 +628,38 @@ public class SupportBot extends TelegramLongPollingBot {
         ticketService.registerActivity(ticketId, username != null ? username : (userId != null ? userId.toString() : null));
         relayActiveMessageToOperators(ticketId, messageType, text, attachmentPath, username, userId);
         return true;
+    }
+
+    private void notifyNoActiveDialog(Message message) {
+        if (message == null) {
+            return;
+        }
+        SendMessage warning = SendMessage.builder()
+                .chatId(message.getChatId())
+                .text("Активного диалога нет. Чтобы создать новое обращение, нажмите /start.")
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(warning);
+        } catch (TelegramApiException e) {
+            log.error("Failed to notify about missing active dialog", e);
+        }
+    }
+
+    private void notifyClosedDialog(Message message) {
+        if (message == null) {
+            return;
+        }
+        SendMessage warning = SendMessage.builder()
+                .chatId(message.getChatId())
+                .text("Диалог закрыт. Оператор сможет открыть его снова, после этого вы сможете продолжить переписку.")
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(warning);
+        } catch (TelegramApiException e) {
+            log.error("Failed to notify about closed dialog", e);
+        }
     }
 
     private void handleEditedClientMessage(Message editedMessage) {
@@ -1546,4 +1585,3 @@ public class SupportBot extends TelegramLongPollingBot {
         return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
-
