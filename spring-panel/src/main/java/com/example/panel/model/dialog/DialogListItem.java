@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import org.springframework.util.StringUtils;
 
 public record DialogListItem(String ticketId,
+                             Long requestNumber,
                              Long userId,
                              String username,
                              String clientName,
@@ -27,6 +28,7 @@ public record DialogListItem(String ticketId,
                              String lastMessageSender,
                              String lastMessageTimestamp,
                              Integer unreadCount,
+                             Integer rating,
                              String categories) {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -48,6 +50,24 @@ public record DialogListItem(String ticketId,
             return username;
         }
         return "Неизвестный клиент";
+    }
+
+    public String displayTicketNumber() {
+        if (requestNumber != null) {
+            return requestNumber.toString();
+        }
+        return ticketId;
+    }
+
+    public String ratingStars() {
+        if (rating == null) {
+            return "";
+        }
+        int normalized = Math.min(5, Math.max(0, rating));
+        if (normalized == 0) {
+            return "";
+        }
+        return "★".repeat(normalized);
     }
 
     @JsonProperty("statusLabel")
