@@ -127,7 +127,8 @@ public class SettingsBridgeController {
             if (payload.containsKey("dialog_category_templates")
                 || payload.containsKey("dialog_question_templates")
                 || payload.containsKey("dialog_completion_templates")
-                || payload.containsKey("dialog_time_metrics")) {
+                || payload.containsKey("dialog_time_metrics")
+                || payload.containsKey("dialog_summary_badges")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -144,6 +145,22 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_time_metrics")) {
                     dialogConfig.put("time_metrics", payload.get("dialog_time_metrics"));
+                }
+                if (payload.containsKey("dialog_summary_badges")) {
+                    Map<String, Object> summaryBadges = new LinkedHashMap<>();
+                    Object existingBadges = dialogConfig.get("summary_badges");
+                    if (existingBadges instanceof Map<?, ?> badgesMap) {
+                        badgesMap.forEach((key, value) -> summaryBadges.put(String.valueOf(key), value));
+                    }
+                    Object rawBadges = payload.get("dialog_summary_badges");
+                    if (rawBadges instanceof Map<?, ?> incomingMap) {
+                        incomingMap.forEach((key, value) -> {
+                            if (key != null) {
+                                summaryBadges.put(String.valueOf(key), value);
+                            }
+                        });
+                    }
+                    dialogConfig.put("summary_badges", summaryBadges);
                 }
                 settings.put("dialog_config", dialogConfig);
                 modified = true;
