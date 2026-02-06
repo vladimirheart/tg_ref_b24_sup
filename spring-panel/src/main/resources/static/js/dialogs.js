@@ -42,6 +42,7 @@
   const detailsReplyMedia = document.getElementById('dialogReplyMedia');
   const detailsReplyMediaTrigger = document.getElementById('dialogReplyMediaTrigger');
   const detailsReplyEmojiTrigger = document.getElementById('dialogReplyEmojiTrigger');
+  const dialogFontSizeRange = document.getElementById('dialogFontSizeRange');
   const emojiPanel = document.getElementById('dialogEmojiPanel');
   const emojiList = document.getElementById('dialogEmojiList');
   const mediaPreviewModalEl = document.getElementById('dialogMediaPreviewModal');
@@ -87,9 +88,11 @@
   const STORAGE_WIDTHS = 'bender:dialogs:column-widths';
   const STORAGE_TASK = 'bender:dialogs:create-task';
   const STORAGE_PAGE_SIZE = 'bender:dialogs:page-size';
+  const STORAGE_DIALOG_FONT = 'bender:dialogs:font-size';
   const HISTORY_POLL_INTERVAL = 8000;
   const LIST_POLL_INTERVAL = 8000;
   const DEFAULT_PAGE_SIZE = 20;
+  const DEFAULT_DIALOG_FONT = 14;
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
     ? window.BUSINESS_CELL_STYLES
@@ -139,6 +142,7 @@
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
   let mediaImageScale = 1;
+  let categorySaveTimer = null;
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -195,6 +199,83 @@
       return;
     }
     localStorage.setItem(STORAGE_PAGE_SIZE, String(filterState.pageSize));
+  }
+
+  function applyDialogFontSize(value) {
+    const parsed = Number.parseInt(value, 10);
+    const size = Number.isFinite(parsed) ? parsed : DEFAULT_DIALOG_FONT;
+    if (detailsHistory) {
+      detailsHistory.style.setProperty('--dialog-font-size', `${size}px`);
+    }
+    if (dialogFontSizeRange) {
+      dialogFontSizeRange.value = String(size);
+    }
+    localStorage.setItem(STORAGE_DIALOG_FONT, String(size));
+  }
+
+  function loadDialogFontSize() {
+    const stored = Number.parseInt(localStorage.getItem(STORAGE_DIALOG_FONT), 10);
+    const size = Number.isFinite(stored) ? stored : DEFAULT_DIALOG_FONT;
+    applyDialogFontSize(size);
+  }
+
+  function formatCategoriesLabel(categories) {
+    const normalized = Array.isArray(categories)
+      ? categories.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+    return normalized.length ? normalized.join(', ') : '—';
+  }
+
+  function updateSummaryCategories(label) {
+    if (detailsCategories) {
+      detailsCategories.textContent = `Категории: ${label || '—'}`;
+    }
+    if (detailsSummary) {
+      const summaryValue = detailsSummary.querySelector('[data-summary-field="categories"] [data-summary-value]');
+      if (summaryValue) {
+        summaryValue.textContent = label || '—';
+      }
+    }
+    if (activeDialogRow) {
+      const rowLabel = label || '—';
+      activeDialogRow.dataset.categories = rowLabel;
+      const categoriesIndex = table.querySelector('th[data-column-key="categories"]')?.cellIndex ?? -1;
+      if (categoriesIndex >= 0 && activeDialogRow.children[categoriesIndex]) {
+        activeDialogRow.children[categoriesIndex].textContent = rowLabel;
+      }
+    }
+  }
+
+  async function persistDialogCategories(categories) {
+    if (!activeDialogTicketId) return;
+    const payload = { categories };
+    const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data?.success) {
+      throw new Error(data?.error || `Ошибка ${resp.status}`);
+    }
+  }
+
+  function scheduleCategorySave() {
+    if (!activeDialogTicketId) return;
+    if (categorySaveTimer) {
+      clearTimeout(categorySaveTimer);
+    }
+    categorySaveTimer = setTimeout(async () => {
+      try {
+        const categories = Array.from(selectedCategories);
+        await persistDialogCategories(categories);
+        updateSummaryCategories(formatCategoriesLabel(categories));
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось сохранить категории', 'error');
+        }
+      }
+    }, 400);
   }
 
   function persistColumnState() {
@@ -1289,10 +1370,13 @@
     const media = isDeleted ? '' : buildMediaMarkup(message);
     const canReply = senderType !== 'system' && message?.telegramMessageId;
     const actionButtons = canReply
-      ? `<div class="chat-message-actions mt-2">
-          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
-          ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
-          ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
+      ? `<div class="chat-message-menu">
+          <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
+          <div class="chat-message-menu-list">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
+            ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
+            ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
+          </div>
         </div>`
       : '';
 
@@ -1497,6 +1581,7 @@
       const summary = data.summary || {};
       selectedCategories = new Set(Array.isArray(data.categories) ? data.categories.filter(Boolean).map((item) => String(item).trim()) : []);
       syncCategorySelections();
+      updateSummaryCategories(formatCategoriesLabel(Array.from(selectedCategories)));
       if (summary.channelId) {
         activeDialogChannelId = summary.channelId;
       }
@@ -1527,7 +1612,10 @@
       const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset.status, statusKey);
       const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
       const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
-      const categoriesLabel = summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || '—';
+      const selectedCategoriesLabel = formatCategoriesLabel(Array.from(selectedCategories));
+      const categoriesLabel = selectedCategoriesLabel !== '—'
+        ? selectedCategoriesLabel
+        : (summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || '—');
       const requestNumber = summary.requestNumber || fallbackRow?.dataset.requestNumber || '';
       const ratingValue = summary.rating ?? fallbackRow?.dataset.rating;
       const ratingStars = formatRatingStars(ratingValue);
@@ -1537,7 +1625,7 @@
       }
       if (detailsClientName) detailsClientName.textContent = clientName;
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
-      if (detailsCategories) detailsCategories.textContent = `Категории: ${categoriesLabel || '—'}`;
+      updateSummaryCategories(categoriesLabel || '—');
       if (detailsProblem) detailsProblem.textContent = problemLabel;
       if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
       if (detailsRating) {
@@ -1590,10 +1678,14 @@
           if (label === 'Ответственный' && safeValue !== '—') {
             renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
+          const fieldAttr = label === 'Категории' ? ' data-summary-field="categories"' : '';
+          const valueMarkup = label === 'Категории'
+            ? `<span class="text-dark" data-summary-value>${escapeHtml(safeValue)}</span>`
+            : renderedValue;
           return `
-          <div class="d-flex justify-content-between gap-2">
+          <div class="d-flex justify-content-between gap-2"${fieldAttr}>
             <span>${label}</span>
-            ${renderedValue}
+            ${valueMarkup}
           </div>
         `;
         }).join('');
@@ -1704,6 +1796,9 @@
   if (detailsReopen) {
     detailsReopen.addEventListener('click', async () => {
       if (!activeDialogTicketId) return;
+      if (!window.confirm('Переоткрыть закрытое обращение?')) {
+        return;
+      }
       detailsReopen.disabled = true;
       try {
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reopen`, {
@@ -1832,8 +1927,20 @@
 
   if (detailsHistory) {
     detailsHistory.addEventListener('click', async (event) => {
+      const menuToggle = event.target.closest('[data-action-menu]');
+      if (menuToggle) {
+        const menu = menuToggle.closest('.chat-message-menu');
+        if (!menu) return;
+        detailsHistory.querySelectorAll('.chat-message-menu.is-open').forEach((openMenu) => {
+          if (openMenu !== menu) openMenu.classList.remove('is-open');
+        });
+        menu.classList.toggle('is-open');
+        return;
+      }
       const button = event.target.closest('button[data-action]');
       if (!button || !activeDialogTicketId) return;
+      const menu = button.closest('.chat-message-menu');
+      if (menu) menu.classList.remove('is-open');
       const messageId = Number.parseInt(button.dataset.messageId, 10);
       if (!Number.isFinite(messageId)) return;
       const action = button.dataset.action;
@@ -1873,6 +1980,18 @@
         if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
         await refreshHistory();
       }
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    if (!detailsHistory) return;
+    if (event.target.closest('.chat-message-menu')) return;
+    detailsHistory.querySelectorAll('.chat-message-menu.is-open').forEach((menu) => menu.classList.remove('is-open'));
+  });
+
+  if (dialogFontSizeRange) {
+    dialogFontSizeRange.addEventListener('input', () => {
+      applyDialogFontSize(dialogFontSizeRange.value);
     });
   }
 
@@ -1986,6 +2105,8 @@
         selectedCategories.add(value);
       }
       syncCategorySelections();
+      updateSummaryCategories(formatCategoriesLabel(Array.from(selectedCategories)));
+      scheduleCategorySave();
     });
   }
 
@@ -2144,6 +2265,7 @@
   startDialogsPolling();
   loadColumnState();
   loadPageSize();
+  loadDialogFontSize();
   buildColumnsList();
   applyColumnState();
   applyBusinessCellStyles();
