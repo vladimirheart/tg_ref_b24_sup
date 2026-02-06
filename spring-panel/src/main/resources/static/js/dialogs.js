@@ -26,6 +26,7 @@
   const detailsAvatar = document.getElementById('dialogDetailsAvatar');
   const detailsClientName = document.getElementById('dialogDetailsClientName');
   const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
+  const detailsCategories = document.getElementById('dialogDetailsCategories');
   const detailsSummary = document.getElementById('dialogDetailsSummary');
   const detailsHistory = document.getElementById('dialogDetailsHistory');
   const detailsCreateTask = document.getElementById('dialogDetailsCreateTask');
@@ -236,6 +237,7 @@
       row.dataset.problem,
       row.dataset.status,
       row.dataset.location,
+      row.dataset.categories,
       row.dataset.responsible,
     ];
     return parts.filter(Boolean).join(' ').toLowerCase();
@@ -256,6 +258,7 @@
         statusKey: item?.statusKey || '',
         unreadCount: Number(item?.unreadCount) || 0,
         lastMessageTimestamp: item?.lastMessageTimestamp || '',
+        categories: item?.categories || '',
       }))
       .sort((a, b) => `${a.ticketId}:${a.channelId}`.localeCompare(`${b.ticketId}:${b.channelId}`))
       .map((item) => [
@@ -265,6 +268,7 @@
         item.statusKey,
         item.unreadCount,
         item.lastMessageTimestamp,
+        item.categories,
       ].join('|'))
       .join('||');
   }
@@ -309,6 +313,7 @@
     const problemLabel = item?.problem || 'Проблема не указана';
     const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || '—';
     const statusRaw = item?.status || '';
+    const categories = item?.categoriesSafe || item?.categories || '—';
     const statusKey = item?.statusKey || '';
     const statusLabel = formatStatusLabel(statusRaw, item?.statusLabel || '', statusKey);
     const responsible = item?.responsible || item?.resolvedBy || '—';
@@ -321,6 +326,7 @@
           data-client="${escapeHtml(clientName)}"
           data-client-status="${escapeHtml(clientStatus)}"
           data-channel-id="${escapeHtml(item?.channelId || '')}"
+          data-user-id="${escapeHtml(item?.userId || '')}"
           data-channel="${escapeHtml(channelLabel)}"
           data-business="${escapeHtml(businessLabel)}"
           data-problem="${escapeHtml(problemLabel)}"
@@ -328,6 +334,7 @@
           data-status-raw="${escapeHtml(statusRaw)}"
           data-status-key="${escapeHtml(statusKey)}"
           data-location="${escapeHtml(locationLabel)}"
+          data-categories="${escapeHtml(categories)}"
           data-responsible="${escapeHtml(responsible === '—' ? '' : responsible)}"
           data-created-at="${escapeHtml(item?.createdAt || '')}"
           data-unread="${unreadCount}"
@@ -359,6 +366,7 @@
         </td>
         <td class="text-truncate" style="max-width: 260px;">${escapeHtml(problemLabel)}</td>
         <td>${escapeHtml(locationLabel)}</td>
+        <td>${escapeHtml(categories)}</td>
         <td>${escapeHtml(responsible)}</td>
         <td>
           <div class="small text-muted">${escapeHtml(createdDate)}</div>
@@ -441,7 +449,7 @@
   }
 
   const emptyRow = document.createElement('tr');
-  emptyRow.innerHTML = '<td colspan="10" class="text-center text-muted py-4">Нет результатов</td>';
+  emptyRow.innerHTML = '<td colspan="11" class="text-center text-muted py-4">Нет результатов</td>';
   emptyRow.classList.add('d-none');
 
   function ensureEmptyRow() {
@@ -1328,12 +1336,14 @@
       const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset.status, statusKey);
       const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
       const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
+      const categoriesLabel = summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || '—';
       if (detailsAvatar) {
         const initial = clientName && clientName !== '—' ? clientName.trim().charAt(0).toUpperCase() : '—';
         detailsAvatar.textContent = initial || '—';
       }
       if (detailsClientName) detailsClientName.textContent = clientName;
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
+      if (detailsCategories) detailsCategories.textContent = `Категории: ${categoriesLabel || '—'}`;
       if (detailsProblem) detailsProblem.textContent = problemLabel;
       const summaryItems = [
         ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
@@ -1343,6 +1353,7 @@
         ['Бизнес', businessLabel],
         ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
         ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
+        ['Категории', categoriesLabel || '—'],
         ['Ответственный', responsibleLabel],
         ['Создан', createdDisplay || createdLabel],
       ];
@@ -1351,9 +1362,13 @@
         operatorName: responsibleLabel || 'Оператор',
       };
       if (detailsSummary) {
+        const clientUserId = summary.userId || fallbackRow?.dataset.userId || '';
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
           const safeValue = value || '—';
           let renderedValue = `<span class="text-dark">${safeValue}</span>`;
+          if (label === 'Клиент' && safeValue !== '—' && clientUserId) {
+            renderedValue = `<a class="dialog-summary-value-link" href="/client/${encodeURIComponent(clientUserId)}" target="_blank" rel="noopener">${safeValue}</a>`;
+          }
           if (label === 'Ответственный' && safeValue !== '—') {
             renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${safeValue}</a>`;
           }
