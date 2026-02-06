@@ -27,6 +27,7 @@
   const detailsClientName = document.getElementById('dialogDetailsClientName');
   const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
   const detailsCategories = document.getElementById('dialogDetailsCategories');
+  const detailsUnreadCount = document.getElementById('dialogDetailsUnreadCount');
   const detailsRating = document.getElementById('dialogDetailsRating');
   const detailsSummary = document.getElementById('dialogDetailsSummary');
   const detailsHistory = document.getElementById('dialogDetailsHistory');
@@ -226,14 +227,58 @@
     return normalized.length ? normalized.join(', ') : '—';
   }
 
+  function normalizeCategories(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || '').trim()).filter((item) => item && item !== '—');
+    }
+    const normalized = String(value || '').trim();
+    if (!normalized || normalized === '—') return [];
+    return normalized
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item && item !== '—');
+  }
+
+  function categoryBadgePalette(label) {
+    const text = String(label || '');
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) % 360;
+    }
+    const hue = hash;
+    return {
+      background: `hsl(${hue} 70% 92%)`,
+      text: `hsl(${hue} 45% 28%)`,
+    };
+  }
+
+  function renderCategoryBadges(categories) {
+    const list = normalizeCategories(categories);
+    if (!list.length) {
+      return '<span class="text-muted">—</span>';
+    }
+    const badges = list.map((category) => {
+      const palette = categoryBadgePalette(category);
+      return `
+        <span class="dialog-category-chip" style="background-color: ${palette.background}; color: ${palette.text};">
+          ${escapeHtml(category)}
+        </span>
+      `;
+    }).join('');
+    return `<span class="dialog-category-list">${badges}</span>`;
+  }
+
   function updateSummaryCategories(label) {
     if (detailsCategories) {
-      detailsCategories.textContent = `Категории: ${label || '—'}`;
+      detailsCategories.innerHTML = `
+        <span>Категории:</span>
+        ${renderCategoryBadges(label)}
+      `;
     }
     if (detailsSummary) {
       const summaryValue = detailsSummary.querySelector('[data-summary-field="categories"] [data-summary-value]');
       if (summaryValue) {
-        summaryValue.textContent = label || '—';
+        summaryValue.innerHTML = renderCategoryBadges(label);
       }
     }
     if (activeDialogRow) {
@@ -1457,6 +1502,7 @@
       if (marker !== lastHistoryMarker) {
         renderHistory(messages);
       }
+      updateDialogUnreadCount(0);
     } catch (error) {
       // ignore polling errors
     } finally {
@@ -1487,6 +1533,26 @@
     }
   }
 
+  function setRowUnreadCount(row, unreadCount) {
+    if (!row) return;
+    const count = Number(unreadCount) || 0;
+    row.dataset.unread = String(count);
+    const unreadBadge = row.querySelector('.dialog-unread-count');
+    if (unreadBadge) {
+      unreadBadge.textContent = count;
+      unreadBadge.classList.toggle('d-none', count <= 0);
+    }
+  }
+
+  function updateDialogUnreadCount(unreadCount) {
+    const count = Number(unreadCount) || 0;
+    if (detailsUnreadCount) {
+      detailsUnreadCount.textContent = count;
+      detailsUnreadCount.classList.toggle('d-none', count <= 0);
+    }
+    setRowUnreadCount(activeDialogRow, count);
+  }
+
   function updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount = 0) {
     if (!row) return;
     row.dataset.status = statusLabel;
@@ -1511,12 +1577,7 @@
         badge.classList.add('bg-primary-subtle', 'text-primary');
       }
     }
-    const unreadBadge = row.querySelector('.dialog-unread-count');
-    if (unreadBadge) {
-      const count = Number(unreadCount) || 0;
-      unreadBadge.textContent = count;
-      unreadBadge.classList.toggle('d-none', count <= 0);
-    }
+    setRowUnreadCount(row, unreadCount);
   }
 
   function formatStatusLabel(raw, fallback, statusKey) {
@@ -1556,6 +1617,7 @@
     activeDialogTicketId = ticketId;
     activeDialogRow = fallbackRow || null;
     activeDialogChannelId = fallbackRow?.dataset?.channelId || null;
+    updateDialogUnreadCount(Number(fallbackRow?.dataset?.unread) || 0);
     if (detailsMeta) {
       const fallbackRequestNumber = fallbackRow?.dataset?.requestNumber || '';
       detailsMeta.textContent = formatDialogMeta(ticketId, fallbackRequestNumber);
@@ -1680,7 +1742,7 @@
           }
           const fieldAttr = label === 'Категории' ? ' data-summary-field="categories"' : '';
           const valueMarkup = label === 'Категории'
-            ? `<span class="text-dark" data-summary-value>${escapeHtml(safeValue)}</span>`
+            ? `<span data-summary-value>${renderCategoryBadges(safeValue)}</span>`
             : renderedValue;
           return `
           <div class="d-flex justify-content-between gap-2"${fieldAttr}>
@@ -1725,6 +1787,7 @@
       if (statusRaw || statusKey) {
         updateRowStatus(activeDialogRow, statusRaw, statusLabel, statusKey, summary.unreadCount);
       }
+      updateDialogUnreadCount(0);
     } catch (error) {
       if (detailsSummary) {
         detailsSummary.innerHTML = `<div class="text-danger">Не удалось загрузить детали: ${error.message}</div>`;
