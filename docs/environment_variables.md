@@ -41,7 +41,7 @@
 
 ```bash
 export TELEGRAM_BOT_TOKEN="123:ABC"
-export APP_DB_TICKETS="/srv/bender/tickets.db"
-export APP_DB_CLIENTS="/srv/bender/clients.db"
-export APP_BOT_DATABASE_DIR="/srv/bender/bots"
+export APP_DB_TICKETS="/srv/iguana/tickets.db"
+export APP_DB_CLIENTS="/srv/iguana/clients.db"
+export APP_BOT_DATABASE_DIR="/srv/iguana/bots"
 ```
