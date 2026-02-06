@@ -650,6 +650,13 @@
                 if (clientUsernameDisplay && payload.username) {
                     clientUsernameDisplay.textContent = payload.username;
                 }
+                if (payload.avatar_updated && avatarImg) {
+                    const src = avatarImg.getAttribute('src')?.split('?')[0] || avatarImg.src;
+                    const fullSrc = avatarImg.dataset.fullsrc?.split('?')[0] || avatarImg.dataset.fullsrc || src;
+                    const cacheKey = `?v=${Date.now()}`;
+                    avatarImg.src = `${src}${cacheKey}`;
+                    avatarImg.dataset.fullsrc = `${fullSrc}${cacheKey}`;
+                }
                 const level = payload.level || 'success';
                 const message = payload.message || 'Данные обновлены.';
                 showNotification(message, level);
