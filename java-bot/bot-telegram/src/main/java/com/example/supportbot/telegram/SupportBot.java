@@ -405,7 +405,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
         int rating = Integer.parseInt(text);
         feedbackService.storeFeedback(pendingOpt.get(), rating);
-        String response = "Спасибо за оценку";
+        String response = botSettingsService.ratingResponseFor(settings, rating).orElse("Спасибо за оценку!");
         SendMessage confirmation = SendMessage.builder()
                 .chatId(message.getChatId())
                 .text(response)
@@ -1592,3 +1592,4 @@ public class SupportBot extends TelegramLongPollingBot {
         return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
+
