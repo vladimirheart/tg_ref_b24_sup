@@ -290,17 +290,18 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         sessions.remove(session.userId());
         Channel channel = getChannel();
         TicketService.TicketCreationResult result = ticketService.createTicket(session.userId(), null, session.answers(), channel);
+        String requestNumber = result.groupMessageId() != null ? result.groupMessageId().toString() : result.ticketId();
         log.info("Created VK ticket {} for user {}", result.ticketId(), session.userId());
         for (HistoryEvent event : session.history()) {
             chatHistoryService.storeEntry(event.userId().longValue(), null, channel, result.ticketId(), event.text(), event.messageType(), event.attachment());
         }
-        sendText(actor, session.peerId(), "Спасибо! Заявка отправлена оператору.");
+        sendText(actor, session.peerId(), "Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору.");
         if (properties.getChannelId() != null && properties.getChannelId() > 0) {
             sendText(actor, properties.getChannelId().intValue(), session.buildSummary(result.ticketId()));
         }
         int scale = botSettingsService.ratingScale(session.settings(), 5);
         String prompt = botSettingsService.ratingPrompt(session.settings(), "Оцените заявку {ticket_id} по шкале 1-{scale}")
-                .replace("{ticket_id}", result.ticketId())
+                .replace("{ticket_id}", requestNumber)
                 .replace("{scale}", Integer.toString(scale));
         sendText(actor, session.peerId(), prompt);
     }
