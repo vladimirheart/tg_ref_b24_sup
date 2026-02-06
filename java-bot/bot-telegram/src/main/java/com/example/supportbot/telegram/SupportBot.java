@@ -310,7 +310,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         TicketService.TicketWithUser ticket = ticketOpt.get();
-        if (ticket.status() != null && ticket.status().equalsIgnoreCase("closed")) {
+        if (isClosedStatus(ticket.status())) {
             ticketService.reopenTicket(ticket.ticketId());
         }
         SendMessage toClient = SendMessage.builder()
@@ -354,6 +354,13 @@ public class SupportBot extends TelegramLongPollingBot {
 
         String ticketId = extractTicketId(candidateText);
         return new TicketReference(ticketId, candidateText, null);
+    }
+
+    private boolean isClosedStatus(String status) {
+        if (status == null) {
+            return false;
+        }
+        return status.equalsIgnoreCase("closed") || status.equalsIgnoreCase("resolved");
     }
 
     private String extractTicketId(String text) {
@@ -596,7 +603,7 @@ public class SupportBot extends TelegramLongPollingBot {
             notifyNoActiveDialog(message);
             return true;
         }
-        if (ticketDetails.get().status() != null && ticketDetails.get().status().equalsIgnoreCase("closed")) {
+        if (isClosedStatus(ticketDetails.get().status())) {
             notifyClosedDialog(message);
             return true;
         }
