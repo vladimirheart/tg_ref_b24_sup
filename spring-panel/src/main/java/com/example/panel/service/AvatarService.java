@@ -30,7 +30,10 @@ public class AvatarService {
         this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
-    public ResponseEntity<Resource> loadAvatar(Authentication authentication, long userId, boolean full) throws IOException {
+    public ResponseEntity<Resource> loadAvatar(Authentication authentication,
+                                               long userId,
+                                               boolean full,
+                                               boolean allowFallback) throws IOException {
         requireAuthority(authentication, "PAGE_CLIENTS");
         Path primary = resolveAvatarPath(userId, full);
         Path fallback = resolveAvatarPath(userId, !full);
@@ -40,6 +43,9 @@ public class AvatarService {
         }
         if (Files.isRegularFile(fallback)) {
             return buildResponse(fallback);
+        }
+        if (!allowFallback) {
+            return ResponseEntity.notFound().build();
         }
 
         Resource defaultAvatar = resourceLoader.getResource("classpath:static/avatar_default.svg");
