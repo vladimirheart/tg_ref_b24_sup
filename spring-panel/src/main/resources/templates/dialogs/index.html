@@ -112,8 +112,10 @@
                         <td th:text="${dialog.displayTicketNumber()}">—</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <div class="dialog-avatar">
-                                    <span class="avatar-circle" th:text="${dialog.avatarInitial()}">—</span>
+                                <div class="dialog-avatar"
+                                     th:attr="data-avatar-user-id=${dialog.userId}, data-avatar-name=${dialog.displayClientName()}">
+                                    <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
+                                    <span class="avatar-circle" data-avatar-initial th:text="${dialog.avatarInitial()}">—</span>
                                 </div>
                                 <div>
                                     <div class="fw-semibold" th:text="${dialog.displayClientName()}">Клиент</div>
@@ -216,8 +218,9 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div class="dialog-details-header">
-                    <div class="dialog-details-avatar" aria-hidden="true">
-                        <span id="dialogDetailsAvatar">—</span>
+                    <div class="dialog-details-avatar" id="dialogDetailsAvatar" aria-hidden="true">
+                        <img class="dialog-details-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
+                        <span class="dialog-details-avatar-initial" data-avatar-initial>—</span>
                     </div>
                     <div>
                         <h5 class="modal-title mb-1">Детали диалога</h5>
@@ -241,15 +244,6 @@
                         <div class="dialog-details-section">
                             <div class="fw-semibold mb-2">Сводка</div>
                             <div class="d-flex flex-column gap-1" id="dialogDetailsSummary"></div>
-                            <div class="dialog-template-panel dialog-template-panel--summary mt-3" id="dialogCategoryTemplatesSection">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <div class="fw-semibold small">Категории обращений</div>
-                                    <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
-                                </div>
-                                <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
-                                <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
-                                <div class="form-text small mt-2">Выбор сохраняется автоматически.</div>
-                            </div>
                         </div>
                         <div class="dialog-details-section">
                             <div class="fw-semibold mb-2">Проблема</div>
@@ -329,6 +323,23 @@
                                         <button class="btn btn-sm btn-link p-0" type="button" id="dialogReplyTargetClear">Сбросить</button>
                                     </div>
                                     <div class="form-text">Сообщение будет отправлено в активный диалог клиента.</div>
+                                </div>
+                                <div class="dialog-details-section mt-3">
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                        <div class="fw-semibold">Категории обращения</div>
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" data-template-toggle="category">
+                                            Выбрать
+                                        </button>
+                                    </div>
+                                    <div class="dialog-template-panel is-open" id="dialogCategoryTemplatesSection">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="fw-semibold small">Набор категорий</div>
+                                            <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
+                                        <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
+                                        <div class="form-text small mt-2">Выбор сохраняется автоматически.</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
