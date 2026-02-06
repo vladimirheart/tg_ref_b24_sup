@@ -234,5 +234,4 @@ public class DialogApiController {
     public record DialogDeleteRequest(Long telegramMessageId) {}
 
     public record DialogCategoriesRequest(List<String> categories) {}
-}ublic record DialogDeleteRequest(Long telegramMessageId) {}
 }
