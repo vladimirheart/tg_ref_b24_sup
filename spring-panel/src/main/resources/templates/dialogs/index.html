@@ -311,6 +311,11 @@
                                         <textarea class="form-control" id="dialogReplyText" rows="2" placeholder="Введите ответ..."></textarea>
                                         <button class="btn btn-primary" type="button" id="dialogReplySend">Отправить</button>
                                     </div>
+                                    <div class="dialog-reply-target d-none" id="dialogReplyTarget">
+                                        <div class="small text-muted">Ответ на сообщение:</div>
+                                        <div class="dialog-reply-target-text" id="dialogReplyTargetText"></div>
+                                        <button class="btn btn-sm btn-link p-0" type="button" id="dialogReplyTargetClear">Сбросить</button>
+                                    </div>
                                     <div class="form-text">Сообщение будет отправлено в активный диалог клиента.</div>
                                 </div>
                             </div>
@@ -336,7 +341,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <video class="w-100" id="dialogMediaPreviewVideo" controls></video>
+                <video class="w-100 d-none" id="dialogMediaPreviewVideo" controls></video>
+                <img class="w-100 d-none dialog-media-preview-image" id="dialogMediaPreviewImage" alt="Просмотр изображения">
+            </div>
+            <div class="modal-footer">
+                <div class="btn-group d-none" id="dialogMediaImageControls" role="group" aria-label="Управление изображением">
+                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomOut">Уменьшить</button>
+                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomIn">Увеличить</button>
+                </div>
+                <a class="btn btn-outline-primary d-none" href="#" id="dialogMediaDownloadLink" download target="_blank" rel="noopener">Скачать</a>
             </div>
         </div>
     </div>
