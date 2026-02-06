@@ -1,2 +1,2 @@
-ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS ticket_id TEXT;
-ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS channel_id BIGINT;
+ALTER TABLE feedbacks ADD COLUMN ticket_id TEXT;
+ALTER TABLE feedbacks ADD COLUMN channel_id BIGINT;
