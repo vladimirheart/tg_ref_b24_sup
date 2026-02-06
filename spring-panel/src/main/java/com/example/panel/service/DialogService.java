@@ -295,7 +295,13 @@ public class DialogService {
         assignResponsibleIfMissing(ticketId, operator);
         try {
             jdbcTemplate.update(
-                    "UPDATE ticket_responsibles SET last_read_at = CURRENT_TIMESTAMP WHERE ticket_id = ? AND responsible = ?",
+                    "UPDATE ticket_responsibles "
+                            + "SET last_read_at = COALESCE("
+                            + "    (SELECT MAX(timestamp) FROM chat_history WHERE ticket_id = ?),"
+                            + "    CURRENT_TIMESTAMP"
+                            + ") "
+                            + "WHERE ticket_id = ? AND responsible = ?",
+                    ticketId,
                     ticketId,
                     operator
             );
