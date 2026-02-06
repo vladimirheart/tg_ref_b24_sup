@@ -1231,9 +1231,10 @@ public class SupportBot extends TelegramLongPollingBot {
             }
         }
 
+        String requestNumber = ticket.groupMessageId() != null ? ticket.groupMessageId().toString() : ticket.ticketId();
         SendMessage confirmation = SendMessage.builder()
                 .chatId(session.chatId())
-                .text("Спасибо! Ваше обращение №" + ticket.ticketId() + " отправлено оператору. Мы свяжемся с вами после обработки.")
+                .text("Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору. Мы свяжемся с вами после обработки.")
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -1545,3 +1546,4 @@ public class SupportBot extends TelegramLongPollingBot {
         return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
+
