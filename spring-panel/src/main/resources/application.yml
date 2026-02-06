@@ -16,7 +16,7 @@ spring:
       - classpath:db/migration/sqlite
     baseline-on-migrate: true
     baseline-version: 0
-    out-of-order: true
+    out-of-order: false
     placeholders:
       autoIncrement: AUTOINCREMENT
 
@@ -67,4 +67,5 @@ logging:
   level:
     # Suppress noisy stack traces when HTTPS traffic accidentally hits the HTTP port
     org.apache.coyote.http11.Http11Processor: WARN
+
 
