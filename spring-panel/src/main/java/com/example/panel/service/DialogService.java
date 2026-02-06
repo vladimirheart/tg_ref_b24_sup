@@ -506,12 +506,59 @@ public class DialogService {
             );
             if (updated > 0) {
                 setTicketCategories(ticketId, normalizedCategories);
+                ensurePendingFeedbackRequest(ticketId, resolvedBy);
             }
             return new ResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
             log.warn("Unable to resolve ticket {}: {}", ticketId, ex.getMessage());
             return new ResolveResult(false, false, null);
         }
+    }
+
+    private void ensurePendingFeedbackRequest(String ticketId, String resolvedBy) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        String source = "operator_close";
+        if (StringUtils.hasText(resolvedBy) && "Авто-система".equalsIgnoreCase(resolvedBy.trim())) {
+            source = "auto_close";
+        }
+        try {
+            int updated = jdbcTemplate.update(
+                    "UPDATE pending_feedback_requests "
+                            + "SET expires_at = datetime('now', '+1 day'), source = ? "
+                            + "WHERE ticket_id = ?",
+                    source,
+                    ticketId
+            );
+            if (updated > 0) {
+                return;
+            }
+            TicketOwner owner = jdbcTemplate.query(
+                    "SELECT user_id, channel_id FROM tickets WHERE ticket_id = ?",
+                    rs -> rs.next()
+                            ? new TicketOwner(rs.getLong("user_id"), rs.getLong("channel_id"))
+                            : null,
+                    ticketId
+            );
+            if (owner == null) {
+                return;
+            }
+            jdbcTemplate.update(
+                    "INSERT INTO pending_feedback_requests "
+                            + "(user_id, channel_id, ticket_id, source, created_at, expires_at) "
+                            + "VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 day'))",
+                    owner.userId,
+                    owner.channelId,
+                    ticketId,
+                    source
+            );
+        } catch (DataAccessException ex) {
+            log.warn("Unable to ensure pending feedback request for ticket {}: {}", ticketId, ex.getMessage());
+        }
+    }
+
+    private record TicketOwner(long userId, long channelId) {
     }
 
     public ResolveResult reopenTicket(String ticketId, String operator) {
@@ -632,3 +679,4 @@ public class DialogService {
     public record ResolveResult(boolean updated, boolean exists, String error) {
     }
 }
+
