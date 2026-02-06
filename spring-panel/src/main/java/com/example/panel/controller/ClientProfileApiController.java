@@ -246,7 +246,7 @@ public class ClientProfileApiController {
     }
 
     private Optional<ExternalUserInfo> loadExternalUserInfo(JdbcTemplate template, long userId) {
-        for (String table : List.of("bot_users", "users")) {
+        for (String table : List.of("bot_users", "users", "messages")) {
             Set<String> columns = loadTableColumns(template, table);
             if (columns.isEmpty()) {
                 continue;
@@ -259,10 +259,24 @@ public class ClientProfileApiController {
             boolean hasFirstName = columns.contains("first_name");
             boolean hasLastName = columns.contains("last_name");
             boolean hasFullName = columns.contains("full_name");
-            if (!hasUsername && !hasFirstName && !hasLastName && !hasFullName) {
+            boolean hasClientName = columns.contains("client_name");
+            if (!hasUsername && !hasFirstName && !hasLastName && !hasFullName && !hasClientName) {
                 continue;
             }
-            Optional<ExternalUserInfo> info = queryExternalUserInfo(template, table, idColumn, hasUsername, hasFirstName, hasLastName, hasFullName, userId);
+            Optional<ExternalUserInfo> info = queryExternalUserInfo(
+                template,
+                table,
+                idColumn,
+                hasUsername,
+                hasFirstName,
+                hasLastName,
+                hasFullName,
+                hasClientName,
+                columns.contains("created_at"),
+                columns.contains("created_date"),
+                columns.contains("created_time"),
+                userId
+            );
             if (info.isPresent()) {
                 return info;
             }
@@ -277,6 +291,10 @@ public class ClientProfileApiController {
                                                              boolean hasFirstName,
                                                              boolean hasLastName,
                                                              boolean hasFullName,
+                                                             boolean hasClientName,
+                                                             boolean hasCreatedAt,
+                                                             boolean hasCreatedDate,
+                                                             boolean hasCreatedTime,
                                                              long userId) {
         List<String> selectColumns = new ArrayList<>();
         if (hasUsername) {
@@ -291,11 +309,42 @@ public class ClientProfileApiController {
         if (hasFullName) {
             selectColumns.add("full_name");
         }
-        String sql = "SELECT " + String.join(", ", selectColumns) +
-            " FROM " + table + " WHERE " + idColumn + " = ?";
+        if (hasClientName) {
+            selectColumns.add("client_name");
+        }
+        StringBuilder sql = new StringBuilder("SELECT ");
+        sql.append(String.join(", ", selectColumns));
+        sql.append(" FROM ").append(table).append(" WHERE ").append(idColumn).append(" = ?");
+        List<String> nonEmptyChecks = new ArrayList<>();
+        if (hasUsername) {
+            nonEmptyChecks.add("username IS NOT NULL AND username != ''");
+        }
+        if (hasFirstName) {
+            nonEmptyChecks.add("first_name IS NOT NULL AND first_name != ''");
+        }
+        if (hasLastName) {
+            nonEmptyChecks.add("last_name IS NOT NULL AND last_name != ''");
+        }
+        if (hasFullName) {
+            nonEmptyChecks.add("full_name IS NOT NULL AND full_name != ''");
+        }
+        if (hasClientName) {
+            nonEmptyChecks.add("client_name IS NOT NULL AND client_name != ''");
+        }
+        if (!nonEmptyChecks.isEmpty()) {
+            sql.append(" AND (").append(String.join(" OR ", nonEmptyChecks)).append(")");
+        }
+        if ("messages".equals(table)) {
+            if (hasCreatedAt) {
+                sql.append(" ORDER BY created_at DESC");
+            } else if (hasCreatedDate && hasCreatedTime) {
+                sql.append(" ORDER BY created_date DESC, created_time DESC");
+            }
+        }
+        sql.append(" LIMIT 1");
         try {
             ExternalUserInfo info = template.query(
-                sql,
+                sql.toString(),
                 rs -> {
                     if (!rs.next()) {
                         return null;
@@ -304,14 +353,27 @@ public class ClientProfileApiController {
                     String fullName = hasFullName ? rs.getString("full_name") : null;
                     String firstName = hasFirstName ? rs.getString("first_name") : null;
                     String lastName = hasLastName ? rs.getString("last_name") : null;
-                    String combinedName = StringUtils.hasText(fullName)
-                        ? fullName.trim()
-                        : String.join(" ",
-                            firstName != null ? firstName.trim() : "",
-                            lastName != null ? lastName.trim() : ""
-                        ).trim();
-                    String clientName = StringUtils.hasText(combinedName) ? combinedName : null;
-                    return new ExternalUserInfo(username, clientName);
+                    String clientName = null;
+                    if (hasClientName) {
+                        String rawClientName = rs.getString("client_name");
+                        if (StringUtils.hasText(rawClientName)) {
+                            clientName = rawClientName.trim();
+                        }
+                    }
+                    if (clientName == null) {
+                        String combinedName = StringUtils.hasText(fullName)
+                            ? fullName.trim()
+                            : String.join(" ",
+                                firstName != null ? firstName.trim() : "",
+                                lastName != null ? lastName.trim() : ""
+                            ).trim();
+                        clientName = StringUtils.hasText(combinedName) ? combinedName : null;
+                    }
+                    String trimmedUsername = StringUtils.hasText(username) ? username.trim() : null;
+                    if (trimmedUsername == null && clientName == null) {
+                        return null;
+                    }
+                    return new ExternalUserInfo(trimmedUsername, clientName);
                 },
                 userId
             );
