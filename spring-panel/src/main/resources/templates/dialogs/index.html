@@ -79,6 +79,7 @@
                         <th data-column-key="business">Бизнес</th>
                         <th data-column-key="problem">Проблема</th>
                         <th data-column-key="location">Локация</th>
+                        <th data-column-key="categories">Категории</th>
                         <th data-column-key="responsible">Ответственный</th>
                         <th data-column-key="created">Дата</th>
                         <th data-column-key="actions">Действия</th>
@@ -86,12 +87,13 @@
                     </thead>
                     <tbody>
                     <tr th:if="${#lists.isEmpty(dialogs)}">
-                        <td colspan="10" class="text-center text-muted py-4">Диалоги не найдены</td>
+                        <td colspan="11" class="text-center text-muted py-4">Диалоги не найдены</td>
                     </tr>
                     <tr th:each="dialog : ${dialogs}"
                         th:data-ticket-id="${dialog.ticketId}"
                         th:data-client="${dialog.displayClientName()}"
                         th:data-client-status="${dialog.clientStatusLabel()}"
+                        th:data-user-id="${dialog.userId()}"
                         th:data-channel-id="${dialog.channelId()}"
                         th:data-channel="${dialog.channelLabel()}"
                         th:data-business="${dialog.businessLabel()}"
@@ -100,6 +102,7 @@
                         th:data-status-raw="${dialog.status()}"
                         th:data-status-key="${dialog.statusKey()}"
                         th:data-location="${dialog.location()}"
+                        th:data-categories="${dialog.categoriesSafe()}"
                         th:data-responsible="${dialog.responsible()}"
                         th:data-created-at="${dialog.createdAt()}"
                         th:data-unread="${dialog.unreadCount()}"
@@ -133,6 +136,7 @@
                         </td>
                         <td class="text-truncate" style="max-width: 260px;" th:text="${dialog.problemSafe()}">—</td>
                         <td th:text="${dialog.location()} ?: '—'">—</td>
+                        <td th:text="${dialog.categoriesSafe()}">—</td>
                         <td th:text="${dialog.responsible()} ?: '—'">—</td>
                         <td>
                             <div class="small text-muted" th:text="${dialog.createdDateSafe()}">—</div>
@@ -215,6 +219,7 @@
                     <div>
                         <h5 class="modal-title mb-1">Детали диалога</h5>
                         <div class="text-muted small" id="dialogDetailsMeta"></div>
+                        <div class="small text-muted" id="dialogDetailsCategories">Категории: —</div>
                         <div class="small">
                             <span class="fw-semibold" id="dialogDetailsClientName">—</span>
                             <span class="text-muted" id="dialogDetailsClientStatus">—</span>
