@@ -45,6 +45,14 @@
   const emojiList = document.getElementById('dialogEmojiList');
   const mediaPreviewModalEl = document.getElementById('dialogMediaPreviewModal');
   const mediaPreviewVideo = document.getElementById('dialogMediaPreviewVideo');
+  const mediaPreviewImage = document.getElementById('dialogMediaPreviewImage');
+  const mediaPreviewImageControls = document.getElementById('dialogMediaImageControls');
+  const mediaPreviewZoomOut = document.getElementById('dialogMediaZoomOut');
+  const mediaPreviewZoomIn = document.getElementById('dialogMediaZoomIn');
+  const mediaPreviewDownloadLink = document.getElementById('dialogMediaDownloadLink');
+  const replyTarget = document.getElementById('dialogReplyTarget');
+  const replyTargetText = document.getElementById('dialogReplyTargetText');
+  const replyTargetClear = document.getElementById('dialogReplyTargetClear');
   const categoryTemplatesSection = document.getElementById('dialogCategoryTemplatesSection');
   const categoryTemplateSelect = document.getElementById('dialogCategoryTemplateSelect');
   const categoryTemplateList = document.getElementById('dialogCategoryTemplateList');
@@ -125,6 +133,7 @@
   let activeAudioSource = null;
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
+  let mediaImageScale = 1;
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -291,6 +300,85 @@
     return 'bg-primary-subtle text-primary';
   }
 
+  function resetReplyTarget() {
+    activeReplyToTelegramId = null;
+    if (replyTarget) {
+      replyTarget.classList.add('d-none');
+    }
+    if (replyTargetText) {
+      replyTargetText.textContent = '';
+    }
+    if (detailsReplyText) {
+      detailsReplyText.placeholder = 'Введите ответ...';
+    }
+  }
+
+  function setReplyTarget(messageId, preview) {
+    activeReplyToTelegramId = messageId;
+    if (detailsReplyText) {
+      detailsReplyText.placeholder = `Ответ на сообщение #${messageId}`;
+    }
+    if (replyTarget) {
+      replyTarget.classList.remove('d-none');
+    }
+    if (replyTargetText) {
+      const safePreview = String(preview || '').trim();
+      replyTargetText.textContent = safePreview || `Сообщение #${messageId}`;
+    }
+  }
+
+  function resetMediaPreview() {
+    mediaImageScale = 1;
+    if (mediaPreviewImage) {
+      mediaPreviewImage.style.transform = 'scale(1)';
+      mediaPreviewImage.removeAttribute('src');
+      mediaPreviewImage.classList.add('d-none');
+    }
+    if (mediaPreviewVideo) {
+      mediaPreviewVideo.pause();
+      mediaPreviewVideo.removeAttribute('src');
+      mediaPreviewVideo.load();
+      mediaPreviewVideo.classList.add('d-none');
+    }
+    if (mediaPreviewImageControls) {
+      mediaPreviewImageControls.classList.add('d-none');
+    }
+    if (mediaPreviewDownloadLink) {
+      mediaPreviewDownloadLink.classList.add('d-none');
+      mediaPreviewDownloadLink.setAttribute('href', '#');
+    }
+  }
+
+  function showImagePreview(src, name) {
+    if (!src || !mediaPreviewModal || !mediaPreviewImage) return;
+    resetMediaPreview();
+    mediaPreviewImage.src = src;
+    mediaPreviewImage.alt = name || 'Изображение';
+    mediaPreviewImage.classList.remove('d-none');
+    if (mediaPreviewImageControls) {
+      mediaPreviewImageControls.classList.remove('d-none');
+    }
+    if (mediaPreviewDownloadLink) {
+      mediaPreviewDownloadLink.classList.remove('d-none');
+      mediaPreviewDownloadLink.setAttribute('href', src);
+      mediaPreviewDownloadLink.setAttribute('download', name || 'image');
+    }
+    mediaPreviewModal.show();
+  }
+
+  function showVideoPreview(src) {
+    if (!src || !mediaPreviewModal || !mediaPreviewVideo) return;
+    resetMediaPreview();
+    mediaPreviewVideo.src = src;
+    mediaPreviewVideo.classList.remove('d-none');
+    mediaPreviewVideo.play().catch(() => {});
+    if (mediaPreviewDownloadLink) {
+      mediaPreviewDownloadLink.classList.remove('d-none');
+      mediaPreviewDownloadLink.setAttribute('href', src);
+      mediaPreviewDownloadLink.setAttribute('download', 'video');
+    }
+    mediaPreviewModal.show();
+  }
 
   function escapeSelectorValue(value) {
     if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -1036,7 +1124,7 @@
     if (kind === 'video') {
       return `
         <div class="chat-media">
-          <video class="chat-media-preview video" src="${message.attachment}" data-video-src="${message.attachment}" muted playsinline preload="metadata"></video>
+          <video class="chat-media-preview video" src="${message.attachment}" data-video-src="${message.attachment}" data-media-name="${name}" muted playsinline preload="metadata"></video>
           <div class="chat-media-actions">
             ${downloadLink}
             <span class="chat-media-file-name">${name}</span>
@@ -1047,7 +1135,7 @@
     if (kind === 'animation') {
       const isGif = /\.gif($|\?)/i.test(message.attachment);
       const preview = isGif
-        ? `<img class=\"chat-media-preview\" src=\"${message.attachment}\" alt=\"${name}\">`
+        ? `<img class=\"chat-media-preview\" src=\"${message.attachment}\" alt=\"${name}\" data-image-src=\"${message.attachment}\" data-media-name=\"${name}\">`
         : `<video class=\"chat-media-preview\" src=\"${message.attachment}\" autoplay loop muted playsinline></video>`;
       return `
         <div class="chat-media">
@@ -1062,7 +1150,7 @@
     if (kind === 'image') {
       return `
         <div class="chat-media">
-          <img class="chat-media-preview" src="${message.attachment}" alt="${name}">
+          <img class="chat-media-preview" src="${message.attachment}" alt="${name}" data-image-src="${message.attachment}" data-media-name="${name}">
           <div class="chat-media-actions">
             ${downloadLink}
             <span class="chat-media-file-name">${name}</span>
@@ -1088,7 +1176,7 @@
     const isEdited = Boolean(message?.editedAt);
     const isSupport = senderType === 'support';
     const replyPreview = message?.replyPreview
-      ? `<div class="small text-muted border-start ps-2 mb-1">↪ ${escapeHtml(message.replyPreview)}</div>`
+      ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
       : '';
     const forwardedBadge = message?.forwardedFrom
       ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
@@ -1104,11 +1192,12 @@
       isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : ''
     ].join(' ');
     const media = isDeleted ? '' : buildMediaMarkup(message);
-    const actionButtons = isSupport && message?.telegramMessageId
+    const canReply = senderType !== 'system' && message?.telegramMessageId;
+    const actionButtons = canReply
       ? `<div class="chat-message-actions mt-2">
           <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
-          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>
-          <button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>
+          ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
+          ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
         </div>`
       : '';
 
@@ -1121,7 +1210,7 @@
         ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
         ${forwardedBadge}
         ${replyPreview}
-        <div>${body}</div>
+        <div class="chat-message-body">${body}</div>
         ${originalBlock}
         ${media}
         ${actionButtons}
@@ -1526,8 +1615,7 @@
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         detailsReplyText.value = '';
-        activeReplyToTelegramId = null;
-        detailsReplyText.placeholder = 'Введите ответ...';
+        resetReplyTarget();
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         appendHistoryMessage({
           sender: data.responsible || 'Оператор',
@@ -1621,10 +1709,13 @@
       if (!Number.isFinite(messageId)) return;
       const action = button.dataset.action;
       if (action === 'reply') {
-        activeReplyToTelegramId = messageId;
+        const messageNode = button.closest('.chat-message');
+        const previewText = messageNode?.querySelector('.chat-message-reply-source')?.textContent
+          || messageNode?.querySelector('.chat-message-body')?.textContent
+          || '';
+        setReplyTarget(messageId, previewText);
         if (detailsReplyText) {
           detailsReplyText.focus();
-          detailsReplyText.placeholder = `Ответ на сообщение #${messageId}`;
         }
         return;
       }
@@ -1748,6 +1839,7 @@
       activeDialogRow = null;
       if (detailsReplyText) detailsReplyText.value = '';
       if (detailsReplyMedia) detailsReplyMedia.value = '';
+      resetReplyTarget();
       selectedCategories = new Set();
       stopHistoryPolling();
     });
@@ -1796,6 +1888,33 @@
     });
     detailsReplyMedia.addEventListener('change', () => {
       sendMediaFiles(detailsReplyMedia.files);
+    });
+  }
+
+  if (replyTargetClear) {
+    replyTargetClear.addEventListener('click', () => {
+      resetReplyTarget();
+      if (detailsReplyText) {
+        detailsReplyText.focus();
+      }
+    });
+  }
+
+  if (mediaPreviewZoomIn) {
+    mediaPreviewZoomIn.addEventListener('click', () => {
+      mediaImageScale = Math.min(3, mediaImageScale + 0.2);
+      if (mediaPreviewImage) {
+        mediaPreviewImage.style.transform = `scale(${mediaImageScale})`;
+      }
+    });
+  }
+
+  if (mediaPreviewZoomOut) {
+    mediaPreviewZoomOut.addEventListener('click', () => {
+      mediaImageScale = Math.max(0.4, mediaImageScale - 0.2);
+      if (mediaPreviewImage) {
+        mediaPreviewImage.style.transform = `scale(${mediaImageScale})`;
+      }
     });
   }
 
@@ -1859,22 +1978,25 @@
         });
         return;
       }
+      const imagePreview = event.target.closest('[data-image-src]');
+      if (imagePreview) {
+        const src = imagePreview.dataset.imageSrc;
+        if (!src) return;
+        showImagePreview(src, imagePreview.dataset.mediaName || 'image');
+        return;
+      }
       const videoPreview = event.target.closest('[data-video-src]');
-      if (videoPreview && mediaPreviewModal && mediaPreviewVideo) {
+      if (videoPreview) {
         const src = videoPreview.dataset.videoSrc;
         if (!src) return;
-        mediaPreviewVideo.src = src;
-        mediaPreviewVideo.play().catch(() => {});
-        mediaPreviewModal.show();
+        showVideoPreview(src);
       }
     });
   }
 
-  if (mediaPreviewModalEl && mediaPreviewVideo) {
+  if (mediaPreviewModalEl) {
     mediaPreviewModalEl.addEventListener('hidden.bs.modal', () => {
-      mediaPreviewVideo.pause();
-      mediaPreviewVideo.removeAttribute('src');
-      mediaPreviewVideo.load();
+      resetMediaPreview();
     });
   }
 
