@@ -81,6 +81,8 @@ body {
     max-width: 80%;
     word-break: break-word;
     align-self: flex-start;
+    position: relative;
+    font-size: var(--dialog-font-size, 0.95rem);
 }
 
 .chat-message.user { background: #e8f1ff; margin-right: auto; }
@@ -102,10 +104,72 @@ body {
     gap: 0.5rem;
     flex-wrap: wrap;
 }
+
+.chat-message-menu {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    z-index: 2;
+}
+
+.chat-message-menu-toggle {
+    border: none;
+    background: rgba(108, 117, 125, 0.1);
+    color: #343a40;
+    width: 28px;
+    height: 28px;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    opacity: 0.4;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.chat-message-menu-toggle:hover,
+.chat-message-menu-toggle:focus,
+.chat-message-menu.is-open .chat-message-menu-toggle,
+.chat-message-menu:hover .chat-message-menu-toggle {
+    opacity: 1;
+    background: rgba(108, 117, 125, 0.2);
+}
+
+.chat-message-menu-list {
+    margin-top: 0.35rem;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.12);
+    padding: 0.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 140px;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.chat-message-menu.is-open .chat-message-menu-list,
+.chat-message-menu:hover .chat-message-menu-list {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.chat-message-menu-list .btn {
+    text-align: left;
+}
 .chat-history {
     max-height: 400px;
     overflow-y: auto;
     align-items: flex-start;
+    font-size: var(--dialog-font-size, 0.95rem);
 }
 
 .chat-message-header {
@@ -185,6 +249,30 @@ body {
     align-items: center;
 }
 
+.dialog-composer-input {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.dialog-composer-textarea {
+    position: relative;
+    flex: 1 1 auto;
+}
+
+.dialog-composer-textarea textarea {
+    padding-right: 6.5rem;
+}
+
+.dialog-composer-overlay {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    display: flex;
+    gap: 0.4rem;
+    pointer-events: auto;
+}
+
 .dialog-template-icon {
     border: 1px solid #ced4da;
     background: #fff;
@@ -197,11 +285,13 @@ body {
     font-size: 1rem;
     cursor: pointer;
     position: relative;
+    opacity: 0.7;
 }
 
 .dialog-template-icon:hover {
     background: #e7f1ff;
     border-color: #86b7fe;
+    opacity: 1;
 }
 
 .dialog-template-icon[data-tooltip]:hover::after {
@@ -235,6 +325,10 @@ body {
 }
 
 .dialog-template-panel.is-open {
+    display: block;
+}
+
+.dialog-template-panel--summary {
     display: block;
 }
 
@@ -420,8 +514,28 @@ body {
 }
 
 .dialog-details-composer textarea {
-  resize: vertical;
-  min-height: 60px;
+    resize: vertical;
+    min-height: 60px;
+}
+
+.dialog-font-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.dialog-font-control input[type="range"] {
+  width: 120px;
+}
+
+#dialogDetailsModal .modal-dialog {
+  resize: both;
+  overflow: auto;
+  min-width: 640px;
+  min-height: 420px;
+  max-width: 95vw;
+  max-height: 95vh;
 }
 
 .dialog-details-problem {
