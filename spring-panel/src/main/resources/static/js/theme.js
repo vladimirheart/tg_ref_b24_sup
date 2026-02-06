@@ -1,6 +1,6 @@
 // panel/static/theme.js
 (function () {
-  const STORAGE_KEY = 'bender:theme';
+  const STORAGE_KEY = 'iguana:theme';
   const root = document.documentElement;
   const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
@@ -57,7 +57,7 @@
     apply: applyTheme,
   };
 
-  window.BenderTheme = api;
+  window.iguanaTheme = api;
 
   if (media && media.addEventListener) {
     media.addEventListener('change', () => {
