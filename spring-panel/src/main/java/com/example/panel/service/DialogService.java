@@ -81,6 +81,11 @@ public class DialogService {
                                      ch.id DESC
                             LIMIT 1
                        ) AS last_sender_time,
+                       (
+                           SELECT GROUP_CONCAT(tc.category, ', ')
+                             FROM ticket_categories tc
+                            WHERE tc.ticket_id = m.ticket_id
+                       ) AS categories,
                        CASE
                            WHEN tr.responsible = ? THEN (
                                SELECT COUNT(*)
@@ -131,7 +136,8 @@ public class DialogService {
                     rs.getString("client_status"),
                     rs.getString("last_sender"),
                     rs.getString("last_sender_time"),
-                    rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0
+                    rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0,
+                    rs.getString("categories")
             ), currentOperator);
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialogs, returning empty list: {}", ex.getMessage());
@@ -167,6 +173,11 @@ public class DialogService {
                                          ch.id DESC
                                 LIMIT 1
                            ) AS last_sender_time,
+                           (
+                               SELECT GROUP_CONCAT(tc.category, ', ')
+                                 FROM ticket_categories tc
+                                WHERE tc.ticket_id = m.ticket_id
+                           ) AS categories,
                            (
                                SELECT COUNT(*)
                                  FROM chat_history ch
@@ -220,7 +231,8 @@ public class DialogService {
                     rs.getString("client_status"),
                     rs.getString("last_sender"),
                     rs.getString("last_sender_time"),
-                    rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0
+                    rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0,
+                    rs.getString("categories")
             ), ticketId);
             return items.isEmpty() ? Optional.empty() : Optional.of(items.get(0));
         } catch (DataAccessException ex) {
