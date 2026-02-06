@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.NavigationService;
@@ -45,7 +46,13 @@ public class DashboardController {
             var dialogs = dialogService.loadDialogs(authentication != null ? authentication.getName() : null);
             model.addAttribute("summary", summary);
             model.addAttribute("dialogs", dialogs);
-            model.addAttribute("restaurants", List.of());
+            List<String> restaurants = dialogs.stream()
+                    .map(DialogListItem::locationName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .distinct()
+                    .sorted()
+                    .toList();
+            model.addAttribute("restaurants", restaurants);
             log.info("Rendering dashboard for user {} with {} dialogs", authentication != null ? authentication.getName() : "unknown", dialogs.size());
         } catch (Exception ex) {
             log.error("Failed to render dashboard for user {}", authentication != null ? authentication.getName() : "unknown", ex);
@@ -54,4 +61,3 @@ public class DashboardController {
         return "dashboard/index";
     }
 }
-
