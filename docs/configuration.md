@@ -9,13 +9,13 @@
 ```
 TELEGRAM_BOT_TOKEN=123:ABC
 GROUP_CHAT_ID=-1001234567890
-APP_DB_TICKETS=/srv/bender/tickets.db
-APP_DB_USERS=/srv/bender/users.db
-APP_DB_CLIENTS=/srv/bender/clients.db
-APP_DB_KNOWLEDGE=/srv/bender/knowledge_base.db
-APP_DB_OBJECTS=/srv/bender/objects.db
-APP_DB_SETTINGS=/srv/bender/settings.db
-APP_BOT_DATABASE_DIR=/srv/bender/bots
+APP_DB_TICKETS=/srv/iguana/tickets.db
+APP_DB_USERS=/srv/iguana/users.db
+APP_DB_CLIENTS=/srv/iguana/clients.db
+APP_DB_KNOWLEDGE=/srv/iguana/knowledge_base.db
+APP_DB_OBJECTS=/srv/iguana/objects.db
+APP_DB_SETTINGS=/srv/iguana/settings.db
+APP_BOT_DATABASE_DIR=/srv/iguana/bots
 ```
 
 Ключевые переменные:
