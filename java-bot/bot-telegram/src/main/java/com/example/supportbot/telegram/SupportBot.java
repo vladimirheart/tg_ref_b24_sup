@@ -1204,7 +1204,17 @@ public class SupportBot extends TelegramLongPollingBot {
         String summary = session.buildSummary(ticket.ticketId());
 
         for (HistoryEvent event : session.historyEvents()) {
-            chatHistoryService.storeEntry(event.userId(), event.telegramMessageId(), channel, ticket.ticketId(), event.text(), event.messageType(), event.attachmentPath());
+            chatHistoryService.storeEntry(
+                    event.userId(),
+                    event.telegramMessageId(),
+                    channel,
+                    ticket.ticketId(),
+                    event.text(),
+                    event.messageType(),
+                    event.attachmentPath(),
+                    null,
+                    null
+            );
         }
 
         ticketService.registerActivity(ticket.ticketId(), Optional.ofNullable(session.user()).map(User::getUserName).orElse(null));
