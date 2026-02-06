@@ -26,7 +26,8 @@ public record DialogListItem(String ticketId,
                              String clientStatus,
                              String lastMessageSender,
                              String lastMessageTimestamp,
-                             Integer unreadCount) {
+                             Integer unreadCount,
+                             String categories) {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -128,6 +129,13 @@ public record DialogListItem(String ticketId,
             return resolvedBy;
         }
         return null;
+    }
+
+    public String categoriesSafe() {
+        if (categories == null || categories.isBlank()) {
+            return "—";
+        }
+        return categories;
     }
 
     public String createdDateSafe() {
