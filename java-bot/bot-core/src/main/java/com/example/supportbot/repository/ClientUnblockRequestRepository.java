@@ -10,7 +10,10 @@ import java.util.Optional;
 public interface ClientUnblockRequestRepository extends JpaRepository<ClientUnblockRequest, Long> {
     Optional<ClientUnblockRequest> findFirstByUserIdAndStatusOrderByIdDesc(String userId, String status);
 
+    Optional<ClientUnblockRequest> findFirstByUserIdOrderByIdDesc(String userId);
+
     long countByStatus(String status);
 
     List<ClientUnblockRequest> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
 }
+
