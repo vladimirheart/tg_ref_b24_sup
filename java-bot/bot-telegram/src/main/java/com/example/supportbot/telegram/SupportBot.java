@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -45,6 +46,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -177,6 +179,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
         logIncomingMessage(update, message);
 
+        boolean hasMemberEvent = message.getNewChatMembers() != null && !message.getNewChatMembers().isEmpty();
         if (!message.hasText()
                 && !message.hasDocument()
                 && !message.hasPhoto()
@@ -185,7 +188,8 @@ public class SupportBot extends TelegramLongPollingBot {
                 && !message.hasAudio()
                 && !message.hasAnimation()
                 && message.getSticker() == null
-                && message.getVideoNote() == null) {
+                && message.getVideoNote() == null
+                && !hasMemberEvent) {
             log.info("Ignoring update {} from chat {} user {}: unsupported message payload",
                     update.getUpdateId(),
                     message.getChatId(),
@@ -199,6 +203,10 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         Channel channel = getChannel();
+        if (hasMemberEvent && handleSupportChatAutoRegistration(message, channel)) {
+            log.info("Handled support chat auto-registration for chat {}", message.getChatId());
+            return;
+        }
         long userId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(0L);
         BlacklistService.BlacklistStatus status = blacklistService.getStatus(userId);
         if (status.blacklisted()) {
@@ -208,6 +216,10 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         ConversationSession session = conversations.get(userId);
+        if (message.hasText() && handleSupportChatConfirm(message, channel)) {
+            log.info("Handled support chat confirmation for chat {}", message.getChatId());
+            return;
+        }
         if (message.hasText() && tryHandleFeedback(message, channel)) {
             log.info("Handled rating feedback from user {} in update {}", userId, update.getUpdateId());
             return;
@@ -274,6 +286,139 @@ public class SupportBot extends TelegramLongPollingBot {
             log.info("Ignoring text message from user {}: {}",
                     message.getFrom() != null ? message.getFrom().getId() : null,
                     summarizeText(text));
+        }
+    }
+
+    private boolean handleSupportChatAutoRegistration(Message message, Channel channel) {
+        if (!isGroupChat(message)) {
+            return false;
+        }
+        if (channel == null) {
+            return false;
+        }
+        if (message.getNewChatMembers() == null || message.getNewChatMembers().isEmpty()) {
+            return false;
+        }
+        String botUsername = getBotUsername();
+        boolean botAdded = message.getNewChatMembers().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(member -> {
+                    String username = member.getUserName();
+                    return username != null && botUsername != null && username.equalsIgnoreCase(botUsername);
+                });
+        if (!botAdded) {
+            return false;
+        }
+        if (!isSenderAdmin(message)) {
+            log.warn("Skipping support chat auto-registration: user {} is not an admin of chat {}",
+                    message.getFrom() != null ? message.getFrom().getId() : null,
+                    message.getChatId());
+            return false;
+        }
+        String currentSupportChatId = channel.getSupportChatId();
+        String newSupportChatId = String.valueOf(message.getChatId());
+        if (currentSupportChatId != null && !currentSupportChatId.isBlank()) {
+            log.info("Support chat already configured ({}); skipping auto-registration for chat {}",
+                    currentSupportChatId,
+                    newSupportChatId);
+            return false;
+        }
+        channelService.updateSupportChatId(channel, newSupportChatId);
+        cachedChannel = channel;
+        sendSupportChatConfirmation(message.getChatId(), "Группа привязана автоматически. Уведомления будут приходить сюда.");
+        return true;
+    }
+
+    private boolean handleSupportChatConfirm(Message message, Channel channel) {
+        if (!message.hasText()) {
+            return false;
+        }
+        String command = message.getText().trim();
+        if (!isConfirmCommand(command)) {
+            return false;
+        }
+        if (!isGroupChat(message)) {
+            sendSupportChatConfirmation(message.getChatId(), "Команда /confirm работает только в группе, где должен быть бот.");
+            return true;
+        }
+        if (!isSenderAdmin(message)) {
+            sendSupportChatConfirmation(message.getChatId(), "Только администратор может подтвердить группу для уведомлений.");
+            return true;
+        }
+        String newSupportChatId = String.valueOf(message.getChatId());
+        String currentSupportChatId = channel.getSupportChatId();
+        if (newSupportChatId.equals(currentSupportChatId)) {
+            sendSupportChatConfirmation(message.getChatId(), "Эта группа уже привязана к уведомлениям.");
+            return true;
+        }
+        channelService.updateSupportChatId(channel, newSupportChatId);
+        cachedChannel = channel;
+        sendSupportChatConfirmation(message.getChatId(), "Группа подтверждена. Уведомления будут приходить сюда.");
+        return true;
+    }
+
+    private boolean isConfirmCommand(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String candidate = text.trim().split("\\s+", 2)[0];
+        if (!candidate.startsWith("/confirm")) {
+            return false;
+        }
+        int atIndex = candidate.indexOf('@');
+        if (atIndex == -1) {
+            return "/confirm".equalsIgnoreCase(candidate);
+        }
+        String command = candidate.substring(0, atIndex);
+        String botName = candidate.substring(atIndex + 1);
+        String username = getBotUsername();
+        return "/confirm".equalsIgnoreCase(command) && username != null && botName.equalsIgnoreCase(username);
+    }
+
+    private boolean isGroupChat(Message message) {
+        if (message == null || message.getChat() == null) {
+            return false;
+        }
+        Chat chat = message.getChat();
+        return chat.isGroupChat() || chat.isSuperGroupChat();
+    }
+
+    private boolean isSenderAdmin(Message message) {
+        if (message == null || message.getFrom() == null) {
+            return false;
+        }
+        if (message.getChat() == null) {
+            return false;
+        }
+        try {
+            ChatMember member = execute(new GetChatMember(message.getChatId(), message.getFrom().getId()));
+            if (member == null) {
+                return false;
+            }
+            String status = member.getStatus();
+            return "creator".equalsIgnoreCase(status) || "administrator".equalsIgnoreCase(status);
+        } catch (TelegramApiException e) {
+            log.warn("Failed to validate admin status for user {} in chat {}",
+                    message.getFrom().getId(),
+                    message.getChatId(),
+                    e);
+            return false;
+        }
+    }
+
+    private void sendSupportChatConfirmation(Long chatId, String text) {
+        if (chatId == null || text == null || text.isBlank()) {
+            return;
+        }
+        SendMessage confirmation = SendMessage.builder()
+                .chatId(chatId)
+                .text(text)
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(confirmation);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send support chat confirmation", e);
         }
     }
 
@@ -1592,4 +1737,3 @@ public class SupportBot extends TelegramLongPollingBot {
         return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
-
