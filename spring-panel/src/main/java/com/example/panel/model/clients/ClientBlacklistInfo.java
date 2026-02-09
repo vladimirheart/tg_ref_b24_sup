@@ -5,6 +5,7 @@ public record ClientBlacklistInfo(
         boolean unblockRequested,
         String addedAt,
         String addedBy,
-        String reason
+        String reason,
+        String blockedFor
 ) {
 }
