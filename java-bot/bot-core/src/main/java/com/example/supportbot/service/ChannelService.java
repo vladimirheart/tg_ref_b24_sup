@@ -66,4 +66,22 @@ public class ChannelService {
         log.info("Assigned public id {} to channel {}", publicId, saved.getId());
         return saved;
     }
+
+    @Transactional
+    public Channel updateSupportChatId(Channel channel, String supportChatId) {
+        if (channel == null) {
+            throw new IllegalArgumentException("Channel is required to update support chat id");
+        }
+        if (supportChatId == null || supportChatId.isBlank()) {
+            throw new IllegalArgumentException("Support chat id must be a non-empty string");
+        }
+        String current = channel.getSupportChatId();
+        if (supportChatId.equals(current)) {
+            return channel;
+        }
+        channel.setSupportChatId(supportChatId);
+        Channel saved = channelRepository.save(channel);
+        log.info("Updated support chat id for channel {} to {}", saved.getId(), supportChatId);
+        return saved;
+    }
 }
