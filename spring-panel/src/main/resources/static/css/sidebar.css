@@ -195,9 +195,19 @@ body.with-sidebar.sidebar-hovering {
 .sidebar .nav-link .label {
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 .sidebar.collapsed .nav-link .label {
   display: none !important; /* в свёрнутом показываем только иконки */
+}
+
+.sidebar .nav-link .nav-badge {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  padding: 0.2rem 0.4rem;
 }
 
 .sidebar-footer {
