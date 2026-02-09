@@ -21,6 +21,7 @@
   const ratingCreateButton = mainModal.querySelector('[data-bot-rating-template-create]');
   const saveButton = mainModal.querySelector('[data-bot-settings-save]');
   const statusEl = mainModal.querySelector('[data-bot-settings-status]');
+  const unblockCooldownInput = mainModal.querySelector('[data-bot-unblock-cooldown]');
 
   const templateNameInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-name]') : null;
   const templateDescriptionInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-description]') : null;
@@ -566,6 +567,16 @@ const id = ensureQuestionId(source.id);
     };
   }
 
+  function normalizeCooldownMinutes(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const rawValue = source.unblock_request_cooldown_minutes ?? source.unblockRequestCooldownMinutes;
+    const parsed = Number.parseInt(rawValue, 10);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+    return 60;
+  }
+
   function normalizeSettings(raw) {
     generatedQuestionIds.clear();
     generatedTemplateIds.clear();
@@ -700,6 +711,7 @@ const id = ensureQuestionId(source.id);
       activeTemplateId,
       ratingTemplates,
       activeRatingTemplateId,
+      unblockCooldownMinutes: normalizeCooldownMinutes(source),
     };
   }
 
@@ -708,6 +720,7 @@ const id = ensureQuestionId(source.id);
     activeTemplateId: null,
     ratingTemplates: [],
     activeRatingTemplateId: null,
+    unblockCooldownMinutes: 60,
   };
 
   const bridgeSubscribers = new Set();
@@ -730,6 +743,7 @@ const id = ensureQuestionId(source.id);
         scaleSize: normalizeScale(template.scaleSize || template.scale_size || 0),
       })),
       activeRatingTemplateId: state.activeRatingTemplateId,
+      unblockCooldownMinutes: state.unblockCooldownMinutes,
     };
   }
 
@@ -799,12 +813,23 @@ const id = ensureQuestionId(source.id);
     state.activeTemplateId = normalized.activeTemplateId;
     state.ratingTemplates = normalized.ratingTemplates.map((template) => cloneRatingTemplate(template));
     state.activeRatingTemplateId = normalized.activeRatingTemplateId;
+    state.unblockCooldownMinutes = normalized.unblockCooldownMinutes;
+    renderCooldownSettings();
   }
 
   hydrateStateFrom(initialState);
   setupBridge();
   renderTemplates();
   renderRatingTemplates();
+  renderCooldownSettings();
+
+  if (unblockCooldownInput) {
+    unblockCooldownInput.addEventListener('input', () => {
+      const rawValue = Number.parseInt(unblockCooldownInput.value, 10);
+      state.unblockCooldownMinutes = Number.isFinite(rawValue) && rawValue >= 0 ? rawValue : 0;
+      setStatus('', false);
+    });
+  }
 
   function setStatus(message, isError) {
     if (!statusEl) {
@@ -823,6 +848,13 @@ const id = ensureQuestionId(source.id);
         statusEl.classList.remove('text-danger', 'text-success');
       }
     }, 4000);
+  }
+
+  function renderCooldownSettings() {
+    if (!unblockCooldownInput) {
+      return;
+    }
+    unblockCooldownInput.value = state.unblockCooldownMinutes;
   }
 
   function setTemplateStatus(message, isError) {
@@ -1893,6 +1925,7 @@ const id = ensureQuestionId(source.id);
             responses: activeRatingTemplate.responses,
           }
         : { prompt_text: '', scale_size: 1, responses: [] },
+      unblock_request_cooldown_minutes: state.unblockCooldownMinutes,
     };
   }
 
@@ -1922,6 +1955,12 @@ const id = ensureQuestionId(source.id);
     const ratingTemplates = Array.isArray(payload.rating_templates) ? payload.rating_templates : [];
     if (!ratingTemplates.length) {
       return 'Добавьте хотя бы один шаблон оценок.';
+    }
+    if (payload.unblock_request_cooldown_minutes != null) {
+      const parsed = Number.parseInt(payload.unblock_request_cooldown_minutes, 10);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return 'Укажите корректный интервал между запросами на разблокировку (в минутах).';
+      }
     }
     const activeRatingId = payload.active_rating_template_id;
     const nameForMessage = (template) => String(template?.name || '').trim() || 'Шаблон оценок';
