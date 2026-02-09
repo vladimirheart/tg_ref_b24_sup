@@ -3003,6 +3003,32 @@
                     <div class="d-flex flex-column gap-3" data-bot-rating-templates-container></div>
                   </section>
 
+                  <section class="mt-4">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                      <div>
+                        <h6 class="mb-1">Запросы на разблокировку</h6>
+                        <p class="small text-muted mb-0">
+                          Укажите минимальный интервал между повторными запросами на разблокировку от одного клиента.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="row g-2 align-items-center">
+                      <div class="col-sm-6 col-lg-4">
+                        <div class="input-group">
+                          <input
+                            type="number"
+                            class="form-control"
+                            min="0"
+                            step="1"
+                            data-bot-unblock-cooldown
+                            aria-label="Интервал между запросами на разблокировку"
+                          >
+                          <span class="input-group-text">мин.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
                   <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-3 mt-4">
                     <div class="small text-muted" data-bot-settings-status></div>
                     <div class="ms-lg-auto d-flex gap-2">
