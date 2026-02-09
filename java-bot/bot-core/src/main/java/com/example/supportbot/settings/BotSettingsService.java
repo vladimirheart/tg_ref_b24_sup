@@ -217,6 +217,7 @@ public class BotSettingsService {
                 "scale_size", defaultScale,
                 "responses", buildDefaultResponses(defaultScale)));
         settings.put("question_flow", defaultQuestions);
+        settings.put("unblock_request_cooldown_minutes", 60);
         return settings;
     }
 
@@ -446,6 +447,8 @@ public class BotSettingsService {
         rating.put("scale_size", activeRatingTemplate.get("scale_size"));
         rating.put("responses", activeRatingTemplate.get("responses"));
 
+        Integer cooldownMinutes = resolveCooldownMinutes(raw, defaults);
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("question_templates", templates);
         result.put("active_template_id", resolvedActiveTemplateId);
@@ -453,7 +456,19 @@ public class BotSettingsService {
         result.put("rating_templates", ratingTemplates);
         result.put("active_rating_template_id", resolvedActiveRatingTemplateId);
         result.put("rating_system", rating);
+        result.put("unblock_request_cooldown_minutes", cooldownMinutes);
         return result;
+    }
+
+    public int unblockRequestCooldownMinutes(BotSettingsDto settings, int defaultValue) {
+        if (settings == null) {
+            return defaultValue;
+        }
+        Integer value = settings.getUnblockRequestCooldownMinutes();
+        if (value == null) {
+            return defaultValue;
+        }
+        return Math.max(0, value);
     }
 
     private List<Map<String, Object>> sanitizeQuestionFlow(
@@ -970,6 +985,18 @@ public class BotSettingsService {
             }
         }
         return null;
+    }
+
+    private Integer resolveCooldownMinutes(Map<String, Object> raw, Map<String, Object> defaults) {
+        Integer fallback = tryParseInt(defaults.get("unblock_request_cooldown_minutes"));
+        Integer value = tryParseInt(raw.get("unblock_request_cooldown_minutes"));
+        if (value == null) {
+            value = tryParseInt(raw.get("unblockRequestCooldownMinutes"));
+        }
+        if (value == null) {
+            value = fallback != null ? fallback : 60;
+        }
+        return Math.max(0, value);
     }
 
     private int normalizeScale(Object rawScale, Object altScale, Object camelScale, Map<String, Object> defaults, int maxScale) {
