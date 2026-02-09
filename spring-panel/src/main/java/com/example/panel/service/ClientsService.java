@@ -39,7 +39,7 @@ public class ClientsService {
     private final JdbcTemplate jdbcTemplate;
     private final ClientUsernameRepository clientUsernameRepository;
     private final JdbcTemplate botJdbcTemplate;
-import com.example.panel.model.clients.ClientBlacklistHistoryEntry;
+    private final BlacklistHistoryService blacklistHistoryService;
 
     public ClientsService(JdbcTemplate jdbcTemplate,
                           ClientUsernameRepository clientUsernameRepository,
