@@ -9,7 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 @Service
 public class BlacklistService {
@@ -69,5 +71,28 @@ public class BlacklistService {
         return saved;
     }
 
+    @Transactional
+    public UnblockRequestDecision requestUnblock(long userId, String reason, Long channelId, Duration cooldown) {
+        String key = String.valueOf(userId);
+        OffsetDateTime now = OffsetDateTime.now();
+
+        Optional<ClientBlacklist> existingOpt = blacklistRepository.findById(key);
+        OffsetDateTime lastRequestedAt = existingOpt.map(ClientBlacklist::getUnblockRequestedAt).orElse(null);
+        if (cooldown != null && !cooldown.isZero() && !cooldown.isNegative() && lastRequestedAt != null) {
+            OffsetDateTime nextAllowed = lastRequestedAt.plus(cooldown);
+            if (nextAllowed.isAfter(now)) {
+                ClientUnblockRequest existingRequest = unblockRequestRepository
+                        .findFirstByUserIdAndStatusOrderByIdDesc(key, "pending")
+                        .orElseGet(() -> unblockRequestRepository.findFirstByUserIdOrderByIdDesc(key).orElse(null));
+                return new UnblockRequestDecision(existingRequest, false, Duration.between(now, nextAllowed));
+            }
+        }
+
+        ClientUnblockRequest saved = registerUnblockRequest(userId, reason, channelId);
+        return new UnblockRequestDecision(saved, true, Duration.ZERO);
+    }
+
     public record BlacklistStatus(boolean blacklisted, boolean unblockRequested) {}
+
+    public record UnblockRequestDecision(ClientUnblockRequest request, boolean created, Duration retryAfter) {}
 }
