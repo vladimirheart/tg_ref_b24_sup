@@ -49,7 +49,7 @@
                 <tr th:if="${#lists.isEmpty(requests)}">
                     <td colspan="8" class="text-center text-muted py-4">Запросы отсутствуют</td>
                 </tr>
-                <tr th:each="request : ${requests}">
+                <tr th:each="request : ${requests}" th:attr="data-request-id=${request.id}">
                     <td th:text="${request.id}">0</td>
                     <td>
                         <div class="d-flex flex-column">
@@ -74,8 +74,22 @@
                         <span th:if="${request.decidedAt == null && request.decidedBy == null && request.decisionComment == null}">—</span>
                     </td>
                     <td>
-                        <a class="btn btn-sm btn-outline-info"
-                           th:href="@{/client/{id}(id=${request.userId})}">Карточка</a>
+                        <div class="d-flex flex-column gap-2">
+                            <a class="btn btn-sm btn-outline-info"
+                               th:href="@{/client/{id}(id=${request.userId})}">Карточка</a>
+                            <div th:if="${request.status} == 'pending'">
+                                <input type="text" class="form-control form-control-sm mb-2"
+                                       placeholder="Комментарий (необязательно)"
+                                       data-unblock-comment>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button class="btn btn-sm btn-success" type="button"
+                                            data-unblock-action="approve">Одобрить</button>
+                                    <button class="btn btn-sm btn-outline-danger" type="button"
+                                            data-unblock-action="reject">Отклонить</button>
+                                </div>
+                                <div class="small text-danger mt-2 d-none" data-unblock-feedback></div>
+                            </div>
+                        </div>
                     </td>
                 </tr>
                 </tbody>
@@ -84,5 +98,51 @@
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script>
+    document.querySelectorAll('[data-unblock-action]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const row = button.closest('tr');
+            const requestId = row?.dataset?.requestId;
+            const decision = button.dataset.unblockAction;
+            const commentInput = row?.querySelector('[data-unblock-comment]');
+            const comment = commentInput?.value?.trim() || '';
+            const feedback = row?.querySelector('[data-unblock-feedback]');
+            if (!requestId || !decision) {
+                return;
+            }
+            if (feedback) {
+                feedback.classList.add('d-none');
+                feedback.textContent = '';
+            }
+            const params = new URLSearchParams({
+                request_id: requestId,
+                decision: decision,
+                comment: comment
+            });
+            try {
+                const response = await fetch('/api/unblock-requests/decision', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString()
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    const message = payload.error || 'Не удалось обработать запрос';
+                    if (feedback) {
+                        feedback.textContent = message;
+                        feedback.classList.remove('d-none');
+                    }
+                    return;
+                }
+                window.location.reload();
+            } catch (error) {
+                if (feedback) {
+                    feedback.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
+                    feedback.classList.remove('d-none');
+                }
+            }
+        });
+    });
+</script>
 </body>
 </html>
