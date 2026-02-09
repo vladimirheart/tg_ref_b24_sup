@@ -83,6 +83,7 @@
     'dialogs',
     'tasks',
     'clients',
+    'unblock-requests',
     'passports',
     'public',
     'knowledge',
@@ -714,6 +715,35 @@
 
   updateNotificationCount();
   setInterval(updateNotificationCount, 15000);
+
+  const unblockBadge = document.querySelector('[data-unblock-count]');
+
+  function setUnblockCount(value) {
+    if (!unblockBadge) return;
+    const count = Number(value || 0);
+    if (count > 0) {
+      unblockBadge.hidden = false;
+      unblockBadge.textContent = String(count);
+    } else {
+      unblockBadge.hidden = true;
+      unblockBadge.textContent = '0';
+    }
+  }
+
+  async function updateUnblockRequestCount() {
+    if (!unblockBadge) return;
+    try {
+      const response = await fetch('/api/unblock-requests/summary');
+      if (!response.ok) return;
+      const payload = await response.json();
+      setUnblockCount(payload.count || 0);
+    } catch (error) {
+      /* ignore */
+    }
+  }
+
+  updateUnblockRequestCount();
+  setInterval(updateUnblockRequestCount, 30000);
 })();
 
 // Авто-активация пункта меню по текущему пути
