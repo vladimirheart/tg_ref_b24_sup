@@ -9,6 +9,7 @@ import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.TicketService;
+import com.example.supportbot.service.UnblockRequestService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
@@ -42,6 +43,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -57,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -67,6 +70,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private final VkBotProperties properties;
     private final BlacklistService blacklistService;
+    private final UnblockRequestService unblockRequestService;
     private final AttachmentService attachmentService;
     private final ChannelService channelService;
     private final BotSettingsService botSettingsService;
@@ -83,6 +87,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     public VkSupportBot(VkBotProperties properties,
                         BlacklistService blacklistService,
+                        UnblockRequestService unblockRequestService,
                         AttachmentService attachmentService,
                         ChannelService channelService,
                         BotSettingsService botSettingsService,
@@ -91,6 +96,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         FeedbackService feedbackService) {
         this.properties = properties;
         this.blacklistService = blacklistService;
+        this.unblockRequestService = unblockRequestService;
         this.attachmentService = attachmentService;
         this.channelService = channelService;
         this.botSettingsService = botSettingsService;
@@ -201,7 +207,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if ("/unblock".equalsIgnoreCase(text)) {
             log.info("Received /unblock from VK user {}", fromId);
             Long channelId = channel.getId();
-            blacklistService.registerUnblockRequest(fromId.longValue(), "", channelId);
+            var request = blacklistService.registerUnblockRequest(fromId.longValue(), "", channelId);
+            notifyOperatorsAboutUnblockRequest(actor, request);
             sendText(actor, peerId, "Запрос на разблокировку отправлен оператору.");
             return;
         }
@@ -411,6 +418,66 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         } catch (ClientException e) {
             log.error("Failed to send VK message to peer {}", peerId, e);
         }
+    }
+
+    @Scheduled(cron = "0 0 * * * *")
+    public void sendUnblockDigest() {
+        Integer channelId = properties.getChannelId();
+        if (channelId == null || channelId <= 0) {
+            return;
+        }
+        long pending = unblockRequestService.countPending();
+        if (pending == 0) {
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append("Сводка по разблокировкам: ").append(pending).append(" в ожидании.\n");
+        var recent = unblockRequestService.findRecentPending(3);
+        if (!recent.isEmpty()) {
+            builder.append("Последние запросы:\n");
+            for (var request : recent) {
+                builder.append("• ").append(request.getUserId());
+                if (request.getCreatedAt() != null) {
+                    builder.append(" (").append(formatTimestamp(request.getCreatedAt())).append(")");
+                }
+                builder.append("\n");
+            }
+        }
+        sendOperatorMessage(channelId, builder.toString().trim());
+    }
+
+    private void notifyOperatorsAboutUnblockRequest(GroupActor actor,
+                                                    com.example.supportbot.entity.ClientUnblockRequest request) {
+        Integer channelId = properties.getChannelId();
+        if (channelId == null || channelId <= 0 || request == null) {
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append("Новый запрос на разблокировку\n");
+        builder.append("Клиент: ").append(request.getUserId()).append("\n");
+        if (request.getReason() != null && !request.getReason().isBlank()) {
+            builder.append("Причина: ").append(request.getReason()).append("\n");
+        }
+        if (request.getCreatedAt() != null) {
+            builder.append("Создан: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
+        }
+        builder.append("Статус: ").append(request.getStatus());
+        sendText(actor, channelId, builder.toString());
+    }
+
+    private void sendOperatorMessage(Integer channelId, String text) {
+        if (channelId == null || channelId <= 0 || text == null || text.isBlank()) {
+            return;
+        }
+        GroupActor actor = createActor();
+        sendText(actor, channelId, text);
+    }
+
+    private String formatTimestamp(OffsetDateTime value) {
+        if (value == null) {
+            return "";
+        }
+        return value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
     }
 
     private boolean isMyTicketsCommand(String text) {
