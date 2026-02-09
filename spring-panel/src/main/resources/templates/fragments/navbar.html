@@ -43,6 +43,18 @@
                 <span class="icon" aria-hidden="true">👥</span>
                 <span class="label">Клиенты</span>
             </a>
+            <a class="nav-link" data-page-key="unblock-requests" th:if="${canViewClients}"
+               th:classappend="${active}=='unblock-requests' ? ' active'"
+               th:href="@{/unblock-requests}">
+                <span class="icon" aria-hidden="true">🔓</span>
+                <span class="label">
+                    <span>Разблокировки</span>
+                    <span class="badge text-bg-warning nav-badge"
+                          data-unblock-count
+                          th:text="${pendingUnblockRequests}"
+                          th:attr="hidden=${pendingUnblockRequests == 0}">0</span>
+                </span>
+            </a>
             <a class="nav-link" data-page-key="passports" th:if="${canViewPassports}"
                th:classappend="${active}=='passports' ? ' active'"
                th:href="@{/object-passports}">
