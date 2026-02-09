@@ -12,11 +12,14 @@ public class NavigationService {
 
     private final PermissionService permissionService;
     private final PanelUserRepository panelUserRepository;
+    private final UnblockRequestService unblockRequestService;
 
     public NavigationService(PermissionService permissionService,
-                             PanelUserRepository panelUserRepository) {
+                             PanelUserRepository panelUserRepository,
+                             UnblockRequestService unblockRequestService) {
         this.permissionService = permissionService;
         this.panelUserRepository = panelUserRepository;
+        this.unblockRequestService = unblockRequestService;
     }
 
     public void enrich(Model model, Authentication authentication) {
@@ -28,7 +31,15 @@ public class NavigationService {
         model.addAttribute("canViewSettings", permissionService.hasAuthority(authentication, "PAGE_SETTINGS"));
         model.addAttribute("canViewPassports", permissionService.hasAuthority(authentication, "PAGE_OBJECT_PASSPORTS"));
         model.addAttribute("canViewClients", permissionService.hasAuthority(authentication, "PAGE_CLIENTS"));
+        model.addAttribute("pendingUnblockRequests", loadPendingUnblockCount(authentication));
         enrichUser(model, authentication);
+    }
+
+    private long loadPendingUnblockCount(Authentication authentication) {
+        if (!permissionService.hasAuthority(authentication, "PAGE_CLIENTS")) {
+            return 0;
+        }
+        return unblockRequestService.countPendingRequests();
     }
 
     private void enrichUser(Model model, Authentication authentication) {
