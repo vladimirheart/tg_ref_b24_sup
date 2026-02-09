@@ -11,6 +11,7 @@ import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
+import com.example.supportbot.service.UnblockRequestService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
@@ -19,10 +20,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
@@ -63,6 +67,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private final BotProperties properties;
     private final BlacklistService blacklistService;
+    private final UnblockRequestService unblockRequestService;
     private final AttachmentService attachmentService;
     private final ChannelService channelService;
     private final BotSettingsService botSettingsService;
@@ -81,6 +86,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     public SupportBot(BotProperties properties,
                       BlacklistService blacklistService,
+                      UnblockRequestService unblockRequestService,
                       AttachmentService attachmentService,
                       ChannelService channelService,
                       BotSettingsService botSettingsService,
@@ -92,6 +98,7 @@ public class SupportBot extends TelegramLongPollingBot {
         super(properties.getToken());
         this.properties = properties;
         this.blacklistService = blacklistService;
+        this.unblockRequestService = unblockRequestService;
         this.attachmentService = attachmentService;
         this.channelService = channelService;
         this.botSettingsService = botSettingsService;
@@ -919,7 +926,8 @@ public class SupportBot extends TelegramLongPollingBot {
     @Transactional
     protected void requestUnblock(Message message) {
         long userId = message.getFrom().getId();
-        blacklistService.registerUnblockRequest(userId, "", properties.getChannelId());
+        var request = blacklistService.registerUnblockRequest(userId, "", properties.getChannelId());
+        notifyOperatorsAboutUnblockRequest(request);
         SendMessage confirmation = SendMessage.builder()
                 .chatId(message.getChatId())
                 .text("Запрос на разблокировку отправлен оператору.")
@@ -930,6 +938,72 @@ public class SupportBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             log.error("Failed to send unblock confirmation", e);
         }
+    }
+
+    @Scheduled(cron = "0 0 * * * *")
+    public void sendUnblockDigest() {
+        Long channelId = properties.getChannelId();
+        if (channelId == null || channelId <= 0) {
+            return;
+        }
+        long pending = unblockRequestService.countPending();
+        if (pending == 0) {
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append("Сводка по разблокировкам: ").append(pending).append(" в ожидании.\n");
+        var recent = unblockRequestService.findRecentPending(3);
+        if (!recent.isEmpty()) {
+            builder.append("Последние запросы:\n");
+            for (var request : recent) {
+                builder.append("• ").append(request.getUserId());
+                if (request.getCreatedAt() != null) {
+                    builder.append(" (").append(formatTimestamp(request.getCreatedAt())).append(")");
+                }
+                builder.append("\n");
+            }
+        }
+        sendOperatorMessage(channelId, builder.toString().trim());
+    }
+
+    private void notifyOperatorsAboutUnblockRequest(com.example.supportbot.entity.ClientUnblockRequest request) {
+        Long channelId = properties.getChannelId();
+        if (channelId == null || channelId <= 0 || request == null) {
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append("Новый запрос на разблокировку\n");
+        builder.append("Клиент: ").append(request.getUserId()).append("\n");
+        if (request.getReason() != null && !request.getReason().isBlank()) {
+            builder.append("Причина: ").append(request.getReason()).append("\n");
+        }
+        if (request.getCreatedAt() != null) {
+            builder.append("Создан: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
+        }
+        builder.append("Статус: ").append(request.getStatus());
+        sendOperatorMessage(channelId, builder.toString());
+    }
+
+    private void sendOperatorMessage(Long channelId, String text) {
+        if (channelId == null || channelId <= 0 || text == null || text.isBlank()) {
+            return;
+        }
+        SendMessage toChannel = SendMessage.builder()
+                .chatId(channelId)
+                .text(text)
+                .build();
+        try {
+            execute(toChannel);
+        } catch (TelegramApiException e) {
+            log.error("Failed to notify operator channel", e);
+        }
+    }
+
+    private String formatTimestamp(OffsetDateTime value) {
+        if (value == null) {
+            return "";
+        }
+        return value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
     }
 
     private void handleBlacklistedUser(Message message, BlacklistService.BlacklistStatus status) {
@@ -1740,4 +1814,3 @@ public class SupportBot extends TelegramLongPollingBot {
         return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
-
