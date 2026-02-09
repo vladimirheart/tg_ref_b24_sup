@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.entity.ClientUsername;
 import com.example.panel.model.clients.ClientAnalyticsItem;
 import com.example.panel.model.clients.ClientBlacklistInfo;
+import com.example.panel.model.clients.ClientBlacklistHistoryEntry;
 import com.example.panel.model.clients.ClientListItem;
 import com.example.panel.model.clients.ClientPhoneEntry;
 import com.example.panel.model.clients.ClientProfile;
@@ -38,13 +39,16 @@ public class ClientsService {
     private final JdbcTemplate jdbcTemplate;
     private final ClientUsernameRepository clientUsernameRepository;
     private final JdbcTemplate botJdbcTemplate;
+import com.example.panel.model.clients.ClientBlacklistHistoryEntry;
 
     public ClientsService(JdbcTemplate jdbcTemplate,
                           ClientUsernameRepository clientUsernameRepository,
-                          @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate) {
+                          @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
+                          BlacklistHistoryService blacklistHistoryService) {
         this.jdbcTemplate = jdbcTemplate;
         this.clientUsernameRepository = clientUsernameRepository;
         this.botJdbcTemplate = botJdbcTemplate;
+        this.blacklistHistoryService = blacklistHistoryService;
     }
 
     public List<ClientListItem> loadClients(String blacklistFilter, String statusFilter) {
@@ -239,6 +243,7 @@ public class ClientsService {
         long ratingTotal = ratingStats.stream().mapToLong(ClientAnalyticsItem::count).sum();
         String clientStatus = loadClientStatus(userId);
         List<ClientUsernameEntry> usernameHistory = loadUsernameHistory(userId);
+        List<ClientBlacklistHistoryEntry> blacklistHistory = loadBlacklistHistory(userId);
         List<ClientAnalyticsItem> categoryStats = buildCategoryStats(tickets);
         List<ClientAnalyticsItem> locationStats = buildLocationStats(tickets);
         List<ClientPhoneEntry> phonesTelegram = loadClientPhones(userId, "telegram");
@@ -254,6 +259,7 @@ public class ClientsService {
             ratingTotal,
             clientStatus,
             usernameHistory,
+            blacklistHistory,
             categoryStats,
             locationStats,
             phonesTelegram,
@@ -362,16 +368,46 @@ public class ClientsService {
                 """,
             rs -> {
                 if (!rs.next()) {
-                    return new ClientBlacklistInfo(false, false, null, null, null);
+                    return new ClientBlacklistInfo(false, false, null, null, null, null);
                 }
                 boolean blacklisted = rs.getInt("is_blacklisted") == 1;
                 boolean unblockRequested = rs.getInt("unblock_requested") == 1;
                 String addedAt = formatTimestamp(rs.getString("added_at"));
                 String addedBy = rs.getString("added_by");
                 String reason = rs.getString("reason");
-                return new ClientBlacklistInfo(blacklisted, unblockRequested, addedAt, addedBy, reason);
+                String blockedFor = blacklistHistoryService.calculateDurationFromLastBlock(String.valueOf(userId), null)
+                        .map(blacklistHistoryService::formatDuration)
+                        .orElse(null);
+                return new ClientBlacklistInfo(blacklisted, unblockRequested, addedAt, addedBy, reason, blockedFor);
             },
             String.valueOf(userId)
+        );
+    }
+
+    private List<ClientBlacklistHistoryEntry> loadBlacklistHistory(long userId) {
+        return jdbcTemplate.query(
+                """
+                    SELECT action, reason, actor, created_at
+                    FROM client_blacklist_history
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC
+                    """,
+                (rs, rowNum) -> {
+                    String action = rs.getString("action");
+                    String actionLabel = "blocked".equalsIgnoreCase(action)
+                            ? "Блокировка"
+                            : "unblocked".equalsIgnoreCase(action)
+                                    ? "Разблокировка"
+                                    : action;
+                    return new ClientBlacklistHistoryEntry(
+                            action,
+                            actionLabel,
+                            formatTimestamp(rs.getString("created_at")),
+                            rs.getString("actor"),
+                            rs.getString("reason")
+                    );
+                },
+                String.valueOf(userId)
         );
     }
 
