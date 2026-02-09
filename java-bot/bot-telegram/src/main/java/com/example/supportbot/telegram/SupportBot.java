@@ -392,7 +392,9 @@ public class SupportBot extends TelegramLongPollingBot {
             return false;
         }
         try {
-            ChatMember member = execute(new GetChatMember(message.getChatId(), message.getFrom().getId()));
+            ChatMember member = execute(new GetChatMember(
+                    message.getChatId().toString(),
+                    message.getFrom().getId().toString()));
             if (member == null) {
                 return false;
             }
