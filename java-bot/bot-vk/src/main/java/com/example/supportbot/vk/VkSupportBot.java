@@ -42,6 +42,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -177,9 +178,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         BlacklistService.BlacklistStatus status = blacklistService.getStatus(fromId.longValue());
         if (status.blacklisted()) {
             log.info("Blocked message from blacklisted VK user {}", fromId);
-            sendText(actor, peerId, status.unblockRequested()
-                    ? "Ваш аккаунт заблокирован. Запрос уже на рассмотрении."
-                    : "Ваш аккаунт заблокирован. Ответьте /unblock, чтобы подать запрос.");
+            String text = Optional.ofNullable(message.getText()).orElse("").trim();
+            if ("/unblock".equalsIgnoreCase(text)) {
+                handleUnblockRequest(actor, peerId, fromId.longValue(), channel);
+            } else {
+                sendText(actor, peerId, status.unblockRequested()
+                        ? "Ваш аккаунт заблокирован. Запрос уже на рассмотрении."
+                        : "Ваш аккаунт заблокирован. Ответьте /unblock, чтобы подать запрос.");
+            }
             return;
         }
 
@@ -206,10 +212,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         if ("/unblock".equalsIgnoreCase(text)) {
             log.info("Received /unblock from VK user {}", fromId);
-            Long channelId = channel.getId();
-            var request = blacklistService.registerUnblockRequest(fromId.longValue(), "", channelId);
-            notifyOperatorsAboutUnblockRequest(actor, request);
-            sendText(actor, peerId, "Запрос на разблокировку отправлен оператору.");
+            handleUnblockRequest(actor, peerId, fromId.longValue(), channel);
             return;
         }
 
@@ -454,6 +457,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         StringBuilder builder = new StringBuilder();
         builder.append("Новый запрос на разблокировку\n");
+        if (request.getId() != null) {
+            builder.append("Заявка: #").append(request.getId()).append("\n");
+        }
         builder.append("Клиент: ").append(request.getUserId()).append("\n");
         if (request.getReason() != null && !request.getReason().isBlank()) {
             builder.append("Причина: ").append(request.getReason()).append("\n");
@@ -478,6 +484,53 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return "";
         }
         return value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+    }
+
+    private void handleUnblockRequest(GroupActor actor, int peerId, long userId, Channel channel) {
+        BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
+        int cooldownMinutes = botSettingsService.unblockRequestCooldownMinutes(settings, 60);
+        Duration cooldown = cooldownMinutes > 0 ? Duration.ofMinutes(cooldownMinutes) : Duration.ZERO;
+        Long channelId = channel != null ? channel.getId() : null;
+        var decision = blacklistService.requestUnblock(userId, "", channelId, cooldown);
+        if (decision.created()) {
+            notifyOperatorsAboutUnblockRequest(actor, decision.request());
+        }
+        sendText(actor, peerId, buildUnblockResponse(decision));
+    }
+
+    private String buildUnblockResponse(BlacklistService.UnblockRequestDecision decision) {
+        String requestId = decision.request() != null && decision.request().getId() != null
+                ? "#" + decision.request().getId()
+                : null;
+        if (decision.created()) {
+            return requestId == null
+                    ? "Запрос на разблокировку отправлен оператору."
+                    : "Запрос на разблокировку отправлен оператору. Номер заявки: " + requestId + ".";
+        }
+        Duration retryAfter = decision.retryAfter();
+        if (retryAfter != null && !retryAfter.isZero() && !retryAfter.isNegative()) {
+            String retryText = formatRetryAfter(retryAfter);
+            if (requestId != null) {
+                return "Запрос уже зарегистрирован под номером " + requestId
+                        + ". Повторно можно отправить через " + retryText + ".";
+            }
+            return "Запрос уже зарегистрирован. Повторно можно отправить через " + retryText + ".";
+        }
+        return requestId == null
+                ? "Запрос уже на рассмотрении."
+                : "Запрос уже на рассмотрении. Номер заявки: " + requestId + ".";
+    }
+
+    private String formatRetryAfter(Duration retryAfter) {
+        long seconds = retryAfter.getSeconds();
+        if (seconds <= 0) {
+            return "несколько минут";
+        }
+        long minutes = (seconds + 59) / 60;
+        if (minutes <= 1) {
+            return "менее минуты";
+        }
+        return minutes + " мин.";
     }
 
     private boolean isMyTicketsCommand(String text) {
