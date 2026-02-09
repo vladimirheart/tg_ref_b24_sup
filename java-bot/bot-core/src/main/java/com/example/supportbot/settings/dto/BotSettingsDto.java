@@ -25,6 +25,9 @@ public class BotSettingsDto {
     @JsonProperty("rating_system")
     private RatingSystemDto ratingSystem;
 
+    @JsonProperty("unblock_request_cooldown_minutes")
+    private Integer unblockRequestCooldownMinutes;
+
     public BotSettingsDto() {
     }
 
@@ -34,13 +37,15 @@ public class BotSettingsDto {
             List<QuestionFlowItemDto> questionFlow,
             List<RatingTemplateDto> ratingTemplates,
             String activeRatingTemplateId,
-            RatingSystemDto ratingSystem) {
+            RatingSystemDto ratingSystem,
+            Integer unblockRequestCooldownMinutes) {
         this.questionTemplates = questionTemplates;
         this.activeTemplateId = activeTemplateId;
         this.questionFlow = questionFlow;
         this.ratingTemplates = ratingTemplates;
         this.activeRatingTemplateId = activeRatingTemplateId;
         this.ratingSystem = ratingSystem;
+        this.unblockRequestCooldownMinutes = unblockRequestCooldownMinutes;
     }
 
     public List<QuestionTemplateDto> getQuestionTemplates() {
@@ -89,5 +94,13 @@ public class BotSettingsDto {
 
     public void setRatingSystem(RatingSystemDto ratingSystem) {
         this.ratingSystem = ratingSystem;
+    }
+
+    public Integer getUnblockRequestCooldownMinutes() {
+        return unblockRequestCooldownMinutes;
+    }
+
+    public void setUnblockRequestCooldownMinutes(Integer unblockRequestCooldownMinutes) {
+        this.unblockRequestCooldownMinutes = unblockRequestCooldownMinutes;
     }
 }
