@@ -65,6 +65,8 @@
                                 </div>
                                 <div class="small mt-1" th:if="${profile.blacklist.reason != null}"
                                      th:text="'Причина: ' + ${profile.blacklist.reason}">Причина</div>
+                                <div class="small mt-1 text-muted" th:if="${profile.blacklist.blockedFor != null}"
+                                     th:text="'В блокировке: ' + ${profile.blacklist.blockedFor}">В блокировке</div>
                             </div>
                             <div class="mt-3">
                                 <div><strong>Имя в БД:</strong>
@@ -89,6 +91,21 @@
                                 </button>
                                 <div class="text-muted small mt-1">Обновит имя и юзернейм из внешних источников.</div>
                             </div>
+                        </div>
+                        <div class="mt-3" th:if="${!#lists.isEmpty(profile.blacklistHistory)}">
+                            <div class="small text-muted fw-semibold mb-2">История блэклиста</div>
+                            <ul class="list-unstyled small mb-0">
+                                <li class="mb-2" th:each="entry : ${profile.blacklistHistory}">
+                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                        <span class="text-muted" th:text="${entry.at}">—</span>
+                                        <span class="fw-semibold" th:text="${entry.actionLabel}">—</span>
+                                        <span th:if="${entry.actor != null}"
+                                              th:text="'• ' + ${entry.actor}">—</span>
+                                    </div>
+                                    <div class="text-muted" th:if="${entry.reason != null}"
+                                         th:text="${entry.reason}">—</div>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                     <div class="border rounded p-3 bg-light">
