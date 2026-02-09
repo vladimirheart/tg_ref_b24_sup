@@ -394,7 +394,7 @@ public class SupportBot extends TelegramLongPollingBot {
         try {
             ChatMember member = execute(new GetChatMember(
                     message.getChatId().toString(),
-                    message.getFrom().getId().toString()));
+                    message.getFrom().getId()));
             if (member == null) {
                 return false;
             }
@@ -1740,3 +1740,4 @@ public class SupportBot extends TelegramLongPollingBot {
         return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
+
