@@ -30,7 +30,7 @@ public class UnblockRequestsController {
         navigationService.enrich(model, authentication);
         model.addAttribute("statusFilter", status);
         model.addAttribute("requests", unblockRequestService.loadRequests(status));
-        model.addAttribute("availableStatuses", List.of("pending", "expired"));
+        model.addAttribute("availableStatuses", List.of("pending", "approved", "rejected", "expired"));
         return "clients/unblock_requests";
     }
 }
