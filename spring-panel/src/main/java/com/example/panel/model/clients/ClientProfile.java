@@ -12,6 +12,7 @@ public record ClientProfile(
         long ratingTotal,
         String clientStatus,
         List<ClientUsernameEntry> usernameHistory,
+        List<ClientBlacklistHistoryEntry> blacklistHistory,
         List<ClientAnalyticsItem> categoryStats,
         List<ClientAnalyticsItem> locationStats,
         List<ClientPhoneEntry> phonesTelegram,
