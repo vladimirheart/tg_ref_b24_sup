@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
@@ -45,7 +46,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -219,7 +219,11 @@ public class SupportBot extends TelegramLongPollingBot {
         BlacklistService.BlacklistStatus status = blacklistService.getStatus(userId);
         if (status.blacklisted()) {
             log.info("Blocked message from blacklisted user {} in update {}", userId, update.getUpdateId());
-            handleBlacklistedUser(message, status);
+            if (message.hasText() && "/unblock".equalsIgnoreCase(message.getText().trim())) {
+                requestUnblock(message);
+            } else {
+                handleBlacklistedUser(message, status);
+            }
             return;
         }
 
@@ -926,11 +930,17 @@ public class SupportBot extends TelegramLongPollingBot {
     @Transactional
     protected void requestUnblock(Message message) {
         long userId = message.getFrom().getId();
-        var request = blacklistService.registerUnblockRequest(userId, "", properties.getChannelId());
-        notifyOperatorsAboutUnblockRequest(request);
+        BotSettingsDto settings = loadSettings();
+        int cooldownMinutes = botSettingsService.unblockRequestCooldownMinutes(settings, 60);
+        Duration cooldown = cooldownMinutes > 0 ? Duration.ofMinutes(cooldownMinutes) : Duration.ZERO;
+        var decision = blacklistService.requestUnblock(userId, "", properties.getChannelId(), cooldown);
+        if (decision.created()) {
+            notifyOperatorsAboutUnblockRequest(decision.request());
+        }
+        String response = buildUnblockResponse(decision);
         SendMessage confirmation = SendMessage.builder()
                 .chatId(message.getChatId())
-                .text("Запрос на разблокировку отправлен оператору.")
+                .text(response)
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -973,6 +983,9 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         StringBuilder builder = new StringBuilder();
         builder.append("Новый запрос на разблокировку\n");
+        if (request.getId() != null) {
+            builder.append("Заявка: #").append(request.getId()).append("\n");
+        }
         builder.append("Клиент: ").append(request.getUserId()).append("\n");
         if (request.getReason() != null && !request.getReason().isBlank()) {
             builder.append("Причина: ").append(request.getReason()).append("\n");
@@ -1004,6 +1017,41 @@ public class SupportBot extends TelegramLongPollingBot {
             return "";
         }
         return value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+    }
+
+    private String buildUnblockResponse(BlacklistService.UnblockRequestDecision decision) {
+        String requestId = decision.request() != null && decision.request().getId() != null
+                ? "#" + decision.request().getId()
+                : null;
+        if (decision.created()) {
+            return requestId == null
+                    ? "Запрос на разблокировку отправлен оператору."
+                    : "Запрос на разблокировку отправлен оператору. Номер заявки: " + requestId + ".";
+        }
+        Duration retryAfter = decision.retryAfter();
+        if (retryAfter != null && !retryAfter.isZero() && !retryAfter.isNegative()) {
+            String retryText = formatRetryAfter(retryAfter);
+            if (requestId != null) {
+                return "Запрос уже зарегистрирован под номером " + requestId
+                        + ". Повторно можно отправить через " + retryText + ".";
+            }
+            return "Запрос уже зарегистрирован. Повторно можно отправить через " + retryText + ".";
+        }
+        return requestId == null
+                ? "Запрос уже на рассмотрении."
+                : "Запрос уже на рассмотрении. Номер заявки: " + requestId + ".";
+    }
+
+    private String formatRetryAfter(Duration retryAfter) {
+        long seconds = retryAfter.getSeconds();
+        if (seconds <= 0) {
+            return "несколько минут";
+        }
+        long minutes = (seconds + 59) / 60;
+        if (minutes <= 1) {
+            return "менее минуты";
+        }
+        return minutes + " мин.";
     }
 
     private void handleBlacklistedUser(Message message, BlacklistService.BlacklistStatus status) {
