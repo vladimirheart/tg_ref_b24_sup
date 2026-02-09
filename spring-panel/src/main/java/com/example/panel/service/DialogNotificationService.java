@@ -52,6 +52,45 @@ public class DialogNotificationService {
         ));
     }
 
+    public boolean notifyUserByLastChannel(Long userId, String message, boolean logHistory) {
+        if (userId == null || !StringUtils.hasText(message)) {
+            return false;
+        }
+        Optional<DialogTarget> targetOpt = loadLatestTargetForUser(userId);
+        if (targetOpt.isEmpty()) {
+            log.warn("Unable to notify user {}: no recent channel found", userId);
+            return false;
+        }
+        DialogTarget target = targetOpt.get();
+        return notifyUser(target.userId(), target.channelId(), message, logHistory);
+    }
+
+    public boolean notifyUser(Long userId, Long channelId, String message, boolean logHistory) {
+        if (userId == null || channelId == null || !StringUtils.hasText(message)) {
+            return false;
+        }
+        Channel channel = channelRepository.findById(channelId).orElse(null);
+        if (channel == null) {
+            log.warn("Unable to notify user {}: channel {} not found", userId, channelId);
+            return false;
+        }
+        if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
+            log.info("Skipping notification for user {}: platform {} not supported", userId, channel.getPlatform());
+            return false;
+        }
+        if (!StringUtils.hasText(channel.getToken())) {
+            log.warn("Unable to notify user {}: Telegram token missing for channel {}", userId, channelId);
+            return false;
+        }
+        if (!sendTelegramMessage(channel, userId, message)) {
+            return false;
+        }
+        if (logHistory) {
+            logSystemMessage(new DialogTarget(userId, channelId), null, message);
+        }
+        return true;
+    }
+
     private void sendNotifications(String ticketId, List<String> messages) {
         if (!StringUtils.hasText(ticketId) || messages == null || messages.isEmpty()) {
             return;
@@ -95,6 +134,19 @@ public class DialogNotificationService {
                         """,
                 (rs, rowNum) -> new DialogTarget(rs.getLong("user_id"), rs.getLong("channel_id")),
                 ticketId
+        ).stream().findFirst();
+    }
+
+    private Optional<DialogTarget> loadLatestTargetForUser(Long userId) {
+        return jdbcTemplate.query("""
+                        SELECT user_id, channel_id
+                          FROM messages
+                         WHERE user_id = ?
+                         ORDER BY created_at DESC
+                         LIMIT 1
+                        """,
+                (rs, rowNum) -> new DialogTarget(rs.getLong("user_id"), rs.getLong("channel_id")),
+                userId
         ).stream().findFirst();
     }
 
