@@ -961,11 +961,11 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#appearanceModal">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#panelDesignSettingsModal">
           <div class="card-body">
             <div class="tile-icon">🎨</div>
-            <h5 class="card-title">Оформление панели</h5>
-            <p class="card-text text-muted">Выбирайте светлую, тёмную или автоматическую тему.</p>
+            <h5 class="card-title">Настройки оформления панели</h5>
+            <p class="card-text text-muted">Управляйте темой интерфейса, статусами клиентов и метками бизнесов.</p>
           </div>
         </div>
       </div>
@@ -1006,26 +1006,6 @@
             <div class="tile-icon">👥</div>
             <h5 class="card-title">Пользователи панели и настройки доступа</h5>
             <p class="card-text text-muted">Создавайте роли, настраивайте права и управляйте пользователями.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#statusesModal">
-          <div class="card-body">
-            <div class="tile-icon">🏷️</div>
-            <h5 class="card-title">Статусы клиентов</h5>
-            <p class="card-text text-muted">Создавайте статусы для сегментации клиентов.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#businessStylesModal">
-          <div class="card-body">
-            <div class="tile-icon">🏢</div>
-            <h5 class="card-title">Метки бизнесов</h5>
-            <p class="card-text text-muted">Настройте цвета и иконки столбца «Бизнес».</p>
           </div>
         </div>
       </div>
@@ -2771,6 +2751,28 @@
             <div class="small text-muted me-auto" data-bot-template-status></div>
             <button type="button" class="btn btn-outline-secondary" data-bot-template-cancel data-bs-dismiss="modal">Отмена</button>
             <button type="button" class="btn btn-primary" data-bot-template-save>Сохранить шаблон</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="panelDesignSettingsModal" tabindex="-1" aria-labelledby="panelDesignSettingsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="panelDesignSettingsModalLabel">🎨 Настройки оформления панели</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted mb-3">Выберите, что хотите настроить:</p>
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#appearanceModal" data-bs-dismiss="modal">🎨 Оформление интерфейса</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#statusesModal" data-bs-dismiss="modal">🏷️ Статусы клиентов</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#businessStylesModal" data-bs-dismiss="modal">🏢 Метки бизнесов</button>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
           </div>
         </div>
       </div>
