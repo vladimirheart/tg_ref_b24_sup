@@ -116,7 +116,7 @@ public class UnblockRequestService {
     }
 
     private Optional<UnblockDecisionContext> loadDecisionContext(long requestId) {
-        return botJdbcTemplate.query(
+        return Optional.ofNullable(botJdbcTemplate.query(
                 """
                     SELECT id, user_id, status
                     FROM client_unblock_requests
@@ -130,7 +130,7 @@ public class UnblockRequestService {
                         )
                         : null,
                 requestId
-        ).stream().findFirst();
+        ));
     }
 
     private void updateBlacklistStatus(String userId, boolean blocked) {
