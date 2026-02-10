@@ -4919,7 +4919,7 @@
     const stateSelect = card.querySelector('[data-legal-entity-field="state"]');
     const name = valueInput ? valueInput.value.trim() : '';
     if (!name) {
-      alert('Название ЮЛ не может быть пустым');
+      showPopup('Название ЮЛ не может быть пустым');
       if (valueInput) {
         valueInput.focus();
       }
@@ -4976,7 +4976,7 @@
       renderItConnectionsTable();
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       trigger.disabled = false;
       trigger.textContent = originalText;
@@ -6193,24 +6193,24 @@
     const isDraft = card && card.dataset.partnerContactDraft === 'true';
     const data = getPartnerContactCardData(card);
     if (!data) {
-      alert('Не удалось получить данные контакта');
+      showPopup('Не удалось получить данные контакта');
       return;
     }
     const payload = sanitizePartnerContactPayload(data);
     if (!payload.value) {
-      alert('Поле «ЮЛ» не может быть пустым');
+      showPopup('Поле «ЮЛ» не может быть пустым');
       return;
     }
     const servedIds = Array.isArray(payload.served_legal_entity_ids) ? payload.served_legal_entity_ids : [];
     if (payload.contact_type === 'ka' && !servedIds.length) {
-      alert('Для типа «КА» необходимо выбрать одно или несколько обслуживаемых ЮЛ');
+      showPopup('Для типа «КА» необходимо выбрать одно или несколько обслуживаемых ЮЛ');
       return;
     }
     const invalidEmail = Array.isArray(payload.emails)
       ? payload.emails.find((item) => item && item.value && !EMAIL_VALIDATION_REGEX.test(item.value))
       : null;
     if (invalidEmail) {
-      alert('Проверьте e-mail: необходимо указать символ @ и доменное имя.');
+      showPopup('Проверьте e-mail: необходимо указать символ @ и доменное имя.');
       return;
     }
 
@@ -6282,7 +6282,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       trigger.disabled = false;
       trigger.textContent = originalText;
@@ -7501,9 +7501,9 @@
       if (!response.ok || data.success === false) {
         throw new Error((data && data.error) || 'Ошибка сохранения профилей');
       }
-      alert('✅ Профили провайдеров сохранены');
+      showPopup('✅ Профили провайдеров сохранены');
     } catch (error) {
-      alert('❌ ' + (error && error.message ? error.message : error));
+      showPopup('❌ ' + (error && error.message ? error.message : error));
     } finally {
       if (button) {
         button.disabled = false;
@@ -7894,19 +7894,19 @@
     if (!Number.isFinite(id)) return;
     const payload = collectItEquipmentPayload(row);
     if (!payload.equipment_type) {
-      alert('Укажите тип оборудования');
+      showPopup('Укажите тип оборудования');
       const select = row.querySelector('[data-field="equipment_type"]');
       if (select) select.focus();
       return;
     }
     if (!payload.equipment_vendor) {
-      alert('Укажите производителя оборудования');
+      showPopup('Укажите производителя оборудования');
       const select = row.querySelector('[data-field="equipment_vendor"]');
       if (select) select.focus();
       return;
     }
     if (!payload.equipment_model) {
-      alert('Укажите модель оборудования');
+      showPopup('Укажите модель оборудования');
       const select = row.querySelector('[data-field="equipment_model"]');
       if (select) select.focus();
       return;
@@ -7938,7 +7938,7 @@
       }
       renderItEquipmentTable();
     } catch (error) {
-      alert('❌ ' + (error && error.message ? error.message : error));
+      showPopup('❌ ' + (error && error.message ? error.message : error));
     } finally {
       if (button) {
         button.disabled = false;
@@ -7967,7 +7967,7 @@
       itEquipmentItems = Array.isArray(data.items) ? data.items : [];
       renderItEquipmentTable();
     } catch (error) {
-      alert('❌ ' + (error && error.message ? error.message : error));
+      showPopup('❌ ' + (error && error.message ? error.message : error));
     } finally {
       if (button) {
         button.disabled = false;
@@ -8043,7 +8043,7 @@
     const { isDraft, draftIndex, id } = context;
     const payload = collectItConnectionPayload(row);
     if (!payload.value) {
-      alert('Необходимо указать значение подключения');
+      showPopup('Необходимо указать значение подключения');
       const input = row.querySelector('[data-field="value"]');
       if (input) input.focus();
       return;
@@ -8080,7 +8080,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       if (button) button.disabled = false;
     }
@@ -8117,7 +8117,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       if (button) button.disabled = false;
     }
@@ -8147,7 +8147,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       if (button) button.disabled = false;
     }
@@ -8451,7 +8451,7 @@
           itEquipmentAddModal.hide();
         }
       } catch (error) {
-        alert('❌ ' + (error && error.message ? error.message : error));
+        showPopup('❌ ' + (error && error.message ? error.message : error));
       } finally {
         if (button) {
           button.disabled = false;
@@ -8494,7 +8494,7 @@
       }
       label = String(label).trim();
       if (!label) {
-        alert('Название категории не может быть пустым');
+        showPopup('Название категории не может быть пустым');
         return;
       }
       itConnectionCategoryCreateButton.disabled = true;
@@ -8521,7 +8521,7 @@
         }
       } catch (error) {
         const message = error && error.message ? error.message : error;
-        alert('❌ ' + message);
+        showPopup('❌ ' + message);
       } finally {
         itConnectionCategoryCreateButton.disabled = false;
       }
@@ -8594,7 +8594,7 @@
         }, 0);
       } catch (error) {
         const message = error && error.message ? error.message : error;
-        alert('❌ ' + message);
+        showPopup('❌ ' + message);
       } finally {
         if (submitButton) {
           submitButton.disabled = false;
@@ -8697,7 +8697,7 @@
       parametersLoaded = false;
       console.error('Ошибка загрузки параметров:', error);
       const message = error && error.message ? error.message : error;
-      alert('❌ Не удалось загрузить параметры: ' + message);
+      showPopup('❌ Не удалось загрузить параметры: ' + message);
     }
   }
 
@@ -8721,13 +8721,13 @@
         if (serverNameInput) {
           serverNameInput.focus();
         }
-        alert('Поле «Имя сервера» обязательно');
+        showPopup('Поле «Имя сервера» обязательно');
         return;
       }
     }
     const dependencyResult = collectDependencyValues(container, type);
     if (dependencyResult.error) {
-      alert('❌ ' + dependencyResult.error);
+      showPopup('❌ ' + dependencyResult.error);
       if (dependencyResult.field) {
         dependencyResult.field.focus();
       }
@@ -8771,7 +8771,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       trigger.disabled = false;
       trigger.textContent = originalText;
@@ -8785,7 +8785,7 @@
     if (!input) return;
     const value = input.value.trim();
     if (!value) {
-      alert('Значение не может быть пустым');
+      showPopup('Значение не может быть пустым');
       input.focus();
       return;
     }
@@ -8795,7 +8795,7 @@
       serverNameInput = entry.querySelector('input[data-param-field="server_name"]');
       serverName = serverNameInput ? serverNameInput.value.trim() : '';
       if (!serverName) {
-        alert('Имя сервера обязательно');
+        showPopup('Имя сервера обязательно');
         if (serverNameInput) {
           serverNameInput.focus();
         }
@@ -8812,7 +8812,7 @@
       }
       const dependencyResult = collectDependencyValues(entry, type);
       if (dependencyResult.error) {
-        alert('❌ ' + dependencyResult.error);
+        showPopup('❌ ' + dependencyResult.error);
         if (dependencyResult.field) {
           dependencyResult.field.focus();
         }
@@ -8837,7 +8837,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       trigger.disabled = false;
     }
@@ -8866,7 +8866,7 @@
       select.dataset.paramCurrentState = select.value;
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
       select.value = previous;
     } finally {
       select.disabled = false;
@@ -8903,7 +8903,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       trigger.disabled = false;
     }
@@ -8929,7 +8929,7 @@
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
-      alert('❌ ' + message);
+      showPopup('❌ ' + message);
     } finally {
       trigger.disabled = false;
     }
@@ -9267,10 +9267,10 @@
       CLIENT_STATUS_COLORS = sanitizeStatusColorMap(colors);
       renderStatusesList(items);
       setStatusesEditMode(false);
-      alert('✅ Статусы клиентов сохранены');
+      showPopup('✅ Статусы клиентов сохранены');
     } catch (error) {
       const message = error && error.message ? error.message : String(error);
-      alert('❌ Ошибка: ' + message);
+      showPopup('❌ Ошибка: ' + message);
     } finally {
       if (saveBtn) saveBtn.disabled = false;
     }
@@ -9405,12 +9405,12 @@
     const file = fileInput.files && fileInput.files[0];
     if (!file) return;
     if (!file.type || !file.type.startsWith('image/')) {
-      alert('❌ Можно загрузить только изображения (PNG, JPG, SVG и т.п.).');
+      showPopup('❌ Можно загрузить только изображения (PNG, JPG, SVG и т.п.).');
       fileInput.value = '';
       return;
     }
     if (file.size > BUSINESS_ICON_MAX_FILE_SIZE) {
-      alert(`❌ Размер файла не должен превышать ${Math.round(BUSINESS_ICON_MAX_FILE_SIZE / 1024)} КБ.`);
+      showPopup(`❌ Размер файла не должен превышать ${Math.round(BUSINESS_ICON_MAX_FILE_SIZE / 1024)} КБ.`);
       fileInput.value = '';
       return;
     }
@@ -9424,7 +9424,7 @@
       fileInput.value = '';
     };
     reader.onerror = () => {
-      alert('❌ Не удалось прочитать файл. Попробуйте ещё раз.');
+      showPopup('❌ Не удалось прочитать файл. Попробуйте ещё раз.');
       fileInput.value = '';
     };
     reader.readAsDataURL(file);
@@ -9606,7 +9606,7 @@
     if (!saveBusinessStylesBtn) return;
     const { payload, errors } = collectBusinessStylesPayload();
     if (errors.length) {
-      alert('❌ ' + errors.join('\n'));
+      showPopup('❌ ' + errors.join('\n'));
       return;
     }
     const originalText = saveBusinessStylesBtn.textContent;
@@ -9631,10 +9631,10 @@
         })
       );
       renderBusinessStyles();
-      alert('✅ Настройки бизнесов сохранены');
+      showPopup('✅ Настройки бизнесов сохранены');
     } catch (error) {
       const message = error && error.message ? error.message : String(error);
-      alert('❌ Ошибка: ' + message);
+      showPopup('❌ Ошибка: ' + message);
     } finally {
       saveBusinessStylesBtn.disabled = false;
       saveBusinessStylesBtn.textContent = originalText || 'Сохранить изменения';
@@ -10478,7 +10478,7 @@
     }
     const trimmed = (newName || '').trim() || currentName;
     if (trimmed !== currentName && Object.prototype.hasOwnProperty.call(tree, trimmed)) {
-      alert(`Бизнес "${trimmed}" уже существует`);
+      showPopup(`Бизнес "${trimmed}" уже существует`);
       return false;
     }
     if (trimmed !== currentName) {
@@ -10499,7 +10499,7 @@
       return;
     }
     if (Object.prototype.hasOwnProperty.call(locationsState.tree || {}, trimmed)) {
-      alert(`Бизнес "${trimmed}" уже существует`);
+      showPopup(`Бизнес "${trimmed}" уже существует`);
       return;
     }
     locationsState.tree[trimmed] = { 'Новый тип': { 'Новый город': [] } };
@@ -10527,7 +10527,7 @@
     const currentName = (oldName || '').trim();
     const trimmed = (newName || '').trim() || currentName;
     if (trimmed !== currentName && Object.prototype.hasOwnProperty.call(types, trimmed)) {
-      alert(`Тип "${trimmed}" уже существует`);
+      showPopup(`Тип "${trimmed}" уже существует`);
       return false;
     }
     if (trimmed !== currentName) {
@@ -10553,7 +10553,7 @@
       return;
     }
     if (Object.prototype.hasOwnProperty.call(types, trimmed)) {
-      alert(`Тип "${trimmed}" уже существует`);
+      showPopup(`Тип "${trimmed}" уже существует`);
       return;
     }
     types[trimmed] = { 'Новый город': [] };
@@ -10582,7 +10582,7 @@
     const currentName = (oldName || '').trim();
     const trimmed = (newName || '').trim() || currentName;
     if (trimmed !== currentName && Object.prototype.hasOwnProperty.call(cities, trimmed)) {
-      alert(`Город "${trimmed}" уже существует`);
+      showPopup(`Город "${trimmed}" уже существует`);
       return false;
     }
     if (trimmed !== currentName) {
@@ -10606,7 +10606,7 @@
       return;
     }
     if (Object.prototype.hasOwnProperty.call(cities, trimmed)) {
-      alert(`Город "${trimmed}" уже существует`);
+      showPopup(`Город "${trimmed}" уже существует`);
       return;
     }
     cities[trimmed] = [];
@@ -10636,7 +10636,7 @@
     const currentName = (oldName || '').trim();
     const trimmed = (newName || '').trim() || currentName;
     if (trimmed !== currentName && locations.includes(trimmed)) {
-      alert(`Локация "${trimmed}" уже существует`);
+      showPopup(`Локация "${trimmed}" уже существует`);
       return false;
     }
     const idx = locations.indexOf(currentName);
@@ -10663,7 +10663,7 @@
       return;
     }
     if (list.includes(trimmed)) {
-      alert(`Локация "${trimmed}" уже существует`);
+      showPopup(`Локация "${trimmed}" уже существует`);
       return;
     }
     list.push(trimmed);
@@ -10698,12 +10698,12 @@
       });
       const data = await response.json();
       if (data.success) {
-        alert('✅ Структура локаций сохранена');
+        showPopup('✅ Структура локаций сохранена');
       } else {
-        alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+        showPopup('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
       }
     } catch (error) {
-      alert('❌ Ошибка сети: ' + error.message);
+      showPopup('❌ Ошибка сети: ' + error.message);
     }
   }
 
@@ -10940,7 +10940,7 @@
       return;
     }
     if (!addLocationEntryFromWizard(locationWizardState)) {
-      alert('Такая запись уже существует в выбранной структуре.');
+      showPopup('Такая запись уже существует в выбранной структуре.');
       return;
     }
     if (locationWizardModal) {
@@ -12061,11 +12061,11 @@
     try {
       const autoCloseState = collectAutoCloseConfig();
       if (autoCloseState.errors && autoCloseState.errors.length) {
-        alert(autoCloseState.errors.join('\n'));
+        showPopup(autoCloseState.errors.join('\n'));
         return;
       }
       if (!autoCloseState.templates.length) {
-        alert('Добавьте хотя бы один шаблон автозакрытия.');
+        showPopup('Добавьте хотя бы один шаблон автозакрытия.');
         return;
       }
       const activeTemplate = autoCloseState.templates.find((tpl) => tpl.id === autoCloseState.active_template_id)
@@ -12079,14 +12079,14 @@
       const timeMetricsState = collectTimeMetricsConfig();
       if (timeMetricsState.errors && timeMetricsState.errors.length) {
         const uniqueErrors = Array.from(new Set(timeMetricsState.errors));
-        alert(uniqueErrors.join('\n'));
+        showPopup(uniqueErrors.join('\n'));
         return;
       }
 
       const summaryBadgesState = collectDialogSummaryBadges();
       if (summaryBadgesState.errors && summaryBadgesState.errors.length) {
         const uniqueErrors = Array.from(new Set(summaryBadgesState.errors));
-        alert(uniqueErrors.join('\n'));
+        showPopup(uniqueErrors.join('\n'));
         return;
       }
 
@@ -12173,12 +12173,12 @@
       
       const data = await response.json();
       if (data.success) {
-        alert('✅ Настройки сохранены');
+        showPopup('✅ Настройки сохранены');
       } else {
-        alert('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+        showPopup('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
       }
     } catch (error) {
-      alert('❌ Ошибка сети: ' + error.message);
+      showPopup('❌ Ошибка сети: ' + error.message);
     }
   }
 
@@ -12420,7 +12420,7 @@
   function openChannelEditor(id) {
     const channel = CHANNELS_REGISTRY.get(String(id));
     if (!channel) {
-      alert('Канал не найден.');
+      showPopup('Канал не найден.');
       return;
     }
     populateChannelEditor(channel);
@@ -12444,7 +12444,7 @@
   function openVkSettings(id) {
     const channel = CHANNELS_REGISTRY.get(String(id));
     if (!channel || channel.platform !== 'vk') {
-      alert('Настройки вебхука доступны только для VK.');
+      showPopup('Настройки вебхука доступны только для VK.');
       return;
     }
     const platformConfig = parsePlatformConfig(channel.platform_config);
@@ -12480,11 +12480,11 @@
 
     let groupId = parseInt(groupIdVal, 10);
     if (!Number.isFinite(groupId) || groupId <= 0) {
-      alert('group_id должен быть положительным числом.');
+      showPopup('group_id должен быть положительным числом.');
       return;
     }
     if (!confirmationVal) {
-      alert('Укажите код подтверждения Callback API.');
+      showPopup('Укажите код подтверждения Callback API.');
       return;
     }
 
@@ -12513,9 +12513,9 @@
         modal?.hide();
       }
       await loadChannels();
-      alert('Настройки вебхука сохранены.');
+      showPopup('Настройки вебхука сохранены.');
     } catch (error) {
-      alert('Не удалось сохранить настройки вебхука: ' + error.message);
+      showPopup('Не удалось сохранить настройки вебхука: ' + error.message);
     }
   }
 
@@ -12820,7 +12820,7 @@
       renderChannels(rows);
       refreshChannelEditorIfOpen();
     } catch (error) {
-      alert('Не удалось загрузить каналы: ' + error.message);
+      showPopup('Не удалось загрузить каналы: ' + error.message);
     }
   }
 
@@ -12830,7 +12830,7 @@
       return;
     }
     const prefix = type === 'error' ? 'Ошибка: ' : '';
-    alert(prefix + message);
+    showPopup(prefix + message);
   }
 
   function resetAddChannelForm() {
@@ -12949,7 +12949,7 @@
   async function saveChannel(id) {
     const channelName = channelEditorNameInput?.value?.trim() || '';
     if (!channelName) {
-      alert('Укажите название для панели.');
+      showPopup('Укажите название для панели.');
       return;
     }
 
@@ -13015,13 +13015,13 @@
       if (!result.resp.ok || result.data.success === false) {
         throw new Error(result.data.error || ('HTTP ' + result.resp.status));
       }
-      alert('Настройки канала сохранены.');
+      showPopup('Настройки канала сохранены.');
       if (channelEditorNewTokenInput) {
         channelEditorNewTokenInput.value = '';
       }
       await loadChannels();
     } catch (error) {
-      alert('Ошибка сохранения: ' + error.message);
+      showPopup('Ошибка сохранения: ' + error.message);
     }
   }
 
@@ -13037,7 +13037,7 @@
         modal?.hide();
       }
     } catch (error) {
-      alert('Ошибка удаления: ' + error.message);
+      showPopup('Ошибка удаления: ' + error.message);
     }
   }
 
@@ -13108,7 +13108,7 @@
       console.error('Failed to start bot', error);
       updateBotStatusLabel(error.message || 'Ошибка');
       updateBotControls(false);
-      alert('Не удалось запустить бота: ' + error.message);
+      showPopup('Не удалось запустить бота: ' + error.message);
     }
   }
 
@@ -13127,7 +13127,7 @@
     } catch (error) {
       console.error('Failed to stop bot', error);
       updateBotStatusLabel(error.message || 'Ошибка');
-      alert('Не удалось остановить бота: ' + error.message);
+      showPopup('Не удалось остановить бота: ' + error.message);
     }
   }
 
