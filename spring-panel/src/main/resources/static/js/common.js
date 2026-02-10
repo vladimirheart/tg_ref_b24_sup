@@ -145,6 +145,10 @@ function showNotification(message, type = 'info', containerId = 'notification-co
     });
 }
 
+function showPopup(message, type = 'info', containerId = 'notification-container') {
+    showNotification(message, type, containerId);
+}
+
 // Функция для экспорта данных (универсальная)
 async function exportDataGeneric(url, format, filters = {}, exportFiltered = false, filenamePrefix = 'export') {
     const exportBtn = document.activeElement; // Предполагаем, что вызвано кнопкой
@@ -461,13 +465,14 @@ if (typeof window !== 'undefined' && !window.__customAlertPatched) {
         } else if (/⚠️|предупрежд/i.test(text)) {
             type = 'warning';
         }
-        showNotification(message, type);
+        showPopup(message, type);
     };
     window.__customAlertPatched = true;
 }
 
 // Экспортируем функции в глобальную область видимости
 window.CommonUtils = {
+    showPopup,
     showNotification,
     exportDataGeneric,
     initializeSelect2,
