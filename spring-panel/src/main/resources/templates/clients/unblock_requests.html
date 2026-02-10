@@ -17,14 +17,15 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1">Запросы на разблокировку</h1>
-            <p class="text-muted mb-0">Список клиентов, которые запросили снятие блокировки.</p>
+            <p class="text-muted mb-0">Список клиентов, которые запросили снятие блокировки, включая историю обработанных заявок.</p>
         </div>
     </div>
 
     <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
         <label class="form-label mb-0">Статус:</label>
         <select class="form-select form-select-sm" style="width:auto"
-                onchange="location.href='?status='+this.value">
+                onchange="location.href=this.value ? ('?status='+this.value) : '/unblock-requests'">
+            <option value="" th:selected="${statusFilter == null || statusFilter.isBlank()}">all</option>
             <option th:each="status : ${availableStatuses}"
                     th:value="${status}"
                     th:selected="${statusFilter == status}"
