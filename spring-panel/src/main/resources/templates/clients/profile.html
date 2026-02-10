@@ -578,7 +578,7 @@
         if (response.ok && payload.ok) {
             window.location.reload();
         } else {
-            alert(payload.error || 'Не удалось снять блокировку');
+            showPopup(payload.error || 'Не удалось снять блокировку');
         }
     };
 
@@ -718,7 +718,7 @@
         const phone = (phoneInput?.value || '').trim();
         const label = (labelInput?.value || '').trim();
         if (!phone) {
-            alert('Введите телефон');
+            showPopup('Введите телефон');
             return;
         }
         try {
@@ -750,7 +750,7 @@
             if (phoneInput) phoneInput.value = '';
             if (labelInput) labelInput.value = '';
         } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
+            showPopup(error?.message || 'Ошибка соединения');
         }
     };
 
@@ -771,7 +771,7 @@
                 throw new Error(payload.error || 'Не удалось сохранить метку');
             }
         } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
+            showPopup(error?.message || 'Ошибка соединения');
         }
     };
 
@@ -795,7 +795,7 @@
                 row.remove();
             }
         } catch (error) {
-            alert(error?.message || 'Ошибка соединения');
+            showPopup(error?.message || 'Ошибка соединения');
         }
     };
 
