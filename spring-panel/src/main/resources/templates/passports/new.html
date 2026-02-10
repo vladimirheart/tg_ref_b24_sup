@@ -2603,7 +2603,7 @@
           }
           const trimmed = typeof input === 'string' ? input.trim() : '';
           if (!trimmed) {
-            alert(`Поле «${label}» обязательно`);
+            showPopup(`Поле «${label}» обязательно`);
             return;
           }
           payload[dep] = trimmed;
