@@ -24,7 +24,7 @@ public class UnblockRequestsController {
 
     @GetMapping("/unblock-requests")
     @PreAuthorize("hasAuthority('PAGE_CLIENTS')")
-    public String list(@RequestParam(name = "status", required = false, defaultValue = "pending") String status,
+    public String list(@RequestParam(name = "status", required = false) String status,
                        Model model,
                        Authentication authentication) {
         navigationService.enrich(model, authentication);
