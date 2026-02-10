@@ -150,7 +150,7 @@
       populateSelect(filterChannelSelect, Array.from(channelMap.values()), { labelKey: 'name', placeholder: 'Все каналы' });
     } catch (error) {
       console.error('loadCredentials', error);
-      alert(`Не удалось загрузить учётные данные: ${error.message}`);
+      showPopup(`Не удалось загрузить учётные данные: ${error.message}`);
     }
   }
 
@@ -176,7 +176,7 @@
       populateSelect(filterChannelSelect, list, { valueKey: 'id', labelKey: 'name', placeholder: 'Все каналы' });
     } catch (error) {
       console.error('loadChannels', error);
-      alert(`Не удалось загрузить каналы: ${error.message}`);
+      showPopup(`Не удалось загрузить каналы: ${error.message}`);
     }
   }
 
@@ -196,7 +196,7 @@
       notificationsCount.textContent = list.length;
     } catch (error) {
       console.error('loadNotifications', error);
-      alert(`Не удалось загрузить журнал уведомлений: ${error.message}`);
+      showPopup(`Не удалось загрузить журнал уведомлений: ${error.message}`);
     }
   }
 
@@ -207,7 +207,7 @@
     const token = document.getElementById('credentialToken').value.trim();
     const isActive = document.getElementById('credentialActive').checked;
     if (!name || !token) {
-      alert('Заполните название и токен.');
+      showPopup('Заполните название и токен.');
       return;
     }
     try {
@@ -219,7 +219,7 @@
       document.getElementById('credentialActive').checked = true;
       await loadCredentials();
     } catch (error) {
-      alert(`Не удалось сохранить учётные данные: ${error.message}`);
+      showPopup(`Не удалось сохранить учётные данные: ${error.message}`);
     }
   }
 
@@ -235,7 +235,7 @@
       await loadCredentials();
       await loadChannels();
     } catch (error) {
-      alert(`Не удалось удалить учётные данные: ${error.message}`);
+      showPopup(`Не удалось удалить учётные данные: ${error.message}`);
     }
   }
 
@@ -248,7 +248,7 @@
     const isActive = document.getElementById('channelActive').checked;
     const maxQuestions = Number(document.getElementById('channelMaxQuestions').value || 0);
     if (!name || !credentialId) {
-      alert('Заполните название и выберите учётные данные.');
+      showPopup('Заполните название и выберите учётные данные.');
       return;
     }
     try {
@@ -269,7 +269,7 @@
       await loadChannels();
       await loadNotifications();
     } catch (error) {
-      alert(`Не удалось создать канал: ${error.message}`);
+      showPopup(`Не удалось создать канал: ${error.message}`);
     }
   }
 
@@ -287,7 +287,7 @@
         await loadChannels();
         await loadNotifications();
       } catch (error) {
-        alert(`Не удалось удалить канал: ${error.message}`);
+        showPopup(`Не удалось удалить канал: ${error.message}`);
       }
     }
     if (action === 'test-channel') {
