@@ -63,7 +63,7 @@ public class BlacklistHistoryService {
     }
 
     private Optional<OffsetDateTime> loadLastBlockedAt(String userId) {
-        return jdbcTemplate.query(
+        return Optional.ofNullable(jdbcTemplate.query(
                 """
                     SELECT created_at
                     FROM client_blacklist_history
@@ -73,14 +73,14 @@ public class BlacklistHistoryService {
                     """,
                 rs -> rs.next() ? parseOffsetDateTime(rs.getString("created_at")) : null,
                 userId
-        ).stream().findFirst();
+        ));
     }
 
     private Optional<OffsetDateTime> loadFirstUnblockedAfter(String userId, OffsetDateTime after) {
         if (after == null) {
             return Optional.empty();
         }
-        return jdbcTemplate.query(
+        return Optional.ofNullable(jdbcTemplate.query(
                 """
                     SELECT created_at
                     FROM client_blacklist_history
@@ -91,11 +91,11 @@ public class BlacklistHistoryService {
                 rs -> rs.next() ? parseOffsetDateTime(rs.getString("created_at")) : null,
                 userId,
                 after.toString()
-        ).stream().findFirst();
+        ));
     }
 
     private Optional<OffsetDateTime> loadFallbackBlockedAt(String userId) {
-        return jdbcTemplate.query(
+        return Optional.ofNullable(jdbcTemplate.query(
                 """
                     SELECT added_at
                     FROM client_blacklist
@@ -103,7 +103,7 @@ public class BlacklistHistoryService {
                     """,
                 rs -> rs.next() ? parseOffsetDateTime(rs.getString("added_at")) : null,
                 userId
-        ).stream().findFirst();
+        ));
     }
 
     private OffsetDateTime parseOffsetDateTime(String raw) {
