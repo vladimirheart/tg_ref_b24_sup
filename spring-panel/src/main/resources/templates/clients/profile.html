@@ -93,19 +93,12 @@
                             </div>
                         </div>
                         <div class="mt-3" th:if="${!#lists.isEmpty(profile.blacklistHistory)}">
-                            <div class="small text-muted fw-semibold mb-2">История блэклиста</div>
-                            <ul class="list-unstyled small mb-0">
-                                <li class="mb-2" th:each="entry : ${profile.blacklistHistory}">
-                                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                                        <span class="text-muted" th:text="${entry.at}">—</span>
-                                        <span class="fw-semibold" th:text="${entry.actionLabel}">—</span>
-                                        <span th:if="${entry.actor != null}"
-                                              th:text="'• ' + ${entry.actor}">—</span>
-                                    </div>
-                                    <div class="text-muted" th:if="${entry.reason != null}"
-                                         th:text="${entry.reason}">—</div>
-                                </li>
-                            </ul>
+                            <button class="btn btn-sm btn-outline-dark"
+                                    type="button"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#blacklistHistoryModal">
+                                📜 История блэклиста
+                            </button>
                         </div>
                     </div>
                     <div class="border rounded p-3 bg-light">
@@ -436,6 +429,30 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="modal fade" id="blacklistHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">История блэклиста</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div th:if="${#lists.isEmpty(profile.blacklistHistory)}" class="text-muted">История отсутствует.</div>
+                <ul class="list-unstyled small mb-0" th:if="${!#lists.isEmpty(profile.blacklistHistory)}">
+                    <li class="mb-3" th:each="entry : ${profile.blacklistHistory}">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span class="text-muted" th:text="${entry.at}">—</span>
+                            <span class="fw-semibold" th:text="${entry.actionLabel}">—</span>
+                            <span th:if="${entry.actor != null}" th:text="'• ' + ${entry.actor}">—</span>
+                        </div>
+                        <div class="text-muted" th:if="${entry.reason != null}" th:text="${entry.reason}">—</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
