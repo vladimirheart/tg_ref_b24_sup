@@ -109,8 +109,8 @@ public class AuthManagementApiController {
 
         Map<String, Object> capabilities = Map.of(
             "fields", Map.of(
-                "edit", buildCapabilityMap(authentication, EDITABLE_FIELD_PERMISSIONS),
-                "view", buildCapabilityMap(authentication, VIEWABLE_FIELD_PERMISSIONS)
+                "edit", buildCapabilityMap(authentication, EDITABLE_FIELD_PERMISSIONS, "edit"),
+                "view", buildCapabilityMap(authentication, VIEWABLE_FIELD_PERMISSIONS, "view")
             )
         );
 
@@ -142,7 +142,10 @@ public class AuthManagementApiController {
 
     @PostMapping({"/users", "/users/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> createUser(HttpServletRequest request) throws IOException {
+    public Map<String, Object> createUser(Authentication authentication, HttpServletRequest request) throws IOException {
+        if (!hasEditPermission(authentication, "user.create")) {
+            return Map.of("success", false, "error", "Недостаточно прав для создания пользователя");
+        }
         return createUserFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
     }
 
@@ -200,33 +203,45 @@ public class AuthManagementApiController {
     @RequestMapping(value = "/users/{userId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> updateUser(@PathVariable long userId,
+                                          Authentication authentication,
                                           @RequestBody Map<String, Object> payload) {
         List<String> updates = new ArrayList<>();
         List<Object> params = new ArrayList<>();
 
-        updateColumnIfPresent(payload, updates, params, "username", "username");
-        updateColumnIfPresent(payload, updates, params, "full_name", "full_name");
-        updateColumnIfPresent(payload, updates, params, "email", "email");
-        updateColumnIfPresent(payload, updates, params, "department", "department");
-        updateColumnIfPresent(payload, updates, params, "photo", "photo");
-        updateColumnIfPresent(payload, updates, params, "birth_date", "birth_date");
+        Long currentUserId = resolveCurrentUserId(authentication);
+        boolean isSelf = currentUserId != null && currentUserId.equals(userId);
 
-        if (payload.containsKey("phones") && userColumns.contains("phones")) {
+        if (hasEditPermission(authentication, "user.username")) {
+            updateColumnIfPresent(payload, updates, params, "username", "username");
+        }
+        if (hasEditPermission(authentication, "user.username") || isSelf) {
+            updateColumnIfPresent(payload, updates, params, "full_name", "full_name");
+            updateColumnIfPresent(payload, updates, params, "email", "email");
+            updateColumnIfPresent(payload, updates, params, "department", "department");
+            updateColumnIfPresent(payload, updates, params, "photo", "photo");
+            updateColumnIfPresent(payload, updates, params, "birth_date", "birth_date");
+        }
+
+        if ((hasEditPermission(authentication, "user.username") || isSelf)
+            && payload.containsKey("phones") && userColumns.contains("phones")) {
             updates.add("phones = ?");
             params.add(encodePhones(payload.get("phones")));
         }
 
-        if (payload.containsKey("role_id") && userColumns.contains("role_id")) {
+        if (hasEditPermission(authentication, "user.role")
+            && payload.containsKey("role_id") && userColumns.contains("role_id")) {
             updates.add("role_id = ?");
             params.add(payload.get("role_id"));
         }
 
-        if (payload.containsKey("role") && userColumns.contains("role")) {
+        if (hasEditPermission(authentication, "user.role")
+            && payload.containsKey("role") && userColumns.contains("role")) {
             updates.add("role = ?");
             params.add(stringValue(payload.get("role")));
         }
 
-        if (payload.containsKey("is_blocked") && userColumns.contains("is_blocked")) {
+        if (hasEditPermission(authentication, "user.block")
+            && payload.containsKey("is_blocked") && userColumns.contains("is_blocked")) {
             boolean blocked = Boolean.TRUE.equals(payload.get("is_blocked"));
             updates.add("is_blocked = ?");
             params.add(blocked ? 1 : 0);
@@ -236,7 +251,7 @@ public class AuthManagementApiController {
             }
         }
 
-        if (payload.containsKey("password")) {
+        if ((hasEditPermission(authentication, "user.password") || isSelf) && payload.containsKey("password")) {
             String password = stringValue(payload.get("password"));
             if (StringUtils.hasText(password)) {
                 String hashed = passwordEncoder.encode(password);
@@ -261,7 +276,10 @@ public class AuthManagementApiController {
 
     @DeleteMapping("/users/{userId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> deleteUser(@PathVariable long userId) {
+    public Map<String, Object> deleteUser(@PathVariable long userId, Authentication authentication) {
+        if (!hasEditPermission(authentication, "user.delete")) {
+            return Map.of("success", false, "error", "Недостаточно прав для удаления пользователя");
+        }
         int removed = usersJdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
         if (removed == 0) {
             return Map.of("success", false, "error", "Пользователь не найден");
@@ -283,7 +301,10 @@ public class AuthManagementApiController {
 
     @PostMapping({"/roles", "/roles/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> createRole(HttpServletRequest request) throws IOException {
+    public Map<String, Object> createRole(Authentication authentication, HttpServletRequest request) throws IOException {
+        if (!hasEditPermission(authentication, "role.create")) {
+            return Map.of("success", false, "error", "Недостаточно прав для создания роли");
+        }
         return createRoleFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
     }
 
@@ -312,11 +333,15 @@ public class AuthManagementApiController {
     @RequestMapping(value = "/roles/{roleId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> updateRole(@PathVariable long roleId,
+                                          Authentication authentication,
                                           @RequestBody Map<String, Object> payload) {
         List<String> updates = new ArrayList<>();
         List<Object> params = new ArrayList<>();
 
         if (payload.containsKey("name")) {
+            if (!hasEditPermission(authentication, "role.name")) {
+                return Map.of("success", false, "error", "Недостаточно прав для изменения названия роли");
+            }
             String name = stringValue(payload.get("name"));
             if (!StringUtils.hasText(name)) {
                 return Map.of("success", false, "error", "Название роли не может быть пустым");
@@ -325,10 +350,18 @@ public class AuthManagementApiController {
             params.add(name);
         }
         if (payload.containsKey("description")) {
+            if (!hasEditPermission(authentication, "role.description")) {
+                return Map.of("success", false, "error", "Недостаточно прав для изменения описания роли");
+            }
             updates.add("description = ?");
             params.add(stringValue(payload.get("description")));
         }
         if (payload.containsKey("permissions")) {
+            if (!(hasEditPermission(authentication, "role.pages")
+                || hasEditPermission(authentication, "role.fields.edit")
+                || hasEditPermission(authentication, "role.fields.view"))) {
+                return Map.of("success", false, "error", "Недостаточно прав для изменения разрешений роли");
+            }
             updates.add("permissions = ?");
             params.add(encodePermissions(payload.get("permissions")));
         }
@@ -345,7 +378,10 @@ public class AuthManagementApiController {
 
     @DeleteMapping("/roles/{roleId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> deleteRole(@PathVariable long roleId) {
+    public Map<String, Object> deleteRole(@PathVariable long roleId, Authentication authentication) {
+        if (!hasEditPermission(authentication, "role.delete")) {
+            return Map.of("success", false, "error", "Недостаточно прав для удаления роли");
+        }
         if (userColumns.contains("role_id")) {
             Integer usage = usersJdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM users WHERE role_id = ?",
@@ -384,11 +420,11 @@ public class AuthManagementApiController {
         String usersQuery = buildUsersQuery();
         List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(usersQuery);
         Long currentId = resolveCurrentUserId(authentication);
-        boolean canEditPassword = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
-        boolean canEditUsername = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
-        boolean canEditRole = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
-        boolean canDeleteUser = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
-        boolean canBlockUser = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
+        boolean canEditPassword = hasEditPermission(authentication, "user.password");
+        boolean canEditUsername = hasEditPermission(authentication, "user.username");
+        boolean canEditRole = hasEditPermission(authentication, "user.role");
+        boolean canDeleteUser = hasEditPermission(authentication, "user.delete");
+        boolean canBlockUser = hasEditPermission(authentication, "user.block");
 
         List<Map<String, Object>> users = new ArrayList<>();
         for (Map<String, Object> row : rows) {
@@ -444,13 +480,69 @@ public class AuthManagementApiController {
         return roles;
     }
 
-    private Map<String, Boolean> buildCapabilityMap(Authentication authentication, List<Map<String, String>> catalog) {
+    private Map<String, Boolean> buildCapabilityMap(Authentication authentication, List<Map<String, String>> catalog, String mode) {
         Map<String, Boolean> result = new LinkedHashMap<>();
-        boolean allowed = permissionService.hasAuthority(authentication, "PAGE_SETTINGS");
         for (Map<String, String> entry : catalog) {
-            result.put(entry.get("key"), allowed);
+            result.put(entry.get("key"), hasFieldPermission(authentication, entry.get("key"), mode));
         }
         return result;
+    }
+
+    private boolean hasEditPermission(Authentication authentication, String permissionKey) {
+        return hasFieldPermission(authentication, permissionKey, "edit");
+    }
+
+    private boolean hasFieldPermission(Authentication authentication, String permissionKey, String mode) {
+        if (!StringUtils.hasText(permissionKey)) {
+            return false;
+        }
+        if (permissionService.hasAuthority(authentication, "ROLE_ADMIN")) {
+            return true;
+        }
+        if (!permissionService.hasAuthority(authentication, "PAGE_SETTINGS")) {
+            return false;
+        }
+        Map<String, Object> currentPermissions = resolveCurrentRolePermissions(authentication);
+        return containsPermission(extractFieldPermissions(currentPermissions, mode), permissionKey);
+    }
+
+    private Map<String, Object> resolveCurrentRolePermissions(Authentication authentication) {
+        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+            return Map.of();
+        }
+        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
+            "SELECT r.permissions AS permissions FROM users u LEFT JOIN roles r ON r.id = u.role_id " +
+                "WHERE lower(u.username) = lower(?) LIMIT 1",
+            authentication.getName()
+        );
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        return parsePermissions(rows.get(0).get("permissions"));
+    }
+
+    private List<String> extractFieldPermissions(Map<String, Object> permissions, String mode) {
+        if (!(permissions.get("fields") instanceof Map<?, ?> fields)) {
+            return List.of();
+        }
+        Object raw = fields.get(mode);
+        if (!(raw instanceof List<?> list)) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (Object item : list) {
+            if (item != null) {
+                String value = item.toString().trim();
+                if (!value.isEmpty()) {
+                    result.add(value);
+                }
+            }
+        }
+        return result;
+    }
+
+    private boolean containsPermission(List<String> permissions, String key) {
+        return permissions.contains("*") || permissions.contains(key);
     }
 
     private Long resolveCurrentUserId(Authentication authentication) {
