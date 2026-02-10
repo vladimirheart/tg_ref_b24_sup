@@ -3230,6 +3230,54 @@
               Можно оставить пустым — добавьте бота в нужную группу, и мы определим ID автоматически.
             </div>
           </div>
+          <div class="mt-3">
+            <label class="form-label" for="channelEditorBroadcastChannelId">ID канала для рассылок</label>
+            <input class="form-control" id="channelEditorBroadcastChannelId" placeholder="Например: -1009876543210" />
+            <div class="form-text small">Используется для отправки запланированных сообщений в канал.</div>
+          </div>
+          <div class="mt-3">
+            <div class="form-label">Куда отправлять запланированные сообщения</div>
+            <div class="d-flex flex-column gap-2">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="channelEditorScheduleToGroup" checked>
+                <label class="form-check-label" for="channelEditorScheduleToGroup">В группу</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="channelEditorScheduleToChannel">
+                <label class="form-check-label" for="channelEditorScheduleToChannel">В канал</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="channelEditorScheduleSimultaneous">
+                <label class="form-check-label" for="channelEditorScheduleSimultaneous">Одновременная отправка в группу и канал</label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 border rounded p-3 bg-light-subtle">
+            <div class="form-label fw-semibold">Тест отправки</div>
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-lg-4">
+                <label class="form-label small" for="channelEditorTestTarget">Получатель</label>
+                <select class="form-select" id="channelEditorTestTarget">
+                  <option value="group">Группа</option>
+                  <option value="channel">Канал</option>
+                  <option value="both">Группа + канал одновременно</option>
+                  <option value="custom">Свой chat_id</option>
+                </select>
+              </div>
+              <div class="col-12 col-lg-8">
+                <label class="form-label small" for="channelEditorTestRecipient">chat_id (для «Свой chat_id»)</label>
+                <input class="form-control" id="channelEditorTestRecipient" placeholder="Например: -1001234567890" disabled>
+              </div>
+              <div class="col-12">
+                <label class="form-label small" for="channelEditorTestMessage">Текст тестового сообщения</label>
+                <textarea class="form-control" id="channelEditorTestMessage" rows="2" placeholder="Проверка отправки из панели"></textarea>
+              </div>
+              <div class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-primary" id="channelEditorSendTestBtn">Отправить тест</button>
+                <div class="small text-muted" id="channelEditorTestStatus">Статус теста: —</div>
+              </div>
+            </div>
+          </div>
           <div class="mt-4">
             <div class="form-label">Управление ботом</div>
             <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
@@ -12221,6 +12269,15 @@
   const channelEditorRatingSelect = document.getElementById('channelEditorRatingTemplate');
   const channelEditorAutoSelect = document.getElementById('channelEditorAutoTemplate');
   const channelEditorSupportChatInput = document.getElementById('channelEditorSupportChatId');
+  const channelEditorBroadcastChannelInput = document.getElementById('channelEditorBroadcastChannelId');
+  const channelEditorScheduleToGroupInput = document.getElementById('channelEditorScheduleToGroup');
+  const channelEditorScheduleToChannelInput = document.getElementById('channelEditorScheduleToChannel');
+  const channelEditorScheduleSimultaneousInput = document.getElementById('channelEditorScheduleSimultaneous');
+  const channelEditorTestTargetSelect = document.getElementById('channelEditorTestTarget');
+  const channelEditorTestRecipientInput = document.getElementById('channelEditorTestRecipient');
+  const channelEditorTestMessageInput = document.getElementById('channelEditorTestMessage');
+  const channelEditorSendTestBtn = document.getElementById('channelEditorSendTestBtn');
+  const channelEditorTestStatusEl = document.getElementById('channelEditorTestStatus');
   const channelEditorPlatformEl = document.querySelector('[data-channel-editor-platform]');
   const channelEditorBotEl = document.querySelector('[data-channel-editor-bot]');
   const channelEditorTokenEl = document.querySelector('[data-channel-editor-token]');
@@ -12301,6 +12358,37 @@
       channelEditorSupportHint.textContent = `Текущее значение: ${value}`;
     } else {
       channelEditorSupportHint.textContent = 'ID группы не задан. Добавьте бота в чат или укажите значение вручную.';
+    }
+  }
+
+  function parseDeliverySettings(raw) {
+    if (!raw) return {};
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (error) {
+        return {};
+      }
+    }
+    if (typeof raw === 'object') {
+      return Object.assign({}, raw);
+    }
+    return {};
+  }
+
+  function updateTestRecipientState() {
+    if (!channelEditorTestTargetSelect || !channelEditorTestRecipientInput) return;
+    const custom = channelEditorTestTargetSelect.value === 'custom';
+    channelEditorTestRecipientInput.disabled = !custom;
+    if (!custom) {
+      channelEditorTestRecipientInput.value = '';
+    }
+  }
+
+  function setTestStatus(message) {
+    if (channelEditorTestStatusEl) {
+      channelEditorTestStatusEl.textContent = `Статус теста: ${message}`;
     }
   }
 
@@ -12395,10 +12483,31 @@
     configureChannelEditorSelect(channelEditorRatingSelect, RATING_TEMPLATES, channel.rating_template_id, DEFAULT_RATING_TEMPLATE_ID, 'rating_template_id');
     configureChannelEditorSelect(channelEditorAutoSelect, AUTO_ACTION_TEMPLATES, channel.auto_action_template_id, DEFAULT_AUTO_ACTION_TEMPLATE_ID, 'auto_action_template_id');
     const supportChatValue = channel.support_chat_id ?? '';
+    const deliverySettings = parseDeliverySettings(channel.delivery_settings);
     if (channelEditorSupportChatInput) {
       channelEditorSupportChatInput.value = supportChatValue;
     }
+    if (channelEditorBroadcastChannelInput) {
+      channelEditorBroadcastChannelInput.value = deliverySettings.broadcast_channel_id || '';
+    }
+    if (channelEditorScheduleToGroupInput) {
+      channelEditorScheduleToGroupInput.checked = Boolean(deliverySettings.schedule_to_group ?? true);
+    }
+    if (channelEditorScheduleToChannelInput) {
+      channelEditorScheduleToChannelInput.checked = Boolean(deliverySettings.schedule_to_channel);
+    }
+    if (channelEditorScheduleSimultaneousInput) {
+      channelEditorScheduleSimultaneousInput.checked = Boolean(deliverySettings.schedule_simultaneous);
+    }
     updateSupportChatHint(supportChatValue);
+    if (channelEditorTestMessageInput) {
+      channelEditorTestMessageInput.value = 'Проверка отправки из панели';
+    }
+    if (channelEditorTestTargetSelect) {
+      channelEditorTestTargetSelect.value = 'group';
+    }
+    updateTestRecipientState();
+    setTestStatus('—');
     if (channelEditorVkBtn) {
       channelEditorVkBtn.classList.toggle('d-none', channel.platform !== 'vk');
     }
@@ -12433,6 +12542,15 @@
 
   if (channelsBody) {
     channelsBody.addEventListener('click', (event) => {
+      const startBtn = event.target.closest('[data-channel-start]');
+      if (startBtn) {
+        event.preventDefault();
+        const channelId = startBtn.getAttribute('data-channel-start');
+        if (channelId) {
+          startBot(channelId);
+        }
+        return;
+      }
       const editBtn = event.target.closest('[data-channel-edit]');
       if (!editBtn) return;
       event.preventDefault();
@@ -12740,6 +12858,7 @@
       const platform = String(row.platform || 'telegram').toLowerCase();
       const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
       const platformConfig = parsePlatformConfig(row.platform_config ?? row.platformConfig);
+      const deliverySettings = parseDeliverySettings(row.delivery_settings ?? row.deliverySettings);
       const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId ?? null) : null;
       const questionTemplateId = sanitizeTemplateId(
         row.question_template_id ?? row.questionTemplateId,
@@ -12773,6 +12892,7 @@
         public_id: row.public_id || row.publicId || '',
         vk_group_id: vkGroupId,
         support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
+        delivery_settings: deliverySettings,
       };
 
       CHANNELS_REGISTRY.set(String(row.id), prepared);
@@ -12801,7 +12921,10 @@
         </td>
         <td class="text-center">
           <div>${statusBadge}</div>
-          <button type="button" class="btn btn-sm btn-outline-primary mt-2" data-channel-edit="${prepared.id}">Редактировать</button>
+          <div class="d-flex justify-content-center gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}">Запустить</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}">Редактировать</button>
+          </div>
         </td>
       `;
       channelsBody.appendChild(tr);
@@ -12971,6 +13094,13 @@
       body.support_chat_id = supportValue || null;
     }
 
+    body.delivery_settings = {
+      broadcast_channel_id: channelEditorBroadcastChannelInput?.value?.trim() || null,
+      schedule_to_group: channelEditorScheduleToGroupInput?.checked ?? true,
+      schedule_to_channel: channelEditorScheduleToChannelInput?.checked ?? false,
+      schedule_simultaneous: channelEditorScheduleSimultaneousInput?.checked ?? false,
+    };
+
     const configPayload = {};
     if (channelEditorQuestionSelect && !channelEditorQuestionSelect.disabled) {
       const value = channelEditorQuestionSelect.value || '';
@@ -13106,11 +13236,21 @@
       }
       updateBotStatusLabel(payload.status, payload.startedAt);
       updateBotControls(payload.status === 'running');
+      return true;
     } catch (error) {
       console.error('Failed to start bot', error);
       updateBotStatusLabel(error.message || 'Ошибка');
       updateBotControls(false);
       showPopup('Не удалось запустить бота: ' + error.message);
+      return false;
+    }
+  }
+
+  async function startBot(channelId) {
+    const success = await startBotForChannel(channelId);
+    if (success) {
+      showPopup('Команда запуска отправлена. Проверьте статус бота в настройках канала.');
+      refreshBotStatus(channelId);
     }
   }
 
@@ -13130,6 +13270,52 @@
       console.error('Failed to stop bot', error);
       updateBotStatusLabel(error.message || 'Ошибка');
       showPopup('Не удалось остановить бота: ' + error.message);
+    }
+  }
+
+  async function sendChannelTestMessage() {
+    if (channelEditorState.channelId === null) return;
+    const message = channelEditorTestMessageInput?.value?.trim() || '';
+    const targetMode = channelEditorTestTargetSelect?.value || 'group';
+    const recipient = channelEditorTestRecipientInput?.value?.trim() || '';
+    if (!message) {
+      setTestStatus('укажите текст сообщения');
+      return;
+    }
+    if (targetMode === 'custom' && !recipient) {
+      setTestStatus('укажите chat_id');
+      return;
+    }
+    try {
+      if (channelEditorSendTestBtn) {
+        channelEditorSendTestBtn.disabled = true;
+      }
+      setTestStatus('отправка…');
+      const response = await fetch(`/api/channels/${channelEditorState.channelId}/test-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': getCookieValue('XSRF-TOKEN')
+        },
+        body: JSON.stringify({ message, target_mode: targetMode, recipient }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || ('HTTP ' + response.status));
+      }
+      const sentCount = Array.isArray(payload.sent) ? payload.sent.length : 0;
+      const failedCount = Array.isArray(payload.failed) ? payload.failed.length : 0;
+      setTestStatus(`успешно: ${sentCount}, ошибок: ${failedCount}`);
+      if (failedCount > 0) {
+        showPopup('Тест отправлен частично. Проверьте chat_id и права бота.');
+      }
+    } catch (error) {
+      setTestStatus(`ошибка: ${error.message}`);
+      showPopup('Не удалось отправить тест: ' + error.message);
+    } finally {
+      if (channelEditorSendTestBtn) {
+        channelEditorSendTestBtn.disabled = false;
+      }
     }
   }
 
@@ -13158,6 +13344,8 @@
         updateSupportChatHint(value || '');
       }
     });
+    channelEditorTestTargetSelect?.addEventListener('change', updateTestRecipientState);
+    channelEditorSendTestBtn?.addEventListener('click', sendChannelTestMessage);
     channelEditorVkBtn?.addEventListener('click', () => {
       if (channelEditorState.channelId !== null) {
         openVkSettings(channelEditorState.channelId);
