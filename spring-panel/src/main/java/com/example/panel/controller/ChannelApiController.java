@@ -135,16 +135,71 @@ public class ChannelApiController {
     @PostMapping("/channels/{channelId}/test-message")
     public ResponseEntity<Map<String, Object>> testChannel(@PathVariable long channelId,
                                                            @RequestBody(required = false) Map<String, Object> payload) {
-        if (!channelRepository.existsById(channelId)) {
+        Channel channel = channelRepository.findById(channelId).orElse(null);
+        if (channel == null) {
             return ResponseEntity.status(404).body(Map.of("success", false, "error", "Канал не найден"));
         }
-        String recipient = stringValue(payload != null ? payload.get("recipient") : null);
-        String message = stringValue(payload != null ? payload.get("message") : null);
-        if (recipient.isEmpty() || message.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Нужно указать получателя и текст"));
+        if (!isTelegramPlatform(channel.getPlatform())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Тестовая отправка доступна только для Telegram"));
         }
-        log.info("Test message requested for channel {} to {} ({} chars)", channelId, recipient, message.length());
-        return ResponseEntity.ok(Map.of("success", true));
+        if (isBlank(channel.getToken())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "У канала не задан токен"));
+        }
+
+        Map<String, Object> data = payload != null ? payload : Collections.emptyMap();
+        String mode = stringValue(firstValue(data, "target_mode", "targetMode")).toLowerCase();
+        String recipient = stringValue(data.get("recipient"));
+        String message = stringValue(payload != null ? payload.get("message") : null);
+        if (message.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Нужно указать текст сообщения"));
+        }
+
+        Map<String, Object> deliverySettings = parseJsonMap(channel.getDeliverySettings());
+        String channelRecipient = stringValue(firstValue(deliverySettings, "broadcast_channel_id", "broadcastChannelId"));
+        String groupRecipient = stringValue(channel.getSupportChatId());
+
+        List<String> recipients = new ArrayList<>();
+        if (mode.equals("group")) {
+            if (!groupRecipient.isEmpty()) {
+                recipients.add(groupRecipient);
+            }
+        } else if (mode.equals("channel")) {
+            if (!channelRecipient.isEmpty()) {
+                recipients.add(channelRecipient);
+            }
+        } else if (mode.equals("both")) {
+            if (!groupRecipient.isEmpty()) {
+                recipients.add(groupRecipient);
+            }
+            if (!channelRecipient.isEmpty()) {
+                recipients.add(channelRecipient);
+            }
+        }
+        if (!recipient.isEmpty()) {
+            recipients.add(recipient);
+        }
+        List<String> uniqueRecipients = recipients.stream()
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .toList();
+        if (uniqueRecipients.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Не найден получатель. Укажите ID вручную или настройте группу/канал."));
+        }
+
+        List<String> failedRecipients = new ArrayList<>();
+        List<String> sentRecipients = new ArrayList<>();
+        for (String target : uniqueRecipients) {
+            if (sendTelegramMessage(channel.getToken(), target, message)) {
+                sentRecipients.add(target);
+            } else {
+                failedRecipients.add(target);
+            }
+        }
+        log.info("Test message requested for channel {} to {} targets ({} chars)", channelId, uniqueRecipients.size(), message.length());
+        if (sentRecipients.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Не удалось отправить сообщение ни одному получателю", "failed", failedRecipients));
+        }
+        return ResponseEntity.ok(Map.of("success", true, "sent", sentRecipients, "failed", failedRecipients));
     }
 
     @PostMapping("/channels/{channelId}/bot-info")
@@ -206,6 +261,13 @@ public class ChannelApiController {
         if (data.containsKey("filters")) {
             String encoded = serializeIfNeeded(data.get("filters"));
             channel.setFilters(encoded);
+            updated = true;
+        }
+
+        if (data.containsKey("delivery_settings") || data.containsKey("deliverySettings")) {
+            Object raw = firstValue(data, "delivery_settings", "deliverySettings");
+            String encoded = serializeIfNeeded(raw);
+            channel.setDeliverySettings(encoded);
             updated = true;
         }
 
@@ -425,10 +487,52 @@ public class ChannelApiController {
         response.put("bot_name", channel.getBotName());
         response.put("bot_username", channel.getBotUsername());
         response.put("support_chat_id", channel.getSupportChatId());
+        response.put("delivery_settings", parseJsonMap(channel.getDeliverySettings()));
+        response.put("public_id", channel.getPublicId());
         if (channel.getCredentialId() != null) {
             response.put("credential", credentials.get(channel.getCredentialId()));
         }
         return response;
+    }
+
+    private Map<String, Object> parseJsonMap(String raw) {
+        if (isBlank(raw)) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            if (node != null && node.isObject()) {
+                return objectMapper.convertValue(node, objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class));
+            }
+        } catch (Exception ex) {
+            log.debug("Unable to parse json map: {}", ex.getMessage());
+        }
+        return new LinkedHashMap<>();
+    }
+
+    private boolean sendTelegramMessage(String token, String recipient, String message) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("chat_id", recipient);
+            payload.put("text", message);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.telegram.org/bot" + token + "/sendMessage"))
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 400) {
+                log.warn("Telegram sendMessage failed for {}: HTTP {}", recipient, response.statusCode());
+                return false;
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            return root.path("ok").asBoolean(false);
+        } catch (Exception ex) {
+            log.warn("Telegram sendMessage error for {}: {}", recipient, ex.getMessage());
+            return false;
+        }
     }
 
     private Map<String, Object> toCredentialResponse(BotCredential credential) {
