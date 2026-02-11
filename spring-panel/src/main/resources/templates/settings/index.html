@@ -951,11 +951,21 @@
       </div>
 
       <div class="col">
+        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#managerBindingsModal">
+          <div class="card-body">
+            <div class="tile-icon">🧭</div>
+            <h5 class="card-title">Привязка управляющих к локациям</h5>
+            <p class="card-text text-muted" data-manager-bindings-summary>Назначьте управляющих и руководителей с датами действия.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
         <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#reportingModal">
           <div class="card-body">
             <div class="tile-icon">📊</div>
-            <h5 class="card-title">Автоотчёт по обращениям</h5>
-            <p class="card-text text-muted" data-reporting-summary>Настройте период и время отправки.</p>
+            <h5 class="card-title">Конструктор автoотчётов</h5>
+            <p class="card-text text-muted" data-reporting-summary>Настройте регулярные отчёты для групп и пользователей.</p>
           </div>
         </div>
       </div>
@@ -2817,7 +2827,7 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="reportingModalLabel">📊 Автоотчёт по обращениям</h5>
+            <h5 class="modal-title" id="reportingModalLabel">📊 Конструктор автoотчётов</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -2832,26 +2842,64 @@
                 <input type="number" min="1" class="form-control" id="reportingPeriod" data-reporting-period>
               </div>
               <div class="col-md-6">
-                <label class="form-label" for="reportingFrequency">Частота отправки, дней</label>
-                <input type="number" min="1" class="form-control" id="reportingFrequency" data-reporting-frequency>
-                <div class="form-text">Через сколько дней повторять отправку.</div>
+                <label class="form-label" for="reportingFrequency">Периодичность</label>
+                <select class="form-select" id="reportingFrequency" data-reporting-frequency>
+                  <option value="daily">Ежедневно</option>
+                  <option value="weekly">Еженедельно</option>
+                  <option value="monthly">Ежемесячно</option>
+                </select>
               </div>
               <div class="col-md-6">
                 <label class="form-label" for="reportingTime">Время отправки</label>
                 <input type="time" class="form-control" id="reportingTime" data-reporting-time>
               </div>
               <div class="col-md-6">
-                <label class="form-label" for="reportingChannel">Канал для доставки</label>
+                <label class="form-label" for="reportingChannel">Группа (канал)</label>
                 <select class="form-select" id="reportingChannel" data-reporting-channel>
                   <option value="">Подобрать автоматически</option>
                 </select>
-                <div class="form-text">Используется ID группы, указанной в выбранном канале.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="reportingRecipientUser">Пользователь-получатель</label>
+                <input type="text" class="form-control" id="reportingRecipientUser" data-reporting-recipient-user placeholder="username или ID">
+              </div>
+              <div class="col-12">
+                <label class="form-label d-block">Источники данных отчёта</label>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="reportingIncludeAppeals" data-reporting-include-appeals checked><label class="form-check-label" for="reportingIncludeAppeals">Обращения</label></div>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="reportingIncludeTasks" data-reporting-include-tasks checked><label class="form-check-label" for="reportingIncludeTasks">Задачи</label></div>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="reportingIncludeChanges" data-reporting-include-changes checked><label class="form-check-label" for="reportingIncludeChanges">Изменения системы</label></div>
               </div>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
             <button type="button" class="btn btn-primary" data-reporting-save>Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="modal fade" id="managerBindingsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">🧭 Привязка управляющих к локациям</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info d-none" data-manager-bindings-feedback></div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead><tr><th>Локация</th><th>Управляющий</th><th>Руководитель</th><th>С</th><th>По</th><th></th></tr></thead>
+                <tbody data-manager-bindings-body></tbody>
+              </table>
+            </div>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-manager-bindings-add>Добавить строку</button>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-manager-bindings-save>Сохранить</button>
           </div>
         </div>
       </div>
@@ -3378,6 +3426,7 @@
   const AUTO_CLOSE_FALLBACK_HOURS = Number(/*[[${settingsPayload['auto_close_hours']}]]*/ 24) || 24;
   const FALLBACK_DIALOG_CATEGORIES = /*[[${settingsPayload['categories']}]]*/ [];
   const REPORTING_CONFIG_INITIAL = /*[[${settingsPayload['reporting_config']}]]*/ {};
+  const MANAGER_LOCATION_BINDINGS_INITIAL = /*[[${settingsPayload['manager_location_bindings']}]]*/ [];
 
   const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
     good_limit: 30,
@@ -13383,149 +13432,30 @@
 
   window.addChannel = addChannel;
 
-  // === Автоотчёт по обращениям ===
+  // === Конструктор автoотчётов ===
   const reportingState = {
     config: normalizeReportingConfig(REPORTING_CONFIG_INITIAL || {}),
     channelsLoaded: false,
   };
-
+  const managerBindingsState = { rows: Array.isArray(MANAGER_LOCATION_BINDINGS_INITIAL) ? MANAGER_LOCATION_BINDINGS_INITIAL : [] };
   const reportingEls = {
-    summary: document.querySelector('[data-reporting-summary]'),
-    enabled: document.querySelector('[data-reporting-enabled]'),
-    period: document.querySelector('[data-reporting-period]'),
-    frequency: document.querySelector('[data-reporting-frequency]'),
-    time: document.querySelector('[data-reporting-time]'),
-    channel: document.querySelector('[data-reporting-channel]'),
-    feedback: document.querySelector('[data-reporting-feedback]'),
-    saveBtn: document.querySelector('[data-reporting-save]'),
-    modal: document.getElementById('reportingModal'),
+    summary: document.querySelector('[data-reporting-summary]'), enabled: document.querySelector('[data-reporting-enabled]'),
+    period: document.querySelector('[data-reporting-period]'), frequency: document.querySelector('[data-reporting-frequency]'),
+    time: document.querySelector('[data-reporting-time]'), channel: document.querySelector('[data-reporting-channel]'),
+    recipientUser: document.querySelector('[data-reporting-recipient-user]'), includeAppeals: document.querySelector('[data-reporting-include-appeals]'),
+    includeTasks: document.querySelector('[data-reporting-include-tasks]'), includeChanges: document.querySelector('[data-reporting-include-changes]'),
+    feedback: document.querySelector('[data-reporting-feedback]'), saveBtn: document.querySelector('[data-reporting-save]'), modal: document.getElementById('reportingModal'),
   };
-
-  function normalizeReportingConfig(raw) {
-    const defaults = {
-      enabled: false,
-      period_days: 7,
-      frequency_days: 7,
-      send_at: '09:00',
-      channel_id: null,
-    };
-    if (!raw || typeof raw !== 'object') return { ...defaults };
-    return {
-      enabled: Boolean(raw.enabled),
-      period_days: Math.max(1, parseInt(raw.period_days, 10) || defaults.period_days),
-      frequency_days: Math.max(1, parseInt(raw.frequency_days, 10) || defaults.frequency_days),
-      send_at: typeof raw.send_at === 'string' && raw.send_at ? raw.send_at : defaults.send_at,
-      channel_id: raw.channel_id ?? defaults.channel_id,
-    };
-  }
-
-  function renderReportingSummary(config) {
-    if (!reportingEls.summary) return;
-    if (!config.enabled) {
-      reportingEls.summary.textContent = 'Отправка выключена.';
-      return;
-    }
-    reportingEls.summary.textContent = `Каждые ${config.frequency_days} д., период ${config.period_days} д. в ${config.send_at}`;
-  }
-
-  function hydrateReportingForm(config) {
-    if (!reportingEls.enabled) return;
-    reportingEls.enabled.checked = Boolean(config.enabled);
-    if (reportingEls.period) reportingEls.period.value = config.period_days;
-    if (reportingEls.frequency) reportingEls.frequency.value = config.frequency_days;
-    if (reportingEls.time) reportingEls.time.value = config.send_at || '09:00';
-    if (reportingEls.channel) {
-      const selected = config.channel_id == null ? '' : String(config.channel_id);
-      reportingEls.channel.value = selected;
-    }
-    clearReportingFeedback();
-  }
-
-  function clearReportingFeedback() {
-    if (!reportingEls.feedback) return;
-    reportingEls.feedback.classList.add('d-none');
-    reportingEls.feedback.textContent = '';
-  }
-
-  function showReportingFeedback(message, type = 'info') {
-    if (!reportingEls.feedback) return;
-    reportingEls.feedback.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-danger');
-    reportingEls.feedback.classList.add(`alert-${type}`);
-    reportingEls.feedback.textContent = message;
-  }
-
-  async function loadReportingChannels() {
-    if (!reportingEls.channel || reportingState.channelsLoaded) return;
-    reportingState.channelsLoaded = true;
-    try {
-      const resp = await fetch('/api/channels');
-      const data = await resp.json();
-      if (!resp.ok || data.success === false) throw new Error(data.error || 'Не удалось загрузить каналы');
-      const channels = Array.isArray(data.channels) ? data.channels : [];
-      const options = ['<option value="">Подобрать автоматически</option>'];
-      channels.forEach((channel) => {
-        const id = channel.id ?? channel.channel_id;
-        if (!id) return;
-        const name = channel.channel_name || channel.channelName || channel.name || `Канал #${id}`;
-        const support = channel.support_chat_id
-          || channel.supportChatId
-          || (channel.delivery_settings && channel.delivery_settings.support_chat_id)
-          || (channel.deliverySettings && channel.deliverySettings.support_chat_id);
-        const disabled = support ? '' : 'disabled';
-        const hint = support ? '' : ' — нет ID группы';
-        const selected = reportingState.config.channel_id !== null && String(reportingState.config.channel_id) === String(id)
-          ? 'selected'
-          : '';
-        options.push(`<option value="${id}" ${disabled} ${selected}>${name}${hint}</option>`);
-      });
-      reportingEls.channel.innerHTML = options.join('');
-    } catch (error) {
-      showReportingFeedback(`Не удалось загрузить список каналов: ${error.message}`, 'danger');
-    }
-  }
-
-  async function saveReportingConfig() {
-    if (!reportingEls.enabled) return;
-    const payload = {
-      enabled: reportingEls.enabled.checked,
-      period_days: parseInt(reportingEls.period?.value, 10) || reportingState.config.period_days,
-      frequency_days: parseInt(reportingEls.frequency?.value, 10) || reportingState.config.frequency_days,
-      send_at: reportingEls.time?.value || reportingState.config.send_at,
-      channel_id: reportingEls.channel?.value ? reportingEls.channel.value : null,
-    };
-    try {
-      reportingEls.saveBtn?.setAttribute('disabled', 'disabled');
-      const response = await fetch('/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reporting_config: payload }),
-      });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || 'Не удалось сохранить настройки');
-      }
-      reportingState.config = normalizeReportingConfig(payload);
-      hydrateReportingForm(reportingState.config);
-      renderReportingSummary(reportingState.config);
-      showReportingFeedback('Настройки сохранены', 'success');
-    } catch (error) {
-      showReportingFeedback(error.message, 'danger');
-    } finally {
-      reportingEls.saveBtn?.removeAttribute('disabled');
-    }
-  }
-
-  function initReporting() {
-    renderReportingSummary(reportingState.config);
-    if (reportingEls.modal && typeof bootstrap !== 'undefined') {
-      reportingEls.modal.addEventListener('show.bs.modal', () => {
-        hydrateReportingForm(reportingState.config);
-        loadReportingChannels();
-      });
-    }
-    reportingEls.saveBtn?.addEventListener('click', saveReportingConfig);
-  }
-
+  const managerBindingsEls = { summary: document.querySelector('[data-manager-bindings-summary]'), body: document.querySelector('[data-manager-bindings-body]'), add: document.querySelector('[data-manager-bindings-add]'), save: document.querySelector('[data-manager-bindings-save]'), feedback: document.querySelector('[data-manager-bindings-feedback]'), modal: document.getElementById('managerBindingsModal') };
+  function normalizeReportingConfig(raw) { const d={enabled:false,period_days:7,frequency:'weekly',send_at:'09:00',channel_id:null,recipient_user:'',include_appeals:true,include_tasks:true,include_changes:true}; if(!raw||typeof raw!=='object')return{...d}; return {enabled:Boolean(raw.enabled),period_days:Math.max(1,parseInt(raw.period_days,10)||d.period_days),frequency:['daily','weekly','monthly'].includes(raw.frequency)?raw.frequency:d.frequency,send_at:typeof raw.send_at==='string'&&raw.send_at?raw.send_at:d.send_at,channel_id:raw.channel_id??d.channel_id,recipient_user:typeof raw.recipient_user==='string'?raw.recipient_user:'',include_appeals:raw.include_appeals!==false,include_tasks:raw.include_tasks!==false,include_changes:raw.include_changes!==false}; }
+  function renderReportingSummary(c){ if(!reportingEls.summary)return; reportingEls.summary.textContent=!c.enabled?'Отправка выключена.':`${c.frequency}, период ${c.period_days} д. в ${c.send_at}`; }
+  function hydrateReportingForm(c){ reportingEls.enabled.checked=!!c.enabled; reportingEls.period.value=c.period_days; reportingEls.frequency.value=c.frequency; reportingEls.time.value=c.send_at||'09:00'; reportingEls.channel.value=c.channel_id==null?'':String(c.channel_id); reportingEls.recipientUser.value=c.recipient_user||''; reportingEls.includeAppeals.checked=c.include_appeals!==false; reportingEls.includeTasks.checked=c.include_tasks!==false; reportingEls.includeChanges.checked=c.include_changes!==false; }
+  function showReportingFeedback(m,t='info'){ if(!reportingEls.feedback)return; reportingEls.feedback.classList.remove('d-none','alert-info','alert-success','alert-danger'); reportingEls.feedback.classList.add(`alert-${t}`); reportingEls.feedback.textContent=m; }
+  async function loadReportingChannels(){ if(!reportingEls.channel||reportingState.channelsLoaded)return; reportingState.channelsLoaded=true; try{ const resp=await fetch('/api/channels'); const data=await resp.json(); const channels=Array.isArray(data.channels)?data.channels:[]; const options=['<option value="">Подобрать автоматически</option>']; channels.forEach((channel)=>{ const id=channel.id??channel.channel_id; if(!id)return; const name=channel.channel_name||channel.channelName||channel.name||`Канал #${id}`; options.push(`<option value="${id}">${name}</option>`);}); reportingEls.channel.innerHTML=options.join(''); }catch(error){ showReportingFeedback(`Не удалось загрузить каналы: ${error.message}`,'danger'); }}
+  async function saveReportingConfig(){ const payload={enabled:reportingEls.enabled.checked,period_days:parseInt(reportingEls.period.value,10)||7,frequency:reportingEls.frequency.value||'weekly',send_at:reportingEls.time.value||'09:00',channel_id:reportingEls.channel.value||null,recipient_user:reportingEls.recipientUser.value||'',include_appeals:reportingEls.includeAppeals.checked,include_tasks:reportingEls.includeTasks.checked,include_changes:reportingEls.includeChanges.checked}; const response=await fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reporting_config:payload})}); const data=await response.json(); if(!response.ok||data.success===false){ showReportingFeedback(data.error||'Ошибка сохранения','danger'); return;} reportingState.config=normalizeReportingConfig(payload); renderReportingSummary(reportingState.config); showReportingFeedback('Настройки сохранены','success'); }
+  function renderManagerBindingsRows(){ if(!managerBindingsEls.body)return; if(!managerBindingsState.rows.length){ managerBindingsState.rows=[{location:'',manager:'',supervisor:'',start_date:'',end_date:''}]; } managerBindingsEls.body.innerHTML=managerBindingsState.rows.map((row,idx)=>`<tr><td><input class="form-control form-control-sm" data-bind-field="location" data-bind-idx="${idx}" value="${row.location||''}"></td><td><input class="form-control form-control-sm" data-bind-field="manager" data-bind-idx="${idx}" value="${row.manager||''}"></td><td><input class="form-control form-control-sm" data-bind-field="supervisor" data-bind-idx="${idx}" value="${row.supervisor||''}"></td><td><input type="date" class="form-control form-control-sm" data-bind-field="start_date" data-bind-idx="${idx}" value="${row.start_date||''}"></td><td><input type="date" class="form-control form-control-sm" data-bind-field="end_date" data-bind-idx="${idx}" value="${row.end_date||''}"></td><td><button class="btn btn-outline-danger btn-sm" data-bind-remove="${idx}" type="button">×</button></td></tr>`).join(''); managerBindingsEls.summary.textContent=`Настроено привязок: ${managerBindingsState.rows.filter((row)=>row.location&&row.manager).length}`; }
+  async function saveManagerBindings(){ const cleanRows=managerBindingsState.rows.filter((row)=>row.location&&row.manager); const response=await fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({manager_location_bindings:cleanRows})}); const data=await response.json(); managerBindingsEls.feedback.classList.remove('d-none'); managerBindingsEls.feedback.textContent=(!response.ok||data.success===false)?(data.error||'Ошибка сохранения'):'Привязки сохранены'; renderManagerBindingsRows(); }
+  function initReporting(){ renderReportingSummary(reportingState.config); reportingEls.modal?.addEventListener('show.bs.modal',()=>{ hydrateReportingForm(reportingState.config); loadReportingChannels(); }); reportingEls.saveBtn?.addEventListener('click',saveReportingConfig); managerBindingsEls.modal?.addEventListener('show.bs.modal',renderManagerBindingsRows); managerBindingsEls.add?.addEventListener('click',()=>{ managerBindingsState.rows.push({location:'',manager:'',supervisor:'',start_date:'',end_date:''}); renderManagerBindingsRows(); }); managerBindingsEls.save?.addEventListener('click',saveManagerBindings); managerBindingsEls.body?.addEventListener('input',(event)=>{ const t=event.target; const idx=parseInt(t.dataset.bindIdx,10); const field=t.dataset.bindField; if(Number.isNaN(idx)||!field)return; managerBindingsState.rows[idx][field]=t.value; }); managerBindingsEls.body?.addEventListener('click',(event)=>{ const btn=event.target.closest('[data-bind-remove]'); if(!btn)return; const idx=parseInt(btn.dataset.bindRemove,10); managerBindingsState.rows.splice(idx,1); renderManagerBindingsRows(); }); }
   document.addEventListener('DOMContentLoaded', initReporting);
 
   </script>
