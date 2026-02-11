@@ -120,12 +120,12 @@ public class ManagerReportService {
         List<Binding> result = new ArrayList<>();
         for (Object item : items) {
             if (!(item instanceof Map<?, ?> map)) continue;
-            String location = normalize(String.valueOf(map.getOrDefault("location", "")));
+            String location = normalize(readString(map, "location", ""));
             if (!StringUtils.hasText(location)) continue;
             result.add(new Binding(
                 location,
-                normalize(String.valueOf(map.getOrDefault("manager", "Не назначен"))),
-                normalize(String.valueOf(map.getOrDefault("supervisor", "Не назначен"))),
+                normalize(readString(map, "manager", "Не назначен")),
+                normalize(readString(map, "supervisor", "Не назначен")),
                 parseDate(map.get("start_date")),
                 parseDate(map.get("end_date"))
             ));
@@ -155,10 +155,15 @@ public class ManagerReportService {
     private String resolveDimension(String dimension, DialogListItem dialog) {
         return switch (dimension.toLowerCase(Locale.ROOT)) {
             case "city" -> normalize(dialog.city());
-            case "category" -> normalize(dialog.category());
+            case "category" -> normalize(dialog.categories());
             case "responsible" -> normalize(dialog.responsible());
             default -> normalize(dialog.locationName());
         };
+    }
+
+    private String readString(Map<?, ?> source, String key, String defaultValue) {
+        Object value = source.get(key);
+        return value == null ? defaultValue : String.valueOf(value);
     }
 
     private String normalize(String value) {
@@ -184,7 +189,12 @@ public class ManagerReportService {
         private Map<String, Object> toMap() {
             List<Map<String, Object>> locationRows = locations.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .map(entry -> Map.of("location", entry.getKey(), "count", entry.getValue()))
+                .map(entry -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("location", entry.getKey());
+                    row.put("count", entry.getValue());
+                    return row;
+                })
                 .toList();
             return Map.of(
                 "manager", manager,
