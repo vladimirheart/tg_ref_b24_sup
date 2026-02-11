@@ -2889,6 +2889,9 @@
           </div>
           <div class="modal-body">
             <div class="alert alert-info d-none" data-manager-bindings-feedback></div>
+            <datalist id="managerBindingsLocationOptions"></datalist>
+            <datalist id="managerBindingsManagerOptions"></datalist>
+            <datalist id="managerBindingsSupervisorOptions"></datalist>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead><tr><th>Локация</th><th>Управляющий</th><th>Руководитель</th><th>С</th><th>По</th><th></th></tr></thead>
@@ -13437,7 +13440,15 @@
     config: normalizeReportingConfig(REPORTING_CONFIG_INITIAL || {}),
     channelsLoaded: false,
   };
-  const managerBindingsState = { rows: Array.isArray(MANAGER_LOCATION_BINDINGS_INITIAL) ? MANAGER_LOCATION_BINDINGS_INITIAL : [] };
+  const managerBindingsState = {
+    rows: Array.isArray(MANAGER_LOCATION_BINDINGS_INITIAL) ? MANAGER_LOCATION_BINDINGS_INITIAL : [],
+    options: {
+      locations: [],
+      managers: [],
+      supervisors: [],
+    },
+    orgOptionsLoaded: false,
+  };
   const reportingEls = {
     summary: document.querySelector('[data-reporting-summary]'), enabled: document.querySelector('[data-reporting-enabled]'),
     period: document.querySelector('[data-reporting-period]'), frequency: document.querySelector('[data-reporting-frequency]'),
@@ -13446,16 +13457,196 @@
     includeTasks: document.querySelector('[data-reporting-include-tasks]'), includeChanges: document.querySelector('[data-reporting-include-changes]'),
     feedback: document.querySelector('[data-reporting-feedback]'), saveBtn: document.querySelector('[data-reporting-save]'), modal: document.getElementById('reportingModal'),
   };
-  const managerBindingsEls = { summary: document.querySelector('[data-manager-bindings-summary]'), body: document.querySelector('[data-manager-bindings-body]'), add: document.querySelector('[data-manager-bindings-add]'), save: document.querySelector('[data-manager-bindings-save]'), feedback: document.querySelector('[data-manager-bindings-feedback]'), modal: document.getElementById('managerBindingsModal') };
+  const managerBindingsEls = {
+    summary: document.querySelector('[data-manager-bindings-summary]'),
+    body: document.querySelector('[data-manager-bindings-body]'),
+    add: document.querySelector('[data-manager-bindings-add]'),
+    save: document.querySelector('[data-manager-bindings-save]'),
+    feedback: document.querySelector('[data-manager-bindings-feedback]'),
+    modal: document.getElementById('managerBindingsModal'),
+    locationOptions: document.getElementById('managerBindingsLocationOptions'),
+    managerOptions: document.getElementById('managerBindingsManagerOptions'),
+    supervisorOptions: document.getElementById('managerBindingsSupervisorOptions'),
+  };
+  function safeEscapeHtml(value) {
+    if (typeof escapeHtml === 'function') {
+      return escapeHtml(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  function getLocationBindingOptionsFromTree() {
+    const tree = locationsState && typeof locationsState === 'object' ? locationsState.tree || {} : {};
+    const departments = [];
+    const cities = [];
+    Object.values(tree).forEach((types) => {
+      Object.values(types || {}).forEach((cityMap) => {
+        Object.entries(cityMap || {}).forEach(([city, list]) => {
+          const cityName = (city || '').trim();
+          if (cityName) {
+            cities.push(cityName);
+          }
+          if (Array.isArray(list)) {
+            list.forEach((department) => {
+              const value = (department || '').trim();
+              if (value) {
+                departments.push(value);
+              }
+            });
+          }
+        });
+      });
+    });
+    return uniqueSorted(departments.length ? departments : cities);
+  }
+  function getAuthManagerInstance() {
+    const usersModalEl = document.getElementById('usersModal');
+    const container = usersModalEl ? usersModalEl.querySelector('[data-auth-management]') : null;
+    return container && container.__authManager ? container.__authManager : null;
+  }
+  function extractOrgPeopleOptions(state) {
+    const users = Array.isArray(state?.users) ? state.users : [];
+    const nodes = Array.isArray(state?.orgStructure?.nodes) ? state.orgStructure.nodes : [];
+    const usersById = new Map();
+    users.forEach((user) => {
+      const numericId = Number(user?.id);
+      if (Number.isInteger(numericId)) {
+        usersById.set(numericId, user);
+      }
+    });
+    const memberIds = new Set();
+    nodes.forEach((node) => {
+      (Array.isArray(node?.members) ? node.members : []).forEach((value) => {
+        const numericId = Number(value);
+        if (Number.isInteger(numericId)) {
+          memberIds.add(numericId);
+        }
+      });
+    });
+    const options = [];
+    memberIds.forEach((memberId) => {
+      const user = usersById.get(memberId);
+      const name = (user?.full_name || user?.username || '').trim();
+      if (name) {
+        options.push(name);
+      }
+    });
+    if (!options.length) {
+      users.forEach((user) => {
+        const name = (user?.full_name || user?.username || '').trim();
+        if (name) {
+          options.push(name);
+        }
+      });
+    }
+    return uniqueSorted(options);
+  }
+  async function loadManagerBindingOrgOptions() {
+    if (managerBindingsState.orgOptionsLoaded) {
+      return;
+    }
+    managerBindingsState.orgOptionsLoaded = true;
+    try {
+      const manager = getAuthManagerInstance();
+      if (manager && manager.state) {
+        managerBindingsState.options.managers = extractOrgPeopleOptions(manager.state);
+        managerBindingsState.options.supervisors = managerBindingsState.options.managers.slice();
+        return;
+      }
+      const response = await fetch('/api/auth/state', { credentials: 'same-origin' });
+      const data = await response.json();
+      managerBindingsState.options.managers = extractOrgPeopleOptions(data || {});
+      managerBindingsState.options.supervisors = managerBindingsState.options.managers.slice();
+    } catch (error) {
+      console.error('Не удалось загрузить орг.структуру для привязок локаций', error);
+    }
+  }
+  function renderManagerBindingsDatalists() {
+    managerBindingsState.options.locations = getLocationBindingOptionsFromTree();
+    const locationOptions = managerBindingsState.options.locations
+      .map((value) => `<option value="${safeEscapeHtml(value)}"></option>`)
+      .join('');
+    const peopleOptions = managerBindingsState.options.managers
+      .map((value) => `<option value="${safeEscapeHtml(value)}"></option>`)
+      .join('');
+    if (managerBindingsEls.locationOptions) {
+      managerBindingsEls.locationOptions.innerHTML = locationOptions;
+    }
+    if (managerBindingsEls.managerOptions) {
+      managerBindingsEls.managerOptions.innerHTML = peopleOptions;
+    }
+    if (managerBindingsEls.supervisorOptions) {
+      managerBindingsEls.supervisorOptions.innerHTML = peopleOptions;
+    }
+  }
   function normalizeReportingConfig(raw) { const d={enabled:false,period_days:7,frequency:'weekly',send_at:'09:00',channel_id:null,recipient_user:'',include_appeals:true,include_tasks:true,include_changes:true}; if(!raw||typeof raw!=='object')return{...d}; return {enabled:Boolean(raw.enabled),period_days:Math.max(1,parseInt(raw.period_days,10)||d.period_days),frequency:['daily','weekly','monthly'].includes(raw.frequency)?raw.frequency:d.frequency,send_at:typeof raw.send_at==='string'&&raw.send_at?raw.send_at:d.send_at,channel_id:raw.channel_id??d.channel_id,recipient_user:typeof raw.recipient_user==='string'?raw.recipient_user:'',include_appeals:raw.include_appeals!==false,include_tasks:raw.include_tasks!==false,include_changes:raw.include_changes!==false}; }
   function renderReportingSummary(c){ if(!reportingEls.summary)return; reportingEls.summary.textContent=!c.enabled?'Отправка выключена.':`${c.frequency}, период ${c.period_days} д. в ${c.send_at}`; }
   function hydrateReportingForm(c){ reportingEls.enabled.checked=!!c.enabled; reportingEls.period.value=c.period_days; reportingEls.frequency.value=c.frequency; reportingEls.time.value=c.send_at||'09:00'; reportingEls.channel.value=c.channel_id==null?'':String(c.channel_id); reportingEls.recipientUser.value=c.recipient_user||''; reportingEls.includeAppeals.checked=c.include_appeals!==false; reportingEls.includeTasks.checked=c.include_tasks!==false; reportingEls.includeChanges.checked=c.include_changes!==false; }
   function showReportingFeedback(m,t='info'){ if(!reportingEls.feedback)return; reportingEls.feedback.classList.remove('d-none','alert-info','alert-success','alert-danger'); reportingEls.feedback.classList.add(`alert-${t}`); reportingEls.feedback.textContent=m; }
   async function loadReportingChannels(){ if(!reportingEls.channel||reportingState.channelsLoaded)return; reportingState.channelsLoaded=true; try{ const resp=await fetch('/api/channels'); const data=await resp.json(); const channels=Array.isArray(data.channels)?data.channels:[]; const options=['<option value="">Подобрать автоматически</option>']; channels.forEach((channel)=>{ const id=channel.id??channel.channel_id; if(!id)return; const name=channel.channel_name||channel.channelName||channel.name||`Канал #${id}`; options.push(`<option value="${id}">${name}</option>`);}); reportingEls.channel.innerHTML=options.join(''); }catch(error){ showReportingFeedback(`Не удалось загрузить каналы: ${error.message}`,'danger'); }}
   async function saveReportingConfig(){ const payload={enabled:reportingEls.enabled.checked,period_days:parseInt(reportingEls.period.value,10)||7,frequency:reportingEls.frequency.value||'weekly',send_at:reportingEls.time.value||'09:00',channel_id:reportingEls.channel.value||null,recipient_user:reportingEls.recipientUser.value||'',include_appeals:reportingEls.includeAppeals.checked,include_tasks:reportingEls.includeTasks.checked,include_changes:reportingEls.includeChanges.checked}; const response=await fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reporting_config:payload})}); const data=await response.json(); if(!response.ok||data.success===false){ showReportingFeedback(data.error||'Ошибка сохранения','danger'); return;} reportingState.config=normalizeReportingConfig(payload); renderReportingSummary(reportingState.config); showReportingFeedback('Настройки сохранены','success'); }
-  function renderManagerBindingsRows(){ if(!managerBindingsEls.body)return; if(!managerBindingsState.rows.length){ managerBindingsState.rows=[{location:'',manager:'',supervisor:'',start_date:'',end_date:''}]; } managerBindingsEls.body.innerHTML=managerBindingsState.rows.map((row,idx)=>`<tr><td><input class="form-control form-control-sm" data-bind-field="location" data-bind-idx="${idx}" value="${row.location||''}"></td><td><input class="form-control form-control-sm" data-bind-field="manager" data-bind-idx="${idx}" value="${row.manager||''}"></td><td><input class="form-control form-control-sm" data-bind-field="supervisor" data-bind-idx="${idx}" value="${row.supervisor||''}"></td><td><input type="date" class="form-control form-control-sm" data-bind-field="start_date" data-bind-idx="${idx}" value="${row.start_date||''}"></td><td><input type="date" class="form-control form-control-sm" data-bind-field="end_date" data-bind-idx="${idx}" value="${row.end_date||''}"></td><td><button class="btn btn-outline-danger btn-sm" data-bind-remove="${idx}" type="button">×</button></td></tr>`).join(''); managerBindingsEls.summary.textContent=`Настроено привязок: ${managerBindingsState.rows.filter((row)=>row.location&&row.manager).length}`; }
+  function renderManagerBindingsRows() {
+    if (!managerBindingsEls.body) return;
+    if (!managerBindingsState.rows.length) {
+      managerBindingsState.rows = [{ location: '', manager: '', supervisor: '', start_date: '', end_date: '' }];
+    }
+    renderManagerBindingsDatalists();
+    managerBindingsEls.body.innerHTML = managerBindingsState.rows
+      .map(
+        (row, idx) => `<tr>
+          <td>
+            <input class="form-control form-control-sm" list="managerBindingsLocationOptions" data-bind-field="location" data-bind-idx="${idx}" value="${safeEscapeHtml(row.location || '')}" placeholder="Начните ввод для поиска">
+          </td>
+          <td>
+            <input class="form-control form-control-sm" list="managerBindingsManagerOptions" data-bind-field="manager" data-bind-idx="${idx}" value="${safeEscapeHtml(row.manager || '')}" placeholder="Начните ввод для поиска">
+          </td>
+          <td>
+            <input class="form-control form-control-sm" list="managerBindingsSupervisorOptions" data-bind-field="supervisor" data-bind-idx="${idx}" value="${safeEscapeHtml(row.supervisor || '')}" placeholder="Начните ввод для поиска">
+          </td>
+          <td><input type="date" class="form-control form-control-sm" data-bind-field="start_date" data-bind-idx="${idx}" value="${safeEscapeHtml(row.start_date || '')}"></td>
+          <td><input type="date" class="form-control form-control-sm" data-bind-field="end_date" data-bind-idx="${idx}" value="${safeEscapeHtml(row.end_date || '')}"></td>
+          <td><button class="btn btn-outline-danger btn-sm" data-bind-remove="${idx}" type="button">×</button></td>
+        </tr>`,
+      )
+      .join('');
+    managerBindingsEls.summary.textContent = `Настроено привязок: ${managerBindingsState.rows.filter((row) => row.location && row.manager).length}`;
+  }
   async function saveManagerBindings(){ const cleanRows=managerBindingsState.rows.filter((row)=>row.location&&row.manager); const response=await fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({manager_location_bindings:cleanRows})}); const data=await response.json(); managerBindingsEls.feedback.classList.remove('d-none'); managerBindingsEls.feedback.textContent=(!response.ok||data.success===false)?(data.error||'Ошибка сохранения'):'Привязки сохранены'; renderManagerBindingsRows(); }
-  function initReporting(){ renderReportingSummary(reportingState.config); reportingEls.modal?.addEventListener('show.bs.modal',()=>{ hydrateReportingForm(reportingState.config); loadReportingChannels(); }); reportingEls.saveBtn?.addEventListener('click',saveReportingConfig); managerBindingsEls.modal?.addEventListener('show.bs.modal',renderManagerBindingsRows); managerBindingsEls.add?.addEventListener('click',()=>{ managerBindingsState.rows.push({location:'',manager:'',supervisor:'',start_date:'',end_date:''}); renderManagerBindingsRows(); }); managerBindingsEls.save?.addEventListener('click',saveManagerBindings); managerBindingsEls.body?.addEventListener('input',(event)=>{ const t=event.target; const idx=parseInt(t.dataset.bindIdx,10); const field=t.dataset.bindField; if(Number.isNaN(idx)||!field)return; managerBindingsState.rows[idx][field]=t.value; }); managerBindingsEls.body?.addEventListener('click',(event)=>{ const btn=event.target.closest('[data-bind-remove]'); if(!btn)return; const idx=parseInt(btn.dataset.bindRemove,10); managerBindingsState.rows.splice(idx,1); renderManagerBindingsRows(); }); }
+  function initReporting() {
+    renderReportingSummary(reportingState.config);
+    reportingEls.modal?.addEventListener('show.bs.modal', () => {
+      hydrateReportingForm(reportingState.config);
+      loadReportingChannels();
+    });
+    reportingEls.saveBtn?.addEventListener('click', saveReportingConfig);
+    managerBindingsEls.modal?.addEventListener('show.bs.modal', async () => {
+      await loadManagerBindingOrgOptions();
+      renderManagerBindingsRows();
+    });
+    managerBindingsEls.add?.addEventListener('click', () => {
+      managerBindingsState.rows.push({ location: '', manager: '', supervisor: '', start_date: '', end_date: '' });
+      renderManagerBindingsRows();
+    });
+    managerBindingsEls.save?.addEventListener('click', saveManagerBindings);
+    managerBindingsEls.body?.addEventListener('input', (event) => {
+      const t = event.target;
+      const idx = parseInt(t.dataset.bindIdx, 10);
+      const field = t.dataset.bindField;
+      if (Number.isNaN(idx) || !field) return;
+      managerBindingsState.rows[idx][field] = t.value;
+    });
+    managerBindingsEls.body?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-bind-remove]');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.bindRemove, 10);
+      managerBindingsState.rows.splice(idx, 1);
+      renderManagerBindingsRows();
+    });
+  }
   document.addEventListener('DOMContentLoaded', initReporting);
 
   </script>
