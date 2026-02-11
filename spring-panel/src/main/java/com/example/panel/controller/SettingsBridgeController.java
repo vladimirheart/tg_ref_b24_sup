@@ -171,6 +171,11 @@ public class SettingsBridgeController {
                 modified = true;
             }
 
+            if (payload.containsKey("manager_location_bindings")) {
+                settings.put("manager_location_bindings", payload.get("manager_location_bindings"));
+                modified = true;
+            }
+
             if (modified) {
                 sharedConfigService.saveSettings(settings);
             }
