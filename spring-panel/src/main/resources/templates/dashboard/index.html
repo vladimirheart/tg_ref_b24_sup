@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="_csrf" th:content="${_csrf.token}" />
-  <title>Дашборд — iguana</title>
+  <title>Отчёты — iguana</title>
   <link rel="icon" type="image/svg+xml" th:href="@{/iguana-icon.svg}" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -319,7 +319,22 @@
   <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
   <main class="main-content container-fluid">
   <div class="container-fluid mt-4">
-    <h2>📈 Дашборд поддержки</h2>
+    <h2>📈 Отчёты поддержки</h2>
+
+    <ul class="nav nav-tabs mb-3" id="reportsTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#reports-dashboard" type="button" role="tab">Дашборд</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-managers" data-bs-toggle="tab" data-bs-target="#reports-managers" type="button" role="tab">Отчёты по управляющим</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-olap" data-bs-toggle="tab" data-bs-target="#reports-olap" type="button" role="tab">Конструктор отчётов</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="reports-dashboard" role="tabpanel">
 
     <!-- Фильтры и статистика в одной строке -->
     <div class="filters-and-stats-row">
@@ -481,6 +496,51 @@
       </div>
     </div>
   </div>
+      </div>
+
+      <div class="tab-pane fade" id="reports-managers" role="tabpanel">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Срез по руководителям управляющих</h5>
+            <div id="supervisorSummary" class="text-muted">Нет данных</div>
+          </div>
+        </div>
+        <div class="accordion mt-3" id="managerAccordion"></div>
+      </div>
+
+      <div class="tab-pane fade" id="reports-olap" role="tabpanel">
+        <div class="card">
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-4">
+                <label class="form-label">Измерение</label>
+                <select class="form-select" id="olapDimension">
+                  <option value="location">Локация</option>
+                  <option value="city">Город</option>
+                  <option value="category">Категория</option>
+                  <option value="responsible">Ответственный</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label d-block">Источники данных</label>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapAppeals" checked><label class="form-check-label" for="olapAppeals">Обращения</label></div>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapTasks" checked><label class="form-check-label" for="olapTasks">Задачи</label></div>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapChanges" checked><label class="form-check-label" for="olapChanges">Изменения системы</label></div>
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-primary w-100" id="buildOlap">Собрать</button>
+              </div>
+            </div>
+            <div class="table-responsive mt-3">
+              <table class="table table-sm table-striped">
+                <thead><tr><th>Измерение</th><th>Обращения</th><th>Задачи</th><th>Изменения системы</th></tr></thead>
+                <tbody id="olapTableBody"><tr><td colspan="4" class="text-muted">Нет данных</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
   <!-- Контейнер для уведомлений -->
   <div class="notification-container" id="notificationContainer"></div>
@@ -571,15 +631,24 @@
 
       // Загрузка данных
       loadDashboardData();
+      loadManagerReport();
 
       // Обработчики кнопок
-      document.getElementById('applyFilters').addEventListener('click', loadDashboardData);
+      document.getElementById('applyFilters').addEventListener('click', () => {
+        loadDashboardData();
+        loadManagerReport();
+      });
       document.getElementById('resetFilters').addEventListener('click', function() {
         $('#restaurantFilter').val(null).trigger('change');
         setPeriodPreset('month'); // Сброс к текущему месяцу
         currentFilters.restaurants = [];
         loadDashboardData();
+        loadManagerReport();
       });
+
+      document.getElementById('buildOlap')?.addEventListener('click', buildOlapReport);
+      document.getElementById('tab-managers')?.addEventListener('shown.bs.tab', loadManagerReport);
+      document.getElementById('tab-olap')?.addEventListener('shown.bs.tab', buildOlapReport);
     });
 
     // Установка периода по пресету
@@ -634,6 +703,56 @@
     }
 
     // Загрузка данных дашборда
+async function loadManagerReport() {
+  const response = await fetch('/api/dashboard/manager-report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ startDate: currentFilters.startDate, endDate: currentFilters.endDate, restaurants: currentFilters.restaurants || [] })
+  });
+  const data = await response.json();
+  const accordion = document.getElementById('managerAccordion');
+  const supervisor = document.getElementById('supervisorSummary');
+  if (!response.ok || data.success === false || !accordion) {
+    return;
+  }
+  const supervisorRows = Object.entries(data.supervisors || {}).map(([name, total]) => `${name}: ${total}`).join(' · ');
+  supervisor.textContent = supervisorRows || 'Нет данных';
+  const managers = Array.isArray(data.managers) ? data.managers : [];
+  if (!managers.length) {
+    accordion.innerHTML = '<div class="text-muted">Нет данных по управляющим за выбранный период.</div>';
+    return;
+  }
+  accordion.innerHTML = managers.map((item, idx) => {
+    const body = (item.locations || []).map((loc) => `<li class="list-group-item d-flex justify-content-between"><span>${loc.location}</span><strong>${loc.count}</strong></li>`).join('');
+    return `<div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button ${idx ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#mgr-${idx}">${item.manager} · ${item.total} обращ.</button></h2><div id="mgr-${idx}" class="accordion-collapse collapse ${idx ? '' : 'show'}"><div class="accordion-body"><div class="small text-muted mb-2">Руководитель: ${item.supervisor || '—'}</div><ul class="list-group">${body}</ul></div></div></div>`;
+  }).join('');
+}
+
+async function buildOlapReport() {
+  const response = await fetch('/api/dashboard/olap-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filters: { startDate: currentFilters.startDate, endDate: currentFilters.endDate, restaurants: currentFilters.restaurants || [] },
+      olap: {
+        dimension: document.getElementById('olapDimension')?.value || 'location',
+        includeAppeals: document.getElementById('olapAppeals')?.checked !== false,
+        includeTasks: document.getElementById('olapTasks')?.checked !== false,
+        includeSystemChanges: document.getElementById('olapChanges')?.checked !== false,
+      }
+    })
+  });
+  const data = await response.json();
+  const tbody = document.getElementById('olapTableBody');
+  if (!tbody) return;
+  if (!response.ok || data.success === false) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-danger">Ошибка загрузки</td></tr>';
+    return;
+  }
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  tbody.innerHTML = rows.map((row) => `<tr><td>${row.dimension}</td><td>${row.appeals ?? 0}</td><td>${row.tasks ?? 0}</td><td>${row.system_changes ?? 0}</td></tr>`).join('');
+}
+
 async function loadDashboardData() {
   try {
     showNotification('Загрузка данных...', 'info');
