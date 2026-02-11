@@ -499,6 +499,22 @@
       </div>
 
       <div class="tab-pane fade" id="reports-managers" role="tabpanel">
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-6">
+                <label for="managerDateRange" class="form-label">Период отчёта</label>
+                <input type="text" id="managerDateRange" class="form-control" placeholder="Выберите период">
+              </div>
+              <div class="col-md-3">
+                <button class="btn btn-primary w-100" id="applyManagerFilters">Применить период</button>
+              </div>
+              <div class="col-md-3">
+                <button class="btn btn-outline-secondary w-100" id="resetManagerFilters">Текущий месяц</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">Срез по руководителям управляющих</h5>
@@ -570,6 +586,28 @@
       endDate: null,
       restaurants: []
     };
+    let managerFilters = {
+      startDate: null,
+      endDate: null
+    };
+
+    function getCurrentMonthRange() {
+      const now = new Date();
+      return {
+        startDate: new Date(now.getFullYear(), now.getMonth(), 1),
+        endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      };
+    }
+
+    function applyManagerMonthDefaults() {
+      const range = getCurrentMonthRange();
+      managerFilters.startDate = range.startDate.toISOString().split('T')[0];
+      managerFilters.endDate = range.endDate.toISOString().split('T')[0];
+      const picker = document.querySelector('#managerDateRange')?._flatpickr;
+      if (picker) {
+        picker.setDate([range.startDate, range.endDate], true);
+      }
+    }
 
     // Хранилище для данных легенд
     const legendData = {
@@ -580,12 +618,14 @@
     // Инициализация фильтров
     document.addEventListener('DOMContentLoaded', function() {
       // Установка текущего месяца по умолчанию
-      const now = new Date();
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const monthRange = getCurrentMonthRange();
+      const firstDay = monthRange.startDate;
+      const lastDay = monthRange.endDate;
 
       currentFilters.startDate = firstDay.toISOString().split('T')[0];
       currentFilters.endDate = lastDay.toISOString().split('T')[0];
+      managerFilters.startDate = currentFilters.startDate;
+      managerFilters.endDate = currentFilters.endDate;
 
       // Инициализация datepicker
       flatpickr("#dateRange", {
@@ -610,6 +650,19 @@
         placeholder: "Все рестораны",
         allowClear: true,
         width: '100%'
+      });
+
+      flatpickr("#managerDateRange", {
+        mode: "range",
+        locale: "ru",
+        dateFormat: "d.m.Y",
+        defaultDate: [firstDay, lastDay],
+        onChange: function(selectedDates) {
+          if (selectedDates.length === 2) {
+            managerFilters.startDate = selectedDates[0].toISOString().split('T')[0];
+            managerFilters.endDate = selectedDates[1].toISOString().split('T')[0];
+          }
+        }
       });
 
       // Обработчики кнопок пресетов периода
@@ -646,8 +699,13 @@
         loadManagerReport();
       });
 
+      document.getElementById('applyManagerFilters')?.addEventListener('click', () => loadManagerReport(true));
+      document.getElementById('resetManagerFilters')?.addEventListener('click', () => {
+        applyManagerMonthDefaults();
+        loadManagerReport(true);
+      });
       document.getElementById('buildOlap')?.addEventListener('click', buildOlapReport);
-      document.getElementById('tab-managers')?.addEventListener('shown.bs.tab', loadManagerReport);
+      document.getElementById('tab-managers')?.addEventListener('shown.bs.tab', () => loadManagerReport(true));
       document.getElementById('tab-olap')?.addEventListener('shown.bs.tab', buildOlapReport);
     });
 
@@ -703,29 +761,47 @@
     }
 
     // Загрузка данных дашборда
-async function loadManagerReport() {
-  const response = await fetch('/api/dashboard/manager-report', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ startDate: currentFilters.startDate, endDate: currentFilters.endDate, restaurants: currentFilters.restaurants || [] })
-  });
-  const data = await response.json();
+async function loadManagerReport(showError = false) {
   const accordion = document.getElementById('managerAccordion');
   const supervisor = document.getElementById('supervisorSummary');
-  if (!response.ok || data.success === false || !accordion) {
+  if (!accordion || !supervisor) {
     return;
   }
-  const supervisorRows = Object.entries(data.supervisors || {}).map(([name, total]) => `${name}: ${total}`).join(' · ');
-  supervisor.textContent = supervisorRows || 'Нет данных';
-  const managers = Array.isArray(data.managers) ? data.managers : [];
-  if (!managers.length) {
-    accordion.innerHTML = '<div class="text-muted">Нет данных по управляющим за выбранный период.</div>';
-    return;
+
+  try {
+    const response = await fetch('/api/dashboard/manager-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        startDate: managerFilters.startDate,
+        endDate: managerFilters.endDate,
+        restaurants: currentFilters.restaurants || []
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.success === false) {
+      throw new Error(data.error || 'Ошибка загрузки отчёта');
+    }
+
+    const supervisorRows = Object.entries(data.supervisors || {}).map(([name, total]) => `${name}: ${total}`).join(' · ');
+    supervisor.textContent = supervisorRows || 'Нет данных';
+    const managers = Array.isArray(data.managers) ? data.managers : [];
+    if (!managers.length) {
+      accordion.innerHTML = '<div class="text-muted">Нет данных по управляющим за выбранный период.</div>';
+      return;
+    }
+
+    accordion.innerHTML = managers.map((item, idx) => {
+      const body = (item.locations || []).map((loc) => `<li class="list-group-item d-flex justify-content-between"><span>${loc.location}</span><strong>${loc.count}</strong></li>`).join('');
+      return `<div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button ${idx ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#mgr-${idx}">${item.manager} · ${item.total} обращ.</button></h2><div id="mgr-${idx}" class="accordion-collapse collapse ${idx ? '' : 'show'}"><div class="accordion-body"><div class="small text-muted mb-2">Руководитель: ${item.supervisor || '—'}</div><ul class="list-group">${body}</ul></div></div></div>`;
+    }).join('');
+  } catch (error) {
+    console.error('Ошибка загрузки отчёта по управляющим:', error);
+    accordion.innerHTML = '<div class="text-danger">Не удалось загрузить отчёт по управляющим.</div>';
+    if (showError) {
+      showNotification('Ошибка отчёта по управляющим: ' + error.message, 'error');
+    }
   }
-  accordion.innerHTML = managers.map((item, idx) => {
-    const body = (item.locations || []).map((loc) => `<li class="list-group-item d-flex justify-content-between"><span>${loc.location}</span><strong>${loc.count}</strong></li>`).join('');
-    return `<div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button ${idx ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#mgr-${idx}">${item.manager} · ${item.total} обращ.</button></h2><div id="mgr-${idx}" class="accordion-collapse collapse ${idx ? '' : 'show'}"><div class="accordion-body"><div class="small text-muted mb-2">Руководитель: ${item.supervisor || '—'}</div><ul class="list-group">${body}</ul></div></div></div>`;
-  }).join('');
 }
 
 async function buildOlapReport() {
