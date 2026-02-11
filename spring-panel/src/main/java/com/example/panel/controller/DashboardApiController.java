@@ -56,7 +56,7 @@ public class DashboardApiController {
                                              Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
-        DashboardAnalyticsService.DashboardFilters filters = normalize(request);
+        DashboardAnalyticsService.DashboardFilters filters = normalize(request, true);
         Map<String, Object> payload = managerReportService.buildManagerReport(dialogs, filters);
         payload.put("success", true);
         return payload;
@@ -77,13 +77,29 @@ public class DashboardApiController {
     }
 
     private DashboardAnalyticsService.DashboardFilters normalize(DashboardFilterRequest request) {
+        return normalize(request, false);
+    }
+
+    private DashboardAnalyticsService.DashboardFilters normalize(DashboardFilterRequest request, boolean defaultCurrentMonth) {
         if (request == null) {
-            return new DashboardAnalyticsService.DashboardFilters(null, null, List.of());
+            return defaultCurrentMonth
+                ? currentMonthFilters(List.of())
+                : new DashboardAnalyticsService.DashboardFilters(null, null, List.of());
         }
         LocalDate startDate = request.startDate();
         LocalDate endDate = request.endDate();
         List<String> restaurants = request.restaurants() != null ? request.restaurants() : List.of();
+        if (defaultCurrentMonth && startDate == null && endDate == null) {
+            return currentMonthFilters(restaurants);
+        }
         return new DashboardAnalyticsService.DashboardFilters(startDate, endDate, restaurants);
+    }
+
+    private DashboardAnalyticsService.DashboardFilters currentMonthFilters(List<String> restaurants) {
+        LocalDate now = LocalDate.now();
+        LocalDate start = now.withDayOfMonth(1);
+        LocalDate end = now.withDayOfMonth(now.lengthOfMonth());
+        return new DashboardAnalyticsService.DashboardFilters(start, end, restaurants);
     }
 
     public record DashboardFilterRequest(LocalDate startDate, LocalDate endDate, List<String> restaurants) {}
