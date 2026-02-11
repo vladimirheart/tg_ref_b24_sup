@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.service.DashboardAnalyticsService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.ManagerReportService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +26,14 @@ public class DashboardApiController {
 
     private final DialogService dialogService;
     private final DashboardAnalyticsService analyticsService;
+    private final ManagerReportService managerReportService;
 
-    public DashboardApiController(DialogService dialogService, DashboardAnalyticsService analyticsService) {
+    public DashboardApiController(DialogService dialogService,
+                                  DashboardAnalyticsService analyticsService,
+                                  ManagerReportService managerReportService) {
         this.dialogService = dialogService;
         this.analyticsService = analyticsService;
+        this.managerReportService = managerReportService;
     }
 
     @PostMapping("/data")
@@ -44,6 +49,33 @@ public class DashboardApiController {
         return payload;
     }
 
+
+    @PostMapping("/manager-report")
+    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    public Map<String, Object> managerReport(@RequestBody(required = false) DashboardFilterRequest request,
+                                             Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        DashboardAnalyticsService.DashboardFilters filters = normalize(request);
+        Map<String, Object> payload = managerReportService.buildManagerReport(dialogs, filters);
+        payload.put("success", true);
+        return payload;
+    }
+
+    @PostMapping("/olap-preview")
+    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    public Map<String, Object> olapPreview(@RequestBody(required = false) OlapFilterRequest request, Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        DashboardAnalyticsService.DashboardFilters filters = normalize(request != null ? request.filters() : null);
+        ManagerReportService.OlapPreviewRequest olapRequest = (request != null && request.olap() != null)
+            ? request.olap()
+            : new ManagerReportService.OlapPreviewRequest("location", true, true, true);
+        Map<String, Object> payload = managerReportService.buildOlapPreview(dialogs, filters, olapRequest);
+        payload.put("success", true);
+        return payload;
+    }
+
     private DashboardAnalyticsService.DashboardFilters normalize(DashboardFilterRequest request) {
         if (request == null) {
             return new DashboardAnalyticsService.DashboardFilters(null, null, List.of());
@@ -55,4 +87,6 @@ public class DashboardApiController {
     }
 
     public record DashboardFilterRequest(LocalDate startDate, LocalDate endDate, List<String> restaurants) {}
+
+    public record OlapFilterRequest(DashboardFilterRequest filters, ManagerReportService.OlapPreviewRequest olap) {}
 }
