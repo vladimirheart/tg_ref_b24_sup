@@ -29,7 +29,7 @@ public class DashboardAnalyticsService {
     public record DashboardFilters(LocalDate startDate, LocalDate endDate, List<String> restaurants) {}
 
     public Map<String, Object> buildDashboardPayload(List<DialogListItem> dialogs, DashboardFilters filters) {
-        List<DialogListItem> filtered = applyFilters(dialogs, filters);
+        List<DialogListItem> filtered = filterDialogs(dialogs, filters);
         StatsBlock stats = buildStats(filtered, filters);
         TimeStats timeStats = buildTimeStats(filtered);
         List<StaffTimeStats> staffTimeStats = buildStaffTimeStats(filtered);
@@ -43,7 +43,7 @@ public class DashboardAnalyticsService {
         return payload;
     }
 
-    private List<DialogListItem> applyFilters(List<DialogListItem> dialogs, DashboardFilters filters) {
+    public List<DialogListItem> filterDialogs(List<DialogListItem> dialogs, DashboardFilters filters) {
         if (dialogs == null || dialogs.isEmpty()) {
             return List.of();
         }
@@ -57,7 +57,7 @@ public class DashboardAnalyticsService {
         if (filters == null || (filters.startDate == null && filters.endDate == null)) {
             return true;
         }
-        LocalDate date = extractDate(dialog);
+        LocalDate date = dialogDate(dialog);
         if (date == null) {
             return false;
         }
@@ -100,7 +100,7 @@ public class DashboardAnalyticsService {
         int previousTotal = (int) dialogs.stream()
                 .filter(dialog -> matchesRestaurant(dialog, filters))
                 .filter(dialog -> {
-                    LocalDate date = extractDate(dialog);
+                    LocalDate date = dialogDate(dialog);
                     return date != null && !date.isBefore(prevStart) && !date.isAfter(prevEnd);
                 })
                 .count();
@@ -214,7 +214,7 @@ public class DashboardAnalyticsService {
         return (int) minutes;
     }
 
-    private LocalDate extractDate(DialogListItem dialog) {
+    public LocalDate dialogDate(DialogListItem dialog) {
         LocalDateTime dateTime = parseDateTime(dialog.createdAt(), dialog.createdDate(), null);
         return dateTime != null ? dateTime.toLocalDate() : null;
     }
