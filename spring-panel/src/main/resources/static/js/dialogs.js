@@ -865,6 +865,25 @@
     }
   }
 
+  async function snoozeDialog(ticketId, minutes, triggerButton) {
+    if (!ticketId) return;
+    const btn = triggerButton || null;
+    if (btn) btn.disabled = true;
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/snooze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data?.success) {
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
+      }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function syncDialogsTable(dialogs) {
     const tbody = table.tBodies[0];
     if (!tbody) return;
@@ -2112,12 +2131,20 @@
       event.preventDefault();
       const ticketId = snoozeBtn.dataset.ticketId;
       const row = snoozeBtn.closest('tr');
-      setSnooze(ticketId, 60);
-      updateRowQuickActions(row);
-      applyFilters();
-      if (typeof showNotification === 'function') {
-        showNotification('Диалог отложен на 1 час', 'success');
-      }
+      snoozeDialog(ticketId, 60, snoozeBtn)
+        .then(() => {
+          setSnooze(ticketId, 60);
+          updateRowQuickActions(row);
+          applyFilters();
+          if (typeof showNotification === 'function') {
+            showNotification('Диалог отложен на 1 час', 'success');
+          }
+        })
+        .catch((error) => {
+          if (typeof showNotification === 'function') {
+            showNotification(error.message || 'Не удалось отложить диалог', 'error');
+          }
+        });
       return;
     }
     const closeBtn = event.target.closest('.dialog-close-btn');
