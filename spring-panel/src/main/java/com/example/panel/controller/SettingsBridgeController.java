@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -227,6 +228,7 @@ public class SettingsBridgeController {
             "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, ?, 0, ?)",
             paramType, value, state, extraJson
         );
+        syncLocationsFromParameters();
         Map<String, Object> data = fetchParametersGrouped(true);
         return Map.of("success", true, "data", data);
     }
@@ -288,6 +290,7 @@ public class SettingsBridgeController {
 
         params.add(paramId);
         jdbcTemplate.update("UPDATE settings_parameters SET " + updates + " WHERE id = ?", params.toArray());
+        syncLocationsFromParameters();
         Map<String, Object> data = fetchParametersGrouped(true);
         return Map.of("success", true, "data", data);
     }
@@ -302,6 +305,7 @@ public class SettingsBridgeController {
         if (updated == 0) {
             return Map.of("success", false, "error", "Параметр не найден");
         }
+        syncLocationsFromParameters();
         Map<String, Object> data = fetchParametersGrouped(true);
         return Map.of("success", true, "data", data);
     }
@@ -724,5 +728,108 @@ public class SettingsBridgeController {
             value,
             extraJson
         );
+    }
+
+    private void syncLocationsFromParameters() {
+        JsonNode existingLocations = sharedConfigService.loadLocations();
+        Map<String, Object> payload = existingLocations != null && existingLocations.isObject()
+            ? objectMapper.convertValue(existingLocations, Map.class)
+            : new LinkedHashMap<>();
+
+        Map<String, Object> tree = payload.get("tree") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Map<String, Object> cityMeta = payload.get("city_meta") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Map<String, Object> locationMeta = payload.get("location_meta") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "SELECT param_type, value, extra_json FROM settings_parameters "
+                + "WHERE is_deleted = 0 AND param_type IN ('business', 'city', 'department')"
+        );
+
+        for (Map<String, Object> row : rows) {
+            String paramType = stringValue(row.get("param_type"));
+            String value = stringValue(row.get("value"));
+            if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
+                continue;
+            }
+
+            Map<String, Object> extra = parseExtraJson(row.get("extra_json"));
+            Map<String, String> dependencies = extractDependencies(
+                paramType,
+                extra,
+                settingsCatalogService.getParameterDependencies().getOrDefault(paramType, List.of())
+            );
+
+            if ("business".equals(paramType)) {
+                tree.computeIfAbsent(value, k -> new LinkedHashMap<>());
+                continue;
+            }
+
+            String business = stringValue(dependencies.get("business"));
+            String partnerType = stringValue(dependencies.get("partner_type"));
+            String country = stringValue(dependencies.get("country"));
+            if (!StringUtils.hasText(business) || !StringUtils.hasText(partnerType)) {
+                continue;
+            }
+
+            Map<String, Object> types = tree.get(business) instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+            tree.put(business, types);
+
+            Map<String, Object> cities = types.get(partnerType) instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+            types.put(partnerType, cities);
+
+            if ("city".equals(paramType)) {
+                if (!cities.containsKey(value) || !(cities.get(value) instanceof List<?>)) {
+                    cities.put(value, new ArrayList<>());
+                }
+                upsertLocationMeta(cityMeta, String.join("::", business, partnerType, value), country, partnerType);
+                continue;
+            }
+
+            String city = stringValue(dependencies.get("city"));
+            if (!StringUtils.hasText(city)) {
+                continue;
+            }
+            List<String> locations = cities.get(city) instanceof List<?> list
+                ? new ArrayList<>(list.stream().map(this::stringValue).filter(StringUtils::hasText).toList())
+                : new ArrayList<>();
+            if (!locations.contains(value)) {
+                locations.add(value);
+                locations.sort(String::compareToIgnoreCase);
+            }
+            cities.put(city, locations);
+            upsertLocationMeta(cityMeta, String.join("::", business, partnerType, city), country, partnerType);
+            upsertLocationMeta(locationMeta, String.join("::", business, partnerType, city, value), country, partnerType);
+        }
+
+        payload.put("tree", tree);
+        payload.put("city_meta", cityMeta);
+        payload.put("location_meta", locationMeta);
+        sharedConfigService.saveLocations(payload);
+    }
+
+    private void upsertLocationMeta(Map<String, Object> metaMap, String key, String country, String partnerType) {
+        if (!StringUtils.hasText(key)) {
+            return;
+        }
+        Map<String, String> value = metaMap.get(key) instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, String>) map)
+            : new LinkedHashMap<>();
+        if (StringUtils.hasText(country)) {
+            value.put("country", country);
+        }
+        if (StringUtils.hasText(partnerType)) {
+            value.put("partner_type", partnerType);
+        }
+        metaMap.put(key, value);
     }
 }
