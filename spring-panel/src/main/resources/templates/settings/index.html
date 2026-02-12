@@ -10941,6 +10941,7 @@
       });
       const data = await response.json();
       if (data.success) {
+        await loadParameters();
         showPopup('✅ Структура локаций сохранена');
       } else {
         showPopup('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
@@ -10993,8 +10994,9 @@
   }
 
   function getCityOptions() {
-    if (CITY_OPTIONS && CITY_OPTIONS.length) {
-      return CITY_OPTIONS;
+    const options = uniqueSorted((parameterData.city || []).map((item) => item.value));
+    if (options.length) {
+      return options;
     }
     const collected = [];
     Object.values(locationsState.tree || {}).forEach((types) => {
@@ -11004,7 +11006,11 @@
         });
       });
     });
-    return uniqueSorted(collected);
+    const fallback = uniqueSorted(collected);
+    if (fallback.length) {
+      return fallback;
+    }
+    return CITY_OPTIONS && CITY_OPTIONS.length ? CITY_OPTIONS : [];
   }
 
   function getCountryOptions() {
