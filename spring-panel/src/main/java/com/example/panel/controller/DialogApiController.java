@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 @RestController
 @RequestMapping("/api/dialogs")
@@ -41,6 +42,7 @@ public class DialogApiController {
     private final DialogReplyService dialogReplyService;
     private final DialogNotificationService dialogNotificationService;
     private final AttachmentService attachmentService;
+    private static final long QUICK_ACTION_TARGET_MS = 1500;
 
     public DialogApiController(DialogService dialogService,
                                DialogReplyService dialogReplyService,
@@ -179,24 +181,26 @@ public class DialogApiController {
     public ResponseEntity<?> resolve(@PathVariable String ticketId,
                                      @RequestBody(required = false) DialogResolveRequest request,
                                      Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : null;
-        List<String> categories = request != null ? request.categories() : List.of();
-        DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator, categories);
-        if (!result.exists()) {
-            logQuickAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("success", false, "error", "Диалог не найден"));
-        }
-        if (result.error() != null) {
-            logQuickAction(operator, ticketId, "quick_close", "error", result.error());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        if (result.updated()) {
-            dialogNotificationService.notifyResolved(ticketId);
-        }
-        logQuickAction(operator, ticketId, "quick_close", "success", result.updated() ? "updated" : "noop");
-        return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
+        return withQuickActionTiming("quick_close", ticketId, () -> {
+            String operator = authentication != null ? authentication.getName() : null;
+            List<String> categories = request != null ? request.categories() : List.of();
+            DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator, categories);
+            if (!result.exists()) {
+                logQuickAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
+            if (result.error() != null) {
+                logQuickAction(operator, ticketId, "quick_close", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            if (result.updated()) {
+                dialogNotificationService.notifyResolved(ticketId);
+            }
+            logQuickAction(operator, ticketId, "quick_close", "success", result.updated() ? "updated" : "noop");
+            return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
+        });
     }
 
     @PostMapping("/{ticketId}/reopen")
@@ -231,42 +235,60 @@ public class DialogApiController {
     @PostMapping("/{ticketId}/take")
     public ResponseEntity<?> take(@PathVariable String ticketId,
                                   Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : null;
-        if (operator == null || operator.isBlank()) {
-            logQuickAction(null, ticketId, "take", "unauthorized", "Требуется авторизация");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("success", false, "error", "Требуется авторизация"));
-        }
-        Optional<DialogListItem> dialog = dialogService.findDialog(ticketId, operator);
-        if (dialog.isEmpty()) {
-            logQuickAction(operator, ticketId, "take", "not_found", "Диалог не найден");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("success", false, "error", "Диалог не найден"));
-        }
+        return withQuickActionTiming("take", ticketId, () -> {
+            String operator = authentication != null ? authentication.getName() : null;
+            if (operator == null || operator.isBlank()) {
+                logQuickAction(null, ticketId, "take", "unauthorized", "Требуется авторизация");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("success", false, "error", "Требуется авторизация"));
+            }
+            Optional<DialogListItem> dialog = dialogService.findDialog(ticketId, operator);
+            if (dialog.isEmpty()) {
+                logQuickAction(operator, ticketId, "take", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
 
-        dialogService.assignResponsibleIfMissing(ticketId, operator);
+            dialogService.assignResponsibleIfMissing(ticketId, operator);
 
-        Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
-        String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
-        logQuickAction(operator, ticketId, "take", "success", "responsible_assigned");
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "responsible", responsible != null && !responsible.isBlank() ? responsible : operator
-        ));
+            Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
+            String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
+            logQuickAction(operator, ticketId, "take", "success", "responsible_assigned");
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "responsible", responsible != null && !responsible.isBlank() ? responsible : operator
+            ));
+        });
     }
 
     @PostMapping("/{ticketId}/snooze")
     public ResponseEntity<?> snooze(@PathVariable String ticketId,
                                     @RequestBody(required = false) DialogSnoozeRequest request,
                                     Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : "anonymous";
-        Integer minutes = request != null ? request.minutes() : null;
-        if (minutes == null || minutes <= 0) {
-            logQuickAction(operator, ticketId, "snooze", "error", "Некорректная длительность snooze");
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Некорректная длительность snooze"));
+        return withQuickActionTiming("snooze", ticketId, () -> {
+            String operator = authentication != null ? authentication.getName() : "anonymous";
+            Integer minutes = request != null ? request.minutes() : null;
+            if (minutes == null || minutes <= 0) {
+                logQuickAction(operator, ticketId, "snooze", "error", "Некорректная длительность snooze");
+                return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Некорректная длительность snooze"));
+            }
+            logQuickAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
+            return ResponseEntity.ok(Map.of("success", true));
+        });
+    }
+
+    private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
+        long startedAtMs = System.currentTimeMillis();
+        try {
+            return supplier.get();
+        } finally {
+            long elapsedMs = System.currentTimeMillis() - startedAtMs;
+            if (elapsedMs > QUICK_ACTION_TARGET_MS) {
+                log.warn("Quick action '{}' for ticket '{}' exceeded target: {}ms > {}ms", action, ticketId, elapsedMs, QUICK_ACTION_TARGET_MS);
+            } else {
+                log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
+            }
         }
-        logQuickAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
-        return ResponseEntity.ok(Map.of("success", true));
     }
 
     private void logQuickAction(String actor, String ticketId, String action, String result, String detail) {
