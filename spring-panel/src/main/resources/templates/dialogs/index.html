@@ -85,12 +85,13 @@
                         <th data-column-key="categories">Категории</th>
                         <th data-column-key="responsible">Ответственный</th>
                         <th data-column-key="created">Дата</th>
+                        <th data-column-key="sla">SLA</th>
                         <th data-column-key="actions">Действия</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr th:if="${#lists.isEmpty(dialogs)}">
-                        <td colspan="11" class="text-center text-muted py-4">Диалоги не найдены</td>
+                        <td colspan="12" class="text-center text-muted py-4">Диалоги не найдены</td>
                     </tr>
                     <tr th:each="dialog : ${dialogs}"
                         th:data-ticket-id="${dialog.ticketId}"
@@ -149,6 +150,9 @@
                         <td>
                             <div class="small text-muted" th:text="${dialog.createdDateSafe()}">—</div>
                             <div class="small" th:text="${dialog.createdTimeSafe()}">—</div>
+                        </td>
+                        <td class="dialog-sla-cell">
+                            <span class="badge rounded-pill dialog-sla-badge">—</span>
                         </td>
                         <td class="dialog-actions">
                             <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" th:data-ticket-id="${dialog.ticketId}">Открыть</a>
