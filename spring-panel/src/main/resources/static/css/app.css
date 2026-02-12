@@ -461,6 +461,14 @@ body {
     background-color: #ffffff;
 }
 
+.dialog-table tbody tr.dialog-row-active {
+    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.45);
+}
+
+.dialog-table tbody tr.dialog-row-active > td {
+    background-color: #edf4ff;
+}
+
 .dialog-business-pill {
     display: inline-flex;
     align-items: center;
@@ -469,6 +477,14 @@ body {
     border-radius: 999px;
     background-color: #f1f3f5;
     font-weight: 500;
+}
+
+.dialog-table tbody tr.dialog-row-active {
+    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.45);
+}
+
+.dialog-table tbody tr.dialog-row-active > td {
+    background-color: #edf4ff;
 }
 
 .dialog-business-icon img {
@@ -921,4 +937,5 @@ body {
     transform-origin: center center;
     transition: transform 0.2s ease;
 }
+
 
