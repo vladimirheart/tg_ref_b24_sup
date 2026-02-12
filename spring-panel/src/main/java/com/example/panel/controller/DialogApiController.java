@@ -183,16 +183,19 @@ public class DialogApiController {
         List<String> categories = request != null ? request.categories() : List.of();
         DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator, categories);
         if (!result.exists()) {
+            logQuickAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));
         }
         if (result.error() != null) {
+            logQuickAction(operator, ticketId, "quick_close", "error", result.error());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("success", false, "error", result.error()));
         }
         if (result.updated()) {
             dialogNotificationService.notifyResolved(ticketId);
         }
+        logQuickAction(operator, ticketId, "quick_close", "success", result.updated() ? "updated" : "noop");
         return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
     }
 
@@ -230,11 +233,13 @@ public class DialogApiController {
                                   Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         if (operator == null || operator.isBlank()) {
+            logQuickAction(null, ticketId, "take", "unauthorized", "Требуется авторизация");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("success", false, "error", "Требуется авторизация"));
         }
         Optional<DialogListItem> dialog = dialogService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
+            logQuickAction(operator, ticketId, "take", "not_found", "Диалог не найден");
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));
         }
@@ -243,10 +248,34 @@ public class DialogApiController {
 
         Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
         String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
+        logQuickAction(operator, ticketId, "take", "success", "responsible_assigned");
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "responsible", responsible != null && !responsible.isBlank() ? responsible : operator
         ));
+    }
+
+    @PostMapping("/{ticketId}/snooze")
+    public ResponseEntity<?> snooze(@PathVariable String ticketId,
+                                    @RequestBody(required = false) DialogSnoozeRequest request,
+                                    Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : "anonymous";
+        Integer minutes = request != null ? request.minutes() : null;
+        if (minutes == null || minutes <= 0) {
+            logQuickAction(operator, ticketId, "snooze", "error", "Некорректная длительность snooze");
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Некорректная длительность snooze"));
+        }
+        logQuickAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    private void logQuickAction(String actor, String ticketId, String action, String result, String detail) {
+        log.info("Dialog quick action: actor='{}', ticket='{}', action='{}', result='{}', detail='{}'",
+                actor != null ? actor : "anonymous",
+                ticketId,
+                action,
+                result,
+                detail != null ? detail : "");
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
@@ -258,5 +287,6 @@ public class DialogApiController {
     public record DialogDeleteRequest(Long telegramMessageId) {}
 
     public record DialogCategoriesRequest(List<String> categories) {}
-}
 
+    public record DialogSnoozeRequest(Integer minutes) {}
+}
