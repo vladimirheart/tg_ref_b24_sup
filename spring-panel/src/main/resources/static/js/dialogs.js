@@ -1079,6 +1079,71 @@
     applyFilters();
   }
 
+  function visibleRows() {
+    return rowsList().filter((row) => !row.classList.contains('d-none'));
+  }
+
+  function openVisibleDialogByOffset(offset) {
+    const rows = visibleRows();
+    if (!rows.length) return;
+    const currentIndex = activeDialogRow ? rows.indexOf(activeDialogRow) : -1;
+    let nextIndex = currentIndex + offset;
+    if (nextIndex < 0) nextIndex = rows.length - 1;
+    if (nextIndex >= rows.length) nextIndex = 0;
+    const nextRow = rows[nextIndex];
+    const openButton = nextRow?.querySelector('.dialog-open-btn');
+    const ticketId = openButton?.dataset?.ticketId || nextRow?.dataset?.ticketId;
+    if (!ticketId) return;
+    openDialogDetails(ticketId, nextRow);
+  }
+
+  function isTypingTarget(target) {
+    if (!target) return false;
+    const tagName = String(target.tagName || '').toLowerCase();
+    if (target.isContentEditable) return true;
+    return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+  }
+
+  function handleGlobalShortcuts(event) {
+    if (event.defaultPrevented || event.repeat) return;
+    if (isTypingTarget(event.target)) return;
+
+    if (event.key === '/') {
+      if (!quickSearch) return;
+      event.preventDefault();
+      quickSearch.focus();
+      quickSearch.select();
+      return;
+    }
+
+    if (!event.altKey) return;
+    const key = String(event.key || '').toLowerCase();
+    const viewMap = {
+      '1': 'all',
+      '2': 'active',
+      '3': 'new',
+      '4': 'unassigned',
+      '5': 'overdue',
+    };
+
+    if (viewMap[key]) {
+      event.preventDefault();
+      setViewTab(viewMap[key]);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      openVisibleDialogByOffset(1);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      openVisibleDialogByOffset(-1);
+    }
+  }
+
   function restoreColumnWidths() {
     try {
       const raw = localStorage.getItem(STORAGE_WIDTHS);
@@ -2692,6 +2757,8 @@
       resetMediaPreview();
     });
   }
+
+  document.addEventListener('keydown', handleGlobalShortcuts);
 
   initDialogTemplates();
   renderEmojiPanel();
