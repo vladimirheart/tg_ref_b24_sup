@@ -95,8 +95,25 @@
   const LIST_POLL_INTERVAL = 8000;
   const DEFAULT_PAGE_SIZE = 20;
   const DEFAULT_DIALOG_FONT = 14;
-  const SLA_TARGET_MINUTES = 24 * 60;
-  const SLA_WARNING_MINUTES = 4 * 60;
+  const DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
+  const DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
+
+  function normalizeSlaMinutes(value, fallbackValue) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return fallbackValue;
+    }
+    return parsed;
+  }
+
+  const SLA_TARGET_MINUTES = normalizeSlaMinutes(
+    window.DIALOG_CONFIG?.sla_target_minutes,
+    DEFAULT_SLA_TARGET_MINUTES,
+  );
+  const SLA_WARNING_MINUTES = Math.min(
+    normalizeSlaMinutes(window.DIALOG_CONFIG?.sla_warning_minutes, DEFAULT_SLA_WARNING_MINUTES),
+    SLA_TARGET_MINUTES,
+  );
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -646,22 +663,36 @@
 
   function computeSlaState(row) {
     if (!row || isResolved(row)) {
-      return { label: 'Закрыт', className: 'dialog-sla-closed' };
+      return { label: 'Закрыт', className: 'dialog-sla-closed', title: 'SLA не применяется к закрытому обращению' };
     }
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
     const createdAt = new Date(createdAtRaw);
     if (!createdAtRaw || Number.isNaN(createdAt.getTime())) {
-      return { label: 'Нет даты', className: 'dialog-sla-closed' };
+      return { label: 'Нет даты', className: 'dialog-sla-closed', title: 'Не удалось определить время создания обращения' };
     }
     const ageMinutes = (Date.now() - createdAt.getTime()) / 60000;
     const minutesLeft = SLA_TARGET_MINUTES - ageMinutes;
+    const deadline = new Date(createdAt.getTime() + SLA_TARGET_MINUTES * 60000);
+    const deadlineLabel = deadline.toLocaleString('ru-RU');
     if (minutesLeft <= 0) {
-      return { label: `Просрочен ${formatDurationMinutes(Math.abs(minutesLeft))}`, className: 'dialog-sla-overdue' };
+      return {
+        label: `Просрочен ${formatDurationMinutes(Math.abs(minutesLeft))}`,
+        className: 'dialog-sla-overdue',
+        title: `SLA просрочен. Дедлайн: ${deadlineLabel}`,
+      };
     }
     if (minutesLeft <= SLA_WARNING_MINUTES) {
-      return { label: `Риск ${formatDurationMinutes(minutesLeft)}`, className: 'dialog-sla-risk' };
+      return {
+        label: `Риск ${formatDurationMinutes(minutesLeft)}`,
+        className: 'dialog-sla-risk',
+        title: `До дедлайна SLA: ${formatDurationMinutes(minutesLeft)} (дедлайн: ${deadlineLabel})`,
+      };
     }
-    return { label: `До SLA ${formatDurationMinutes(minutesLeft)}`, className: 'dialog-sla-safe' };
+    return {
+      label: `До SLA ${formatDurationMinutes(minutesLeft)}`,
+      className: 'dialog-sla-safe',
+      title: `До дедлайна SLA: ${formatDurationMinutes(minutesLeft)} (дедлайн: ${deadlineLabel})`,
+    };
   }
 
   function updateRowSlaBadge(row) {
@@ -673,6 +704,7 @@
     const state = computeSlaState(row);
     badge.className = `badge rounded-pill dialog-sla-badge ${state.className}`;
     badge.textContent = state.label;
+    badge.title = state.title || '';
   }
 
   function updateAllSlaBadges() {
