@@ -92,3 +92,4 @@ export SPRING_OPTS="--server.port=8080"
 - [docs/environment_variables.md](docs/environment_variables.md) — полный список переменных.
 - [docs/java_bot.md](docs/java_bot.md) — сборка и запуск Java-ботов (Maven Wrapper).
 - [docs/vk_bot_setup.md](docs/vk_bot_setup.md) — настройка VK-бота.
+- [docs/ui_ux_audit.md](docs/ui_ux_audit.md) — UI/UX аудит с внедрёнными правками и roadmap развития панели.
