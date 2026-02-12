@@ -461,14 +461,6 @@ body {
     background-color: #ffffff;
 }
 
-.dialog-table tbody tr.dialog-row-active {
-    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.45);
-}
-
-.dialog-table tbody tr.dialog-row-active > td {
-    background-color: #edf4ff;
-}
-
 .dialog-business-pill {
     display: inline-flex;
     align-items: center;
@@ -477,14 +469,6 @@ body {
     border-radius: 999px;
     background-color: #f1f3f5;
     font-weight: 500;
-}
-
-.dialog-table tbody tr.dialog-row-active {
-    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.45);
-}
-
-.dialog-table tbody tr.dialog-row-active > td {
-    background-color: #edf4ff;
 }
 
 .dialog-business-icon img {
@@ -502,6 +486,45 @@ body {
   white-space: nowrap;
 }
 
+.dialog-status-badge {
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.dialog-status-badge.status-new {
+  background-color: #e7f1ff;
+  border-color: #b6d4fe;
+  color: #084298;
+}
+
+.dialog-status-badge.status-waiting-operator {
+  background-color: #fff3cd;
+  border-color: #ffe69c;
+  color: #664d03;
+}
+
+.dialog-status-badge.status-waiting-client {
+  background-color: #cff4fc;
+  border-color: #9eeaf9;
+  color: #055160;
+}
+
+.dialog-status-badge.status-closed {
+  background-color: #d1e7dd;
+  border-color: #a3cfbb;
+  color: #0f5132;
+}
+
+.dialog-status-badge.status-auto-closed {
+  background-color: #e2e3e5;
+  border-color: #c6c8ca;
+  color: #41464b;
+}
+
+.dialog-unread-count {
+  background-color: #dc3545;
+  color: #fff;
+}
 
 .dialog-sla-cell {
   min-width: 150px;
@@ -543,6 +566,14 @@ body {
   white-space: nowrap;
 }
 
+.dialog-toolbar-search {
+  min-width: 220px;
+}
+
+.dialog-toolbar-page-size {
+  min-width: 140px;
+}
+
 
 .dialog-bulk-toolbar {
   padding: 0.5rem 0.75rem;
@@ -559,14 +590,6 @@ body {
 
 .dialog-select-column .form-check-input {
   margin-top: 0;
-}
-
-.dialog-toolbar-search {
-  min-width: 220px;
-}
-
-.dialog-toolbar-page-size {
-  min-width: 140px;
 }
 
 .dialog-hotkeys-list kbd {
@@ -955,6 +978,3 @@ body {
     transform-origin: center center;
     transition: transform 0.2s ease;
 }
-
-
-
