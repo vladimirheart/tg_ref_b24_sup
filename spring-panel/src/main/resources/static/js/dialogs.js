@@ -90,6 +90,7 @@
   const STORAGE_TASK = 'iguana:dialogs:create-task';
   const STORAGE_PAGE_SIZE = 'iguana:dialogs:page-size';
   const STORAGE_DIALOG_FONT = 'iguana:dialogs:font-size';
+  const STORAGE_SNOOZED = 'iguana:dialogs:snoozed';
   const HISTORY_POLL_INTERVAL = 8000;
   const LIST_POLL_INTERVAL = 8000;
   const DEFAULT_PAGE_SIZE = 20;
@@ -117,6 +118,46 @@
   });
 
   const DIALOG_EMOJI = ['😀','😁','😂','😊','😍','🤔','😢','😡','👍','🙏','🔥','🎉','✅','❗','📌'];
+
+  function loadSnoozedDialogs() {
+    try {
+      const raw = localStorage.getItem(STORAGE_SNOOZED);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return {};
+      const now = Date.now();
+      const cleaned = Object.fromEntries(Object.entries(parsed).filter(([, value]) => Number(value) > now));
+      if (Object.keys(cleaned).length !== Object.keys(parsed).length) {
+        localStorage.setItem(STORAGE_SNOOZED, JSON.stringify(cleaned));
+      }
+      return cleaned;
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function saveSnoozedDialogs(state) {
+    localStorage.setItem(STORAGE_SNOOZED, JSON.stringify(state || {}));
+  }
+
+  const snoozedDialogs = loadSnoozedDialogs();
+
+  function getSnoozeUntil(ticketId) {
+    const value = snoozedDialogs[String(ticketId || '')];
+    return Number(value) > Date.now() ? Number(value) : null;
+  }
+
+  function setSnooze(ticketId, minutes) {
+    if (!ticketId) return;
+    snoozedDialogs[String(ticketId)] = Date.now() + Math.max(1, Number(minutes) || 60) * 60 * 1000;
+    saveSnoozedDialogs(snoozedDialogs);
+  }
+
+  function clearSnooze(ticketId) {
+    if (!ticketId) return;
+    delete snoozedDialogs[String(ticketId)];
+    saveSnoozedDialogs(snoozedDialogs);
+  }
 
   const DIALOG_TEMPLATES = {
     categoryTemplates: Array.isArray(window.DIALOG_CONFIG?.category_templates)
@@ -438,6 +479,11 @@
     return 'bg-primary-subtle text-primary';
   }
 
+  function isResolvedStatusKey(statusKey) {
+    const normalized = String(statusKey || '').toLowerCase();
+    return normalized === 'closed' || normalized === 'auto_closed';
+  }
+
   function resetReplyTarget() {
     activeReplyToTelegramId = null;
     if (replyTarget) {
@@ -600,22 +646,22 @@
 
   function computeSlaState(row) {
     if (!row || isResolved(row)) {
-      return { label: 'Закрыт', className: 'text-bg-secondary' };
+      return { label: 'Закрыт', className: 'dialog-sla-closed' };
     }
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
     const createdAt = new Date(createdAtRaw);
     if (!createdAtRaw || Number.isNaN(createdAt.getTime())) {
-      return { label: 'Нет даты', className: 'text-bg-secondary' };
+      return { label: 'Нет даты', className: 'dialog-sla-closed' };
     }
     const ageMinutes = (Date.now() - createdAt.getTime()) / 60000;
     const minutesLeft = SLA_TARGET_MINUTES - ageMinutes;
     if (minutesLeft <= 0) {
-      return { label: `Просрочен ${formatDurationMinutes(Math.abs(minutesLeft))}`, className: 'text-bg-danger' };
+      return { label: `Просрочен ${formatDurationMinutes(Math.abs(minutesLeft))}`, className: 'dialog-sla-overdue' };
     }
     if (minutesLeft <= SLA_WARNING_MINUTES) {
-      return { label: `Риск ${formatDurationMinutes(minutesLeft)}`, className: 'text-bg-warning text-dark' };
+      return { label: `Риск ${formatDurationMinutes(minutesLeft)}`, className: 'dialog-sla-risk' };
     }
-    return { label: `До SLA ${formatDurationMinutes(minutesLeft)}`, className: 'text-bg-success' };
+    return { label: `До SLA ${formatDurationMinutes(minutesLeft)}`, className: 'dialog-sla-safe' };
   }
 
   function updateRowSlaBadge(row) {
@@ -630,7 +676,7 @@
   }
 
   function updateAllSlaBadges() {
-    rowsList().forEach((row) => updateRowSlaBadge(row));
+    rowsList().forEach((row) => { updateRowSlaBadge(row); updateRowQuickActions(row); });
   }
 
   function renderDialogRow(item) {
@@ -716,7 +762,9 @@
         </td>
         <td class="dialog-actions">
           <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
-          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${hasResponsible ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять</button>
+          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${hasResponsible ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Назначить мне</button>
+          <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Отложить 1ч</button>
+          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
           <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
              data-ticket-id="${escapeHtml(ticketId)}"
              data-client="${escapeHtml(clientName)}">Задача</a>
@@ -744,6 +792,51 @@
     if (takeBtn) {
       takeBtn.classList.toggle('d-none', Boolean(value));
     }
+  }
+
+  function parseRowCategories(row) {
+    const categoriesValue = String(row?.dataset?.categories || '').trim();
+    if (!categoriesValue || categoriesValue === '—') {
+      return [];
+    }
+    return categoriesValue.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+
+  function updateRowQuickActions(row) {
+    if (!row) return;
+    const isClosed = isResolved(row);
+    const closeBtn = row.querySelector('.dialog-close-btn');
+    const snoozeBtn = row.querySelector('.dialog-snooze-btn');
+    if (closeBtn) closeBtn.classList.toggle('d-none', isClosed);
+    if (snoozeBtn) {
+      snoozeBtn.classList.toggle('d-none', isClosed);
+      const ticketId = row.dataset.ticketId;
+      const until = getSnoozeUntil(ticketId);
+      snoozeBtn.textContent = until ? `Отложен до ${new Date(until).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : 'Отложить 1ч';
+    }
+  }
+
+  async function closeDialogQuick(ticketId, row, triggerButton) {
+    if (!ticketId) return;
+    const categories = parseRowCategories(row);
+    if (!categories.length) {
+      throw new Error('Для быстрого закрытия укажите категорию в карточке диалога.');
+    }
+    const btn = triggerButton || null;
+    if (btn) btn.disabled = true;
+    const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data?.success) {
+      throw new Error(data?.error || `Ошибка ${resp.status}`);
+    }
+    updateRowStatus(row, 'resolved', 'Закрыт', 'closed', 0);
+    updateRowSlaBadge(row);
+    updateRowQuickActions(row);
+    applyFilters();
   }
 
   async function takeDialog(ticketId, row, triggerButton) {
@@ -784,6 +877,7 @@
     restoreColumnWidths();
     updateAllSlaBadges();
     applyFilters();
+  rowsList().forEach((row) => updateRowQuickActions(row));
 
     if (activeDialogTicketId) {
       const selector = `.dialog-open-btn[data-ticket-id="${escapeSelectorValue(activeDialogTicketId)}"]`;
@@ -868,44 +962,15 @@
     return Date.now() - createdAt.getTime() > overdueThresholdMs;
   }
 
+  function isSnoozedDialog(row) {
+    const ticketId = row?.dataset?.ticketId;
+    return Boolean(getSnoozeUntil(ticketId));
+  }
+
   function matchesCurrentView(row) {
-    switch (filterState.view) {
-      case 'active':
-        return !isResolved(row);
-      case 'new':
-        return isNewDialog(row);
-      case 'unassigned':
-        return isUnassignedDialog(row);
-      case 'overdue':
-        return isOverdueDialog(row);
-      default:
-        return true;
+    if (isSnoozedDialog(row) && filterState.view !== 'all') {
+      return false;
     }
-  }
-
-  function isNewDialog(row) {
-    const key = String(row.dataset.statusKey || '').toLowerCase();
-    const raw = String(row.dataset.statusRaw || '').toLowerCase();
-    const label = String(row.dataset.status || '').toLowerCase();
-    return key === 'new' || raw === 'new' || label === 'новый';
-  }
-
-  function isUnassignedDialog(row) {
-    const responsible = String(row.dataset.responsible || '').trim().toLowerCase();
-    return !responsible || responsible === '—' || responsible === '-';
-  }
-
-  function isOverdueDialog(row) {
-    if (isResolved(row)) return false;
-    const createdAtRaw = String(row.dataset.createdAt || '').trim();
-    if (!createdAtRaw) return false;
-    const createdAt = new Date(createdAtRaw);
-    if (Number.isNaN(createdAt.getTime())) return false;
-    const overdueThresholdMs = 24 * 60 * 60 * 1000;
-    return Date.now() - createdAt.getTime() > overdueThresholdMs;
-  }
-
-  function matchesCurrentView(row) {
     switch (filterState.view) {
       case 'active':
         return !isResolved(row);
@@ -1796,6 +1861,7 @@
       }
     }
     setRowUnreadCount(row, unreadCount);
+    updateRowQuickActions(row);
   }
 
   function formatStatusLabel(raw, fallback, statusKey) {
@@ -2039,6 +2105,40 @@
       const ticketId = takeBtn.dataset.ticketId;
       const row = takeBtn.closest('tr');
       takeDialog(ticketId, row, takeBtn);
+      return;
+    }
+    const snoozeBtn = event.target.closest('.dialog-snooze-btn');
+    if (snoozeBtn) {
+      event.preventDefault();
+      const ticketId = snoozeBtn.dataset.ticketId;
+      const row = snoozeBtn.closest('tr');
+      setSnooze(ticketId, 60);
+      updateRowQuickActions(row);
+      applyFilters();
+      if (typeof showNotification === 'function') {
+        showNotification('Диалог отложен на 1 час', 'success');
+      }
+      return;
+    }
+    const closeBtn = event.target.closest('.dialog-close-btn');
+    if (closeBtn) {
+      event.preventDefault();
+      const ticketId = closeBtn.dataset.ticketId;
+      const row = closeBtn.closest('tr');
+      closeBtn.disabled = true;
+      closeDialogQuick(ticketId, row, closeBtn)
+        .then(() => {
+          clearSnooze(ticketId);
+          if (typeof showNotification === 'function') {
+            showNotification('Диалог закрыт', 'success');
+          }
+        })
+        .catch((error) => {
+          if (typeof showNotification === 'function') {
+            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+          }
+          closeBtn.disabled = false;
+        });
     }
   });
 
