@@ -21,9 +21,9 @@
             <h1 class="h3 mb-1">Диалоги</h1>
             <p class="text-muted mb-0">Актуальные обращения клиентов и история активности.</p>
         </div>
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <input type="search" id="dialogQuickSearch" class="form-control form-control-sm" placeholder="Быстрый поиск" style="min-width: 220px;">
-            <select class="form-select form-select-sm" id="dialogPageSize" style="min-width: 140px;">
+        <div class="d-flex flex-wrap gap-2 align-items-center dialog-toolbar-controls">
+            <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search" placeholder="Быстрый поиск">
+            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogPageSize">
                 <option value="10">10</option>
                 <option value="20">20</option>
                 <option value="50">50</option>
@@ -39,6 +39,7 @@
             </div>
             <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
             <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
+            <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">⌨ Шорткаты</button>
         </div>
     </div>
 
@@ -367,6 +368,26 @@
                 <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Закрыть обращение</button>
                 <button type="button" class="btn btn-outline-warning d-none" id="dialogDetailsReopen">Переоткрыть обращение</button>
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogHotkeysModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Горячие клавиши</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group list-group-flush dialog-hotkeys-list">
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Фокус на быстрый поиск</span><kbd>/</kbd></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Все / Активные / Новые / Без ответственного / Просроченные</span><span><kbd>Alt</kbd> + <kbd>1..5</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть следующий диалог</span><span><kbd>Alt</kbd> + <kbd>↓</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть предыдущий диалог</span><span><kbd>Alt</kbd> + <kbd>↑</kbd></span></li>
+                </ul>
+                <p class="text-muted small mb-0 mt-3">Шорткаты отключаются во время ввода текста и работы с модальными формами.</p>
             </div>
         </div>
     </div>
