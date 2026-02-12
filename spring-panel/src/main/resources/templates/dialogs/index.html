@@ -145,7 +145,7 @@
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge rounded-pill" th:classappend="${dialog.statusClass()}" th:text="${dialog.statusLabel()}">Открыт</span>
-                                <span class="badge text-bg-danger dialog-unread-count"
+                                <span class="badge dialog-unread-count"
                                       th:classappend="${dialog.unreadCount() != null and dialog.unreadCount() > 0} ? '' : ' d-none'"
                                       th:text="${dialog.unreadCount()}">0</span>
                             </div>
@@ -258,7 +258,7 @@
                         <div class="text-muted small d-flex flex-wrap gap-2">
                             <span id="dialogDetailsMeta"></span>
                             <span class="text-warning d-none" id="dialogDetailsRating"></span>
-                            <span class="badge text-bg-danger d-none" id="dialogDetailsUnreadCount"></span>
+                            <span class="badge dialog-unread-count d-none" id="dialogDetailsUnreadCount"></span>
                         </div>
                         <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
                         <div class="small">
@@ -398,6 +398,7 @@
                 <ul class="list-group list-group-flush dialog-hotkeys-list">
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Фокус на быстрый поиск</span><kbd>/</kbd></li>
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Все / Активные / Новые / Без ответственного / Просроченные</span><span><kbd>Alt</kbd> + <kbd>1..5</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Фильтр по статусам: Новый / Оператор / Клиент / Закрыт / Сброс</span><span><kbd>Alt</kbd> + <kbd>6..0</kbd></span></li>
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть следующий диалог</span><span><kbd>Alt</kbd> + <kbd>↓</kbd></span></li>
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть предыдущий диалог</span><span><kbd>Alt</kbd> + <kbd>↑</kbd></span></li>
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Назначить диалог на себя (из списка)</span><span><kbd>Alt</kbd> + <kbd>A</kbd></span></li>
