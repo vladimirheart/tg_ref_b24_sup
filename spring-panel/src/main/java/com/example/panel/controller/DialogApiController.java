@@ -225,6 +225,30 @@ public class DialogApiController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    @PostMapping("/{ticketId}/take")
+    public ResponseEntity<?> take(@PathVariable String ticketId,
+                                  Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        if (operator == null || operator.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("success", false, "error", "Требуется авторизация"));
+        }
+        Optional<DialogListItem> dialog = dialogService.findDialog(ticketId, operator);
+        if (dialog.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "error", "Диалог не найден"));
+        }
+
+        dialogService.assignResponsibleIfMissing(ticketId, operator);
+
+        Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
+        String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "responsible", responsible != null && !responsible.isBlank() ? responsible : operator
+        ));
+    }
+
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 
     public record DialogResolveRequest(List<String> categories) {}
@@ -235,3 +259,4 @@ public class DialogApiController {
 
     public record DialogCategoriesRequest(List<String> categories) {}
 }
+
