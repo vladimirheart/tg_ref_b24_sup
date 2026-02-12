@@ -130,7 +130,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_question_templates")
                 || payload.containsKey("dialog_completion_templates")
                 || payload.containsKey("dialog_time_metrics")
-                || payload.containsKey("dialog_summary_badges")) {
+                || payload.containsKey("dialog_summary_badges")
+                || payload.containsKey("dialog_sla_target_minutes")
+                || payload.containsKey("dialog_sla_warning_minutes")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -147,6 +149,12 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_time_metrics")) {
                     dialogConfig.put("time_metrics", payload.get("dialog_time_metrics"));
+                }
+                if (payload.containsKey("dialog_sla_target_minutes")) {
+                    dialogConfig.put("sla_target_minutes", payload.get("dialog_sla_target_minutes"));
+                }
+                if (payload.containsKey("dialog_sla_warning_minutes")) {
+                    dialogConfig.put("sla_warning_minutes", payload.get("dialog_sla_warning_minutes"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
