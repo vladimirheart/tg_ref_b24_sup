@@ -101,12 +101,12 @@ public record DialogListItem(String ticketId,
     @JsonProperty("statusClass")
     public String statusClass() {
         return switch (statusKey()) {
-            case "auto_closed" -> " bg-secondary-subtle text-secondary";
-            case "closed" -> " bg-success-subtle text-success";
-            case "waiting_operator" -> " bg-warning-subtle text-warning";
-            case "waiting_client" -> " bg-info-subtle text-info";
-            case "new" -> " bg-primary-subtle text-primary";
-            default -> " bg-secondary-subtle text-secondary";
+            case "auto_closed" -> " dialog-status-badge status-auto-closed";
+            case "closed" -> " dialog-status-badge status-closed";
+            case "waiting_operator" -> " dialog-status-badge status-waiting-operator";
+            case "waiting_client" -> " dialog-status-badge status-waiting-client";
+            case "new" -> " dialog-status-badge status-new";
+            default -> " dialog-status-badge status-auto-closed";
         };
     }
 
