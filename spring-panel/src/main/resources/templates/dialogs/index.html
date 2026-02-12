@@ -152,6 +152,9 @@
                         </td>
                         <td class="dialog-actions">
                             <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" th:data-ticket-id="${dialog.ticketId}">Открыть</a>
+                            <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn"
+                                    th:data-ticket-id="${dialog.ticketId}"
+                                    th:classappend="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())} ? ' d-none' : ''">Взять</button>
                             <a th:href="@{/tasks}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
                                th:data-ticket-id="${dialog.ticketId}"
                                th:data-client="${dialog.displayClientName()}">Задача</a>
