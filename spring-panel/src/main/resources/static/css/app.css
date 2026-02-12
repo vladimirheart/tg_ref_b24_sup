@@ -497,6 +497,27 @@ body {
 }
 
 
+.dialog-sla-badge.dialog-sla-safe {
+  background-color: #146c43;
+  color: #fff;
+}
+
+.dialog-sla-badge.dialog-sla-risk {
+  background-color: #ffda6a;
+  color: #3d2f00;
+}
+
+.dialog-sla-badge.dialog-sla-overdue {
+  background-color: #b02a37;
+  color: #fff;
+}
+
+.dialog-sla-badge.dialog-sla-closed {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+
 .dialog-details-header {
   display: flex;
   align-items: center;
@@ -877,3 +898,4 @@ body {
     transform-origin: center center;
     transition: transform 0.2s ease;
 }
+
