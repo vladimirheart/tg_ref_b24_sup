@@ -1974,16 +1974,24 @@
                 <div class="form-text">Список подтягивается из параметров партнёров.</div>
               </div>
               <div data-location-wizard-step="1" class="location-wizard-step mb-3 d-none">
-                <label for="wizardTypeSelect" class="form-label">2. Выберите тип</label>
+                <label for="wizardTypeSelect" class="form-label">2. Выберите тип структуры</label>
                 <select id="wizardTypeSelect" class="form-select" required></select>
               </div>
               <div data-location-wizard-step="2" class="location-wizard-step mb-3 d-none">
-                <label for="wizardCitySelect" class="form-label">3. Выберите город</label>
+                <label for="wizardCountrySelect" class="form-label">3. Выберите страну</label>
+                <select id="wizardCountrySelect" class="form-select" required></select>
+              </div>
+              <div data-location-wizard-step="3" class="location-wizard-step mb-3 d-none">
+                <label for="wizardPartnerTypeSelect" class="form-label">4. Выберите тип партнёра</label>
+                <select id="wizardPartnerTypeSelect" class="form-select" required></select>
+              </div>
+              <div data-location-wizard-step="4" class="location-wizard-step mb-3 d-none">
+                <label for="wizardCitySelect" class="form-label">5. Выберите город</label>
                 <select id="wizardCitySelect" class="form-select" required></select>
                 <div class="form-text">Данные берутся из блока «Параметры партнёров» → «Город».</div>
               </div>
-              <div data-location-wizard-step="3" class="location-wizard-step mb-3 d-none">
-                <label for="wizardDepartmentSelect" class="form-label">4. Выберите департамент</label>
+              <div data-location-wizard-step="5" class="location-wizard-step mb-3 d-none">
+                <label for="wizardDepartmentSelect" class="form-label">6. Выберите локацию</label>
                 <select id="wizardDepartmentSelect" class="form-select" required></select>
               </div>
             </div>
@@ -9878,6 +9886,21 @@
     return normalized;
   }
 
+  function sanitizeMetaMap(source) {
+    const result = {};
+    if (!source || typeof source !== 'object') {
+      return result;
+    }
+    Object.entries(source).forEach(([key, value]) => {
+      if (typeof key !== 'string' || !value || typeof value !== 'object') return;
+      const country = typeof value.country === 'string' ? value.country.trim() : '';
+      const partnerType = typeof value.partner_type === 'string' ? value.partner_type.trim() : '';
+      if (!country && !partnerType) return;
+      result[key] = { country, partner_type: partnerType };
+    });
+    return result;
+  }
+
   let locationsState = {
     tree:
       LOCATIONS_INITIAL &&
@@ -9889,10 +9912,49 @@
     statuses: sanitizeStatusesMap(
       LOCATIONS_INITIAL && typeof LOCATIONS_INITIAL === 'object' ? LOCATIONS_INITIAL.statuses : {}
     ),
+    city_meta: sanitizeMetaMap(
+      LOCATIONS_INITIAL && typeof LOCATIONS_INITIAL === 'object' ? LOCATIONS_INITIAL.city_meta : {}
+    ),
+    location_meta: sanitizeMetaMap(
+      LOCATIONS_INITIAL && typeof LOCATIONS_INITIAL === 'object' ? LOCATIONS_INITIAL.location_meta : {}
+    ),
   };
 
   function makeStatusKey(level, ...parts) {
     return [level].concat(parts).join('::');
+  }
+
+  function makeCityMetaKey(business, typeName, cityName) {
+    return [business, typeName, cityName].map((part) => (part || '').trim()).join('::');
+  }
+
+  function makeLocationMetaKey(business, typeName, cityName, locationName) {
+    return [business, typeName, cityName, locationName].map((part) => (part || '').trim()).join('::');
+  }
+
+  function readNodeMeta(mapName, key) {
+    const storage = locationsState && typeof locationsState === 'object' ? locationsState[mapName] : null;
+    const raw = storage && typeof storage === 'object' ? storage[key] : null;
+    if (!raw || typeof raw !== 'object') {
+      return { country: '', partner_type: '' };
+    }
+    return {
+      country: typeof raw.country === 'string' ? raw.country.trim() : '',
+      partner_type: typeof raw.partner_type === 'string' ? raw.partner_type.trim() : '',
+    };
+  }
+
+  function writeNodeMeta(mapName, key, meta) {
+    if (!locationsState[mapName] || typeof locationsState[mapName] !== 'object') {
+      locationsState[mapName] = {};
+    }
+    const country = typeof meta.country === 'string' ? meta.country.trim() : '';
+    const partnerType = typeof meta.partner_type === 'string' ? meta.partner_type.trim() : '';
+    if (!country && !partnerType) {
+      delete locationsState[mapName][key];
+      return;
+    }
+    locationsState[mapName][key] = { country, partner_type: partnerType };
   }
 
   function getStatus(level, ...parts) {
@@ -10371,9 +10433,18 @@
       onDelete: () => removeLocation(businessName, typeName, cityName, locationName),
     });
 
+    const locationMeta = readNodeMeta('location_meta', makeLocationMetaKey(businessName, typeName, cityName, locationName));
+    const meta = createLocationMeta([
+      ...(locationMeta.country ? [{ label: 'Страна', value: locationMeta.country }] : []),
+      ...(locationMeta.partner_type ? [{ label: 'Тип партнёра', value: locationMeta.partner_type }] : []),
+    ]);
+
     const card = document.createElement('div');
     card.className = 'location-tree-card';
     card.appendChild(row);
+    if (meta) {
+      card.appendChild(meta);
+    }
     item.appendChild(card);
 
     return item;
@@ -10406,8 +10477,11 @@
     addLocationBtn.addEventListener('click', () => addLocation(businessName, typeName, cityName));
     actions.appendChild(addLocationBtn);
 
+    const cityMeta = readNodeMeta('city_meta', makeCityMetaKey(businessName, typeName, cityName));
     const meta = createLocationMeta([
       { label: 'Локаций', value: locationNames.length },
+      ...(cityMeta.country ? [{ label: 'Страна', value: cityMeta.country }] : []),
+      ...(cityMeta.partner_type ? [{ label: 'Тип партнёра', value: cityMeta.partner_type }] : []),
     ]);
 
     const card = document.createElement('div');
@@ -10586,6 +10660,18 @@
     if (trimmed !== currentName) {
       tree[trimmed] = tree[currentName];
       delete tree[currentName];
+      Object.entries(locationsState.city_meta || {}).forEach(([key, value]) => {
+        if (key.startsWith(`${currentName}::`)) {
+          delete locationsState.city_meta[key];
+          locationsState.city_meta[`${trimmed}${key.slice(currentName.length)}`] = value;
+        }
+      });
+      Object.entries(locationsState.location_meta || {}).forEach(([key, value]) => {
+        if (key.startsWith(`${currentName}::`)) {
+          delete locationsState.location_meta[key];
+          locationsState.location_meta[`${trimmed}${key.slice(currentName.length)}`] = value;
+        }
+      });
       renameStatusEntries('business', {}, currentName, trimmed);
     }
     locationsState.tree = normalizeLocationTree(tree);
@@ -10616,6 +10702,12 @@
       return;
     }
     delete locationsState.tree[name];
+    Object.keys(locationsState.city_meta || {}).forEach((key) => {
+      if (key.startsWith(`${name}::`)) delete locationsState.city_meta[key];
+    });
+    Object.keys(locationsState.location_meta || {}).forEach((key) => {
+      if (key.startsWith(`${name}::`)) delete locationsState.location_meta[key];
+    });
     removeStatusEntries('business', {}, name);
     buildLocationsTree();
   }
@@ -10635,6 +10727,20 @@
     if (trimmed !== currentName) {
       types[trimmed] = types[currentName];
       delete types[currentName];
+      Object.entries(locationsState.city_meta || {}).forEach(([key, value]) => {
+        const prefix = `${business}::${currentName}::`;
+        if (key.startsWith(prefix)) {
+          delete locationsState.city_meta[key];
+          locationsState.city_meta[`${business}::${trimmed}::${key.slice(prefix.length)}`] = value;
+        }
+      });
+      Object.entries(locationsState.location_meta || {}).forEach(([key, value]) => {
+        const prefix = `${business}::${currentName}::`;
+        if (key.startsWith(prefix)) {
+          delete locationsState.location_meta[key];
+          locationsState.location_meta[`${business}::${trimmed}::${key.slice(prefix.length)}`] = value;
+        }
+      });
       renameStatusEntries('type', { business }, currentName, trimmed);
     }
     tree[business] = types;
@@ -10671,6 +10777,12 @@
     const types = locationsState.tree[business];
     if (!types) return;
     delete types[typeName];
+    Object.keys(locationsState.city_meta || {}).forEach((key) => {
+      if (key.startsWith(`${business}::${typeName}::`)) delete locationsState.city_meta[key];
+    });
+    Object.keys(locationsState.location_meta || {}).forEach((key) => {
+      if (key.startsWith(`${business}::${typeName}::`)) delete locationsState.location_meta[key];
+    });
     removeStatusEntries('type', { business }, typeName);
     buildLocationsTree();
   }
@@ -10690,6 +10802,22 @@
     if (trimmed !== currentName) {
       cities[trimmed] = cities[currentName];
       delete cities[currentName];
+      const oldCityKey = makeCityMetaKey(business, typeName, currentName);
+      const newCityKey = makeCityMetaKey(business, typeName, trimmed);
+      const oldCityMeta = locationsState.city_meta && locationsState.city_meta[oldCityKey];
+      if (oldCityMeta) {
+        locationsState.city_meta[newCityKey] = oldCityMeta;
+        delete locationsState.city_meta[oldCityKey];
+      }
+      const locationMetaEntries = Object.entries(locationsState.location_meta || {});
+      locationMetaEntries.forEach(([key, value]) => {
+        const prefix = `${business}::${typeName}::${currentName}::`;
+        if (key.startsWith(prefix)) {
+          const suffix = key.slice(prefix.length);
+          delete locationsState.location_meta[key];
+          locationsState.location_meta[`${business}::${typeName}::${trimmed}::${suffix}`] = value;
+        }
+      });
       renameStatusEntries('city', { business, type: typeName }, currentName, trimmed);
     }
     setStatus('city', [business, typeName, trimmed], statusValue || getStatus('city', business, typeName, trimmed));
@@ -10725,6 +10853,12 @@
     const cities = types[typeName];
     if (!cities || typeof cities !== 'object') return;
     delete cities[cityName];
+    delete locationsState.city_meta[makeCityMetaKey(business, typeName, cityName)];
+    Object.keys(locationsState.location_meta || {}).forEach((key) => {
+      if (key.startsWith(`${business}::${typeName}::${cityName}::`)) {
+        delete locationsState.location_meta[key];
+      }
+    });
     removeStatusEntries('city', { business, type: typeName }, cityName);
     buildLocationsTree();
   }
@@ -10746,6 +10880,12 @@
     locations[idx] = trimmed;
     cities[cityName] = sortArrayAlphabetically(locations);
     if (trimmed !== currentName) {
+      const oldKey = makeLocationMetaKey(business, typeName, cityName, currentName);
+      const newKey = makeLocationMetaKey(business, typeName, cityName, trimmed);
+      if (locationsState.location_meta && locationsState.location_meta[oldKey]) {
+        locationsState.location_meta[newKey] = locationsState.location_meta[oldKey];
+        delete locationsState.location_meta[oldKey];
+      }
       renameStatusEntries('location', { business, type: typeName, city: cityName }, currentName, trimmed);
     }
     setStatus('location', [business, typeName, cityName, trimmed], statusValue || getStatus('location', business, typeName, cityName, trimmed));
@@ -10787,6 +10927,7 @@
     if (idx === -1) return;
     list.splice(idx, 1);
     cities[cityName] = list;
+    delete locationsState.location_meta[makeLocationMetaKey(business, typeName, cityName, locationName)];
     removeStatusEntries('location', { business, type: typeName, city: cityName }, locationName);
     buildLocationsTree();
   }
@@ -10816,6 +10957,8 @@
   const locationWizardState = {
     business: '',
     type: '',
+    country: '',
+    partner_type: '',
     city: '',
     department: '',
   };
@@ -10823,6 +10966,8 @@
   let wizardSummary;
   let wizardBusinessSelect;
   let wizardTypeSelect;
+  let wizardCountrySelect;
+  let wizardPartnerTypeSelect;
   let wizardCitySelect;
   let wizardDepartmentSelect;
   let wizardPrevBtn;
@@ -10860,6 +11005,16 @@
       });
     });
     return uniqueSorted(collected);
+  }
+
+  function getCountryOptions() {
+    const options = uniqueSorted((parameterData.country || []).map((item) => item.value));
+    return options;
+  }
+
+  function getPartnerTypeOptions() {
+    const options = uniqueSorted((parameterData.partner_type || []).map((item) => item.value));
+    return options;
   }
 
   function getDepartmentOptions() {
@@ -10922,12 +11077,14 @@
 
   function populateWizardOptions() {
     fillSelect(wizardBusinessSelect, getBusinessOptions(), 'Выберите бизнес', locationWizardState.business);
-    fillSelect(wizardTypeSelect, TYPE_OPTIONS.slice(), 'Выберите тип', locationWizardState.type);
+    fillSelect(wizardTypeSelect, TYPE_OPTIONS.slice(), 'Выберите тип структуры', locationWizardState.type);
+    fillSelect(wizardCountrySelect, getCountryOptions(), 'Выберите страну', locationWizardState.country);
+    fillSelect(wizardPartnerTypeSelect, getPartnerTypeOptions(), 'Выберите тип партнёра', locationWizardState.partner_type);
     fillSelect(wizardCitySelect, getCityOptions(), 'Выберите город', locationWizardState.city);
     fillSelect(
       wizardDepartmentSelect,
       getDepartmentOptions(),
-      'Выберите департамент',
+      'Выберите локацию',
       locationWizardState.department,
     );
   }
@@ -10935,6 +11092,8 @@
   function resetLocationWizardState() {
     locationWizardState.business = '';
     locationWizardState.type = '';
+    locationWizardState.country = '';
+    locationWizardState.partner_type = '';
     locationWizardState.city = '';
     locationWizardState.department = '';
     locationWizardStep = 0;
@@ -10944,9 +11103,11 @@
     if (!wizardSummary) return;
     const entries = [
       ['Бизнес', locationWizardState.business || '—'],
-      ['Тип', locationWizardState.type || '—'],
+      ['Тип структуры', locationWizardState.type || '—'],
+      ['Страна', locationWizardState.country || '—'],
+      ['Тип партнёра', locationWizardState.partner_type || '—'],
       ['Город', locationWizardState.city || '—'],
-      ['Департамент', locationWizardState.department || '—'],
+      ['Локация', locationWizardState.department || '—'],
     ];
     wizardSummary.innerHTML = `
       <ul class="mb-0 small">
@@ -10993,6 +11154,16 @@
         return;
       }
     } else if (locationWizardStep === 2) {
+      if (!locationWizardState.country) {
+        markInvalid(wizardCountrySelect);
+        return;
+      }
+    } else if (locationWizardStep === 3) {
+      if (!locationWizardState.partner_type) {
+        markInvalid(wizardPartnerTypeSelect);
+        return;
+      }
+    } else if (locationWizardStep === 4) {
       if (!locationWizardState.city) {
         markInvalid(wizardCitySelect);
         return;
@@ -11004,9 +11175,11 @@
   function addLocationEntryFromWizard(entry) {
     const business = (entry.business || '').trim();
     const type = (entry.type || '').trim();
+    const country = (entry.country || '').trim();
+    const partnerType = (entry.partner_type || '').trim();
     const city = (entry.city || '').trim();
     const department = (entry.department || '').trim();
-    if (!business || !type || !city || !department) {
+    if (!business || !type || !country || !partnerType || !city || !department) {
       return false;
     }
 
@@ -11030,6 +11203,14 @@
 
     targetList.push(department);
     locationsState.tree[business][type][city] = sortArrayAlphabetically(targetList);
+    writeNodeMeta('city_meta', makeCityMetaKey(business, type, city), {
+      country,
+      partner_type: partnerType,
+    });
+    writeNodeMeta('location_meta', makeLocationMetaKey(business, type, city, department), {
+      country,
+      partner_type: partnerType,
+    });
     setStatus('location', [business, type, city, department], DEFAULT_LOCATION_STATUS);
     buildLocationsTree();
 
@@ -11037,6 +11218,14 @@
   }
 
   function handleLocationWizardFinish() {
+    if (!locationWizardState.country) {
+      markInvalid(wizardCountrySelect);
+      return;
+    }
+    if (!locationWizardState.partner_type) {
+      markInvalid(wizardPartnerTypeSelect);
+      return;
+    }
     if (!locationWizardState.department) {
       markInvalid(wizardDepartmentSelect);
       return;
@@ -11059,6 +11248,8 @@
     locationWizardModal = bootstrap.Modal.getOrCreateInstance(wizardModalEl);
     wizardBusinessSelect = document.getElementById('wizardBusinessSelect');
     wizardTypeSelect = document.getElementById('wizardTypeSelect');
+    wizardCountrySelect = document.getElementById('wizardCountrySelect');
+    wizardPartnerTypeSelect = document.getElementById('wizardPartnerTypeSelect');
     wizardCitySelect = document.getElementById('wizardCitySelect');
     wizardDepartmentSelect = document.getElementById('wizardDepartmentSelect');
     wizardPrevBtn = document.getElementById('wizardPrevStep');
@@ -11080,13 +11271,19 @@
       wizardBusinessSelect.addEventListener('change', (event) => {
         locationWizardState.business = (event.target.value || '').trim();
         locationWizardState.type = '';
+        locationWizardState.country = '';
+        locationWizardState.partner_type = '';
         locationWizardState.city = '';
         locationWizardState.department = '';
         if (wizardTypeSelect) wizardTypeSelect.value = '';
+        if (wizardCountrySelect) wizardCountrySelect.value = '';
+        if (wizardPartnerTypeSelect) wizardPartnerTypeSelect.value = '';
         if (wizardCitySelect) wizardCitySelect.value = '';
         if (wizardDepartmentSelect) wizardDepartmentSelect.value = '';
         clearInvalid(wizardBusinessSelect);
         clearInvalid(wizardTypeSelect);
+        clearInvalid(wizardCountrySelect);
+        clearInvalid(wizardPartnerTypeSelect);
         clearInvalid(wizardCitySelect);
         clearInvalid(wizardDepartmentSelect);
         updateWizardSummary();
@@ -11095,13 +11292,33 @@
     if (wizardTypeSelect) {
       wizardTypeSelect.addEventListener('change', (event) => {
         locationWizardState.type = (event.target.value || '').trim();
+        locationWizardState.country = '';
+        locationWizardState.partner_type = '';
         locationWizardState.city = '';
         locationWizardState.department = '';
+        if (wizardCountrySelect) wizardCountrySelect.value = '';
+        if (wizardPartnerTypeSelect) wizardPartnerTypeSelect.value = '';
         if (wizardCitySelect) wizardCitySelect.value = '';
         if (wizardDepartmentSelect) wizardDepartmentSelect.value = '';
         clearInvalid(wizardTypeSelect);
+        clearInvalid(wizardCountrySelect);
+        clearInvalid(wizardPartnerTypeSelect);
         clearInvalid(wizardCitySelect);
         clearInvalid(wizardDepartmentSelect);
+        updateWizardSummary();
+      });
+    }
+    if (wizardCountrySelect) {
+      wizardCountrySelect.addEventListener('change', (event) => {
+        locationWizardState.country = (event.target.value || '').trim();
+        clearInvalid(wizardCountrySelect);
+        updateWizardSummary();
+      });
+    }
+    if (wizardPartnerTypeSelect) {
+      wizardPartnerTypeSelect.addEventListener('change', (event) => {
+        locationWizardState.partner_type = (event.target.value || '').trim();
+        clearInvalid(wizardPartnerTypeSelect);
         updateWizardSummary();
       });
     }
