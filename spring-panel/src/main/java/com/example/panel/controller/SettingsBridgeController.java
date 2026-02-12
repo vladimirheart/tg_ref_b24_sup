@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -181,7 +182,9 @@ public class SettingsBridgeController {
             }
 
             if (payload.containsKey("locations")) {
-                sharedConfigService.saveLocations(payload.get("locations"));
+                Object locationsPayload = payload.get("locations");
+                sharedConfigService.saveLocations(locationsPayload);
+                syncParametersFromLocations(locationsPayload);
             }
 
             return Map.of("success", true);
@@ -214,6 +217,11 @@ public class SettingsBridgeController {
         if (!StringUtils.hasText(state)) {
             state = "Активен";
         }
+        try {
+            validateParameterUniqueness(paramType, value, payload, null);
+        } catch (IllegalArgumentException ex) {
+            return Map.of("success", false, "error", ex.getMessage());
+        }
         String extraJson = buildExtraJson(payload, Set.of("param_type", "value", "state"));
         jdbcTemplate.update(
             "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, ?, 0, ?)",
@@ -231,13 +239,23 @@ public class SettingsBridgeController {
     public Map<String, Object> updateParameter(@PathVariable long paramId,
                                                @RequestBody Map<String, Object> payload) {
         List<Map<String, Object>> existingRows = jdbcTemplate.queryForList(
-            "SELECT extra_json FROM settings_parameters WHERE id = ?",
+            "SELECT param_type, value, extra_json FROM settings_parameters WHERE id = ?",
             paramId
         );
         if (existingRows.isEmpty()) {
             return Map.of("success", false, "error", "Параметр не найден");
         }
         Map<String, Object> existing = existingRows.get(0);
+
+        String paramType = stringValue(existing.get("param_type"));
+        String finalValue = payload.containsKey("value")
+            ? stringValue(payload.get("value"))
+            : stringValue(existing.get("value"));
+        try {
+            validateParameterUniqueness(paramType, finalValue, payload, paramId);
+        } catch (IllegalArgumentException ex) {
+            return Map.of("success", false, "error", ex.getMessage());
+        }
 
         StringBuilder updates = new StringBuilder();
         List<Object> params = new ArrayList<>();
@@ -510,5 +528,201 @@ public class SettingsBridgeController {
             return s.equalsIgnoreCase("true") || s.equals("1");
         }
         return false;
+    }
+
+    private void validateParameterUniqueness(String paramType,
+                                             String value,
+                                             Map<String, Object> payload,
+                                             Long excludeId) {
+        if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
+            return;
+        }
+        List<String> dependencyKeys = settingsCatalogService.getParameterDependencies().getOrDefault(paramType, List.of());
+        Map<String, String> incomingDependencies = extractDependencies(paramType, payload, dependencyKeys);
+
+        List<Map<String, Object>> candidates = jdbcTemplate.queryForList(
+            "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
+            paramType,
+            value
+        );
+        for (Map<String, Object> candidate : candidates) {
+            Long candidateId = candidate.get("id") instanceof Number n ? n.longValue() : null;
+            if (excludeId != null && candidateId != null && excludeId.equals(candidateId)) {
+                continue;
+            }
+            Map<String, String> existingDependencies = extractDependencies(
+                paramType,
+                parseExtraJson(candidate.get("extra_json")),
+                dependencyKeys
+            );
+            if (dependencyKeys.isEmpty() || existingDependencies.equals(incomingDependencies)) {
+                throw new IllegalArgumentException("Такая запись уже существует");
+            }
+        }
+    }
+
+    private Map<String, String> extractDependencies(String paramType,
+                                                    Map<String, Object> source,
+                                                    List<String> dependencyKeys) {
+        Map<String, String> result = new LinkedHashMap<>();
+        if (source == null || dependencyKeys == null || dependencyKeys.isEmpty()) {
+            return result;
+        }
+        Object rawDependencies = source.get("dependencies");
+        Map<?, ?> dependenciesMap = rawDependencies instanceof Map<?, ?> map ? map : Map.of();
+        for (String key : dependencyKeys) {
+            Object raw = dependenciesMap.containsKey(key) ? dependenciesMap.get(key) : source.get(key);
+            result.put(key, stringValue(raw));
+        }
+        return result;
+    }
+
+    private void syncParametersFromLocations(Object locationsPayload) {
+        if (!(locationsPayload instanceof Map<?, ?> map)) {
+            return;
+        }
+        Object treeRaw = map.get("tree");
+        if (!(treeRaw instanceof Map<?, ?> tree)) {
+            return;
+        }
+        Map<String, Map<String, String>> cityMeta = readMetaMap(map.get("city_meta"));
+        Map<String, Map<String, String>> locationMeta = readMetaMap(map.get("location_meta"));
+
+        Set<String> businesses = new LinkedHashSet<>();
+        Set<String> partnerTypes = new LinkedHashSet<>();
+        Set<String> countries = new LinkedHashSet<>();
+
+        for (Map.Entry<?, ?> businessEntry : tree.entrySet()) {
+            String business = stringValue(businessEntry.getKey());
+            if (!StringUtils.hasText(business)) {
+                continue;
+            }
+            businesses.add(business);
+            if (!(businessEntry.getValue() instanceof Map<?, ?> types)) {
+                continue;
+            }
+            for (Map.Entry<?, ?> typeEntry : types.entrySet()) {
+                String type = stringValue(typeEntry.getKey());
+                if (StringUtils.hasText(type)) {
+                    partnerTypes.add(type);
+                }
+                if (!(typeEntry.getValue() instanceof Map<?, ?> cities)) {
+                    continue;
+                }
+                for (Map.Entry<?, ?> cityEntry : cities.entrySet()) {
+                    String city = stringValue(cityEntry.getKey());
+                    if (!StringUtils.hasText(city)) {
+                        continue;
+                    }
+                    String cityPath = String.join("::", business, type, city);
+                    Map<String, String> cityAttrs = cityMeta.getOrDefault(cityPath, Map.of());
+                    String country = stringValue(cityAttrs.get("country"));
+                    String partnerType = stringValue(cityAttrs.get("partner_type"));
+                    if (!StringUtils.hasText(partnerType)) {
+                        partnerType = type;
+                    }
+                    if (StringUtils.hasText(partnerType)) {
+                        partnerTypes.add(partnerType);
+                    }
+                    if (StringUtils.hasText(country)) {
+                        countries.add(country);
+                        upsertParameterIfMissing("city", city, Map.of(
+                            "country", country,
+                            "partner_type", partnerType,
+                            "business", business
+                        ));
+                    }
+                    Object locationsRaw = cityEntry.getValue();
+                    if (!(locationsRaw instanceof Iterable<?> locations)) {
+                        continue;
+                    }
+                    for (Object locationRaw : locations) {
+                        String location = stringValue(locationRaw);
+                        if (!StringUtils.hasText(location)) {
+                            continue;
+                        }
+                        String locationPath = String.join("::", business, type, city, location);
+                        Map<String, String> locationAttrs = locationMeta.getOrDefault(locationPath, Map.of());
+                        String locationCountry = stringValue(locationAttrs.get("country"));
+                        String locationPartnerType = stringValue(locationAttrs.get("partner_type"));
+                        if (!StringUtils.hasText(locationCountry)) {
+                            locationCountry = country;
+                        }
+                        if (!StringUtils.hasText(locationPartnerType)) {
+                            locationPartnerType = partnerType;
+                        }
+                        if (StringUtils.hasText(locationCountry)) {
+                            countries.add(locationCountry);
+                        }
+                        if (StringUtils.hasText(locationPartnerType)) {
+                            partnerTypes.add(locationPartnerType);
+                        }
+                        if (StringUtils.hasText(locationCountry) && StringUtils.hasText(locationPartnerType)) {
+                            upsertParameterIfMissing("department", location, Map.of(
+                                "country", locationCountry,
+                                "partner_type", locationPartnerType,
+                                "business", business,
+                                "city", city
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        businesses.forEach(b -> upsertParameterIfMissing("business", b, Map.of()));
+        partnerTypes.forEach(t -> upsertParameterIfMissing("partner_type", t, Map.of("country", "Россия")));
+        countries.forEach(c -> upsertParameterIfMissing("country", c, Map.of()));
+    }
+
+    private Map<String, Map<String, String>> readMetaMap(Object raw) {
+        Map<String, Map<String, String>> result = new LinkedHashMap<>();
+        if (!(raw instanceof Map<?, ?> map)) {
+            return result;
+        }
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = stringValue(entry.getKey());
+            if (!StringUtils.hasText(key) || !(entry.getValue() instanceof Map<?, ?> values)) {
+                continue;
+            }
+            Map<String, String> attrs = new LinkedHashMap<>();
+            attrs.put("country", stringValue(values.get("country")));
+            attrs.put("partner_type", stringValue(values.get("partner_type")));
+            result.put(key, attrs);
+        }
+        return result;
+    }
+
+    private void upsertParameterIfMissing(String paramType, String value, Map<String, String> dependencies) {
+        if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
+            return;
+        }
+        List<String> dependencyKeys = settingsCatalogService.getParameterDependencies().getOrDefault(paramType, List.of());
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
+            paramType,
+            value
+        );
+        for (Map<String, Object> row : rows) {
+            Map<String, String> existingDeps = extractDependencies(paramType, parseExtraJson(row.get("extra_json")), dependencyKeys);
+            Map<String, String> targetDeps = new LinkedHashMap<>();
+            for (String key : dependencyKeys) {
+                targetDeps.put(key, stringValue(dependencies.get(key)));
+            }
+            if (dependencyKeys.isEmpty() || existingDeps.equals(targetDeps)) {
+                return;
+            }
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("dependencies", dependencies);
+        dependencies.forEach(payload::put);
+        String extraJson = writeJson(payload);
+        jdbcTemplate.update(
+            "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+            paramType,
+            value,
+            extraJson
+        );
     }
 }
