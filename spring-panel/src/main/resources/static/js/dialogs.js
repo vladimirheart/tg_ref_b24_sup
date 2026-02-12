@@ -600,6 +600,7 @@
     const statusKey = item?.statusKey || '';
     const statusLabel = formatStatusLabel(statusRaw, item?.statusLabel || '', statusKey);
     const responsible = item?.responsible || item?.resolvedBy || '—';
+    const hasResponsible = Boolean(String(responsible || '').trim() && responsible !== '—');
     const unreadCount = Number(item?.unreadCount) || 0;
     const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
     const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
@@ -664,6 +665,7 @@
         </td>
         <td class="dialog-actions">
           <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${hasResponsible ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять</button>
           <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
              data-ticket-id="${escapeHtml(ticketId)}"
              data-client="${escapeHtml(clientName)}">Задача</a>
@@ -676,6 +678,47 @@
     if (summaryTotal) summaryTotal.textContent = String(summary?.totalTickets ?? 0);
     if (summaryPending) summaryPending.textContent = String(summary?.pendingTickets ?? 0);
     if (summaryResolved) summaryResolved.textContent = String(summary?.resolvedTickets ?? 0);
+  }
+
+  function updateRowResponsible(row, responsible) {
+    if (!row) return;
+    const value = String(responsible || '').trim();
+    row.dataset.responsible = value;
+    const responsibleIndex = table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1;
+    const rowCells = row.children;
+    if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
+      rowCells[responsibleIndex].textContent = value || '—';
+    }
+    const takeBtn = row.querySelector('.dialog-take-btn');
+    if (takeBtn) {
+      takeBtn.classList.toggle('d-none', Boolean(value));
+    }
+  }
+
+  async function takeDialog(ticketId, row, triggerButton) {
+    if (!ticketId) return;
+    const btn = triggerButton || null;
+    if (btn) btn.disabled = true;
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/take`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data?.success) {
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
+      }
+      updateRowResponsible(row, data.responsible || '');
+      applyFilters();
+      if (typeof showNotification === 'function') {
+        showNotification('Диалог назначен на вас', 'success');
+      }
+    } catch (error) {
+      if (btn) btn.disabled = false;
+      if (typeof showNotification === 'function') {
+        showNotification(error.message || 'Не удалось взять диалог', 'error');
+      }
+    }
   }
 
   function syncDialogsTable(dialogs) {
@@ -750,6 +793,43 @@
   }
 
   const filterState = { search: '', status: '', view: 'all', pageSize: DEFAULT_PAGE_SIZE };
+
+  function isNewDialog(row) {
+    const key = String(row.dataset.statusKey || '').toLowerCase();
+    const raw = String(row.dataset.statusRaw || '').toLowerCase();
+    const label = String(row.dataset.status || '').toLowerCase();
+    return key === 'new' || raw === 'new' || label === 'новый';
+  }
+
+  function isUnassignedDialog(row) {
+    const responsible = String(row.dataset.responsible || '').trim().toLowerCase();
+    return !responsible || responsible === '—' || responsible === '-';
+  }
+
+  function isOverdueDialog(row) {
+    if (isResolved(row)) return false;
+    const createdAtRaw = String(row.dataset.createdAt || '').trim();
+    if (!createdAtRaw) return false;
+    const createdAt = new Date(createdAtRaw);
+    if (Number.isNaN(createdAt.getTime())) return false;
+    const overdueThresholdMs = 24 * 60 * 60 * 1000;
+    return Date.now() - createdAt.getTime() > overdueThresholdMs;
+  }
+
+  function matchesCurrentView(row) {
+    switch (filterState.view) {
+      case 'active':
+        return !isResolved(row);
+      case 'new':
+        return isNewDialog(row);
+      case 'unassigned':
+        return isUnassignedDialog(row);
+      case 'overdue':
+        return isOverdueDialog(row);
+      default:
+        return true;
+    }
+  }
 
   function isNewDialog(row) {
     const key = String(row.dataset.statusKey || '').toLowerCase();
@@ -1898,6 +1978,14 @@
         ticketId: taskBtn.dataset.ticketId,
         client: taskBtn.dataset.client,
       });
+      return;
+    }
+    const takeBtn = event.target.closest('.dialog-take-btn');
+    if (takeBtn) {
+      event.preventDefault();
+      const ticketId = takeBtn.dataset.ticketId;
+      const row = takeBtn.closest('tr');
+      takeDialog(ticketId, row, takeBtn);
     }
   });
 
@@ -1998,13 +2086,7 @@
         });
         if (activeDialogRow) {
           updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
-          const rowCells = activeDialogRow.children;
-          const responsibleIndex = table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1;
-          const responsibleValue = data.responsible || activeDialogRow.dataset.responsible;
-          if (responsibleValue && responsibleIndex >= 0 && rowCells[responsibleIndex]) {
-            rowCells[responsibleIndex].textContent = responsibleValue;
-            activeDialogRow.dataset.responsible = responsibleValue;
-          }
+          updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
           applyFilters();
         }
         if (typeof showNotification === 'function') {
