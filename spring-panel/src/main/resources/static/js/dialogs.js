@@ -21,6 +21,12 @@
   const summaryTotal = document.getElementById('dialogsSummaryTotal');
   const summaryPending = document.getElementById('dialogsSummaryPending');
   const summaryResolved = document.getElementById('dialogsSummaryResolved');
+  const bulkCount = document.getElementById('dialogBulkCount');
+  const bulkTakeBtn = document.getElementById('dialogBulkTakeBtn');
+  const bulkSnoozeBtn = document.getElementById('dialogBulkSnoozeBtn');
+  const bulkCloseBtn = document.getElementById('dialogBulkCloseBtn');
+  const bulkClearBtn = document.getElementById('dialogBulkClearBtn');
+  const selectAllCheckbox = document.getElementById('dialogSelectAll');
 
   const detailsMeta = document.getElementById('dialogDetailsMeta');
   const detailsAvatar = document.getElementById('dialogDetailsAvatar');
@@ -203,6 +209,7 @@
   let activeAudioSource = null;
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
+  const selectedTicketIds = new Set();
   let mediaImageScale = 1;
   let categorySaveTimer = null;
 
@@ -753,6 +760,9 @@
           data-unread="${unreadCount}"
           data-rating="${Number.isFinite(ratingValue) ? ratingValue : ''}"
           data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
+        <td class="dialog-select-column">
+          <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Выбрать диалог">
+        </td>
         <td>${escapeHtml(displayNumber)}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
@@ -927,6 +937,12 @@
     applyBusinessCellStyles();
     restoreColumnWidths();
     updateAllSlaBadges();
+    const availableTicketIds = new Set(rowsList().map((row) => String(row.dataset.ticketId || '')));
+    Array.from(selectedTicketIds).forEach((ticketId) => {
+      if (!availableTicketIds.has(ticketId)) {
+        selectedTicketIds.delete(ticketId);
+      }
+    });
     applyFilters();
     rowsList().forEach((row) => updateRowQuickActions(row));
 
@@ -980,7 +996,7 @@
   }
 
   const emptyRow = document.createElement('tr');
-  emptyRow.innerHTML = '<td colspan="12" class="text-center text-muted py-4">Нет результатов</td>';
+  emptyRow.innerHTML = '<td colspan="13" class="text-center text-muted py-4">Нет результатов</td>';
   emptyRow.classList.add('d-none');
 
   function ensureEmptyRow() {
@@ -1043,6 +1059,112 @@
     return raw === 'resolved' || raw === 'closed' || label.startsWith('закрыт') || key.includes('closed');
   }
 
+  function syncRowSelectionState(row) {
+    if (!row) return;
+    const ticketId = String(row.dataset.ticketId || '');
+    const checkbox = row.querySelector('.dialog-row-select');
+    if (!checkbox || !ticketId) return;
+    checkbox.checked = selectedTicketIds.has(ticketId);
+  }
+
+  function selectedRows() {
+    return rowsList().filter((row) => selectedTicketIds.has(String(row.dataset.ticketId || '')));
+  }
+
+  function updateSelectAllState() {
+    if (!selectAllCheckbox) return;
+    const visible = visibleRows().filter((row) => row.querySelector('.dialog-row-select'));
+    if (!visible.length) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+      selectAllCheckbox.disabled = true;
+      return;
+    }
+    const selectedVisible = visible.filter((row) => selectedTicketIds.has(String(row.dataset.ticketId || ''))).length;
+    selectAllCheckbox.disabled = false;
+    selectAllCheckbox.checked = selectedVisible > 0 && selectedVisible === visible.length;
+    selectAllCheckbox.indeterminate = selectedVisible > 0 && selectedVisible < visible.length;
+  }
+
+  function updateBulkActionsState() {
+    const count = selectedTicketIds.size;
+    if (bulkCount) {
+      bulkCount.textContent = `Выбрано: ${count}`;
+    }
+    [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn].forEach((button) => {
+      if (button) {
+        button.disabled = count === 0;
+      }
+    });
+    rowsList().forEach((row) => syncRowSelectionState(row));
+    updateSelectAllState();
+  }
+
+  function clearSelection() {
+    selectedTicketIds.clear();
+    updateBulkActionsState();
+  }
+
+  async function runBulkAction(action) {
+    const rows = selectedRows();
+    if (!rows.length) return;
+    const originalDisabled = [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn]
+      .filter(Boolean)
+      .map((button) => ({ button, disabled: button.disabled }));
+    originalDisabled.forEach(({ button }) => {
+      button.disabled = true;
+    });
+
+    const errors = [];
+    for (const row of rows) {
+      const ticketId = String(row.dataset.ticketId || '');
+      if (!ticketId) continue;
+      try {
+        if (action === 'take') {
+          const takeBtn = row.querySelector('.dialog-take-btn:not(.d-none)');
+          if (!takeBtn) continue;
+          await takeDialog(ticketId, row, takeBtn);
+        }
+        if (action === 'snooze') {
+          const snoozeBtn = row.querySelector('.dialog-snooze-btn:not(.d-none)');
+          if (!snoozeBtn) continue;
+          await snoozeDialog(ticketId, 60, snoozeBtn);
+          setSnooze(ticketId, 60);
+          updateRowQuickActions(row);
+        }
+        if (action === 'close') {
+          const closeBtn = row.querySelector('.dialog-close-btn:not(.d-none)');
+          if (!closeBtn) continue;
+          await closeDialogQuick(ticketId, row, closeBtn);
+          clearSnooze(ticketId);
+        }
+      } catch (error) {
+        errors.push(`${ticketId}: ${error.message || 'ошибка'}`);
+      }
+    }
+
+    applyFilters();
+    if (errors.length) {
+      if (typeof showNotification === 'function') {
+        showNotification(`Часть операций не выполнена (${errors.length}).`, 'error');
+      }
+      console.warn('Bulk action errors', action, errors);
+    } else if (typeof showNotification === 'function') {
+      const successMap = {
+        take: 'Выбранные диалоги назначены на вас',
+        snooze: 'Выбранные диалоги отложены на 1 час',
+        close: 'Выбранные диалоги закрыты',
+      };
+      showNotification(successMap[action] || 'Групповое действие выполнено', 'success');
+    }
+
+    clearSelection();
+    originalDisabled.forEach(({ button, disabled }) => {
+      button.disabled = disabled;
+    });
+    updateBulkActionsState();
+  }
+
   function applyFilters() {
     updateAllSlaBadges();
     const search = (filterState.search || '').trim().toLowerCase();
@@ -1064,6 +1186,7 @@
     updateZebraRows(matchedRows);
     ensureEmptyRow();
     emptyRow.classList.toggle('d-none', visibleCount !== 0);
+    updateBulkActionsState();
   }
 
   function applyQuickSearch(value) {
@@ -1151,6 +1274,24 @@
     if (viewMap[key]) {
       event.preventDefault();
       setViewTab(viewMap[key]);
+      return;
+    }
+
+    if (event.shiftKey && key === 'a') {
+      event.preventDefault();
+      runBulkAction('take');
+      return;
+    }
+
+    if (event.shiftKey && key === 's') {
+      event.preventDefault();
+      runBulkAction('snooze');
+      return;
+    }
+
+    if (event.shiftKey && key === 'c') {
+      event.preventDefault();
+      runBulkAction('close');
       return;
     }
 
@@ -2303,6 +2444,20 @@
   }
 
   table.addEventListener('click', (event) => {
+    const rowSelect = event.target.closest('.dialog-row-select');
+    if (rowSelect) {
+      const ticketId = String(rowSelect.dataset.ticketId || '');
+      if (ticketId) {
+        if (rowSelect.checked) {
+          selectedTicketIds.add(ticketId);
+        } else {
+          selectedTicketIds.delete(ticketId);
+        }
+      }
+      updateBulkActionsState();
+      return;
+    }
+
     const openBtn = event.target.closest('.dialog-open-btn');
     if (openBtn) {
       event.preventDefault();
@@ -2373,6 +2528,34 @@
         });
     }
   });
+
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', () => {
+      visibleRows().forEach((row) => {
+        const ticketId = String(row.dataset.ticketId || '');
+        if (!ticketId) return;
+        if (selectAllCheckbox.checked) {
+          selectedTicketIds.add(ticketId);
+        } else {
+          selectedTicketIds.delete(ticketId);
+        }
+      });
+      updateBulkActionsState();
+    });
+  }
+
+  if (bulkTakeBtn) {
+    bulkTakeBtn.addEventListener('click', () => runBulkAction('take'));
+  }
+  if (bulkSnoozeBtn) {
+    bulkSnoozeBtn.addEventListener('click', () => runBulkAction('snooze'));
+  }
+  if (bulkCloseBtn) {
+    bulkCloseBtn.addEventListener('click', () => runBulkAction('close'));
+  }
+  if (bulkClearBtn) {
+    bulkClearBtn.addEventListener('click', () => clearSelection());
+  }
 
   if (detailsCreateTask) {
     detailsCreateTask.addEventListener('click', () => {
