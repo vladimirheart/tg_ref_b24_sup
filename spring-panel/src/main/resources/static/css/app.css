@@ -543,6 +543,24 @@ body {
   white-space: nowrap;
 }
 
+
+.dialog-bulk-toolbar {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+  background: #f8f9fa;
+}
+
+.dialog-select-column {
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.dialog-select-column .form-check-input {
+  margin-top: 0;
+}
+
 .dialog-toolbar-search {
   min-width: 220px;
 }
@@ -937,5 +955,6 @@ body {
     transform-origin: center center;
     transition: transform 0.2s ease;
 }
+
 
 
