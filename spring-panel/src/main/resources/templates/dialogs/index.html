@@ -43,6 +43,14 @@
         </div>
     </div>
 
+    <div class="dialog-bulk-toolbar d-flex flex-wrap align-items-center gap-2 mb-3" id="dialogBulkToolbar">
+        <span class="small text-muted" id="dialogBulkCount">Выбрано: 0</span>
+        <button class="btn btn-outline-success btn-sm" id="dialogBulkTakeBtn" type="button" disabled>Назначить выбранные на меня</button>
+        <button class="btn btn-outline-warning btn-sm" id="dialogBulkSnoozeBtn" type="button" disabled>Отложить выбранные на 1ч</button>
+        <button class="btn btn-outline-danger btn-sm" id="dialogBulkCloseBtn" type="button" disabled>Закрыть выбранные</button>
+        <button class="btn btn-link btn-sm text-decoration-none" id="dialogBulkClearBtn" type="button" disabled>Снять выделение</button>
+    </div>
+
     <div class="row g-3 mb-4">
         <div class="col-12 col-md-4">
             <div class="card shadow-sm">
@@ -76,6 +84,9 @@
                 <table class="table table-hover align-middle dialog-table" id="dialogsTable">
                     <thead>
                     <tr>
+                        <th class="dialog-select-column">
+                            <input class="form-check-input" type="checkbox" id="dialogSelectAll" aria-label="Выбрать все видимые диалоги">
+                        </th>
                         <th data-column-key="ticket">№ обращения</th>
                         <th data-column-key="client">Клиент</th>
                         <th data-column-key="status">Статус</th>
@@ -92,7 +103,7 @@
                     </thead>
                     <tbody>
                     <tr th:if="${#lists.isEmpty(dialogs)}">
-                        <td colspan="12" class="text-center text-muted py-4">Диалоги не найдены</td>
+                        <td colspan="13" class="text-center text-muted py-4">Диалоги не найдены</td>
                     </tr>
                     <tr th:each="dialog : ${dialogs}"
                         th:data-ticket-id="${dialog.ticketId}"
@@ -114,6 +125,9 @@
                         th:data-rating="${dialog.rating()}"
                         th:data-request-number="${dialog.requestNumber()}"
                         th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
+                        <td class="dialog-select-column">
+                            <input class="form-check-input dialog-row-select" type="checkbox" th:data-ticket-id="${dialog.ticketId}" aria-label="Выбрать диалог">
+                        </td>
                         <td th:text="${dialog.displayTicketNumber()}">—</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
@@ -390,6 +404,9 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Отложить диалог на 1 час (из списка)</span><span><kbd>Alt</kbd> + <kbd>S</kbd></span></li>
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Быстро закрыть диалог (из списка)</span><span><kbd>Alt</kbd> + <kbd>C</kbd></span></li>
                     <li class="list-group-item d-flex justify-content-between align-items-center"><span>Закрыть/переоткрыть открытый диалог</span><span><kbd>Alt</kbd> + <kbd>R</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Назначить выбранные диалоги на себя</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Отложить выбранные диалоги на 1ч</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Закрыть выбранные диалоги</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></span></li>
                 </ul>
                 <p class="text-muted small mb-0 mt-3">Шорткаты отключаются во время ввода текста и работы с модальными формами.</p>
             </div>
