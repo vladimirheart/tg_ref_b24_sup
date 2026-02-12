@@ -928,12 +928,12 @@
     restoreColumnWidths();
     updateAllSlaBadges();
     applyFilters();
-  rowsList().forEach((row) => updateRowQuickActions(row));
+    rowsList().forEach((row) => updateRowQuickActions(row));
 
     if (activeDialogTicketId) {
       const selector = `.dialog-open-btn[data-ticket-id="${escapeSelectorValue(activeDialogTicketId)}"]`;
       const openBtn = table.querySelector(selector);
-      activeDialogRow = openBtn ? openBtn.closest('tr') : null;
+      setActiveDialogRow(openBtn ? openBtn.closest('tr') : null);
     }
   }
 
@@ -1083,6 +1083,27 @@
     return rowsList().filter((row) => !row.classList.contains('d-none'));
   }
 
+  function setActiveDialogRow(row, options = {}) {
+    const nextRow = row && row.tagName === 'TR' ? row : null;
+    if (activeDialogRow && activeDialogRow !== nextRow) {
+      activeDialogRow.classList.remove('dialog-row-active');
+    }
+    activeDialogRow = nextRow;
+    if (activeDialogRow) {
+      activeDialogRow.classList.add('dialog-row-active');
+      if (options.ensureVisible) {
+        activeDialogRow.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    }
+  }
+
+  function getShortcutTargetRow() {
+    if (activeDialogRow && !activeDialogRow.classList.contains('d-none')) {
+      return activeDialogRow;
+    }
+    return visibleRows()[0] || null;
+  }
+
   function openVisibleDialogByOffset(offset) {
     const rows = visibleRows();
     if (!rows.length) return;
@@ -1094,6 +1115,7 @@
     const openButton = nextRow?.querySelector('.dialog-open-btn');
     const ticketId = openButton?.dataset?.ticketId || nextRow?.dataset?.ticketId;
     if (!ticketId) return;
+    setActiveDialogRow(nextRow, { ensureVisible: true });
     openDialogDetails(ticketId, nextRow);
   }
 
@@ -1129,6 +1151,88 @@
     if (viewMap[key]) {
       event.preventDefault();
       setViewTab(viewMap[key]);
+      return;
+    }
+
+    if (key === 'a') {
+      event.preventDefault();
+      const row = getShortcutTargetRow();
+      const takeBtn = row?.querySelector('.dialog-take-btn:not(.d-none)');
+      const ticketId = takeBtn?.dataset.ticketId;
+      if (!ticketId || !takeBtn) return;
+      setActiveDialogRow(row, { ensureVisible: true });
+      takeDialog(ticketId, row, takeBtn)
+        .then(() => {
+          if (typeof showNotification === 'function') {
+            showNotification('Диалог назначен на вас', 'success');
+          }
+        })
+        .catch((error) => {
+          if (typeof showNotification === 'function') {
+            showNotification(error.message || 'Не удалось назначить диалог', 'error');
+          }
+        });
+      return;
+    }
+
+    if (key === 's') {
+      event.preventDefault();
+      const row = getShortcutTargetRow();
+      const snoozeBtn = row?.querySelector('.dialog-snooze-btn:not(.d-none)');
+      const ticketId = snoozeBtn?.dataset.ticketId;
+      if (!ticketId || !snoozeBtn) return;
+      setActiveDialogRow(row, { ensureVisible: true });
+      snoozeDialog(ticketId, 60, snoozeBtn)
+        .then(() => {
+          setSnooze(ticketId, 60);
+          updateRowQuickActions(row);
+          applyFilters();
+          if (typeof showNotification === 'function') {
+            showNotification('Диалог отложен на 1 час', 'success');
+          }
+        })
+        .catch((error) => {
+          if (typeof showNotification === 'function') {
+            showNotification(error.message || 'Не удалось отложить диалог', 'error');
+          }
+        });
+      return;
+    }
+
+    if (key === 'c') {
+      event.preventDefault();
+      const row = getShortcutTargetRow();
+      const closeBtn = row?.querySelector('.dialog-close-btn:not(.d-none)');
+      const ticketId = closeBtn?.dataset.ticketId;
+      if (!ticketId || !closeBtn) return;
+      setActiveDialogRow(row, { ensureVisible: true });
+      closeBtn.disabled = true;
+      closeDialogQuick(ticketId, row, closeBtn)
+        .then(() => {
+          clearSnooze(ticketId);
+          if (typeof showNotification === 'function') {
+            showNotification('Диалог закрыт', 'success');
+          }
+        })
+        .catch((error) => {
+          closeBtn.disabled = false;
+          if (typeof showNotification === 'function') {
+            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+          }
+        });
+      return;
+    }
+
+    if (key === 'r') {
+      if (!detailsModalEl?.classList.contains('show')) return;
+      event.preventDefault();
+      if (detailsResolve && !detailsResolve.disabled && !detailsResolve.classList.contains('d-none')) {
+        detailsResolve.click();
+        return;
+      }
+      if (detailsReopen && !detailsReopen.disabled && !detailsReopen.classList.contains('d-none')) {
+        detailsReopen.click();
+      }
       return;
     }
 
@@ -2015,7 +2119,7 @@
   async function openDialogDetails(ticketId, fallbackRow) {
     if (!ticketId || !detailsModal) return;
     activeDialogTicketId = ticketId;
-    activeDialogRow = fallbackRow || null;
+    setActiveDialogRow(fallbackRow || null, { ensureVisible: true });
     activeDialogChannelId = fallbackRow?.dataset?.channelId || null;
     updateDialogUnreadCount(Number(fallbackRow?.dataset?.unread) || 0);
     if (detailsMeta) {
@@ -2204,6 +2308,7 @@
       event.preventDefault();
       const ticketId = openBtn.dataset.ticketId;
       const row = openBtn.closest('tr');
+      setActiveDialogRow(row, { ensureVisible: true });
       openDialogDetails(ticketId, row);
       return;
     }
@@ -2220,6 +2325,7 @@
       event.preventDefault();
       const ticketId = takeBtn.dataset.ticketId;
       const row = takeBtn.closest('tr');
+      setActiveDialogRow(row, { ensureVisible: true });
       takeDialog(ticketId, row, takeBtn);
       return;
     }
@@ -2228,6 +2334,7 @@
       event.preventDefault();
       const ticketId = snoozeBtn.dataset.ticketId;
       const row = snoozeBtn.closest('tr');
+      setActiveDialogRow(row, { ensureVisible: true });
       snoozeDialog(ticketId, 60, snoozeBtn)
         .then(() => {
           setSnooze(ticketId, 60);
@@ -2249,6 +2356,7 @@
       event.preventDefault();
       const ticketId = closeBtn.dataset.ticketId;
       const row = closeBtn.closest('tr');
+      setActiveDialogRow(row, { ensureVisible: true });
       closeBtn.disabled = true;
       closeDialogQuick(ticketId, row, closeBtn)
         .then(() => {
@@ -2592,7 +2700,7 @@
     detailsModalEl.addEventListener('hidden.bs.modal', () => {
       activeDialogTicketId = null;
       activeDialogChannelId = null;
-      activeDialogRow = null;
+      setActiveDialogRow(null);
       if (detailsReplyText) detailsReplyText.value = '';
       if (detailsReplyMedia) detailsReplyMedia.value = '';
       resetReplyTarget();
