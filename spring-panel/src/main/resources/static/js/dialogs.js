@@ -749,7 +749,44 @@
     }
   }
 
-  const filterState = { search: '', status: '', view: 'all', pageSize: DEFAULT_PAGE_SIZE };;
+  const filterState = { search: '', status: '', view: 'all', pageSize: DEFAULT_PAGE_SIZE };
+
+  function isNewDialog(row) {
+    const key = String(row.dataset.statusKey || '').toLowerCase();
+    const raw = String(row.dataset.statusRaw || '').toLowerCase();
+    const label = String(row.dataset.status || '').toLowerCase();
+    return key === 'new' || raw === 'new' || label === 'новый';
+  }
+
+  function isUnassignedDialog(row) {
+    const responsible = String(row.dataset.responsible || '').trim().toLowerCase();
+    return !responsible || responsible === '—' || responsible === '-';
+  }
+
+  function isOverdueDialog(row) {
+    if (isResolved(row)) return false;
+    const createdAtRaw = String(row.dataset.createdAt || '').trim();
+    if (!createdAtRaw) return false;
+    const createdAt = new Date(createdAtRaw);
+    if (Number.isNaN(createdAt.getTime())) return false;
+    const overdueThresholdMs = 24 * 60 * 60 * 1000;
+    return Date.now() - createdAt.getTime() > overdueThresholdMs;
+  }
+
+  function matchesCurrentView(row) {
+    switch (filterState.view) {
+      case 'active':
+        return !isResolved(row);
+      case 'new':
+        return isNewDialog(row);
+      case 'unassigned':
+        return isUnassignedDialog(row);
+      case 'overdue':
+        return isOverdueDialog(row);
+      default:
+        return true;
+    }
+  }
 
   function isResolved(row) {
     const raw = (row.dataset.statusRaw || '').toLowerCase();
@@ -767,7 +804,7 @@
       const statusValue = (row.dataset.status || '').toLowerCase();
       const matchesSearch = !search || text.includes(search);
       const matchesStatus = !status || statusValue === status;
-      const matchesView = filterState.view === 'active' ? !isResolved(row) : true;
+      const matchesView = matchesCurrentView(row);
       const visible = matchesSearch && matchesStatus && matchesView;
       row.classList.toggle('d-none', !visible);
       if (visible) {
