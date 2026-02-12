@@ -523,6 +523,23 @@ body {
   outline-offset: 1px;
 }
 
+.dialog-toolbar-controls .btn {
+  white-space: nowrap;
+}
+
+.dialog-toolbar-search {
+  min-width: 220px;
+}
+
+.dialog-toolbar-page-size {
+  min-width: 140px;
+}
+
+.dialog-hotkeys-list kbd {
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
 
 .dialog-details-header {
   display: flex;
@@ -904,3 +921,4 @@ body {
     transform-origin: center center;
     transition: transform 0.2s ease;
 }
+
