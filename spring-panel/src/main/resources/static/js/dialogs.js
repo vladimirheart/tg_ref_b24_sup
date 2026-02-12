@@ -14,6 +14,7 @@
   const filtersForm = document.getElementById('dialogFiltersForm');
   const filtersApply = document.getElementById('dialogFiltersApply');
   const filtersReset = document.getElementById('dialogFiltersReset');
+  const statusFilter = document.getElementById('dialogFilterStatus');
   const columnsList = document.getElementById('dialogColumnsList');
   const columnsApply = document.getElementById('dialogColumnsApply');
   const columnsReset = document.getElementById('dialogColumnsReset');
@@ -495,12 +496,11 @@
   }
 
   function statusClassByKey(statusKey) {
-    const normalizedKey = String(statusKey || '').toLowerCase();
-    if (normalizedKey === 'auto_closed') return 'bg-secondary-subtle text-secondary';
-    if (normalizedKey === 'closed') return 'bg-success-subtle text-success';
-    if (normalizedKey === 'waiting_operator') return 'bg-warning-subtle text-warning';
-    if (normalizedKey === 'waiting_client') return 'bg-info-subtle text-info';
-    return 'bg-primary-subtle text-primary';
+    if (normalizedKey === 'auto_closed') return 'dialog-status-badge status-auto-closed';
+    if (normalizedKey === 'closed') return 'dialog-status-badge status-closed';
+    if (normalizedKey === 'waiting_operator') return 'dialog-status-badge status-waiting-operator';
+    if (normalizedKey === 'waiting_client') return 'dialog-status-badge status-waiting-client';
+    return 'dialog-status-badge status-new';
   }
 
   function isResolvedStatusKey(statusKey) {
@@ -1194,6 +1194,17 @@
     applyFilters();
   }
 
+  function applyStatusFilter(statusLabel = '') {
+    const normalized = String(statusLabel || '').trim().toLowerCase();
+    filterState.status = statusLabel;
+    if (statusFilter) {
+      const options = Array.from(statusFilter.options || []);
+      const match = options.find((option) => String(option.value || '').trim().toLowerCase() === normalized);
+      statusFilter.value = match ? match.value : '';
+    }
+    applyFilters();
+  }
+
   function setViewTab(nextView) {
     filterState.view = nextView || 'all';
     viewTabs.forEach((tab) => {
@@ -1274,6 +1285,20 @@
     if (viewMap[key]) {
       event.preventDefault();
       setViewTab(viewMap[key]);
+      return;
+    }
+
+    const statusShortcutMap = {
+      '6': 'Новый',
+      '7': 'Ожидает ответа оператора',
+      '8': 'Ожидает ответа клиента',
+      '9': 'Закрыт',
+      '0': '',
+    };
+
+    if (Object.prototype.hasOwnProperty.call(statusShortcutMap, key)) {
+      event.preventDefault();
+      applyStatusFilter(statusShortcutMap[key]);
       return;
     }
 
@@ -2207,19 +2232,7 @@
     const badge = row.querySelector('.badge');
     if (badge) {
       badge.textContent = statusLabel;
-      badge.classList.remove('bg-primary-subtle', 'text-primary', 'bg-warning-subtle', 'text-warning', 'bg-success-subtle', 'text-success', 'bg-secondary-subtle', 'text-secondary', 'bg-info-subtle', 'text-info');
-      const normalizedKey = (statusKey || '').toLowerCase();
-      if (normalizedKey === 'auto_closed') {
-        badge.classList.add('bg-secondary-subtle', 'text-secondary');
-      } else if (normalizedKey === 'closed') {
-        badge.classList.add('bg-success-subtle', 'text-success');
-      } else if (normalizedKey === 'waiting_operator') {
-        badge.classList.add('bg-warning-subtle', 'text-warning');
-      } else if (normalizedKey === 'waiting_client') {
-        badge.classList.add('bg-info-subtle', 'text-info');
-      } else {
-        badge.classList.add('bg-primary-subtle', 'text-primary');
-      }
+      badge.className = `badge rounded-pill ${statusClassByKey(statusKey)}`;
     }
     setRowUnreadCount(row, unreadCount);
     updateRowQuickActions(row);
