@@ -12,11 +12,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 public class ManagerReportService {
+
+    private static final Logger log = LoggerFactory.getLogger(ManagerReportService.class);
 
     private final SharedConfigService sharedConfigService;
     private final TaskRepository taskRepository;
@@ -113,7 +117,12 @@ public class ManagerReportService {
     public record OlapPreviewRequest(String dimension, boolean includeAppeals, boolean includeTasks, boolean includeSystemChanges) {}
 
     private List<Binding> loadBindings() {
-        Object raw = sharedConfigService.loadSettings().get("manager_location_bindings");
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        if (settings == null || settings.isEmpty()) {
+            return List.of();
+        }
+
+        Object raw = settings.get("manager_location_bindings");
         if (!(raw instanceof List<?> items)) {
             return List.of();
         }
@@ -122,13 +131,20 @@ public class ManagerReportService {
             if (!(item instanceof Map<?, ?> map)) continue;
             String location = normalize(readString(map, "location", ""));
             if (!StringUtils.hasText(location)) continue;
-            result.add(new Binding(
+            Binding binding = new Binding(
                 location,
                 normalize(readString(map, "manager", "Не назначен")),
                 normalize(readString(map, "supervisor", "Не назначен")),
                 parseDate(map.get("start_date")),
                 parseDate(map.get("end_date"))
-            ));
+            );
+
+            if (binding.startDate != null && binding.endDate != null && binding.endDate.isBefore(binding.startDate)) {
+                log.warn("Skip invalid manager binding for location '{}': end_date {} is before start_date {}",
+                    binding.location, binding.endDate, binding.startDate);
+                continue;
+            }
+            result.add(binding);
         }
         return result;
     }
