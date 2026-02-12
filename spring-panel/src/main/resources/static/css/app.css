@@ -486,6 +486,17 @@ body {
   white-space: nowrap;
 }
 
+
+.dialog-sla-cell {
+  min-width: 150px;
+}
+
+.dialog-sla-badge {
+  min-width: 130px;
+  text-align: center;
+}
+
+
 .dialog-details-header {
   display: flex;
   align-items: center;
