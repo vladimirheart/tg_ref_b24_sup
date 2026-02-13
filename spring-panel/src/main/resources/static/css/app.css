@@ -568,6 +568,10 @@ body {
   border-left: 3px solid #198754;
 }
 
+.dialog-table tbody tr.dialog-priority-pinned {
+  box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.35);
+}
+
 .dialog-actions .btn:focus-visible,
 [data-dialog-view]:focus-visible {
   outline: 2px solid #0d6efd;
@@ -990,4 +994,5 @@ body {
     transform-origin: center center;
     transition: transform 0.2s ease;
 }
+
 
