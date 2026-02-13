@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
+import java.time.Instant;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class DialogService {
@@ -554,6 +557,133 @@ public class DialogService {
         } catch (DataAccessException ex) {
             log.warn("Unable to persist dialog action audit for ticket {}: {}", ticketId, ex.getMessage());
         }
+    }
+
+    public void logWorkspaceTelemetry(String actor,
+                                      String eventType,
+                                      String eventGroup,
+                                      String ticketId,
+                                      String reason,
+                                      String errorCode,
+                                      String contractVersion,
+                                      Long durationMs,
+                                      String experimentName,
+                                      String experimentCohort,
+                                      String operatorSegment,
+                                      List<String> primaryKpis,
+                                      List<String> secondaryKpis,
+                                      String templateId,
+                                      String templateName) {
+        if (!StringUtils.hasText(eventType)) {
+            return;
+        }
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    trimOrNull(actor),
+                    trimOrNull(eventType),
+                    trimOrNull(eventGroup),
+                    trimOrNull(ticketId),
+                    trimOrNull(reason),
+                    trimOrNull(errorCode),
+                    trimOrNull(contractVersion),
+                    durationMs,
+                    trimOrNull(experimentName),
+                    trimOrNull(experimentCohort),
+                    trimOrNull(operatorSegment),
+                    joinCsv(primaryKpis),
+                    joinCsv(secondaryKpis),
+                    trimOrNull(templateId),
+                    trimOrNull(templateName));
+        } catch (DataAccessException ex) {
+            log.warn("Unable to persist workspace telemetry event '{}': {}", eventType, ex.getMessage());
+        }
+    }
+
+    public Map<String, Object> loadWorkspaceTelemetrySummary(int days, String experimentName) {
+        int windowDays = Math.max(1, Math.min(days, 30));
+        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowDays, experimentName);
+        Map<String, Object> totals = new LinkedHashMap<>();
+        totals.put("events", rows.stream().mapToLong(row -> toLong(row.get("events"))).sum());
+        totals.put("render_errors", rows.stream().mapToLong(row -> toLong(row.get("render_errors"))).sum());
+        totals.put("fallbacks", rows.stream().mapToLong(row -> toLong(row.get("fallbacks"))).sum());
+        totals.put("abandons", rows.stream().mapToLong(row -> toLong(row.get("abandons"))).sum());
+        totals.put("slow_open_events", rows.stream().mapToLong(row -> toLong(row.get("slow_open_events"))).sum());
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("window_days", windowDays);
+        payload.put("generated_at", Instant.now().toString());
+        payload.put("totals", totals);
+        payload.put("rows", rows);
+        return payload;
+    }
+
+    private List<Map<String, Object>> loadWorkspaceTelemetryRows(int windowDays, String experimentName) {
+        String filterExperiment = trimOrNull(experimentName);
+        String sql = """
+                SELECT COALESCE(experiment_cohort, 'unknown') AS experiment_cohort,
+                       COALESCE(operator_segment, 'unknown') AS operator_segment,
+                       COUNT(*) AS events,
+                       SUM(CASE WHEN event_type = 'workspace_render_error' THEN 1 ELSE 0 END) AS render_errors,
+                       SUM(CASE WHEN event_type = 'workspace_fallback_to_legacy' THEN 1 ELSE 0 END) AS fallbacks,
+                       SUM(CASE WHEN event_type = 'workspace_abandon' THEN 1 ELSE 0 END) AS abandons,
+                       SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
+                       AVG(CASE WHEN event_type = 'workspace_open_ms' THEN duration_ms END) AS avg_open_ms
+                  FROM workspace_telemetry_audit
+                 WHERE created_at >= ?
+                   AND (? IS NULL OR experiment_name = ?)
+                 GROUP BY COALESCE(experiment_cohort, 'unknown'), COALESCE(operator_segment, 'unknown')
+                 ORDER BY events DESC, experiment_cohort ASC, operator_segment ASC
+                """;
+        try {
+            Timestamp cutoff = Timestamp.from(Instant.now().minusSeconds(windowDays * 24L * 60L * 60L));
+            return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("experiment_cohort", rs.getString("experiment_cohort"));
+                item.put("operator_segment", rs.getString("operator_segment"));
+                item.put("events", rs.getLong("events"));
+                item.put("render_errors", rs.getLong("render_errors"));
+                item.put("fallbacks", rs.getLong("fallbacks"));
+                item.put("abandons", rs.getLong("abandons"));
+                item.put("slow_open_events", rs.getLong("slow_open_events"));
+                item.put("avg_open_ms", rs.getObject("avg_open_ms") != null ? Math.round(rs.getDouble("avg_open_ms")) : null);
+                return item;
+            }, cutoff, filterExperiment, filterExperiment);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load workspace telemetry summary: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private String joinCsv(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        String joined = values.stream()
+                .map(value -> value == null ? "" : value.trim())
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .collect(Collectors.joining(","));
+        return joined.isBlank() ? null : joined;
+    }
+
+    private String trimOrNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
     }
 
     private List<Map<String, Object>> mapRelatedEvents(String sql, Object... args) {
