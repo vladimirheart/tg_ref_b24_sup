@@ -158,6 +158,19 @@
   const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
   const WORKSPACE_OPEN_SLO_MS = 2000;
   const WORKSPACE_MUTATING_PERMISSION_KEYS = Object.freeze(['can_assign', 'can_close', 'can_snooze', 'can_bulk']);
+  const WORKSPACE_AB_TEST_CONFIG = Object.freeze({
+    experimentName: String(window.DIALOG_CONFIG?.workspace_ab_experiment_name || 'workspace_v1_rollout').trim() || 'workspace_v1_rollout',
+    enabled: Boolean(window.DIALOG_CONFIG?.workspace_ab_enabled),
+    rolloutPercent: Math.max(0, Math.min(100, Number(window.DIALOG_CONFIG?.workspace_ab_rollout_percent) || 0)),
+  });
+  const STORAGE_WORKSPACE_AB = 'iguana:dialogs:workspace-ab-cohort';
+  const WORKSPACE_TELEMETRY_EVENT_GROUPS = Object.freeze({
+    workspace_open_ms: 'performance',
+    workspace_render_error: 'stability',
+    workspace_fallback_to_legacy: 'stability',
+    workspace_abandon: 'engagement',
+    workspace_experiment_exposure: 'experiment',
+  });
   let workspaceReadonlyMode = false;
 
 
@@ -299,6 +312,38 @@
   let categorySaveTimer = null;
   const workspaceOpenTimers = new Map();
   const workspaceFirstInteractionTickets = new Set();
+  const workspaceExperimentContext = resolveWorkspaceExperimentContext();
+
+  function resolveWorkspaceExperimentContext() {
+    if (!WORKSPACE_AB_TEST_CONFIG.enabled || WORKSPACE_AB_TEST_CONFIG.rolloutPercent <= 0) {
+      return {
+        experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
+        cohort: 'disabled',
+      };
+    }
+    let cached = null;
+    try {
+      cached = localStorage.getItem(STORAGE_WORKSPACE_AB);
+    } catch (_error) {
+      cached = null;
+    }
+    if (cached === 'test' || cached === 'control') {
+      return {
+        experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
+        cohort: cached,
+      };
+    }
+    const cohort = Math.random() * 100 < WORKSPACE_AB_TEST_CONFIG.rolloutPercent ? 'test' : 'control';
+    try {
+      localStorage.setItem(STORAGE_WORKSPACE_AB, cohort);
+    } catch (_error) {
+      // noop: cohort persistence is best-effort only
+    }
+    return {
+      experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
+      cohort,
+    };
+  }
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
   const headerCells = headerRow ? Array.from(headerRow.cells) : [];
@@ -1477,14 +1522,18 @@
 
   async function emitWorkspaceTelemetry(eventType, payload = {}) {
     if (!eventType) return;
+    const eventGroup = WORKSPACE_TELEMETRY_EVENT_GROUPS[eventType] || null;
     const body = {
       event_type: String(eventType),
+      event_group: eventGroup,
       timestamp: new Date().toISOString(),
       ticket_id: payload.ticketId || null,
       reason: payload.reason || null,
       error_code: payload.errorCode || null,
       contract_version: payload.contractVersion || null,
       duration_ms: Number.isFinite(payload.durationMs) ? payload.durationMs : null,
+      experiment_name: workspaceExperimentContext.experimentName,
+      experiment_cohort: workspaceExperimentContext.cohort,
     };
     try {
       await fetch('/api/dialogs/workspace-telemetry', {
@@ -3587,9 +3636,12 @@
     if (typeof navigator.sendBeacon !== 'function') return;
     const payload = new Blob([JSON.stringify({
       event_type: 'workspace_abandon',
+      event_group: WORKSPACE_TELEMETRY_EVENT_GROUPS.workspace_abandon,
       timestamp: new Date().toISOString(),
       ticket_id: INITIAL_DIALOG_TICKET_ID,
       reason: 'no_first_interaction',
+      experiment_name: workspaceExperimentContext.experimentName,
+      experiment_cohort: workspaceExperimentContext.cohort,
     })], { type: 'application/json' });
     navigator.sendBeacon('/api/dialogs/workspace-telemetry', payload);
   });
@@ -3617,6 +3669,9 @@
   applyOperatorPermissionGuards();
   updateAllSlaBadges();
   setInterval(updateAllSlaBadges, 60 * 1000);
+  emitWorkspaceTelemetry('workspace_experiment_exposure', {
+    reason: WORKSPACE_AB_TEST_CONFIG.enabled ? 'bootstrap' : 'experiment_disabled',
+  });
   if (viewTabs.length) {
     const activeTab = Array.from(viewTabs).find((tab) => tab.classList.contains('active'));
     setViewTab(activeTab?.dataset.dialogView || 'all');
