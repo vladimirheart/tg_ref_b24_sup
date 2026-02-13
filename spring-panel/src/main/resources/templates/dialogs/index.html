@@ -12,7 +12,8 @@
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <script th:src="@{/js/common.js}"></script>
 </head>
-<body class="with-sidebar sidebar-pinned">
+<body class="with-sidebar sidebar-pinned"
+      th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId}">
 <div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
 
 <main class="main-content container-fluid py-4">
