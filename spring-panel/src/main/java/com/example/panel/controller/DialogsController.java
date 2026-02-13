@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @Controller
 public class DialogsController {
@@ -32,8 +33,27 @@ public class DialogsController {
     @GetMapping("/")
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
     public String dialogs(Authentication authentication, Model model) {
+        return renderDialogsPage(authentication, model, null);
+    }
+
+    @GetMapping("/dialogs")
+    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    public String dialogsList(Authentication authentication, Model model) {
+        return renderDialogsPage(authentication, model, null);
+    }
+
+    @GetMapping("/dialogs/{ticketId}")
+    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    public String dialogsWorkspaceTicket(@PathVariable String ticketId,
+                                         Authentication authentication,
+                                         Model model) {
+        return renderDialogsPage(authentication, model, ticketId);
+    }
+
+    private String renderDialogsPage(Authentication authentication, Model model, String initialDialogTicketId) {
         navigationService.enrich(model, authentication);
         model.addAttribute("activePage", "dialogs");
+        model.addAttribute("initialDialogTicketId", initialDialogTicketId);
         try {
             DialogSummary summary = dialogService.loadSummary();
             model.addAttribute("summary", summary);
