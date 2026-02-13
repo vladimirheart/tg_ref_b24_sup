@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.service.DialogNotificationService;
@@ -155,6 +156,60 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.messages.has_more").value(false))
                 .andExpect(jsonPath("$.sla.target_minutes").value(1440))
                 .andExpect(jsonPath("$.success").value(true));
+    }
+
+
+    @Test
+    void workspaceSupportsIncludeAndPaginationParams() throws Exception {
+        DialogListItem summary = new DialogListItem(
+                "T-2",
+                1L,
+                42L,
+                "user",
+                "Клиент",
+                "biz",
+                1L,
+                "demo",
+                "city",
+                "location",
+                "problem",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "label",
+                "user",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "category"
+        );
+        List<ChatMessageDto> history = List.of(
+                new ChatMessageDto("operator", "m1", null, "2026-01-01T10:00:00Z", "text", null, 1L, null, null, null, null, null),
+                new ChatMessageDto("operator", "m2", null, "2026-01-01T10:01:00Z", "text", null, 2L, null, null, null, null, null),
+                new ChatMessageDto("operator", "m3", null, "2026-01-01T10:02:00Z", "text", null, 3L, null, null, null, null, null)
+        );
+        when(dialogService.loadDialogDetails("T-2", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-2", null)).thenReturn(history);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        mockMvc.perform(get("/api/dialogs/T-2/workspace")
+                        .param("include", "messages,sla")
+                        .param("limit", "2")
+                        .param("cursor", "1")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.messages.items.length()").value(2))
+                .andExpect(jsonPath("$.messages.has_more").value(false))
+                .andExpect(jsonPath("$.messages.cursor").value(1))
+                .andExpect(jsonPath("$.context.unavailable").value(true))
+                .andExpect(jsonPath("$.permissions.unavailable").value(true))
+                .andExpect(jsonPath("$.sla.unavailable").doesNotExist())
+                .andExpect(jsonPath("$.meta.limit").value(2));
     }
 
 
