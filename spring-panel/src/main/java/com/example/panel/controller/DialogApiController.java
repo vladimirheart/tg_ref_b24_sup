@@ -550,12 +550,15 @@ public class DialogApiController {
     }
 
     private void logQuickAction(String actor, String ticketId, String action, String result, String detail) {
+        String safeActor = actor != null ? actor : "anonymous";
+        String safeDetail = detail != null ? detail : "";
         log.info("Dialog quick action: actor='{}', ticket='{}', action='{}', result='{}', detail='{}'",
-                actor != null ? actor : "anonymous",
+                safeActor,
                 ticketId,
                 action,
                 result,
-                detail != null ? detail : "");
+                safeDetail);
+        dialogService.logDialogActionAudit(ticketId, safeActor, action, result, safeDetail);
     }
 
     private Map<String, Object> resolveWorkspacePermissions(Authentication authentication) {
