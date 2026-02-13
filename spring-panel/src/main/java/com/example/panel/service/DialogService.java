@@ -453,12 +453,14 @@ public class DialogService {
             return List.of();
         }
         try {
-            String sql = """
-                    SELECT actor, event_at, event_type, detail
+            String sqlWithAudit = """
+                    SELECT actor, event_at, event_type, action, result, detail
                       FROM (
                             SELECT COALESCE(sender, 'system') AS actor,
                                    COALESCE(timestamp, CURRENT_TIMESTAMP) AS event_at,
                                    COALESCE(message_type, 'event') AS event_type,
+                                   NULL AS action,
+                                   NULL AS result,
                                    message AS detail,
                                    id AS sort_id
                               FROM chat_history
@@ -469,6 +471,53 @@ public class DialogService {
                             SELECT COALESCE(t.assignee, t.creator, 'system') AS actor,
                                    COALESCE(th.at, t.last_activity_at, t.created_at, CURRENT_TIMESTAMP) AS event_at,
                                    'workflow' AS event_type,
+                                   NULL AS action,
+                                   NULL AS result,
+                                   COALESCE(th.text, 'Обновление workflow') AS detail,
+                                   th.id AS sort_id
+                              FROM task_links tl
+                              JOIN tasks t ON t.id = tl.task_id
+                              LEFT JOIN task_history th ON th.task_id = t.id
+                             WHERE tl.ticket_id = ?
+                               AND COALESCE(trim(th.text), '') <> ''
+                            UNION ALL
+                            SELECT COALESCE(actor, 'system') AS actor,
+                                   COALESCE(created_at, CURRENT_TIMESTAMP) AS event_at,
+                                   'audit' AS event_type,
+                                   action AS action,
+                                   result AS result,
+                                   detail AS detail,
+                                   id AS sort_id
+                              FROM dialog_action_audit
+                             WHERE ticket_id = ?
+                       ) events
+                     ORDER BY substr(event_at, 1, 19) DESC, COALESCE(sort_id, 0) DESC
+                     LIMIT ?
+                    """;
+            return mapRelatedEvents(sqlWithAudit, ticketId, ticketId, ticketId, limit);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load related events with audit trail for ticket {}: {}. Fallback to legacy events.", ticketId, ex.getMessage());
+            try {
+            String sql = """
+                    SELECT actor, event_at, event_type, action, result, detail
+                      FROM (
+                            SELECT COALESCE(sender, 'system') AS actor,
+                                   COALESCE(timestamp, CURRENT_TIMESTAMP) AS event_at,
+                                   COALESCE(message_type, 'event') AS event_type,
+                                   NULL AS action,
+                                   NULL AS result,
+                                   message AS detail,
+                                   id AS sort_id
+                              FROM chat_history
+                             WHERE ticket_id = ?
+                               AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system')
+                                    OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
+                            UNION ALL
+                            SELECT COALESCE(t.assignee, t.creator, 'system') AS actor,
+                                   COALESCE(th.at, t.last_activity_at, t.created_at, CURRENT_TIMESTAMP) AS event_at,
+                                   'workflow' AS event_type,
+                                   NULL AS action,
+                                   NULL AS result,
                                    COALESCE(th.text, 'Обновление workflow') AS detail,
                                    th.id AS sort_id
                               FROM task_links tl
@@ -480,18 +529,58 @@ public class DialogService {
                      ORDER BY substr(event_at, 1, 19) DESC, COALESCE(sort_id, 0) DESC
                      LIMIT ?
                     """;
-            return jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Map<String, Object> eventItem = new LinkedHashMap<>();
-                eventItem.put("actor", rs.getString("actor"));
-                eventItem.put("timestamp", rs.getString("event_at"));
-                eventItem.put("type", rs.getString("event_type"));
-                eventItem.put("detail", rs.getString("detail"));
-                return eventItem;
-            }, ticketId, ticketId, limit);
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load related events for ticket {}: {}", ticketId, ex.getMessage());
-            return List.of();
+                return mapRelatedEvents(sql, ticketId, ticketId, limit);
+            } catch (DataAccessException fallbackEx) {
+                log.warn("Unable to load related events for ticket {}: {}", ticketId, fallbackEx.getMessage());
+                return List.of();
+            }
         }
+    }
+
+    public void logDialogActionAudit(String ticketId, String actor, String action, String result, String detail) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(action)) {
+            return;
+        }
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO dialog_action_audit (ticket_id, actor, action, result, detail, created_at)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    ticketId,
+                    StringUtils.hasText(actor) ? actor.trim() : "anonymous",
+                    action.trim(),
+                    StringUtils.hasText(result) ? result.trim() : "unknown",
+                    StringUtils.hasText(detail) ? detail.trim() : null);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to persist dialog action audit for ticket {}: {}", ticketId, ex.getMessage());
+        }
+    }
+
+    private List<Map<String, Object>> mapRelatedEvents(String sql, Object... args) {
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            String eventType = rs.getString("event_type");
+            String detail = rs.getString("detail");
+            if ("audit".equalsIgnoreCase(eventType)) {
+                String action = rs.getString("action");
+                String result = rs.getString("result");
+                detail = formatAuditDetail(action, result, detail);
+            }
+            Map<String, Object> eventItem = new LinkedHashMap<>();
+            eventItem.put("actor", rs.getString("actor"));
+            eventItem.put("timestamp", rs.getString("event_at"));
+            eventItem.put("type", eventType);
+            eventItem.put("detail", detail);
+            return eventItem;
+        }, args);
+    }
+
+    private String formatAuditDetail(String action, String result, String detail) {
+        String safeAction = StringUtils.hasText(action) ? action.trim() : "action";
+        String safeResult = StringUtils.hasText(result) ? result.trim() : "unknown";
+        if (!StringUtils.hasText(detail)) {
+            return safeAction + ": " + safeResult;
+        }
+        return safeAction + ": " + safeResult + " (" + detail.trim() + ")";
     }
 
     private Set<String> loadTableColumns(String tableName) {
@@ -755,4 +844,3 @@ public class DialogService {
     public record ResolveResult(boolean updated, boolean exists, String error) {
     }
 }
-
