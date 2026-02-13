@@ -95,6 +95,7 @@
   const questionTemplateEmpty = document.getElementById('dialogQuestionTemplateEmpty');
   const macroTemplatesSection = document.getElementById('dialogMacroTemplatesSection');
   const macroTemplateSelect = document.getElementById('dialogMacroTemplateSelect');
+  const macroTemplateSearch = document.getElementById('dialogMacroTemplateSearch');
   const macroTemplatePreview = document.getElementById('dialogMacroTemplatePreview');
   const macroTemplateMeta = document.getElementById('dialogMacroTemplateMeta');
   const macroTemplateApply = document.getElementById('dialogMacroTemplateApply');
@@ -186,6 +187,7 @@
     macro_apply: 'macro',
   });
   let workspaceReadonlyMode = false;
+  let macroTemplatesCache = [];
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -2251,6 +2253,34 @@
     return templates.find((template, index) => template?.id === value || String(index) === value);
   }
 
+  function resolveMacroSearchText(template) {
+    const name = String(template?.name || '').trim();
+    const tags = Array.isArray(template?.tags) ? template.tags.join(' ') : '';
+    const message = String(template?.message || template?.text || '').trim();
+    return `${name} ${tags} ${message}`.toLowerCase();
+  }
+
+  function filterMacroTemplates(templates, query) {
+    const normalizedQuery = String(query || '').trim().toLowerCase();
+    if (!normalizedQuery) return templates;
+    return templates.filter((template) => resolveMacroSearchText(template).includes(normalizedQuery));
+  }
+
+  function renderMacroTemplateOptions(templates) {
+    if (!macroTemplateSelect) return;
+    const nextTemplates = Array.isArray(templates) ? templates : [];
+    buildTemplateOptions(macroTemplateSelect, nextTemplates, 'Макрос');
+    const hasOptions = nextTemplates.length > 0;
+    if (macroTemplateSelect) {
+      macroTemplateSelect.disabled = !hasOptions;
+    }
+    const selected = hasOptions ? findTemplateByValue(nextTemplates, macroTemplateSelect.value) || nextTemplates[0] : null;
+    if (selected && macroTemplateSelect.value !== (selected.id || '')) {
+      macroTemplateSelect.value = selected.id || String(nextTemplates.indexOf(selected));
+    }
+    renderMacroTemplate(selected);
+  }
+
   function renderCategoryTemplate(template) {
     if (!categoryTemplateList || !categoryTemplateEmpty) return;
     const categories = Array.isArray(template?.categories) ? template.categories.filter(Boolean) : [];
@@ -2395,14 +2425,20 @@
     if (macroTemplatesSection) {
       const templates = DIALOG_TEMPLATES.macroTemplates;
       const hasTemplates = templates.length > 0;
+      macroTemplatesCache = templates;
       macroTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates && macroTemplateSelect) {
-        buildTemplateOptions(macroTemplateSelect, templates, 'Макрос');
-        renderMacroTemplate(templates[0]);
+        renderMacroTemplateOptions(templates);
         macroTemplateSelect.addEventListener('change', () => {
           const selected = findTemplateByValue(templates, macroTemplateSelect.value);
           renderMacroTemplate(selected);
         });
+        if (macroTemplateSearch) {
+          macroTemplateSearch.addEventListener('input', () => {
+            const filteredTemplates = filterMacroTemplates(macroTemplatesCache, macroTemplateSearch.value);
+            renderMacroTemplateOptions(filteredTemplates);
+          });
+        }
       }
     }
 
