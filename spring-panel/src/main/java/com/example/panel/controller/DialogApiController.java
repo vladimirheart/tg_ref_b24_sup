@@ -320,6 +320,10 @@ public class DialogApiController {
     public ResponseEntity<?> reply(@PathVariable String ticketId,
                                    @RequestBody DialogReplyRequest request,
                                    Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "reply", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
         String operator = authentication != null ? authentication.getName() : null;
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(
                 ticketId,
@@ -344,6 +348,10 @@ public class DialogApiController {
     public ResponseEntity<?> editMessage(@PathVariable String ticketId,
                                          @RequestBody DialogEditRequest request,
                                          Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "edit", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
         String operator = authentication != null ? authentication.getName() : null;
         DialogReplyService.DialogReplyResult result = dialogReplyService.editOperatorMessage(
                 ticketId,
@@ -362,6 +370,10 @@ public class DialogApiController {
     public ResponseEntity<?> deleteMessage(@PathVariable String ticketId,
                                            @RequestBody DialogDeleteRequest request,
                                            Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "delete", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
         String operator = authentication != null ? authentication.getName() : null;
         DialogReplyService.DialogReplyResult result = dialogReplyService.deleteOperatorMessage(
                 ticketId,
@@ -380,6 +392,10 @@ public class DialogApiController {
                                             @RequestParam("file") MultipartFile file,
                                             @RequestParam(value = "message", required = false) String message,
                                             Authentication authentication) throws IOException {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "reply_media", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
         String operator = authentication != null ? authentication.getName() : null;
         var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, file);
         var result = dialogReplyService.sendMediaReply(ticketId, file, message, operator, metadata.storedName(), metadata.originalName());
@@ -432,6 +448,10 @@ public class DialogApiController {
     @PostMapping("/{ticketId}/reopen")
     public ResponseEntity<?> reopen(@PathVariable String ticketId,
                                     Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "reopen", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
         String operator = authentication != null ? authentication.getName() : null;
         DialogService.ResolveResult result = dialogService.reopenTicket(ticketId, operator);
         if (!result.exists()) {
@@ -452,6 +472,10 @@ public class DialogApiController {
     public ResponseEntity<?> updateCategories(@PathVariable String ticketId,
                                               @RequestBody(required = false) DialogCategoriesRequest request,
                                               Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "categories", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
         String operator = authentication != null ? authentication.getName() : null;
         dialogService.assignResponsibleIfMissing(ticketId, operator);
         dialogService.setTicketCategories(ticketId, request != null ? request.categories() : List.of());
