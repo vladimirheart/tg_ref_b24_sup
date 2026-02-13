@@ -157,6 +157,33 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+
+    @Test
+    void workspaceTelemetryAcceptsSnakeCasePayload() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_open_ms",
+                                  "ticket_id": "T-1",
+                                  "duration_ms": 812,
+                                  "contract_version": "workspace.v1"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceTelemetryRejectsMissingEventType() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
     @Test
     void workspaceReturnsNotFoundWhenDialogMissing() throws Exception {
         when(dialogService.loadDialogDetails("T-404", null, "operator")).thenReturn(Optional.empty());
