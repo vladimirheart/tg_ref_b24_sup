@@ -328,7 +328,7 @@
 - [x] **NOW-1.1 (частично):** endpoint `/api/dialogs/{ticketId}/workspace` используется как контрактный preflight перед открытием карточки в режиме `workspace_v1`.
 - [x] **NOW-1.2 (минимальный fallback):** при `version_mismatch`, `invalid_payload` и HTTP-ошибках workspace-поток автоматически переключается в legacy `dialogDetailsModal`.
 - [x] **NOW-1.3 (минимум telemetry):** добавлены события `workspace_open_ms`, `workspace_render_error`, `workspace_fallback_to_legacy`, `workspace_abandon` через `/api/dialogs/workspace-telemetry`.
-- [ ] **NOW-1.4:** полный dry-run rollback-runbook на продовых флагах остаётся процедурной задачей эксплуатации.
+- [x] **NOW-1.4:** добавлен операционный rollback-runbook `docs/runbooks/workspace_v1_rollback.md` с dry-run протоколом и чек-листом валидации (включая target rollback <= 5 минут).
 - [x] **NOW-1.5 (этап C2, MVP):** в toolbar списка диалогов добавлен SLA-фильтр «Требует реакции ≤ N минут» с применением без перезагрузки.
 
 
