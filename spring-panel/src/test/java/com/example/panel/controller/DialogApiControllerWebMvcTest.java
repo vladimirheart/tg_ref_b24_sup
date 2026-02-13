@@ -1,9 +1,11 @@
 package com.example.panel.controller;
 
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +16,14 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,6 +45,9 @@ class DialogApiControllerWebMvcTest {
 
     @MockBean
     private AttachmentService attachmentService;
+
+    @MockBean
+    private SharedConfigService sharedConfigService;
 
     @Test
     void snoozeRejectsInvalidDuration() throws Exception {
@@ -102,5 +110,59 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.responsible").value("operator"));
+    }
+
+    @Test
+    void workspaceReturnsContractPayload() throws Exception {
+        DialogListItem summary = new DialogListItem(
+                "T-1",
+                1L,
+                42L,
+                "user",
+                "Клиент",
+                "biz",
+                1L,
+                "demo",
+                "city",
+                "location",
+                "problem",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "label",
+                "user",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "category"
+        );
+        when(dialogService.loadDialogDetails("T-1", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-1", null)).thenReturn(List.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "sla_target_minutes", 1440,
+                "sla_warning_minutes", 240
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-1/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contract_version").value("workspace.v1"))
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-1"))
+                .andExpect(jsonPath("$.messages.has_more").value(false))
+                .andExpect(jsonPath("$.sla.target_minutes").value(1440))
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogService.loadDialogDetails("T-404", null, "operator")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/dialogs/T-404/workspace").with(user("operator")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
     }
 }
