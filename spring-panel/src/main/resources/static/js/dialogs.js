@@ -32,6 +32,10 @@
   const workspaceSlaContent = document.getElementById('workspaceSlaContent');
   const workspaceSlaError = document.getElementById('workspaceSlaError');
   const workspaceReadonlyBanner = document.getElementById('workspaceReadonlyBanner');
+  const workspaceComposerText = document.getElementById('workspaceComposerText');
+  const workspaceComposerSend = document.getElementById('workspaceComposerSend');
+  const workspaceComposerSaveDraft = document.getElementById('workspaceComposerSaveDraft');
+  const workspaceComposerDraftState = document.getElementById('workspaceComposerDraftState');
 
   const filtersForm = document.getElementById('dialogFiltersForm');
   const filtersApply = document.getElementById('dialogFiltersApply');
@@ -177,6 +181,7 @@
     rolloutPercent: Math.max(0, Math.min(100, Number(window.DIALOG_CONFIG?.workspace_ab_rollout_percent) || 0)),
   });
   const STORAGE_WORKSPACE_AB = 'iguana:dialogs:workspace-ab-cohort';
+  const STORAGE_WORKSPACE_DRAFT_PREFIX = 'iguana:dialogs:workspace-draft:';
   const DIALOGS_TELEMETRY_EVENT_GROUPS = Object.freeze({
     workspace_open_ms: 'performance',
     workspace_render_error: 'stability',
@@ -188,6 +193,7 @@
   });
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
+  let workspaceComposerTicketId = '';
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -1595,6 +1601,112 @@
     return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
   }
 
+  function getWorkspaceDraftStorageKey(ticketId) {
+    return `${STORAGE_WORKSPACE_DRAFT_PREFIX}${String(ticketId || '').trim()}`;
+  }
+
+  function updateWorkspaceDraftState(text) {
+    if (!workspaceComposerDraftState) return;
+    workspaceComposerDraftState.textContent = text || 'Черновик не сохранён';
+  }
+
+  function saveWorkspaceDraft(ticketId, message, options = {}) {
+    if (!ticketId || !workspaceComposerText) return;
+    const value = String(message || '').trim();
+    const storageKey = getWorkspaceDraftStorageKey(ticketId);
+    try {
+      if (!value) {
+        localStorage.removeItem(storageKey);
+        updateWorkspaceDraftState('Черновик очищен');
+      } else {
+        localStorage.setItem(storageKey, value);
+        if (!options.silent) {
+          updateWorkspaceDraftState(`Черновик сохранён · ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+        }
+      }
+    } catch (_error) {
+      updateWorkspaceDraftState('Не удалось сохранить черновик');
+    }
+  }
+
+  function restoreWorkspaceDraft(ticketId) {
+    if (!ticketId || !workspaceComposerText) return;
+    const storageKey = getWorkspaceDraftStorageKey(ticketId);
+    try {
+      const stored = localStorage.getItem(storageKey);
+      workspaceComposerText.value = stored || '';
+      if (stored) {
+        updateWorkspaceDraftState('Черновик восстановлен');
+      } else {
+        updateWorkspaceDraftState('Черновик не сохранён');
+      }
+    } catch (_error) {
+      workspaceComposerText.value = '';
+      updateWorkspaceDraftState('Не удалось загрузить черновик');
+    }
+  }
+
+  function appendWorkspaceMessage(message) {
+    if (!workspaceMessagesList) return;
+    const author = message.senderName || message.senderRole || 'Оператор';
+    const text = message.messageText || message.message || '—';
+    const timestamp = formatWorkspaceDateTime(message.sentAt || message.createdAt || new Date().toISOString());
+    workspaceMessagesList.classList.remove('d-none');
+    workspaceMessagesList.insertAdjacentHTML(
+      'beforeend',
+      `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div><div>${escapeHtml(text)}</div></article>`,
+    );
+    if (workspaceMessagesState) {
+      workspaceMessagesState.classList.add('d-none');
+      workspaceMessagesState.textContent = '';
+    }
+  }
+
+  async function sendWorkspaceReply() {
+    if (!workspaceComposerText || !workspaceComposerSend || !workspaceComposerTicketId) return;
+    const message = workspaceComposerText.value.trim();
+    if (!message) return;
+    if (workspaceReadonlyMode || workspaceComposerText.disabled) {
+      notifyPermissionDenied('Отправка ответа');
+      return;
+    }
+    workspaceComposerSend.disabled = true;
+    if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = true;
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(workspaceComposerTicketId)}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data?.success) {
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
+      }
+      workspaceComposerText.value = '';
+      saveWorkspaceDraft(workspaceComposerTicketId, '');
+      appendWorkspaceMessage({
+        senderName: data.responsible || 'Оператор',
+        messageText: message,
+        sentAt: data.timestamp || new Date().toISOString(),
+      });
+      if (activeDialogRow) {
+        updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+        updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
+        applyFilters();
+      }
+      if (typeof showNotification === 'function') {
+        showNotification('Сообщение отправлено', 'success');
+      }
+    } catch (error) {
+      if (typeof showNotification === 'function') {
+        showNotification(error.message || 'Не удалось отправить сообщение', 'error');
+      }
+    } finally {
+      workspaceComposerSend.disabled = false;
+      if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = false;
+    }
+  }
+
   function renderWorkspaceShell(payload) {
     if (!workspaceShell) return;
     workspaceShell.classList.remove('d-none');
@@ -1607,6 +1719,12 @@
 
     const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
     setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
+    workspaceComposerTicketId = String(conversation.ticketId || '').trim();
+    restoreWorkspaceDraft(workspaceComposerTicketId);
+    const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
+    if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
+    if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
+    if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = !canReplyInWorkspace;
 
     if (workspaceConversationTitle) {
       workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
@@ -3811,6 +3929,34 @@
   if (workspaceMessagesRetry) {
     workspaceMessagesRetry.addEventListener('click', () => {
       reloadWorkspaceForInitialRoute();
+    });
+  }
+
+  if (workspaceComposerSend) {
+    workspaceComposerSend.addEventListener('click', () => {
+      sendWorkspaceReply();
+    });
+  }
+
+  if (workspaceComposerSaveDraft) {
+    workspaceComposerSaveDraft.addEventListener('click', () => {
+      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '');
+    });
+  }
+
+  if (workspaceComposerText) {
+    workspaceComposerText.addEventListener('input', () => {
+      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { silent: true });
+    });
+    workspaceComposerText.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        sendWorkspaceReply();
+      }
+      if ((event.ctrlKey || event.metaKey) && String(event.key).toLowerCase() === 's') {
+        event.preventDefault();
+        saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value);
+      }
     });
   }
 
