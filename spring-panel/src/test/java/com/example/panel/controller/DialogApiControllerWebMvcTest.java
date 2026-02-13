@@ -274,6 +274,30 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetrySummaryReturnsAggregates() throws Exception {
+        when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
+                "window_days", 7,
+                "rows", List.of(Map.of(
+                        "experiment_cohort", "test",
+                        "operator_segment", "night_shift",
+                        "events", 5,
+                        "fallbacks", 1,
+                        "render_errors", 0,
+                        "avg_open_ms", 980
+                )),
+                "totals", Map.of("events", 5)
+        ));
+
+        mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
+                        .param("days", "7")
+                        .param("experiment_name", "workspace_v1_rollout"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.rows[0].operator_segment").value("night_shift"))
+                .andExpect(jsonPath("$.totals.events").value(5));
+    }
+
+    @Test
     void workspaceReturnsNotFoundWhenDialogMissing() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
