@@ -226,10 +226,13 @@ class DialogApiControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "event_type": "workspace_open_ms",
+                                  "event_type": "macro_apply",
+                                  "event_group": "macro",
                                   "ticket_id": "T-1",
                                   "duration_ms": 812,
-                                  "contract_version": "workspace.v1"
+                                  "contract_version": "workspace.v1",
+                                  "template_id": "macro-hello",
+                                  "template_name": "Приветствие"
                                 }
                                 """))
                 .andExpect(status().isOk())
