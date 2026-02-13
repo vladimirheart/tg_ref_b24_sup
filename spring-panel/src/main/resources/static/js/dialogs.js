@@ -121,6 +121,8 @@
     normalizeSlaMinutes(window.DIALOG_CONFIG?.sla_warning_minutes, DEFAULT_SLA_WARNING_MINUTES),
     SLA_TARGET_MINUTES,
   );
+  const WORKSPACE_V1_ENABLED = Boolean(window.DIALOG_CONFIG?.workspace_v1);
+  const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -1250,7 +1252,32 @@
     const ticketId = openButton?.dataset?.ticketId || nextRow?.dataset?.ticketId;
     if (!ticketId) return;
     setActiveDialogRow(nextRow, { ensureVisible: true });
-    openDialogDetails(ticketId, nextRow);
+    openDialogEntry(ticketId, nextRow);
+  }
+
+  function buildWorkspaceDialogUrl(ticketId, channelId) {
+    if (!ticketId) return '/dialogs';
+    const basePath = `/dialogs/${encodeURIComponent(ticketId)}`;
+    return withChannelParam(basePath, channelId);
+  }
+
+  function isWorkspaceDialogPath(pathname) {
+    return /^\/dialogs\/[^/]+/.test(String(pathname || ''));
+  }
+
+  function openDialogEntry(ticketId, row) {
+    if (!ticketId) return;
+    if (!WORKSPACE_V1_ENABLED) {
+      openDialogDetails(ticketId, row);
+      return;
+    }
+    const channelId = row?.dataset?.channelId || null;
+    const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
+    if (`${window.location.pathname}${window.location.search}` === nextUrl) {
+      openDialogDetails(ticketId, row);
+      return;
+    }
+    window.location.assign(nextUrl);
   }
 
   function isTypingTarget(target) {
@@ -2477,7 +2504,7 @@
       const ticketId = openBtn.dataset.ticketId;
       const row = openBtn.closest('tr');
       setActiveDialogRow(row, { ensureVisible: true });
-      openDialogDetails(ticketId, row);
+      openDialogEntry(ticketId, row);
       return;
     }
     const taskBtn = event.target.closest('.dialog-task-btn');
@@ -2902,6 +2929,12 @@
       resetReplyTarget();
       selectedCategories = new Set();
       stopHistoryPolling();
+      if (WORKSPACE_V1_ENABLED && isWorkspaceDialogPath(window.location.pathname)) {
+        const nextPath = window.location.pathname === '/'
+          ? '/'
+          : '/dialogs';
+        window.history.replaceState(null, '', nextPath);
+      }
     });
   }
 
@@ -3092,6 +3125,15 @@
   } else {
     applyFilters();
   }
+
+  if (WORKSPACE_V1_ENABLED && INITIAL_DIALOG_TICKET_ID) {
+    const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
+    if (initialRow) {
+      setActiveDialogRow(initialRow, { ensureVisible: true });
+    }
+    openDialogDetails(INITIAL_DIALOG_TICKET_ID, initialRow);
+  }
+
   initColumnResize();
   restoreColumnWidths();
   initDetailsResize();
