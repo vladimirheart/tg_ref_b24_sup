@@ -253,6 +253,9 @@ class DialogApiControllerWebMvcTest {
                                   "ticket_id": "T-1",
                                   "duration_ms": 812,
                                   "contract_version": "workspace.v1",
+                                  "operator_segment": "night_shift",
+                                  "primary_kpis": ["FRT", "TTR"],
+                                  "secondary_kpis": ["CSAT"],
                                   "template_id": "macro-hello",
                                   "template_name": "Приветствие"
                                 }
