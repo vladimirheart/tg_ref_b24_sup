@@ -287,6 +287,7 @@
 3. **Затем макросы**, чтобы не закреплять legacy UX-поток.
 4. **Финально — A/B и масштабирование**, только после достижения функционального паритета и стабильности.
 
+
 ### 9.4. Что подтверждено как «ещё не выполнено» (чек по проекту)
 
 Проверка текущего состояния кода подтверждает, что ключевые пункты roadmap остаются в статусе «не выполнено»:
@@ -320,3 +321,117 @@
 - **NOW-1.4:** описать и внедрить rollback-процедуру через мгновенное отключение `workspace_v1`.
 
 **Критерий готовности NOW-1:** можно включить workspace на малую долю операторов без регресса triage-потока и с наблюдаемыми метриками качества.
+
+
+## 10) Спецификация NOW-1 (готово к реализации)
+
+Ниже — практическая спецификация для выполнения NOW-1. Она снимает двусмысленность между backend/frontend и может использоваться как basis для задач в спринте.
+
+### 10.1. Контракт `workspace_v1` (NOW-1.1)
+
+**Endpoint (предлагаемый):** `GET /api/dialogs/{ticketId}/workspace`
+
+**Query-параметры:**
+- `include=messages,context,sla,permissions` (опционально, для частичной загрузки);
+- `limit` (для пагинации ленты сообщений, default 50, max 200);
+- `cursor` (для дозагрузки истории).
+
+**Версионирование:**
+- ответ содержит `contract_version: "workspace.v1"`;
+- обратная совместимость: клиент при незнакомой версии переключается в legacy modal-flow.
+
+**Payload (JSON):**
+```json
+{
+  "contract_version": "workspace.v1",
+  "conversation": {
+    "ticket_id": "12345",
+    "status": "open",
+    "subject": "...",
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-01T10:10:00Z",
+    "assignee": { "id": "u1", "name": "Operator" },
+    "channel": "telegram",
+    "tags": ["billing"]
+  },
+  "messages": {
+    "items": [],
+    "next_cursor": null,
+    "has_more": false
+  },
+  "context": {
+    "client": { "id": "c1", "name": "Client", "language": "ru" },
+    "history": [],
+    "related_events": []
+  },
+  "permissions": {
+    "can_reply": true,
+    "can_assign": true,
+    "can_close": true,
+    "can_snooze": true,
+    "can_bulk": false
+  },
+  "sla": {
+    "target_minutes": 1440,
+    "warning_minutes": 240,
+    "deadline_at": "2026-01-02T10:00:00Z",
+    "state": "normal"
+  }
+}
+```
+
+**Обязательные поля для рендера workspace:**
+- `contract_version`, `conversation.ticket_id`, `conversation.status`, `permissions`, `sla.state`.
+
+**Допустимо отсутствующие (degraded mode):**
+- `context.history`, `context.related_events`, часть `client`-полей.
+
+### 10.2. Fallback-матрица (NOW-1.2)
+
+1. **Не загружен `context`:**
+   - лента и composer работают;
+   - правая панель показывает skeleton -> soft-error с retry.
+
+2. **Не загружен `messages`:**
+   - показывается блок ошибки ленты с retry;
+   - quick actions и переключение обратно в список доступны.
+
+3. **Нет `permissions` или они неконсистентны:**
+   - все mutating-действия disabled;
+   - read-only режим с явным баннером.
+
+4. **Ошибки 5xx/timeout по endpoint:**
+   - автоматический fallback в `dialogDetailsModal`;
+   - фиксируется telemetry-событие `workspace_fallback_to_legacy`.
+
+5. **Незнакомый `contract_version`:**
+   - не пытаться рендерить частично;
+   - мгновенный fallback в legacy без поломанного UI.
+
+### 10.3. Telemetry и guardrails (NOW-1.3)
+
+**События (минимум):**
+- `workspace_open_ms` (timer от клика по диалогу до interactive state);
+- `workspace_render_error` (ошибка рендера с `error_code`, `ticket_id`, `contract_version`);
+- `workspace_abandon` (пользователь вышел до first interaction);
+- `workspace_fallback_to_legacy` (причина fallback: timeout/5xx/version_mismatch/invalid_payload).
+
+**SLO/алерты на этап rollout:**
+- p95 `workspace_open_ms` <= 2000 ms;
+- `workspace_render_error` < 1% сессий;
+- fallback-rate < 3%.
+
+### 10.4. Rollback-runbook (NOW-1.4)
+
+1. Отключить `workspace_v1` во флагах конфигурации (без деплоя).
+2. Проверить, что новые открытия диалогов идут через legacy modal-flow.
+3. Отключить noisy-alerts, связанные с workspace-only метриками.
+4. Снять срез метрик за окно инцидента: p95 открытия, error-rate, fallback-rate.
+5. Завести postmortem с категоризацией: контракт / производительность / права / данные.
+
+### 10.5. Definition of Done для NOW-1
+
+- Контракт `workspace.v1` принят backend/frontend и зафиксирован в документации.
+- Клиент корректно отрабатывает все fallback-сценарии из матрицы.
+- Telemetry-события поступают в аналитику с требуемыми полями.
+- Rollback по флагу занимает не более 5 минут и подтверждён dry-run-проверкой.
