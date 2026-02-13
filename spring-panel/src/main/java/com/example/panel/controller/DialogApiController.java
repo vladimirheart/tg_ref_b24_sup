@@ -9,6 +9,7 @@ import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -157,6 +158,25 @@ public class DialogApiController {
         ));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+
+    @PostMapping("/workspace-telemetry")
+    public ResponseEntity<?> workspaceTelemetry(@RequestBody(required = false) WorkspaceTelemetryRequest request,
+                                                Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : "anonymous";
+        if (request == null || request.eventType() == null || request.eventType().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "event_type is required"));
+        }
+        log.info("Workspace telemetry: actor='{}', event='{}', ticket='{}', reason='{}', error='{}', contract='{}', durationMs={}",
+                operator,
+                request.eventType(),
+                request.ticketId(),
+                request.reason(),
+                request.errorCode(),
+                request.contractVersion(),
+                request.durationMs());
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     @PostMapping("/{ticketId}/reply")
@@ -431,6 +451,14 @@ public class DialogApiController {
             return null;
         }
     }
+
+    public record WorkspaceTelemetryRequest(@JsonAlias("event_type") String eventType,
+                                          String timestamp,
+                                          @JsonAlias("ticket_id") String ticketId,
+                                          String reason,
+                                          @JsonAlias("error_code") String errorCode,
+                                          @JsonAlias("contract_version") String contractVersion,
+                                          @JsonAlias("duration_ms") Long durationMs) {}
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 
