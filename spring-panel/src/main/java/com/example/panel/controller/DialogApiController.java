@@ -313,7 +313,32 @@ public class DialogApiController {
                 request.secondaryKpis(),
                 request.templateId(),
                 request.templateName());
+        dialogService.logWorkspaceTelemetry(
+                operator,
+                request.eventType(),
+                request.eventGroup(),
+                request.ticketId(),
+                request.reason(),
+                request.errorCode(),
+                request.contractVersion(),
+                request.durationMs(),
+                request.experimentName(),
+                request.experimentCohort(),
+                request.operatorSegment(),
+                request.primaryKpis(),
+                request.secondaryKpis(),
+                request.templateId(),
+                request.templateName());
         return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @GetMapping("/workspace-telemetry/summary")
+    public ResponseEntity<?> workspaceTelemetrySummary(@RequestParam(name = "days", defaultValue = "7") Integer days,
+                                                       @RequestParam(name = "experiment_name", required = false) String experimentName) {
+        int safeDays = days != null ? days : 7;
+        Map<String, Object> payload = new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(safeDays, experimentName));
+        payload.put("success", true);
+        return ResponseEntity.ok(payload);
     }
 
     @PostMapping("/{ticketId}/reply")
