@@ -137,6 +137,19 @@
     SLA_TARGET_MINUTES,
   );
   const WORKSPACE_V1_ENABLED = Boolean(window.DIALOG_CONFIG?.workspace_v1);
+  const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
+    can_assign: true,
+    can_snooze: true,
+    can_close: true,
+    can_bulk: true,
+  });
+  const CONFIG_OPERATOR_PERMISSIONS = (window.DIALOG_CONFIG?.operator_permissions && typeof window.DIALOG_CONFIG.operator_permissions === 'object')
+    ? window.DIALOG_CONFIG.operator_permissions
+    : {};
+  const OPERATOR_PERMISSIONS = Object.freeze({
+    ...DEFAULT_OPERATOR_PERMISSIONS,
+    ...CONFIG_OPERATOR_PERMISSIONS,
+  });
   const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
   const WORKSPACE_OPEN_SLO_MS = 2000;
 
@@ -160,6 +173,17 @@
   });
 
   const DIALOG_EMOJI = ['😀','😁','😂','😊','😍','🤔','😢','😡','👍','🙏','🔥','🎉','✅','❗','📌'];
+
+  function canRunAction(permissionKey) {
+    if (!permissionKey) return true;
+    return OPERATOR_PERMISSIONS[permissionKey] !== false;
+  }
+
+  function notifyPermissionDenied(actionTitle) {
+    if (typeof showNotification === 'function') {
+      showNotification(`Недостаточно прав для действия «${actionTitle}».`, 'warning');
+    }
+  }
 
   function loadSnoozedDialogs() {
     try {
@@ -824,9 +848,9 @@
         </td>
         <td class="dialog-actions">
           <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
-          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${hasResponsible ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Назначить мне</button>
-          <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Отложить 1ч</button>
-          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
+          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${hasResponsible || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Назначить мне</button>
+          <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Отложить 1ч</button>
+          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
           <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
              data-ticket-id="${escapeHtml(ticketId)}"
              data-client="${escapeHtml(clientName)}">Задача</a>
@@ -852,7 +876,7 @@
     }
     const takeBtn = row.querySelector('.dialog-take-btn');
     if (takeBtn) {
-      takeBtn.classList.toggle('d-none', Boolean(value));
+      takeBtn.classList.toggle('d-none', Boolean(value) || !canRunAction('can_assign'));
     }
   }
 
@@ -869,9 +893,12 @@
     const isClosed = isResolved(row);
     const closeBtn = row.querySelector('.dialog-close-btn');
     const snoozeBtn = row.querySelector('.dialog-snooze-btn');
-    if (closeBtn) closeBtn.classList.toggle('d-none', isClosed);
+    const takeBtn = row.querySelector('.dialog-take-btn');
+    const hasResponsible = Boolean(String(row.dataset.responsible || '').trim());
+    if (takeBtn) takeBtn.classList.toggle('d-none', hasResponsible || !canRunAction('can_assign'));
+    if (closeBtn) closeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_close'));
     if (snoozeBtn) {
-      snoozeBtn.classList.toggle('d-none', isClosed);
+      snoozeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_snooze'));
       const ticketId = row.dataset.ticketId;
       const until = getSnoozeUntil(ticketId);
       snoozeBtn.textContent = until ? `Отложен до ${new Date(until).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : 'Отложить 1ч';
@@ -1183,11 +1210,10 @@
     if (bulkCount) {
       bulkCount.textContent = `Выбрано: ${count}`;
     }
-    [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn].forEach((button) => {
-      if (button) {
-        button.disabled = count === 0;
-      }
-    });
+    if (bulkTakeBtn) bulkTakeBtn.disabled = count === 0 || !canRunAction('can_bulk') || !canRunAction('can_assign');
+    if (bulkSnoozeBtn) bulkSnoozeBtn.disabled = count === 0 || !canRunAction('can_bulk') || !canRunAction('can_snooze');
+    if (bulkCloseBtn) bulkCloseBtn.disabled = count === 0 || !canRunAction('can_bulk') || !canRunAction('can_close');
+    if (bulkClearBtn) bulkClearBtn.disabled = count === 0;
     rowsList().forEach((row) => syncRowSelectionState(row));
     updateSelectAllState();
   }
@@ -1198,6 +1224,17 @@
   }
 
   async function runBulkAction(action) {
+    const permissionMap = {
+      take: ['can_bulk', 'can_assign', 'Назначить выбранные на меня'],
+      snooze: ['can_bulk', 'can_snooze', 'Отложить выбранные на 1ч'],
+      close: ['can_bulk', 'can_close', 'Закрыть выбранные'],
+    };
+    const [bulkPermission, actionPermission, actionTitle] = permissionMap[action] || [];
+    if (!canRunAction(bulkPermission) || !canRunAction(actionPermission)) {
+      notifyPermissionDenied(actionTitle || 'Групповое действие');
+      return;
+    }
+
     const rows = selectedRows();
     if (!rows.length) return;
     const originalDisabled = [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn]
@@ -1633,24 +1670,40 @@
 
     if (event.shiftKey && key === 'a') {
       event.preventDefault();
+      if (!canRunAction('can_bulk') || !canRunAction('can_assign')) {
+        notifyPermissionDenied('Назначить выбранные на меня');
+        return;
+      }
       runBulkAction('take');
       return;
     }
 
     if (event.shiftKey && key === 's') {
       event.preventDefault();
+      if (!canRunAction('can_bulk') || !canRunAction('can_snooze')) {
+        notifyPermissionDenied('Отложить выбранные на 1ч');
+        return;
+      }
       runBulkAction('snooze');
       return;
     }
 
     if (event.shiftKey && key === 'c') {
       event.preventDefault();
+      if (!canRunAction('can_bulk') || !canRunAction('can_close')) {
+        notifyPermissionDenied('Закрыть выбранные');
+        return;
+      }
       runBulkAction('close');
       return;
     }
 
     if (key === 'a') {
       event.preventDefault();
+      if (!canRunAction('can_assign')) {
+        notifyPermissionDenied('Назначить мне');
+        return;
+      }
       const row = getShortcutTargetRow();
       const takeBtn = row?.querySelector('.dialog-take-btn:not(.d-none)');
       const ticketId = takeBtn?.dataset.ticketId;
@@ -1672,6 +1725,10 @@
 
     if (key === 's') {
       event.preventDefault();
+      if (!canRunAction('can_snooze')) {
+        notifyPermissionDenied('Отложить 1ч');
+        return;
+      }
       const row = getShortcutTargetRow();
       const snoozeBtn = row?.querySelector('.dialog-snooze-btn:not(.d-none)');
       const ticketId = snoozeBtn?.dataset.ticketId;
@@ -1696,6 +1753,10 @@
 
     if (key === 'c') {
       event.preventDefault();
+      if (!canRunAction('can_close')) {
+        notifyPermissionDenied('Закрыть');
+        return;
+      }
       const row = getShortcutTargetRow();
       const closeBtn = row?.querySelector('.dialog-close-btn:not(.d-none)');
       const ticketId = closeBtn?.dataset.ticketId;
@@ -2820,6 +2881,10 @@
     const takeBtn = event.target.closest('.dialog-take-btn');
     if (takeBtn) {
       event.preventDefault();
+      if (!canRunAction('can_assign')) {
+        notifyPermissionDenied('Назначить мне');
+        return;
+      }
       const ticketId = takeBtn.dataset.ticketId;
       const row = takeBtn.closest('tr');
       setActiveDialogRow(row, { ensureVisible: true });
@@ -2829,6 +2894,10 @@
     const snoozeBtn = event.target.closest('.dialog-snooze-btn');
     if (snoozeBtn) {
       event.preventDefault();
+      if (!canRunAction('can_snooze')) {
+        notifyPermissionDenied('Отложить 1ч');
+        return;
+      }
       const ticketId = snoozeBtn.dataset.ticketId;
       const row = snoozeBtn.closest('tr');
       setActiveDialogRow(row, { ensureVisible: true });
@@ -2851,6 +2920,10 @@
     const closeBtn = event.target.closest('.dialog-close-btn');
     if (closeBtn) {
       event.preventDefault();
+      if (!canRunAction('can_close')) {
+        notifyPermissionDenied('Закрыть');
+        return;
+      }
       const ticketId = closeBtn.dataset.ticketId;
       const row = closeBtn.closest('tr');
       setActiveDialogRow(row, { ensureVisible: true });
@@ -3423,6 +3496,11 @@
 
   document.addEventListener('keydown', handleGlobalShortcuts);
 
+
+  function applyOperatorPermissionGuards() {
+    rowsList().forEach((row) => updateRowQuickActions(row));
+    updateBulkActionsState();
+  }
   if (workspaceMessagesRetry) {
     workspaceMessagesRetry.addEventListener('click', () => {
       reloadWorkspaceForInitialRoute();
@@ -3472,6 +3550,7 @@
   applyColumnState();
   applyBusinessCellStyles();
   hydrateAvatars(table);
+  applyOperatorPermissionGuards();
   updateAllSlaBadges();
   setInterval(updateAllSlaBadges, 60 * 1000);
   if (viewTabs.length) {
