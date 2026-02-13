@@ -7,6 +7,7 @@ import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.PermissionService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import com.fasterxml.jackson.annotation.JsonAlias;
@@ -52,6 +53,7 @@ public class DialogApiController {
     private final DialogNotificationService dialogNotificationService;
     private final AttachmentService attachmentService;
     private final SharedConfigService sharedConfigService;
+    private final PermissionService permissionService;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
@@ -63,12 +65,14 @@ public class DialogApiController {
                                DialogReplyService dialogReplyService,
                                DialogNotificationService dialogNotificationService,
                                AttachmentService attachmentService,
-                               SharedConfigService sharedConfigService) {
+                               SharedConfigService sharedConfigService,
+                               PermissionService permissionService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
         this.attachmentService = attachmentService;
         this.sharedConfigService = sharedConfigService;
+        this.permissionService = permissionService;
     }
 
     @GetMapping
@@ -181,13 +185,7 @@ public class DialogApiController {
                 "unavailable", true
         ));
         payload.put("permissions", includeSections.contains("permissions")
-                ? Map.of(
-                "can_reply", true,
-                "can_assign", true,
-                "can_close", true,
-                "can_snooze", true,
-                "can_bulk", true
-        )
+                ? resolveWorkspacePermissions(authentication)
                 : Map.of(
                 "can_reply", false,
                 "can_assign", false,
@@ -362,6 +360,10 @@ public class DialogApiController {
                                      @RequestBody(required = false) DialogResolveRequest request,
                                      Authentication authentication) {
         return withQuickActionTiming("quick_close", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "quick_close", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
             String operator = authentication != null ? authentication.getName() : null;
             List<String> categories = request != null ? request.categories() : List.of();
             DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator, categories);
@@ -416,6 +418,10 @@ public class DialogApiController {
     public ResponseEntity<?> take(@PathVariable String ticketId,
                                   Authentication authentication) {
         return withQuickActionTiming("take", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_assign", "take", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
             String operator = authentication != null ? authentication.getName() : null;
             if (operator == null || operator.isBlank()) {
                 logQuickAction(null, ticketId, "take", "unauthorized", "Требуется авторизация");
@@ -446,6 +452,10 @@ public class DialogApiController {
                                     @RequestBody(required = false) DialogSnoozeRequest request,
                                     Authentication authentication) {
         return withQuickActionTiming("snooze", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_snooze", "snooze", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
             String operator = authentication != null ? authentication.getName() : "anonymous";
             Integer minutes = request != null ? request.minutes() : null;
             if (minutes == null || minutes <= 0) {
@@ -478,6 +488,34 @@ public class DialogApiController {
                 action,
                 result,
                 detail != null ? detail : "");
+    }
+
+    private Map<String, Object> resolveWorkspacePermissions(Authentication authentication) {
+        boolean canDialog = permissionService.hasAuthority(authentication, "PAGE_DIALOGS");
+        boolean canBulk = canDialog && (permissionService.hasAuthority(authentication, "DIALOG_BULK_ACTIONS")
+                || permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
+        return Map.of(
+                "can_reply", canDialog,
+                "can_assign", canDialog,
+                "can_close", canDialog,
+                "can_snooze", canDialog,
+                "can_bulk", canBulk
+        );
+    }
+
+    private ResponseEntity<Map<String, Object>> requireDialogPermission(Authentication authentication,
+                                                                         String permission,
+                                                                         String action,
+                                                                         String ticketId) {
+        Map<String, Object> permissions = resolveWorkspacePermissions(authentication);
+        boolean allowed = Boolean.TRUE.equals(permissions.get(permission));
+        if (allowed) {
+            return null;
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        logQuickAction(operator, ticketId, action, "forbidden", "Недостаточно прав: " + permission);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("success", false, "error", "Недостаточно прав для выполнения действия"));
     }
 
     private int resolveDialogConfigMinutes(String key, int fallbackValue) {
