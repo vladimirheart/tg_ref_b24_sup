@@ -7,6 +7,7 @@ import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,16 +46,21 @@ public class DialogApiController {
     private final DialogReplyService dialogReplyService;
     private final DialogNotificationService dialogNotificationService;
     private final AttachmentService attachmentService;
+    private final SharedConfigService sharedConfigService;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
+    private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
+    private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
 
     public DialogApiController(DialogService dialogService,
                                DialogReplyService dialogReplyService,
                                DialogNotificationService dialogNotificationService,
-                               AttachmentService attachmentService) {
+                               AttachmentService attachmentService,
+                               SharedConfigService sharedConfigService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
         this.attachmentService = attachmentService;
+        this.sharedConfigService = sharedConfigService;
     }
 
     @GetMapping
@@ -92,6 +101,62 @@ public class DialogApiController {
                 "success", true,
                 "messages", history
         );
+    }
+
+    @GetMapping("/{ticketId}/workspace")
+    public ResponseEntity<?> workspace(@PathVariable String ticketId,
+                                       @RequestParam(value = "channelId", required = false) Long channelId,
+                                       Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        dialogService.markDialogAsRead(ticketId, operator);
+        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
+        if (details.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "error", "Диалог не найден"));
+        }
+
+        DialogDetails dialogDetails = details.get();
+        DialogListItem summary = dialogDetails.summary();
+        List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
+
+        int slaTargetMinutes = resolveDialogConfigMinutes("sla_target_minutes", DEFAULT_SLA_TARGET_MINUTES);
+        int slaWarningMinutes = Math.min(
+                resolveDialogConfigMinutes("sla_warning_minutes", DEFAULT_SLA_WARNING_MINUTES),
+                slaTargetMinutes
+        );
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("contract_version", "workspace.v1");
+        payload.put("conversation", summary);
+        payload.put("messages", Map.of(
+                "items", history,
+                "next_cursor", null,
+                "has_more", false
+        ));
+        payload.put("context", Map.of(
+                "client", Map.of(
+                        "id", summary.userId(),
+                        "name", summary.displayClientName(),
+                        "language", "ru"
+                ),
+                "history", List.of(),
+                "related_events", List.of()
+        ));
+        payload.put("permissions", Map.of(
+                "can_reply", true,
+                "can_assign", true,
+                "can_close", true,
+                "can_snooze", true,
+                "can_bulk", true
+        ));
+        payload.put("sla", Map.of(
+                "target_minutes", slaTargetMinutes,
+                "warning_minutes", slaWarningMinutes,
+                "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
+                "state", resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey())
+        ));
+        payload.put("success", true);
+        return ResponseEntity.ok(payload);
     }
 
     @PostMapping("/{ticketId}/reply")
@@ -298,6 +363,73 @@ public class DialogApiController {
                 action,
                 result,
                 detail != null ? detail : "");
+    }
+
+    private int resolveDialogConfigMinutes(String key, int fallbackValue) {
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return fallbackValue;
+        }
+        Object value = dialogConfig.get(key);
+        if (value == null) {
+            return fallbackValue;
+        }
+        try {
+            int parsed = Integer.parseInt(String.valueOf(value));
+            return parsed > 0 ? parsed : fallbackValue;
+        } catch (NumberFormatException ex) {
+            return fallbackValue;
+        }
+    }
+
+    private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
+        String normalized = statusKey != null ? statusKey.trim().toLowerCase() : "";
+        if ("closed".equals(normalized) || "auto_closed".equals(normalized)) {
+            return "closed";
+        }
+        Long createdAtMs = parseTimestampToMillis(createdAt);
+        if (createdAtMs == null) {
+            return "normal";
+        }
+        long deadlineMs = createdAtMs + targetMinutes * 60_000L;
+        long warningMs = deadlineMs - warningMinutes * 60_000L;
+        long nowMs = System.currentTimeMillis();
+        if (nowMs >= deadlineMs) {
+            return "breached";
+        }
+        if (nowMs >= warningMs) {
+            return "at_risk";
+        }
+        return "normal";
+    }
+
+    private String computeDeadlineAt(String createdAt, int targetMinutes) {
+        Long createdAtMs = parseTimestampToMillis(createdAt);
+        if (createdAtMs == null) {
+            return null;
+        }
+        return Instant.ofEpochMilli(createdAtMs + targetMinutes * 60_000L).toString();
+    }
+
+    private Long parseTimestampToMillis(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return null;
+        }
+        String value = rawValue.trim();
+        if (value.matches("\\d{10,13}")) {
+            try {
+                long epoch = Long.parseLong(value);
+                return value.length() == 10 ? epoch * 1000 : epoch;
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+        try {
+            return Instant.parse(value).toEpochMilli();
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
