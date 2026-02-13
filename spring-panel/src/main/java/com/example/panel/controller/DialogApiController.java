@@ -29,11 +29,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 @RestController
@@ -51,6 +55,9 @@ public class DialogApiController {
     private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
+    private static final int DEFAULT_WORKSPACE_LIMIT = 50;
+    private static final int MAX_WORKSPACE_LIMIT = 200;
+    private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
 
     public DialogApiController(DialogService dialogService,
                                DialogReplyService dialogReplyService,
@@ -107,6 +114,9 @@ public class DialogApiController {
     @GetMapping("/{ticketId}/workspace")
     public ResponseEntity<?> workspace(@PathVariable String ticketId,
                                        @RequestParam(value = "channelId", required = false) Long channelId,
+                                       @RequestParam(value = "include", required = false) String include,
+                                       @RequestParam(value = "limit", required = false) Integer limit,
+                                       @RequestParam(value = "cursor", required = false) String cursor,
                                        Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         dialogService.markDialogAsRead(ticketId, operator);
@@ -118,7 +128,16 @@ public class DialogApiController {
 
         DialogDetails dialogDetails = details.get();
         DialogListItem summary = dialogDetails.summary();
+        Set<String> includeSections = resolveWorkspaceInclude(include);
+        int resolvedLimit = resolveWorkspaceLimit(limit);
+        int resolvedCursor = resolveWorkspaceCursor(cursor);
         List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
+
+        int safeCursor = Math.min(Math.max(resolvedCursor, 0), history.size());
+        int endExclusive = Math.min(safeCursor + resolvedLimit, history.size());
+        List<ChatMessageDto> pagedHistory = history.subList(safeCursor, endExclusive);
+        boolean hasMore = endExclusive < history.size();
+        Integer nextCursor = hasMore ? endExclusive : null;
 
         int slaTargetMinutes = resolveDialogConfigMinutes("sla_target_minutes", DEFAULT_SLA_TARGET_MINUTES);
         int slaWarningMinutes = Math.min(
@@ -129,12 +148,22 @@ public class DialogApiController {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("contract_version", "workspace.v1");
         payload.put("conversation", summary);
-        payload.put("messages", Map.of(
-                "items", history,
+        payload.put("messages", includeSections.contains("messages")
+                ? Map.of(
+                "items", pagedHistory,
+                "next_cursor", nextCursor,
+                "has_more", hasMore,
+                "limit", resolvedLimit,
+                "cursor", safeCursor
+        )
+                : Map.of(
+                "items", List.of(),
                 "next_cursor", null,
-                "has_more", false
+                "has_more", false,
+                "unavailable", true
         ));
-        payload.put("context", Map.of(
+        payload.put("context", includeSections.contains("context")
+                ? Map.of(
                 "client", Map.of(
                         "id", summary.userId(),
                         "name", summary.displayClientName(),
@@ -142,22 +171,81 @@ public class DialogApiController {
                 ),
                 "history", List.of(),
                 "related_events", List.of()
+        )
+                : Map.of(
+                "client", Map.of(),
+                "history", List.of(),
+                "related_events", List.of(),
+                "unavailable", true
         ));
-        payload.put("permissions", Map.of(
+        payload.put("permissions", includeSections.contains("permissions")
+                ? Map.of(
                 "can_reply", true,
                 "can_assign", true,
                 "can_close", true,
                 "can_snooze", true,
                 "can_bulk", true
+        )
+                : Map.of(
+                "can_reply", false,
+                "can_assign", false,
+                "can_close", false,
+                "can_snooze", false,
+                "can_bulk", false,
+                "unavailable", true
         ));
-        payload.put("sla", Map.of(
+        payload.put("sla", includeSections.contains("sla")
+                ? Map.of(
                 "target_minutes", slaTargetMinutes,
                 "warning_minutes", slaWarningMinutes,
                 "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
                 "state", resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey())
+        )
+                : Map.of(
+                "target_minutes", slaTargetMinutes,
+                "warning_minutes", slaWarningMinutes,
+                "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
+                "state", "unknown",
+                "unavailable", true
+        ));
+        payload.put("meta", Map.of(
+                "include", includeSections,
+                "limit", resolvedLimit,
+                "cursor", safeCursor
         ));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+    private Set<String> resolveWorkspaceInclude(String include) {
+        if (include == null || include.isBlank()) {
+            return WORKSPACE_INCLUDE_ALLOWED;
+        }
+        Set<String> result = new HashSet<>();
+        Arrays.stream(include.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .filter(WORKSPACE_INCLUDE_ALLOWED::contains)
+                .forEach(result::add);
+        return result.isEmpty() ? WORKSPACE_INCLUDE_ALLOWED : Collections.unmodifiableSet(result);
+    }
+
+    private int resolveWorkspaceLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_WORKSPACE_LIMIT;
+        }
+        return Math.min(limit, MAX_WORKSPACE_LIMIT);
+    }
+
+    private int resolveWorkspaceCursor(String cursor) {
+        if (cursor == null || cursor.isBlank()) {
+            return 0;
+        }
+        try {
+            return Math.max(Integer.parseInt(cursor.trim()), 0);
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
 
