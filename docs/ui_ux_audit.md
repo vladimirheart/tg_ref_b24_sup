@@ -332,6 +332,7 @@
 - [x] **NOW-1.3 (минимум telemetry):** добавлены события `workspace_open_ms`, `workspace_render_error`, `workspace_fallback_to_legacy`, `workspace_abandon` через `/api/dialogs/workspace-telemetry`.
 - [x] **NOW-1.4:** добавлен операционный rollback-runbook `docs/runbooks/workspace_v1_rollback.md` с dry-run протоколом и чек-листом валидации (включая target rollback <= 5 минут).
 - [x] **NOW-1.5 (этап C2, MVP):** в toolbar списка диалогов добавлен SLA-фильтр «Требует реакции ≤ N минут» с применением без перезагрузки.
+- [x] **NOW-1.6 (этап C1, MVP):** добавлен workspace-shell для маршрута `/dialogs/{ticketId}` с выделенной правой контекстной колонкой (`Клиент`, `SLA`) и независимыми loading/error-state для блоков `messages/context/sla`.
 
 
 ## 10) Спецификация NOW-1 (готово к реализации)
