@@ -6,6 +6,7 @@
   const quickSearch = document.getElementById('dialogQuickSearch');
   const pageSizeSelect = document.getElementById('dialogPageSize');
   const slaWindowSelect = document.getElementById('dialogSlaWindow');
+  const sortModeSelect = document.getElementById('dialogSortMode');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
   const columnsBtn = document.getElementById('dialogColumnsBtn');
   const filtersModalEl = document.getElementById('dialogFiltersModal');
@@ -1011,7 +1012,61 @@
     }
   }
 
-  const filterState = { search: '', status: '', view: 'all', pageSize: DEFAULT_PAGE_SIZE, slaWindowMinutes: null };
+  const filterState = {
+    search: '',
+    status: '',
+    view: 'all',
+    pageSize: DEFAULT_PAGE_SIZE,
+    slaWindowMinutes: null,
+    sortMode: 'default',
+  };
+
+  function resolveSlaPriority(row) {
+    if (!row || isResolved(row)) {
+      return { bucket: 3, minutesLeft: Number.POSITIVE_INFINITY, state: 'closed' };
+    }
+    const minutesLeft = resolveSlaMinutesLeft(row);
+    if (!Number.isFinite(minutesLeft)) {
+      return { bucket: 3, minutesLeft: Number.POSITIVE_INFINITY, state: 'unknown' };
+    }
+    if (minutesLeft <= 0) {
+      return { bucket: 0, minutesLeft, state: 'breached' };
+    }
+    if (minutesLeft <= SLA_WARNING_MINUTES) {
+      return { bucket: 1, minutesLeft, state: 'at_risk' };
+    }
+    return { bucket: 2, minutesLeft, state: 'normal' };
+  }
+
+  function applySlaPriorityClass(row) {
+    if (!row) return;
+    row.classList.remove('dialog-priority-breached', 'dialog-priority-at-risk', 'dialog-priority-normal');
+    const priority = resolveSlaPriority(row);
+    if (priority.state === 'breached') {
+      row.classList.add('dialog-priority-breached');
+    } else if (priority.state === 'at_risk') {
+      row.classList.add('dialog-priority-at-risk');
+    } else if (priority.state === 'normal') {
+      row.classList.add('dialog-priority-normal');
+    }
+  }
+
+  function compareRowsBySlaPriority(left, right) {
+    const leftPriority = resolveSlaPriority(left);
+    const rightPriority = resolveSlaPriority(right);
+    if (leftPriority.bucket !== rightPriority.bucket) {
+      return leftPriority.bucket - rightPriority.bucket;
+    }
+    if (leftPriority.minutesLeft !== rightPriority.minutesLeft) {
+      return leftPriority.minutesLeft - rightPriority.minutesLeft;
+    }
+    const leftCreated = new Date(String(left?.dataset?.createdAt || '')).getTime();
+    const rightCreated = new Date(String(right?.dataset?.createdAt || '')).getTime();
+    if (Number.isFinite(leftCreated) && Number.isFinite(rightCreated) && leftCreated !== rightCreated) {
+      return leftCreated - rightCreated;
+    }
+    return String(left?.dataset?.ticketId || '').localeCompare(String(right?.dataset?.ticketId || ''), 'ru');
+  }
 
   function isNewDialog(row) {
     const key = String(row.dataset.statusKey || '').toLowerCase();
@@ -1194,6 +1249,7 @@
     const search = (filterState.search || '').trim().toLowerCase();
     const status = (filterState.status || '').trim().toLowerCase();
     const matchedRows = [];
+    const hiddenRows = [];
     rowsList().forEach((row) => {
       const text = collectRowSearchText(row);
       const statusValue = (row.dataset.status || '').toLowerCase();
@@ -1203,10 +1259,19 @@
       const matchesSlaWindow = matchesSlaReactionWindow(row);
       const visible = matchesSearch && matchesStatus && matchesView && matchesSlaWindow;
       row.classList.toggle('d-none', !visible);
+      applySlaPriorityClass(row);
       if (visible) {
         matchedRows.push(row);
+      } else {
+        hiddenRows.push(row);
       }
     });
+    if (filterState.sortMode === 'sla_priority') {
+      matchedRows.sort(compareRowsBySlaPriority);
+    }
+    const tableBody = table.tBodies[0];
+    matchedRows.forEach((row) => tableBody.appendChild(row));
+    hiddenRows.forEach((row) => tableBody.appendChild(row));
     const visibleCount = applyPageSize(matchedRows);
     updateZebraRows(matchedRows);
     ensureEmptyRow();
@@ -2984,6 +3049,14 @@
     });
   }
 
+  if (sortModeSelect) {
+    sortModeSelect.addEventListener('change', () => {
+      const value = String(sortModeSelect.value || 'default').trim().toLowerCase();
+      filterState.sortMode = value === 'sla_priority' ? 'sla_priority' : 'default';
+      applyFilters();
+    });
+  }
+
   if (filtersBtn && filtersModal) {
     filtersBtn.addEventListener('click', () => {
       if (filtersForm) {
@@ -3016,6 +3089,10 @@
         slaWindowSelect.value = '';
       }
       filterState.slaWindowMinutes = null;
+      if (sortModeSelect) {
+        sortModeSelect.value = 'default';
+      }
+      filterState.sortMode = 'default';
       applyFilters();
     });
   }
