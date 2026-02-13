@@ -52,6 +52,7 @@
             </select>
             <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
             <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
+            <button class="btn btn-outline-info btn-sm" id="dialogExperimentInfoBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogExperimentInfoModal">🧪 Эксперимент</button>
             <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">⌨ Шорткаты</button>
         </div>
     </div>
@@ -531,6 +532,33 @@
                     <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomIn">Увеличить</button>
                 </div>
                 <a class="btn btn-outline-primary d-none" href="#" id="dialogMediaDownloadLink" download target="_blank" rel="noopener">Скачать</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogExperimentInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">A/B критерии workspace-эксперимента</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="dialogExperimentInfoMeta">Данные об эксперименте загружаются…</p>
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <h6 class="mb-2">Primary KPI</h6>
+                        <ul class="small mb-0" id="dialogExperimentPrimaryKpis"></ul>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <h6 class="mb-2">Secondary KPI</h6>
+                        <ul class="small mb-0" id="dialogExperimentSecondaryKpis"></ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
