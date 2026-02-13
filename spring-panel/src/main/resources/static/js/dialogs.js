@@ -87,6 +87,12 @@
   const questionTemplateSelect = document.getElementById('dialogQuestionTemplateSelect');
   const questionTemplateList = document.getElementById('dialogQuestionTemplateList');
   const questionTemplateEmpty = document.getElementById('dialogQuestionTemplateEmpty');
+  const macroTemplatesSection = document.getElementById('dialogMacroTemplatesSection');
+  const macroTemplateSelect = document.getElementById('dialogMacroTemplateSelect');
+  const macroTemplatePreview = document.getElementById('dialogMacroTemplatePreview');
+  const macroTemplateMeta = document.getElementById('dialogMacroTemplateMeta');
+  const macroTemplateApply = document.getElementById('dialogMacroTemplateApply');
+  const macroTemplateEmpty = document.getElementById('dialogMacroTemplateEmpty');
   const completionTemplatesSection = document.getElementById('dialogCompletionTemplatesSection');
   const completionTemplateSelect = document.getElementById('dialogCompletionTemplateSelect');
   const completionTemplateList = document.getElementById('dialogCompletionTemplateList');
@@ -287,6 +293,9 @@
     questionTemplates: Array.isArray(window.DIALOG_CONFIG?.question_templates)
       ? window.DIALOG_CONFIG.question_templates
       : [],
+    macroTemplates: Array.isArray(window.DIALOG_CONFIG?.macro_templates)
+      ? window.DIALOG_CONFIG.macro_templates
+      : [],
     completionTemplates: Array.isArray(window.DIALOG_CONFIG?.completion_templates)
       ? window.DIALOG_CONFIG.completion_templates
       : [],
@@ -310,6 +319,7 @@
   const selectedTicketIds = new Set();
   let mediaImageScale = 1;
   let categorySaveTimer = null;
+  let activeMacroTemplate = null;
   const workspaceOpenTimers = new Map();
   const workspaceFirstInteractionTickets = new Set();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
@@ -2241,6 +2251,43 @@
     completionTemplateEmpty.classList.toggle('d-none', hasItems);
   }
 
+  function resolveMacroText(template) {
+    if (!template) return '';
+    const text = String(template?.message || template?.text || '').trim();
+    if (!text) return '';
+    const variables = {
+      client_name: activeDialogContext.clientName || 'клиент',
+      ticket_id: activeDialogTicketId || '—',
+      operator_name: activeDialogContext.operatorName || 'оператор',
+    };
+    return text.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_match, key) => {
+      const normalizedKey = String(key || '').toLowerCase();
+      return Object.prototype.hasOwnProperty.call(variables, normalizedKey)
+        ? String(variables[normalizedKey])
+        : '';
+    }).trim();
+  }
+
+  function renderMacroTemplate(template) {
+    if (!macroTemplatePreview || !macroTemplateEmpty || !macroTemplateMeta) return;
+    activeMacroTemplate = template || null;
+    const message = resolveMacroText(template);
+    macroTemplatePreview.textContent = message || 'Выберите макрос для предпросмотра.';
+    macroTemplateMeta.innerHTML = '';
+    const tags = Array.isArray(template?.tags) ? template.tags.filter(Boolean) : [];
+    tags.forEach((tag) => {
+      const badge = document.createElement('span');
+      badge.className = 'badge text-bg-light border';
+      badge.textContent = String(tag);
+      macroTemplateMeta.appendChild(badge);
+    });
+    const hasMessage = Boolean(message);
+    macroTemplateEmpty.classList.toggle('d-none', hasMessage);
+    if (macroTemplateApply) {
+      macroTemplateApply.disabled = !hasMessage;
+    }
+  }
+
   function initDialogTemplates() {
     if (categoryTemplatesSection) {
       const templates = DIALOG_TEMPLATES.categoryTemplates;
@@ -2268,6 +2315,21 @@
         questionTemplateSelect.addEventListener('change', () => {
           const selected = findTemplateByValue(templates, questionTemplateSelect.value);
           renderQuestionTemplate(selected);
+        });
+      }
+    }
+
+
+    if (macroTemplatesSection) {
+      const templates = DIALOG_TEMPLATES.macroTemplates;
+      const hasTemplates = templates.length > 0;
+      macroTemplatesSection.classList.toggle('d-none', !hasTemplates);
+      if (hasTemplates && macroTemplateSelect) {
+        buildTemplateOptions(macroTemplateSelect, templates, 'Макрос');
+        renderMacroTemplate(templates[0]);
+        macroTemplateSelect.addEventListener('change', () => {
+          const selected = findTemplateByValue(templates, macroTemplateSelect.value);
+          renderMacroTemplate(selected);
         });
       }
     }
@@ -2319,6 +2381,17 @@
     const existing = detailsReplyText.value.trim();
     detailsReplyText.value = existing ? `${existing}\n${value}` : value;
     detailsReplyText.focus();
+  }
+
+
+  function applyMacroTemplate() {
+    if (!activeMacroTemplate) return;
+    const message = resolveMacroText(activeMacroTemplate);
+    if (!message) return;
+    insertReplyText(message);
+    if (typeof showNotification === 'function') {
+      showNotification('Макрос добавлен в поле ответа.', 'success');
+    }
   }
 
   function saveColumnWidths() {
@@ -3489,6 +3562,12 @@
     });
   }
 
+  if (macroTemplateApply) {
+    macroTemplateApply.addEventListener('click', () => {
+      applyMacroTemplate();
+    });
+  }
+
   if (detailsReplyMediaTrigger && detailsReplyMedia) {
     detailsReplyMediaTrigger.addEventListener('click', () => {
       detailsReplyMedia.click();
@@ -3529,7 +3608,9 @@
     templateToggleButtons.forEach((button) => {
       button.addEventListener('click', () => {
         const target = button.dataset.templateToggle;
-        const section = target === 'category' ? categoryTemplatesSection : questionTemplatesSection;
+        const section = target === 'category'
+            ? categoryTemplatesSection
+            : (target === 'macro' ? macroTemplatesSection : questionTemplatesSection);
         if (!section) return;
         section.classList.toggle('is-open');
       });
