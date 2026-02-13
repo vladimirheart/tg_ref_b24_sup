@@ -55,6 +55,45 @@
         </div>
     </div>
 
+    <section id="dialogsWorkspaceShell" class="d-none mb-4" aria-live="polite">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1" id="workspaceConversationTitle">Workspace</h2>
+                        <p class="small text-muted mb-0" id="workspaceConversationMeta">Загрузка карточки диалога…</p>
+                    </div>
+                    <a class="btn btn-sm btn-outline-secondary" href="/dialogs">Вернуться к списку</a>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-xl-8">
+                        <div class="workspace-panel-block mb-3" id="workspaceMessagesBlock">
+                            <div class="small text-muted" id="workspaceMessagesState">Загрузка ленты…</div>
+                            <div id="workspaceMessagesList" class="d-none"></div>
+                            <div id="workspaceMessagesError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                Не удалось загрузить сообщения. <button class="btn btn-link btn-sm p-0" id="workspaceMessagesRetry" type="button">Повторить</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-4">
+                        <div class="workspace-panel-block mb-3" id="workspaceClientBlock">
+                            <div class="small text-muted mb-2">Клиент</div>
+                            <div id="workspaceClientState" class="small text-muted">Загрузка профиля…</div>
+                            <div id="workspaceClientContent" class="d-none"></div>
+                            <div id="workspaceClientError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">Профиль клиента временно недоступен.</div>
+                        </div>
+                        <div class="workspace-panel-block" id="workspaceSlaBlock">
+                            <div class="small text-muted mb-2">SLA</div>
+                            <div id="workspaceSlaState" class="small text-muted">Загрузка SLA…</div>
+                            <div id="workspaceSlaContent" class="d-none"></div>
+                            <div id="workspaceSlaError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">SLA-контекст временно недоступен.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <div class="dialog-bulk-toolbar d-flex flex-wrap align-items-center gap-2 mb-3" id="dialogBulkToolbar">
         <span class="small text-muted" id="dialogBulkCount">Выбрано: 0</span>
         <button class="btn btn-outline-success btn-sm" id="dialogBulkTakeBtn" type="button" disabled>Назначить выбранные на меня</button>
