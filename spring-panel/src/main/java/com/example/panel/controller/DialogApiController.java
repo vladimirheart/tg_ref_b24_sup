@@ -256,14 +256,17 @@ public class DialogApiController {
         if (request == null || request.eventType() == null || request.eventType().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "event_type is required"));
         }
-        log.info("Workspace telemetry: actor='{}', event='{}', ticket='{}', reason='{}', error='{}', contract='{}', durationMs={}",
+        log.info("Workspace telemetry: actor='{}', event='{}', group='{}', ticket='{}', reason='{}', error='{}', contract='{}', durationMs={}, experiment='{}', cohort='{}'",
                 operator,
                 request.eventType(),
+                request.eventGroup(),
                 request.ticketId(),
                 request.reason(),
                 request.errorCode(),
                 request.contractVersion(),
-                request.durationMs());
+                request.durationMs(),
+                request.experimentName(),
+                request.experimentCohort());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -542,11 +545,14 @@ public class DialogApiController {
 
     public record WorkspaceTelemetryRequest(@JsonAlias("event_type") String eventType,
                                           String timestamp,
+                                          @JsonAlias("event_group") String eventGroup,
                                           @JsonAlias("ticket_id") String ticketId,
                                           String reason,
                                           @JsonAlias("error_code") String errorCode,
                                           @JsonAlias("contract_version") String contractVersion,
-                                          @JsonAlias("duration_ms") Long durationMs) {}
+                                          @JsonAlias("duration_ms") Long durationMs,
+                                          @JsonAlias("experiment_name") String experimentName,
+                                          @JsonAlias("experiment_cohort") String experimentCohort) {}
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 
