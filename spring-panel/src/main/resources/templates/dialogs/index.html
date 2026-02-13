@@ -556,6 +556,26 @@
                         <ul class="small mb-0" id="dialogExperimentSecondaryKpis"></ul>
                     </div>
                 </div>
+                <hr class="my-3">
+                <h6 class="mb-2">Срез production-метрик (последние 7 дней)</h6>
+                <p class="small text-muted mb-2" id="dialogExperimentTelemetrySummaryState">Загрузка агрегатов telemetry…</p>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Когорта</th>
+                            <th scope="col">Сегмент</th>
+                            <th scope="col" class="text-end">События</th>
+                            <th scope="col" class="text-end">Fallback</th>
+                            <th scope="col" class="text-end">Render error</th>
+                            <th scope="col" class="text-end">Avg open (ms)</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentTelemetrySummaryRows">
+                        <tr><td colspan="6" class="small text-muted">Данные появятся после первых событий.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
