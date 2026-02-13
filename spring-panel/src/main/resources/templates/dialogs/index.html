@@ -38,6 +38,13 @@
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="unassigned">Без ответственного</button>
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="overdue">Просроченные</button>
             </div>
+            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSlaWindow" aria-label="Требует реакции в ближайшие N минут">
+                <option value="">SLA: все</option>
+                <option value="15">Реакция ≤ 15м</option>
+                <option value="30">Реакция ≤ 30м</option>
+                <option value="60">Реакция ≤ 60м</option>
+                <option value="120">Реакция ≤ 120м</option>
+            </select>
             <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
             <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
             <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">⌨ Шорткаты</button>
