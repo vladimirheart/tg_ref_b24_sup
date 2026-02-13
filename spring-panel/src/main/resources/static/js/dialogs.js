@@ -160,6 +160,7 @@
   );
   const AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW = window.DIALOG_CONFIG?.sla_critical_auto_sort !== false;
   const WORKSPACE_V1_ENABLED = Boolean(window.DIALOG_CONFIG?.workspace_v1);
+  const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
     can_snooze: true,
@@ -195,6 +196,7 @@
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
   let workspaceComposerTicketId = '';
+  let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -1871,14 +1873,14 @@
   }
 
   async function reloadWorkspaceForInitialRoute() {
-    if (!WORKSPACE_V1_ENABLED || !INITIAL_DIALOG_TICKET_ID) return;
-    const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
+    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
+    const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === activeWorkspaceTicketId) || null;
     if (workspaceMessagesError) workspaceMessagesError.classList.add('d-none');
     if (workspaceMessagesState) {
       workspaceMessagesState.classList.remove('d-none');
       workspaceMessagesState.textContent = 'Повторная загрузка ленты…';
     }
-    await openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
+    await openDialogWithWorkspaceFallback(activeWorkspaceTicketId, initialRow, { source: 'initial_route' });
   }
 
   async function openDialogWithWorkspaceFallback(ticketId, row, options = {}) {
@@ -1896,8 +1898,13 @@
       if (Number.isFinite(durationMs) && durationMs > WORKSPACE_OPEN_SLO_MS) {
         console.warn(`workspace_open_ms degraded for ticket ${ticketId}: ${durationMs}ms > ${WORKSPACE_OPEN_SLO_MS}ms`);
       }
-      if (source === 'initial_route') {
+      activeWorkspaceTicketId = String(ticketId || '').trim();
+      if (source === 'initial_route' || WORKSPACE_INLINE_NAVIGATION) {
         renderWorkspaceShell(workspacePayload);
+        if (source !== 'initial_route') {
+          const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
+          window.history.pushState({ ticketId: activeWorkspaceTicketId }, '', nextUrl);
+        }
       } else {
         const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
         window.location.assign(nextUrl);
@@ -3986,9 +3993,9 @@
   }
 
   function registerWorkspaceFirstInteraction() {
-    if (!WORKSPACE_V1_ENABLED || !INITIAL_DIALOG_TICKET_ID) return;
-    if (workspaceFirstInteractionTickets.has(INITIAL_DIALOG_TICKET_ID)) return;
-    workspaceFirstInteractionTickets.add(INITIAL_DIALOG_TICKET_ID);
+    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
+    if (workspaceFirstInteractionTickets.has(activeWorkspaceTicketId)) return;
+    workspaceFirstInteractionTickets.add(activeWorkspaceTicketId);
   }
 
   ['click', 'keydown'].forEach((eventName) => {
@@ -3996,14 +4003,14 @@
   });
 
   window.addEventListener('beforeunload', () => {
-    if (!WORKSPACE_V1_ENABLED || !INITIAL_DIALOG_TICKET_ID) return;
-    if (workspaceFirstInteractionTickets.has(INITIAL_DIALOG_TICKET_ID)) return;
+    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
+    if (workspaceFirstInteractionTickets.has(activeWorkspaceTicketId)) return;
     if (typeof navigator.sendBeacon !== 'function') return;
     const payload = new Blob([JSON.stringify({
       event_type: 'workspace_abandon',
       event_group: WORKSPACE_TELEMETRY_EVENT_GROUPS.workspace_abandon,
       timestamp: new Date().toISOString(),
-      ticket_id: INITIAL_DIALOG_TICKET_ID,
+      ticket_id: activeWorkspaceTicketId,
       reason: 'no_first_interaction',
       experiment_name: workspaceExperimentContext.experimentName,
       experiment_cohort: workspaceExperimentContext.cohort,
@@ -4050,6 +4057,18 @@
       setActiveDialogRow(initialRow, { ensureVisible: true });
     }
     openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
+  }
+
+  if (WORKSPACE_V1_ENABLED && WORKSPACE_INLINE_NAVIGATION) {
+    window.addEventListener('popstate', () => {
+      const path = window.location.pathname || '';
+      const match = path.match(/^\/dialogs\/([^/]+)$/);
+      if (!match?.[1]) return;
+      const ticketId = decodeURIComponent(match[1]);
+      const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
+      setActiveDialogRow(row, { ensureVisible: true });
+      openDialogWithWorkspaceFallback(ticketId, row, { source: 'initial_route' });
+    });
   }
 
   initColumnResize();
