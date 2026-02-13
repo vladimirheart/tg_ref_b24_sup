@@ -136,6 +136,10 @@
     normalizeSlaMinutes(window.DIALOG_CONFIG?.sla_warning_minutes, DEFAULT_SLA_WARNING_MINUTES),
     SLA_TARGET_MINUTES,
   );
+  const SLA_CRITICAL_MINUTES = Math.min(
+    normalizeSlaMinutes(window.DIALOG_CONFIG?.sla_critical_minutes, 30),
+    SLA_TARGET_MINUTES,
+  );
   const WORKSPACE_V1_ENABLED = Boolean(window.DIALOG_CONFIG?.workspace_v1);
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
@@ -1080,8 +1084,11 @@
 
   function applySlaPriorityClass(row) {
     if (!row) return;
-    row.classList.remove('dialog-priority-breached', 'dialog-priority-at-risk', 'dialog-priority-normal');
+    row.classList.remove('dialog-priority-breached', 'dialog-priority-at-risk', 'dialog-priority-normal', 'dialog-priority-pinned');
     const priority = resolveSlaPriority(row);
+    const isPinned = isCriticalSlaDialog(row);
+    row.dataset.slaPinned = isPinned ? 'true' : 'false';
+    row.classList.toggle('dialog-priority-pinned', isPinned);
     if (priority.state === 'breached') {
       row.classList.add('dialog-priority-breached');
     } else if (priority.state === 'at_risk') {
@@ -1092,6 +1099,11 @@
   }
 
   function compareRowsBySlaPriority(left, right) {
+    const leftPinned = left?.dataset?.slaPinned === 'true';
+    const rightPinned = right?.dataset?.slaPinned === 'true';
+    if (leftPinned !== rightPinned) {
+      return leftPinned ? -1 : 1;
+    }
     const leftPriority = resolveSlaPriority(left);
     const rightPriority = resolveSlaPriority(right);
     if (leftPriority.bucket !== rightPriority.bucket) {
@@ -1135,6 +1147,12 @@
     return Boolean(getSnoozeUntil(ticketId));
   }
 
+  function isCriticalSlaDialog(row) {
+    const minutesLeft = resolveSlaMinutesLeft(row);
+    if (!Number.isFinite(minutesLeft)) return false;
+    return minutesLeft <= SLA_CRITICAL_MINUTES;
+  }
+
   function resolveSlaMinutesLeft(row) {
     if (!row || isResolved(row)) return null;
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
@@ -1166,6 +1184,8 @@
         return isUnassignedDialog(row);
       case 'overdue':
         return isOverdueDialog(row);
+      case 'sla_critical':
+        return isCriticalSlaDialog(row);
       default:
         return true;
     }
