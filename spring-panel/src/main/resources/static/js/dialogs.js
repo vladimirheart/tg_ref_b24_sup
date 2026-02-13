@@ -9,6 +9,9 @@
   const sortModeSelect = document.getElementById('dialogSortMode');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
   const columnsBtn = document.getElementById('dialogColumnsBtn');
+  const experimentInfoMeta = document.getElementById('dialogExperimentInfoMeta');
+  const experimentPrimaryKpis = document.getElementById('dialogExperimentPrimaryKpis');
+  const experimentSecondaryKpis = document.getElementById('dialogExperimentSecondaryKpis');
   const filtersModalEl = document.getElementById('dialogFiltersModal');
   const columnsModalEl = document.getElementById('dialogColumnsModal');
   const detailsModalEl = document.getElementById('dialogDetailsModal');
@@ -137,6 +140,18 @@
   const DEFAULT_DIALOG_FONT = 14;
   const DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
   const DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
+  const DEFAULT_PRIMARY_KPIS = Object.freeze(['FRT', 'TTR', 'SLA breach %']);
+  const DEFAULT_SECONDARY_KPIS = Object.freeze(['Dialogs per operator / shift', 'CSAT', 'UI error-rate']);
+
+  function normalizeStringArray(value, fallbackValue) {
+    if (!Array.isArray(value)) {
+      return fallbackValue;
+    }
+    const normalized = value
+      .map((item) => String(item || '').trim())
+      .filter((item) => item.length > 0);
+    return normalized.length ? normalized : fallbackValue;
+  }
 
   function normalizeSlaMinutes(value, fallbackValue) {
     const parsed = Number.parseInt(value, 10);
@@ -181,6 +196,9 @@
     experimentName: String(window.DIALOG_CONFIG?.workspace_ab_experiment_name || 'workspace_v1_rollout').trim() || 'workspace_v1_rollout',
     enabled: Boolean(window.DIALOG_CONFIG?.workspace_ab_enabled),
     rolloutPercent: Math.max(0, Math.min(100, Number(window.DIALOG_CONFIG?.workspace_ab_rollout_percent) || 0)),
+    operatorSegment: String(window.DIALOG_CONFIG?.workspace_ab_operator_segment || 'all_operators').trim() || 'all_operators',
+    primaryKpis: normalizeStringArray(window.DIALOG_CONFIG?.workspace_ab_primary_kpis, DEFAULT_PRIMARY_KPIS),
+    secondaryKpis: normalizeStringArray(window.DIALOG_CONFIG?.workspace_ab_secondary_kpis, DEFAULT_SECONDARY_KPIS),
   });
   const STORAGE_WORKSPACE_AB = 'iguana:dialogs:workspace-ab-cohort';
   const STORAGE_WORKSPACE_DRAFT_PREFIX = 'iguana:dialogs:workspace-draft:';
@@ -1626,6 +1644,9 @@
       duration_ms: Number.isFinite(payload.durationMs) ? payload.durationMs : null,
       experiment_name: workspaceExperimentContext.experimentName,
       experiment_cohort: workspaceExperimentContext.cohort,
+      operator_segment: WORKSPACE_AB_TEST_CONFIG.operatorSegment,
+      primary_kpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
+      secondary_kpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
       template_id: payload.templateId || null,
       template_name: payload.templateName || null,
     };
@@ -1649,6 +1670,20 @@
     const slaState = String(payload?.sla?.state || '').trim();
     const hasPermissions = Boolean(permissions && typeof permissions === 'object');
     return version === 'workspace.v1' && Boolean(ticketId) && Boolean(status) && hasPermissions && Boolean(slaState);
+  }
+
+  function renderExperimentKpiItems(container, items) {
+    if (!container) return;
+    const safeItems = Array.isArray(items) && items.length ? items : ['—'];
+    container.innerHTML = safeItems.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
+  }
+
+  function renderExperimentInfoPanel() {
+    if (experimentInfoMeta) {
+      experimentInfoMeta.textContent = `Эксперимент: ${WORKSPACE_AB_TEST_CONFIG.experimentName} · Когорта: ${workspaceExperimentContext.cohort} · Сегмент: ${WORKSPACE_AB_TEST_CONFIG.operatorSegment}`;
+    }
+    renderExperimentKpiItems(experimentPrimaryKpis, WORKSPACE_AB_TEST_CONFIG.primaryKpis);
+    renderExperimentKpiItems(experimentSecondaryKpis, WORKSPACE_AB_TEST_CONFIG.secondaryKpis);
   }
 
   function formatWorkspaceDateTime(value) {
@@ -4056,6 +4091,9 @@
       reason: 'no_first_interaction',
       experiment_name: workspaceExperimentContext.experimentName,
       experiment_cohort: workspaceExperimentContext.cohort,
+      operator_segment: WORKSPACE_AB_TEST_CONFIG.operatorSegment,
+      primary_kpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
+      secondary_kpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
     })], { type: 'application/json' });
     navigator.sendBeacon('/api/dialogs/workspace-telemetry', payload);
   });
@@ -4081,6 +4119,7 @@
   applyBusinessCellStyles();
   hydrateAvatars(table);
   applyOperatorPermissionGuards();
+  renderExperimentInfoPanel();
   updateAllSlaBadges();
   setInterval(updateAllSlaBadges, 60 * 1000);
   emitWorkspaceTelemetry('workspace_experiment_exposure', {
