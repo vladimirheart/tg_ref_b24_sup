@@ -20,6 +20,8 @@ import java.util.Optional;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -144,6 +146,8 @@ class DialogApiControllerWebMvcTest {
         when(dialogService.loadDialogDetails("T-1", null, "operator"))
                 .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
         when(dialogService.loadHistory("T-1", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
                 "sla_target_minutes", 1440,
                 "sla_warning_minutes", 240
@@ -195,6 +199,8 @@ class DialogApiControllerWebMvcTest {
         when(dialogService.loadDialogDetails("T-2", null, "operator"))
                 .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
         when(dialogService.loadHistory("T-2", null)).thenReturn(history);
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         mockMvc.perform(get("/api/dialogs/T-2/workspace")
