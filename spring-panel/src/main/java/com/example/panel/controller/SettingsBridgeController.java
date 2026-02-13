@@ -129,6 +129,7 @@ public class SettingsBridgeController {
             if (payload.containsKey("dialog_category_templates")
                 || payload.containsKey("dialog_question_templates")
                 || payload.containsKey("dialog_completion_templates")
+                || payload.containsKey("dialog_macro_templates")
                 || payload.containsKey("dialog_time_metrics")
                 || payload.containsKey("dialog_summary_badges")
                 || payload.containsKey("dialog_sla_target_minutes")
@@ -146,6 +147,9 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_completion_templates")) {
                     dialogConfig.put("completion_templates", payload.get("dialog_completion_templates"));
+                }
+                if (payload.containsKey("dialog_macro_templates")) {
+                    dialogConfig.put("macro_templates", payload.get("dialog_macro_templates"));
                 }
                 if (payload.containsKey("dialog_time_metrics")) {
                     dialogConfig.put("time_metrics", payload.get("dialog_time_metrics"));
