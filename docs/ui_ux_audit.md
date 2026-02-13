@@ -322,6 +322,13 @@
 
 **Критерий готовности NOW-1:** можно включить workspace на малую долю операторов без регресса triage-потока и с наблюдаемыми метриками качества.
 
+### 9.6. Статус реализации (обновлено)
+
+- [x] **NOW-1.1 (частично):** endpoint `/api/dialogs/{ticketId}/workspace` используется как контрактный preflight перед открытием карточки в режиме `workspace_v1`.
+- [x] **NOW-1.2 (минимальный fallback):** при `version_mismatch`, `invalid_payload` и HTTP-ошибках workspace-поток автоматически переключается в legacy `dialogDetailsModal`.
+- [x] **NOW-1.3 (минимум telemetry):** добавлены события `workspace_open_ms`, `workspace_render_error`, `workspace_fallback_to_legacy`, `workspace_abandon` через `/api/dialogs/workspace-telemetry`.
+- [ ] **NOW-1.4:** полный dry-run rollback-runbook на продовых флагах остаётся процедурной задачей эксплуатации.
+
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
