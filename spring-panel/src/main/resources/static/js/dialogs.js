@@ -159,7 +159,7 @@
     SLA_TARGET_MINUTES,
   );
   const AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW = window.DIALOG_CONFIG?.sla_critical_auto_sort !== false;
-  const WORKSPACE_V1_ENABLED = Boolean(window.DIALOG_CONFIG?.workspace_v1);
+  const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
