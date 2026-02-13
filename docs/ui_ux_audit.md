@@ -346,6 +346,7 @@
 - [x] **NOW-1.13 (этап C3, SLA-first orchestration):** для saved view `SLA критичные` включена авто-сортировка `SLA-first` (конфиг `sla_critical_auto_sort`, по умолчанию включён) с возвратом к ручному режиму после выхода из view, чтобы критичные тикеты системно поднимались в верх очереди.
 - [x] **NOW-1.14 (этап B3, rollout-safe):** для `workspace_v1` включён inline-навигационный режим (`workspace_inline_navigation`, по умолчанию включён): открытие диалога из списка рендерит workspace без full-page reload с `history.pushState` и поддержкой `popstate`, что переводит workspace в основной операторский поток при сохранении fallback в legacy-modal.
 - [x] **NOW-1.15 (этап B3, rollout-default):** `workspace_v1` включён по умолчанию на клиенте (opt-out через `dialog_config.workspace_v1=false`), поэтому список диалогов открывается в workspace-first режиме без ручного включения флага для каждой среды.
+- [x] **NOW-1.16 (этап C3, SLA-first orchestration):** в `GET /api/dialogs` добавлен серверный блок `sla_orchestration` (state/minutes_left/auto_pin/escalation_required), а UI использует эти сигналы для pin критичных кейсов даже при расхождении клиентского времени. Это закрывает базовый слой авто-эскалации SLA на уровне backend+frontend без изменения legacy-flow.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
