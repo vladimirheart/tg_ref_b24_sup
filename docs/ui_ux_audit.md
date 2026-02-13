@@ -351,6 +351,7 @@
 - [x] **NOW-1.18 (этап C3, rules & permissions):** усилены серверные проверки прав на mutating-операции (`reply/edit/delete/media`, `reopen`, `categories`) через единый permission-gate, чтобы fallback/legacy-потоки не обходили ограничения ролей и не создавали несогласованность с workspace-permissions.
 - [x] **NOW-1.19 (этап D3, governance MVP):** обновление `dialog_macro_templates` теперь проходит через серверную нормализацию (обязательные `name/message`, dedupe тегов, стабильный `id`) с авто-метаданными `version/created_at/updated_at/updated_by`, что формирует базовый слой версионности и аудита макросов для operator-flow.
 - [x] **NOW-1.20 (этап C1, enrichment related events):** quick-actions (`take/close/snooze/forbidden`) теперь пишутся в `dialog_action_audit`, а workspace-блок `Связанные события` агрегирует chat/system + workflow + audit trail в единой хронологии для расследования инцидентов и операторского контекста.
+- [x] **NOW-1.21 (этап E3, production analytics extension):** telemetry workspace теперь сохраняется в `workspace_telemetry_audit`, а API `/api/dialogs/workspace-telemetry/summary` строит серверные агрегаты по когорте/операторскому сегменту (events/fallback/render_error/avg_open_ms) для быстрого продуктового среза без внешнего BI.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
