@@ -144,6 +144,8 @@ public class DialogApiController {
                 resolveDialogConfigMinutes("sla_warning_minutes", DEFAULT_SLA_WARNING_MINUTES),
                 slaTargetMinutes
         );
+        List<Map<String, Object>> clientHistory = dialogService.loadClientDialogHistory(summary.userId(), ticketId, 5);
+        List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, 5);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("contract_version", "workspace.v1");
@@ -169,8 +171,8 @@ public class DialogApiController {
                         "name", summary.displayClientName(),
                         "language", "ru"
                 ),
-                "history", List.of(),
-                "related_events", List.of()
+                "history", clientHistory,
+                "related_events", relatedEvents
         )
                 : Map.of(
                 "client", Map.of(),
