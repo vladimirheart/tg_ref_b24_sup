@@ -336,6 +336,7 @@
 - [x] **NOW-1.6 (этап C1, MVP):** добавлен workspace-shell для маршрута `/dialogs/{ticketId}` с выделенной правой контекстной колонкой (`Клиент`, `SLA`) и независимыми loading/error-state для блоков `messages/context/sla`
 - [x] **NOW-1.7 (этап C3, MVP):** добавлен операторский saved view `SLA критичные` + визуальный pin строк для тикетов с `minutes_left <= sla_critical_minutes`, что закрывает часть правил SLA-first оркестрации на уровне UI.
 - [x] **NOW-1.8 (этап E1+E2, базовый контур):** добавлена клиентская сегментация A/B (`workspace_ab_enabled`, `workspace_ab_rollout_percent`) с фиксацией когорты в `localStorage` и отправкой telemetry-полей `event_group`, `experiment_name`, `experiment_cohort` для product-аналитики workspace-потока.
+- [x] **NOW-1.9 (этап D2, MVP):** в composer добавлена панель `Макросы ответа` с предпросмотром, тегами и безопасной подстановкой переменных `{{client_name}}/{{ticket_id}}/{{operator_name}}`, чтобы ускорить ответы оператора без ручного копипаста.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
