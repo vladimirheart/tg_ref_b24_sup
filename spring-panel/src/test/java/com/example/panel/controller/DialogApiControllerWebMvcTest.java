@@ -293,4 +293,25 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    @Test
+    void replyReturnsForbiddenWhenOperatorHasNoDialogsPermission() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(false);
+
+        mockMvc.perform(post("/api/dialogs/T-1/reply")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"test\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void reopenReturnsForbiddenWhenOperatorHasNoDialogsPermission() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(false);
+
+        mockMvc.perform(post("/api/dialogs/T-1/reopen").with(user("operator")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false));
+    }
 }
