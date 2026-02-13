@@ -6,17 +6,20 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,7 +52,8 @@ public class SettingsBridgeController {
 
     @RequestMapping(value = {"/settings", "/settings/"}, method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
-    public Map<String, Object> updateSettings(@RequestBody Map<String, Object> payload) {
+    public Map<String, Object> updateSettings(@RequestBody Map<String, Object> payload,
+                                              Authentication authentication) {
         try {
             Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
             boolean modified = false;
@@ -149,7 +153,13 @@ public class SettingsBridgeController {
                     dialogConfig.put("completion_templates", payload.get("dialog_completion_templates"));
                 }
                 if (payload.containsKey("dialog_macro_templates")) {
-                    dialogConfig.put("macro_templates", payload.get("dialog_macro_templates"));
+                    Object existingTemplates = dialogConfig.get("macro_templates");
+                    List<Map<String, Object>> normalizedTemplates = normalizeMacroTemplates(
+                        existingTemplates,
+                        payload.get("dialog_macro_templates"),
+                        authentication != null ? authentication.getName() : "system"
+                    );
+                    dialogConfig.put("macro_templates", normalizedTemplates);
                 }
                 if (payload.containsKey("dialog_time_metrics")) {
                     dialogConfig.put("time_metrics", payload.get("dialog_time_metrics"));
@@ -544,6 +554,135 @@ public class SettingsBridgeController {
             return s.equalsIgnoreCase("true") || s.equals("1");
         }
         return false;
+    }
+
+    private List<Map<String, Object>> normalizeMacroTemplates(Object existingRaw,
+                                                              Object incomingRaw,
+                                                              String actor) {
+        List<Map<String, Object>> existingTemplates = castTemplateList(existingRaw);
+        Map<String, Map<String, Object>> existingById = new LinkedHashMap<>();
+        for (Map<String, Object> template : existingTemplates) {
+            String id = stringValue(template.get("id"));
+            if (StringUtils.hasText(id)) {
+                existingById.put(id, template);
+            }
+        }
+
+        List<Map<String, Object>> normalized = new ArrayList<>();
+        if (!(incomingRaw instanceof List<?> incomingTemplates)) {
+            return normalized;
+        }
+
+        String normalizedActor = StringUtils.hasText(actor) ? actor : "system";
+        String now = Instant.now().toString();
+        for (Object candidate : incomingTemplates) {
+            if (!(candidate instanceof Map<?, ?> sourceMap)) {
+                continue;
+            }
+
+            String name = stringValue(sourceMap.get("name"));
+            String message = stringValue(sourceMap.get("message"));
+            if (!StringUtils.hasText(message)) {
+                message = stringValue(sourceMap.get("text"));
+            }
+            if (!StringUtils.hasText(name) || !StringUtils.hasText(message)) {
+                continue;
+            }
+
+            String id = stringValue(sourceMap.get("id"));
+            if (!StringUtils.hasText(id)) {
+                id = "macro_" + UUID.randomUUID();
+            }
+            Map<String, Object> previous = existingById.get(id);
+
+            List<String> tags = normalizeTemplateTags(sourceMap.get("tags"));
+            int version = resolveTemplateVersion(previous);
+            if (templateMeaningfullyChanged(previous, name, message, tags)) {
+                version += 1;
+            }
+
+            Map<String, Object> normalizedTemplate = new LinkedHashMap<>();
+            normalizedTemplate.put("id", id);
+            normalizedTemplate.put("name", name);
+            normalizedTemplate.put("message", message);
+            normalizedTemplate.put("text", message);
+            normalizedTemplate.put("tags", tags);
+            normalizedTemplate.put("version", Math.max(1, version));
+            normalizedTemplate.put("created_at", previous != null
+                ? stringValue(previous.get("created_at"))
+                : now);
+            normalizedTemplate.put("updated_at", now);
+            normalizedTemplate.put("updated_by", normalizedActor);
+
+            normalized.add(normalizedTemplate);
+        }
+        log.info("Dialog macro templates normalized: actor='{}', incoming={}, stored={}",
+            normalizedActor,
+            incomingTemplates.size(),
+            normalized.size());
+        return normalized;
+    }
+
+    private List<Map<String, Object>> castTemplateList(Object raw) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (!(raw instanceof List<?> list)) {
+            return result;
+        }
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                Map<String, Object> normalized = new LinkedHashMap<>();
+                map.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+                result.add(normalized);
+            }
+        }
+        return result;
+    }
+
+    private List<String> normalizeTemplateTags(Object rawTags) {
+        List<String> tags = new ArrayList<>();
+        if (!(rawTags instanceof List<?> list)) {
+            return tags;
+        }
+        for (Object tagRaw : list) {
+            String tag = stringValue(tagRaw);
+            if (StringUtils.hasText(tag) && !tags.contains(tag)) {
+                tags.add(tag);
+            }
+        }
+        return tags;
+    }
+
+    private int resolveTemplateVersion(Map<String, Object> template) {
+        if (template == null) {
+            return 0;
+        }
+        Object raw = template.get("version");
+        if (raw instanceof Number number) {
+            return Math.max(1, number.intValue());
+        }
+        try {
+            return Math.max(1, Integer.parseInt(stringValue(raw)));
+        } catch (NumberFormatException ex) {
+            return 1;
+        }
+    }
+
+    private boolean templateMeaningfullyChanged(Map<String, Object> previous,
+                                                String name,
+                                                String message,
+                                                List<String> tags) {
+        if (previous == null) {
+            return true;
+        }
+        String previousName = stringValue(previous.get("name"));
+        String previousMessage = stringValue(previous.get("message"));
+        if (!StringUtils.hasText(previousMessage)) {
+            previousMessage = stringValue(previous.get("text"));
+        }
+        List<String> previousTags = normalizeTemplateTags(previous.get("tags"));
+        return !previousName.equals(name)
+            || !previousMessage.equals(message)
+            || !previousTags.equals(tags);
     }
 
     private void validateParameterUniqueness(String paramType,
