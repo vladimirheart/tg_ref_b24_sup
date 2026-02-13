@@ -12,6 +12,19 @@
   const filtersModalEl = document.getElementById('dialogFiltersModal');
   const columnsModalEl = document.getElementById('dialogColumnsModal');
   const detailsModalEl = document.getElementById('dialogDetailsModal');
+  const workspaceShell = document.getElementById('dialogsWorkspaceShell');
+  const workspaceConversationTitle = document.getElementById('workspaceConversationTitle');
+  const workspaceConversationMeta = document.getElementById('workspaceConversationMeta');
+  const workspaceMessagesState = document.getElementById('workspaceMessagesState');
+  const workspaceMessagesList = document.getElementById('workspaceMessagesList');
+  const workspaceMessagesError = document.getElementById('workspaceMessagesError');
+  const workspaceMessagesRetry = document.getElementById('workspaceMessagesRetry');
+  const workspaceClientState = document.getElementById('workspaceClientState');
+  const workspaceClientContent = document.getElementById('workspaceClientContent');
+  const workspaceClientError = document.getElementById('workspaceClientError');
+  const workspaceSlaState = document.getElementById('workspaceSlaState');
+  const workspaceSlaContent = document.getElementById('workspaceSlaContent');
+  const workspaceSlaError = document.getElementById('workspaceSlaError');
 
   const filtersForm = document.getElementById('dialogFiltersForm');
   const filtersApply = document.getElementById('dialogFiltersApply');
@@ -1400,6 +1413,79 @@
     return version === 'workspace.v1' && Boolean(ticketId) && Boolean(status) && hasPermissions && Boolean(slaState);
   }
 
+  function formatWorkspaceDateTime(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('ru-RU');
+  }
+
+  function renderWorkspaceShell(payload) {
+    if (!workspaceShell) return;
+    workspaceShell.classList.remove('d-none');
+
+    const conversation = payload?.conversation || {};
+    const messages = payload?.messages || {};
+    const context = payload?.context || {};
+    const sla = payload?.sla || {};
+
+    if (workspaceConversationTitle) {
+      workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
+    }
+    if (workspaceConversationMeta) {
+      const status = conversation.statusLabel || conversation.status || '—';
+      const assignee = conversation.responsible || 'без ответственного';
+      workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee}`;
+    }
+
+    if (workspaceMessagesState) {
+      workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
+      workspaceMessagesState.textContent = Array.isArray(messages.items) && messages.items.length > 0
+        ? ''
+        : 'Сообщения отсутствуют или ещё не загружены.';
+    }
+    if (workspaceMessagesList) {
+      const items = Array.isArray(messages.items) ? messages.items : [];
+      workspaceMessagesList.classList.toggle('d-none', items.length === 0);
+      workspaceMessagesList.innerHTML = items.map((message) => {
+        const author = message.senderName || message.senderRole || 'Участник';
+        const text = message.messageText || message.message || '—';
+        const timestamp = formatWorkspaceDateTime(message.sentAt || message.createdAt);
+        return `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div><div>${escapeHtml(text)}</div></article>`;
+      }).join('');
+    }
+    if (workspaceMessagesError) {
+      workspaceMessagesError.classList.add('d-none');
+    }
+
+    const client = context.client;
+    if (client && Object.keys(client).length) {
+      if (workspaceClientState) workspaceClientState.classList.add('d-none');
+      if (workspaceClientError) workspaceClientError.classList.add('d-none');
+      if (workspaceClientContent) {
+        workspaceClientContent.classList.remove('d-none');
+        workspaceClientContent.innerHTML = `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div><div class="small text-muted">ID: ${escapeHtml(client.id || '—')}</div><div class="small text-muted">Язык: ${escapeHtml(client.language || '—')}</div>`;
+      }
+    } else {
+      if (workspaceClientState) workspaceClientState.classList.add('d-none');
+      if (workspaceClientContent) workspaceClientContent.classList.add('d-none');
+      if (workspaceClientError) workspaceClientError.classList.remove('d-none');
+    }
+
+    if (sla && sla.state && sla.state !== 'unknown') {
+      if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
+      if (workspaceSlaError) workspaceSlaError.classList.add('d-none');
+      if (workspaceSlaContent) {
+        workspaceSlaContent.classList.remove('d-none');
+        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge text-bg-secondary">${escapeHtml(sla.state)}</span></div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>`;
+      }
+    } else {
+      if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
+      if (workspaceSlaContent) workspaceSlaContent.classList.add('d-none');
+      if (workspaceSlaError) workspaceSlaError.classList.remove('d-none');
+    }
+  }
+
   async function preloadWorkspaceContract(ticketId, channelId) {
     const endpoint = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}/workspace`, channelId);
     const response = await fetch(endpoint, {
@@ -1426,6 +1512,17 @@
     return payload;
   }
 
+  async function reloadWorkspaceForInitialRoute() {
+    if (!WORKSPACE_V1_ENABLED || !INITIAL_DIALOG_TICKET_ID) return;
+    const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
+    if (workspaceMessagesError) workspaceMessagesError.classList.add('d-none');
+    if (workspaceMessagesState) {
+      workspaceMessagesState.classList.remove('d-none');
+      workspaceMessagesState.textContent = 'Повторная загрузка ленты…';
+    }
+    await openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
+  }
+
   async function openDialogWithWorkspaceFallback(ticketId, row, options = {}) {
     const source = options.source || 'manual_open';
     const channelId = row?.dataset?.channelId || null;
@@ -1442,7 +1539,7 @@
         console.warn(`workspace_open_ms degraded for ticket ${ticketId}: ${durationMs}ms > ${WORKSPACE_OPEN_SLO_MS}ms`);
       }
       if (source === 'initial_route') {
-        await openDialogDetails(ticketId, row);
+        renderWorkspaceShell(workspacePayload);
       } else {
         const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
         window.location.assign(nextUrl);
@@ -1462,6 +1559,16 @@
         durationMs,
         contractVersion: error?.contractVersion || null,
       });
+      if (source === 'initial_route' && workspaceShell) {
+        workspaceShell.classList.remove('d-none');
+        if (workspaceMessagesState) {
+          workspaceMessagesState.classList.remove('d-none');
+          workspaceMessagesState.textContent = 'Workspace временно недоступен, открыт legacy-режим.';
+        }
+        if (workspaceMessagesError) {
+          workspaceMessagesError.classList.remove('d-none');
+        }
+      }
       await openDialogDetails(ticketId, row);
     }
   }
@@ -3315,6 +3422,12 @@
   }
 
   document.addEventListener('keydown', handleGlobalShortcuts);
+
+  if (workspaceMessagesRetry) {
+    workspaceMessagesRetry.addEventListener('click', () => {
+      reloadWorkspaceForInitialRoute();
+    });
+  }
 
   function registerWorkspaceFirstInteraction() {
     if (!WORKSPACE_V1_ENABLED || !INITIAL_DIALOG_TICKET_ID) return;
