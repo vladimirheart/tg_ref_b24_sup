@@ -176,12 +176,14 @@
     rolloutPercent: Math.max(0, Math.min(100, Number(window.DIALOG_CONFIG?.workspace_ab_rollout_percent) || 0)),
   });
   const STORAGE_WORKSPACE_AB = 'iguana:dialogs:workspace-ab-cohort';
-  const WORKSPACE_TELEMETRY_EVENT_GROUPS = Object.freeze({
+  const DIALOGS_TELEMETRY_EVENT_GROUPS = Object.freeze({
     workspace_open_ms: 'performance',
     workspace_render_error: 'stability',
     workspace_fallback_to_legacy: 'stability',
     workspace_abandon: 'engagement',
     workspace_experiment_exposure: 'experiment',
+    macro_preview: 'macro',
+    macro_apply: 'macro',
   });
   let workspaceReadonlyMode = false;
 
@@ -326,6 +328,7 @@
   let mediaImageScale = 1;
   let categorySaveTimer = null;
   let activeMacroTemplate = null;
+  let activeMacroMeta = null;
   const workspaceOpenTimers = new Map();
   const workspaceFirstInteractionTickets = new Set();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
@@ -1538,7 +1541,7 @@
 
   async function emitWorkspaceTelemetry(eventType, payload = {}) {
     if (!eventType) return;
-    const eventGroup = WORKSPACE_TELEMETRY_EVENT_GROUPS[eventType] || null;
+    const eventGroup = DIALOGS_TELEMETRY_EVENT_GROUPS[eventType] || null;
     const body = {
       event_type: String(eventType),
       event_group: eventGroup,
@@ -1550,6 +1553,8 @@
       duration_ms: Number.isFinite(payload.durationMs) ? payload.durationMs : null,
       experiment_name: workspaceExperimentContext.experimentName,
       experiment_cohort: workspaceExperimentContext.cohort,
+      template_id: payload.templateId || null,
+      template_name: payload.templateName || null,
     };
     try {
       await fetch('/api/dialogs/workspace-telemetry', {
@@ -2325,6 +2330,12 @@
   function renderMacroTemplate(template) {
     if (!macroTemplatePreview || !macroTemplateEmpty || !macroTemplateMeta) return;
     activeMacroTemplate = template || null;
+    activeMacroMeta = template
+      ? {
+        id: String(template?.id || '').trim() || null,
+        name: String(template?.name || '').trim() || null,
+      }
+      : null;
     const message = resolveMacroText(template);
     macroTemplatePreview.textContent = message || 'Выберите макрос для предпросмотра.';
     macroTemplateMeta.innerHTML = '';
@@ -2339,6 +2350,13 @@
     macroTemplateEmpty.classList.toggle('d-none', hasMessage);
     if (macroTemplateApply) {
       macroTemplateApply.disabled = !hasMessage;
+    }
+    if (activeMacroMeta && hasMessage) {
+      emitWorkspaceTelemetry('macro_preview', {
+        ticketId: activeDialogTicketId,
+        templateId: activeMacroMeta.id,
+        templateName: activeMacroMeta.name,
+      });
     }
   }
 
@@ -2446,6 +2464,11 @@
     if (typeof showNotification === 'function') {
       showNotification('Макрос добавлен в поле ответа.', 'success');
     }
+    emitWorkspaceTelemetry('macro_apply', {
+      ticketId: activeDialogTicketId,
+      templateId: activeMacroMeta?.id || null,
+      templateName: activeMacroMeta?.name || null,
+    });
   }
 
   function saveColumnWidths() {
