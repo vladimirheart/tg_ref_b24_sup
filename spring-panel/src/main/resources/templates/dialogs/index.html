@@ -78,6 +78,15 @@
                                 Не удалось загрузить сообщения. <button class="btn btn-link btn-sm p-0" id="workspaceMessagesRetry" type="button">Повторить</button>
                             </div>
                         </div>
+                        <div class="workspace-panel-block" id="workspaceComposerBlock">
+                            <div class="small text-muted mb-2">Ответ оператору</div>
+                            <textarea class="form-control form-control-sm mb-2" id="workspaceComposerText" rows="4" placeholder="Введите ответ клиенту…"></textarea>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">Отправить (Ctrl+Enter)</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">Сохранить черновик (Ctrl+S)</button>
+                                <span class="small text-muted" id="workspaceComposerDraftState">Черновик не сохранён</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-12 col-xl-4">
                         <div class="workspace-panel-block mb-3" id="workspaceClientBlock">
