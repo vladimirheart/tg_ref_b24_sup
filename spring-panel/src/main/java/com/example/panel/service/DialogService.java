@@ -17,6 +17,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -418,6 +419,63 @@ public class DialogService {
         return findDialog(ticketId, operator).map(item -> new DialogDetails(item, loadHistory(ticketId, channelId), loadTicketCategories(ticketId)));
     }
 
+    public List<Map<String, Object>> loadClientDialogHistory(Long userId, String currentTicketId, int limit) {
+        if (userId == null || limit <= 0) {
+            return List.of();
+        }
+        try {
+            String sql = """
+                    SELECT m.ticket_id, COALESCE(t.status, 'pending') AS status, m.created_at,
+                           COALESCE(m.problem, '') AS problem
+                      FROM messages m
+                      LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
+                     WHERE m.user_id = ?
+                       AND (? IS NULL OR m.ticket_id <> ?)
+                     ORDER BY substr(m.created_at, 1, 19) DESC
+                     LIMIT ?
+                    """;
+            return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                Map<String, Object> historyItem = new LinkedHashMap<>();
+                historyItem.put("ticket_id", rs.getString("ticket_id"));
+                historyItem.put("status", rs.getString("status"));
+                historyItem.put("created_at", rs.getString("created_at"));
+                historyItem.put("problem", rs.getString("problem"));
+                return historyItem;
+            }, userId, currentTicketId, currentTicketId, limit);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load client dialog history for user {}: {}", userId, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    public List<Map<String, Object>> loadRelatedEvents(String ticketId, int limit) {
+        if (!StringUtils.hasText(ticketId) || limit <= 0) {
+            return List.of();
+        }
+        try {
+            String sql = """
+                    SELECT sender, timestamp, message_type, message
+                      FROM chat_history
+                     WHERE ticket_id = ?
+                       AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system')
+                            OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
+                     ORDER BY substr(timestamp, 1, 19) DESC, COALESCE(tg_message_id, 0) DESC, id DESC
+                     LIMIT ?
+                    """;
+            return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                Map<String, Object> eventItem = new LinkedHashMap<>();
+                eventItem.put("actor", rs.getString("sender"));
+                eventItem.put("timestamp", rs.getString("timestamp"));
+                eventItem.put("type", rs.getString("message_type"));
+                eventItem.put("detail", rs.getString("message"));
+                return eventItem;
+            }, ticketId, limit);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load related events for ticket {}: {}", ticketId, ex.getMessage());
+            return List.of();
+        }
+    }
+
     private Set<String> loadTableColumns(String tableName) {
         try {
             return jdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
@@ -679,4 +737,3 @@ public class DialogService {
     public record ResolveResult(boolean updated, boolean exists, String error) {
     }
 }
-
