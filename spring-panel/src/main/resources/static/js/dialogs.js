@@ -158,6 +158,7 @@
     normalizeSlaMinutes(window.DIALOG_CONFIG?.sla_critical_minutes, 30),
     SLA_TARGET_MINUTES,
   );
+  const AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW = window.DIALOG_CONFIG?.sla_critical_auto_sort !== false;
   const WORKSPACE_V1_ENABLED = Boolean(window.DIALOG_CONFIG?.workspace_v1);
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
@@ -1174,6 +1175,7 @@
     slaWindowMinutes: null,
     sortMode: 'default',
   };
+  let lastManualSortMode = filterState.sortMode;
 
   function resolveSlaPriority(row) {
     if (!row || isResolved(row)) {
@@ -1476,7 +1478,26 @@
   }
 
   function setViewTab(nextView) {
-    filterState.view = nextView || 'all';
+    const resolvedView = nextView || 'all';
+    const isEnteringCriticalView = resolvedView === 'sla_critical';
+    const isLeavingCriticalView = filterState.view === 'sla_critical' && resolvedView !== 'sla_critical';
+
+    if (AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW && isEnteringCriticalView) {
+      if (filterState.sortMode !== 'sla_priority') {
+        lastManualSortMode = filterState.sortMode;
+      }
+      filterState.sortMode = 'sla_priority';
+      if (sortModeSelect) {
+        sortModeSelect.value = 'sla_priority';
+      }
+    } else if (AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW && isLeavingCriticalView) {
+      filterState.sortMode = lastManualSortMode === 'sla_priority' ? 'default' : lastManualSortMode;
+      if (sortModeSelect) {
+        sortModeSelect.value = filterState.sortMode;
+      }
+    }
+
+    filterState.view = resolvedView;
     viewTabs.forEach((tab) => {
       tab.classList.toggle('active', tab.dataset.dialogView === filterState.view);
     });
@@ -3650,6 +3671,9 @@
     sortModeSelect.addEventListener('change', () => {
       const value = String(sortModeSelect.value || 'default').trim().toLowerCase();
       filterState.sortMode = value === 'sla_priority' ? 'sla_priority' : 'default';
+      if (filterState.sortMode !== 'sla_priority') {
+        lastManualSortMode = filterState.sortMode;
+      }
       applyFilters();
     });
   }
@@ -3690,6 +3714,7 @@
         sortModeSelect.value = 'default';
       }
       filterState.sortMode = 'default';
+      lastManualSortMode = 'default';
       applyFilters();
     });
   }
