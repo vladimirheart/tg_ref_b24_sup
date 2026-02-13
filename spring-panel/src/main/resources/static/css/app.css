@@ -556,6 +556,18 @@ body {
   color: #fff;
 }
 
+.dialog-table tbody tr.dialog-priority-breached {
+  border-left: 3px solid #dc3545;
+}
+
+.dialog-table tbody tr.dialog-priority-at-risk {
+  border-left: 3px solid #fd7e14;
+}
+
+.dialog-table tbody tr.dialog-priority-normal {
+  border-left: 3px solid #198754;
+}
+
 .dialog-actions .btn:focus-visible,
 [data-dialog-view]:focus-visible {
   outline: 2px solid #0d6efd;
@@ -978,3 +990,4 @@ body {
     transform-origin: center center;
     transition: transform 0.2s ease;
 }
+
