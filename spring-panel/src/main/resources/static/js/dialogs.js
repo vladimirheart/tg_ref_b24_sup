@@ -1131,12 +1131,15 @@
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const dialogs = data.dialogs || [];
+      syncSlaOrchestrationSignals(data.sla_orchestration || null);
+      applySlaOrchestrationToRows();
       const marker = buildDialogsMarker(dialogs);
       if (lastListMarker === null) {
         lastListMarker = marker;
       }
       if (marker !== lastListMarker) {
         syncDialogsTable(dialogs);
+        applySlaOrchestrationToRows();
         refreshSummaryCounters(data.summary || {});
         lastListMarker = marker;
       }
@@ -1178,6 +1181,38 @@
     sortMode: 'default',
   };
   let lastManualSortMode = filterState.sortMode;
+  const slaOrchestrationByTicket = new Map();
+
+  function syncSlaOrchestrationSignals(slaOrchestration) {
+    slaOrchestrationByTicket.clear();
+    const tickets = slaOrchestration && typeof slaOrchestration === 'object'
+      ? slaOrchestration.tickets
+      : null;
+    if (!tickets || typeof tickets !== 'object') {
+      return;
+    }
+    Object.entries(tickets).forEach(([ticketId, signal]) => {
+      if (!ticketId || !signal || typeof signal !== 'object') return;
+      slaOrchestrationByTicket.set(String(ticketId), signal);
+    });
+  }
+
+  function applySlaOrchestrationToRows() {
+    rowsList().forEach((row) => {
+      const ticketId = String(row?.dataset?.ticketId || '');
+      const signal = slaOrchestrationByTicket.get(ticketId);
+      if (!signal) {
+        row.dataset.slaServerState = '';
+        row.dataset.slaServerPinned = '';
+        row.dataset.slaMinutesLeft = '';
+        return;
+      }
+      const minutesLeft = Number(signal.minutes_left);
+      row.dataset.slaServerState = String(signal.state || '');
+      row.dataset.slaServerPinned = signal.auto_pin ? 'true' : 'false';
+      row.dataset.slaMinutesLeft = Number.isFinite(minutesLeft) ? String(minutesLeft) : '';
+    });
+  }
 
   function resolveSlaPriority(row) {
     if (!row || isResolved(row)) {
@@ -1262,6 +1297,9 @@
   }
 
   function isCriticalSlaDialog(row) {
+    if (row?.dataset?.slaServerPinned === 'true') {
+      return true;
+    }
     const minutesLeft = resolveSlaMinutesLeft(row);
     if (!Number.isFinite(minutesLeft)) return false;
     return minutesLeft <= SLA_CRITICAL_MINUTES;
@@ -1269,6 +1307,10 @@
 
   function resolveSlaMinutesLeft(row) {
     if (!row || isResolved(row)) return null;
+    const serverMinutesLeft = Number(row.dataset.slaMinutesLeft);
+    if (Number.isFinite(serverMinutesLeft)) {
+      return serverMinutesLeft;
+    }
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
     if (!createdAtRaw) return null;
     const createdAt = new Date(createdAtRaw);
