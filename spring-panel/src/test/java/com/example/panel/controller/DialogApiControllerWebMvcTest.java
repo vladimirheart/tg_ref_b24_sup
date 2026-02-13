@@ -6,6 +6,7 @@ import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.PermissionService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -52,17 +54,24 @@ class DialogApiControllerWebMvcTest {
     @MockBean
     private SharedConfigService sharedConfigService;
 
+    @MockBean
+    private PermissionService permissionService;
+
     @Test
     void snoozeRejectsInvalidDuration() throws Exception {
+        when(permissionService.hasAuthority(null, "PAGE_DIALOGS")).thenReturn(false);
         mockMvc.perform(post("/api/dialogs/T-1/snooze")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"minutes\":0}"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
     void snoozeAcceptsValidDuration() throws Exception {
+        when(permissionService.hasAuthority(null, "PAGE_DIALOGS")).thenReturn(true);
+        when(permissionService.hasAuthority(null, "DIALOG_BULK_ACTIONS")).thenReturn(false);
+        when(permissionService.hasAuthority(null, "ROLE_ADMIN")).thenReturn(false);
         mockMvc.perform(post("/api/dialogs/T-1/snooze")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"minutes\":60}"))
@@ -72,6 +81,9 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void takeReturnsNotFoundForUnknownTicket() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
         when(dialogService.findDialog(anyString(), anyString())).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/api/dialogs/T-404/take").with(user("operator")))
@@ -81,6 +93,9 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void takeAssignsDialogWhenTicketExists() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
         when(dialogService.findDialog("T-1", "operator"))
                 .thenReturn(Optional.of(new DialogListItem(
                         "T-1",
@@ -117,6 +132,9 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void workspaceReturnsContractPayload() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
         DialogListItem summary = new DialogListItem(
                 "T-1",
                 1L,
@@ -158,6 +176,7 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.contract_version").value("workspace.v1"))
                 .andExpect(jsonPath("$.conversation.ticketId").value("T-1"))
                 .andExpect(jsonPath("$.messages.has_more").value(false))
+                .andExpect(jsonPath("$.permissions.can_bulk").value(false))
                 .andExpect(jsonPath("$.sla.target_minutes").value(1440))
                 .andExpect(jsonPath("$.success").value(true));
     }
@@ -165,6 +184,9 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void workspaceSupportsIncludeAndPaginationParams() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
         DialogListItem summary = new DialogListItem(
                 "T-2",
                 1L,
@@ -250,10 +272,22 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void workspaceReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
         when(dialogService.loadDialogDetails("T-404", null, "operator")).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/dialogs/T-404/workspace").with(user("operator")))
                 .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void takeReturnsForbiddenWhenOperatorHasNoDialogsPermission() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(false);
+
+        mockMvc.perform(post("/api/dialogs/T-1/take").with(user("operator")))
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false));
     }
 }
