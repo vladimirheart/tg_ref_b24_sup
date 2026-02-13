@@ -63,6 +63,12 @@ class SupportPanelIntegrationTests {
     @BeforeEach
     void clean() {
         jdbcTemplate.update("DELETE FROM chat_history");
+        jdbcTemplate.update("DELETE FROM task_history");
+        jdbcTemplate.update("DELETE FROM task_links");
+        jdbcTemplate.update("DELETE FROM task_people");
+        jdbcTemplate.update("DELETE FROM task_comments");
+        jdbcTemplate.update("DELETE FROM tasks");
+        jdbcTemplate.update("DELETE FROM task_seq");
         jdbcTemplate.update("DELETE FROM web_form_sessions");
         jdbcTemplate.update("DELETE FROM messages");
         jdbcTemplate.update("DELETE FROM tickets");
@@ -136,6 +142,29 @@ class SupportPanelIntegrationTests {
         notificationService.markAsRead("operator", notifications.get(0).id());
         NotificationSummary after = notificationService.summary("operator");
         assertThat(after.unreadCount()).isEqualTo(1);
+    }
+
+    @Test
+    void loadRelatedEventsIncludesWorkflowHistoryFromTaskLinks() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) VALUES (3, 'token3', 'Ops', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
+                1002L, "T-WF-1", "pending", 3);
+        jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, business, city, location_name, problem, created_at, username, ticket_id, created_date, created_time, client_name, client_status, updated_at, updated_by, channel_id) " +
+                        "VALUES (NULL, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, 'tester', ?)",
+                1002L, "IT", "Москва", "Офис", "Нет доступа", "petrov", "T-WF-1", "Пётр", "Новый", 3);
+
+        jdbcTemplate.update("INSERT INTO task_seq (id, val) VALUES (1, 1)");
+        jdbcTemplate.update("INSERT INTO tasks (id, seq, title, creator, assignee, status, created_at, last_activity_at) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+                500L, 1L, "Разобрать обращение", "lead", "operator", "В работе");
+        jdbcTemplate.update("INSERT INTO task_links (user_id, task_id, ticket_id) VALUES (?,?,?)", 1002L, 500L, "T-WF-1");
+        jdbcTemplate.update("INSERT INTO task_history (task_id, at, text) VALUES (?,?,?)", 500L, OffsetDateTime.now().plusMinutes(1).toString(), "Назначен дежурному инженеру");
+
+        List<Map<String, Object>> events = dialogService.loadRelatedEvents("T-WF-1", 10);
+        assertThat(events).isNotEmpty();
+        assertThat(events).anySatisfy(event -> {
+            assertThat(event.get("type")).isEqualTo("workflow");
+            assertThat(String.valueOf(event.get("detail"))).contains("Назначен дежурному инженеру");
+        });
     }
 
 }
