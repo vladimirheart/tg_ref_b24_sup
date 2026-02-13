@@ -12,6 +12,9 @@
   const experimentInfoMeta = document.getElementById('dialogExperimentInfoMeta');
   const experimentPrimaryKpis = document.getElementById('dialogExperimentPrimaryKpis');
   const experimentSecondaryKpis = document.getElementById('dialogExperimentSecondaryKpis');
+  const experimentTelemetrySummaryState = document.getElementById('dialogExperimentTelemetrySummaryState');
+  const experimentTelemetrySummaryRows = document.getElementById('dialogExperimentTelemetrySummaryRows');
+  const experimentInfoModalEl = document.getElementById('dialogExperimentInfoModal');
   const filtersModalEl = document.getElementById('dialogFiltersModal');
   const columnsModalEl = document.getElementById('dialogColumnsModal');
   const detailsModalEl = document.getElementById('dialogDetailsModal');
@@ -1684,6 +1687,52 @@
     }
     renderExperimentKpiItems(experimentPrimaryKpis, WORKSPACE_AB_TEST_CONFIG.primaryKpis);
     renderExperimentKpiItems(experimentSecondaryKpis, WORKSPACE_AB_TEST_CONFIG.secondaryKpis);
+  }
+
+  function renderExperimentTelemetrySummaryRows(rows) {
+    if (!experimentTelemetrySummaryRows) return;
+    const safeRows = Array.isArray(rows) ? rows : [];
+    if (!safeRows.length) {
+      experimentTelemetrySummaryRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Недостаточно telemetry-данных для расчёта.</td></tr>';
+      return;
+    }
+    experimentTelemetrySummaryRows.innerHTML = safeRows.map((row) => {
+      const avgOpenMs = Number.isFinite(Number(row?.avg_open_ms)) ? Math.round(Number(row.avg_open_ms)) : '—';
+      return `
+        <tr>
+          <td>${escapeHtml(String(row?.experiment_cohort || 'unknown'))}</td>
+          <td>${escapeHtml(String(row?.operator_segment || 'unknown'))}</td>
+          <td class="text-end">${escapeHtml(String(Number(row?.events || 0)))}</td>
+          <td class="text-end">${escapeHtml(String(Number(row?.fallbacks || 0)))}</td>
+          <td class="text-end">${escapeHtml(String(Number(row?.render_errors || 0)))}</td>
+          <td class="text-end">${escapeHtml(String(avgOpenMs))}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function loadExperimentTelemetrySummary() {
+    if (!experimentTelemetrySummaryRows) return;
+    if (experimentTelemetrySummaryState) {
+      experimentTelemetrySummaryState.textContent = 'Загрузка агрегатов telemetry…';
+    }
+    try {
+      const response = await fetch(`/api/dialogs/workspace-telemetry/summary?days=7&experiment_name=${encodeURIComponent(WORKSPACE_AB_TEST_CONFIG.experimentName)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const payload = await response.json();
+      renderExperimentTelemetrySummaryRows(payload?.rows || []);
+      if (experimentTelemetrySummaryState) {
+        const totals = payload?.totals || {};
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} · Fallback: ${Number(totals.fallbacks || 0)} · Render error: ${Number(totals.render_errors || 0)}.`;
+      }
+    } catch (_error) {
+      renderExperimentTelemetrySummaryRows([]);
+      if (experimentTelemetrySummaryState) {
+        experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
+      }
+    }
   }
 
   function formatWorkspaceDateTime(value) {
@@ -4120,6 +4169,11 @@
   hydrateAvatars(table);
   applyOperatorPermissionGuards();
   renderExperimentInfoPanel();
+  if (experimentInfoModalEl) {
+    experimentInfoModalEl.addEventListener('show.bs.modal', () => {
+      loadExperimentTelemetrySummary();
+    });
+  }
   updateAllSlaBadges();
   setInterval(updateAllSlaBadges, 60 * 1000);
   emitWorkspaceTelemetry('workspace_experiment_exposure', {
