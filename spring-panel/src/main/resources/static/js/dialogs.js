@@ -5,6 +5,7 @@
 
   const quickSearch = document.getElementById('dialogQuickSearch');
   const pageSizeSelect = document.getElementById('dialogPageSize');
+  const slaWindowSelect = document.getElementById('dialogSlaWindow');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
   const columnsBtn = document.getElementById('dialogColumnsBtn');
   const filtersModalEl = document.getElementById('dialogFiltersModal');
@@ -1010,7 +1011,7 @@
     }
   }
 
-  const filterState = { search: '', status: '', view: 'all', pageSize: DEFAULT_PAGE_SIZE };
+  const filterState = { search: '', status: '', view: 'all', pageSize: DEFAULT_PAGE_SIZE, slaWindowMinutes: null };
 
   function isNewDialog(row) {
     const key = String(row.dataset.statusKey || '').toLowerCase();
@@ -1037,6 +1038,24 @@
   function isSnoozedDialog(row) {
     const ticketId = row?.dataset?.ticketId;
     return Boolean(getSnoozeUntil(ticketId));
+  }
+
+  function resolveSlaMinutesLeft(row) {
+    if (!row || isResolved(row)) return null;
+    const createdAtRaw = String(row.dataset.createdAt || '').trim();
+    if (!createdAtRaw) return null;
+    const createdAt = new Date(createdAtRaw);
+    if (Number.isNaN(createdAt.getTime())) return null;
+    return SLA_TARGET_MINUTES - ((Date.now() - createdAt.getTime()) / 60000);
+  }
+
+  function matchesSlaReactionWindow(row) {
+    if (!Number.isFinite(filterState.slaWindowMinutes) || filterState.slaWindowMinutes <= 0) {
+      return true;
+    }
+    const minutesLeft = resolveSlaMinutesLeft(row);
+    if (!Number.isFinite(minutesLeft)) return false;
+    return minutesLeft <= filterState.slaWindowMinutes;
   }
 
   function matchesCurrentView(row) {
@@ -1181,7 +1200,8 @@
       const matchesSearch = !search || text.includes(search);
       const matchesStatus = !status || statusValue === status;
       const matchesView = matchesCurrentView(row);
-      const visible = matchesSearch && matchesStatus && matchesView;
+      const matchesSlaWindow = matchesSlaReactionWindow(row);
+      const visible = matchesSearch && matchesStatus && matchesView && matchesSlaWindow;
       row.classList.toggle('d-none', !visible);
       if (visible) {
         matchedRows.push(row);
@@ -2956,6 +2976,14 @@
     });
   }
 
+  if (slaWindowSelect) {
+    slaWindowSelect.addEventListener('change', () => {
+      const parsed = Number.parseInt(slaWindowSelect.value, 10);
+      filterState.slaWindowMinutes = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      applyFilters();
+    });
+  }
+
   if (filtersBtn && filtersModal) {
     filtersBtn.addEventListener('click', () => {
       if (filtersForm) {
@@ -2984,6 +3012,10 @@
       filterState.status = '';
       if (filtersForm) filtersForm.reset();
       if (quickSearch) quickSearch.value = '';
+      if (slaWindowSelect) {
+        slaWindowSelect.value = '';
+      }
+      filterState.slaWindowMinutes = null;
       applyFilters();
     });
   }
