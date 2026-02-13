@@ -258,7 +258,7 @@ public class DialogApiController {
         if (request == null || request.eventType() == null || request.eventType().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "event_type is required"));
         }
-        log.info("Workspace telemetry: actor='{}', event='{}', group='{}', ticket='{}', reason='{}', error='{}', contract='{}', durationMs={}, experiment='{}', cohort='{}'",
+        log.info("Workspace telemetry: actor='{}', event='{}', group='{}', ticket='{}', reason='{}', error='{}', contract='{}', durationMs={}, experiment='{}', cohort='{}', templateId='{}', templateName='{}'",
                 operator,
                 request.eventType(),
                 request.eventGroup(),
@@ -268,7 +268,9 @@ public class DialogApiController {
                 request.contractVersion(),
                 request.durationMs(),
                 request.experimentName(),
-                request.experimentCohort());
+                request.experimentCohort(),
+                request.templateId(),
+                request.templateName());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -554,7 +556,9 @@ public class DialogApiController {
                                           @JsonAlias("contract_version") String contractVersion,
                                           @JsonAlias("duration_ms") Long durationMs,
                                           @JsonAlias("experiment_name") String experimentName,
-                                          @JsonAlias("experiment_cohort") String experimentCohort) {}
+                                          @JsonAlias("experiment_cohort") String experimentCohort,
+                                          @JsonAlias("template_id") String templateId,
+                                          @JsonAlias("template_name") String templateName) {}
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 
