@@ -25,6 +25,7 @@
   const workspaceSlaState = document.getElementById('workspaceSlaState');
   const workspaceSlaContent = document.getElementById('workspaceSlaContent');
   const workspaceSlaError = document.getElementById('workspaceSlaError');
+  const workspaceReadonlyBanner = document.getElementById('workspaceReadonlyBanner');
 
   const filtersForm = document.getElementById('dialogFiltersForm');
   const filtersApply = document.getElementById('dialogFiltersApply');
@@ -156,6 +157,8 @@
   });
   const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
   const WORKSPACE_OPEN_SLO_MS = 2000;
+  const WORKSPACE_MUTATING_PERMISSION_KEYS = Object.freeze(['can_assign', 'can_close', 'can_snooze', 'can_bulk']);
+  let workspaceReadonlyMode = false;
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -180,7 +183,42 @@
 
   function canRunAction(permissionKey) {
     if (!permissionKey) return true;
+    if (workspaceReadonlyMode && WORKSPACE_MUTATING_PERMISSION_KEYS.includes(permissionKey)) {
+      return false;
+    }
     return OPERATOR_PERMISSIONS[permissionKey] !== false;
+  }
+
+  function setWorkspaceReadonlyMode(isReadonly, reasonText) {
+    const nextState = Boolean(isReadonly);
+    const stateChanged = workspaceReadonlyMode !== nextState;
+    workspaceReadonlyMode = nextState;
+    if (workspaceReadonlyBanner) {
+      workspaceReadonlyBanner.classList.toggle('d-none', !nextState);
+      if (nextState && reasonText) {
+        workspaceReadonlyBanner.textContent = String(reasonText);
+      }
+    }
+    if (stateChanged) {
+      updateBulkToolbarState();
+      renderTableFromRows(true);
+    }
+  }
+
+  function resolveWorkspaceReadonlyReason(permissions) {
+    if (!permissions || typeof permissions !== 'object') {
+      return 'Workspace открыт в режиме только чтения: не удалось получить права оператора.';
+    }
+    const requiredFlags = ['can_reply', ...WORKSPACE_MUTATING_PERMISSION_KEYS];
+    const hasInvalidFlag = requiredFlags.some((flag) => typeof permissions[flag] !== 'boolean');
+    if (hasInvalidFlag) {
+      return 'Workspace открыт в режиме только чтения: права оператора загружены некорректно.';
+    }
+    const hasMutatingPermission = WORKSPACE_MUTATING_PERMISSION_KEYS.some((flag) => permissions[flag] === true);
+    if (!hasMutatingPermission) {
+      return 'Workspace открыт в режиме только чтения: действия изменения отключены политикой доступа.';
+    }
+    return null;
   }
 
   function notifyPermissionDenied(actionTitle) {
@@ -1485,6 +1523,10 @@
     const messages = payload?.messages || {};
     const context = payload?.context || {};
     const sla = payload?.sla || {};
+    const permissions = payload?.permissions;
+
+    const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
+    setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
 
     if (workspaceConversationTitle) {
       workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
@@ -1602,6 +1644,7 @@
         window.location.assign(nextUrl);
       }
     } catch (error) {
+      setWorkspaceReadonlyMode(false);
       const durationMs = finishWorkspaceOpenTimer(ticketId);
       const reason = String(error?.code || error?.message || 'unknown_error');
       await emitWorkspaceTelemetry('workspace_render_error', {
@@ -1632,6 +1675,7 @@
 
   function openDialogEntry(ticketId, row) {
     if (!ticketId) return;
+    setWorkspaceReadonlyMode(false);
     if (!WORKSPACE_V1_ENABLED) {
       openDialogDetails(ticketId, row);
       return;
