@@ -22,6 +22,12 @@
   const workspaceClientState = document.getElementById('workspaceClientState');
   const workspaceClientContent = document.getElementById('workspaceClientContent');
   const workspaceClientError = document.getElementById('workspaceClientError');
+  const workspaceHistoryState = document.getElementById('workspaceHistoryState');
+  const workspaceHistoryContent = document.getElementById('workspaceHistoryContent');
+  const workspaceHistoryError = document.getElementById('workspaceHistoryError');
+  const workspaceRelatedEventsState = document.getElementById('workspaceRelatedEventsState');
+  const workspaceRelatedEventsContent = document.getElementById('workspaceRelatedEventsContent');
+  const workspaceRelatedEventsError = document.getElementById('workspaceRelatedEventsError');
   const workspaceSlaState = document.getElementById('workspaceSlaState');
   const workspaceSlaContent = document.getElementById('workspaceSlaContent');
   const workspaceSlaError = document.getElementById('workspaceSlaError');
@@ -1574,6 +1580,14 @@
     return date.toLocaleString('ru-RU');
   }
 
+  function renderWorkspaceSimpleList(items, formatter) {
+    const list = Array.isArray(items) ? items : [];
+    if (list.length === 0) {
+      return '<div class="small text-muted">Пока нет данных.</div>';
+    }
+    return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
+  }
+
   function renderWorkspaceShell(payload) {
     if (!workspaceShell) return;
     workspaceShell.classList.remove('d-none');
@@ -1628,6 +1642,46 @@
       if (workspaceClientState) workspaceClientState.classList.add('d-none');
       if (workspaceClientContent) workspaceClientContent.classList.add('d-none');
       if (workspaceClientError) workspaceClientError.classList.remove('d-none');
+    }
+
+    const contextHistory = Array.isArray(context.history) ? context.history : null;
+    if (contextHistory) {
+      if (workspaceHistoryState) workspaceHistoryState.classList.add('d-none');
+      if (workspaceHistoryError) workspaceHistoryError.classList.add('d-none');
+      if (workspaceHistoryContent) {
+        workspaceHistoryContent.classList.remove('d-none');
+        workspaceHistoryContent.innerHTML = renderWorkspaceSimpleList(contextHistory, (item) => {
+          const ticketId = escapeHtml(item.ticket_id || item.ticketId || '—');
+          const status = escapeHtml(item.status || '—');
+          const createdAt = escapeHtml(formatWorkspaceDateTime(item.created_at || item.createdAt));
+          const problem = escapeHtml(item.problem || 'Без описания');
+          return `<div><strong>#${ticketId}</strong> · <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
+        });
+      }
+    } else {
+      if (workspaceHistoryState) workspaceHistoryState.classList.add('d-none');
+      if (workspaceHistoryContent) workspaceHistoryContent.classList.add('d-none');
+      if (workspaceHistoryError) workspaceHistoryError.classList.remove('d-none');
+    }
+
+    const relatedEvents = Array.isArray(context.related_events) ? context.related_events : null;
+    if (relatedEvents) {
+      if (workspaceRelatedEventsState) workspaceRelatedEventsState.classList.add('d-none');
+      if (workspaceRelatedEventsError) workspaceRelatedEventsError.classList.add('d-none');
+      if (workspaceRelatedEventsContent) {
+        workspaceRelatedEventsContent.classList.remove('d-none');
+        workspaceRelatedEventsContent.innerHTML = renderWorkspaceSimpleList(relatedEvents, (item) => {
+          const actor = escapeHtml(item.actor || 'Система');
+          const type = escapeHtml(item.type || 'event');
+          const timestamp = escapeHtml(formatWorkspaceDateTime(item.timestamp));
+          const detail = escapeHtml(item.detail || '—');
+          return `<div><strong>${actor}</strong> · <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
+        });
+      }
+    } else {
+      if (workspaceRelatedEventsState) workspaceRelatedEventsState.classList.add('d-none');
+      if (workspaceRelatedEventsContent) workspaceRelatedEventsContent.classList.add('d-none');
+      if (workspaceRelatedEventsError) workspaceRelatedEventsError.classList.remove('d-none');
     }
 
     if (sla && sla.state && sla.state !== 'unknown') {
