@@ -454,22 +454,40 @@ public class DialogService {
         }
         try {
             String sql = """
-                    SELECT sender, timestamp, message_type, message
-                      FROM chat_history
-                     WHERE ticket_id = ?
-                       AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system')
-                            OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
-                     ORDER BY substr(timestamp, 1, 19) DESC, COALESCE(tg_message_id, 0) DESC, id DESC
+                    SELECT actor, event_at, event_type, detail
+                      FROM (
+                            SELECT COALESCE(sender, 'system') AS actor,
+                                   COALESCE(timestamp, CURRENT_TIMESTAMP) AS event_at,
+                                   COALESCE(message_type, 'event') AS event_type,
+                                   message AS detail,
+                                   id AS sort_id
+                              FROM chat_history
+                             WHERE ticket_id = ?
+                               AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system')
+                                    OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
+                            UNION ALL
+                            SELECT COALESCE(t.assignee, t.creator, 'system') AS actor,
+                                   COALESCE(th.at, t.last_activity_at, t.created_at, CURRENT_TIMESTAMP) AS event_at,
+                                   'workflow' AS event_type,
+                                   COALESCE(th.text, 'Обновление workflow') AS detail,
+                                   th.id AS sort_id
+                              FROM task_links tl
+                              JOIN tasks t ON t.id = tl.task_id
+                              LEFT JOIN task_history th ON th.task_id = t.id
+                             WHERE tl.ticket_id = ?
+                               AND COALESCE(trim(th.text), '') <> ''
+                       ) events
+                     ORDER BY substr(event_at, 1, 19) DESC, COALESCE(sort_id, 0) DESC
                      LIMIT ?
                     """;
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Map<String, Object> eventItem = new LinkedHashMap<>();
-                eventItem.put("actor", rs.getString("sender"));
-                eventItem.put("timestamp", rs.getString("timestamp"));
-                eventItem.put("type", rs.getString("message_type"));
-                eventItem.put("detail", rs.getString("message"));
+                eventItem.put("actor", rs.getString("actor"));
+                eventItem.put("timestamp", rs.getString("event_at"));
+                eventItem.put("type", rs.getString("event_type"));
+                eventItem.put("detail", rs.getString("detail"));
                 return eventItem;
-            }, ticketId, limit);
+            }, ticketId, ticketId, limit);
         } catch (DataAccessException ex) {
             log.warn("Unable to load related events for ticket {}: {}", ticketId, ex.getMessage());
             return List.of();
@@ -737,3 +755,4 @@ public class DialogService {
     public record ResolveResult(boolean updated, boolean exists, String error) {
     }
 }
+
