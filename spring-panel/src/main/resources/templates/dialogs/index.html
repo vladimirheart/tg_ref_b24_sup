@@ -381,6 +381,18 @@
                                             <div class="d-flex flex-column gap-2" id="dialogQuestionTemplateList"></div>
                                             <div class="text-muted small d-none" id="dialogQuestionTemplateEmpty">Шаблоны вопросов не настроены.</div>
                                         </div>
+                                        <div class="dialog-template-panel" id="dialogMacroTemplatesSection">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <div class="fw-semibold small">Макросы ответа</div>
+                                                <select class="form-select form-select-sm w-auto" id="dialogMacroTemplateSelect"></select>
+                                            </div>
+                                            <div class="small text-muted" id="dialogMacroTemplatePreview">Выберите макрос для предпросмотра.</div>
+                                            <div class="mt-2 d-flex flex-wrap gap-2" id="dialogMacroTemplateMeta"></div>
+                                            <div class="mt-2">
+                                                <button class="btn btn-outline-primary btn-sm" type="button" id="dialogMacroTemplateApply">Применить в ответ</button>
+                                            </div>
+                                            <div class="text-muted small d-none" id="dialogMacroTemplateEmpty">Макросы не настроены.</div>
+                                        </div>
                                     </div>
                                     <div class="dialog-composer-input mt-2">
                                         <div class="dialog-composer-textarea">
@@ -389,6 +401,10 @@
                                                 <button class="dialog-template-icon" type="button" data-template-toggle="question"
                                                         aria-label="Шаблоны вопросов" data-tooltip="Шаблоны вопросов">
                                                     ❓
+                                                </button>
+                                                <button class="dialog-template-icon" type="button" data-template-toggle="macro"
+                                                        aria-label="Макросы ответа" data-tooltip="Макросы ответа">
+                                                    ⚡
                                                 </button>
                                                 <button class="dialog-template-icon" type="button" id="dialogReplyEmojiTrigger"
                                                         aria-label="Добавить эмодзи" data-tooltip="Добавить эмодзи">
