@@ -82,9 +82,50 @@ public class DialogApiController {
         Map<String, Object> payload = new HashMap<>();
         payload.put("summary", summary);
         payload.put("dialogs", dialogs);
+        payload.put("sla_orchestration", buildSlaOrchestration(dialogs));
         payload.put("success", true);
         log.info("Loaded dialogs API payload: {} dialogs, summary stats loaded", dialogs.size());
         return payload;
+    }
+
+    private Map<String, Object> buildSlaOrchestration(List<DialogListItem> dialogs) {
+        int targetMinutes = resolveDialogConfigMinutes("sla_target_minutes", DEFAULT_SLA_TARGET_MINUTES);
+        int warningMinutes = Math.min(resolveDialogConfigMinutes("sla_warning_minutes", DEFAULT_SLA_WARNING_MINUTES), targetMinutes);
+        int criticalMinutes = resolveDialogConfigMinutes("sla_critical_minutes", 30);
+        boolean escalationEnabled = resolveDialogConfigBoolean("sla_critical_escalation_enabled", true);
+
+        Map<String, Object> ticketSignals = new LinkedHashMap<>();
+        long nowMs = System.currentTimeMillis();
+        for (DialogListItem dialog : dialogs) {
+            String ticketId = dialog.ticketId();
+            if (ticketId == null || ticketId.isBlank()) {
+                continue;
+            }
+            String statusKey = dialog.statusKey();
+            String state = resolveSlaState(dialog.createdAt(), targetMinutes, warningMinutes, statusKey);
+            Long minutesLeft = resolveSlaMinutesLeft(dialog.createdAt(), targetMinutes, statusKey, nowMs);
+            boolean critical = escalationEnabled && "open".equals(normalizeSlaLifecycleState(statusKey))
+                    && minutesLeft != null && minutesLeft <= criticalMinutes;
+            boolean assigned = dialog.responsible() != null && !dialog.responsible().isBlank();
+
+            Map<String, Object> signal = new LinkedHashMap<>();
+            signal.put("state", state);
+            signal.put("minutes_left", minutesLeft);
+            signal.put("is_critical", critical);
+            signal.put("auto_pin", critical);
+            signal.put("escalation_required", critical && !assigned);
+            signal.put("escalation_reason", critical && !assigned ? "critical_sla_unassigned" : null);
+            ticketSignals.put(ticketId, signal);
+        }
+
+        return Map.of(
+                "enabled", escalationEnabled,
+                "target_minutes", targetMinutes,
+                "warning_minutes", warningMinutes,
+                "critical_minutes", criticalMinutes,
+                "generated_at", Instant.ofEpochMilli(nowMs).toString(),
+                "tickets", ticketSignals
+        );
     }
 
     @GetMapping("/{ticketId}")
@@ -536,9 +577,31 @@ public class DialogApiController {
         }
     }
 
+    private boolean resolveDialogConfigBoolean(String key, boolean fallbackValue) {
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return fallbackValue;
+        }
+        Object value = dialogConfig.get(key);
+        if (value == null) {
+            return fallbackValue;
+        }
+        if (value instanceof Boolean boolValue) {
+            return boolValue;
+        }
+        String normalized = String.valueOf(value).trim().toLowerCase();
+        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
+            return true;
+        }
+        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
+            return false;
+        }
+        return fallbackValue;
+    }
+
     private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
-        String normalized = statusKey != null ? statusKey.trim().toLowerCase() : "";
-        if ("closed".equals(normalized) || "auto_closed".equals(normalized)) {
+        if ("closed".equals(normalizeSlaLifecycleState(statusKey))) {
             return "closed";
         }
         Long createdAtMs = parseTimestampToMillis(createdAt);
@@ -555,6 +618,26 @@ public class DialogApiController {
             return "at_risk";
         }
         return "normal";
+    }
+
+    private Long resolveSlaMinutesLeft(String createdAt, int targetMinutes, String statusKey, long nowMs) {
+        if (!"open".equals(normalizeSlaLifecycleState(statusKey))) {
+            return null;
+        }
+        Long createdAtMs = parseTimestampToMillis(createdAt);
+        if (createdAtMs == null) {
+            return null;
+        }
+        long deadlineMs = createdAtMs + targetMinutes * 60_000L;
+        return Math.round((deadlineMs - nowMs) / 60_000d);
+    }
+
+    private String normalizeSlaLifecycleState(String statusKey) {
+        String normalized = statusKey != null ? statusKey.trim().toLowerCase() : "";
+        if ("closed".equals(normalized) || "auto_closed".equals(normalized)) {
+            return "closed";
+        }
+        return "open";
     }
 
     private String computeDeadlineAt(String createdAt, int targetMinutes) {
