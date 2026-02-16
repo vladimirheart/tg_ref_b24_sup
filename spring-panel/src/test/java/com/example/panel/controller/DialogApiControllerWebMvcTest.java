@@ -20,6 +20,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Optional;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -128,6 +130,53 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.responsible").value("operator"));
+    }
+
+    @Test
+    void listBuildsSlaEscalationSignalForCriticalUnassignedDialogs() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "dialog_config", Map.of(
+                        "sla_target_minutes", 1440,
+                        "sla_warning_minutes", 240,
+                        "sla_critical_minutes", 30,
+                        "sla_critical_escalation_enabled", true
+                )
+        ));
+        when(dialogService.loadSummary()).thenReturn(new com.example.panel.model.dialog.DialogSummary(1, 0, 1, List.of()));
+        when(dialogService.loadDialogs("operator")).thenReturn(List.of(new DialogListItem(
+                "T-ESC",
+                11L,
+                42L,
+                "client",
+                "Клиент",
+                "biz",
+                1L,
+                "telegram",
+                "Москва",
+                "Центр",
+                "problem",
+                Instant.now().minus(1435, ChronoUnit.MINUTES).toString(),
+                "pending",
+                null,
+                null,
+                "",
+                "2026-01-01",
+                "10:00",
+                "normal",
+                "client",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "billing"
+        )));
+
+        mockMvc.perform(get("/api/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets.T-ESC.auto_pin").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets.T-ESC.escalation_required").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets.T-ESC.escalation_reason").value("critical_sla_unassigned"));
     }
 
     @Test
