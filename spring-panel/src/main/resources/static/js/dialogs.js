@@ -1963,7 +1963,7 @@
       if (workspaceClientError) workspaceClientError.classList.add('d-none');
       if (workspaceClientContent) {
         workspaceClientContent.classList.remove('d-none');
-        workspaceClientContent.innerHTML = `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div><div class="small text-muted">ID: ${escapeHtml(client.id || '—')}</div><div class="small text-muted">Язык: ${escapeHtml(client.language || '—')}</div>`;
+        workspaceClientContent.innerHTML = renderWorkspaceClientProfile(client);
       }
     } else {
       if (workspaceClientState) workspaceClientState.classList.add('d-none');
@@ -2023,6 +2023,36 @@
       if (workspaceSlaContent) workspaceSlaContent.classList.add('d-none');
       if (workspaceSlaError) workspaceSlaError.classList.remove('d-none');
     }
+  }
+
+  function renderWorkspaceClientProfile(client) {
+    if (!client || typeof client !== 'object') {
+      return '<div class="small text-muted">Профиль клиента недоступен.</div>';
+    }
+    const fields = [
+      ['ID', client.id],
+      ['Username', client.username],
+      ['Статус', client.status],
+      ['Канал', client.channel],
+      ['Бизнес', client.business],
+      ['Локация', client.location],
+      ['Ответственный', client.responsible],
+      ['Непрочитанные', client.unread_count],
+      ['Оценка', client.rating],
+      ['Последнее сообщение', formatWorkspaceDateTime(client.last_message_at)],
+      ['Язык', client.language],
+    ];
+    const rows = fields
+      .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
+      .map(([label, value]) => `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(String(value))}</span></div>`)
+      .join('');
+
+    const segments = Array.isArray(client.segments) ? client.segments.filter(Boolean) : [];
+    const segmentBadges = segments.length
+      ? `<div class="d-flex flex-wrap gap-1 mt-2">${segments.map((segment) => `<span class="badge text-bg-light border">${escapeHtml(segment)}</span>`).join('')}</div>`
+      : '';
+
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${segmentBadges}`;
   }
 
   async function preloadWorkspaceContract(ticketId, channelId) {
