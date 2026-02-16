@@ -1780,6 +1780,20 @@
               <li class="nav-item" role="presentation">
                 <button
                   class="nav-link"
+                  id="dialog-settings-macros-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-macros"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-macros"
+                  aria-selected="false"
+                >
+                  Макросы
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
                   id="dialog-settings-metrics-tab"
                   data-bs-toggle="tab"
                   data-bs-target="#dialog-settings-metrics"
@@ -1853,6 +1867,22 @@
                   </div>
                   <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
                   <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-macros"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-macros-tab"
+              >
+                <section>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Макросы ответов</h6>
+                    <button class="btn btn-sm btn-outline-success" type="button" onclick="addMacroTemplate()">+ Макрос</button>
+                  </div>
+                  <p class="small text-muted">Настройте библиотеку макросов для композера: текст, теги и стабильный ID. Макросы сразу доступны операторам в workspace.</p>
+                  <div id="macroTemplatesList" class="d-flex flex-column gap-3"></div>
                 </section>
               </div>
 
@@ -11406,11 +11436,11 @@
 
   function findDialogTemplateCard(source) {
     if (!(source instanceof HTMLElement)) return null;
-    return source.closest('[data-category-template], [data-question-template], [data-completion-template], [data-auto-close-template]');
+    return source.closest('[data-category-template], [data-question-template], [data-completion-template], [data-macro-template], [data-auto-close-template]');
   }
 
   function toggleDialogTemplateEditor(source, forceState) {
-    const card = source instanceof HTMLElement && source.matches('[data-category-template], [data-question-template], [data-completion-template], [data-auto-close-template]')
+    const card = source instanceof HTMLElement && source.matches('[data-category-template], [data-question-template], [data-completion-template], [data-macro-template], [data-auto-close-template]')
       ? source
       : findDialogTemplateCard(source);
     if (!card) return;
@@ -11499,6 +11529,33 @@
         const countText = `${items.length} ${pluralizeRussian(items.length, ['шаг', 'шага', 'шагов'])}`;
         const preview = buildPreview(items);
         summaryEl.textContent = preview ? `${countText} · ${preview}` : countText;
+      }
+    }
+  }
+
+  function updateMacroTemplateSummary(card) {
+    if (!(card instanceof HTMLElement)) return;
+    const nameInput = card.querySelector('.macro-template-name');
+    const titleEl = card.querySelector('[data-dialog-template-title]');
+    const summaryEl = card.querySelector('[data-dialog-template-summary]');
+    const name = (nameInput?.value || '').trim();
+    if (titleEl) {
+      titleEl.textContent = name || 'Макрос';
+    }
+    if (summaryEl) {
+      const tags = Array.from(card.querySelectorAll('.macro-tag-input'))
+        .map((input) => (input.value || '').trim())
+        .filter((value) => value);
+      const message = (card.querySelector('.macro-template-message')?.value || '').trim();
+      if (!message && !tags.length) {
+        summaryEl.textContent = 'Нет текста. Добавьте сообщение для быстрого ответа.';
+      } else {
+        const tagsText = tags.length
+          ? `${tags.length} ${pluralizeRussian(tags.length, ['тег', 'тега', 'тегов'])}`
+          : 'без тегов';
+        summaryEl.textContent = message
+          ? `${message.slice(0, 80)}${message.length > 80 ? '…' : ''} · ${tagsText}`
+          : tagsText;
       }
     }
   }
@@ -11851,6 +11908,128 @@
     }
     const card = container?.closest('[data-completion-template]');
     updateCompletionTemplateSummary(card);
+  }
+
+  function addMacroTemplate(template) {
+    const list = document.getElementById('macroTemplatesList');
+    if (!list) return;
+    const data = template && typeof template === 'object' ? template : {};
+    const templateId = data.id || generateDialogTemplateId('macro');
+    const name = typeof data.name === 'string' ? data.name : '';
+    const message = typeof data.message === 'string'
+      ? data.message
+      : (typeof data.text === 'string' ? data.text : '');
+    const tags = Array.isArray(data.tags) ? data.tags : [];
+
+    const card = document.createElement('div');
+    card.className = 'card shadow-sm dialog-template-card';
+    card.dataset.macroTemplate = 'true';
+    card.dataset.templateId = templateId;
+
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+          <div>
+            <h6 class="mb-1" data-dialog-template-title>Макрос</h6>
+            <div class="small text-muted dialog-template-summary" data-dialog-template-summary>Нет текста. Добавьте сообщение для быстрого ответа.</div>
+          </div>
+          <div class="d-flex flex-column align-items-lg-end gap-2 w-100 w-lg-auto">
+            <div class="btn-group btn-group-sm align-self-start align-self-lg-end">
+              <button class="btn btn-outline-primary" type="button" data-dialog-template-toggle onclick="toggleDialogTemplateEditor(this)">Настроить</button>
+              <button class="btn btn-outline-danger" type="button" onclick="removeMacroTemplate(this)">Удалить</button>
+            </div>
+          </div>
+        </div>
+        <div class="dialog-template-editor bg-light mt-3" data-dialog-template-editor aria-hidden="false">
+          <div class="mb-3">
+            <label class="form-label" for="macro-template-${templateId}">Название макроса</label>
+            <input type="text" class="form-control form-control-sm macro-template-name" id="macro-template-${templateId}" placeholder="Например, Проверка доставки" value="">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="macro-template-message-${templateId}">Текст ответа</label>
+            <textarea class="form-control form-control-sm macro-template-message" id="macro-template-message-${templateId}" rows="3" placeholder="Текст, который будет вставлен в composer"></textarea>
+          </div>
+          <div class="d-flex flex-column gap-2" data-macro-tags></div>
+          <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addMacroTagRow(this)">+ Тег</button>
+        </div>
+      </div>
+    `;
+
+    list.appendChild(card);
+    const nameInput = card.querySelector('.macro-template-name');
+    const messageInput = card.querySelector('.macro-template-message');
+    if (nameInput) {
+      nameInput.value = name;
+      nameInput.addEventListener('input', () => updateMacroTemplateSummary(card));
+    }
+    if (messageInput) {
+      messageInput.value = message;
+      messageInput.addEventListener('input', () => updateMacroTemplateSummary(card));
+    }
+    const tagsContainer = card.querySelector('[data-macro-tags]');
+    if (tagsContainer) {
+      if (tags.length) {
+        tags.forEach((tag) => addMacroTagRow(tagsContainer, tag));
+      } else {
+        addMacroTagRow(tagsContainer);
+      }
+    }
+
+    updateMacroTemplateSummary(card);
+    const hasInitialData = Boolean(name || message || tags.length);
+    toggleDialogTemplateEditor(card, !hasInitialData);
+    return card;
+  }
+
+  function addMacroTagRow(source, value = '') {
+    let container = null;
+    if (source instanceof HTMLElement && source.matches('[data-macro-tags]')) {
+      container = source;
+    } else if (source instanceof HTMLElement) {
+      const card = source.closest('[data-macro-template]');
+      container = card ? card.querySelector('[data-macro-tags]') : null;
+    }
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'input-group input-group-sm';
+    row.innerHTML = `
+      <input type="text" class="form-control macro-tag-input" placeholder="Тег">
+      <button class="btn btn-outline-danger" type="button" onclick="removeMacroTagRow(this)">✕</button>
+    `;
+    container.appendChild(row);
+    const input = row.querySelector('input');
+    if (input) {
+      input.value = value || '';
+      input.addEventListener('input', () => {
+        const card = container.closest('[data-macro-template]');
+        updateMacroTemplateSummary(card);
+      });
+    }
+    const card = container.closest('[data-macro-template]');
+    updateMacroTemplateSummary(card);
+  }
+
+  function removeMacroTemplate(trigger) {
+    const card = trigger?.closest('[data-macro-template]');
+    if (!card) return;
+    const list = document.getElementById('macroTemplatesList');
+    card.remove();
+    if (list && !list.querySelector('[data-macro-template]')) {
+      addMacroTemplate();
+    }
+  }
+
+  function removeMacroTagRow(trigger) {
+    const row = trigger?.closest('.input-group');
+    if (!row) return;
+    const container = row.parentElement;
+    row.remove();
+    if (container && !container.querySelector('.input-group')) {
+      addMacroTagRow(container);
+    }
+    const card = container?.closest('[data-macro-template]');
+    updateMacroTemplateSummary(card);
   }
 
   function buildAutoCloseTemplateCard(template) {
@@ -12379,6 +12558,15 @@
     } else {
       addCompletionTemplate();
     }
+
+    const macroTemplates = Array.isArray(DIALOG_CONFIG.macro_templates)
+      ? DIALOG_CONFIG.macro_templates
+      : [];
+    if (macroTemplates.length) {
+      macroTemplates.forEach((template) => addMacroTemplate(template));
+    } else {
+      addMacroTemplate();
+    }
   }
 
   // === Сохранение всех настроек ===
@@ -12471,6 +12659,26 @@
         };
       }).filter(Boolean);
 
+      const macroTemplates = Array.from(document.querySelectorAll('[data-macro-template]')).map((card, index) => {
+        if (!(card instanceof HTMLElement)) return null;
+        const templateId = card.dataset.templateId || generateDialogTemplateId('macro');
+        card.dataset.templateId = templateId;
+        const name = (card.querySelector('.macro-template-name')?.value || '').trim();
+        const message = (card.querySelector('.macro-template-message')?.value || '').trim();
+        const tags = Array.from(card.querySelectorAll('.macro-tag-input'))
+          .map((input) => (input.value || '').trim())
+          .filter((value, tagIndex, values) => value && values.indexOf(value) === tagIndex);
+        if (!name && !message && !tags.length) {
+          return null;
+        }
+        return {
+          id: templateId,
+          name: name || `Макрос ${index + 1}`,
+          message,
+          tags,
+        };
+      }).filter(Boolean);
+
       // Собираем статусы
       const statuses = Array.from(document.querySelectorAll('#statusesList .status-input'))
         .map(inp => inp.value.trim())
@@ -12489,6 +12697,7 @@
           dialog_category_templates: categoryTemplates,
           dialog_question_templates: questionTemplates,
           dialog_completion_templates: completionTemplates,
+          dialog_macro_templates: macroTemplates,
           dialog_time_metrics: timeMetricsState.config,
           dialog_summary_badges: { status: summaryBadgesState.status },
           auto_close_config: autoClosePayload,
