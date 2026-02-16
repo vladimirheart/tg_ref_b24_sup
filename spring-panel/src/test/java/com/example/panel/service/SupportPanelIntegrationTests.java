@@ -77,6 +77,7 @@ class SupportPanelIntegrationTests {
         jdbcTemplate.update("DELETE FROM knowledge_article_files");
         jdbcTemplate.update("DELETE FROM knowledge_articles");
         jdbcTemplate.update("DELETE FROM notifications");
+        jdbcTemplate.update("DELETE FROM workspace_telemetry_audit");
     }
 
     @Test
@@ -164,6 +165,59 @@ class SupportPanelIntegrationTests {
         assertThat(events).anySatisfy(event -> {
             assertThat(event.get("type")).isEqualTo("workflow");
             assertThat(String.valueOf(event.get("detail"))).contains("Назначен дежурному инженеру");
+        });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryIncludesPeriodComparisonAndRegressionAlerts() {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-1', NULL, NULL, 'workspace.v1', 1200, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
+                    ('op1', 'workspace_render_error', 'quality', 'T-1', NULL, 'render_failed', 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
+                    ('op2', 'workspace_open_ms', 'performance', 'T-2', NULL, NULL, 'workspace.v1', 2300, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
+                    ('op2', 'workspace_fallback_to_legacy', 'fallback', 'T-2', 'timeout', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
+
+                    ('op1', 'workspace_open_ms', 'performance', 'T-3', NULL, NULL, 'workspace.v1', 900, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op2', 'workspace_open_ms', 'performance', 'T-4', NULL, NULL, 'workspace.v1', 950, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op3', 'workspace_open_ms', 'performance', 'T-5', NULL, NULL, 'workspace.v1', 980, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op4', 'workspace_open_ms', 'performance', 'T-6', NULL, NULL, 'workspace.v1', 1020, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op5', 'workspace_open_ms', 'performance', 'T-7', NULL, NULL, 'workspace.v1', 1000, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op6', 'workspace_open_ms', 'performance', 'T-8', NULL, NULL, 'workspace.v1', 970, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op7', 'workspace_open_ms', 'performance', 'T-9', NULL, NULL, 'workspace.v1', 1030, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op8', 'workspace_open_ms', 'performance', 'T-10', NULL, NULL, 'workspace.v1', 1010, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op9', 'workspace_open_ms', 'performance', 'T-11', NULL, NULL, 'workspace.v1', 990, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op10', 'workspace_open_ms', 'performance', 'T-12', NULL, NULL, 'workspace.v1', 1015, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+
+                    ('op11', 'workspace_open_ms', 'performance', 'T-13', NULL, NULL, 'workspace.v1', 1110, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op12', 'workspace_open_ms', 'performance', 'T-14', NULL, NULL, 'workspace.v1', 1090, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op13', 'workspace_open_ms', 'performance', 'T-15', NULL, NULL, 'workspace.v1', 1080, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op14', 'workspace_open_ms', 'performance', 'T-16', NULL, NULL, 'workspace.v1', 1100, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op15', 'workspace_open_ms', 'performance', 'T-17', NULL, NULL, 'workspace.v1', 1130, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op16', 'workspace_open_ms', 'performance', 'T-18', NULL, NULL, 'workspace.v1', 1075, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op17', 'workspace_open_ms', 'performance', 'T-19', NULL, NULL, 'workspace.v1', 1060, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op18', 'workspace_open_ms', 'performance', 'T-20', NULL, NULL, 'workspace.v1', 1050, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op19', 'workspace_open_ms', 'performance', 'T-21', NULL, NULL, 'workspace.v1', 1140, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
+                    ('op20', 'workspace_open_ms', 'performance', 'T-22', NULL, NULL, 'workspace.v1', 1120, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+        Map<String, Object> previousTotals = (Map<String, Object>) summary.get("previous_totals");
+        Map<String, Object> comparison = (Map<String, Object>) summary.get("period_comparison");
+        Map<String, Object> guardrails = (Map<String, Object>) summary.get("guardrails");
+        List<Map<String, Object>> alerts = (List<Map<String, Object>>) guardrails.get("alerts");
+
+        assertThat(totals.get("events")).isEqualTo(4L);
+        assertThat(previousTotals.get("events")).isEqualTo(20L);
+        assertThat(comparison).containsKeys("render_error_rate_delta", "fallback_rate_delta", "avg_open_ms_delta");
+        assertThat(alerts).anySatisfy(alert -> {
+            assertThat(alert.get("metric")).isEqualTo("render_error");
+            assertThat(alert).containsKey("previous_value");
+            assertThat(alert).containsKey("delta");
         });
     }
 
