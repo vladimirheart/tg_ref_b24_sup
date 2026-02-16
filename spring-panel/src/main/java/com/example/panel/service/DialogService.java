@@ -607,28 +607,97 @@ public class DialogService {
 
     public Map<String, Object> loadWorkspaceTelemetrySummary(int days, String experimentName) {
         int windowDays = Math.max(1, Math.min(days, 30));
-        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowDays, experimentName);
+        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowDays, experimentName, 0);
+        List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(windowDays, experimentName, windowDays);
         List<Map<String, Object>> shiftRows = aggregateWorkspaceTelemetryRows(rows, "shift");
         List<Map<String, Object>> teamRows = aggregateWorkspaceTelemetryRows(rows, "team");
-        Map<String, Object> totals = new LinkedHashMap<>();
-        totals.put("events", rows.stream().mapToLong(row -> toLong(row.get("events"))).sum());
-        totals.put("render_errors", rows.stream().mapToLong(row -> toLong(row.get("render_errors"))).sum());
-        totals.put("fallbacks", rows.stream().mapToLong(row -> toLong(row.get("fallbacks"))).sum());
-        totals.put("abandons", rows.stream().mapToLong(row -> toLong(row.get("abandons"))).sum());
-        totals.put("slow_open_events", rows.stream().mapToLong(row -> toLong(row.get("slow_open_events"))).sum());
+        Map<String, Object> totals = computeWorkspaceTelemetryTotals(rows);
+        Map<String, Object> previousTotals = computeWorkspaceTelemetryTotals(previousRows);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("window_days", windowDays);
         payload.put("generated_at", Instant.now().toString());
         payload.put("totals", totals);
+        payload.put("previous_totals", previousTotals);
+        payload.put("period_comparison", buildWorkspaceTelemetryComparison(totals, previousTotals));
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
-        payload.put("guardrails", buildWorkspaceGuardrails(totals, rows, shiftRows, teamRows));
+        payload.put("guardrails", buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows));
         return payload;
     }
 
+    private Map<String, Object> computeWorkspaceTelemetryTotals(List<Map<String, Object>> rows) {
+        Map<String, Object> totals = new LinkedHashMap<>();
+        long events = rows.stream().mapToLong(row -> toLong(row.get("events"))).sum();
+        long renderErrors = rows.stream().mapToLong(row -> toLong(row.get("render_errors"))).sum();
+        long fallbacks = rows.stream().mapToLong(row -> toLong(row.get("fallbacks"))).sum();
+        long abandons = rows.stream().mapToLong(row -> toLong(row.get("abandons"))).sum();
+        long slowOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("slow_open_events"))).sum();
+
+        long weightedOpenCount = rows.stream()
+                .mapToLong(row -> Math.max(toLong(row.get("events"))
+                        - toLong(row.get("render_errors"))
+                        - toLong(row.get("fallbacks"))
+                        - toLong(row.get("abandons")), 0L))
+                .sum();
+        long weightedOpenSum = rows.stream()
+                .mapToLong(row -> {
+                    Long avgOpenMs = extractNullableLong(row.get("avg_open_ms"));
+                    if (avgOpenMs == null) {
+                        return 0L;
+                    }
+                    long rowWeight = Math.max(toLong(row.get("events"))
+                            - toLong(row.get("render_errors"))
+                            - toLong(row.get("fallbacks"))
+                            - toLong(row.get("abandons")), 0L);
+                    return avgOpenMs * rowWeight;
+                })
+                .sum();
+        Long avgOpenMs = weightedOpenCount > 0 ? Math.round((double) weightedOpenSum / weightedOpenCount) : null;
+
+        totals.put("events", events);
+        totals.put("render_errors", renderErrors);
+        totals.put("fallbacks", fallbacks);
+        totals.put("abandons", abandons);
+        totals.put("slow_open_events", slowOpenEvents);
+        totals.put("avg_open_ms", avgOpenMs);
+        return totals;
+    }
+
+    private Map<String, Object> buildWorkspaceTelemetryComparison(Map<String, Object> currentTotals,
+                                                                  Map<String, Object> previousTotals) {
+        long currentEvents = toLong(currentTotals.get("events"));
+        long previousEvents = toLong(previousTotals.get("events"));
+
+        double currentRenderRate = safeRate(toLong(currentTotals.get("render_errors")), currentEvents);
+        double previousRenderRate = safeRate(toLong(previousTotals.get("render_errors")), previousEvents);
+        double currentFallbackRate = safeRate(toLong(currentTotals.get("fallbacks")), currentEvents);
+        double previousFallbackRate = safeRate(toLong(previousTotals.get("fallbacks")), previousEvents);
+        double currentAbandonRate = safeRate(toLong(currentTotals.get("abandons")), currentEvents);
+        double previousAbandonRate = safeRate(toLong(previousTotals.get("abandons")), previousEvents);
+        double currentSlowOpenRate = safeRate(toLong(currentTotals.get("slow_open_events")), currentEvents);
+        double previousSlowOpenRate = safeRate(toLong(previousTotals.get("slow_open_events")), previousEvents);
+
+        Long currentAvgOpenMs = extractNullableLong(currentTotals.get("avg_open_ms"));
+        Long previousAvgOpenMs = extractNullableLong(previousTotals.get("avg_open_ms"));
+        Long avgOpenMsDelta = currentAvgOpenMs != null && previousAvgOpenMs != null
+                ? currentAvgOpenMs - previousAvgOpenMs
+                : null;
+
+        Map<String, Object> comparison = new LinkedHashMap<>();
+        comparison.put("current_events", currentEvents);
+        comparison.put("previous_events", previousEvents);
+        comparison.put("render_error_rate_delta", currentRenderRate - previousRenderRate);
+        comparison.put("fallback_rate_delta", currentFallbackRate - previousFallbackRate);
+        comparison.put("abandon_rate_delta", currentAbandonRate - previousAbandonRate);
+        comparison.put("slow_open_rate_delta", currentSlowOpenRate - previousSlowOpenRate);
+        comparison.put("avg_open_ms_delta", avgOpenMsDelta);
+        return comparison;
+    }
+
     private Map<String, Object> buildWorkspaceGuardrails(Map<String, Object> totals,
+                                                          Map<String, Object> previousTotals,
                                                           List<Map<String, Object>> cohortRows,
                                                           List<Map<String, Object>> shiftRows,
                                                           List<Map<String, Object>> teamRows) {
@@ -674,6 +743,7 @@ public class DialogService {
                 slowOpenRate,
                 0.05d,
                 "below_or_equal");
+        appendRegressionGuardrailAlerts(alerts, totals, previousTotals);
 
         int minDimensionEvents = 20;
         appendDimensionGuardrailAlerts(alerts, cohortRows, "cohort", "experiment_cohort", minDimensionEvents);
@@ -685,6 +755,90 @@ public class DialogService {
         guardrails.put("rates", rates);
         guardrails.put("alerts", alerts);
         return guardrails;
+    }
+
+    private void appendRegressionGuardrailAlerts(List<Map<String, Object>> alerts,
+                                                 Map<String, Object> currentTotals,
+                                                 Map<String, Object> previousTotals) {
+        long currentEvents = toLong(currentTotals.get("events"));
+        long previousEvents = toLong(previousTotals.get("events"));
+        if (currentEvents < 20 || previousEvents < 20) {
+            return;
+        }
+
+        appendRegressionAlert(
+                alerts,
+                "render_error",
+                "Регрессия render_error относительно предыдущего окна.",
+                safeRate(toLong(currentTotals.get("render_errors")), currentEvents),
+                safeRate(toLong(previousTotals.get("render_errors")), previousEvents),
+                0.005d,
+                1.35d,
+                currentEvents,
+                previousEvents);
+        appendRegressionAlert(
+                alerts,
+                "fallback",
+                "Регрессия fallback относительно предыдущего окна.",
+                safeRate(toLong(currentTotals.get("fallbacks")), currentEvents),
+                safeRate(toLong(previousTotals.get("fallbacks")), previousEvents),
+                0.01d,
+                1.35d,
+                currentEvents,
+                previousEvents);
+        appendRegressionAlert(
+                alerts,
+                "abandon",
+                "Регрессия abandon относительно предыдущего окна.",
+                safeRate(toLong(currentTotals.get("abandons")), currentEvents),
+                safeRate(toLong(previousTotals.get("abandons")), previousEvents),
+                0.02d,
+                1.25d,
+                currentEvents,
+                previousEvents);
+        appendRegressionAlert(
+                alerts,
+                "slow_open",
+                "Регрессия slow_open относительно предыдущего окна.",
+                safeRate(toLong(currentTotals.get("slow_open_events")), currentEvents),
+                safeRate(toLong(previousTotals.get("slow_open_events")), previousEvents),
+                0.015d,
+                1.3d,
+                currentEvents,
+                previousEvents);
+    }
+
+    private void appendRegressionAlert(List<Map<String, Object>> alerts,
+                                       String metric,
+                                       String message,
+                                       double current,
+                                       double previous,
+                                       double minAbsoluteDelta,
+                                       double minRelativeMultiplier,
+                                       long currentEvents,
+                                       long previousEvents) {
+        double delta = current - previous;
+        if (delta <= minAbsoluteDelta) {
+            return;
+        }
+        double safeBase = Math.max(previous, 0.0001d);
+        double multiplier = current / safeBase;
+        if (multiplier <= minRelativeMultiplier) {
+            return;
+        }
+        Map<String, Object> alert = new LinkedHashMap<>();
+        alert.put("metric", metric);
+        alert.put("message", message);
+        alert.put("value", current);
+        alert.put("previous_value", previous);
+        alert.put("delta", delta);
+        alert.put("threshold", minAbsoluteDelta);
+        alert.put("expected", "regression_delta_below_threshold");
+        alert.put("scope", "global");
+        alert.put("segment", "all");
+        alert.put("events", currentEvents);
+        alert.put("previous_events", previousEvents);
+        alerts.add(alert);
     }
 
     private void appendDimensionGuardrailAlerts(List<Map<String, Object>> alerts,
@@ -919,7 +1073,7 @@ public class DialogService {
         return null;
     }
 
-    private List<Map<String, Object>> loadWorkspaceTelemetryRows(int windowDays, String experimentName) {
+    private List<Map<String, Object>> loadWorkspaceTelemetryRows(int windowDays, String experimentName, int offsetDays) {
         String filterExperiment = trimOrNull(experimentName);
         String sql = """
                 SELECT COALESCE(experiment_cohort, 'unknown') AS experiment_cohort,
@@ -932,12 +1086,16 @@ public class DialogService {
                        AVG(CASE WHEN event_type = 'workspace_open_ms' THEN duration_ms END) AS avg_open_ms
                   FROM workspace_telemetry_audit
                  WHERE created_at >= ?
+                   AND created_at < ?
                    AND (? IS NULL OR experiment_name = ?)
                  GROUP BY COALESCE(experiment_cohort, 'unknown'), COALESCE(operator_segment, 'unknown')
                  ORDER BY events DESC, experiment_cohort ASC, operator_segment ASC
                 """;
         try {
-            Timestamp cutoff = Timestamp.from(Instant.now().minusSeconds(windowDays * 24L * 60L * 60L));
+            Instant windowEnd = Instant.now().minusSeconds(Math.max(0, offsetDays) * 24L * 60L * 60L);
+            Instant windowStart = windowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
+            Timestamp cutoffStart = Timestamp.from(windowStart);
+            Timestamp cutoffEnd = Timestamp.from(windowEnd);
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("experiment_cohort", rs.getString("experiment_cohort"));
@@ -949,7 +1107,7 @@ public class DialogService {
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("avg_open_ms", rs.getObject("avg_open_ms") != null ? Math.round(rs.getDouble("avg_open_ms")) : null);
                 return item;
-            }, cutoff, filterExperiment, filterExperiment);
+            }, cutoffStart, cutoffEnd, filterExperiment, filterExperiment);
         } catch (DataAccessException ex) {
             log.warn("Unable to load workspace telemetry summary: {}", ex.getMessage());
             return List.of();
