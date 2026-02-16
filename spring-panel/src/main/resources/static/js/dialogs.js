@@ -16,6 +16,10 @@
   const experimentTelemetryGuardrailState = document.getElementById('dialogExperimentTelemetryGuardrailState');
   const experimentTelemetryGuardrailAlerts = document.getElementById('dialogExperimentTelemetryGuardrailAlerts');
   const experimentTelemetrySummaryRows = document.getElementById('dialogExperimentTelemetrySummaryRows');
+  const experimentTelemetryShiftRows = document.getElementById('dialogExperimentTelemetryShiftRows');
+  const experimentTelemetryTeamRows = document.getElementById('dialogExperimentTelemetryTeamRows');
+  const experimentTelemetryRefreshBtn = document.getElementById('dialogExperimentTelemetryRefreshBtn');
+  const experimentTelemetryAutoRefresh = document.getElementById('dialogExperimentTelemetryAutoRefresh');
   const experimentInfoModalEl = document.getElementById('dialogExperimentInfoModal');
   const filtersModalEl = document.getElementById('dialogFiltersModal');
   const columnsModalEl = document.getElementById('dialogColumnsModal');
@@ -363,6 +367,7 @@
   let categorySaveTimer = null;
   let activeMacroTemplate = null;
   let activeMacroMeta = null;
+  let experimentTelemetryRefreshTimer = null;
   const workspaceOpenTimers = new Map();
   const workspaceFirstInteractionTickets = new Set();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
@@ -1800,6 +1805,45 @@
     }).join('');
   }
 
+  function renderExperimentTelemetryDimensionRows(container, rows, dimensionKey) {
+    if (!container) return;
+    const safeRows = Array.isArray(rows) ? rows : [];
+    if (!safeRows.length) {
+      container.innerHTML = '<tr><td colspan="4" class="small text-muted">Недостаточно telemetry-данных для расчёта.</td></tr>';
+      return;
+    }
+    container.innerHTML = safeRows.map((row) => {
+      const events = Math.max(0, Number(row?.events || 0));
+      const fallbackRate = events > 0 ? Number(row?.fallbacks || 0) / events : 0;
+      const renderErrorRate = events > 0 ? Number(row?.render_errors || 0) / events : 0;
+      const dimension = String(row?.[dimensionKey] || 'unknown');
+      return `
+        <tr>
+          <td>${escapeHtml(dimension)}</td>
+          <td class="text-end">${escapeHtml(String(events))}</td>
+          <td class="text-end">${escapeHtml(formatGuardrailPercent(fallbackRate))}</td>
+          <td class="text-end">${escapeHtml(formatGuardrailPercent(renderErrorRate))}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function clearExperimentTelemetryRefreshTimer() {
+    if (!experimentTelemetryRefreshTimer) return;
+    window.clearInterval(experimentTelemetryRefreshTimer);
+    experimentTelemetryRefreshTimer = null;
+  }
+
+  function syncExperimentTelemetryAutoRefresh() {
+    clearExperimentTelemetryRefreshTimer();
+    if (!experimentTelemetryAutoRefresh || !experimentTelemetryAutoRefresh.checked) {
+      return;
+    }
+    experimentTelemetryRefreshTimer = window.setInterval(() => {
+      loadExperimentTelemetrySummary();
+    }, 30000);
+  }
+
   async function loadExperimentTelemetrySummary() {
     if (!experimentTelemetrySummaryRows) return;
     if (experimentTelemetrySummaryState) {
@@ -1812,6 +1856,8 @@
       }
       const payload = await response.json();
       renderExperimentTelemetrySummaryRows(payload?.rows || []);
+      renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, payload?.by_shift || [], 'shift');
+      renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, payload?.by_team || [], 'team');
       renderExperimentTelemetryGuardrails(payload?.guardrails || {});
       if (experimentTelemetrySummaryState) {
         const totals = payload?.totals || {};
@@ -1819,10 +1865,13 @@
         const comparison = payload?.period_comparison || {};
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}).`;
+        const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
+      renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, [], 'shift');
+      renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, [], 'team');
       renderExperimentTelemetryGuardrails(null);
       if (experimentTelemetrySummaryState) {
         experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
@@ -4297,6 +4346,20 @@
   if (experimentInfoModalEl) {
     experimentInfoModalEl.addEventListener('show.bs.modal', () => {
       loadExperimentTelemetrySummary();
+      syncExperimentTelemetryAutoRefresh();
+    });
+    experimentInfoModalEl.addEventListener('hidden.bs.modal', () => {
+      clearExperimentTelemetryRefreshTimer();
+    });
+  }
+  if (experimentTelemetryRefreshBtn) {
+    experimentTelemetryRefreshBtn.addEventListener('click', () => {
+      loadExperimentTelemetrySummary();
+    });
+  }
+  if (experimentTelemetryAutoRefresh) {
+    experimentTelemetryAutoRefresh.addEventListener('change', () => {
+      syncExperimentTelemetryAutoRefresh();
     });
   }
   updateAllSlaBadges();
