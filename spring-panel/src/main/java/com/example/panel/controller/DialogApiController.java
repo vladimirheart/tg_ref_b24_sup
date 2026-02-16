@@ -214,7 +214,17 @@ public class DialogApiController {
                 "client", Map.of(
                         "id", summary.userId(),
                         "name", summary.displayClientName(),
-                        "language", "ru"
+                        "language", "ru",
+                        "username", summary.username(),
+                        "status", summary.clientStatusLabel(),
+                        "channel", summary.channelLabel(),
+                        "business", summary.businessLabel(),
+                        "location", summary.location(),
+                        "responsible", summary.responsible(),
+                        "unread_count", summary.unreadCount(),
+                        "rating", summary.rating(),
+                        "last_message_at", summary.lastMessageTimestamp(),
+                        "segments", buildWorkspaceClientSegments(summary)
                 ),
                 "history", clientHistory,
                 "related_events", relatedEvents
@@ -256,6 +266,26 @@ public class DialogApiController {
         ));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+    private List<String> buildWorkspaceClientSegments(DialogListItem summary) {
+        if (summary == null) {
+            return List.of();
+        }
+        List<String> segments = new java.util.ArrayList<>();
+        if (summary.unreadCount() != null && summary.unreadCount() > 0) {
+            segments.add("needs_reply");
+        }
+        if (summary.responsible() == null || summary.responsible().isBlank()) {
+            segments.add("unassigned");
+        }
+        if (summary.rating() != null && summary.rating() > 0 && summary.rating() <= 2) {
+            segments.add("low_csat_risk");
+        }
+        if ("new".equals(summary.statusKey())) {
+            segments.add("new_dialog");
+        }
+        return segments;
     }
 
     private Set<String> resolveWorkspaceInclude(String include) {
