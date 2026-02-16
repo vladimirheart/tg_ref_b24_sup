@@ -182,6 +182,31 @@ class DialogApiControllerWebMvcTest {
     }
 
 
+
+    @Test
+    void workspaceTelemetrySummaryIncludesGuardrails() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        Map<String, Object> guardrails = Map.of(
+                "status", "attention",
+                "rates", Map.of("render_error", 0.02, "fallback", 0.01, "slow_open", 0.08),
+                "alerts", List.of(Map.of("metric", "render_error", "threshold", 0.01, "value", 0.02))
+        );
+        when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
+                "totals", Map.of("events", 100, "render_errors", 2),
+                "rows", List.of(),
+                "guardrails", guardrails
+        ));
+
+        mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
+                        .param("days", "7")
+                        .param("experiment_name", "workspace_v1_rollout")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.guardrails.status").value("attention"))
+                .andExpect(jsonPath("$.guardrails.alerts.length()").value(1));
+    }
+
     @Test
     void workspaceSupportsIncludeAndPaginationParams() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
