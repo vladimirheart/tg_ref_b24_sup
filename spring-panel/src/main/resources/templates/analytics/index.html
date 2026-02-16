@@ -24,6 +24,59 @@
     </div>
 
     <div class="row g-4">
+        <div class="col-12">
+            <div class="card shadow-sm" id="workspaceTelemetryCard">
+                <div class="card-header bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+                    <div>
+                        <h2 class="h5 mb-0">Workspace rollout guardrails</h2>
+                        <small class="text-muted">Операционные алерты и KPI по `workspace_v1` из серверной telemetry.</small>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <label class="small text-muted" for="workspaceTelemetryDays">Окно:</label>
+                        <select class="form-select form-select-sm" id="workspaceTelemetryDays" style="width: auto;">
+                            <option value="7" selected>7 дней</option>
+                            <option value="14">14 дней</option>
+                            <option value="30">30 дней</option>
+                        </select>
+                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryExperiment" placeholder="experiment_name (опц.)" style="max-width: 220px;">
+                        <button class="btn btn-sm btn-outline-primary" type="button" id="workspaceTelemetryRefresh">Обновить</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3" id="workspaceTelemetryMetrics">
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">События</div><div class="h5 mb-0" data-metric="events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Render error</div><div class="h5 mb-0" data-metric="render_errors">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Fallbacks</div><div class="h5 mb-0" data-metric="fallbacks">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Abandon</div><div class="h5 mb-0" data-metric="abandons">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Slow open</div><div class="h5 mb-0" data-metric="slow_open_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Avg open ms</div><div class="h5 mb-0" data-metric="avg_open_ms">—</div></div></div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge text-bg-success d-none" id="workspaceTelemetryGuardrailsOk">Guardrails: OK</span>
+                        <span class="badge text-bg-warning d-none" id="workspaceTelemetryGuardrailsAttention">Guardrails: attention</span>
+                        <small class="text-muted" id="workspaceTelemetryUpdatedAt"></small>
+                    </div>
+                    <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryAlertBox"></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Метрика</th>
+                                <th>Текущее значение</th>
+                                <th>Порог</th>
+                                <th>Контекст</th>
+                            </tr>
+                            </thead>
+                            <tbody id="workspaceTelemetryAlertsTable">
+                            <tr>
+                                <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="col-12 col-lg-7">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -84,5 +137,6 @@
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/analytics.js}"></script>
 </body>
 </html>
