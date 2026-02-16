@@ -1228,12 +1228,14 @@
         row.dataset.slaServerState = '';
         row.dataset.slaServerPinned = '';
         row.dataset.slaMinutesLeft = '';
+        row.dataset.slaEscalationRequired = '';
         return;
       }
       const minutesLeft = Number(signal.minutes_left);
       row.dataset.slaServerState = String(signal.state || '');
       row.dataset.slaServerPinned = signal.auto_pin ? 'true' : 'false';
       row.dataset.slaMinutesLeft = Number.isFinite(minutesLeft) ? String(minutesLeft) : '';
+      row.dataset.slaEscalationRequired = signal.escalation_required ? 'true' : 'false';
     });
   }
 
@@ -1256,11 +1258,19 @@
 
   function applySlaPriorityClass(row) {
     if (!row) return;
-    row.classList.remove('dialog-priority-breached', 'dialog-priority-at-risk', 'dialog-priority-normal', 'dialog-priority-pinned');
+    row.classList.remove(
+      'dialog-priority-breached',
+      'dialog-priority-at-risk',
+      'dialog-priority-normal',
+      'dialog-priority-pinned',
+      'dialog-priority-escalation-required',
+    );
     const priority = resolveSlaPriority(row);
     const isPinned = isCriticalSlaDialog(row);
+    const escalationRequired = isEscalationRequiredDialog(row);
     row.dataset.slaPinned = isPinned ? 'true' : 'false';
     row.classList.toggle('dialog-priority-pinned', isPinned);
+    row.classList.toggle('dialog-priority-escalation-required', escalationRequired);
     if (priority.state === 'breached') {
       row.classList.add('dialog-priority-breached');
     } else if (priority.state === 'at_risk') {
@@ -1328,6 +1338,10 @@
     return minutesLeft <= SLA_CRITICAL_MINUTES;
   }
 
+  function isEscalationRequiredDialog(row) {
+    return row?.dataset?.slaEscalationRequired === 'true';
+  }
+
   function resolveSlaMinutesLeft(row) {
     if (!row || isResolved(row)) return null;
     const serverMinutesLeft = Number(row.dataset.slaMinutesLeft);
@@ -1365,6 +1379,8 @@
         return isOverdueDialog(row);
       case 'sla_critical':
         return isCriticalSlaDialog(row);
+      case 'escalation_required':
+        return isEscalationRequiredDialog(row);
       default:
         return true;
     }
