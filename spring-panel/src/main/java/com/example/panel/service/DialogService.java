@@ -608,6 +608,8 @@ public class DialogService {
     public Map<String, Object> loadWorkspaceTelemetrySummary(int days, String experimentName) {
         int windowDays = Math.max(1, Math.min(days, 30));
         List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowDays, experimentName);
+        List<Map<String, Object>> shiftRows = aggregateWorkspaceTelemetryRows(rows, "shift");
+        List<Map<String, Object>> teamRows = aggregateWorkspaceTelemetryRows(rows, "team");
         Map<String, Object> totals = new LinkedHashMap<>();
         totals.put("events", rows.stream().mapToLong(row -> toLong(row.get("events"))).sum());
         totals.put("render_errors", rows.stream().mapToLong(row -> toLong(row.get("render_errors"))).sum());
@@ -620,7 +622,134 @@ public class DialogService {
         payload.put("generated_at", Instant.now().toString());
         payload.put("totals", totals);
         payload.put("rows", rows);
+        payload.put("by_shift", shiftRows);
+        payload.put("by_team", teamRows);
         return payload;
+    }
+
+    private List<Map<String, Object>> aggregateWorkspaceTelemetryRows(List<Map<String, Object>> rows, String dimension) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, Map<String, Object>> aggregated = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            String operatorSegment = row != null ? trimOrNull((String) row.get("operator_segment")) : null;
+            String key = resolveOperatorDimension(operatorSegment, dimension);
+            Map<String, Object> bucket = aggregated.computeIfAbsent(key, ignored -> createTelemetryBucket(dimension, key));
+            mergeTelemetryMetrics(bucket, row);
+        }
+
+        return aggregated.values().stream()
+                .peek(bucket -> {
+                    bucket.remove("_open_weight");
+                    bucket.remove("_open_sum");
+                })
+                .sorted((left, right) -> Long.compare(toLong(right.get("events")), toLong(left.get("events"))))
+                .toList();
+    }
+
+    private Map<String, Object> createTelemetryBucket(String dimension, String key) {
+        Map<String, Object> bucket = new LinkedHashMap<>();
+        bucket.put(dimension, key);
+        bucket.put("events", 0L);
+        bucket.put("render_errors", 0L);
+        bucket.put("fallbacks", 0L);
+        bucket.put("abandons", 0L);
+        bucket.put("slow_open_events", 0L);
+        bucket.put("avg_open_ms", null);
+        bucket.put("_open_weight", 0L);
+        bucket.put("_open_sum", 0L);
+        return bucket;
+    }
+
+    private void mergeTelemetryMetrics(Map<String, Object> bucket, Map<String, Object> row) {
+        if (bucket == null || row == null) {
+            return;
+        }
+
+        long events = toLong(row.get("events"));
+        long renderErrors = toLong(row.get("render_errors"));
+        long fallbacks = toLong(row.get("fallbacks"));
+        long abandons = toLong(row.get("abandons"));
+        long slowOpenEvents = toLong(row.get("slow_open_events"));
+
+        bucket.put("events", toLong(bucket.get("events")) + events);
+        bucket.put("render_errors", toLong(bucket.get("render_errors")) + renderErrors);
+        bucket.put("fallbacks", toLong(bucket.get("fallbacks")) + fallbacks);
+        bucket.put("abandons", toLong(bucket.get("abandons")) + abandons);
+        bucket.put("slow_open_events", toLong(bucket.get("slow_open_events")) + slowOpenEvents);
+
+        Long avgOpen = extractNullableLong(row.get("avg_open_ms"));
+        if (avgOpen == null) {
+            return;
+        }
+
+        long weight = Math.max(events - renderErrors - fallbacks - abandons, 1L);
+        long nextWeight = toLong(bucket.get("_open_weight")) + weight;
+        long nextSum = toLong(bucket.get("_open_sum")) + avgOpen * weight;
+        bucket.put("_open_weight", nextWeight);
+        bucket.put("_open_sum", nextSum);
+        bucket.put("avg_open_ms", Math.round((double) nextSum / nextWeight));
+    }
+
+    private String resolveOperatorDimension(String operatorSegment, String dimension) {
+        if (!StringUtils.hasText(operatorSegment)) {
+            return "unknown";
+        }
+        String normalized = operatorSegment.trim().toLowerCase();
+        if ("team".equals(dimension)) {
+            String explicitTeam = extractSegmentValue(normalized, "team");
+            if (StringUtils.hasText(explicitTeam)) {
+                return explicitTeam;
+            }
+            int separator = normalized.indexOf('/');
+            if (separator > 0) {
+                return normalized.substring(0, separator).trim();
+            }
+            return normalized.contains("_shift") ? "support" : normalized;
+        }
+
+        String explicitShift = extractSegmentValue(normalized, "shift");
+        if (StringUtils.hasText(explicitShift)) {
+            return explicitShift;
+        }
+        if (normalized.contains("night")) {
+            return "night";
+        }
+        if (normalized.contains("morning")) {
+            return "morning";
+        }
+        if (normalized.contains("evening")) {
+            return "evening";
+        }
+        if (normalized.contains("day")) {
+            return "day";
+        }
+        return "unknown";
+    }
+
+    private String extractSegmentValue(String segment, String key) {
+        if (!StringUtils.hasText(segment) || !StringUtils.hasText(key)) {
+            return null;
+        }
+        String needle = key + "=";
+        int start = segment.indexOf(needle);
+        if (start < 0) {
+            return null;
+        }
+        String tail = segment.substring(start + needle.length());
+        int delimiter = tail.indexOf(';');
+        String value = delimiter >= 0 ? tail.substring(0, delimiter) : tail;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Long extractNullableLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
     }
 
     private List<Map<String, Object>> loadWorkspaceTelemetryRows(int windowDays, String experimentName) {
