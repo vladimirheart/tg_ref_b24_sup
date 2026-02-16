@@ -1715,7 +1715,7 @@
     experimentTelemetryGuardrailAlerts.classList.add('d-none');
     experimentTelemetryGuardrailAlerts.innerHTML = '';
 
-    const summary = `SLO: render_error ${formatGuardrailPercent(rates.render_error)} / fallback ${formatGuardrailPercent(rates.fallback)} / slow_open ${formatGuardrailPercent(rates.slow_open)}.`;
+    const summary = `SLO: render_error ${formatGuardrailPercent(rates.render_error)} / fallback ${formatGuardrailPercent(rates.fallback)} / abandon ${formatGuardrailPercent(rates.abandon)} / slow_open ${formatGuardrailPercent(rates.slow_open)}.`;
     if (status === 'attention') {
       experimentTelemetryGuardrailState.classList.add('alert-warning');
       experimentTelemetryGuardrailState.textContent = `Найдены отклонения guardrails. ${summary}`;
@@ -1725,7 +1725,13 @@
           const message = String(alert?.message || 'Отклонение метрики');
           const value = formatGuardrailPercent(alert?.value);
           const threshold = formatGuardrailPercent(alert?.threshold);
-          return `<li>${escapeHtml(message)} (факт: ${escapeHtml(value)} · порог: ${escapeHtml(threshold)})</li>`;
+          const scope = String(alert?.scope || '').trim();
+          const segment = String(alert?.segment || '').trim();
+          const events = Number(alert?.events || 0);
+          const scopeMeta = scope && segment
+            ? ` · срез: ${scope}=${segment}${events > 0 ? ` · событий: ${events}` : ''}`
+            : '';
+          return `<li>${escapeHtml(message)} (факт: ${escapeHtml(value)} · порог: ${escapeHtml(threshold)}${escapeHtml(scopeMeta)})</li>`;
         }).join('');
       }
       return;
