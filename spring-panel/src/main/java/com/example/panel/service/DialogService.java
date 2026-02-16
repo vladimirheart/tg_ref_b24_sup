@@ -624,23 +624,29 @@ public class DialogService {
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
-        payload.put("guardrails", buildWorkspaceGuardrails(totals));
+        payload.put("guardrails", buildWorkspaceGuardrails(totals, rows, shiftRows, teamRows));
         return payload;
     }
 
-    private Map<String, Object> buildWorkspaceGuardrails(Map<String, Object> totals) {
+    private Map<String, Object> buildWorkspaceGuardrails(Map<String, Object> totals,
+                                                          List<Map<String, Object>> cohortRows,
+                                                          List<Map<String, Object>> shiftRows,
+                                                          List<Map<String, Object>> teamRows) {
         long events = Math.max(1L, toLong(totals.get("events")));
         long renderErrors = toLong(totals.get("render_errors"));
         long fallbacks = toLong(totals.get("fallbacks"));
+        long abandons = toLong(totals.get("abandons"));
         long slowOpenEvents = toLong(totals.get("slow_open_events"));
 
         double renderErrorRate = (double) renderErrors / events;
         double fallbackRate = (double) fallbacks / events;
+        double abandonRate = (double) abandons / events;
         double slowOpenRate = (double) slowOpenEvents / events;
 
         Map<String, Object> rates = new LinkedHashMap<>();
         rates.put("render_error", renderErrorRate);
         rates.put("fallback", fallbackRate);
+        rates.put("abandon", abandonRate);
         rates.put("slow_open", slowOpenRate);
 
         List<Map<String, Object>> alerts = new ArrayList<>();
@@ -657,17 +663,93 @@ public class DialogService {
                 0.03d,
                 "below_or_equal");
         appendGuardrailAlert(alerts,
+                "abandon",
+                "Доля abandon в workspace превышает рабочий порог 10%.",
+                abandonRate,
+                0.10d,
+                "below_or_equal");
+        appendGuardrailAlert(alerts,
                 "slow_open",
                 "Доля медленных workspace_open_ms (>2000ms) превышает рабочий порог 5%.",
                 slowOpenRate,
                 0.05d,
                 "below_or_equal");
 
+        int minDimensionEvents = 20;
+        appendDimensionGuardrailAlerts(alerts, cohortRows, "cohort", "experiment_cohort", minDimensionEvents);
+        appendDimensionGuardrailAlerts(alerts, shiftRows, "shift", "shift", minDimensionEvents);
+        appendDimensionGuardrailAlerts(alerts, teamRows, "team", "team", minDimensionEvents);
+
         Map<String, Object> guardrails = new LinkedHashMap<>();
         guardrails.put("status", alerts.isEmpty() ? "ok" : "attention");
         guardrails.put("rates", rates);
         guardrails.put("alerts", alerts);
         return guardrails;
+    }
+
+    private void appendDimensionGuardrailAlerts(List<Map<String, Object>> alerts,
+                                                List<Map<String, Object>> rows,
+                                                String scope,
+                                                String field,
+                                                int minEvents) {
+        if (rows == null || rows.isEmpty()) {
+            return;
+        }
+        for (Map<String, Object> row : rows) {
+            long events = toLong(row.get("events"));
+            if (events < minEvents) {
+                continue;
+            }
+            double renderErrorRate = safeRate(toLong(row.get("render_errors")), events);
+            double fallbackRate = safeRate(toLong(row.get("fallbacks")), events);
+            double slowOpenRate = safeRate(toLong(row.get("slow_open_events")), events);
+            double abandonRate = safeRate(toLong(row.get("abandons")), events);
+            String dimensionValue = String.valueOf(row.getOrDefault(field, "unknown"));
+
+            appendGuardrailAlert(alerts,
+                    "render_error",
+                    "Отклонение render_error в срезе " + scope + ": " + dimensionValue + ".",
+                    renderErrorRate,
+                    0.01d,
+                    "below_or_equal",
+                    scope,
+                    dimensionValue,
+                    events);
+            appendGuardrailAlert(alerts,
+                    "fallback",
+                    "Отклонение fallback в срезе " + scope + ": " + dimensionValue + ".",
+                    fallbackRate,
+                    0.03d,
+                    "below_or_equal",
+                    scope,
+                    dimensionValue,
+                    events);
+            appendGuardrailAlert(alerts,
+                    "abandon",
+                    "Отклонение abandon в срезе " + scope + ": " + dimensionValue + ".",
+                    abandonRate,
+                    0.10d,
+                    "below_or_equal",
+                    scope,
+                    dimensionValue,
+                    events);
+            appendGuardrailAlert(alerts,
+                    "slow_open",
+                    "Отклонение slow_open в срезе " + scope + ": " + dimensionValue + ".",
+                    slowOpenRate,
+                    0.05d,
+                    "below_or_equal",
+                    scope,
+                    dimensionValue,
+                    events);
+        }
+    }
+
+    private double safeRate(long value, long events) {
+        if (events <= 0) {
+            return 0d;
+        }
+        return (double) value / events;
     }
 
     private void appendGuardrailAlert(List<Map<String, Object>> alerts,
@@ -685,6 +767,30 @@ public class DialogService {
         alert.put("value", value);
         alert.put("threshold", threshold);
         alert.put("expected", expected);
+        alerts.add(alert);
+    }
+
+    private void appendGuardrailAlert(List<Map<String, Object>> alerts,
+                                      String metric,
+                                      String message,
+                                      double value,
+                                      double threshold,
+                                      String expected,
+                                      String scope,
+                                      String segment,
+                                      long events) {
+        if (value <= threshold) {
+            return;
+        }
+        Map<String, Object> alert = new LinkedHashMap<>();
+        alert.put("metric", metric);
+        alert.put("message", message);
+        alert.put("value", value);
+        alert.put("threshold", threshold);
+        alert.put("expected", expected);
+        alert.put("scope", scope);
+        alert.put("segment", segment);
+        alert.put("events", events);
         alerts.add(alert);
     }
 
