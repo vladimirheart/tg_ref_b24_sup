@@ -13,6 +13,8 @@
   const experimentPrimaryKpis = document.getElementById('dialogExperimentPrimaryKpis');
   const experimentSecondaryKpis = document.getElementById('dialogExperimentSecondaryKpis');
   const experimentTelemetrySummaryState = document.getElementById('dialogExperimentTelemetrySummaryState');
+  const experimentTelemetryGuardrailState = document.getElementById('dialogExperimentTelemetryGuardrailState');
+  const experimentTelemetryGuardrailAlerts = document.getElementById('dialogExperimentTelemetryGuardrailAlerts');
   const experimentTelemetrySummaryRows = document.getElementById('dialogExperimentTelemetrySummaryRows');
   const experimentInfoModalEl = document.getElementById('dialogExperimentInfoModal');
   const filtersModalEl = document.getElementById('dialogFiltersModal');
@@ -1689,6 +1691,49 @@
     renderExperimentKpiItems(experimentSecondaryKpis, WORKSPACE_AB_TEST_CONFIG.secondaryKpis);
   }
 
+
+  function formatGuardrailPercent(value) {
+    const safe = Number(value);
+    if (!Number.isFinite(safe)) return '0.00%';
+    return `${(safe * 100).toFixed(2)}%`;
+  }
+
+  function renderExperimentTelemetryGuardrails(guardrails) {
+    if (!experimentTelemetryGuardrailState || !experimentTelemetryGuardrailAlerts) return;
+    if (!guardrails || typeof guardrails !== 'object') {
+      experimentTelemetryGuardrailState.classList.add('d-none');
+      experimentTelemetryGuardrailState.textContent = '';
+      experimentTelemetryGuardrailAlerts.classList.add('d-none');
+      experimentTelemetryGuardrailAlerts.innerHTML = '';
+      return;
+    }
+    const status = String(guardrails?.status || 'ok').toLowerCase();
+    const rates = guardrails?.rates || {};
+    const alerts = Array.isArray(guardrails?.alerts) ? guardrails.alerts : [];
+
+    experimentTelemetryGuardrailState.classList.remove('d-none', 'alert-success', 'alert-warning');
+    experimentTelemetryGuardrailAlerts.classList.add('d-none');
+    experimentTelemetryGuardrailAlerts.innerHTML = '';
+
+    const summary = `SLO: render_error ${formatGuardrailPercent(rates.render_error)} / fallback ${formatGuardrailPercent(rates.fallback)} / slow_open ${formatGuardrailPercent(rates.slow_open)}.`;
+    if (status === 'attention') {
+      experimentTelemetryGuardrailState.classList.add('alert-warning');
+      experimentTelemetryGuardrailState.textContent = `Найдены отклонения guardrails. ${summary}`;
+      if (alerts.length) {
+        experimentTelemetryGuardrailAlerts.classList.remove('d-none');
+        experimentTelemetryGuardrailAlerts.innerHTML = alerts.map((alert) => {
+          const message = String(alert?.message || 'Отклонение метрики');
+          const value = formatGuardrailPercent(alert?.value);
+          const threshold = formatGuardrailPercent(alert?.threshold);
+          return `<li>${escapeHtml(message)} (факт: ${escapeHtml(value)} · порог: ${escapeHtml(threshold)})</li>`;
+        }).join('');
+      }
+      return;
+    }
+
+    experimentTelemetryGuardrailState.classList.add('alert-success');
+    experimentTelemetryGuardrailState.textContent = `Guardrails в норме. ${summary}`;
+  }
   function renderExperimentTelemetrySummaryRows(rows) {
     if (!experimentTelemetrySummaryRows) return;
     const safeRows = Array.isArray(rows) ? rows : [];
@@ -1723,12 +1768,14 @@
       }
       const payload = await response.json();
       renderExperimentTelemetrySummaryRows(payload?.rows || []);
+      renderExperimentTelemetryGuardrails(payload?.guardrails || {});
       if (experimentTelemetrySummaryState) {
         const totals = payload?.totals || {};
         experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} · Fallback: ${Number(totals.fallbacks || 0)} · Render error: ${Number(totals.render_errors || 0)}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
+      renderExperimentTelemetryGuardrails(null);
       if (experimentTelemetrySummaryState) {
         experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
       }
