@@ -624,7 +624,68 @@ public class DialogService {
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
+        payload.put("guardrails", buildWorkspaceGuardrails(totals));
         return payload;
+    }
+
+    private Map<String, Object> buildWorkspaceGuardrails(Map<String, Object> totals) {
+        long events = Math.max(1L, toLong(totals.get("events")));
+        long renderErrors = toLong(totals.get("render_errors"));
+        long fallbacks = toLong(totals.get("fallbacks"));
+        long slowOpenEvents = toLong(totals.get("slow_open_events"));
+
+        double renderErrorRate = (double) renderErrors / events;
+        double fallbackRate = (double) fallbacks / events;
+        double slowOpenRate = (double) slowOpenEvents / events;
+
+        Map<String, Object> rates = new LinkedHashMap<>();
+        rates.put("render_error", renderErrorRate);
+        rates.put("fallback", fallbackRate);
+        rates.put("slow_open", slowOpenRate);
+
+        List<Map<String, Object>> alerts = new ArrayList<>();
+        appendGuardrailAlert(alerts,
+                "render_error",
+                "Доля workspace_render_error превышает SLO 1%.",
+                renderErrorRate,
+                0.01d,
+                "below_or_equal");
+        appendGuardrailAlert(alerts,
+                "fallback",
+                "Доля fallback в legacy превышает SLO 3%.",
+                fallbackRate,
+                0.03d,
+                "below_or_equal");
+        appendGuardrailAlert(alerts,
+                "slow_open",
+                "Доля медленных workspace_open_ms (>2000ms) превышает рабочий порог 5%.",
+                slowOpenRate,
+                0.05d,
+                "below_or_equal");
+
+        Map<String, Object> guardrails = new LinkedHashMap<>();
+        guardrails.put("status", alerts.isEmpty() ? "ok" : "attention");
+        guardrails.put("rates", rates);
+        guardrails.put("alerts", alerts);
+        return guardrails;
+    }
+
+    private void appendGuardrailAlert(List<Map<String, Object>> alerts,
+                                      String metric,
+                                      String message,
+                                      double value,
+                                      double threshold,
+                                      String expected) {
+        if (value <= threshold) {
+            return;
+        }
+        Map<String, Object> alert = new LinkedHashMap<>();
+        alert.put("metric", metric);
+        alert.put("message", message);
+        alert.put("value", value);
+        alert.put("threshold", threshold);
+        alert.put("expected", expected);
+        alerts.add(alert);
     }
 
     private List<Map<String, Object>> aggregateWorkspaceTelemetryRows(List<Map<String, Object>> rows, String dimension) {
