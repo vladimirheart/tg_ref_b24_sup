@@ -1698,6 +1698,20 @@
     return `${(safe * 100).toFixed(2)}%`;
   }
 
+  function formatDeltaPercent(value) {
+    const safe = Number(value);
+    if (!Number.isFinite(safe)) return '0.00 п.п.';
+    const sign = safe > 0 ? '+' : '';
+    return `${sign}${(safe * 100).toFixed(2)} п.п.`;
+  }
+
+  function formatDeltaMs(value) {
+    const safe = Number(value);
+    if (!Number.isFinite(safe)) return '—';
+    const sign = safe > 0 ? '+' : '';
+    return `${sign}${Math.round(safe)}мс`;
+  }
+
   function renderExperimentTelemetryGuardrails(guardrails) {
     if (!experimentTelemetryGuardrailState || !experimentTelemetryGuardrailAlerts) return;
     if (!guardrails || typeof guardrails !== 'object') {
@@ -1728,10 +1742,18 @@
           const scope = String(alert?.scope || '').trim();
           const segment = String(alert?.segment || '').trim();
           const events = Number(alert?.events || 0);
+          const previousValue = Number(alert?.previous_value);
+          const delta = Number(alert?.delta);
           const scopeMeta = scope && segment
             ? ` · срез: ${scope}=${segment}${events > 0 ? ` · событий: ${events}` : ''}`
             : '';
-          return `<li>${escapeHtml(message)} (факт: ${escapeHtml(value)} · порог: ${escapeHtml(threshold)}${escapeHtml(scopeMeta)})</li>`;
+          const previousMeta = Number.isFinite(previousValue)
+            ? ` · предыдущее окно: ${escapeHtml(formatGuardrailPercent(previousValue))}`
+            : '';
+          const deltaMeta = Number.isFinite(delta)
+            ? ` · Δ: ${escapeHtml(formatDeltaPercent(delta))}`
+            : '';
+          return `<li>${escapeHtml(message)} (факт: ${escapeHtml(value)} · порог: ${escapeHtml(threshold)}${previousMeta}${deltaMeta}${escapeHtml(scopeMeta)})</li>`;
         }).join('');
       }
       return;
@@ -1777,7 +1799,11 @@
       renderExperimentTelemetryGuardrails(payload?.guardrails || {});
       if (experimentTelemetrySummaryState) {
         const totals = payload?.totals || {};
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} · Fallback: ${Number(totals.fallbacks || 0)} · Render error: ${Number(totals.render_errors || 0)}.`;
+        const previousTotals = payload?.previous_totals || {};
+        const comparison = payload?.period_comparison || {};
+        const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
+        const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}).`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
