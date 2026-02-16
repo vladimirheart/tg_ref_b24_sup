@@ -318,7 +318,8 @@
    - сегментация, базовый словарь событий и KPI-словарь эксперимента (primary/secondary) внедрены в UI/telemetry;
    - добавлены серверные агрегаты `workspace-telemetry/summary` по cohort + operator segment + срезам по сменам/командам для операционного мониторинга;
    - в аналитике панели добавлен live-виджет guardrails/KPI (`events/render_error/fallback/abandon/slow_open/avg_open_ms`) с фильтрами окна/эксперимента и таблицей отклонений;
-   - в backlog остаются автоматизированные внешние уведомления (Slack/incident hooks) и продуктовые дашборды в BI для кросс-командного мониторинга.
+   - внедрены автоматизированные webhook-уведомления по guardrail-alerts (Slack/incident hooks) с cooldown и дедупликацией payload;
+   - в backlog остаются продуктовые BI-дашборды для кросс-командного мониторинга.
 
 ### 9.5. Что можно сделать прямо сейчас (без блокирующих зависимостей)
 
@@ -366,6 +367,7 @@
 - [x] **NOW-1.28 (этап C3, SLA escalation workflow):** список диалогов получил saved view `Нужна эскалация`, который использует серверный сигнал `sla_orchestration.tickets[*].escalation_required` (критичный SLA + нет ответственного) и визуально выделяет такие строки, чтобы операторы быстрее закрывали риск SLA breach без ручного поиска.
 - [x] **NOW-1.29 (этап D3, macro governance audit hardening):** telemetry-событие `macro_apply` теперь дополнительно пишется в `dialog_action_audit` как серверный audit-trail (`actor/ticket/action/result/detail`), чтобы разбор спорных кейсов по шаблонным ответам не зависел только от клиентской аналитики.
 - [x] **NOW-1.30 (этап E3, in-product dashboard):** на странице `Аналитика` добавлен live-блок `Workspace rollout guardrails`, который подтягивает `/api/dialogs/workspace-telemetry/summary`, показывает KPI окна rollout и активные guardrail-alerts (включая сегментный контекст) без необходимости внешнего BI.
+- [x] **NOW-1.31 (этап E3, external incident hooks):** добавлен серверный `WorkspaceGuardrailWebhookNotifier`, который по расписанию анализирует `workspace-telemetry/summary` и отправляет webhook при статусе guardrails `attention` (с порогом alert-count, cooldown и дедупликацией), чтобы эскалация происходила автоматически даже без открытого экрана аналитики.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
