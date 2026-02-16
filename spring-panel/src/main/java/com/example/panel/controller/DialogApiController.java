@@ -359,7 +359,30 @@ public class DialogApiController {
                 request.secondaryKpis(),
                 request.templateId(),
                 request.templateName());
+        maybeAuditMacroUsage(operator, request);
         return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    private void maybeAuditMacroUsage(String operator, WorkspaceTelemetryRequest request) {
+        if (request == null || !"macro_apply".equalsIgnoreCase(String.valueOf(request.eventType()))) {
+            return;
+        }
+        if (!StringUtils.hasText(request.ticketId())) {
+            return;
+        }
+        StringBuilder detail = new StringBuilder("Macro applied from workspace telemetry");
+        if (StringUtils.hasText(request.templateName())) {
+            detail.append(": ").append(request.templateName().trim());
+        }
+        if (StringUtils.hasText(request.templateId())) {
+            detail.append(" [").append(request.templateId().trim()).append("]");
+        }
+        dialogService.logDialogActionAudit(
+                request.ticketId(),
+                operator,
+                "macro_apply",
+                "success",
+                detail.toString());
     }
 
     @GetMapping("/workspace-telemetry/summary")
