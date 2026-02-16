@@ -285,7 +285,9 @@ class DialogApiControllerWebMvcTest {
                         "render_errors", 0,
                         "avg_open_ms", 980
                 )),
-                "totals", Map.of("events", 5)
+                "totals", Map.of("events", 5),
+                "by_shift", List.of(Map.of("shift", "night", "events", 5)),
+                "by_team", List.of(Map.of("team", "support", "events", 5))
         ));
 
         mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
@@ -294,6 +296,8 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.rows[0].operator_segment").value("night_shift"))
+                .andExpect(jsonPath("$.by_shift[0].shift").value("night"))
+                .andExpect(jsonPath("$.by_team[0].team").value("support"))
                 .andExpect(jsonPath("$.totals.events").value(5));
     }
 
