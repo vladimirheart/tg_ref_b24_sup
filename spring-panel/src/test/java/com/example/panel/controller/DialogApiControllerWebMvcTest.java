@@ -26,7 +26,10 @@ import java.time.temporal.ChronoUnit;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -463,5 +466,54 @@ class DialogApiControllerWebMvcTest {
         mockMvc.perform(post("/api/dialogs/T-1/reopen").with(user("operator")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void workspaceTelemetryLogsMacroApplyInDialogActionAudit() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "macro_apply",
+                                  "event_group": "macro",
+                                  "ticket_id": "T-42",
+                                  "template_id": "billing_follow_up",
+                                  "template_name": "Billing follow-up"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(dialogService).logDialogActionAudit(
+                eq("T-42"),
+                eq("operator"),
+                eq("macro_apply"),
+                eq("success"),
+                contains("Billing follow-up"));
+    }
+
+    @Test
+    void workspaceTelemetryDoesNotLogDialogActionAuditForNonMacroEvents() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_open_ms",
+                                  "event_group": "workspace",
+                                  "ticket_id": "T-42",
+                                  "duration_ms": 420
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(dialogService, never()).logDialogActionAudit(
+                anyString(),
+                anyString(),
+                eq("macro_apply"),
+                anyString(),
+                anyString());
     }
 }
