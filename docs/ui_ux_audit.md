@@ -311,9 +311,10 @@
 4. **Макросы/шаблоны операторов отсутствуют как управляемая подсистема**
    - нет полноценного CRUD, версионирования и аудита применения макросов.
 
-5. **A/B-контур оформлен как baseline, но требует расширения до production-аналитики**
+5. **A/B-контур расширен до production-аналитики (частично выполнено)**
    - сегментация, базовый словарь событий и KPI-словарь эксперимента (primary/secondary) внедрены в UI/telemetry;
-   - в backlog остаются серверные агрегаты по сменам/командам и автоматизированные продуктовые дашборды.
+   - добавлены серверные агрегаты `workspace-telemetry/summary` по cohort + operator segment + срезам по сменам/командам для операционного мониторинга;
+   - в backlog остаются автоматизированные продуктовые дашборды и алерты на отклонения KPI.
 
 ### 9.5. Что можно сделать прямо сейчас (без блокирующих зависимостей)
 
@@ -352,6 +353,7 @@
 - [x] **NOW-1.19 (этап D3, governance MVP):** обновление `dialog_macro_templates` теперь проходит через серверную нормализацию (обязательные `name/message`, dedupe тегов, стабильный `id`) с авто-метаданными `version/created_at/updated_at/updated_by`, что формирует базовый слой версионности и аудита макросов для operator-flow.
 - [x] **NOW-1.20 (этап C1, enrichment related events):** quick-actions (`take/close/snooze/forbidden`) теперь пишутся в `dialog_action_audit`, а workspace-блок `Связанные события` агрегирует chat/system + workflow + audit trail в единой хронологии для расследования инцидентов и операторского контекста.
 - [x] **NOW-1.21 (этап E3, production analytics extension):** telemetry workspace теперь сохраняется в `workspace_telemetry_audit`, а API `/api/dialogs/workspace-telemetry/summary` строит серверные агрегаты по когорте/операторскому сегменту (events/fallback/render_error/avg_open_ms) для быстрого продуктового среза без внешнего BI.
+- [x] **NOW-1.22 (этап E3, operations analytics hardening):** summary-агрегатор дополнен срезами `by_shift` и `by_team`, чтобы закрыть backlog по серверной аналитике смен/команд и ускорить контроль rollout workspace_v1 на операционном уровне.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
