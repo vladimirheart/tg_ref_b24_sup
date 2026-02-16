@@ -176,12 +176,60 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.contract_version").value("workspace.v1"))
                 .andExpect(jsonPath("$.conversation.ticketId").value("T-1"))
                 .andExpect(jsonPath("$.messages.has_more").value(false))
+                .andExpect(jsonPath("$.context.client.username").value("user"))
+                .andExpect(jsonPath("$.context.client.channel").value("demo"))
+                .andExpect(jsonPath("$.context.client.location").value("city, location"))
+                .andExpect(jsonPath("$.context.client.segments.length()").value(0))
                 .andExpect(jsonPath("$.permissions.can_bulk").value(false))
                 .andExpect(jsonPath("$.sla.target_minutes").value(1440))
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    @Test
+    void workspaceBuildsClientSegmentsForContextPanel() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-SEG",
+                7L,
+                77L,
+                "client77",
+                "Клиент 77",
+                "enterprise",
+                3L,
+                "telegram",
+                "СПб",
+                "Колл-центр",
+                "help",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "",
+                "2026-01-01",
+                "10:00",
+                "VIP",
+                "client",
+                "2026-01-01T10:00:00Z",
+                3,
+                2,
+                "billing"
+        );
+        when(dialogService.loadDialogDetails("T-SEG", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-SEG", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
+        mockMvc.perform(get("/api/dialogs/T-SEG/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.client.segments.length()").value(3))
+                .andExpect(jsonPath("$.context.client.segments[0]").value("needs_reply"))
+                .andExpect(jsonPath("$.context.client.segments[1]").value("unassigned"))
+                .andExpect(jsonPath("$.context.client.segments[2]").value("low_csat_risk"));
+    }
 
     @Test
     void workspaceTelemetrySummaryIncludesGuardrails() throws Exception {
