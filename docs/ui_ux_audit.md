@@ -369,6 +369,7 @@
 - [x] **NOW-1.30 (этап E3, in-product dashboard):** на странице `Аналитика` добавлен live-блок `Workspace rollout guardrails`, который подтягивает `/api/dialogs/workspace-telemetry/summary`, показывает KPI окна rollout и активные guardrail-alerts (включая сегментный контекст) без необходимости внешнего BI.
 - [x] **NOW-1.31 (этап E3, external incident hooks):** добавлен серверный `WorkspaceGuardrailWebhookNotifier`, который по расписанию анализирует `workspace-telemetry/summary` и отправляет webhook при статусе guardrails `attention` (с порогом alert-count, cooldown и дедупликацией), чтобы эскалация происходила автоматически даже без открытого экрана аналитики.
 - [x] **NOW-1.32 (этап C3, SLA automation bridge):** добавлен серверный `SlaEscalationWebhookNotifier`, который по расписанию ищет unassigned-диалоги с критичным `minutes_left <= sla_critical_minutes` и отправляет webhook `sla_critical_escalation_required` с cooldown-дедупликацией. Это закрывает часть backlog по авто-эскалации (уведомления), сохраняя авто-назначение/инцидентные интеграции в следующем этапе.
+- [x] **NOW-1.33 (этап D3, macro publication workflow):** в настройках добавлен флаг «Опубликован для операторов», сервер сохраняет `published/published_at/published_by` и при загрузке workspace в composer попадают только опубликованные макросы. Это закрывает базовый publish-flow без усложнения UX.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
