@@ -11538,9 +11538,22 @@
     const nameInput = card.querySelector('.macro-template-name');
     const titleEl = card.querySelector('[data-dialog-template-title]');
     const summaryEl = card.querySelector('[data-dialog-template-summary]');
+    const reviewStateEl = card.querySelector('[data-macro-review-state]');
+    const approvedInput = card.querySelector('.macro-template-approved');
+    const publishedInput = card.querySelector('.macro-template-published');
     const name = (nameInput?.value || '').trim();
+    const isApproved = Boolean(approvedInput?.checked);
     if (titleEl) {
       titleEl.textContent = name || 'Макрос';
+    }
+    if (reviewStateEl) {
+      reviewStateEl.textContent = isApproved ? 'Одобрено к публикации' : 'Требует ревью';
+    }
+    if (publishedInput) {
+      publishedInput.disabled = !isApproved;
+      if (!isApproved) {
+        publishedInput.checked = false;
+      }
     }
     if (summaryEl) {
       const tags = Array.from(card.querySelectorAll('.macro-tag-input'))
@@ -11921,6 +11934,8 @@
       : (typeof data.text === 'string' ? data.text : '');
     const tags = Array.isArray(data.tags) ? data.tags : [];
     const published = data.published !== false;
+    const approvedForPublish = data.approved_for_publish === true || data.review_state === 'approved';
+    const reviewStateLabel = approvedForPublish ? 'Одобрено к публикации' : 'Требует ревью';
 
     const card = document.createElement('div');
     card.className = 'card shadow-sm dialog-template-card';
@@ -11954,6 +11969,11 @@
             <input class="form-check-input macro-template-published" type="checkbox" id="macro-template-published-${templateId}" ${published ? 'checked' : ''}>
             <label class="form-check-label" for="macro-template-published-${templateId}">Опубликован для операторов</label>
           </div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input macro-template-approved" type="checkbox" id="macro-template-approved-${templateId}" ${approvedForPublish ? 'checked' : ''}>
+            <label class="form-check-label" for="macro-template-approved-${templateId}">Одобрен к публикации (review/admin)</label>
+          </div>
+          <div class="small text-muted mb-3" data-macro-review-state>${reviewStateLabel}</div>
           <div class="d-flex flex-column gap-2" data-macro-tags></div>
           <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addMacroTagRow(this)">+ Тег</button>
         </div>
@@ -11970,6 +11990,10 @@
     if (messageInput) {
       messageInput.value = message;
       messageInput.addEventListener('input', () => updateMacroTemplateSummary(card));
+    }
+    const approvedInput = card.querySelector('.macro-template-approved');
+    if (approvedInput) {
+      approvedInput.addEventListener('change', () => updateMacroTemplateSummary(card));
     }
     const tagsContainer = card.querySelector('[data-macro-tags]');
     if (tagsContainer) {
@@ -12670,6 +12694,7 @@
         card.dataset.templateId = templateId;
         const name = (card.querySelector('.macro-template-name')?.value || '').trim();
         const message = (card.querySelector('.macro-template-message')?.value || '').trim();
+        const approvedForPublish = Boolean(card.querySelector('.macro-template-approved')?.checked);
         const tags = Array.from(card.querySelectorAll('.macro-tag-input'))
           .map((input) => (input.value || '').trim())
           .filter((value, tagIndex, values) => value && values.indexOf(value) === tagIndex);
@@ -12680,6 +12705,7 @@
           id: templateId,
           name: name || `Макрос ${index + 1}`,
           message,
+          approved_for_publish: approvedForPublish,
           published: Boolean(card.querySelector('.macro-template-published')?.checked),
           tags,
         };
