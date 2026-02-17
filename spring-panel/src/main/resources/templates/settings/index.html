@@ -11920,6 +11920,7 @@
       ? data.message
       : (typeof data.text === 'string' ? data.text : '');
     const tags = Array.isArray(data.tags) ? data.tags : [];
+    const published = data.published !== false;
 
     const card = document.createElement('div');
     card.className = 'card shadow-sm dialog-template-card';
@@ -11948,6 +11949,10 @@
           <div class="mb-3">
             <label class="form-label" for="macro-template-message-${templateId}">Текст ответа</label>
             <textarea class="form-control form-control-sm macro-template-message" id="macro-template-message-${templateId}" rows="3" placeholder="Текст, который будет вставлен в composer"></textarea>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input macro-template-published" type="checkbox" id="macro-template-published-${templateId}" ${published ? 'checked' : ''}>
+            <label class="form-check-label" for="macro-template-published-${templateId}">Опубликован для операторов</label>
           </div>
           <div class="d-flex flex-column gap-2" data-macro-tags></div>
           <button class="btn btn-sm btn-outline-primary mt-3" type="button" onclick="addMacroTagRow(this)">+ Тег</button>
@@ -12675,6 +12680,7 @@
           id: templateId,
           name: name || `Макрос ${index + 1}`,
           message,
+          published: Boolean(card.querySelector('.macro-template-published')?.checked),
           tags,
         };
       }).filter(Boolean);
