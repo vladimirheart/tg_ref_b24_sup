@@ -332,6 +332,14 @@
     saveSnoozedDialogs(snoozedDialogs);
   }
 
+  function isMacroTemplatePublished(template) {
+    if (!template || typeof template !== 'object') return false;
+    if (!Object.prototype.hasOwnProperty.call(template, 'published')) {
+      return true;
+    }
+    return template.published === true || template.published === 'true' || template.published === 1 || template.published === '1';
+  }
+
   const DIALOG_TEMPLATES = {
     categoryTemplates: Array.isArray(window.DIALOG_CONFIG?.category_templates)
       ? window.DIALOG_CONFIG.category_templates
@@ -340,7 +348,7 @@
       ? window.DIALOG_CONFIG.question_templates
       : [],
     macroTemplates: Array.isArray(window.DIALOG_CONFIG?.macro_templates)
-      ? window.DIALOG_CONFIG.macro_templates
+      ? window.DIALOG_CONFIG.macro_templates.filter((template) => isMacroTemplatePublished(template))
       : [],
     completionTemplates: Array.isArray(window.DIALOG_CONFIG?.completion_templates)
       ? window.DIALOG_CONFIG.completion_templates
