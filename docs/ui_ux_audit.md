@@ -306,9 +306,10 @@
    - выполнен базовый server-side enrichment профиля клиента (username/status/channel/business/location/unread/rating + сегменты риска) для triage без открытия дополнительных экранов;
    - в backlog остаётся подключение внешних источников (CRM/contract profile) и расширенные enterprise-атрибуты.
 
-3. **SLA-first orchestration реализован частично (UI+API), системная авто-эскалация остаётся в backlog**
+3. **SLA-first orchestration реализован частично (UI+API+automation bridge), полная оркестрация остаётся в backlog**
    - API `/api/dialogs` возвращает `sla_orchestration.tickets` с флагами `auto_pin/escalation_required`, а в UI добавлен отдельный saved view `Нужна эскалация` для unassigned-кейсов с критичным SLA;
-   - в backlog остаются серверные автоматические действия (авто-назначение/уведомления/инцидентные интеграции) на уровне оркестратора.
+   - серверный bridge расширен: webhook-эскалация + конфигурируемое auto-assign критичных unassigned-кейсов на дежурного оператора (`dialog_config.sla_critical_auto_assign_*`) с аудитом действий;
+   - в backlog остаются инцидентные интеграции и policy-логика распределения по навыкам/очередям.
 
 4. **Макросы/шаблоны операторов реализованы как MVP+, governance расширяется**
    - добавлены нормализация шаблонов, workflow публикации (`published` + `published_at/by`) и серверный аудит применения (`macro_apply` в `dialog_action_audit`), что закрывает базовую трассировку operator-flow;
@@ -371,6 +372,7 @@
 - [x] **NOW-1.32 (этап C3, SLA automation bridge):** добавлен серверный `SlaEscalationWebhookNotifier`, который по расписанию ищет unassigned-диалоги с критичным `minutes_left <= sla_critical_minutes` и отправляет webhook `sla_critical_escalation_required` с cooldown-дедупликацией. Это закрывает часть backlog по авто-эскалации (уведомления), сохраняя авто-назначение/инцидентные интеграции в следующем этапе.
 - [x] **NOW-1.33 (этап D3, macro publication workflow):** в настройках добавлен флаг «Опубликован для операторов», сервер сохраняет `published/published_at/published_by` и при загрузке workspace в composer попадают только опубликованные макросы. Это закрывает базовый publish-flow без усложнения UX.
 - [x] **NOW-1.34 (этап D3, role restrictions for publication):** публикация/снятие публикации макросов ограничены ролью `ROLE_ADMIN`; для пользователей без админ-прав сервер сохраняет прежний статус `published`, что закрывает backlog по базовым ролевым ограничениям без риска случайного rollout неготовых шаблонов.
+- [x] **NOW-1.35 (этап C3, SLA auto-assignment bridge):** `SlaEscalationWebhookNotifier` дополнен конфигурируемым auto-assign для критичных unassigned-диалогов (`sla_critical_auto_assign_enabled/sla_critical_auto_assign_to/sla_critical_auto_assign_max_per_run`) с серверным аудитом `sla_auto_assign`. Это закрывает ещё один слой backlog по автоматическим действиям без hard-coded routing.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
