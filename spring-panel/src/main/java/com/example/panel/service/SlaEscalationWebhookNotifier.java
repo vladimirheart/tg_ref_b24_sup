@@ -46,13 +46,7 @@ public class SlaEscalationWebhookNotifier {
     public void notifyCriticalUnassignedDialogs() {
         Map<String, Object> settings = sharedConfigService.loadSettings();
         Map<String, Object> dialogConfig = extractMap(settings.get("dialog_config"));
-        if (!resolveBoolean(dialogConfig, "sla_critical_escalation_enabled", true)
-                || !resolveBoolean(dialogConfig, "sla_critical_escalation_webhook_enabled", false)) {
-            return;
-        }
-
-        String webhookUrl = trimToNull(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_url")));
-        if (webhookUrl == null) {
+        if (!resolveBoolean(dialogConfig, "sla_critical_escalation_enabled", true)) {
             return;
         }
 
@@ -63,6 +57,17 @@ public class SlaEscalationWebhookNotifier {
 
         List<Map<String, Object>> candidates = findEscalationCandidates(dialogService.loadDialogs(null), targetMinutes, criticalMinutes);
         if (candidates.isEmpty()) {
+            return;
+        }
+
+        applyAutoAssignment(candidates, dialogConfig);
+
+        if (!resolveBoolean(dialogConfig, "sla_critical_escalation_webhook_enabled", false)) {
+            return;
+        }
+
+        String webhookUrl = trimToNull(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_url")));
+        if (webhookUrl == null) {
             return;
         }
 
@@ -95,6 +100,53 @@ public class SlaEscalationWebhookNotifier {
             cleanupCooldownCache(now, cooldownMinutes);
             log.info("SLA escalation webhook sent for {} ticket(s).", readyToNotify.size());
         }
+    }
+
+    private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
+        List<String> ticketIds = resolveAutoAssignTicketIds(candidates, dialogConfig);
+        if (ticketIds.isEmpty()) {
+            return;
+        }
+        String assignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
+        String actor = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_actor")));
+        if (actor == null) {
+            actor = "sla_orchestrator";
+        }
+        int assignedCount = 0;
+        for (String ticketId : ticketIds) {
+            dialogService.assignResponsibleIfMissingOrRedirected(ticketId, assignee, actor);
+            dialogService.logDialogActionAudit(ticketId, actor, "sla_auto_assign", "success", "assigned_to=" + assignee);
+            assignedCount++;
+        }
+        if (assignedCount > 0) {
+            log.info("SLA auto-assigned {} critical ticket(s) to '{}'.", assignedCount, assignee);
+        }
+    }
+
+    List<String> resolveAutoAssignTicketIds(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
+        if (!resolveBoolean(dialogConfig, "sla_critical_auto_assign_enabled", false)) {
+            return List.of();
+        }
+        String assignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
+        if (assignee == null) {
+            return List.of();
+        }
+        int maxPerRun = resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_max_per_run", 5, 100);
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+        List<String> ticketIds = new ArrayList<>();
+        for (Map<String, Object> candidate : candidates) {
+            if (ticketIds.size() >= maxPerRun) {
+                break;
+            }
+            String ticketId = trimToNull(String.valueOf(candidate.get("ticket_id")));
+            if (ticketId == null || ticketIds.contains(ticketId)) {
+                continue;
+            }
+            ticketIds.add(ticketId);
+        }
+        return ticketIds;
     }
 
     List<Map<String, Object>> findEscalationCandidates(List<DialogListItem> dialogs,
