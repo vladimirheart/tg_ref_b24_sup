@@ -12,6 +12,8 @@
   const updatedAt = document.getElementById('workspaceTelemetryUpdatedAt');
   const alertBox = document.getElementById('workspaceTelemetryAlertBox');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
+  const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
+  const teamTable = document.getElementById('workspaceTelemetryTeamTable');
 
   const metricNodes = {};
   card.querySelectorAll('[data-metric]').forEach((node) => {
@@ -52,6 +54,35 @@
     attentionBadge.classList.add('d-none');
     alertBox.classList.add('d-none');
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
+    shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
+    teamTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
+  }
+
+  function renderBreakdownRows(tableNode, rows, dimensionField, emptyText) {
+    if (!tableNode) {
+      return;
+    }
+    if (!Array.isArray(rows) || rows.length === 0) {
+      tableNode.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-3">${emptyText}</td></tr>`;
+      return;
+    }
+
+    tableNode.innerHTML = rows.map((row) => {
+      const dimension = row?.[dimensionField] || '—';
+      const events = Number(row?.events || 0);
+      const renderErrorRate = events > 0 ? Number(row?.render_errors || 0) / events : 0;
+      const fallbackRate = events > 0 ? Number(row?.fallbacks || 0) / events : 0;
+      const abandonRate = events > 0 ? Number(row?.abandons || 0) / events : 0;
+      return `
+        <tr>
+          <td>${dimension}</td>
+          <td class="text-end">${formatNumber(events)}</td>
+          <td class="text-end">${formatRate(renderErrorRate)}</td>
+          <td class="text-end">${formatRate(fallbackRate)}</td>
+          <td class="text-end">${formatRate(abandonRate)}</td>
+        </tr>
+      `;
+    }).join('');
   }
 
   function renderAlerts(alerts) {
@@ -88,6 +119,8 @@
 
     updatedAt.textContent = `Обновлено: ${formatTimestamp(payload?.generated_at)} · окно ${payload?.window_days || '—'} дн.`;
     renderAlerts(alerts);
+    renderBreakdownRows(shiftTable, payload?.by_shift, 'shift', 'Недостаточно данных по сменам.');
+    renderBreakdownRows(teamTable, payload?.by_team, 'team', 'Недостаточно данных по командам.');
 
     if (status === 'attention') {
       alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails — проверьте таблицу ниже.`;
@@ -118,6 +151,8 @@
       alertBox.classList.remove('d-none');
       updatedAt.textContent = 'Ошибка загрузки telemetry.';
       alertsTable.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Ошибка загрузки данных. Проверьте доступ к /api/dialogs/workspace-telemetry/summary.</td></tr>';
+      shiftTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по сменам недоступны.</td></tr>';
+      teamTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по командам недоступны.</td></tr>';
       Object.values(metricNodes).forEach((node) => {
         node.textContent = '—';
       });
