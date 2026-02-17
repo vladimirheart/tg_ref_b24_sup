@@ -604,8 +604,20 @@ public class SettingsBridgeController {
 
             List<String> tags = normalizeTemplateTags(sourceMap.get("tags"));
             int version = resolveTemplateVersion(previous);
-            if (templateMeaningfullyChanged(previous, name, message, tags)) {
+            boolean changedMeaningfully = templateMeaningfullyChanged(previous, name, message, tags);
+            if (changedMeaningfully) {
                 version += 1;
+            }
+
+            boolean approvedForPublish = resolveMacroApproval(previous);
+            if (sourceMap.containsKey("approved_for_publish")) {
+                approvedForPublish = asBoolean(sourceMap.get("approved_for_publish"));
+            }
+            if (!canPublishMacros) {
+                approvedForPublish = resolveMacroApproval(previous);
+            }
+            if (changedMeaningfully) {
+                approvedForPublish = false;
             }
 
             boolean published = previous != null
@@ -616,6 +628,9 @@ public class SettingsBridgeController {
             }
             if (!canPublishMacros) {
                 published = previous != null ? asBoolean(previous.get("published")) : false;
+            }
+            if (!approvedForPublish) {
+                published = false;
             }
             boolean wasPublished = previous != null && asBoolean(previous.get("published"));
             String previousPublishedAt = previous != null ? stringValue(previous.get("published_at")) : "";
@@ -631,6 +646,24 @@ public class SettingsBridgeController {
                 publishedBy = normalizedActor;
             }
 
+            boolean wasApproved = resolveMacroApproval(previous);
+            String previousReviewedAt = previous != null ? stringValue(previous.get("reviewed_at")) : "";
+            String previousReviewedBy = previous != null ? stringValue(previous.get("reviewed_by")) : "";
+            String reviewedAt = approvedForPublish
+                ? (StringUtils.hasText(previousReviewedAt) ? previousReviewedAt : now)
+                : "";
+            String reviewedBy = approvedForPublish
+                ? (StringUtils.hasText(previousReviewedBy) ? previousReviewedBy : normalizedActor)
+                : "";
+            if (!wasApproved && approvedForPublish) {
+                reviewedAt = now;
+                reviewedBy = normalizedActor;
+            }
+            if (changedMeaningfully) {
+                reviewedAt = "";
+                reviewedBy = "";
+            }
+
             Map<String, Object> normalizedTemplate = new LinkedHashMap<>();
             normalizedTemplate.put("id", id);
             normalizedTemplate.put("name", name);
@@ -638,12 +671,16 @@ public class SettingsBridgeController {
             normalizedTemplate.put("text", message);
             normalizedTemplate.put("tags", tags);
             normalizedTemplate.put("published", published);
+            normalizedTemplate.put("approved_for_publish", approvedForPublish);
+            normalizedTemplate.put("review_state", approvedForPublish ? "approved" : "pending_review");
             normalizedTemplate.put("version", Math.max(1, version));
             normalizedTemplate.put("created_at", previous != null
                 ? stringValue(previous.get("created_at"))
                 : now);
             normalizedTemplate.put("updated_at", now);
             normalizedTemplate.put("updated_by", normalizedActor);
+            normalizedTemplate.put("reviewed_at", StringUtils.hasText(reviewedAt) ? reviewedAt : null);
+            normalizedTemplate.put("reviewed_by", StringUtils.hasText(reviewedBy) ? reviewedBy : null);
             normalizedTemplate.put("published_at", StringUtils.hasText(publishedAt) ? publishedAt : null);
             normalizedTemplate.put("published_by", StringUtils.hasText(publishedBy) ? publishedBy : null);
 
@@ -655,6 +692,16 @@ public class SettingsBridgeController {
             normalized.size(),
             canPublishMacros);
         return normalized;
+    }
+
+    private boolean resolveMacroApproval(Map<String, Object> template) {
+        if (template == null) {
+            return false;
+        }
+        if (template.containsKey("approved_for_publish")) {
+            return asBoolean(template.get("approved_for_publish"));
+        }
+        return asBoolean(template.get("published"));
     }
 
     private List<Map<String, Object>> castTemplateList(Object raw) {
