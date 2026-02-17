@@ -217,6 +217,10 @@
     workspace_fallback_to_legacy: 'stability',
     workspace_abandon: 'engagement',
     workspace_experiment_exposure: 'experiment',
+    triage_view_switch: 'triage',
+    triage_quick_assign: 'triage',
+    triage_quick_snooze: 'triage',
+    triage_quick_close: 'triage',
     macro_preview: 'macro',
     macro_apply: 'macro',
   });
@@ -1076,6 +1080,7 @@
       throw new Error(data?.error || `Ошибка ${resp.status}`);
     }
     updateRowStatus(row, 'resolved', 'Закрыт', 'closed', 0);
+    emitWorkspaceTelemetry('triage_quick_close', { ticketId });
     updateRowSlaBadge(row);
     updateRowQuickActions(row);
     applyFilters();
@@ -1095,6 +1100,7 @@
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       updateRowResponsible(row, data.responsible || '');
+      emitWorkspaceTelemetry('triage_quick_assign', { ticketId });
       applyFilters();
       if (typeof showNotification === 'function') {
         showNotification('Диалог назначен на вас', 'success');
@@ -1121,6 +1127,7 @@
       if (!resp.ok || !data?.success) {
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
+      emitWorkspaceTelemetry('triage_quick_snooze', { ticketId, reason: `minutes:${minutes}` });
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -1575,6 +1582,7 @@
 
   function setViewTab(nextView) {
     const resolvedView = nextView || 'all';
+    const previousView = filterState.view || 'all';
     const isEnteringCriticalView = resolvedView === 'sla_critical';
     const isLeavingCriticalView = filterState.view === 'sla_critical' && resolvedView !== 'sla_critical';
 
@@ -1597,6 +1605,9 @@
     viewTabs.forEach((tab) => {
       tab.classList.toggle('active', tab.dataset.dialogView === filterState.view);
     });
+    if (previousView !== resolvedView) {
+      emitWorkspaceTelemetry('triage_view_switch', { reason: `${previousView}->${resolvedView}` });
+    }
     applyFilters();
   }
 
