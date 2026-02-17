@@ -32,6 +32,36 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("T-1", candidates.get(0).get("ticket_id"));
     }
 
+    @Test
+    void resolveAutoAssignTicketIdsRespectsConfigAndLimit() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1"),
+                Map.of("ticket_id", "T-2"),
+                Map.of("ticket_id", "T-2"),
+                Map.of("ticket_id", "T-3")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "duty_operator",
+                "sla_critical_auto_assign_max_per_run", 2
+        );
+
+        List<String> ticketIds = notifier.resolveAutoAssignTicketIds(candidates, config);
+        assertEquals(List.of("T-1", "T-2"), ticketIds);
+    }
+
+    @Test
+    void resolveAutoAssignTicketIdsReturnsEmptyWhenDisabled() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        List<String> ticketIds = notifier.resolveAutoAssignTicketIds(
+                List.of(Map.of("ticket_id", "T-1")),
+                Map.of("sla_critical_auto_assign_enabled", false)
+        );
+        assertEquals(List.of(), ticketIds);
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,
