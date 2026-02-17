@@ -601,18 +601,41 @@ public class SettingsBridgeController {
                 version += 1;
             }
 
+            boolean published = previous != null
+                ? asBoolean(previous.get("published"))
+                : true;
+            if (sourceMap.containsKey("published")) {
+                published = asBoolean(sourceMap.get("published"));
+            }
+            boolean wasPublished = previous != null && asBoolean(previous.get("published"));
+            String previousPublishedAt = previous != null ? stringValue(previous.get("published_at")) : "";
+            String previousPublishedBy = previous != null ? stringValue(previous.get("published_by")) : "";
+            String publishedAt = published
+                ? (StringUtils.hasText(previousPublishedAt) ? previousPublishedAt : now)
+                : "";
+            String publishedBy = published
+                ? (StringUtils.hasText(previousPublishedBy) ? previousPublishedBy : normalizedActor)
+                : "";
+            if (!wasPublished && published) {
+                publishedAt = now;
+                publishedBy = normalizedActor;
+            }
+
             Map<String, Object> normalizedTemplate = new LinkedHashMap<>();
             normalizedTemplate.put("id", id);
             normalizedTemplate.put("name", name);
             normalizedTemplate.put("message", message);
             normalizedTemplate.put("text", message);
             normalizedTemplate.put("tags", tags);
+            normalizedTemplate.put("published", published);
             normalizedTemplate.put("version", Math.max(1, version));
             normalizedTemplate.put("created_at", previous != null
                 ? stringValue(previous.get("created_at"))
                 : now);
             normalizedTemplate.put("updated_at", now);
             normalizedTemplate.put("updated_by", normalizedActor);
+            normalizedTemplate.put("published_at", StringUtils.hasText(publishedAt) ? publishedAt : null);
+            normalizedTemplate.put("published_by", StringUtils.hasText(publishedBy) ? publishedBy : null);
 
             normalized.add(normalizedTemplate);
         }
