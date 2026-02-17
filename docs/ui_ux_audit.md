@@ -373,6 +373,7 @@
 - [x] **NOW-1.33 (этап D3, macro publication workflow):** в настройках добавлен флаг «Опубликован для операторов», сервер сохраняет `published/published_at/published_by` и при загрузке workspace в composer попадают только опубликованные макросы. Это закрывает базовый publish-flow без усложнения UX.
 - [x] **NOW-1.34 (этап D3, role restrictions for publication):** публикация/снятие публикации макросов ограничены ролью `ROLE_ADMIN`; для пользователей без админ-прав сервер сохраняет прежний статус `published`, что закрывает backlog по базовым ролевым ограничениям без риска случайного rollout неготовых шаблонов.
 - [x] **NOW-1.35 (этап C3, SLA auto-assignment bridge):** `SlaEscalationWebhookNotifier` дополнен конфигурируемым auto-assign для критичных unassigned-диалогов (`sla_critical_auto_assign_enabled/sla_critical_auto_assign_to/sla_critical_auto_assign_max_per_run`) с серверным аудитом `sla_auto_assign`. Это закрывает ещё один слой backlog по автоматическим действиям без hard-coded routing.
+- [x] **NOW-1.36 (этап E2, unified telemetry taxonomy for triage/workspace/macro):** на сервере введён whitelist `event_type -> event_group` для `/api/dialogs/workspace-telemetry` (с отклонением неподдерживаемых событий), а в UI добавлены triage-события `triage_view_switch`/`triage_quick_assign`/`triage_quick_snooze`/`triage_quick_close`. Это закрывает пробел по единому словарю продуктовых событий и делает A/B-срезы воспроизводимыми.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
