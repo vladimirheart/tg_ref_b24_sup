@@ -31,3 +31,17 @@ APP_BOT_DATABASE_DIR=/srv/iguana/bots
 ## Общие JSON-настройки
 
 Файлы `config/shared/settings.json`, `config/shared/locations.json` и `config/shared/org_structure.json` используются панелью и ботом. При изменении JSON-файлов перезапуск сервисов не требуется — они читаются напрямую с диска.
+
+## `dialog_config`: SLA-эскалация через webhook
+
+В `settings.json -> dialog_config` можно включить серверные webhook-уведомления для критичных нераспределённых диалогов:
+
+- `sla_critical_escalation_enabled` — включает саму SLA-эскалацию (по умолчанию `true`).
+- `sla_critical_escalation_webhook_enabled` — включает отправку webhook (по умолчанию `false`).
+- `sla_critical_escalation_webhook_url` — URL получателя webhook.
+- `sla_critical_escalation_webhook_cooldown_minutes` — минимальный интервал повторной отправки по одному тикету (по умолчанию `30`).
+- `sla_critical_escalation_webhook_timeout_ms` — timeout HTTP-вызова webhook (по умолчанию `4000`).
+- `sla_critical_minutes` — порог критичности SLA (используется для отбора тикетов).
+- `sla_target_minutes` — целевой SLA в минутах (используется для расчёта `minutes_left`).
+
+Фоновая проверка выполняется по расписанию (`panel.sla-escalation.webhook-check-interval-ms`, по умолчанию 120000 мс).
