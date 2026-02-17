@@ -60,6 +60,19 @@ public class DialogApiController {
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
     private static final int MAX_WORKSPACE_LIMIT = 200;
     private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
+    private static final Map<String, String> WORKSPACE_TELEMETRY_EVENT_GROUPS = Map.ofEntries(
+            Map.entry("workspace_open_ms", "performance"),
+            Map.entry("workspace_render_error", "stability"),
+            Map.entry("workspace_fallback_to_legacy", "stability"),
+            Map.entry("workspace_abandon", "engagement"),
+            Map.entry("workspace_experiment_exposure", "experiment"),
+            Map.entry("macro_preview", "macro"),
+            Map.entry("macro_apply", "macro"),
+            Map.entry("triage_view_switch", "triage"),
+            Map.entry("triage_quick_assign", "triage"),
+            Map.entry("triage_quick_snooze", "triage"),
+            Map.entry("triage_quick_close", "triage")
+    );
 
     public DialogApiController(DialogService dialogService,
                                DialogReplyService dialogReplyService,
@@ -327,10 +340,18 @@ public class DialogApiController {
         if (request == null || request.eventType() == null || request.eventType().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "event_type is required"));
         }
+        String normalizedEventType = request.eventType().trim().toLowerCase();
+        String eventGroup = WORKSPACE_TELEMETRY_EVENT_GROUPS.get(normalizedEventType);
+        if (eventGroup == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "unsupported event_type",
+                    "allowed_event_types", WORKSPACE_TELEMETRY_EVENT_GROUPS.keySet()));
+        }
         log.info("Workspace telemetry: actor='{}', event='{}', group='{}', ticket='{}', reason='{}', error='{}', contract='{}', durationMs={}, experiment='{}', cohort='{}', segment='{}', primaryKpis='{}', secondaryKpis='{}', templateId='{}', templateName='{}'",
                 operator,
-                request.eventType(),
-                request.eventGroup(),
+                normalizedEventType,
+                eventGroup,
                 request.ticketId(),
                 request.reason(),
                 request.errorCode(),
@@ -345,8 +366,8 @@ public class DialogApiController {
                 request.templateName());
         dialogService.logWorkspaceTelemetry(
                 operator,
-                request.eventType(),
-                request.eventGroup(),
+                normalizedEventType,
+                eventGroup,
                 request.ticketId(),
                 request.reason(),
                 request.errorCode(),
