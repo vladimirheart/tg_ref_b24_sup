@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
+import com.example.panel.service.PermissionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,15 +39,18 @@ public class SettingsBridgeController {
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
+    private final PermissionService permissionService;
     private final ObjectMapper objectMapper;
 
     public SettingsBridgeController(JdbcTemplate jdbcTemplate,
                                     SharedConfigService sharedConfigService,
                                     SettingsCatalogService settingsCatalogService,
+                                    PermissionService permissionService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
+        this.permissionService = permissionService;
         this.objectMapper = objectMapper;
     }
 
@@ -153,11 +157,13 @@ public class SettingsBridgeController {
                     dialogConfig.put("completion_templates", payload.get("dialog_completion_templates"));
                 }
                 if (payload.containsKey("dialog_macro_templates")) {
+                    boolean canPublishMacros = permissionService.hasAuthority(authentication, "ROLE_ADMIN");
                     Object existingTemplates = dialogConfig.get("macro_templates");
                     List<Map<String, Object>> normalizedTemplates = normalizeMacroTemplates(
                         existingTemplates,
                         payload.get("dialog_macro_templates"),
-                        authentication != null ? authentication.getName() : "system"
+                        authentication != null ? authentication.getName() : "system",
+                        canPublishMacros
                     );
                     dialogConfig.put("macro_templates", normalizedTemplates);
                 }
@@ -558,7 +564,8 @@ public class SettingsBridgeController {
 
     private List<Map<String, Object>> normalizeMacroTemplates(Object existingRaw,
                                                               Object incomingRaw,
-                                                              String actor) {
+                                                              String actor,
+                                                              boolean canPublishMacros) {
         List<Map<String, Object>> existingTemplates = castTemplateList(existingRaw);
         Map<String, Map<String, Object>> existingById = new LinkedHashMap<>();
         for (Map<String, Object> template : existingTemplates) {
@@ -607,6 +614,9 @@ public class SettingsBridgeController {
             if (sourceMap.containsKey("published")) {
                 published = asBoolean(sourceMap.get("published"));
             }
+            if (!canPublishMacros) {
+                published = previous != null ? asBoolean(previous.get("published")) : false;
+            }
             boolean wasPublished = previous != null && asBoolean(previous.get("published"));
             String previousPublishedAt = previous != null ? stringValue(previous.get("published_at")) : "";
             String previousPublishedBy = previous != null ? stringValue(previous.get("published_by")) : "";
@@ -639,10 +649,11 @@ public class SettingsBridgeController {
 
             normalized.add(normalizedTemplate);
         }
-        log.info("Dialog macro templates normalized: actor='{}', incoming={}, stored={}",
+        log.info("Dialog macro templates normalized: actor='{}', incoming={}, stored={}, can_publish={}",
             normalizedActor,
             incomingTemplates.size(),
-            normalized.size());
+            normalized.size(),
+            canPublishMacros);
         return normalized;
     }
 
