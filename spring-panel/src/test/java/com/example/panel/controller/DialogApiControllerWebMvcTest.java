@@ -399,6 +399,22 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetryRejectsUnsupportedEventType() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "unknown_event",
+                                  "event_group": "other"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("unsupported event_type"));
+    }
+
+    @Test
     void workspaceTelemetrySummaryReturnsAggregates() throws Exception {
         when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
                 "window_days", 7,
