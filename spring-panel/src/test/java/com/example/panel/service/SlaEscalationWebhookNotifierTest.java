@@ -85,6 +85,38 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("fallback_default", decisions.get(2).route());
     }
 
+
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsAssigneePoolRouting() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-100", "channel", "Telegram", "business", "Retail", "location", "Moscow"),
+                Map.of("ticket_id", "T-101", "channel", "Telegram", "business", "Retail", "location", "Moscow")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "tg_pool_msk",
+                                "match_channel", "telegram",
+                                "match_location", "moscow",
+                                "assign_to_pool", List.of("tg_shift_a", "tg_shift_b", "tg_shift_a")
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("rules", decisions.get(0).source());
+        assertEquals("tg_pool_msk", decisions.get(0).route());
+        assertEquals("rules", decisions.get(1).source());
+        assertEquals("tg_pool_msk", decisions.get(1).route());
+        // Разные ticket_id могут детерминированно распределиться по разным дежурным.
+        assertEquals(2, decisions.stream().map(SlaEscalationWebhookNotifier.AutoAssignDecision::assignee).distinct().count());
+    }
+
     @Test
     void resolveAutoAssignTicketIdsReturnsEmptyWhenDisabled() {
         SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());

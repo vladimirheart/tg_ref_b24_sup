@@ -17,9 +17,11 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -158,7 +160,7 @@ public class SlaEscalationWebhookNotifier {
             String candidateLocation = normalizeMatchValue(candidate.get("location"));
 
             AutoAssignRule matchedRule = findBestMatchedRule(rules, candidateChannel, candidateBusiness, candidateLocation);
-            String assignee = matchedRule != null ? matchedRule.assignee() : fallbackAssignee;
+            String assignee = matchedRule != null ? matchedRule.resolveAssignee(ticketId) : fallbackAssignee;
             String source = matchedRule != null ? "rules" : "fallback";
             String route = matchedRule != null ? matchedRule.route() : "fallback_default";
             if (assignee == null) {
@@ -274,7 +276,8 @@ public class SlaEscalationWebhookNotifier {
                 continue;
             }
             String assignee = trimToNull(String.valueOf(ruleMap.get("assign_to")));
-            if (assignee == null) {
+            List<String> assigneePool = parseAssigneePool(ruleMap.get("assign_to_pool"));
+            if (assignee == null && assigneePool.isEmpty()) {
                 continue;
             }
             String channel = normalizeMatchValue(ruleMap.get("match_channel"));
@@ -287,9 +290,25 @@ public class SlaEscalationWebhookNotifier {
             if (route == null) {
                 route = trimToNull(String.valueOf(ruleMap.get("name")));
             }
-            rules.add(new AutoAssignRule(channel, business, location, assignee, route));
+            rules.add(new AutoAssignRule(channel, business, location, assignee, assigneePool, route));
         }
         return rules;
+    }
+
+    private List<String> parseAssigneePool(Object rawPool) {
+        if (!(rawPool instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (Object item : list) {
+            String normalized = trimToNull(String.valueOf(item));
+            if (normalized == null || !seen.add(normalized)) {
+                continue;
+            }
+            result.add(normalized);
+        }
+        return result;
     }
 
     private String normalizeMatchValue(Object value) {
@@ -387,7 +406,12 @@ public class SlaEscalationWebhookNotifier {
     record AutoAssignDecision(String ticketId, String assignee, String source, String route) {
     }
 
-    private record AutoAssignRule(String channel, String business, String location, String assignee, String routeName) {
+    private record AutoAssignRule(String channel,
+                                  String business,
+                                  String location,
+                                  String assignee,
+                                  List<String> assigneePool,
+                                  String routeName) {
         boolean matches(String candidateChannel, String candidateBusiness, String candidateLocation) {
             if (channel != null && (candidateChannel == null || !channel.equals(candidateChannel))) {
                 return false;
@@ -415,8 +439,25 @@ public class SlaEscalationWebhookNotifier {
             return score;
         }
 
+        String resolveAssignee(String ticketId) {
+            if (assigneePool != null && !assigneePool.isEmpty()) {
+                int idx = Math.floorMod(String.valueOf(ticketId).hashCode(), assigneePool.size());
+                return assigneePool.get(idx);
+            }
+            return assignee;
+        }
+
         String route() {
-            return routeName != null ? routeName : "rule:" + assignee;
+            if (routeName != null) {
+                return routeName;
+            }
+            if (assignee != null) {
+                return "rule:" + assignee;
+            }
+            if (assigneePool != null && !assigneePool.isEmpty()) {
+                return "rule_pool:" + assigneePool.get(0);
+            }
+            return "rule:unknown";
         }
     }
 }
