@@ -18,6 +18,7 @@
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
+  const riskSegmentsTable = document.getElementById('workspaceTelemetryRiskSegmentsTable');
 
   const metricNodes = {};
   let latestPayload = null;
@@ -69,6 +70,16 @@
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     teamTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
+    if (riskSegmentsTable) {
+      riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
+    }
+  }
+
+  function toPercentRate(count, events) {
+    if (!events || events <= 0) {
+      return 0;
+    }
+    return Number(count || 0) / events;
   }
 
   function renderBreakdownRows(tableNode, rows, dimensionField, emptyText) {
@@ -83,9 +94,9 @@
     tableNode.innerHTML = rows.map((row) => {
       const dimension = row?.[dimensionField] || '—';
       const events = Number(row?.events || 0);
-      const renderErrorRate = events > 0 ? Number(row?.render_errors || 0) / events : 0;
-      const fallbackRate = events > 0 ? Number(row?.fallbacks || 0) / events : 0;
-      const abandonRate = events > 0 ? Number(row?.abandons || 0) / events : 0;
+      const renderErrorRate = toPercentRate(row?.render_errors, events);
+      const fallbackRate = toPercentRate(row?.fallbacks, events);
+      const abandonRate = toPercentRate(row?.abandons, events);
       return `
         <tr>
           <td>${dimension}</td>
@@ -96,6 +107,56 @@
         </tr>
       `;
     }).join('');
+  }
+
+  function buildRiskRows(payload, filters) {
+    const rows = [];
+    filteredRows(payload?.by_shift, 'shift', filters).forEach((row) => {
+      rows.push({ source: 'shift', segment: row?.shift || '—', ...row });
+    });
+    filteredRows(payload?.by_team, 'team', filters).forEach((row) => {
+      rows.push({ source: 'team', segment: row?.team || '—', ...row });
+    });
+    return rows
+      .map((row) => {
+        const events = Number(row?.events || 0);
+        const renderErrorRate = toPercentRate(row?.render_errors, events);
+        const fallbackRate = toPercentRate(row?.fallbacks, events);
+        const abandonRate = toPercentRate(row?.abandons, events);
+        const riskScore = (renderErrorRate + fallbackRate + abandonRate) * 100;
+        return {
+          label: `${row.source === 'team' ? 'team' : 'shift'}:${row.segment}`,
+          events,
+          renderErrorRate,
+          fallbackRate,
+          abandonRate,
+          riskScore,
+        };
+      })
+      .filter((row) => row.events > 0)
+      .sort((a, b) => b.riskScore - a.riskScore)
+      .slice(0, 6);
+  }
+
+  function renderRiskSegments(payload, filters) {
+    if (!riskSegmentsTable) {
+      return;
+    }
+    const rows = buildRiskRows(payload, filters);
+    if (rows.length === 0) {
+      riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-3">Недостаточно данных для построения risk-сегментов.</td></tr>';
+      return;
+    }
+    riskSegmentsTable.innerHTML = rows.map((row) => `
+      <tr>
+        <td>${row.label}</td>
+        <td class="text-end">${formatNumber(row.events)}</td>
+        <td class="text-end">${formatRate(row.renderErrorRate)}</td>
+        <td class="text-end">${formatRate(row.fallbackRate)}</td>
+        <td class="text-end">${formatRate(row.abandonRate)}</td>
+        <td class="text-end fw-semibold">${row.riskScore.toFixed(2)}</td>
+      </tr>
+    `).join('');
   }
 
   function getFilters() {
@@ -231,6 +292,7 @@
     renderFilterState(filters, visibleAlerts.length);
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
     renderBreakdownRows(teamTable, filteredRows(payload?.by_team, 'team', filters), 'team', 'Недостаточно данных по командам.');
+    renderRiskSegments(payload, filters);
 
     if (status === 'attention') {
       alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).`;
@@ -263,6 +325,9 @@
       alertsTable.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Ошибка загрузки данных. Проверьте доступ к /api/dialogs/workspace-telemetry/summary.</td></tr>';
       shiftTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по сменам недоступны.</td></tr>';
       teamTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по командам недоступны.</td></tr>';
+      if (riskSegmentsTable) {
+        riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Данные риск-сегментов недоступны.</td></tr>';
+      }
       Object.values(metricNodes).forEach((node) => {
         node.textContent = '—';
       });
