@@ -52,6 +52,11 @@
   const workspaceComposerSend = document.getElementById('workspaceComposerSend');
   const workspaceComposerSaveDraft = document.getElementById('workspaceComposerSaveDraft');
   const workspaceComposerDraftState = document.getElementById('workspaceComposerDraftState');
+  const workspaceComposerMacroSection = document.getElementById('workspaceComposerMacroSection');
+  const workspaceComposerMacroSearch = document.getElementById('workspaceComposerMacroSearch');
+  const workspaceComposerMacroSelect = document.getElementById('workspaceComposerMacroSelect');
+  const workspaceComposerMacroApply = document.getElementById('workspaceComposerMacroApply');
+  const workspaceComposerMacroPreview = document.getElementById('workspaceComposerMacroPreview');
 
   const filtersForm = document.getElementById('dialogFiltersForm');
   const filtersApply = document.getElementById('dialogFiltersApply');
@@ -231,6 +236,8 @@
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
   let workspaceComposerTicketId = '';
+  let workspaceComposerMacroTemplates = [];
+  let activeWorkspaceMacroTemplate = null;
   let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
 
 
@@ -1978,6 +1985,74 @@
     }
   }
 
+  function renderWorkspaceMacroPreview(template) {
+    activeWorkspaceMacroTemplate = template || null;
+    if (!workspaceComposerMacroPreview) return;
+    const text = resolveMacroText(template);
+    workspaceComposerMacroPreview.textContent = text || 'Выберите макрос для предпросмотра.';
+    if (workspaceComposerMacroApply) {
+      workspaceComposerMacroApply.disabled = !text;
+    }
+  }
+
+  function renderWorkspaceMacroOptions(templates) {
+    if (!workspaceComposerMacroSelect) return;
+    const nextTemplates = Array.isArray(templates) ? templates : [];
+    workspaceComposerMacroSelect.innerHTML = '';
+    nextTemplates.forEach((template, index) => {
+      const option = document.createElement('option');
+      option.value = template?.id
+        ? `id:${template.id}`
+        : `idx:${Number.isFinite(Number(template?.__macroIndex)) ? Number(template.__macroIndex) : index}`;
+      option.textContent = template?.name || `Макрос ${index + 1}`;
+      workspaceComposerMacroSelect.appendChild(option);
+    });
+    const selected = nextTemplates.length > 0
+      ? findMacroTemplateByWorkspaceOptionValue(workspaceComposerMacroSelect.value, nextTemplates) || nextTemplates[0]
+      : null;
+    if (selected) {
+      workspaceComposerMacroSelect.value = selected?.id
+        ? `id:${selected.id}`
+        : `idx:${Number.isFinite(Number(selected?.__macroIndex)) ? Number(selected.__macroIndex) : nextTemplates.indexOf(selected)}`;
+    }
+    workspaceComposerMacroSelect.disabled = nextTemplates.length === 0;
+    renderWorkspaceMacroPreview(selected);
+  }
+
+  function findMacroTemplateByWorkspaceOptionValue(value, templatePool = workspaceComposerMacroTemplates) {
+    const normalized = String(value || '').trim();
+    if (!normalized) return null;
+    if (normalized.startsWith('id:')) {
+      const templateId = normalized.slice(3);
+      return templatePool.find((template) => String(template?.id || '') === templateId) || null;
+    }
+    if (normalized.startsWith('idx:')) {
+      const idx = Number.parseInt(normalized.slice(4), 10);
+      if (!Number.isFinite(idx)) return null;
+      return workspaceComposerMacroTemplates.find((template) => Number(template?.__macroIndex) === idx) || null;
+    }
+    return null;
+  }
+
+  function applyWorkspaceMacroTemplate() {
+    if (!workspaceComposerText || !activeWorkspaceMacroTemplate) return;
+    const message = resolveMacroText(activeWorkspaceMacroTemplate);
+    if (!message) return;
+    const existing = workspaceComposerText.value.trim();
+    workspaceComposerText.value = existing ? `${existing}\n${message}` : message;
+    workspaceComposerText.focus();
+    saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { silent: true });
+    emitWorkspaceTelemetry('macro_apply', {
+      ticketId: workspaceComposerTicketId,
+      templateId: String(activeWorkspaceMacroTemplate?.id || '').trim() || null,
+      templateName: String(activeWorkspaceMacroTemplate?.name || '').trim() || null,
+      source: 'workspace_composer',
+    });
+    if (typeof showNotification === 'function') {
+      showNotification('Макрос добавлен в ответ workspace.', 'success');
+    }
+  }
+
   async function sendWorkspaceReply() {
     if (!workspaceComposerText || !workspaceComposerSend || !workspaceComposerTicketId) return;
     const message = workspaceComposerText.value.trim();
@@ -2041,6 +2116,8 @@
     if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
     if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
     if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = !canReplyInWorkspace;
+    if (workspaceComposerMacroApply) workspaceComposerMacroApply.disabled = !canReplyInWorkspace || !activeWorkspaceMacroTemplate;
+    if (workspaceComposerMacroSelect) workspaceComposerMacroSelect.disabled = !canReplyInWorkspace || workspaceComposerMacroTemplates.length === 0;
 
     if (workspaceConversationTitle) {
       workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
@@ -2912,6 +2989,18 @@
             renderMacroTemplateOptions(filteredTemplates);
           });
         }
+      }
+    }
+
+    if (workspaceComposerMacroSection) {
+      workspaceComposerMacroTemplates = DIALOG_TEMPLATES.macroTemplates.map((template, index) => ({
+        ...template,
+        __macroIndex: index,
+      }));
+      const hasTemplates = workspaceComposerMacroTemplates.length > 0;
+      workspaceComposerMacroSection.classList.toggle('d-none', !hasTemplates);
+      if (hasTemplates) {
+        renderWorkspaceMacroOptions(workspaceComposerMacroTemplates);
       }
     }
 
@@ -4340,6 +4429,26 @@
         event.preventDefault();
         saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value);
       }
+    });
+  }
+
+  if (workspaceComposerMacroSearch) {
+    workspaceComposerMacroSearch.addEventListener('input', () => {
+      const filteredTemplates = filterMacroTemplates(workspaceComposerMacroTemplates, workspaceComposerMacroSearch.value);
+      renderWorkspaceMacroOptions(filteredTemplates);
+    });
+  }
+
+  if (workspaceComposerMacroSelect) {
+    workspaceComposerMacroSelect.addEventListener('change', () => {
+      const selected = findMacroTemplateByWorkspaceOptionValue(workspaceComposerMacroSelect.value);
+      renderWorkspaceMacroPreview(selected);
+    });
+  }
+
+  if (workspaceComposerMacroApply) {
+    workspaceComposerMacroApply.addEventListener('click', () => {
+      applyWorkspaceMacroTemplate();
     });
   }
 
