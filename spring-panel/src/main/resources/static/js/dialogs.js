@@ -400,6 +400,7 @@
   const workspaceOpenTimers = new Map();
   const workspaceFirstInteractionTickets = new Set();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
+  const WORKSPACE_EXPERIENCE_ENABLED = resolveWorkspaceExperienceEnabled();
 
   function resolveWorkspaceExperimentContext() {
     if (!WORKSPACE_AB_TEST_CONFIG.enabled || WORKSPACE_AB_TEST_CONFIG.rolloutPercent <= 0) {
@@ -430,6 +431,16 @@
       experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
       cohort,
     };
+  }
+
+  function resolveWorkspaceExperienceEnabled() {
+    if (!WORKSPACE_V1_ENABLED) {
+      return false;
+    }
+    if (!WORKSPACE_AB_TEST_CONFIG.enabled) {
+      return true;
+    }
+    return workspaceExperimentContext.cohort === 'test';
   }
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
@@ -2420,7 +2431,7 @@
   function openDialogEntry(ticketId, row) {
     if (!ticketId) return;
     setWorkspaceReadonlyMode(false);
-    if (!WORKSPACE_V1_ENABLED) {
+    if (!WORKSPACE_EXPERIENCE_ENABLED) {
       openDialogDetails(ticketId, row);
       return;
     }
@@ -4614,15 +4625,19 @@
     applyFilters();
   }
 
-  if (WORKSPACE_V1_ENABLED && INITIAL_DIALOG_TICKET_ID) {
+  if (INITIAL_DIALOG_TICKET_ID) {
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
     if (initialRow) {
       setActiveDialogRow(initialRow, { ensureVisible: true });
     }
-    openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
+    if (WORKSPACE_EXPERIENCE_ENABLED) {
+      openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
+    } else {
+      openDialogDetails(INITIAL_DIALOG_TICKET_ID, initialRow);
+    }
   }
 
-  if (WORKSPACE_V1_ENABLED && WORKSPACE_INLINE_NAVIGATION) {
+  if (WORKSPACE_EXPERIENCE_ENABLED && WORKSPACE_INLINE_NAVIGATION) {
     window.addEventListener('popstate', () => {
       const path = window.location.pathname || '';
       const match = path.match(/^\/dialogs\/([^/]+)$/);
