@@ -34,15 +34,19 @@
   const workspaceClientState = document.getElementById('workspaceClientState');
   const workspaceClientContent = document.getElementById('workspaceClientContent');
   const workspaceClientError = document.getElementById('workspaceClientError');
+  const workspaceClientRetry = document.getElementById('workspaceClientRetry');
   const workspaceHistoryState = document.getElementById('workspaceHistoryState');
   const workspaceHistoryContent = document.getElementById('workspaceHistoryContent');
   const workspaceHistoryError = document.getElementById('workspaceHistoryError');
+  const workspaceHistoryRetry = document.getElementById('workspaceHistoryRetry');
   const workspaceRelatedEventsState = document.getElementById('workspaceRelatedEventsState');
   const workspaceRelatedEventsContent = document.getElementById('workspaceRelatedEventsContent');
   const workspaceRelatedEventsError = document.getElementById('workspaceRelatedEventsError');
+  const workspaceRelatedEventsRetry = document.getElementById('workspaceRelatedEventsRetry');
   const workspaceSlaState = document.getElementById('workspaceSlaState');
   const workspaceSlaContent = document.getElementById('workspaceSlaContent');
   const workspaceSlaError = document.getElementById('workspaceSlaError');
+  const workspaceSlaRetry = document.getElementById('workspaceSlaRetry');
   const workspaceReadonlyBanner = document.getElementById('workspaceReadonlyBanner');
   const workspaceComposerText = document.getElementById('workspaceComposerText');
   const workspaceComposerSend = document.getElementById('workspaceComposerSend');
@@ -2191,13 +2195,17 @@
     return payload;
   }
 
-  async function reloadWorkspaceForInitialRoute() {
+  async function reloadWorkspaceForInitialRoute(statusText = 'Повторная загрузка ленты…') {
     if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === activeWorkspaceTicketId) || null;
     if (workspaceMessagesError) workspaceMessagesError.classList.add('d-none');
+    if (workspaceClientError) workspaceClientError.classList.add('d-none');
+    if (workspaceHistoryError) workspaceHistoryError.classList.add('d-none');
+    if (workspaceRelatedEventsError) workspaceRelatedEventsError.classList.add('d-none');
+    if (workspaceSlaError) workspaceSlaError.classList.add('d-none');
     if (workspaceMessagesState) {
       workspaceMessagesState.classList.remove('d-none');
-      workspaceMessagesState.textContent = 'Повторная загрузка ленты…';
+      workspaceMessagesState.textContent = statusText;
     }
     await openDialogWithWorkspaceFallback(activeWorkspaceTicketId, initialRow, { source: 'initial_route' });
   }
@@ -4280,6 +4288,30 @@
   if (workspaceMessagesRetry) {
     workspaceMessagesRetry.addEventListener('click', () => {
       reloadWorkspaceForInitialRoute();
+    });
+  }
+
+  if (workspaceClientRetry) {
+    workspaceClientRetry.addEventListener('click', () => {
+      reloadWorkspaceForInitialRoute('Повторная загрузка контекста клиента…');
+    });
+  }
+
+  if (workspaceHistoryRetry) {
+    workspaceHistoryRetry.addEventListener('click', () => {
+      reloadWorkspaceForInitialRoute('Повторная загрузка истории клиента…');
+    });
+  }
+
+  if (workspaceRelatedEventsRetry) {
+    workspaceRelatedEventsRetry.addEventListener('click', () => {
+      reloadWorkspaceForInitialRoute('Повторная загрузка связанных событий…');
+    });
+  }
+
+  if (workspaceSlaRetry) {
+    workspaceSlaRetry.addEventListener('click', () => {
+      reloadWorkspaceForInitialRoute('Повторная загрузка SLA-контекста…');
     });
   }
 
