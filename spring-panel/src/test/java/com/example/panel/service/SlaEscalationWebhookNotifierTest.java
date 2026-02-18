@@ -58,27 +58,31 @@ class SlaEscalationWebhookNotifierTest {
         SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
 
         List<Map<String, Object>> candidates = List.of(
-                Map.of("ticket_id", "T-1", "channel", "Telegram", "business", "Retail"),
-                Map.of("ticket_id", "T-2", "channel", "VK", "business", "Enterprise"),
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "business", "Retail", "location", "Moscow"),
+                Map.of("ticket_id", "T-2", "channel", "VK", "business", "Enterprise", "location", "SPB"),
                 Map.of("ticket_id", "T-3", "channel", "Unknown", "business", "Unknown")
         );
         Map<String, Object> config = Map.of(
                 "sla_critical_auto_assign_enabled", true,
                 "sla_critical_auto_assign_to", "duty_operator",
                 "sla_critical_auto_assign_rules", List.of(
-                        Map.of("match_channel", "telegram", "assign_to", "tg_duty"),
-                        Map.of("match_business", "enterprise", "assign_to", "ent_duty")
+                        Map.of("rule_id", "moscow_tg", "match_channel", "telegram", "match_location", "moscow", "assign_to", "tg_moscow_duty"),
+                        Map.of("rule_id", "tg_fallback", "match_channel", "telegram", "assign_to", "tg_duty"),
+                        Map.of("rule_id", "ent_any", "match_business", "enterprise", "assign_to", "ent_duty")
                 )
         );
 
         List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
         assertEquals(3, decisions.size());
-        assertEquals("tg_duty", decisions.get(0).assignee());
+        assertEquals("tg_moscow_duty", decisions.get(0).assignee());
         assertEquals("rules", decisions.get(0).source());
+        assertEquals("moscow_tg", decisions.get(0).route());
         assertEquals("ent_duty", decisions.get(1).assignee());
         assertEquals("rules", decisions.get(1).source());
+        assertEquals("ent_any", decisions.get(1).route());
         assertEquals("duty_operator", decisions.get(2).assignee());
         assertEquals("fallback", decisions.get(2).source());
+        assertEquals("fallback_default", decisions.get(2).route());
     }
 
     @Test
