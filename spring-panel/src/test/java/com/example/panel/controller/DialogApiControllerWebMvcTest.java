@@ -218,6 +218,11 @@ class DialogApiControllerWebMvcTest {
         when(dialogService.loadHistory("T-1", null)).thenReturn(List.of());
         when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of(
+                "total_dialogs", 8,
+                "open_dialogs", 2,
+                "resolved_30d", 3
+        ));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
                 "sla_target_minutes", 1440,
                 "sla_warning_minutes", 240
@@ -232,6 +237,8 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.client.channel").value("demo"))
                 .andExpect(jsonPath("$.context.client.location").value("city, location"))
                 .andExpect(jsonPath("$.context.client.segments.length()").value(0))
+                .andExpect(jsonPath("$.context.client.total_dialogs").value(8))
+                .andExpect(jsonPath("$.context.client.open_dialogs").value(2))
                 .andExpect(jsonPath("$.permissions.can_bulk").value(false))
                 .andExpect(jsonPath("$.sla.target_minutes").value(1440))
                 .andExpect(jsonPath("$.success").value(true));
@@ -274,6 +281,7 @@ class DialogApiControllerWebMvcTest {
         when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of());
 
         mockMvc.perform(get("/api/dialogs/T-SEG/workspace").with(user("operator")))
                 .andExpect(status().isOk())
@@ -348,6 +356,7 @@ class DialogApiControllerWebMvcTest {
         when(dialogService.loadHistory("T-2", null)).thenReturn(history);
         when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         mockMvc.perform(get("/api/dialogs/T-2/workspace")
