@@ -82,6 +82,21 @@
                         </div>
                         <div class="workspace-panel-block" id="workspaceComposerBlock">
                             <div class="small text-muted mb-2">Ответ оператору</div>
+                            <div class="workspace-composer-macro d-none mb-2" id="workspaceComposerMacroSection">
+                                <label class="form-label form-label-sm mb-1" for="workspaceComposerMacroSearch">Макросы</label>
+                                <input
+                                    class="form-control form-control-sm mb-1"
+                                    id="workspaceComposerMacroSearch"
+                                    type="search"
+                                    placeholder="Поиск макроса по названию, тегам или тексту"
+                                    autocomplete="off"
+                                >
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <select class="form-select form-select-sm" id="workspaceComposerMacroSelect" aria-label="Выбор макроса для workspace"></select>
+                                    <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMacroApply" type="button">Вставить макрос</button>
+                                </div>
+                                <div class="small text-muted mt-1" id="workspaceComposerMacroPreview">Выберите макрос для предпросмотра.</div>
+                            </div>
                             <textarea class="form-control form-control-sm mb-2" id="workspaceComposerText" rows="4" placeholder="Введите ответ клиенту…"></textarea>
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">Отправить (Ctrl+Enter)</button>
