@@ -3462,6 +3462,7 @@
   })();
   const RAW_DIALOG_CONFIG = /*[[${settingsPayload['dialog_config']}]]*/ {};
   const DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
+  const CAN_PUBLISH_DIALOG_MACROS = /*[[${canPublishDialogMacros}]]*/ false;
   const RAW_AUTO_CLOSE_CONFIG = /*[[${settingsPayload['auto_close_config']}]]*/ {};
   const AUTO_CLOSE_CONFIG = RAW_AUTO_CLOSE_CONFIG && typeof RAW_AUTO_CLOSE_CONFIG === 'object' ? RAW_AUTO_CLOSE_CONFIG : {};
   const AUTO_CLOSE_FALLBACK_HOURS = Number(/*[[${settingsPayload['auto_close_hours']}]]*/ 24) || 24;
@@ -11547,12 +11548,21 @@
       titleEl.textContent = name || 'Макрос';
     }
     if (reviewStateEl) {
-      reviewStateEl.textContent = isApproved ? 'Одобрено к публикации' : 'Требует ревью';
+      reviewStateEl.textContent = CAN_PUBLISH_DIALOG_MACROS
+        ? (isApproved ? 'Одобрено к публикации' : 'Требует ревью')
+        : 'Публикация доступна пользователю с правом DIALOG_MACRO_PUBLISH';
+    }
+    if (approvedInput && !CAN_PUBLISH_DIALOG_MACROS) {
+      approvedInput.disabled = true;
     }
     if (publishedInput) {
-      publishedInput.disabled = !isApproved;
-      if (!isApproved) {
-        publishedInput.checked = false;
+      if (!CAN_PUBLISH_DIALOG_MACROS) {
+        publishedInput.disabled = true;
+      } else {
+        publishedInput.disabled = !isApproved;
+        if (!isApproved) {
+          publishedInput.checked = false;
+        }
       }
     }
     if (summaryEl) {
@@ -11935,7 +11945,9 @@
     const tags = Array.isArray(data.tags) ? data.tags : [];
     const published = data.published !== false;
     const approvedForPublish = data.approved_for_publish === true || data.review_state === 'approved';
-    const reviewStateLabel = approvedForPublish ? 'Одобрено к публикации' : 'Требует ревью';
+    const reviewStateLabel = CAN_PUBLISH_DIALOG_MACROS
+      ? (approvedForPublish ? 'Одобрено к публикации' : 'Требует ревью')
+      : 'Публикация доступна пользователю с правом DIALOG_MACRO_PUBLISH';
 
     const card = document.createElement('div');
     card.className = 'card shadow-sm dialog-template-card';
@@ -11966,11 +11978,11 @@
             <textarea class="form-control form-control-sm macro-template-message" id="macro-template-message-${templateId}" rows="3" placeholder="Текст, который будет вставлен в composer"></textarea>
           </div>
           <div class="form-check form-switch mb-3">
-            <input class="form-check-input macro-template-published" type="checkbox" id="macro-template-published-${templateId}" ${published ? 'checked' : ''}>
+            <input class="form-check-input macro-template-published" type="checkbox" id="macro-template-published-${templateId}" ${published ? 'checked' : ''} ${CAN_PUBLISH_DIALOG_MACROS ? '' : 'disabled'}>
             <label class="form-check-label" for="macro-template-published-${templateId}">Опубликован для операторов</label>
           </div>
           <div class="form-check form-switch mb-2">
-            <input class="form-check-input macro-template-approved" type="checkbox" id="macro-template-approved-${templateId}" ${approvedForPublish ? 'checked' : ''}>
+            <input class="form-check-input macro-template-approved" type="checkbox" id="macro-template-approved-${templateId}" ${approvedForPublish ? 'checked' : ''} ${CAN_PUBLISH_DIALOG_MACROS ? '' : 'disabled'}>
             <label class="form-check-label" for="macro-template-approved-${templateId}">Одобрен к публикации (review/admin)</label>
           </div>
           <div class="small text-muted mb-3" data-macro-review-state>${reviewStateLabel}</div>

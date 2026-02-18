@@ -157,7 +157,7 @@ public class SettingsBridgeController {
                     dialogConfig.put("completion_templates", payload.get("dialog_completion_templates"));
                 }
                 if (payload.containsKey("dialog_macro_templates")) {
-                    boolean canPublishMacros = permissionService.hasAuthority(authentication, "ROLE_ADMIN");
+                    boolean canPublishMacros = permissionService.hasAuthority(authentication, "DIALOG_MACRO_PUBLISH");
                     Object existingTemplates = dialogConfig.get("macro_templates");
                     List<Map<String, Object>> normalizedTemplates = normalizeMacroTemplates(
                         existingTemplates,
