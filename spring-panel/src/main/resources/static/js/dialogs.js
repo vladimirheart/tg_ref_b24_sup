@@ -29,6 +29,8 @@
   const workspaceConversationMeta = document.getElementById('workspaceConversationMeta');
   const workspaceMessagesState = document.getElementById('workspaceMessagesState');
   const workspaceMessagesList = document.getElementById('workspaceMessagesList');
+  const workspaceMessagesLoadMoreWrap = document.getElementById('workspaceMessagesLoadMoreWrap');
+  const workspaceMessagesLoadMore = document.getElementById('workspaceMessagesLoadMore');
   const workspaceMessagesError = document.getElementById('workspaceMessagesError');
   const workspaceMessagesRetry = document.getElementById('workspaceMessagesRetry');
   const workspaceClientState = document.getElementById('workspaceClientState');
@@ -239,6 +241,10 @@
   let workspaceComposerMacroTemplates = [];
   let activeWorkspaceMacroTemplate = null;
   let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
+  let activeWorkspaceChannelId = null;
+  let workspaceMessagesNextCursor = null;
+  let workspaceMessagesHasMore = false;
+  let workspaceMessagesLoadingMore = false;
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -2098,6 +2104,51 @@
     }
   }
 
+  function updateWorkspaceMessagesLoadMoreState() {
+    if (!workspaceMessagesLoadMoreWrap || !workspaceMessagesLoadMore) return;
+    const canLoadMore = Boolean(activeWorkspaceTicketId) && workspaceMessagesHasMore;
+    workspaceMessagesLoadMoreWrap.classList.toggle('d-none', !canLoadMore);
+    workspaceMessagesLoadMore.disabled = workspaceMessagesLoadingMore || !canLoadMore;
+    workspaceMessagesLoadMore.textContent = workspaceMessagesLoadingMore ? 'Загрузка…' : 'Загрузить ещё';
+  }
+
+  async function loadMoreWorkspaceMessages() {
+    if (!activeWorkspaceTicketId || !workspaceMessagesHasMore || workspaceMessagesLoadingMore) return;
+    workspaceMessagesLoadingMore = true;
+    updateWorkspaceMessagesLoadMoreState();
+    try {
+      const workspacePayload = await preloadWorkspaceContract(activeWorkspaceTicketId, activeWorkspaceChannelId, {
+        include: 'messages',
+        cursor: workspaceMessagesNextCursor,
+      });
+      const messages = workspacePayload?.messages || {};
+      const items = Array.isArray(messages.items) ? messages.items : [];
+      if (workspaceMessagesList && items.length > 0) {
+        const markup = items.map((message) => {
+          const author = message.senderName || message.senderRole || 'Участник';
+          const text = message.messageText || message.message || '—';
+          const timestamp = formatWorkspaceDateTime(message.sentAt || message.createdAt);
+          return `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div><div>${escapeHtml(text)}</div></article>`;
+        }).join('');
+        workspaceMessagesList.insertAdjacentHTML('beforeend', markup);
+        workspaceMessagesList.classList.remove('d-none');
+      }
+      workspaceMessagesNextCursor = Number.isInteger(messages.next_cursor) ? messages.next_cursor : null;
+      workspaceMessagesHasMore = messages.has_more === true;
+      if (workspaceMessagesState && !workspaceMessagesHasMore) {
+        workspaceMessagesState.classList.remove('d-none');
+        workspaceMessagesState.textContent = 'Показаны все сообщения по диалогу.';
+      }
+    } catch (_error) {
+      if (typeof showNotification === 'function') {
+        showNotification('Не удалось догрузить сообщения workspace.', 'warning');
+      }
+    } finally {
+      workspaceMessagesLoadingMore = false;
+      updateWorkspaceMessagesLoadMoreState();
+    }
+  }
+
   function renderWorkspaceShell(payload) {
     if (!workspaceShell) return;
     workspaceShell.classList.remove('d-none');
@@ -2144,6 +2195,10 @@
         return `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div><div>${escapeHtml(text)}</div></article>`;
       }).join('');
     }
+    workspaceMessagesNextCursor = Number.isInteger(messages.next_cursor) ? messages.next_cursor : null;
+    workspaceMessagesHasMore = messages.has_more === true;
+    workspaceMessagesLoadingMore = false;
+    updateWorkspaceMessagesLoadMoreState();
     if (workspaceMessagesError) {
       workspaceMessagesError.classList.add('d-none');
     }
@@ -2251,8 +2306,21 @@
     return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${segmentBadges}`;
   }
 
-  async function preloadWorkspaceContract(ticketId, channelId) {
-    const endpoint = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}/workspace`, channelId);
+  async function preloadWorkspaceContract(ticketId, channelId, options = {}) {
+    let endpoint = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}/workspace`, channelId);
+    const queryParams = new URLSearchParams();
+    if (typeof options.include === 'string' && options.include.trim()) {
+      queryParams.set('include', options.include.trim());
+    }
+    if (Number.isInteger(options.cursor) && options.cursor >= 0) {
+      queryParams.set('cursor', String(options.cursor));
+    }
+    if (Number.isInteger(options.limit) && options.limit > 0) {
+      queryParams.set('limit', String(options.limit));
+    }
+    if (queryParams.size > 0) {
+      endpoint += `${endpoint.includes('?') ? '&' : '?'}${queryParams.toString()}`;
+    }
     const response = await fetch(endpoint, {
       credentials: 'same-origin',
       cache: 'no-store',
@@ -2308,6 +2376,7 @@
         console.warn(`workspace_open_ms degraded for ticket ${ticketId}: ${durationMs}ms > ${WORKSPACE_OPEN_SLO_MS}ms`);
       }
       activeWorkspaceTicketId = String(ticketId || '').trim();
+      activeWorkspaceChannelId = channelId;
       if (source === 'initial_route' || WORKSPACE_INLINE_NAVIGATION) {
         renderWorkspaceShell(workspacePayload);
         if (source !== 'initial_route') {
@@ -4382,6 +4451,12 @@
   if (workspaceMessagesRetry) {
     workspaceMessagesRetry.addEventListener('click', () => {
       reloadWorkspaceForInitialRoute();
+    });
+  }
+
+  if (workspaceMessagesLoadMore) {
+    workspaceMessagesLoadMore.addEventListener('click', () => {
+      loadMoreWorkspaceMessages();
     });
   }
 
