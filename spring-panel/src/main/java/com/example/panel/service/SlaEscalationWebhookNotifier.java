@@ -103,50 +103,68 @@ public class SlaEscalationWebhookNotifier {
     }
 
     private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
-        List<String> ticketIds = resolveAutoAssignTicketIds(candidates, dialogConfig);
-        if (ticketIds.isEmpty()) {
+        List<AutoAssignDecision> decisions = resolveAutoAssignDecisions(candidates, dialogConfig);
+        if (decisions.isEmpty()) {
             return;
         }
-        String assignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
         String actor = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_actor")));
         if (actor == null) {
             actor = "sla_orchestrator";
         }
         int assignedCount = 0;
-        for (String ticketId : ticketIds) {
-            dialogService.assignResponsibleIfMissingOrRedirected(ticketId, assignee, actor);
-            dialogService.logDialogActionAudit(ticketId, actor, "sla_auto_assign", "success", "assigned_to=" + assignee);
+        for (AutoAssignDecision decision : decisions) {
+            dialogService.assignResponsibleIfMissingOrRedirected(decision.ticketId(), decision.assignee(), actor);
+            dialogService.logDialogActionAudit(decision.ticketId(), actor, "sla_auto_assign", "success",
+                    "assigned_to=" + decision.assignee() + ";source=" + decision.source());
             assignedCount++;
         }
         if (assignedCount > 0) {
-            log.info("SLA auto-assigned {} critical ticket(s) to '{}'.", assignedCount, assignee);
+            long routedByRules = decisions.stream().filter(item -> "rules".equals(item.source())).count();
+            log.info("SLA auto-assigned {} critical ticket(s). Routed by rules: {}, fallback: {}.",
+                    assignedCount,
+                    routedByRules,
+                    assignedCount - routedByRules);
         }
     }
 
     List<String> resolveAutoAssignTicketIds(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
+        return resolveAutoAssignDecisions(candidates, dialogConfig).stream().map(AutoAssignDecision::ticketId).toList();
+    }
+
+    List<AutoAssignDecision> resolveAutoAssignDecisions(List<Map<String, Object>> candidates,
+                                                        Map<String, Object> dialogConfig) {
+    List<String> resolveAutoAssignTicketIds(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
         if (!resolveBoolean(dialogConfig, "sla_critical_auto_assign_enabled", false)) {
-            return List.of();
         }
-        String assignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
-        if (assignee == null) {
-            return List.of();
-        }
+        List<AutoAssignRule> rules = parseAutoAssignRules(dialogConfig.get("sla_critical_auto_assign_rules"));
+        String fallbackAssignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
         int maxPerRun = resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_max_per_run", 5, 100);
-        if (candidates == null || candidates.isEmpty()) {
+        if ((rules.isEmpty() && fallbackAssignee == null) || candidates == null || candidates.isEmpty()) {
             return List.of();
         }
-        List<String> ticketIds = new ArrayList<>();
+        List<AutoAssignDecision> decisions = new ArrayList<>();
+        List<String> processedTicketIds = new ArrayList<>();
         for (Map<String, Object> candidate : candidates) {
-            if (ticketIds.size() >= maxPerRun) {
+            if (decisions.size() >= maxPerRun) {
                 break;
             }
             String ticketId = trimToNull(String.valueOf(candidate.get("ticket_id")));
-            if (ticketId == null || ticketIds.contains(ticketId)) {
+            if (ticketId == null || processedTicketIds.contains(ticketId)) {
                 continue;
             }
-            ticketIds.add(ticketId);
+            processedTicketIds.add(ticketId);
+            String candidateChannel = normalizeMatchValue(candidate.get("channel"));
+            String candidateBusiness = normalizeMatchValue(candidate.get("business"));
+
+            AutoAssignRule matchedRule = findFirstMatchedRule(rules, candidateChannel, candidateBusiness);
+            String assignee = matchedRule != null ? matchedRule.assignee() : fallbackAssignee;
+            String source = matchedRule != null ? "rules" : "fallback";
+            if (assignee == null) {
+                continue;
+            }
+            decisions.add(new AutoAssignDecision(ticketId, assignee, source));
         }
-        return ticketIds;
+        return decisions;
     }
 
     List<Map<String, Object>> findEscalationCandidates(List<DialogListItem> dialogs,
@@ -179,6 +197,7 @@ public class SlaEscalationWebhookNotifier {
             row.put("minutes_left", minutesLeft);
             row.put("status", dialog.statusLabel());
             row.put("channel", dialog.channelLabel());
+            row.put("business", dialog.businessLabel());
             result.add(row);
         }
         return result;
@@ -223,6 +242,46 @@ public class SlaEscalationWebhookNotifier {
         long deadlineMs = created.toEpochMilli() + targetMinutes * 60_000L;
         long diffMs = deadlineMs - nowMs;
         return Math.floorDiv(diffMs, 60_000L);
+    }
+
+
+    private static AutoAssignRule findFirstMatchedRule(List<AutoAssignRule> rules,
+                                                       String candidateChannel,
+                                                       String candidateBusiness) {
+        for (AutoAssignRule rule : rules) {
+            if (rule.matches(candidateChannel, candidateBusiness)) {
+                return rule;
+            }
+        }
+        return null;
+    }
+
+    private List<AutoAssignRule> parseAutoAssignRules(Object rawRules) {
+        if (!(rawRules instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        List<AutoAssignRule> rules = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> ruleMap)) {
+                continue;
+            }
+            String assignee = trimToNull(String.valueOf(ruleMap.get("assign_to")));
+            if (assignee == null) {
+                continue;
+            }
+            String channel = normalizeMatchValue(ruleMap.get("match_channel"));
+            String business = normalizeMatchValue(ruleMap.get("match_business"));
+            if (channel == null && business == null) {
+                continue;
+            }
+            rules.add(new AutoAssignRule(channel, business, assignee));
+        }
+        return rules;
+    }
+
+    private String normalizeMatchValue(Object value) {
+        String normalized = trimToNull(String.valueOf(value));
+        return normalized == null ? null : normalized.toLowerCase();
     }
 
     private static Instant parseInstant(String value) {
@@ -310,5 +369,20 @@ public class SlaEscalationWebhookNotifier {
             return value;
         }
         return value.substring(0, max) + "…";
+    }
+
+    record AutoAssignDecision(String ticketId, String assignee, String source) {
+    }
+
+    private record AutoAssignRule(String channel, String business, String assignee) {
+        boolean matches(String candidateChannel, String candidateBusiness) {
+            if (channel != null && (candidateChannel == null || !channel.equals(candidateChannel))) {
+                return false;
+            }
+            if (business != null && (candidateBusiness == null || !business.equals(candidateBusiness))) {
+                return false;
+            }
+            return true;
+        }
     }
 }
