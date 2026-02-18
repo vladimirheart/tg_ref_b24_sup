@@ -39,7 +39,15 @@
                             <option value="30">30 дней</option>
                         </select>
                         <input type="text" class="form-control form-control-sm" id="workspaceTelemetryExperiment" placeholder="experiment_name (опц.)" style="max-width: 220px;">
+                        <select class="form-select form-select-sm" id="workspaceTelemetryScope" style="width: auto;" aria-label="Срез guardrails">
+                            <option value="all" selected>Срез: все</option>
+                            <option value="global">Только global</option>
+                            <option value="shift">По сменам</option>
+                            <option value="team">По командам</option>
+                        </select>
+                        <input type="search" class="form-control form-control-sm" id="workspaceTelemetrySegment" placeholder="segment (напр. night/team-a)" style="max-width: 230px;">
                         <button class="btn btn-sm btn-outline-primary" type="button" id="workspaceTelemetryRefresh">Обновить</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="workspaceTelemetryExportCsv">CSV guardrails</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -56,6 +64,7 @@
                         <span class="badge text-bg-warning d-none" id="workspaceTelemetryGuardrailsAttention">Guardrails: attention</span>
                         <small class="text-muted" id="workspaceTelemetryUpdatedAt"></small>
                     </div>
+                    <div class="small text-muted mb-2" id="workspaceTelemetryFilterState"></div>
                     <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryAlertBox"></div>
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0">
