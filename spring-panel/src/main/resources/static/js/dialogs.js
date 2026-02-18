@@ -2231,6 +2231,11 @@
       ['Непрочитанные', client.unread_count],
       ['Оценка', client.rating],
       ['Последнее сообщение', formatWorkspaceDateTime(client.last_message_at)],
+      ['Всего диалогов', client.total_dialogs],
+      ['Открытых диалогов', client.open_dialogs],
+      ['Закрыто за 30 дней', client.resolved_30d],
+      ['Первое обращение', formatWorkspaceDateTime(client.first_seen_at)],
+      ['Последняя активность тикета', formatWorkspaceDateTime(client.last_ticket_activity_at)],
       ['Язык', client.language],
     ];
     const rows = fields

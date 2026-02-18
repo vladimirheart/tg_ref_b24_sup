@@ -451,6 +451,45 @@ public class DialogService {
         }
     }
 
+    public Map<String, Object> loadClientProfileEnrichment(Long userId) {
+        if (userId == null) {
+            return Map.of();
+        }
+        try {
+            String sql = """
+                    SELECT COUNT(DISTINCT m.ticket_id) AS total_dialogs,
+                           COUNT(DISTINCT CASE
+                               WHEN lower(COALESCE(t.status, 'pending')) NOT IN ('resolved', 'closed') THEN m.ticket_id
+                           END) AS open_dialogs,
+                           COUNT(DISTINCT CASE
+                               WHEN lower(COALESCE(t.status, 'pending')) IN ('resolved', 'closed')
+                                    AND datetime(substr(COALESCE(t.resolved_at, t.created_at, m.created_at), 1, 19)) >= datetime('now', '-30 day')
+                               THEN m.ticket_id
+                           END) AS resolved_30d,
+                           MIN(m.created_at) AS first_seen_at,
+                           MAX(COALESCE(t.resolved_at, t.created_at, m.created_at)) AS last_ticket_activity_at
+                      FROM messages m
+                      LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
+                     WHERE m.user_id = ?
+                    """;
+            return jdbcTemplate.query(sql, rs -> {
+                if (!rs.next()) {
+                    return Map.<String, Object>of();
+                }
+                Map<String, Object> enrichment = new LinkedHashMap<>();
+                enrichment.put("total_dialogs", rs.getInt("total_dialogs"));
+                enrichment.put("open_dialogs", rs.getInt("open_dialogs"));
+                enrichment.put("resolved_30d", rs.getInt("resolved_30d"));
+                enrichment.put("first_seen_at", rs.getString("first_seen_at"));
+                enrichment.put("last_ticket_activity_at", rs.getString("last_ticket_activity_at"));
+                return enrichment;
+            }, userId);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load client profile enrichment for user {}: {}", userId, ex.getMessage());
+            return Map.of();
+        }
+    }
+
     public List<Map<String, Object>> loadRelatedEvents(String ticketId, int limit) {
         if (!StringUtils.hasText(ticketId) || limit <= 0) {
             return List.of();

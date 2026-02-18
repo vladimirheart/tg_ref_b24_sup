@@ -204,6 +204,24 @@ public class DialogApiController {
         );
         List<Map<String, Object>> clientHistory = dialogService.loadClientDialogHistory(summary.userId(), ticketId, 5);
         List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, 5);
+        Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
+        Map<String, Object> workspaceClient = new LinkedHashMap<>();
+        workspaceClient.put("id", summary.userId());
+        workspaceClient.put("name", summary.displayClientName());
+        workspaceClient.put("language", "ru");
+        workspaceClient.put("username", summary.username());
+        workspaceClient.put("status", summary.clientStatusLabel());
+        workspaceClient.put("channel", summary.channelLabel());
+        workspaceClient.put("business", summary.businessLabel());
+        workspaceClient.put("location", summary.location());
+        workspaceClient.put("responsible", summary.responsible());
+        workspaceClient.put("unread_count", summary.unreadCount());
+        workspaceClient.put("rating", summary.rating());
+        workspaceClient.put("last_message_at", summary.lastMessageTimestamp());
+        workspaceClient.put("segments", buildWorkspaceClientSegments(summary));
+        if (profileEnrichment != null && !profileEnrichment.isEmpty()) {
+            workspaceClient.putAll(profileEnrichment);
+        }
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("contract_version", "workspace.v1");
@@ -224,21 +242,7 @@ public class DialogApiController {
         ));
         payload.put("context", includeSections.contains("context")
                 ? Map.of(
-                "client", Map.of(
-                        "id", summary.userId(),
-                        "name", summary.displayClientName(),
-                        "language", "ru",
-                        "username", summary.username(),
-                        "status", summary.clientStatusLabel(),
-                        "channel", summary.channelLabel(),
-                        "business", summary.businessLabel(),
-                        "location", summary.location(),
-                        "responsible", summary.responsible(),
-                        "unread_count", summary.unreadCount(),
-                        "rating", summary.rating(),
-                        "last_message_at", summary.lastMessageTimestamp(),
-                        "segments", buildWorkspaceClientSegments(summary)
-                ),
+                "client", workspaceClient,
                 "history", clientHistory,
                 "related_events", relatedEvents
         )
