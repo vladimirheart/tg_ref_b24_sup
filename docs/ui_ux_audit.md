@@ -377,6 +377,7 @@
 - [x] **NOW-1.37 (этап D3, macro review/approval guardrail):** добавлен обязательный шаг review для публикации макросов (`approved_for_publish`, `review_state`, `reviewed_at/by`): любое смысловое изменение шаблона переводит его в `pending_review`, а публикация разрешается только после повторного одобрения. Это закрывает часть backlog по review/approval без усложнения operator UX.
 - [x] **NOW-1.38 (этап E3, analytics drill-down filters):** в виджете `Workspace rollout guardrails` добавлены интерактивные фильтры `scope` (`global/shift/team`) и `segment` для точечного анализа алертов и срезов без перезагрузки API. Это снижает время локализации деградации rollout на уровне конкретной смены/команды.
 - [x] **NOW-1.39 (этап E3, BI bridge export):** в аналитике добавлена кнопка `CSV guardrails`, которая выгружает текущие guardrail-alerts с учётом выбранных фильтров (`scope/segment`) и служебного контекста окна (`generated_at/window_days`). Это закрывает часть backlog по интеграции с внешними BI/incident процессами без отдельного бэкенд-джоба.
+- [x] **NOW-1.40 (этап C3, SLA routing policy bridge):** SLA auto-assign дополнен policy-правилами `dialog_config.sla_critical_auto_assign_rules` (match по `channel`/`business` с fallback на дежурного), а серверный аудит `sla_auto_assign` теперь фиксирует источник маршрутизации (`rules/fallback`). Это закрывает первый слой backlog по распределению критичных кейсов по навыкам/очередям без hard-coded логики.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
