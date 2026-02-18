@@ -384,6 +384,7 @@
 - [x] **NOW-1.43 (этап C1, fallback-UX hardening):** в `workspace_v1` для блоков контекста (`Клиент`, `История`, `Связанные события`, `SLA`) добавлены явные кнопки `Повторить`, которые триггерят безопасный reload workspace без ручного возврата в список. Это закрывает недостающее требование fallback-матрицы по soft-error + retry для правой панели.
 - [x] **NOW-1.44 (этап B1, workspace parity):** в блоке сообщений workspace добавлена управляемая пагинация `Загрузить ещё` на базе `cursor/limit` контракта `/api/dialogs/{ticketId}/workspace`, чтобы оператор мог догружать длинные треды без возврата в legacy-модалку и без полной перезагрузки контекста.
 - [x] **NOW-1.45 (этап C1, profile enrichment uplift):** в payload `workspace.v1` расширены клиентские risk-сегменты за счёт server-side enrichment (`total_dialogs/open_dialogs/resolved_30d`): добавлены маркеры `high_lifetime_volume`, `multi_open_dialogs`, `reactivation_risk`. Это закрывает следующий шаг roadmap по углублению контекстной панели без внешней CRM-интеграции.
+- [x] **NOW-1.46 (этап E1, rollout segmentation hardening):** включение `workspace_v1` теперь учитывает A/B-когорту оператора: при `workspace_ab_enabled=true` workspace открывается только для `test`, а `control` автоматически остаётся в legacy modal-flow (включая deep-link `\/dialogs\/{ticketId}`). Это устраняет смешанный UX в контрольной группе и делает product-метрики эксперимента чище.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
