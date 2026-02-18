@@ -320,7 +320,8 @@
    - добавлены серверные агрегаты `workspace-telemetry/summary` по cohort + operator segment + срезам по сменам/командам для операционного мониторинга;
    - в аналитике панели добавлен live-виджет guardrails/KPI (`events/render_error/fallback/abandon/slow_open/avg_open_ms`) с фильтрами окна/эксперимента и таблицей отклонений;
    - внедрены автоматизированные webhook-уведомления по guardrail-alerts (Slack/incident hooks) с cooldown и дедупликацией payload;
-   - в backlog остаются продуктовые BI-дашборды для кросс-командного мониторинга.
+   - ✅ добавлен in-product BI drill-down `Top risk-сегменты` (shift/team) в виджете `Workspace rollout guardrails` с ранжированием по composite-risk score для быстрого incident-разбора без внешнего BI;
+   - в backlog остаются только расширенные кросс-продуктовые дашборды (omnichannel/финансовые KPI), требующие отдельного data-mart.
 
 ### 9.5. Что можно сделать прямо сейчас (без блокирующих зависимостей)
 
@@ -379,6 +380,7 @@
 - [x] **NOW-1.39 (этап E3, BI bridge export):** в аналитике добавлена кнопка `CSV guardrails`, которая выгружает текущие guardrail-alerts с учётом выбранных фильтров (`scope/segment`) и служебного контекста окна (`generated_at/window_days`). Это закрывает часть backlog по интеграции с внешними BI/incident процессами без отдельного бэкенд-джоба.
 - [x] **NOW-1.40 (этап C3, SLA routing policy bridge):** SLA auto-assign дополнен policy-правилами `dialog_config.sla_critical_auto_assign_rules` (match по `channel`/`business` с fallback на дежурного), а серверный аудит `sla_auto_assign` теперь фиксирует источник маршрутизации (`rules/fallback`). Это закрывает первый слой backlog по распределению критичных кейсов по навыкам/очередям без hard-coded логики.
 - [x] **NOW-1.41 (этап D3, peer-review guardrail для макросов):** при сохранении `dialog_macro_templates` одобрение `approved_for_publish=true` больше не применяется, если шаблон пытается одобрить тот же пользователь, который последним менял содержимое (`updated_by`). В таких случаях сервер принудительно оставляет `review_state=pending_peer_review` и требует независимого ревьюера, что снижает риск публикации невалидных шаблонов по схеме "сам создал — сам одобрил".
+- [x] **NOW-1.42 (этап E3, cross-team BI drill-down in-product):** в разделе `Аналитика` добавлена таблица `Top risk-сегменты` (источники `by_shift/by_team`) с composite-risk score `100 * (render_error_rate + fallback_rate + abandon_rate)`, чтобы операционные команды быстрее локализовали проблемные сегменты rollout без внешнего BI.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
