@@ -127,6 +127,29 @@
                                 </table>
                             </div>
                         </div>
+                        <div class="col-12">
+                            <h3 class="h6 mb-2">Top risk-сегменты (для BI/incident разборов)</h3>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Сегмент</th>
+                                        <th class="text-end">События</th>
+                                        <th class="text-end">Render error</th>
+                                        <th class="text-end">Fallback</th>
+                                        <th class="text-end">Abandon</th>
+                                        <th class="text-end">Risk score</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryRiskSegmentsTable">
+                                    <tr>
+                                        <td colspan="6" class="text-muted text-center py-3">Загрузка данных...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="small text-muted mt-2" id="workspaceTelemetryRiskFormula">Risk score = 100 × (render_error_rate + fallback_rate + abandon_rate).</div>
+                        </div>
                     </div>
                 </div>
             </div>
