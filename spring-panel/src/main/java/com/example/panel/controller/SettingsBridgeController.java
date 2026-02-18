@@ -609,15 +609,28 @@ public class SettingsBridgeController {
                 version += 1;
             }
 
+            String previousUpdatedBy = previous != null ? stringValue(previous.get("updated_by")) : "";
             boolean approvedForPublish = resolveMacroApproval(previous);
+            boolean approvalRequested = false;
             if (sourceMap.containsKey("approved_for_publish")) {
-                approvedForPublish = asBoolean(sourceMap.get("approved_for_publish"));
+                approvalRequested = asBoolean(sourceMap.get("approved_for_publish"));
+                approvedForPublish = approvalRequested;
             }
             if (!canPublishMacros) {
                 approvedForPublish = resolveMacroApproval(previous);
             }
             if (changedMeaningfully) {
                 approvedForPublish = false;
+            }
+            boolean requiresIndependentReview = !changedMeaningfully
+                && StringUtils.hasText(previousUpdatedBy)
+                && previousUpdatedBy.equalsIgnoreCase(normalizedActor);
+            if (approvalRequested && requiresIndependentReview) {
+                approvedForPublish = false;
+                log.info("Dialog macro template '{}' approval requires independent reviewer: actor='{}', previous_updated_by='{}'",
+                    id,
+                    normalizedActor,
+                    previousUpdatedBy);
             }
 
             boolean published = previous != null
@@ -672,7 +685,10 @@ public class SettingsBridgeController {
             normalizedTemplate.put("tags", tags);
             normalizedTemplate.put("published", published);
             normalizedTemplate.put("approved_for_publish", approvedForPublish);
-            normalizedTemplate.put("review_state", approvedForPublish ? "approved" : "pending_review");
+            String reviewState = approvedForPublish
+                ? "approved"
+                : (requiresIndependentReview ? "pending_peer_review" : "pending_review");
+            normalizedTemplate.put("review_state", reviewState);
             normalizedTemplate.put("version", Math.max(1, version));
             normalizedTemplate.put("created_at", previous != null
                 ? stringValue(previous.get("created_at"))
