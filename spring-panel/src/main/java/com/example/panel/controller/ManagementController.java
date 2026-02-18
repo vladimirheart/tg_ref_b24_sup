@@ -13,6 +13,7 @@ import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
+import com.example.panel.service.PermissionService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -43,6 +44,7 @@ public class ManagementController {
     private final ItEquipmentCatalogRepository equipmentRepository;
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
+    private final PermissionService permissionService;
     private final ObjectMapper objectMapper;
 
     public ManagementController(NavigationService navigationService,
@@ -54,6 +56,7 @@ public class ManagementController {
                                 ItEquipmentCatalogRepository equipmentRepository,
                                 SharedConfigService sharedConfigService,
                                 SettingsCatalogService settingsCatalogService,
+                                PermissionService permissionService,
                                 ObjectMapper objectMapper) {
         this.navigationService = navigationService;
         this.taskRepository = taskRepository;
@@ -64,6 +67,7 @@ public class ManagementController {
         this.equipmentRepository = equipmentRepository;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
+        this.permissionService = permissionService;
         this.objectMapper = objectMapper;
     }
 
@@ -159,6 +163,8 @@ public class ManagementController {
                 settingsCatalogService.buildLocationPresets(locationTree, locationStatuses));
             model.addAttribute("contractUsage", Map.of());
             model.addAttribute("statusUsage", Map.of());
+            model.addAttribute("canPublishDialogMacros",
+                permissionService.hasAuthority(authentication, "DIALOG_MACRO_PUBLISH"));
             log.info("Loaded settings for user {}: {} app settings, {} system parameters", authentication.getName(), appSettings.size(), systemParameters.size());
         } catch (Exception ex) {
             log.error("Failed to load settings page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
