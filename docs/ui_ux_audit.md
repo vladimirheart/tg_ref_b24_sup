@@ -383,6 +383,7 @@
 - [x] **NOW-1.42 (этап E3, cross-team BI drill-down in-product):** в разделе `Аналитика` добавлена таблица `Top risk-сегменты` (источники `by_shift/by_team`) с composite-risk score `100 * (render_error_rate + fallback_rate + abandon_rate)`, чтобы операционные команды быстрее локализовали проблемные сегменты rollout без внешнего BI.
 - [x] **NOW-1.43 (этап C1, fallback-UX hardening):** в `workspace_v1` для блоков контекста (`Клиент`, `История`, `Связанные события`, `SLA`) добавлены явные кнопки `Повторить`, которые триггерят безопасный reload workspace без ручного возврата в список. Это закрывает недостающее требование fallback-матрицы по soft-error + retry для правой панели.
 - [x] **NOW-1.44 (этап B1, workspace parity):** в блоке сообщений workspace добавлена управляемая пагинация `Загрузить ещё` на базе `cursor/limit` контракта `/api/dialogs/{ticketId}/workspace`, чтобы оператор мог догружать длинные треды без возврата в legacy-модалку и без полной перезагрузки контекста.
+- [x] **NOW-1.45 (этап C1, profile enrichment uplift):** в payload `workspace.v1` расширены клиентские risk-сегменты за счёт server-side enrichment (`total_dialogs/open_dialogs/resolved_30d`): добавлены маркеры `high_lifetime_volume`, `multi_open_dialogs`, `reactivation_risk`. Это закрывает следующий шаг roadmap по углублению контекстной панели без внешней CRM-интеграции.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 

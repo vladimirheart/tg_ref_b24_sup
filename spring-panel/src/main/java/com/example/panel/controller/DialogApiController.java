@@ -218,7 +218,7 @@ public class DialogApiController {
         workspaceClient.put("unread_count", summary.unreadCount());
         workspaceClient.put("rating", summary.rating());
         workspaceClient.put("last_message_at", summary.lastMessageTimestamp());
-        workspaceClient.put("segments", buildWorkspaceClientSegments(summary));
+        workspaceClient.put("segments", buildWorkspaceClientSegments(summary, profileEnrichment));
         if (profileEnrichment != null && !profileEnrichment.isEmpty()) {
             workspaceClient.putAll(profileEnrichment);
         }
@@ -285,7 +285,7 @@ public class DialogApiController {
         return ResponseEntity.ok(payload);
     }
 
-    private List<String> buildWorkspaceClientSegments(DialogListItem summary) {
+    private List<String> buildWorkspaceClientSegments(DialogListItem summary, Map<String, Object> profileEnrichment) {
         if (summary == null) {
             return List.of();
         }
@@ -302,7 +302,35 @@ public class DialogApiController {
         if ("new".equals(summary.statusKey())) {
             segments.add("new_dialog");
         }
+
+        int totalDialogs = parseInteger(profileEnrichment != null ? profileEnrichment.get("total_dialogs") : null);
+        int openDialogs = parseInteger(profileEnrichment != null ? profileEnrichment.get("open_dialogs") : null);
+        int resolved30d = parseInteger(profileEnrichment != null ? profileEnrichment.get("resolved_30d") : null);
+
+        if (totalDialogs >= 5) {
+            segments.add("high_lifetime_volume");
+        }
+        if (openDialogs >= 2) {
+            segments.add("multi_open_dialogs");
+        }
+        if (totalDialogs >= 3 && resolved30d == 0) {
+            segments.add("reactivation_risk");
+        }
         return segments;
+    }
+
+    private int parseInteger(Object value) {
+        if (value == null) {
+            return 0;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     private Set<String> resolveWorkspaceInclude(String include) {
