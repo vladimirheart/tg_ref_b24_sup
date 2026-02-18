@@ -115,7 +115,7 @@ public class SlaEscalationWebhookNotifier {
         for (AutoAssignDecision decision : decisions) {
             dialogService.assignResponsibleIfMissingOrRedirected(decision.ticketId(), decision.assignee(), actor);
             dialogService.logDialogActionAudit(decision.ticketId(), actor, "sla_auto_assign", "success",
-                    "assigned_to=" + decision.assignee() + ";source=" + decision.source());
+                    "assigned_to=" + decision.assignee() + ";source=" + decision.source() + ";route=" + decision.route());
             assignedCount++;
         }
         if (assignedCount > 0) {
@@ -133,8 +133,8 @@ public class SlaEscalationWebhookNotifier {
 
     List<AutoAssignDecision> resolveAutoAssignDecisions(List<Map<String, Object>> candidates,
                                                         Map<String, Object> dialogConfig) {
-    List<String> resolveAutoAssignTicketIds(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
         if (!resolveBoolean(dialogConfig, "sla_critical_auto_assign_enabled", false)) {
+            return List.of();
         }
         List<AutoAssignRule> rules = parseAutoAssignRules(dialogConfig.get("sla_critical_auto_assign_rules"));
         String fallbackAssignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
@@ -155,14 +155,16 @@ public class SlaEscalationWebhookNotifier {
             processedTicketIds.add(ticketId);
             String candidateChannel = normalizeMatchValue(candidate.get("channel"));
             String candidateBusiness = normalizeMatchValue(candidate.get("business"));
+            String candidateLocation = normalizeMatchValue(candidate.get("location"));
 
-            AutoAssignRule matchedRule = findFirstMatchedRule(rules, candidateChannel, candidateBusiness);
+            AutoAssignRule matchedRule = findBestMatchedRule(rules, candidateChannel, candidateBusiness, candidateLocation);
             String assignee = matchedRule != null ? matchedRule.assignee() : fallbackAssignee;
             String source = matchedRule != null ? "rules" : "fallback";
+            String route = matchedRule != null ? matchedRule.route() : "fallback_default";
             if (assignee == null) {
                 continue;
             }
-            decisions.add(new AutoAssignDecision(ticketId, assignee, source));
+            decisions.add(new AutoAssignDecision(ticketId, assignee, source, route));
         }
         return decisions;
     }
@@ -198,6 +200,7 @@ public class SlaEscalationWebhookNotifier {
             row.put("status", dialog.statusLabel());
             row.put("channel", dialog.channelLabel());
             row.put("business", dialog.businessLabel());
+            row.put("location", dialog.location());
             result.add(row);
         }
         return result;
@@ -245,15 +248,20 @@ public class SlaEscalationWebhookNotifier {
     }
 
 
-    private static AutoAssignRule findFirstMatchedRule(List<AutoAssignRule> rules,
-                                                       String candidateChannel,
-                                                       String candidateBusiness) {
+    private static AutoAssignRule findBestMatchedRule(List<AutoAssignRule> rules,
+                                                      String candidateChannel,
+                                                      String candidateBusiness,
+                                                      String candidateLocation) {
+        AutoAssignRule best = null;
         for (AutoAssignRule rule : rules) {
-            if (rule.matches(candidateChannel, candidateBusiness)) {
-                return rule;
+            if (!rule.matches(candidateChannel, candidateBusiness, candidateLocation)) {
+                continue;
+            }
+            if (best == null || rule.specificityScore() > best.specificityScore()) {
+                best = rule;
             }
         }
-        return null;
+        return best;
     }
 
     private List<AutoAssignRule> parseAutoAssignRules(Object rawRules) {
@@ -271,10 +279,15 @@ public class SlaEscalationWebhookNotifier {
             }
             String channel = normalizeMatchValue(ruleMap.get("match_channel"));
             String business = normalizeMatchValue(ruleMap.get("match_business"));
-            if (channel == null && business == null) {
+            String location = normalizeMatchValue(ruleMap.get("match_location"));
+            if (channel == null && business == null && location == null) {
                 continue;
             }
-            rules.add(new AutoAssignRule(channel, business, assignee));
+            String route = trimToNull(String.valueOf(ruleMap.get("rule_id")));
+            if (route == null) {
+                route = trimToNull(String.valueOf(ruleMap.get("name")));
+            }
+            rules.add(new AutoAssignRule(channel, business, location, assignee, route));
         }
         return rules;
     }
@@ -371,18 +384,39 @@ public class SlaEscalationWebhookNotifier {
         return value.substring(0, max) + "…";
     }
 
-    record AutoAssignDecision(String ticketId, String assignee, String source) {
+    record AutoAssignDecision(String ticketId, String assignee, String source, String route) {
     }
 
-    private record AutoAssignRule(String channel, String business, String assignee) {
-        boolean matches(String candidateChannel, String candidateBusiness) {
+    private record AutoAssignRule(String channel, String business, String location, String assignee, String routeName) {
+        boolean matches(String candidateChannel, String candidateBusiness, String candidateLocation) {
             if (channel != null && (candidateChannel == null || !channel.equals(candidateChannel))) {
                 return false;
             }
             if (business != null && (candidateBusiness == null || !business.equals(candidateBusiness))) {
                 return false;
             }
+            if (location != null && (candidateLocation == null || !location.equals(candidateLocation))) {
+                return false;
+            }
             return true;
+        }
+
+        int specificityScore() {
+            int score = 0;
+            if (channel != null) {
+                score++;
+            }
+            if (business != null) {
+                score++;
+            }
+            if (location != null) {
+                score++;
+            }
+            return score;
+        }
+
+        String route() {
+            return routeName != null ? routeName : "rule:" + assignee;
         }
     }
 }
