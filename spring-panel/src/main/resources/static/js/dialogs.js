@@ -221,6 +221,7 @@
     secondaryKpis: normalizeStringArray(window.DIALOG_CONFIG?.workspace_ab_secondary_kpis, DEFAULT_SECONDARY_KPIS),
   });
   const STORAGE_WORKSPACE_AB = 'iguana:dialogs:workspace-ab-cohort';
+  const OPERATOR_IDENTITY = String(document.body?.dataset?.operatorIdentity || 'anonymous').trim() || 'anonymous';
   const STORAGE_WORKSPACE_DRAFT_PREFIX = 'iguana:dialogs:workspace-draft:';
   const DIALOGS_TELEMETRY_EVENT_GROUPS = Object.freeze({
     workspace_open_ms: 'performance',
@@ -402,6 +403,15 @@
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
   const WORKSPACE_EXPERIENCE_ENABLED = resolveWorkspaceExperienceEnabled();
 
+  function hashStringToBucket(source) {
+    const value = String(source || '');
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+      hash = ((hash * 31) + value.charCodeAt(index)) % 10000;
+    }
+    return hash;
+  }
+
   function resolveWorkspaceExperimentContext() {
     if (!WORKSPACE_AB_TEST_CONFIG.enabled || WORKSPACE_AB_TEST_CONFIG.rolloutPercent <= 0) {
       return {
@@ -409,6 +419,10 @@
         cohort: 'disabled',
       };
     }
+    const cohortSeed = `${WORKSPACE_AB_TEST_CONFIG.experimentName}:${OPERATOR_IDENTITY}`;
+    const bucket = hashStringToBucket(cohortSeed) % 100;
+    const deterministicCohort = bucket < WORKSPACE_AB_TEST_CONFIG.rolloutPercent ? 'test' : 'control';
+
     let cached = null;
     try {
       cached = localStorage.getItem(STORAGE_WORKSPACE_AB);
@@ -416,20 +430,27 @@
       cached = null;
     }
     if (cached === 'test' || cached === 'control') {
+      if (cached !== deterministicCohort) {
+        try {
+          localStorage.setItem(STORAGE_WORKSPACE_AB, deterministicCohort);
+        } catch (_error) {
+          // noop: cohort persistence is best-effort only
+        }
+      }
       return {
         experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
-        cohort: cached,
+        cohort: deterministicCohort,
       };
     }
-    const cohort = Math.random() * 100 < WORKSPACE_AB_TEST_CONFIG.rolloutPercent ? 'test' : 'control';
+
     try {
-      localStorage.setItem(STORAGE_WORKSPACE_AB, cohort);
+      localStorage.setItem(STORAGE_WORKSPACE_AB, deterministicCohort);
     } catch (_error) {
       // noop: cohort persistence is best-effort only
     }
     return {
       experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
-      cohort,
+      cohort: deterministicCohort,
     };
   }
 

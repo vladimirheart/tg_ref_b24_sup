@@ -51,17 +51,19 @@ public class DialogsController {
     }
 
     private String renderDialogsPage(Authentication authentication, Model model, String initialDialogTicketId) {
+        String operatorIdentity = authentication != null ? authentication.getName() : "anonymous";
         navigationService.enrich(model, authentication);
         model.addAttribute("activePage", "dialogs");
         model.addAttribute("initialDialogTicketId", initialDialogTicketId);
+        model.addAttribute("operatorIdentity", operatorIdentity);
         try {
             DialogSummary summary = dialogService.loadSummary();
             model.addAttribute("summary", summary);
             model.addAttribute("dialogs", dialogService.loadDialogs(authentication != null ? authentication.getName() : null));
             model.addAttribute("settingsPayload", sharedConfigService.loadSettings());
-            log.info("Loaded dialogs page for user {}", authentication != null ? authentication.getName() : "unknown");
+            log.info("Loaded dialogs page for user {}", operatorIdentity);
         } catch (Exception ex) {
-            log.error("Failed to load dialogs page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
+            log.error("Failed to load dialogs page for user {}", operatorIdentity, ex);
             throw ex;
         }
         return "dialogs/index";
