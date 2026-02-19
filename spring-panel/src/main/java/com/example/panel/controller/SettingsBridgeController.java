@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Objects;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -612,8 +614,10 @@ public class SettingsBridgeController {
             Map<String, Object> previous = existingById.get(id);
 
             List<String> tags = normalizeTemplateTags(sourceMap.get("tags"));
+            Map<String, Object> workflow = normalizeMacroWorkflow(sourceMap.get("workflow"), sourceMap);
             int version = resolveTemplateVersion(previous);
-            boolean changedMeaningfully = templateMeaningfullyChanged(previous, name, message, tags);
+            boolean changedMeaningfully = templateMeaningfullyChanged(previous, name, message, tags)
+                || !Objects.equals(normalizeWorkflowForComparison(previous != null ? previous.get("workflow") : null), workflow);
             if (changedMeaningfully) {
                 version += 1;
             }
@@ -697,6 +701,11 @@ public class SettingsBridgeController {
             normalizedTemplate.put("message", message);
             normalizedTemplate.put("text", message);
             normalizedTemplate.put("tags", tags);
+            normalizedTemplate.put("workflow", workflow);
+            normalizedTemplate.put("assign_to_me", asBoolean(workflow.get("assign_to_me")));
+            Object snoozeMinutes = workflow.get("snooze_minutes");
+            normalizedTemplate.put("snooze_minutes", snoozeMinutes instanceof Number n ? n.intValue() : null);
+            normalizedTemplate.put("close_ticket", asBoolean(workflow.get("close_ticket")));
             normalizedTemplate.put("published", published);
             normalizedTemplate.put("approved_for_publish", approvedForPublish);
             String reviewState = approvedForPublish
@@ -761,6 +770,56 @@ public class SettingsBridgeController {
             }
         }
         return tags;
+    }
+
+    private Map<String, Object> normalizeWorkflowForComparison(Object rawWorkflow) {
+        return normalizeMacroWorkflow(rawWorkflow, Collections.emptyMap());
+    }
+
+    private Map<String, Object> normalizeMacroWorkflow(Object rawWorkflow, Map<?, ?> sourceMap) {
+        Map<String, Object> workflow = new LinkedHashMap<>();
+        boolean assignToMe = false;
+        int snoozeMinutes = 0;
+        boolean closeTicket = false;
+
+        if (rawWorkflow instanceof Map<?, ?> workflowMap) {
+            assignToMe = asBoolean(workflowMap.get("assign_to_me"));
+            snoozeMinutes = normalizeWorkflowSnoozeMinutes(workflowMap.get("snooze_minutes"));
+            closeTicket = asBoolean(workflowMap.get("close_ticket"));
+        }
+
+        assignToMe = assignToMe || asBoolean(sourceMap.get("assign_to_me"));
+        closeTicket = closeTicket || asBoolean(sourceMap.get("close_ticket"));
+        int fallbackSnooze = normalizeWorkflowSnoozeMinutes(sourceMap.get("snooze_minutes"));
+        if (snoozeMinutes <= 0) {
+            snoozeMinutes = fallbackSnooze;
+        }
+
+        workflow.put("assign_to_me", assignToMe);
+        workflow.put("snooze_minutes", snoozeMinutes > 0 ? snoozeMinutes : null);
+        workflow.put("close_ticket", closeTicket);
+        return workflow;
+    }
+
+    private int normalizeWorkflowSnoozeMinutes(Object rawValue) {
+        if (rawValue == null) {
+            return 0;
+        }
+        int minutes;
+        if (rawValue instanceof Number number) {
+            minutes = number.intValue();
+        } else {
+            String text = stringValue(rawValue);
+            if (!StringUtils.hasText(text)) {
+                return 0;
+            }
+            try {
+                minutes = Integer.parseInt(text);
+            } catch (NumberFormatException ex) {
+                return 0;
+            }
+        }
+        return (minutes >= 1 && minutes <= 1440) ? minutes : 0;
     }
 
     private int resolveTemplateVersion(Map<String, Object> template) {

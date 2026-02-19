@@ -1169,6 +1169,7 @@
       if (typeof showNotification === 'function') {
         showNotification(error.message || 'Не удалось взять диалог', 'error');
       }
+      throw error;
     }
   }
 
@@ -2082,22 +2083,32 @@
     return null;
   }
 
-  function applyWorkspaceMacroTemplate() {
+  async function applyWorkspaceMacroTemplate() {
     if (!workspaceComposerText || !activeWorkspaceMacroTemplate) return;
     const message = resolveMacroText(activeWorkspaceMacroTemplate);
-    if (!message) return;
-    const existing = workspaceComposerText.value.trim();
-    workspaceComposerText.value = existing ? `${existing}\n${message}` : message;
-    workspaceComposerText.focus();
-    saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { silent: true });
+    const row = workspaceComposerTicketId
+      ? rowsList().find((candidate) => String(candidate.dataset.ticketId || '') === String(workspaceComposerTicketId)) || null
+      : null;
+    const appliedSteps = await executeMacroWorkflow(activeWorkspaceMacroTemplate, {
+      ticketId: workspaceComposerTicketId,
+      row,
+    });
+    if (message) {
+      const existing = workspaceComposerText.value.trim();
+      workspaceComposerText.value = existing ? `${existing}\n${message}` : message;
+      workspaceComposerText.focus();
+      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { silent: true });
+    }
     emitWorkspaceTelemetry('macro_apply', {
       ticketId: workspaceComposerTicketId,
       templateId: String(activeWorkspaceMacroTemplate?.id || '').trim() || null,
       templateName: String(activeWorkspaceMacroTemplate?.name || '').trim() || null,
       source: 'workspace_composer',
+      workflowActions: appliedSteps.length ? appliedSteps.join('|') : null,
     });
-    if (typeof showNotification === 'function') {
-      showNotification('Макрос добавлен в ответ workspace.', 'success');
+    if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
+      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
+      showNotification(`Макрос workspace применён${workflowSuffix}.`, 'success');
     }
   }
 
@@ -3166,12 +3177,32 @@
       badge.textContent = String(tag);
       macroTemplateMeta.appendChild(badge);
     });
-    const hasMessage = Boolean(message);
-    macroTemplateEmpty.classList.toggle('d-none', hasMessage);
-    if (macroTemplateApply) {
-      macroTemplateApply.disabled = !hasMessage;
+    const workflow = resolveMacroWorkflow(template);
+    if (workflow.assignToMe) {
+      const badge = document.createElement('span');
+      badge.className = 'badge text-bg-info-subtle border';
+      badge.textContent = 'Workflow: назначить мне';
+      macroTemplateMeta.appendChild(badge);
     }
-    if (activeMacroMeta && hasMessage) {
+    if (workflow.snoozeMinutes > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'badge text-bg-info-subtle border';
+      badge.textContent = `Workflow: snooze ${workflow.snoozeMinutes}м`;
+      macroTemplateMeta.appendChild(badge);
+    }
+    if (workflow.closeTicket) {
+      const badge = document.createElement('span');
+      badge.className = 'badge text-bg-warning-subtle border';
+      badge.textContent = 'Workflow: закрыть тикет';
+      macroTemplateMeta.appendChild(badge);
+    }
+    const hasActions = workflow.assignToMe || workflow.snoozeMinutes > 0 || workflow.closeTicket;
+    const hasMessage = Boolean(message);
+    macroTemplateEmpty.classList.toggle('d-none', hasMessage || hasActions);
+    if (macroTemplateApply) {
+      macroTemplateApply.disabled = !(hasMessage || hasActions);
+    }
+    if (activeMacroMeta && (hasMessage || hasActions)) {
       emitWorkspaceTelemetry('macro_preview', {
         ticketId: activeDialogTicketId,
         templateId: activeMacroMeta.id,
@@ -3296,19 +3327,63 @@
     detailsReplyText.focus();
   }
 
+  function resolveMacroWorkflow(template) {
+    const workflow = template && typeof template?.workflow === 'object' && template.workflow !== null
+      ? template.workflow
+      : template || {};
+    const snoozeMinutes = Number.parseInt(workflow.snooze_minutes, 10);
+    return {
+      assignToMe: workflow.assign_to_me === true || workflow.assign_to_me === 'true' || workflow.assign_to_me === 1 || workflow.assign_to_me === '1',
+      closeTicket: workflow.close_ticket === true || workflow.close_ticket === 'true' || workflow.close_ticket === 1 || workflow.close_ticket === '1',
+      snoozeMinutes: Number.isFinite(snoozeMinutes) && snoozeMinutes >= 1 ? Math.min(snoozeMinutes, 1440) : 0,
+    };
+  }
 
-  function applyMacroTemplate() {
+  async function executeMacroWorkflow(template, options = {}) {
+    const ticketId = String(options.ticketId || '').trim();
+    const row = options.row || null;
+    if (!ticketId) return [];
+    const workflow = resolveMacroWorkflow(template);
+    const steps = [];
+
+    if (workflow.assignToMe) {
+      await takeDialog(ticketId, row, null);
+      steps.push('назначить мне');
+    }
+    if (workflow.snoozeMinutes > 0) {
+      await snoozeDialog(ticketId, workflow.snoozeMinutes, null);
+      setSnooze(ticketId, workflow.snoozeMinutes);
+      if (row) updateRowQuickActions(row);
+      applyFilters();
+      steps.push(`отложить на ${workflow.snoozeMinutes} мин`);
+    }
+    if (workflow.closeTicket && row) {
+      await closeDialogQuick(ticketId, row, null);
+      steps.push('закрыть тикет');
+    }
+
+    return steps;
+  }
+
+  async function applyMacroTemplate() {
     if (!activeMacroTemplate) return;
     const message = resolveMacroText(activeMacroTemplate);
-    if (!message) return;
-    insertReplyText(message);
-    if (typeof showNotification === 'function') {
-      showNotification('Макрос добавлен в поле ответа.', 'success');
+    const appliedSteps = await executeMacroWorkflow(activeMacroTemplate, {
+      ticketId: activeDialogTicketId,
+      row: activeDialogRow,
+    });
+    if (message) {
+      insertReplyText(message);
+    }
+    if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
+      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
+      showNotification(`Макрос применён${workflowSuffix}.`, 'success');
     }
     emitWorkspaceTelemetry('macro_apply', {
       ticketId: activeDialogTicketId,
       templateId: activeMacroMeta?.id || null,
       templateName: activeMacroMeta?.name || null,
+      workflowActions: appliedSteps.length ? appliedSteps.join('|') : null,
     });
   }
 
@@ -4490,8 +4565,14 @@
   }
 
   if (macroTemplateApply) {
-    macroTemplateApply.addEventListener('click', () => {
-      applyMacroTemplate();
+    macroTemplateApply.addEventListener('click', async () => {
+      try {
+        await applyMacroTemplate();
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error?.message || 'Не удалось применить макрос', 'error');
+        }
+      }
     });
   }
 
@@ -4701,8 +4782,14 @@
   }
 
   if (workspaceComposerMacroApply) {
-    workspaceComposerMacroApply.addEventListener('click', () => {
-      applyWorkspaceMacroTemplate();
+    workspaceComposerMacroApply.addEventListener('click', async () => {
+      try {
+        await applyWorkspaceMacroTemplate();
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error?.message || 'Не удалось применить macro workflow', 'error');
+        }
+      }
     });
   }
 
