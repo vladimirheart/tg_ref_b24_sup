@@ -200,8 +200,9 @@ public class SlaEscalationWebhookNotifier {
             String candidateChannel = normalizeMatchValue(candidate.get("channel"));
             String candidateBusiness = normalizeMatchValue(candidate.get("business"));
             String candidateLocation = normalizeMatchValue(candidate.get("location"));
+            Set<String> candidateCategories = parseCandidateCategories(candidate.get("categories"));
 
-            AutoAssignRule matchedRule = findBestMatchedRule(rules, candidateChannel, candidateBusiness, candidateLocation);
+            AutoAssignRule matchedRule = findBestMatchedRule(rules, candidateChannel, candidateBusiness, candidateLocation, candidateCategories);
             String assignee = matchedRule != null ? matchedRule.resolveAssignee(ticketId) : fallbackAssignee;
             String source = matchedRule != null ? "rules" : "fallback";
             String route = matchedRule != null ? matchedRule.route() : "fallback_default";
@@ -245,6 +246,7 @@ public class SlaEscalationWebhookNotifier {
             row.put("channel", dialog.channelLabel());
             row.put("business", dialog.businessLabel());
             row.put("location", dialog.location());
+            row.put("categories", dialog.categories());
             result.add(row);
         }
         return result;
@@ -295,10 +297,11 @@ public class SlaEscalationWebhookNotifier {
     private static AutoAssignRule findBestMatchedRule(List<AutoAssignRule> rules,
                                                       String candidateChannel,
                                                       String candidateBusiness,
-                                                      String candidateLocation) {
+                                                      String candidateLocation,
+                                                      Set<String> candidateCategories) {
         AutoAssignRule best = null;
         for (AutoAssignRule rule : rules) {
-            if (!rule.matches(candidateChannel, candidateBusiness, candidateLocation)) {
+            if (!rule.matches(candidateChannel, candidateBusiness, candidateLocation, candidateCategories)) {
                 continue;
             }
             if (best == null || rule.specificityScore() > best.specificityScore()) {
@@ -325,16 +328,54 @@ public class SlaEscalationWebhookNotifier {
             String channel = normalizeMatchValue(ruleMap.get("match_channel"));
             String business = normalizeMatchValue(ruleMap.get("match_business"));
             String location = normalizeMatchValue(ruleMap.get("match_location"));
-            if (channel == null && business == null && location == null) {
+            Set<String> categories = parseRuleCategories(ruleMap.get("match_category"), ruleMap.get("match_categories"));
+            if (channel == null && business == null && location == null && categories.isEmpty()) {
                 continue;
             }
             String route = trimToNull(String.valueOf(ruleMap.get("rule_id")));
             if (route == null) {
                 route = trimToNull(String.valueOf(ruleMap.get("name")));
             }
-            rules.add(new AutoAssignRule(channel, business, location, assignee, assigneePool, route));
+            rules.add(new AutoAssignRule(channel, business, location, categories, assignee, assigneePool, route));
         }
         return rules;
+    }
+
+    private Set<String> parseRuleCategories(Object singleCategory, Object rawCategories) {
+        Set<String> categories = new HashSet<>();
+        String single = normalizeMatchValue(singleCategory);
+        if (single != null) {
+            categories.add(single);
+        }
+        categories.addAll(parseCandidateCategories(rawCategories));
+        return categories;
+    }
+
+    private Set<String> parseCandidateCategories(Object rawCategories) {
+        Set<String> categories = new HashSet<>();
+        if (rawCategories == null) {
+            return categories;
+        }
+        if (rawCategories instanceof List<?> list) {
+            for (Object item : list) {
+                String normalized = normalizeMatchValue(item);
+                if (normalized != null) {
+                    categories.add(normalized);
+                }
+            }
+            return categories;
+        }
+        String raw = trimToNull(String.valueOf(rawCategories));
+        if (raw == null) {
+            return categories;
+        }
+        for (String chunk : raw.split("[,;\\n]")) {
+            String normalized = normalizeMatchValue(chunk);
+            if (normalized != null) {
+                categories.add(normalized);
+            }
+        }
+        return categories;
     }
 
     private List<String> parseAssigneePool(Object rawPool) {
@@ -451,10 +492,14 @@ public class SlaEscalationWebhookNotifier {
     private record AutoAssignRule(String channel,
                                   String business,
                                   String location,
+                                  Set<String> categories,
                                   String assignee,
                                   List<String> assigneePool,
                                   String routeName) {
-        boolean matches(String candidateChannel, String candidateBusiness, String candidateLocation) {
+        boolean matches(String candidateChannel,
+                        String candidateBusiness,
+                        String candidateLocation,
+                        Set<String> candidateCategories) {
             if (channel != null && (candidateChannel == null || !channel.equals(candidateChannel))) {
                 return false;
             }
@@ -463,6 +508,15 @@ public class SlaEscalationWebhookNotifier {
             }
             if (location != null && (candidateLocation == null || !location.equals(candidateLocation))) {
                 return false;
+            }
+            if (categories != null && !categories.isEmpty()) {
+                if (candidateCategories == null || candidateCategories.isEmpty()) {
+                    return false;
+                }
+                boolean categoryMatched = categories.stream().anyMatch(candidateCategories::contains);
+                if (!categoryMatched) {
+                    return false;
+                }
             }
             return true;
         }
@@ -476,6 +530,9 @@ public class SlaEscalationWebhookNotifier {
                 score++;
             }
             if (location != null) {
+                score++;
+            }
+            if (categories != null && !categories.isEmpty()) {
                 score++;
             }
             return score;

@@ -118,6 +118,35 @@ class SlaEscalationWebhookNotifierTest {
     }
 
     @Test
+    void resolveAutoAssignDecisionsSupportsCategoryRouting() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "categories", "billing, vip"),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "categories", "delivery")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "duty_operator",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "billing_rule",
+                                "match_channel", "telegram",
+                                "match_categories", List.of("billing", "refund"),
+                                "assign_to", "billing_duty"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("billing_duty", decisions.get(0).assignee());
+        assertEquals("billing_rule", decisions.get(0).route());
+        assertEquals("duty_operator", decisions.get(1).assignee());
+        assertEquals("fallback_default", decisions.get(1).route());
+    }
+
+    @Test
     void resolveAutoAssignTicketIdsReturnsEmptyWhenDisabled() {
         SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
         List<String> ticketIds = notifier.resolveAutoAssignTicketIds(
