@@ -42,6 +42,9 @@ public class SettingsBridgeController {
     private final PermissionService permissionService;
     private final ObjectMapper objectMapper;
 
+    private record MacroNormalizationResult(List<Map<String, Object>> templates,
+                                            List<String> warnings) {}
+
     public SettingsBridgeController(JdbcTemplate jdbcTemplate,
                                     SharedConfigService sharedConfigService,
                                     SettingsCatalogService settingsCatalogService,
@@ -61,6 +64,7 @@ public class SettingsBridgeController {
         try {
             Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
             boolean modified = false;
+            List<String> updateWarnings = new ArrayList<>();
 
             if (payload.containsKey("auto_close_hours")) {
                 Object raw = payload.get("auto_close_hours");
@@ -159,13 +163,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_macro_templates")) {
                     boolean canPublishMacros = permissionService.hasAuthority(authentication, "DIALOG_MACRO_PUBLISH");
                     Object existingTemplates = dialogConfig.get("macro_templates");
-                    List<Map<String, Object>> normalizedTemplates = normalizeMacroTemplates(
+                    MacroNormalizationResult normalizationResult = normalizeMacroTemplates(
                         existingTemplates,
                         payload.get("dialog_macro_templates"),
                         authentication != null ? authentication.getName() : "system",
                         canPublishMacros
                     );
-                    dialogConfig.put("macro_templates", normalizedTemplates);
+                    dialogConfig.put("macro_templates", normalizationResult.templates());
+                    updateWarnings.addAll(normalizationResult.warnings());
                 }
                 if (payload.containsKey("dialog_time_metrics")) {
                     dialogConfig.put("time_metrics", payload.get("dialog_time_metrics"));
@@ -216,6 +221,9 @@ public class SettingsBridgeController {
                 syncParametersFromLocations(locationsPayload);
             }
 
+            if (!updateWarnings.isEmpty()) {
+                return Map.of("success", true, "warnings", updateWarnings);
+            }
             return Map.of("success", true);
         } catch (Exception ex) {
             log.error("Failed to update settings payload", ex);
@@ -562,10 +570,10 @@ public class SettingsBridgeController {
         return false;
     }
 
-    private List<Map<String, Object>> normalizeMacroTemplates(Object existingRaw,
-                                                              Object incomingRaw,
-                                                              String actor,
-                                                              boolean canPublishMacros) {
+    private MacroNormalizationResult normalizeMacroTemplates(Object existingRaw,
+                                                             Object incomingRaw,
+                                                             String actor,
+                                                             boolean canPublishMacros) {
         List<Map<String, Object>> existingTemplates = castTemplateList(existingRaw);
         Map<String, Map<String, Object>> existingById = new LinkedHashMap<>();
         for (Map<String, Object> template : existingTemplates) {
@@ -576,8 +584,9 @@ public class SettingsBridgeController {
         }
 
         List<Map<String, Object>> normalized = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
         if (!(incomingRaw instanceof List<?> incomingTemplates)) {
-            return normalized;
+            return new MacroNormalizationResult(normalized, warnings);
         }
 
         String normalizedActor = StringUtils.hasText(actor) ? actor : "system";
@@ -617,6 +626,10 @@ public class SettingsBridgeController {
                 approvedForPublish = approvalRequested;
             }
             if (!canPublishMacros) {
+                if (sourceMap.containsKey("published") || sourceMap.containsKey("approved_for_publish")) {
+                    warnings.add("Недостаточно прав для публикации макросов: изменения статуса публикации для «"
+                        + name + "» проигнорированы.");
+                }
                 approvedForPublish = resolveMacroApproval(previous);
             }
             if (changedMeaningfully) {
@@ -627,6 +640,7 @@ public class SettingsBridgeController {
                 && previousUpdatedBy.equalsIgnoreCase(normalizedActor);
             if (approvalRequested && requiresIndependentReview) {
                 approvedForPublish = false;
+                warnings.add("Макрос «" + name + "» требует независимого ревью: подтверждение тем же автором отклонено.");
                 log.info("Dialog macro template '{}' approval requires independent reviewer: actor='{}', previous_updated_by='{}'",
                     id,
                     normalizedActor,
@@ -707,7 +721,7 @@ public class SettingsBridgeController {
             incomingTemplates.size(),
             normalized.size(),
             canPublishMacros);
-        return normalized;
+        return new MacroNormalizationResult(normalized, warnings.stream().distinct().toList());
     }
 
     private boolean resolveMacroApproval(Map<String, Object> template) {
