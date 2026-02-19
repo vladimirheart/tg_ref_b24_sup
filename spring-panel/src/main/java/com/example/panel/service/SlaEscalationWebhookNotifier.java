@@ -68,8 +68,8 @@ public class SlaEscalationWebhookNotifier {
             return;
         }
 
-        String webhookUrl = trimToNull(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_url")));
-        if (webhookUrl == null) {
+        List<String> webhookUrls = resolveWebhookUrls(dialogConfig);
+        if (webhookUrls.isEmpty()) {
             return;
         }
 
@@ -94,14 +94,56 @@ public class SlaEscalationWebhookNotifier {
         payload.put("target_minutes", targetMinutes);
         payload.put("tickets", readyToNotify);
 
-        if (sendWebhook(webhookUrl, payload, timeoutMs)) {
+        if (sendWebhookFanout(webhookUrls, payload, timeoutMs)) {
             readyToNotify.forEach(candidate -> {
                 String ticketId = String.valueOf(candidate.get("ticket_id"));
                 ticketCooldownCache.put(ticketId, now);
             });
             cleanupCooldownCache(now, cooldownMinutes);
-            log.info("SLA escalation webhook sent for {} ticket(s).", readyToNotify.size());
+            log.info("SLA escalation webhook sent for {} ticket(s), endpoint(s): {}.", readyToNotify.size(), webhookUrls.size());
         }
+    }
+
+    List<String> resolveWebhookUrls(Map<String, Object> dialogConfig) {
+        if (dialogConfig == null || dialogConfig.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashMap<String, Boolean> uniqueUrls = new LinkedHashMap<>();
+        Object rawList = dialogConfig.get("sla_critical_escalation_webhook_urls");
+        if (rawList instanceof List<?> list) {
+            for (Object item : list) {
+                collectWebhookUrl(String.valueOf(item), uniqueUrls);
+            }
+        }
+        collectWebhookUrl(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_url")), uniqueUrls);
+        return new ArrayList<>(uniqueUrls.keySet());
+    }
+
+    private void collectWebhookUrl(String rawValue, Map<String, Boolean> uniqueUrls) {
+        String normalized = trimToNull(rawValue);
+        if (normalized == null) {
+            return;
+        }
+        String[] split = normalized.split("[,;\\n]");
+        for (String chunk : split) {
+            String url = trimToNull(chunk);
+            if (url == null) {
+                continue;
+            }
+            uniqueUrls.putIfAbsent(url, Boolean.TRUE);
+        }
+    }
+
+    private boolean sendWebhookFanout(List<String> webhookUrls, Map<String, Object> payload, int timeoutMs) {
+        boolean atLeastOneSuccess = false;
+        for (String webhookUrl : webhookUrls) {
+            if (sendWebhook(webhookUrl, payload, timeoutMs)) {
+                atLeastOneSuccess = true;
+                continue;
+            }
+            log.warn("SLA escalation webhook endpoint failed: {}", webhookUrl);
+        }
+        return atLeastOneSuccess;
     }
 
     private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
