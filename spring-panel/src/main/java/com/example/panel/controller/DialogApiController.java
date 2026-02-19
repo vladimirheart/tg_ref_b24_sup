@@ -82,6 +82,18 @@ public class DialogApiController {
             Map.entry("triage_quick_snooze", "triage"),
             Map.entry("triage_quick_close", "triage")
     );
+    private static final List<Map<String, String>> BUILTIN_MACRO_VARIABLES = List.of(
+            macroVariable("client_name", "Имя клиента"),
+            macroVariable("ticket_id", "ID обращения"),
+            macroVariable("operator_name", "Имя оператора"),
+            macroVariable("channel_name", "Канал обращения"),
+            macroVariable("business", "Бизнес-направление"),
+            macroVariable("location", "Локация клиента"),
+            macroVariable("dialog_status", "Текущий статус диалога"),
+            macroVariable("created_at", "Дата создания обращения"),
+            macroVariable("current_date", "Текущая дата"),
+            macroVariable("current_time", "Текущее время")
+    );
 
     public DialogApiController(DialogService dialogService,
                                DialogReplyService dialogReplyService,
@@ -196,6 +208,32 @@ public class DialogApiController {
                 "used_variables", result.usedVariables(),
                 "missing_variables", result.missingVariables()
         ));
+    }
+
+    @GetMapping("/macro/variables")
+    public Map<String, Object> macroVariables() {
+        List<Map<String, String>> variables = new ArrayList<>(BUILTIN_MACRO_VARIABLES);
+        Object configured = sharedConfigService.getDialogConfig().get("macro_variable_catalog");
+        if (configured instanceof List<?> entries) {
+            for (Object entry : entries) {
+                if (!(entry instanceof Map<?, ?> map)) {
+                    continue;
+                }
+                String key = map.get("key") != null ? String.valueOf(map.get("key")).trim().toLowerCase() : "";
+                String label = map.get("label") != null ? String.valueOf(map.get("label")).trim() : "";
+                if (!StringUtils.hasText(key) || !StringUtils.hasText(label)) {
+                    continue;
+                }
+                if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
+                    variables.add(macroVariable(key, label));
+                }
+            }
+        }
+        return Map.of("success", true, "variables", variables);
+    }
+
+    private static Map<String, String> macroVariable(String key, String label) {
+        return Map.of("key", key, "label", label);
     }
 
     @GetMapping("/{ticketId}/workspace")
