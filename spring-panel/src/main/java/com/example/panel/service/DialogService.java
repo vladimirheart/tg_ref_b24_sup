@@ -373,11 +373,11 @@ public class DialogService {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(baseSql, args.toArray());
             Map<String, String> previewByMessage = new HashMap<>();
             for (Map<String, Object> row : rows) {
-                Long tgMessageId = toLong(row.get("tg_message_id"));
+                Long tgMessageId = parseLong(row.get("tg_message_id"));
                 if (tgMessageId == null) {
                     continue;
                 }
-                String key = previewKey(toLong(row.get("channel_id")), tgMessageId);
+                String key = previewKey(parseLong(row.get("channel_id")), tgMessageId);
                 String preview = buildPreview(row.get("message"), row.get("message_type"));
                 if (StringUtils.hasText(preview)) {
                     previewByMessage.put(key, preview);
@@ -386,10 +386,10 @@ public class DialogService {
 
             List<ChatMessageDto> history = new ArrayList<>();
             for (Map<String, Object> row : rows) {
-                Long replyTo = toLong(row.get("reply_to_tg_id"));
+                Long replyTo = parseLong(row.get("reply_to_tg_id"));
                 String replyPreview = null;
                 if (replyTo != null) {
-                    String key = previewKey(toLong(row.get("channel_id")), replyTo);
+                    String key = previewKey(parseLong(row.get("channel_id")), replyTo);
                     replyPreview = previewByMessage.get(key);
                 }
                 String attachment = toAttachmentUrl(ticketId, value(row.get("attachment")));
@@ -403,7 +403,7 @@ public class DialogService {
                         value(row.get("timestamp")),
                         value(row.get("message_type")),
                         attachment,
-                        toLong(row.get("tg_message_id")),
+                        parseLong(row.get("tg_message_id")),
                         replyTo,
                         replyPreview,
                         value(row.get("edited_at")),
@@ -1435,7 +1435,7 @@ public class DialogService {
         }
     }
 
-    private static Long toLong(Object value) {
+    private static Long parseLong(Object value) {
         if (value == null) {
             return null;
         }

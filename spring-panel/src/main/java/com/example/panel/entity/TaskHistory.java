@@ -33,4 +33,15 @@ public class TaskHistory {
     private OffsetDateTime at;
 
     private String text;
+
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Task getTask() { return task; }
+    public void setTask(Task task) { this.task = task; }
+    public OffsetDateTime getAt() { return at; }
+    public void setAt(OffsetDateTime at) { this.at = at; }
+    public String getText() { return text; }
+    public void setText(String text) { this.text = text; }
+
 }
