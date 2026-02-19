@@ -1933,6 +1933,42 @@
                     <div id="timeMetricPreview" class="dialog-time-metrics-preview"></div>
                   </div>
                 </section>
+                <section class="mt-4">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">SLA и эскалация</h6>
+                  </div>
+                  <p class="small text-muted">Пороговые значения и флаги для SLA-first triage и серверной авто-эскалации критичных обращений.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <label for="dialogSlaTargetMinutes" class="form-label">SLA-цель, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaTargetMinutes" min="5" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaWarningMinutes" class="form-label">Порог предупреждения, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaWarningMinutes" min="1" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaCriticalMinutes" class="form-label">Критичный SLA, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaCriticalMinutes" min="1" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaEscalationEnabled">
+                        <label class="form-check-label" for="dialogSlaEscalationEnabled">Авто-эскалация критичных кейсов</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaAutoAssignEnabled">
+                        <label class="form-check-label" for="dialogSlaAutoAssignEnabled">Авто-назначение при эскалации</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogSlaAutoAssignTo" class="form-label">Fallback-исполнитель (логин)</label>
+                      <input type="text" class="form-control" id="dialogSlaAutoAssignTo" placeholder="Например, teamlead_support">
+                    </div>
+                  </div>
+                </section>
               </div>
 
               <div
@@ -3478,6 +3514,15 @@
       warning: '#fff4d6',
       danger: '#f8d7da',
     }),
+  });
+
+  const DEFAULT_DIALOG_SLA_CONFIG = Object.freeze({
+    target_minutes: 24 * 60,
+    warning_minutes: 4 * 60,
+    critical_minutes: 30,
+    escalation_enabled: true,
+    auto_assign_enabled: false,
+    auto_assign_to: '',
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12430,6 +12475,72 @@
     return { config, errors };
   }
 
+  function getDialogSlaInputs() {
+    return {
+      target: document.getElementById('dialogSlaTargetMinutes'),
+      warning: document.getElementById('dialogSlaWarningMinutes'),
+      critical: document.getElementById('dialogSlaCriticalMinutes'),
+      escalationEnabled: document.getElementById('dialogSlaEscalationEnabled'),
+      autoAssignEnabled: document.getElementById('dialogSlaAutoAssignEnabled'),
+      autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
+    };
+  }
+
+  function initDialogSlaControls() {
+    const inputs = getDialogSlaInputs();
+    if (!inputs.target || !inputs.warning || !inputs.critical) {
+      return;
+    }
+    const target = Number.parseInt(DIALOG_CONFIG.sla_target_minutes, 10);
+    const warning = Number.parseInt(DIALOG_CONFIG.sla_warning_minutes, 10);
+    const critical = Number.parseInt(DIALOG_CONFIG.sla_critical_minutes, 10);
+
+    inputs.target.value = Number.isFinite(target) && target > 0 ? target : DEFAULT_DIALOG_SLA_CONFIG.target_minutes;
+    inputs.warning.value = Number.isFinite(warning) && warning > 0 ? warning : DEFAULT_DIALOG_SLA_CONFIG.warning_minutes;
+    inputs.critical.value = Number.isFinite(critical) && critical > 0 ? critical : DEFAULT_DIALOG_SLA_CONFIG.critical_minutes;
+    if (inputs.escalationEnabled instanceof HTMLInputElement) {
+      inputs.escalationEnabled.checked = DIALOG_CONFIG.sla_critical_escalation_enabled !== false;
+    }
+    if (inputs.autoAssignEnabled instanceof HTMLInputElement) {
+      inputs.autoAssignEnabled.checked = Boolean(DIALOG_CONFIG.sla_critical_auto_assign_enabled);
+    }
+    if (inputs.autoAssignTo) {
+      inputs.autoAssignTo.value = typeof DIALOG_CONFIG.sla_critical_auto_assign_to === 'string'
+        ? DIALOG_CONFIG.sla_critical_auto_assign_to
+        : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_to;
+    }
+  }
+
+  function collectDialogSlaConfig() {
+    const inputs = getDialogSlaInputs();
+    const errors = [];
+    const target = Math.round(Number(inputs.target?.value));
+    const warning = Math.round(Number(inputs.warning?.value));
+    const critical = Math.round(Number(inputs.critical?.value));
+
+    const safeTarget = Number.isFinite(target) && target > 0 ? target : DEFAULT_DIALOG_SLA_CONFIG.target_minutes;
+    const safeWarning = Number.isFinite(warning) && warning > 0 ? warning : DEFAULT_DIALOG_SLA_CONFIG.warning_minutes;
+    const safeCritical = Number.isFinite(critical) && critical > 0 ? critical : DEFAULT_DIALOG_SLA_CONFIG.critical_minutes;
+
+    if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
+    if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
+    if (!Number.isFinite(critical) || critical <= 0) errors.push('Критичный SLA должен быть положительным числом.');
+    if (safeWarning >= safeTarget) errors.push('Порог предупреждения SLA должен быть меньше SLA-цели.');
+    if (safeCritical >= safeTarget) errors.push('Критичный SLA должен быть меньше SLA-цели.');
+
+    return {
+      errors,
+      config: {
+        dialog_sla_target_minutes: safeTarget,
+        dialog_sla_warning_minutes: safeWarning,
+        dialog_sla_critical_minutes: safeCritical,
+        dialog_sla_critical_escalation_enabled: Boolean(inputs.escalationEnabled?.checked),
+        dialog_sla_critical_auto_assign_enabled: Boolean(inputs.autoAssignEnabled?.checked),
+        dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),
+      },
+    };
+  }
+
   const dialogStatusBadgesList = document.getElementById('dialogStatusBadgesList');
   const dialogStatusBadgeAddBtn = document.querySelector('[data-dialog-status-badge-add]');
 
@@ -12637,6 +12748,13 @@
         return;
       }
 
+      const dialogSlaState = collectDialogSlaConfig();
+      if (dialogSlaState.errors && dialogSlaState.errors.length) {
+        const uniqueErrors = Array.from(new Set(dialogSlaState.errors));
+        showPopup(uniqueErrors.join('\n'));
+        return;
+      }
+
       const summaryBadgesState = collectDialogSummaryBadges();
       if (summaryBadgesState.errors && summaryBadgesState.errors.length) {
         const uniqueErrors = Array.from(new Set(summaryBadgesState.errors));
@@ -12743,6 +12861,7 @@
           dialog_completion_templates: completionTemplates,
           dialog_macro_templates: macroTemplates,
           dialog_time_metrics: timeMetricsState.config,
+          ...dialogSlaState.config,
           dialog_summary_badges: { status: summaryBadgesState.status },
           auto_close_config: autoClosePayload,
           auto_close_hours: autoCloseHours,
@@ -12770,6 +12889,7 @@
     initAutoCloseTemplates();
     initDialogTemplates();
     initTimeMetricsControls();
+    initDialogSlaControls();
     initDialogStatusBadges();
     initLocationWizard();
     buildLocationsTree();
