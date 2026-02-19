@@ -234,6 +234,7 @@
     triage_quick_assign: 'triage',
     triage_quick_snooze: 'triage',
     triage_quick_close: 'triage',
+    triage_bulk_action: 'triage',
     macro_preview: 'macro',
     macro_apply: 'macro',
   });
@@ -1527,11 +1528,15 @@
     const [bulkPermission, actionPermission, actionTitle] = permissionMap[action] || [];
     if (!canRunAction(bulkPermission) || !canRunAction(actionPermission)) {
       notifyPermissionDenied(actionTitle || 'Групповое действие');
+      emitWorkspaceTelemetry('triage_bulk_action', {
+        reason: `${action || 'unknown'}:permission_denied`,
+      });
       return;
     }
 
     const rows = selectedRows();
     if (!rows.length) return;
+    let processedCount = 0;
     const originalDisabled = [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn]
       .filter(Boolean)
       .map((button) => ({ button, disabled: button.disabled }));
@@ -1562,6 +1567,7 @@
           await closeDialogQuick(ticketId, row, closeBtn);
           clearSnooze(ticketId);
         }
+        processedCount += 1;
       } catch (error) {
         errors.push(`${ticketId}: ${error.message || 'ошибка'}`);
       }
@@ -1581,6 +1587,10 @@
       };
       showNotification(successMap[action] || 'Групповое действие выполнено', 'success');
     }
+    emitWorkspaceTelemetry('triage_bulk_action', {
+      reason: `${action || 'unknown'}:${errors.length ? 'partial_failure' : 'success'}:processed=${processedCount}:errors=${errors.length}`,
+      ticketId: rows.length === 1 ? String(rows[0]?.dataset?.ticketId || '') : null,
+    });
 
     clearSelection();
     originalDisabled.forEach(({ button, disabled }) => {
