@@ -127,6 +127,42 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals(List.of(), ticketIds);
     }
 
+    @Test
+    void resolveWebhookUrlsSupportsListAndLegacyField() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Map<String, Object> config = Map.of(
+                "sla_critical_escalation_webhook_url", "https://legacy.example/hook",
+                "sla_critical_escalation_webhook_urls", List.of(
+                        "https://ops-a.example/hook",
+                        "https://ops-b.example/hook",
+                        "https://ops-a.example/hook"
+                )
+        );
+
+        List<String> urls = notifier.resolveWebhookUrls(config);
+        assertEquals(List.of(
+                "https://ops-a.example/hook",
+                "https://ops-b.example/hook",
+                "https://legacy.example/hook"
+        ), urls);
+    }
+
+    @Test
+    void resolveWebhookUrlsParsesCsvAndNewLines() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Map<String, Object> config = Map.of(
+                "sla_critical_escalation_webhook_url",
+                "https://ops-a.example/hook, https://ops-b.example/hook\nhttps://ops-c.example/hook"
+        );
+
+        List<String> urls = notifier.resolveWebhookUrls(config);
+        assertEquals(List.of(
+                "https://ops-a.example/hook",
+                "https://ops-b.example/hook",
+                "https://ops-c.example/hook"
+        ), urls);
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,
