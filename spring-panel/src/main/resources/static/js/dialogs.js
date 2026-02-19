@@ -127,6 +127,7 @@
   const macroTemplateMeta = document.getElementById('dialogMacroTemplateMeta');
   const macroTemplateApply = document.getElementById('dialogMacroTemplateApply');
   const macroTemplateEmpty = document.getElementById('dialogMacroTemplateEmpty');
+  const macroVariableCatalog = document.getElementById('dialogMacroVariableCatalog');
   const completionTemplatesSection = document.getElementById('dialogCompletionTemplatesSection');
   const completionTemplateSelect = document.getElementById('dialogCompletionTemplateSelect');
   const completionTemplateList = document.getElementById('dialogCompletionTemplateList');
@@ -238,6 +239,7 @@
   });
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
+  let macroVariableCatalogInitialized = false;
   let workspaceComposerTicketId = '';
   let workspaceComposerMacroTemplates = [];
   let activeWorkspaceMacroTemplate = null;
@@ -3063,6 +3065,57 @@
     completionTemplateEmpty.classList.toggle('d-none', hasItems);
   }
 
+
+  function renderMacroVariableCatalog(variables) {
+    if (!macroVariableCatalog) return;
+    if (!Array.isArray(variables) || variables.length === 0) {
+      macroVariableCatalog.textContent = 'Доступны шаблоны вида {{ticket_id}} и {{client_name}}.';
+      return;
+    }
+    macroVariableCatalog.innerHTML = '';
+    const title = document.createElement('span');
+    title.className = 'text-muted';
+    title.textContent = 'Переменные: ';
+    macroVariableCatalog.appendChild(title);
+    variables.forEach((item, index) => {
+      const code = document.createElement('code');
+      const key = String(item?.key || '').trim();
+      const label = String(item?.label || '').trim();
+      code.textContent = `{{${key}}}`;
+      code.title = label || key;
+      macroVariableCatalog.appendChild(code);
+      if (index < variables.length - 1) {
+        macroVariableCatalog.appendChild(document.createTextNode(', '));
+      }
+    });
+  }
+
+  async function initMacroVariableCatalog() {
+    if (macroVariableCatalogInitialized) return;
+    macroVariableCatalogInitialized = true;
+    const fallbackVariables = [
+      { key: 'client_name', label: 'Имя клиента' },
+      { key: 'ticket_id', label: 'ID обращения' },
+      { key: 'operator_name', label: 'Имя оператора' },
+      { key: 'channel_name', label: 'Канал обращения' },
+      { key: 'business', label: 'Бизнес-направление' },
+      { key: 'location', label: 'Локация клиента' },
+      { key: 'dialog_status', label: 'Статус диалога' },
+      { key: 'created_at', label: 'Дата создания' },
+      { key: 'current_date', label: 'Текущая дата' },
+      { key: 'current_time', label: 'Текущее время' },
+    ];
+    try {
+      const response = await fetch('/api/dialogs/macro/variables', { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      renderMacroVariableCatalog(Array.isArray(payload?.variables) ? payload.variables : fallbackVariables);
+    } catch (error) {
+      console.warn('Failed to load macro variables catalog', error);
+      renderMacroVariableCatalog(fallbackVariables);
+    }
+  }
+
   function resolveMacroVariables() {
     const now = new Date();
     return {
@@ -3164,6 +3217,9 @@
       const hasTemplates = templates.length > 0;
       macroTemplatesCache = templates;
       macroTemplatesSection.classList.toggle('d-none', !hasTemplates);
+      if (hasTemplates) {
+        initMacroVariableCatalog();
+      }
       if (hasTemplates && macroTemplateSelect) {
         renderMacroTemplateOptions(templates);
         macroTemplateSelect.addEventListener('change', () => {
