@@ -4580,7 +4580,7 @@
     if (typeof navigator.sendBeacon !== 'function') return;
     const payload = new Blob([JSON.stringify({
       event_type: 'workspace_abandon',
-      event_group: WORKSPACE_TELEMETRY_EVENT_GROUPS.workspace_abandon,
+      event_group: DIALOGS_TELEMETRY_EVENT_GROUPS.workspace_abandon,
       timestamp: new Date().toISOString(),
       ticket_id: activeWorkspaceTicketId,
       reason: 'no_first_interaction',
