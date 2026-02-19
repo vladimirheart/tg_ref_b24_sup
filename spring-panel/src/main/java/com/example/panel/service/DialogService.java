@@ -59,17 +59,21 @@ public class DialogService {
 
     public List<DialogListItem> loadDialogs(String currentOperator) {
         try {
-            boolean feedbackHasTicketId = loadTableColumns("feedbacks").contains("ticket_id");
+            Set<String> feedbackColumns = loadTableColumns("feedbacks");
+            boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
+            boolean feedbackHasId = feedbackColumns.contains("id");
+            String feedbackOrderBy = feedbackHasId ? "f.timestamp DESC, f.id DESC" : "f.timestamp DESC";
             String ratingSelect = feedbackHasTicketId
                     ? """
                        (
                            SELECT rating
                              FROM feedbacks f
                             WHERE f.ticket_id = m.ticket_id
-                            ORDER BY f.timestamp DESC, f.id DESC
+                            ORDER BY %s
                             LIMIT 1
                        ) AS rating,
                        """
+                    .formatted(feedbackOrderBy)
                     : "NULL AS rating,";
             String sql = """
                     SELECT m.ticket_id, m.group_msg_id AS request_number,
@@ -167,17 +171,21 @@ public class DialogService {
 
     public Optional<DialogListItem> findDialog(String ticketId, String operator) {
         try {
-            boolean feedbackHasTicketId = loadTableColumns("feedbacks").contains("ticket_id");
+            Set<String> feedbackColumns = loadTableColumns("feedbacks");
+            boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
+            boolean feedbackHasId = feedbackColumns.contains("id");
+            String feedbackOrderBy = feedbackHasId ? "f.timestamp DESC, f.id DESC" : "f.timestamp DESC";
             String ratingSelect = feedbackHasTicketId
                     ? """
                        (
                            SELECT rating
                              FROM feedbacks f
                             WHERE f.ticket_id = m.ticket_id
-                            ORDER BY f.timestamp DESC, f.id DESC
+                            ORDER BY %s
                             LIMIT 1
                        ) AS rating,
                        """
+                    .formatted(feedbackOrderBy)
                     : "NULL AS rating,";
             String sql = """
                     SELECT m.ticket_id, m.group_msg_id AS request_number,
