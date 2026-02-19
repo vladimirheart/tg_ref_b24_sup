@@ -1758,3 +1758,75 @@ LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
      )
 ORDER BY m.created_at DESC
 ]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 17:05:10.541+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:06:10.541+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:06:45.018+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 17:07:10.539+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:08:10.538+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
