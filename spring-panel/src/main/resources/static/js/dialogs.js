@@ -174,6 +174,34 @@
     return normalized.length ? normalized : fallbackValue;
   }
 
+  function normalizeExperimentCohort(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'test' || normalized === 'control' ? normalized : null;
+  }
+
+  function normalizeOperatorExperimentOverrides(value) {
+    if (!value || typeof value !== 'object') {
+      return {};
+    }
+    const normalizedOverrides = {};
+    Object.entries(value).forEach(([identity, override]) => {
+      const normalizedIdentity = String(identity || '').trim().toLowerCase();
+      if (!normalizedIdentity || !override || typeof override !== 'object') {
+        return;
+      }
+      const cohort = normalizeExperimentCohort(override.cohort);
+      const segment = String(override.segment || '').trim();
+      if (!cohort && !segment) {
+        return;
+      }
+      normalizedOverrides[normalizedIdentity] = {
+        cohort,
+        segment: segment || null,
+      };
+    });
+    return normalizedOverrides;
+  }
+
   function normalizeSlaMinutes(value, fallbackValue) {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -218,6 +246,7 @@
     enabled: Boolean(window.DIALOG_CONFIG?.workspace_ab_enabled),
     rolloutPercent: Math.max(0, Math.min(100, Number(window.DIALOG_CONFIG?.workspace_ab_rollout_percent) || 0)),
     operatorSegment: String(window.DIALOG_CONFIG?.workspace_ab_operator_segment || 'all_operators').trim() || 'all_operators',
+    operatorOverrides: normalizeOperatorExperimentOverrides(window.DIALOG_CONFIG?.workspace_ab_operator_overrides),
     primaryKpis: normalizeStringArray(window.DIALOG_CONFIG?.workspace_ab_primary_kpis, DEFAULT_PRIMARY_KPIS),
     secondaryKpis: normalizeStringArray(window.DIALOG_CONFIG?.workspace_ab_secondary_kpis, DEFAULT_SECONDARY_KPIS),
   });
@@ -424,12 +453,26 @@
   }
 
   function resolveWorkspaceExperimentContext() {
+    const operatorOverride = WORKSPACE_AB_TEST_CONFIG.operatorOverrides[String(OPERATOR_IDENTITY || '').toLowerCase()];
+    const overrideCohort = normalizeExperimentCohort(operatorOverride?.cohort);
+    const operatorSegment = String(operatorOverride?.segment || WORKSPACE_AB_TEST_CONFIG.operatorSegment || 'all_operators').trim() || 'all_operators';
+
     if (!WORKSPACE_AB_TEST_CONFIG.enabled || WORKSPACE_AB_TEST_CONFIG.rolloutPercent <= 0) {
       return {
         experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
-        cohort: 'disabled',
+        cohort: overrideCohort || 'disabled',
+        operatorSegment,
       };
     }
+
+    if (overrideCohort) {
+      return {
+        experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
+        cohort: overrideCohort,
+        operatorSegment,
+      };
+    }
+
     const cohortSeed = `${WORKSPACE_AB_TEST_CONFIG.experimentName}:${OPERATOR_IDENTITY}`;
     const bucket = hashStringToBucket(cohortSeed) % 100;
     const deterministicCohort = bucket < WORKSPACE_AB_TEST_CONFIG.rolloutPercent ? 'test' : 'control';
@@ -451,6 +494,7 @@
       return {
         experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
         cohort: deterministicCohort,
+        operatorSegment,
       };
     }
 
@@ -462,6 +506,7 @@
     return {
       experimentName: WORKSPACE_AB_TEST_CONFIG.experimentName,
       cohort: deterministicCohort,
+      operatorSegment,
     };
   }
 
@@ -1759,7 +1804,7 @@
       duration_ms: Number.isFinite(payload.durationMs) ? payload.durationMs : null,
       experiment_name: workspaceExperimentContext.experimentName,
       experiment_cohort: workspaceExperimentContext.cohort,
-      operator_segment: WORKSPACE_AB_TEST_CONFIG.operatorSegment,
+      operator_segment: workspaceExperimentContext.operatorSegment,
       primary_kpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
       secondary_kpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
       template_id: payload.templateId || null,
@@ -1795,7 +1840,7 @@
 
   function renderExperimentInfoPanel() {
     if (experimentInfoMeta) {
-      experimentInfoMeta.textContent = `Эксперимент: ${WORKSPACE_AB_TEST_CONFIG.experimentName} · Когорта: ${workspaceExperimentContext.cohort} · Сегмент: ${WORKSPACE_AB_TEST_CONFIG.operatorSegment}`;
+      experimentInfoMeta.textContent = `Эксперимент: ${WORKSPACE_AB_TEST_CONFIG.experimentName} · Когорта: ${workspaceExperimentContext.cohort} · Сегмент: ${workspaceExperimentContext.operatorSegment}`;
     }
     renderExperimentKpiItems(experimentPrimaryKpis, WORKSPACE_AB_TEST_CONFIG.primaryKpis);
     renderExperimentKpiItems(experimentSecondaryKpis, WORKSPACE_AB_TEST_CONFIG.secondaryKpis);
@@ -4825,7 +4870,7 @@
       reason: 'no_first_interaction',
       experiment_name: workspaceExperimentContext.experimentName,
       experiment_cohort: workspaceExperimentContext.cohort,
-      operator_segment: WORKSPACE_AB_TEST_CONFIG.operatorSegment,
+      operator_segment: workspaceExperimentContext.operatorSegment,
       primary_kpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
       secondary_kpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
     })], { type: 'application/json' });
