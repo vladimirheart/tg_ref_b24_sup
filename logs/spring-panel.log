@@ -1,0 +1,1021 @@
+2026-02-19 17:55:58.323+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-02-19 17:55:58.434+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db}
+2026-02-19 17:55:58.449+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db, falling back to defaults.
+2026-02-19 17:55:58.452+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db}
+2026-02-19 17:55:58.460+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 7316 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel)
+2026-02-19 17:55:58.464+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-02-19 17:56:00.468+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-19 17:56:00.805+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 314 ms. Found 31 JPA repository interfaces.
+2026-02-19 17:56:02.469+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-02-19 17:56:02.489+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-02-19 17:56:02.495+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-02-19 17:56:02.495+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-02-19 17:56:02.638+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-02-19 17:56:02.641+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 4042 ms
+2026-02-19 17:56:02.887+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db
+2026-02-19 17:56:03.403+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db (SQLite 3.43)
+2026-02-19 17:56:03.504+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 20 migrations (execution time 00:00.068s)
+2026-02-19 17:56:03.520+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 16
+2026-02-19 17:56:03.521+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-02-19 17:56:03.529+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-02-19 17:56:03.674+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-02-19 17:56:03.791+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-02-19 17:56:03.878+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-02-19 17:56:04.343+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-19 17:56:07.273+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-19 17:56:07.282+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-19 17:56:07.565+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db (users)
+2026-02-19 17:56:08.766+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\config\shared
+2026-02-19 17:56:10.003+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_database.db
+2026-02-19 17:56:10.430+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db
+2026-02-19 17:56:10.497+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-02-19 17:56:11.361+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@da8853c, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@fb79241, org.springframework.security.web.context.SecurityContextHolderFilter@6e18bc2f, org.springframework.security.web.header.HeaderWriterFilter@33c5d3e, org.springframework.web.filter.CorsFilter@275860e9, org.springframework.security.web.csrf.CsrfFilter@4746b319, com.example.panel.security.SecurityHeadersFilter@349c4d1c, org.springframework.security.web.authentication.logout.LogoutFilter@6a9e88f1, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@f64f47a, org.springframework.security.web.session.ConcurrentSessionFilter@4b75d640, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@27acd9a7, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@3f7d20c5, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@1f81b020, org.springframework.security.web.session.SessionManagementFilter@376b6d7d, org.springframework.security.web.access.ExceptionTranslationFilter@53b42a0d, org.springframework.security.web.access.intercept.AuthorizationFilter@1e0383d3]
+2026-02-19 17:56:11.810+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-19 17:56:13.496+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-02-19 17:56:13.536+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-02-19 17:56:13.575+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 16.339 seconds (process running for 17.102)
+2026-02-19 17:56:13.599+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases
+2026-02-19 17:56:13.600+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot
+2026-02-19 17:56:13.658+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 17:56:13.756+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-02-19 17:56:13.757+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-02-19 17:56:13.770+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db
+2026-02-19 17:56:13.778+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db
+2026-02-19 17:56:13.788+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db
+2026-02-19 17:56:14.151+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-02-19 17:57:10.656+03:00 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-02-19 17:57:10.657+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-02-19 17:57:10.665+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-02-19 17:58:13.677+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:00:13.697+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:02:13.725+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:04:13.749+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:06:13.775+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:08:13.795+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:10:13.812+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:12:13.831+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:14:13.849+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:16:13.867+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:18:13.888+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT t.ticket_id, m.group_msg_id AS request_number,
+         COALESCE(m.user_id, t.user_id) AS user_id,
+         m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem,
+     COALESCE(m.created_at, t.created_at) AS created_at,
+     t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+     COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+     cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = t.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = t.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = t.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = t.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM tickets t
+LEFT JOIN messages m ON m.id = (
+    SELECT m2.id
+      FROM messages m2
+     WHERE m2.ticket_id = t.ticket_id
+     ORDER BY substr(m2.created_at, 1, 19) DESC,
+              m2.id DESC
+     LIMIT 1
+)
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+     )
+ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+         t.ticket_id DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-02-19 18:18:37.831+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-02-19 18:18:37.838+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
