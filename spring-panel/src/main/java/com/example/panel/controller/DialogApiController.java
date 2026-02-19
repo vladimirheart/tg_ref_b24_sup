@@ -80,7 +80,8 @@ public class DialogApiController {
             Map.entry("triage_view_switch", "triage"),
             Map.entry("triage_quick_assign", "triage"),
             Map.entry("triage_quick_snooze", "triage"),
-            Map.entry("triage_quick_close", "triage")
+            Map.entry("triage_quick_close", "triage"),
+            Map.entry("triage_bulk_action", "triage")
     );
     private static final List<Map<String, String>> BUILTIN_MACRO_VARIABLES = List.of(
             macroVariable("client_name", "Имя клиента"),
