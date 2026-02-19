@@ -146,7 +146,12 @@ public class WorkspaceGuardrailWebhookNotifier {
         }
         return list.stream()
                 .filter(Map.class::isInstance)
-                .map(item -> new LinkedHashMap<>((Map<String, Object>) item))
+                .map(item -> {
+                    Map<?, ?> source = (Map<?, ?>) item;
+                    Map<String, Object> normalized = new LinkedHashMap<>();
+                    source.forEach((key, nestedValue) -> normalized.put(String.valueOf(key), nestedValue));
+                    return normalized;
+                })
                 .toList();
     }
 
