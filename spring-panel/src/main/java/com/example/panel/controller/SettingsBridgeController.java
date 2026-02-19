@@ -147,7 +147,11 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_time_metrics")
                 || payload.containsKey("dialog_summary_badges")
                 || payload.containsKey("dialog_sla_target_minutes")
-                || payload.containsKey("dialog_sla_warning_minutes")) {
+                || payload.containsKey("dialog_sla_warning_minutes")
+                || payload.containsKey("dialog_sla_critical_minutes")
+                || payload.containsKey("dialog_sla_critical_escalation_enabled")
+                || payload.containsKey("dialog_sla_critical_auto_assign_enabled")
+                || payload.containsKey("dialog_sla_critical_auto_assign_to")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -182,6 +186,18 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_warning_minutes")) {
                     dialogConfig.put("sla_warning_minutes", payload.get("dialog_sla_warning_minutes"));
+                }
+                if (payload.containsKey("dialog_sla_critical_minutes")) {
+                    dialogConfig.put("sla_critical_minutes", payload.get("dialog_sla_critical_minutes"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_enabled")) {
+                    dialogConfig.put("sla_critical_escalation_enabled", payload.get("dialog_sla_critical_escalation_enabled"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_enabled")) {
+                    dialogConfig.put("sla_critical_auto_assign_enabled", payload.get("dialog_sla_critical_auto_assign_enabled"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_to")) {
+                    dialogConfig.put("sla_critical_auto_assign_to", payload.get("dialog_sla_critical_auto_assign_to"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
