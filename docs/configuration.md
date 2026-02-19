@@ -38,7 +38,8 @@ APP_BOT_DATABASE_DIR=/srv/iguana/bots
 
 - `sla_critical_escalation_enabled` — включает саму SLA-эскалацию (по умолчанию `true`).
 - `sla_critical_escalation_webhook_enabled` — включает отправку webhook (по умолчанию `false`).
-- `sla_critical_escalation_webhook_url` — URL получателя webhook.
+- `sla_critical_escalation_webhook_url` — legacy-поле с одним URL получателя webhook (обратная совместимость).
+- `sla_critical_escalation_webhook_urls` — список URL для fan-out отправки в несколько incident-каналов (рекомендуемый формат).
 - `sla_critical_escalation_webhook_cooldown_minutes` — минимальный интервал повторной отправки по одному тикету (по умолчанию `30`).
 - `sla_critical_escalation_webhook_timeout_ms` — timeout HTTP-вызова webhook (по умолчанию `4000`).
 - `sla_critical_minutes` — порог критичности SLA (используется для отбора тикетов).

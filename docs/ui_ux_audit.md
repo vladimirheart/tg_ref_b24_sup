@@ -500,9 +500,10 @@
 - Telemetry-события поступают в аналитику с требуемыми полями.
 - Rollback по флагу занимает не более 5 минут и подтверждён dry-run-проверкой.
 
-### 10.6. Реализовано дополнительно после проверки roadmap (NOW-1.48 / NOW-1.49 / NOW-1.50 / NOW-1.51)
+### 10.6. Реализовано дополнительно после проверки roadmap (NOW-1.48 / NOW-1.49 / NOW-1.50 / NOW-1.51 / NOW-1.52)
 
 - [x] **NOW-1.48 (этап C3, SLA routing policy enrichment):** серверный `sla_critical_auto_assign_rules` расширен матчингом по `match_location`, а выбор правила переведён на best-match стратегию по специфичности (`channel + business + location` имеет приоритет над общими правилами). Это закрывает ещё один шаг backlog по распределению критичных кейсов по очередям/навыкам без hard-coded условий.
 - [x] **NOW-1.49 (этап C3, audit traceability hardening):** аудит `sla_auto_assign` дополнен полем `route` (идентификатор правила `rule_id/name` или `fallback_default`), чтобы при инцидентах было видно не только факт авто-назначения, но и конкретный policy-маршрут.
 - [x] **NOW-1.50 (этап C3, queue balancing enrichment):** для `sla_critical_auto_assign_rules` добавлена поддержка `assign_to_pool` (список операторов) с дедупликацией и детерминированным выбором assignee по `ticket_id` hash. Это снижает перекос нагрузки на одного дежурного и закрывает следующий шаг backlog по распределению критичных кейсов по очередям без состояния round-robin.
 - [x] **NOW-1.51 (этап E1, A/B cohort consistency hardening):** assignment в `workspace_v1` A/B-когорты переведён с client-random на детерминированный hashing по `(experiment_name + operator_identity)`. Это устраняет дрейф когорты между браузерами/устройствами и повышает достоверность эксперимента по FRT/TTR/SLA breach без смещения выборки.
+- [x] **NOW-1.52 (этап C3, incident integration resilience):** webhook-эскалация SLA теперь поддерживает fan-out на несколько endpoint'ов (`sla_critical_escalation_webhook_urls`) с обратной совместимостью для legacy-поля `sla_critical_escalation_webhook_url`, дедупликацией URL и частично-успешной отправкой (cooldown применяется только если хотя бы один канал принял событие). Это закрывает следующий шаг backlog по инцидентным интеграциям и снижает SPOF одного webhook-канала.
