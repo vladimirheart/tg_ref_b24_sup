@@ -501,7 +501,7 @@
 - Telemetry-события поступают в аналитику с требуемыми полями.
 - Rollback по флагу занимает не более 5 минут и подтверждён dry-run-проверкой.
 
-### 10.6. Реализовано дополнительно после проверки roadmap (NOW-1.48 / NOW-1.49 / NOW-1.50 / NOW-1.51 / NOW-1.52 / NOW-1.53 / NOW-1.54 / NOW-1.56)
+### 10.6. Реализовано дополнительно после проверки roadmap (NOW-1.48 / NOW-1.49 / NOW-1.50 / NOW-1.51 / NOW-1.52 / NOW-1.53 / NOW-1.54 / NOW-1.56 / NOW-1.57)
 
 - [x] **NOW-1.48 (этап C3, SLA routing policy enrichment):** серверный `sla_critical_auto_assign_rules` расширен матчингом по `match_location`, а выбор правила переведён на best-match стратегию по специфичности (`channel + business + location` имеет приоритет над общими правилами). Это закрывает ещё один шаг backlog по распределению критичных кейсов по очередям/навыкам без hard-coded условий.
 - [x] **NOW-1.49 (этап C3, audit traceability hardening):** аудит `sla_auto_assign` дополнен полем `route` (идентификатор правила `rule_id/name` или `fallback_default`), чтобы при инцидентах было видно не только факт авто-назначения, но и конкретный policy-маршрут.
@@ -512,3 +512,4 @@
 - [x] **NOW-1.54 (этап E2, telemetry dictionary bugfix):** исправлен runtime-дефект в отправке `workspace_abandon` через `sendBeacon` — событие теперь использует корректный словарь `DIALOGS_TELEMETRY_EVENT_GROUPS`, поэтому abandon-метрика стабильно уходит в `/api/dialogs/workspace-telemetry` и учитывается в guardrails эксперимента.
 - [x] **NOW-1.55 (этап C3, SLA skill/queue routing enrichment):** SLA auto-assign rules расширены маршрутизацией по категориям обращения (`match_category` / `match_categories`). Кандидаты эскалации теперь передают `categories`, а best-match учитывает category-критерий в `specificityScore`, что закрывает следующий шаг backlog по распределению критичных кейсов по навыкам/очередям без отдельного stateful-роутера.
 - [x] **NOW-1.56 (этап D1/D2, macro variables hardening):** расширен движок подстановки макросов в `dialogs.js`: добавлены новые контекстные переменные (`channel/business/location/status/created_at/current_date/current_time`), поддержан fallback-синтаксис `{{var|default}}`, а неизвестные переменные больше не «съедаются» пустой строкой (placeholder сохраняется для прозрачного предпросмотра). Это снижает риск отправки некорректных ответов и упрощает поэтапное расширение библиотеки макросов.
+- [x] **NOW-1.57 (этап C1, enterprise profile enrichment visibility):** правая панель workspace теперь отображает дополнительные server-side атрибуты профиля клиента (включая вложенные/массивные значения) в блоке «Доп. атрибуты», а ключи автоматически нормализуются в читаемые label'ы. Это закрывает следующий шаг backlog по видимости enterprise-enrichment без открытия отдельных CRM-экранов.
