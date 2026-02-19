@@ -222,11 +222,16 @@ public class DialogApiController {
                 }
                 String key = map.get("key") != null ? String.valueOf(map.get("key")).trim().toLowerCase() : "";
                 String label = map.get("label") != null ? String.valueOf(map.get("label")).trim() : "";
+                String defaultValue = map.get("default_value") != null ? String.valueOf(map.get("default_value")).trim() : "";
                 if (!StringUtils.hasText(key) || !StringUtils.hasText(label)) {
                     continue;
                 }
                 if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
-                    variables.add(macroVariable(key, label));
+                    if (StringUtils.hasText(defaultValue)) {
+                        variables.add(macroVariable(key, label, defaultValue));
+                    } else {
+                        variables.add(macroVariable(key, label));
+                    }
                 }
             }
         }
@@ -235,6 +240,14 @@ public class DialogApiController {
 
     private static Map<String, String> macroVariable(String key, String label) {
         return Map.of("key", key, "label", label);
+    }
+
+    private static Map<String, String> macroVariable(String key, String label, String defaultValue) {
+        Map<String, String> variable = new LinkedHashMap<>();
+        variable.put("key", key);
+        variable.put("label", label);
+        variable.put("default_value", defaultValue);
+        return variable;
     }
 
     @GetMapping("/{ticketId}/workspace")
@@ -461,9 +474,30 @@ public class DialogApiController {
         }
         putMacroVariableIfAbsent(variables, "ticket_id", safeTicketId != null ? safeTicketId : "—");
         putMacroVariableIfAbsent(variables, "operator_name", StringUtils.hasText(operator) ? operator.trim() : "оператор");
+        Map<String, String> configuredDefaults = resolveConfiguredMacroVariableDefaults();
+        configuredDefaults.forEach((key, value) -> putMacroVariableIfAbsent(variables, key, value));
         putMacroVariableIfAbsent(variables, "current_date", MACRO_DATE_FORMATTER.format(Instant.now()));
         putMacroVariableIfAbsent(variables, "current_time", MACRO_TIME_FORMATTER.format(Instant.now()));
         return variables;
+    }
+
+    private Map<String, String> resolveConfiguredMacroVariableDefaults() {
+        Map<String, String> defaults = new LinkedHashMap<>();
+        Object configured = sharedConfigService.loadSettings().get("macro_variable_catalog");
+        if (!(configured instanceof List<?> entries)) {
+            return defaults;
+        }
+        for (Object entry : entries) {
+            if (!(entry instanceof Map<?, ?> map)) {
+                continue;
+            }
+            String key = map.get("key") != null ? String.valueOf(map.get("key")).trim().toLowerCase() : "";
+            String defaultValue = map.get("default_value") != null ? String.valueOf(map.get("default_value")).trim() : "";
+            if (StringUtils.hasText(key) && StringUtils.hasText(defaultValue)) {
+                defaults.putIfAbsent(key, defaultValue);
+            }
+        }
+        return defaults;
     }
 
     private void putMacroVariableIfAbsent(Map<String, String> variables, String key, String value) {

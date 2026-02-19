@@ -220,7 +220,7 @@
 
 4. **Макросы / шаблоны / пакетные сценарии** (P2, частично выполнено)
    - Базовая библиотека макросов уже поддерживает версионность и подстановку переменных в UI (`{{client_name}}`, `{{ticket_id}}`, `{{operator_name}}`, `{{channel_name}}`, `{{business}}`, `{{location}}`, `{{dialog_status}}`, `{{created_at}}`, `{{current_date}}`, `{{current_time}}`) и fallback-синтаксис `{{unknown_var|значение_по_умолчанию}}`.
-   - В backlog остаются пакетные сценарии (multi-step macros) и централизованная библиотека переменных из внешних систем.
+   - Пакетные сценарии (multi-step macros) реализованы; в backlog остаётся централизованная библиотека переменных из внешних систем (единый каталог + default values из конфигурации/интеграций).
 
 5. **A/B UX-эксперименты на production-метриках** (P2, не выполнено)
    - Не выделен контур feature flags + аналитика для сравнения UX-гипотез.
@@ -517,3 +517,5 @@
 - [x] **NOW-1.58 (этап D1/D2, multi-step macro workflows):** макросы расширены блоком `workflow` с валидируемыми шагами `assign_to_me`, `snooze_minutes` (1..1440) и `close_ticket`. Нормализация выполняется на сервере (`SettingsBridgeController`), а UI `dialogs.js` применяет действия пакетно (в triage и workspace composer), показывает workflow-бейджи в предпросмотре и логирует `workflowActions` в telemetry. Это закрывает следующий практический шаг backlog по пакетным macro-сценариям без отдельного stateful orchestrator.
 - [x] **NOW-1.59 (этап E2, telemetry dictionary completeness для triage bulk actions):** добавлено событие `triage_bulk_action` в единый словарь telemetry (frontend + backend whitelist `/api/dialogs/workspace-telemetry`). UI логирует результат групповых операций (`take/snooze/close`, в т.ч. permission denied и partial failure), что закрывает пробел наблюдаемости для массовых triage-сценариев и улучшает качество A/B-анализа operator-flow.
 - [x] **NOW-1.60 (этап E1, feature-flag segmentation hardening):** A/B-контур `workspace_v1` расширен операторскими override-правилами через `dialog_config.workspace_ab_operator_overrides` (`operator_identity -> {cohort, segment}`). Это позволяет фиксировать когорту и сегмент для отдельных смен/команд (например, pilot-wave или training cohort) без ручного random-sampling и без дрейфа между устройствами; telemetry теперь отправляет фактический сегмент из experiment-context.
+
+- [x] **NOW-1.61 (этап D1/D2, external macro variables bridge):** расширен API каталога переменных `/api/dialogs/macro/variables`: теперь поддерживается `default_value` в `macro_variable_catalog`, а UI применяет эти значения как безопасный fallback при рендере макросов (включая tooltip-подсказку в каталоге). Dry-run на сервере тоже учитывает сконфигурированные default values, что закрывает следующий шаг backlog по централизованной библиотеке переменных без hard-coded значений в шаблонах.
