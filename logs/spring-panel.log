@@ -1,0 +1,1760 @@
+2026-02-19 16:32:27.984+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-02-19 16:32:28.152+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db}
+2026-02-19 16:32:28.167+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db, falling back to defaults.
+2026-02-19 16:32:28.170+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db}
+2026-02-19 16:32:28.184+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 9836 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel)
+2026-02-19 16:32:28.188+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-02-19 16:32:30.314+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-19 16:32:30.655+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 312 ms. Found 31 JPA repository interfaces.
+2026-02-19 16:32:32.416+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-02-19 16:32:32.446+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-02-19 16:32:32.453+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-02-19 16:32:32.454+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-02-19 16:32:32.605+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-02-19 16:32:32.608+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 4291 ms
+2026-02-19 16:32:32.868+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db
+2026-02-19 16:32:33.465+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db (SQLite 3.43)
+2026-02-19 16:32:33.575+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 20 migrations (execution time 00:00.070s)
+2026-02-19 16:32:33.590+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 16
+2026-02-19 16:32:33.591+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-02-19 16:32:33.600+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-02-19 16:32:33.739+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-02-19 16:32:33.859+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-02-19 16:32:33.952+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-02-19 16:32:34.538+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-19 16:32:38.076+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-19 16:32:38.085+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-19 16:32:38.422+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db (users)
+2026-02-19 16:32:39.838+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\config\shared
+2026-02-19 16:32:41.112+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_database.db
+2026-02-19 16:32:41.541+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db
+2026-02-19 16:32:41.612+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-02-19 16:32:42.462+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@18a66406, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@54d3b4fe, org.springframework.security.web.context.SecurityContextHolderFilter@3c22a99a, org.springframework.security.web.header.HeaderWriterFilter@48186ba8, org.springframework.web.filter.CorsFilter@52364a6e, org.springframework.security.web.csrf.CsrfFilter@6d17cd8b, com.example.panel.security.SecurityHeadersFilter@4a216eb4, org.springframework.security.web.authentication.logout.LogoutFilter@456d3914, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@591bff1d, org.springframework.security.web.session.ConcurrentSessionFilter@33c5d3e, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@412b90cc, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@6232cde5, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@5935ade6, org.springframework.security.web.session.SessionManagementFilter@26c84006, org.springframework.security.web.access.ExceptionTranslationFilter@5f7a2a79, org.springframework.security.web.access.intercept.AuthorizationFilter@22edca96]
+2026-02-19 16:32:43.097+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-19 16:32:44.519+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-02-19 16:32:44.549+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-02-19 16:32:44.577+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 17.829 seconds (process running for 18.724)
+2026-02-19 16:32:44.592+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db
+2026-02-19 16:32:44.600+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db
+2026-02-19 16:32:44.607+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db
+2026-02-19 16:32:44.653+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:32:44.977+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-02-19 16:32:45.012+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases
+2026-02-19 16:32:45.014+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot
+2026-02-19 16:32:45.131+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-02-19 16:32:45.132+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-02-19 16:33:29.538+03:00 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-02-19 16:33:29.539+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-02-19 16:33:29.553+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-02-19 16:33:34.863+03:00 WARN  [http-nio-8080-exec-9] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:33:34.868+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-02-19 16:33:35.408+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:33:35.470+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-02-19 16:33:43.424+03:00 WARN  [http-nio-8080-exec-4] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:33:43.436+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-02-19 16:33:50.246+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:33:51.398+03:00 WARN  [http-nio-8080-exec-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:33:51.408+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-02-19 16:33:58.241+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ManagementController - Loaded 23 tasks for user admin
+2026-02-19 16:33:58.690+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:33:58.841+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:33:58.925+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.TaskApiController - Tasks list requested: page=1, size=20, sort=last_activity_at desc, returned 20 items of 23
+2026-02-19 16:34:05.466+03:00 INFO  [http-nio-8080-exec-7] c.e.p.controller.TaskApiController - Task 28 details loaded with 0 comments and 0 history records
+2026-02-19 16:34:07.740+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.TaskApiController - Task 28 details loaded with 0 comments and 0 history records
+2026-02-19 16:34:09.129+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.ClientsController - Loaded 6 clients for user admin
+2026-02-19 16:34:09.529+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:34:12.790+03:00 ERROR [http-nio-8080-exec-4] o.a.c.c.C.[.[.[.[dispatcherServlet] - Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.jdbc.UncategorizedSQLException: PreparedStatementCallback; uncategorized SQLException for SQL [SELECT action, reason, actor, created_at
+FROM client_blacklist_history
+WHERE user_id = ?
+ORDER BY created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such table: client_blacklist_history)] with root cause
+org.sqlite.SQLiteException: [SQLITE_ERROR] SQL error or missing database (no such table: client_blacklist_history)
+	at org.sqlite.core.DB.newSQLException(DB.java:1179)
+	at org.sqlite.core.DB.newSQLException(DB.java:1190)
+	at org.sqlite.core.DB.throwex(DB.java:1150)
+	at org.sqlite.core.NativeDB.prepare_utf8(Native Method)
+	at org.sqlite.core.NativeDB.prepare(NativeDB.java:134)
+	at org.sqlite.core.DB.prepare(DB.java:264)
+	at org.sqlite.core.CorePreparedStatement.<init>(CorePreparedStatement.java:46)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.<init>(JDBC3PreparedStatement.java:32)
+	at org.sqlite.jdbc4.JDBC4PreparedStatement.<init>(JDBC4PreparedStatement.java:25)
+	at org.sqlite.jdbc4.JDBC4Connection.prepareStatement(JDBC4Connection.java:34)
+	at org.sqlite.jdbc3.JDBC3Connection.prepareStatement(JDBC3Connection.java:225)
+	at org.sqlite.jdbc3.JDBC3Connection.prepareStatement(JDBC3Connection.java:205)
+	at org.springframework.jdbc.core.JdbcTemplate$SimplePreparedStatementCreator.createPreparedStatement(JdbcTemplate.java:1711)
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:656)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:723)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:754)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:767)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:825)
+	at com.example.panel.service.ClientsService.loadBlacklistHistory(ClientsService.java:388)
+	at com.example.panel.service.ClientsService.loadClientProfile(ClientsService.java:246)
+	at com.example.panel.controller.ClientsController.clientProfile(ClientsController.java:68)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.security.authorization.method.AuthorizationManagerBeforeMethodInterceptor.invoke(AuthorizationManagerBeforeMethodInterceptor.java:198)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.panel.controller.ClientsController$$SpringCGLIB$$0.clientProfile(<generated>)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:206)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
+	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
+	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:151)
+	at org.springframework.security.web.session.ConcurrentSessionFilter.doFilter(ConcurrentSessionFilter.java:129)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:227)
+	at org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter.doFilter(AbstractAuthenticationProcessingFilter.java:221)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at com.example.panel.security.SecurityHeadersFilter.doFilterInternal(SecurityHeadersFilter.java:22)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.csrf.CsrfFilter.doFilterInternal(CsrfFilter.java:117)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+	at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$3(HandlerMappingIntrospector.java:195)
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
+	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
+	at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:230)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.springframework.session.web.http.SessionRepositoryFilter.doFilterInternal(SessionRepositoryFilter.java:142)
+	at org.springframework.session.web.http.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:82)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:175)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:150)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1736)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-02-19 16:34:14.319+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.ClientsController - Loaded 6 clients for user admin
+2026-02-19 16:34:14.601+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:34:22.054+03:00 WARN  [http-nio-8080-exec-9] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:34:22.059+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-02-19 16:34:22.310+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:34:22.335+03:00 INFO  [http-nio-8080-exec-7] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-02-19 16:34:37.545+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:34:44.677+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:34:52.649+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:35:07.541+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:35:22.544+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:35:37.545+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:35:52.558+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:36:10.563+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:36:44.693+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:37:02.678+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:37:02.684+03:00 WARN  [http-nio-8080-exec-4] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:37:02.698+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-02-19 16:37:07.537+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:37:22.548+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:37:37.541+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:37:52.542+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:38:07.554+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:38:44.717+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:39:10.562+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:40:10.544+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:40:44.734+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:41:10.543+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:42:10.544+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:42:44.750+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:43:10.538+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:44:10.560+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:44:44.773+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:45:10.563+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:46:10.552+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:46:44.794+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:47:10.561+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:48:10.549+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:48:44.817+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:49:10.576+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:50:10.550+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:50:44.836+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:51:10.559+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:52:10.557+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:52:44.854+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:53:10.562+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:54:10.567+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:54:44.878+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:55:10.549+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:56:10.549+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:56:44.898+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:57:10.553+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:58:10.556+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 16:58:44.923+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 16:59:10.547+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:00:10.554+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:00:44.941+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 17:01:10.573+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:02:10.551+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:02:44.972+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 17:03:10.566+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:04:10.549+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-02-19 17:04:44.992+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
