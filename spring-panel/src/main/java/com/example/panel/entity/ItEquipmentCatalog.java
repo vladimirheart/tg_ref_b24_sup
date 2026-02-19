@@ -35,4 +35,79 @@ public class ItEquipmentCatalog {
     private OffsetDateTime createdAt;
 
     private OffsetDateTime updatedAt;
+
+
+
+    public Long getId() {
+        return this.id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getEquipmentType() {
+        return this.equipmentType;
+    }
+
+    public void setEquipmentType(String equipmentType) {
+        this.equipmentType = equipmentType;
+    }
+
+    public String getEquipmentVendor() {
+        return this.equipmentVendor;
+    }
+
+    public void setEquipmentVendor(String equipmentVendor) {
+        this.equipmentVendor = equipmentVendor;
+    }
+
+    public String getEquipmentModel() {
+        return this.equipmentModel;
+    }
+
+    public void setEquipmentModel(String equipmentModel) {
+        this.equipmentModel = equipmentModel;
+    }
+
+    public String getPhotoUrl() {
+        return this.photoUrl;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
+    }
+
+    public String getSerialNumber() {
+        return this.serialNumber;
+    }
+
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
+    }
+
+    public String getAccessories() {
+        return this.accessories;
+    }
+
+    public void setAccessories(String accessories) {
+        this.accessories = accessories;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return this.createdAt;
+    }
+
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return this.updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }
