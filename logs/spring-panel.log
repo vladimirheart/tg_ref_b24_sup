@@ -1,0 +1,284 @@
+2026-02-19 14:06:40.989+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-02-19 14:06:41.100+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db}
+2026-02-19 14:06:41.110+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db, falling back to defaults.
+2026-02-19 14:06:41.112+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_CLIENTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db, falling back to defaults.
+2026-02-19 14:06:41.113+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_KNOWLEDGE points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db, falling back to defaults.
+2026-02-19 14:06:41.118+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db, falling back to defaults.
+2026-02-19 14:06:41.119+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_SETTINGS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\settings.db, falling back to defaults.
+2026-02-19 14:06:41.121+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\settings.db}
+2026-02-19 14:06:41.131+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 8336 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel)
+2026-02-19 14:06:41.134+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-02-19 14:06:43.341+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-19 14:06:43.659+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 296 ms. Found 31 JPA repository interfaces.
+2026-02-19 14:06:45.429+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-02-19 14:06:45.454+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-02-19 14:06:45.465+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-02-19 14:06:45.466+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-02-19 14:06:45.651+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-02-19 14:06:45.654+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 4418 ms
+2026-02-19 14:06:45.901+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db
+2026-02-19 14:06:46.445+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db (SQLite 3.43)
+2026-02-19 14:06:46.523+03:00 INFO  [main] o.f.c.i.s.JdbcTableSchemaHistory - Schema history table "main"."flyway_schema_history" does not exist yet
+2026-02-19 14:06:46.535+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 19 migrations (execution time 00:00.047s)
+2026-02-19 14:06:46.549+03:00 INFO  [main] o.f.c.i.s.JdbcTableSchemaHistory - Creating Schema History table "main"."flyway_schema_history" with baseline ...
+2026-02-19 14:06:46.598+03:00 INFO  [main] o.f.core.internal.command.DbBaseline - Successfully baselined schema with version: 0
+2026-02-19 14:06:46.626+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 0
+2026-02-19 14:06:46.627+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-02-19 14:06:46.683+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "1 - baseline schema"
+2026-02-19 14:06:46.708+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "2 - create spring session tables"
+2026-02-19 14:06:46.722+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "3 - panel extensions"
+2026-02-19 14:06:46.734+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "4 - add user identity to notifications"
+2026-02-19 14:06:46.736+03:00 INFO  [main] o.f.c.i.s.DefaultSqlScriptExecutor - +---+
+| 1 |
++---+
+| 1 |
++---+
+
+2026-02-19 14:06:46.743+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "4.1 - add user identity to notifications"
+2026-02-19 14:06:46.758+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "5 - add role id to users"
+2026-02-19 14:06:46.769+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "6 - add ticket categories"
+2026-02-19 14:06:46.776+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "6.2 - add auto action template id to channels"
+2026-02-19 14:06:46.785+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "7 - add last read at to ticket responsibles"
+2026-02-19 14:06:46.795+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "7.1 - add credential id to channels"
+2026-02-19 14:06:46.807+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "8.1 - add ticket id to feedbacks"
+2026-02-19 14:06:46.817+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "9 - add description to channels"
+2026-02-19 14:06:46.830+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "10 - ensure channels columns"
+2026-02-19 14:06:46.843+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "11 - ensure channels platform columns"
+2026-02-19 14:06:46.850+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "12 - ensure channels missing columns"
+2026-02-19 14:06:46.868+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "13 - ensure app settings setting key"
+2026-02-19 14:06:46.874+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "14 - add delivery settings to channels"
+2026-02-19 14:06:46.884+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "15 - dialog action audit"
+2026-02-19 14:06:46.896+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Migrating schema "main" to version "16 - workspace telemetry audit"
+2026-02-19 14:06:46.917+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Successfully applied 19 migrations to schema "main", now at version v16 (execution time 00:00.090s)
+2026-02-19 14:06:47.136+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-02-19 14:06:47.373+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-02-19 14:06:47.471+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-02-19 14:06:48.166+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-19 14:06:51.393+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-19 14:06:51.404+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-19 14:06:51.679+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\tickets.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db (users)
+2026-02-19 14:06:53.096+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\config\shared
+2026-02-19 14:06:54.357+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_database.db
+2026-02-19 14:06:54.794+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\users.db
+2026-02-19 14:06:54.853+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-02-19 14:06:55.755+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@659f5f32, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@20fdd484, org.springframework.security.web.context.SecurityContextHolderFilter@2fad470b, org.springframework.security.web.header.HeaderWriterFilter@698b2343, org.springframework.web.filter.CorsFilter@3e0575a2, org.springframework.security.web.csrf.CsrfFilter@279e9c95, com.example.panel.security.SecurityHeadersFilter@689faf79, org.springframework.security.web.authentication.logout.LogoutFilter@747795d7, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@727d937a, org.springframework.security.web.session.ConcurrentSessionFilter@3701acee, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@3746766b, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@467f97e, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@65589d76, org.springframework.security.web.session.SessionManagementFilter@7f4ae871, org.springframework.security.web.access.ExceptionTranslationFilter@3c2956a6, org.springframework.security.web.access.intercept.AuthorizationFilter@71669835]
+2026-02-19 14:06:56.439+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-19 14:06:58.094+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-02-19 14:06:58.123+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-02-19 14:06:58.153+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 18.412 seconds (process running for 19.363)
+2026-02-19 14:06:58.166+03:00 INFO  [main] c.e.p.c.ClientsSqliteDataSourceProperties - Created clients SQLite database file at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db
+2026-02-19 14:06:58.207+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\clients.db
+2026-02-19 14:06:58.211+03:00 INFO  [main] c.e.p.c.KnowledgeSqliteDataSourceProperties - Created knowledge SQLite database file at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db
+2026-02-19 14:06:58.244+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\knowledge_base.db
+2026-02-19 14:06:58.247+03:00 INFO  [main] c.e.p.c.ObjectsSqliteDataSourceProperties - Created objects SQLite database file at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db
+2026-02-19 14:06:58.254+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 14:06:58.277+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\objects.db
+2026-02-19 14:06:58.280+03:00 INFO  [main] c.e.p.c.SettingsSqliteDataSourceProperties - Created settings SQLite database file at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\settings.db
+2026-02-19 14:06:58.657+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-02-19 14:06:58.956+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases
+2026-02-19 14:06:58.957+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot
+2026-02-19 14:06:59.058+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-02-19 14:06:59.059+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-02-19 14:08:58.281+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
+2026-02-19 14:10:58.306+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: PreparedStatementCallback; uncategorized SQLException for SQL [  SELECT m.ticket_id, m.group_msg_id AS request_number,
+         m.user_id, m.username, m.client_name, m.business,
+         COALESCE(m.channel_id, t.channel_id) AS channel_id,
+         c.channel_name AS channel_name,
+         m.city, m.location_name,
+     m.problem, m.created_at, t.status, t.resolved_by, t.resolved_at,
+     tr.responsible AS responsible,
+     m.created_date, m.created_time, cs.status AS client_status,
+     (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+     (
+         SELECT sender
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender,
+     (
+         SELECT timestamp
+           FROM chat_history ch
+          WHERE ch.ticket_id = m.ticket_id
+          ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                   COALESCE(ch.tg_message_id, 0) DESC,
+                   ch.id DESC
+          LIMIT 1
+     ) AS last_sender_time,
+     (
+         SELECT GROUP_CONCAT(tc.category, ', ')
+           FROM ticket_categories tc
+          WHERE tc.ticket_id = m.ticket_id
+     ) AS categories,
+     CASE
+         WHEN tr.responsible = ? THEN (
+             SELECT COUNT(*)
+               FROM chat_history ch
+              WHERE ch.ticket_id = m.ticket_id
+                AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                AND ch.timestamp > COALESCE(
+                    tr.last_read_at,
+                    (
+                        SELECT MAX(op.timestamp)
+                          FROM chat_history op
+                         WHERE op.ticket_id = m.ticket_id
+                           AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                    ),
+                    ''
+                )
+         )
+         ELSE 0
+     END AS unread_count
+FROM messages m
+LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
+LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+LEFT JOIN ticket_responsibles tr ON tr.ticket_id = m.ticket_id
+LEFT JOIN client_statuses cs ON cs.user_id = m.user_id
+     AND cs.updated_at = (
+         SELECT MAX(updated_at) FROM client_statuses WHERE user_id = m.user_id
+     )
+ORDER BY m.created_at DESC
+]; SQL state [null]; error code [1]; [SQLITE_ERROR] SQL error or missing database (no such column: f.id)
