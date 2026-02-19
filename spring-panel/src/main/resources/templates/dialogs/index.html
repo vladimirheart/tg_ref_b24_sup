@@ -13,7 +13,7 @@
     <script th:src="@{/js/common.js}"></script>
 </head>
 <body class="with-sidebar sidebar-pinned"
-      th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId}">
+      th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId},data-operator-identity=${operatorIdentity}">
 <div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
 
 <main class="main-content container-fluid py-4">
