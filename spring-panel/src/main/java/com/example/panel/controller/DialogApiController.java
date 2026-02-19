@@ -214,7 +214,7 @@ public class DialogApiController {
     @GetMapping("/macro/variables")
     public Map<String, Object> macroVariables() {
         List<Map<String, String>> variables = new ArrayList<>(BUILTIN_MACRO_VARIABLES);
-        Object configured = sharedConfigService.getDialogConfig().get("macro_variable_catalog");
+        Object configured = sharedConfigService.loadSettings().get("macro_variable_catalog");
         if (configured instanceof List<?> entries) {
             for (Object entry : entries) {
                 if (!(entry instanceof Map<?, ?> map)) {
