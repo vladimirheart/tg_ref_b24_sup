@@ -2333,9 +2333,37 @@
       ['Последняя активность тикета', formatWorkspaceDateTime(client.last_ticket_activity_at)],
       ['Язык', client.language],
     ];
+    const reservedClientKeys = new Set([
+      'id',
+      'name',
+      'username',
+      'status',
+      'channel',
+      'business',
+      'location',
+      'responsible',
+      'unread_count',
+      'rating',
+      'last_message_at',
+      'total_dialogs',
+      'open_dialogs',
+      'resolved_30d',
+      'first_seen_at',
+      'last_ticket_activity_at',
+      'language',
+      'segments',
+    ]);
     const rows = fields
       .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
       .map(([label, value]) => `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(String(value))}</span></div>`)
+      .join('');
+
+    const extraRows = Object.entries(client)
+      .filter(([key, value]) => !reservedClientKeys.has(key) && isWorkspaceClientExtraValue(value))
+      .map(([key, value]) => {
+        const label = prettifyWorkspaceClientExtraKey(key);
+        return `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(formatWorkspaceClientExtraValue(value))}</span></div>`;
+      })
       .join('');
 
     const segments = Array.isArray(client.segments) ? client.segments.filter(Boolean) : [];
@@ -2343,7 +2371,38 @@
       ? `<div class="d-flex flex-wrap gap-1 mt-2">${segments.map((segment) => `<span class="badge text-bg-light border">${escapeHtml(segment)}</span>`).join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${segmentBadges}`;
+    const extraSection = extraRows
+      ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>${extraRows}`
+      : '';
+
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${extraSection}${segmentBadges}`;
+  }
+
+  function isWorkspaceClientExtraValue(value) {
+    if (value === null || value === undefined) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    return String(value).trim() !== '';
+  }
+
+  function formatWorkspaceClientExtraValue(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => formatWorkspaceClientExtraValue(item)).filter(Boolean).join(', ');
+    }
+    if (value && typeof value === 'object') {
+      return Object.entries(value)
+        .map(([key, nested]) => `${prettifyWorkspaceClientExtraKey(key)}: ${formatWorkspaceClientExtraValue(nested)}`)
+        .join('; ');
+    }
+    return String(value);
+  }
+
+  function prettifyWorkspaceClientExtraKey(key) {
+    return String(key || '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^./, (char) => char.toUpperCase()) || 'Атрибут';
   }
 
   async function preloadWorkspaceContract(ticketId, channelId, options = {}) {
