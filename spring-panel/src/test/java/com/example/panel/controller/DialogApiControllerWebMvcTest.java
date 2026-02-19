@@ -464,6 +464,67 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void macroDryRunRendersTemplateWithDialogVariables() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        DialogListItem summary = new DialogListItem(
+                "T-77",
+                1L,
+                42L,
+                "user",
+                "Клиент 77",
+                "biz",
+                1L,
+                "telegram",
+                "city",
+                "location",
+                "problem",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "label",
+                "user",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "category"
+        );
+        when(dialogService.loadDialogDetails("T-77", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+
+        mockMvc.perform(post("/api/dialogs/macro/dry-run")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "ticket_id": "T-77",
+                                  "template_text": "Здравствуйте, {{client_name}}. Номер {{ticket_id}}. {{unknown_var|fallback}}"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.rendered_text").value("Здравствуйте, Клиент 77. Номер T-77. fallback"))
+                .andExpect(jsonPath("$.used_variables[0]").value("client_name"))
+                .andExpect(jsonPath("$.used_variables[1]").value("ticket_id"))
+                .andExpect(jsonPath("$.missing_variables[0]").value("unknown_var"));
+    }
+
+    @Test
+    void macroDryRunRejectsEmptyTemplate() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+
+        mockMvc.perform(post("/api/dialogs/macro/dry-run")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("template_text is required"));
+    }
+
+    @Test
     void takeReturnsForbiddenWhenOperatorHasNoDialogsPermission() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(false);
 
