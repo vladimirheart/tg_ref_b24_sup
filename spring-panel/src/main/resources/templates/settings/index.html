@@ -12752,6 +12752,9 @@
       const data = await response.json();
       if (data.success) {
         showPopup('✅ Настройки сохранены');
+        if (Array.isArray(data.warnings) && data.warnings.length) {
+          showPopup('⚠️ ' + data.warnings.join('\n'));
+        }
       } else {
         showPopup('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
       }
