@@ -1283,10 +1283,8 @@
       syncSlaOrchestrationSignals(data.sla_orchestration || null);
       applySlaOrchestrationToRows();
       const marker = buildDialogsMarker(dialogs);
-      if (lastListMarker === null) {
-        lastListMarker = marker;
-      }
-      if (marker !== lastListMarker) {
+      const isInitialSync = lastListMarker === null;
+      if (isInitialSync || marker !== lastListMarker) {
         syncDialogsTable(dialogs);
         applySlaOrchestrationToRows();
         refreshSummaryCounters(data.summary || {});

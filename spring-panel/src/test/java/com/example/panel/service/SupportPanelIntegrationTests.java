@@ -102,6 +102,24 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void dialogListIncludesTicketsWithoutMessages() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) VALUES (3, 'token-3', 'Fallback', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at) VALUES (?,?,?,?,?)",
+                2002L, "T-NOMSG", "open", 3, "2026-01-01T08:30:00");
+
+        DialogSummary summary = dialogService.loadSummary();
+        assertThat(summary.totalTickets()).isEqualTo(1);
+
+        assertThat(dialogService.loadDialogs(null))
+                .extracting("ticketId")
+                .contains("T-NOMSG");
+
+        DialogDetails details = dialogService.loadDialogDetails("T-NOMSG", 3L, null).orElseThrow();
+        assertThat(details.summary().ticketId()).isEqualTo("T-NOMSG");
+        assertThat(details.summary().channelId()).isEqualTo(3L);
+    }
+
+    @Test
     void knowledgeBaseServiceSavesAndListsArticles() {
         KnowledgeArticleCommand command = new KnowledgeArticleCommand(null, "Инструкция", "Поддержка",
                 "guide", "draft", "Оператор", "IT", "Сеть", "Кратко", "Подробное описание");
