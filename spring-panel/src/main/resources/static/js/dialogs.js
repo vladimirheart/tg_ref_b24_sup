@@ -270,6 +270,7 @@
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
   let macroVariableCatalogInitialized = false;
+  let macroVariableDefaults = {};
   let workspaceComposerTicketId = '';
   let workspaceComposerMacroTemplates = [];
   let activeWorkspaceMacroTemplate = null;
@@ -3145,13 +3146,26 @@
       const code = document.createElement('code');
       const key = String(item?.key || '').trim();
       const label = String(item?.label || '').trim();
+      const defaultValue = String(item?.default_value || '').trim();
       code.textContent = `{{${key}}}`;
-      code.title = label || key;
+      code.title = defaultValue ? `${label || key} · default: ${defaultValue}` : (label || key);
       macroVariableCatalog.appendChild(code);
       if (index < variables.length - 1) {
         macroVariableCatalog.appendChild(document.createTextNode(', '));
       }
     });
+  }
+
+  function resolveMacroVariableDefaults(variables) {
+    const defaults = {};
+    if (!Array.isArray(variables)) return defaults;
+    variables.forEach((item) => {
+      const key = String(item?.key || '').trim().toLowerCase();
+      const defaultValue = String(item?.default_value || '').trim();
+      if (!key || !defaultValue) return;
+      defaults[key] = defaultValue;
+    });
+    return defaults;
   }
 
   async function initMacroVariableCatalog() {
@@ -3173,16 +3187,19 @@
       const response = await fetch('/api/dialogs/macro/variables', { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
-      renderMacroVariableCatalog(Array.isArray(payload?.variables) ? payload.variables : fallbackVariables);
+      const catalogVariables = Array.isArray(payload?.variables) ? payload.variables : fallbackVariables;
+      macroVariableDefaults = resolveMacroVariableDefaults(catalogVariables);
+      renderMacroVariableCatalog(catalogVariables);
     } catch (error) {
       console.warn('Failed to load macro variables catalog', error);
+      macroVariableDefaults = {};
       renderMacroVariableCatalog(fallbackVariables);
     }
   }
 
   function resolveMacroVariables() {
     const now = new Date();
-    return {
+    const variables = {
       client_name: activeDialogContext.clientName || 'клиент',
       ticket_id: activeDialogTicketId || '—',
       operator_name: activeDialogContext.operatorName || 'оператор',
@@ -3194,6 +3211,12 @@
       current_date: now.toLocaleDateString('ru-RU'),
       current_time: now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
     };
+    Object.entries(macroVariableDefaults).forEach(([key, value]) => {
+      if (!Object.prototype.hasOwnProperty.call(variables, key) || !String(variables[key] || '').trim()) {
+        variables[key] = value;
+      }
+    });
+    return variables;
   }
 
   function resolveMacroText(template) {
