@@ -386,7 +386,15 @@
   let lastListMarker = null;
   let historyLoading = false;
   let listLoading = false;
-  let activeDialogContext = { clientName: '—', operatorName: '—' };
+  let activeDialogContext = {
+    clientName: '—',
+    operatorName: '—',
+    channelName: '—',
+    business: '—',
+    location: '—',
+    status: '—',
+    createdAt: '—',
+  };
   let completionHideTimer = null;
   let activeAudioPlayer = null;
   let activeAudioSource = null;
@@ -2996,20 +3004,34 @@
     completionTemplateEmpty.classList.toggle('d-none', hasItems);
   }
 
+  function resolveMacroVariables() {
+    const now = new Date();
+    return {
+      client_name: activeDialogContext.clientName || 'клиент',
+      ticket_id: activeDialogTicketId || '—',
+      operator_name: activeDialogContext.operatorName || 'оператор',
+      channel_name: activeDialogContext.channelName || '—',
+      business: activeDialogContext.business || '—',
+      location: activeDialogContext.location || '—',
+      dialog_status: activeDialogContext.status || '—',
+      created_at: activeDialogContext.createdAt || '—',
+      current_date: now.toLocaleDateString('ru-RU'),
+      current_time: now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+    };
+  }
+
   function resolveMacroText(template) {
     if (!template) return '';
     const text = String(template?.message || template?.text || '').trim();
     if (!text) return '';
-    const variables = {
-      client_name: activeDialogContext.clientName || 'клиент',
-      ticket_id: activeDialogTicketId || '—',
-      operator_name: activeDialogContext.operatorName || 'оператор',
-    };
-    return text.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_match, key) => {
+    const variables = resolveMacroVariables();
+    return text.replace(/\{\{\s*([a-z0-9_]+)(?:\s*\|\s*([^}]+))?\s*\}\}/gi, (match, key, fallback) => {
       const normalizedKey = String(key || '').toLowerCase();
-      return Object.prototype.hasOwnProperty.call(variables, normalizedKey)
-        ? String(variables[normalizedKey])
-        : '';
+      if (Object.prototype.hasOwnProperty.call(variables, normalizedKey)) {
+        return String(variables[normalizedKey]);
+      }
+      const fallbackText = String(fallback || '').trim();
+      return fallbackText || match;
     }).trim();
   }
 
@@ -3729,6 +3751,11 @@
       activeDialogContext = {
         clientName,
         operatorName: responsibleLabel || 'Оператор',
+        channelName: channelLabel,
+        business: businessLabel,
+        location: locationLabel,
+        status: statusLabel || '—',
+        createdAt: createdDisplay || createdLabel || '—',
       };
       if (detailsSummary) {
         const clientUserId = summary.userId || fallbackRow?.dataset.userId || '';
