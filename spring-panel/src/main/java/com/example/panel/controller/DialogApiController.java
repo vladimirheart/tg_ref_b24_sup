@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,6 +41,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -59,6 +65,9 @@ public class DialogApiController {
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
     private static final int MAX_WORKSPACE_LIMIT = 200;
+    private static final Pattern MACRO_VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([a-z0-9_]+)(?:\\s*\\|\\s*([^}]+))?\\s*}}", Pattern.CASE_INSENSITIVE);
+    private static final DateTimeFormatter MACRO_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.of("Europe/Moscow"));
+    private static final DateTimeFormatter MACRO_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("Europe/Moscow"));
     private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
     private static final Map<String, String> WORKSPACE_TELEMETRY_EVENT_GROUPS = Map.ofEntries(
             Map.entry("workspace_open_ms", "performance"),
@@ -167,6 +176,26 @@ public class DialogApiController {
                 "success", true,
                 "messages", history
         );
+    }
+
+    @PostMapping("/macro/dry-run")
+    public ResponseEntity<?> dryRunMacro(@RequestBody(required = false) MacroDryRunRequest request,
+                                         Authentication authentication) {
+        if (request == null || !StringUtils.hasText(request.templateText())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "template_text is required"
+            ));
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        Map<String, String> variables = buildMacroVariables(request.ticketId(), operator, request.variables());
+        MacroDryRunResult result = renderMacroTemplate(request.templateText(), variables);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "rendered_text", result.renderedText(),
+                "used_variables", result.usedVariables(),
+                "missing_variables", result.missingVariables()
+        ));
     }
 
     @GetMapping("/{ticketId}/workspace")
@@ -362,6 +391,83 @@ public class DialogApiController {
         } catch (NumberFormatException ex) {
             return 0;
         }
+    }
+
+    private Map<String, String> buildMacroVariables(String ticketId,
+                                                    String operator,
+                                                    Map<String, String> requestVariables) {
+        Map<String, String> variables = new LinkedHashMap<>();
+        if (requestVariables != null) {
+            requestVariables.forEach((key, value) -> {
+                if (!StringUtils.hasText(key) || value == null) {
+                    return;
+                }
+                variables.put(key.trim().toLowerCase(), value);
+            });
+        }
+
+        String safeTicketId = StringUtils.hasText(ticketId) ? ticketId.trim() : null;
+        if (safeTicketId != null) {
+            dialogService.loadDialogDetails(safeTicketId, null, operator).ifPresent(details -> {
+                DialogListItem summary = details.summary();
+                putMacroVariableIfAbsent(variables, "client_name", summary.displayClientName());
+                putMacroVariableIfAbsent(variables, "ticket_id", summary.ticketId());
+                putMacroVariableIfAbsent(variables, "operator_name", operator);
+                putMacroVariableIfAbsent(variables, "channel_name", summary.channelLabel());
+                putMacroVariableIfAbsent(variables, "business", summary.businessLabel());
+                putMacroVariableIfAbsent(variables, "location", summary.location());
+                putMacroVariableIfAbsent(variables, "dialog_status", summary.statusLabel());
+                putMacroVariableIfAbsent(variables, "created_at", summary.createdAt());
+            });
+        }
+        putMacroVariableIfAbsent(variables, "ticket_id", safeTicketId != null ? safeTicketId : "—");
+        putMacroVariableIfAbsent(variables, "operator_name", StringUtils.hasText(operator) ? operator.trim() : "оператор");
+        putMacroVariableIfAbsent(variables, "current_date", MACRO_DATE_FORMATTER.format(Instant.now()));
+        putMacroVariableIfAbsent(variables, "current_time", MACRO_TIME_FORMATTER.format(Instant.now()));
+        return variables;
+    }
+
+    private void putMacroVariableIfAbsent(Map<String, String> variables, String key, String value) {
+        if (!StringUtils.hasText(key) || !StringUtils.hasText(value) || variables.containsKey(key)) {
+            return;
+        }
+        variables.put(key, value);
+    }
+
+    private MacroDryRunResult renderMacroTemplate(String templateText, Map<String, String> variables) {
+        Matcher matcher = MACRO_VARIABLE_PATTERN.matcher(templateText);
+        StringBuilder rendered = new StringBuilder();
+        List<String> usedVariables = new ArrayList<>();
+        List<String> missingVariables = new ArrayList<>();
+        int previousEnd = 0;
+        while (matcher.find()) {
+            rendered.append(templateText, previousEnd, matcher.start());
+            String key = String.valueOf(matcher.group(1)).trim().toLowerCase();
+            String fallback = matcher.group(2);
+            String value = variables.get(key);
+            if (value != null) {
+                rendered.append(value);
+                if (!usedVariables.contains(key)) {
+                    usedVariables.add(key);
+                }
+            } else if (StringUtils.hasText(fallback)) {
+                rendered.append(fallback.trim());
+                if (!missingVariables.contains(key)) {
+                    missingVariables.add(key);
+                }
+            } else {
+                rendered.append(matcher.group());
+                if (!missingVariables.contains(key)) {
+                    missingVariables.add(key);
+                }
+            }
+            previousEnd = matcher.end();
+        }
+        rendered.append(templateText.substring(previousEnd));
+        return new MacroDryRunResult(rendered.toString().trim(), usedVariables, missingVariables);
+    }
+
+    private record MacroDryRunResult(String renderedText, List<String> usedVariables, List<String> missingVariables) {
     }
 
 
@@ -844,6 +950,10 @@ public class DialogApiController {
                                           @JsonAlias("secondary_kpis") List<String> secondaryKpis,
                                           @JsonAlias("template_id") String templateId,
                                           @JsonAlias("template_name") String templateName) {}
+
+    public record MacroDryRunRequest(@JsonAlias({"ticket_id", "ticketId"}) String ticketId,
+                                     @JsonAlias({"template_text", "templateText", "text"}) String templateText,
+                                     Map<String, String> variables) {}
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 

@@ -220,7 +220,7 @@
 
 4. **Макросы / шаблоны / пакетные сценарии** (P2, частично выполнено)
    - Базовая библиотека макросов уже поддерживает версионность и подстановку переменных в UI (`{{client_name}}`, `{{ticket_id}}`, `{{operator_name}}`, `{{channel_name}}`, `{{business}}`, `{{location}}`, `{{dialog_status}}`, `{{created_at}}`, `{{current_date}}`, `{{current_time}}`) и fallback-синтаксис `{{unknown_var|значение_по_умолчанию}}`.
-   - В backlog остаются пакетные сценарии (multi-step macros), server-side dry-run и централизованная библиотека переменных из внешних систем.
+   - В backlog остаются пакетные сценарии (multi-step macros) и централизованная библиотека переменных из внешних систем.
 
 5. **A/B UX-эксперименты на production-метриках** (P2, не выполнено)
    - Не выделен контур feature flags + аналитика для сравнения UX-гипотез.
@@ -387,6 +387,7 @@
 - [x] **NOW-1.45 (этап C1, profile enrichment uplift):** в payload `workspace.v1` расширены клиентские risk-сегменты за счёт server-side enrichment (`total_dialogs/open_dialogs/resolved_30d`): добавлены маркеры `high_lifetime_volume`, `multi_open_dialogs`, `reactivation_risk`. Это закрывает следующий шаг roadmap по углублению контекстной панели без внешней CRM-интеграции.
 - [x] **NOW-1.46 (этап E1, rollout segmentation hardening):** включение `workspace_v1` теперь учитывает A/B-когорту оператора: при `workspace_ab_enabled=true` workspace открывается только для `test`, а `control` автоматически остаётся в legacy modal-flow (включая deep-link `\/dialogs\/{ticketId}`). Это устраняет смешанный UX в контрольной группе и делает product-метрики эксперимента чище.
 - [x] **NOW-1.47 (этап D3, role-based macro governance):** в настройках макросов публикация и approve теперь явно привязаны к праву `DIALOG_MACRO_PUBLISH`: backend нормализует `dialog_macro_templates` с этим permission-check, а UI блокирует соответствующие переключатели и показывает подсказку для операторов без прав. Это закрывает оставшийся пробел по ролевым ограничениям публикации в macro-flow.
+- [x] **NOW-1.48 (этап D2, server-side macro dry-run):** добавлен API `POST /api/dialogs/macro/dry-run`, который рендерит шаблон на сервере по контексту тикета (`client_name`, `ticket_id`, `channel_name`, `business`, `location`, `dialog_status`, `created_at`, `current_date`, `current_time`) и возвращает `rendered_text` + списки `used_variables/missing_variables`. Это закрывает операционный риск расхождения client-only preview и реального payload при rollout макросов.
 
 ## 10) Спецификация NOW-1 (готово к реализации)
 
