@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -190,6 +191,33 @@ class SlaEscalationWebhookNotifierTest {
                 "https://ops-b.example/hook",
                 "https://ops-c.example/hook"
         ), urls);
+    }
+
+    @Test
+    void resolveWebhookEndpointsSupportsStructuredConfigWithHeadersAndEnabledFlag() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Map<String, Object> config = Map.of(
+                "sla_critical_escalation_webhooks", List.of(
+                        Map.of(
+                                "url", "https://ops-primary.example/hook",
+                                "enabled", true,
+                                "headers", Map.of("X-Api-Key", "secret", "X-Route", "sla")
+                        ),
+                        Map.of(
+                                "url", "https://ops-disabled.example/hook",
+                                "enabled", false
+                        )
+                ),
+                "sla_critical_escalation_webhook_urls", List.of("https://ops-fallback.example/hook")
+        );
+
+        List<SlaEscalationWebhookNotifier.WebhookEndpoint> endpoints = notifier.resolveWebhookEndpoints(config);
+        assertEquals(2, endpoints.size());
+        assertEquals("https://ops-primary.example/hook", endpoints.get(0).url());
+        assertEquals("secret", endpoints.get(0).headers().get("X-Api-Key"));
+        assertEquals("sla", endpoints.get(0).headers().get("X-Route"));
+        assertEquals("https://ops-fallback.example/hook", endpoints.get(1).url());
+        assertEquals(Collections.emptyMap(), endpoints.get(1).headers());
     }
 
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {

@@ -17,6 +17,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,6 +37,8 @@ public class SlaEscalationWebhookNotifier {
     private final DialogService dialogService;
     private final ObjectMapper objectMapper;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
+
+    record WebhookEndpoint(String url, Map<String, String> headers) {}
 
     public SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
                                         DialogService dialogService,
@@ -68,8 +72,8 @@ public class SlaEscalationWebhookNotifier {
             return;
         }
 
-        List<String> webhookUrls = resolveWebhookUrls(dialogConfig);
-        if (webhookUrls.isEmpty()) {
+        List<WebhookEndpoint> webhookEndpoints = resolveWebhookEndpoints(dialogConfig);
+        if (webhookEndpoints.isEmpty()) {
             return;
         }
 
@@ -94,32 +98,57 @@ public class SlaEscalationWebhookNotifier {
         payload.put("target_minutes", targetMinutes);
         payload.put("tickets", readyToNotify);
 
-        if (sendWebhookFanout(webhookUrls, payload, timeoutMs)) {
+        int retryAttempts = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_retry_attempts", 1, 3);
+        int retryBackoffMs = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_retry_backoff_ms", 250, 3000);
+
+        if (sendWebhookFanout(webhookEndpoints, payload, timeoutMs, retryAttempts, retryBackoffMs)) {
             readyToNotify.forEach(candidate -> {
                 String ticketId = String.valueOf(candidate.get("ticket_id"));
                 ticketCooldownCache.put(ticketId, now);
             });
             cleanupCooldownCache(now, cooldownMinutes);
-            log.info("SLA escalation webhook sent for {} ticket(s), endpoint(s): {}.", readyToNotify.size(), webhookUrls.size());
+            log.info("SLA escalation webhook sent for {} ticket(s), endpoint(s): {}.", readyToNotify.size(), webhookEndpoints.size());
         }
     }
 
     List<String> resolveWebhookUrls(Map<String, Object> dialogConfig) {
+        return resolveWebhookEndpoints(dialogConfig).stream().map(WebhookEndpoint::url).toList();
+    }
+
+    List<WebhookEndpoint> resolveWebhookEndpoints(Map<String, Object> dialogConfig) {
         if (dialogConfig == null || dialogConfig.isEmpty()) {
             return List.of();
         }
-        LinkedHashMap<String, Boolean> uniqueUrls = new LinkedHashMap<>();
+        LinkedHashMap<String, WebhookEndpoint> uniqueEndpoints = new LinkedHashMap<>();
+        Object rawEndpoints = dialogConfig.get("sla_critical_escalation_webhooks");
+        if (rawEndpoints instanceof List<?> list) {
+            for (Object item : list) {
+                if (!(item instanceof Map<?, ?> endpointMap)) {
+                    continue;
+                }
+                String url = trimToNull(String.valueOf(endpointMap.get("url")));
+                if (url == null || !resolveBoolean(convertToObjectMap(endpointMap), "enabled", true)) {
+                    continue;
+                }
+                uniqueEndpoints.putIfAbsent(url, new WebhookEndpoint(url, extractHeaders(endpointMap.get("headers"))));
+            }
+        }
+
+        LinkedHashSet<String> legacyUrls = new LinkedHashSet<>();
         Object rawList = dialogConfig.get("sla_critical_escalation_webhook_urls");
         if (rawList instanceof List<?> list) {
             for (Object item : list) {
-                collectWebhookUrl(String.valueOf(item), uniqueUrls);
+                collectWebhookUrl(String.valueOf(item), legacyUrls);
             }
         }
-        collectWebhookUrl(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_url")), uniqueUrls);
-        return new ArrayList<>(uniqueUrls.keySet());
+        collectWebhookUrl(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_url")), legacyUrls);
+        for (String url : legacyUrls) {
+            uniqueEndpoints.putIfAbsent(url, new WebhookEndpoint(url, Collections.emptyMap()));
+        }
+        return new ArrayList<>(uniqueEndpoints.values());
     }
 
-    private void collectWebhookUrl(String rawValue, Map<String, Boolean> uniqueUrls) {
+    private void collectWebhookUrl(String rawValue, Set<String> uniqueUrls) {
         String normalized = trimToNull(rawValue);
         if (normalized == null) {
             return;
@@ -130,20 +159,46 @@ public class SlaEscalationWebhookNotifier {
             if (url == null) {
                 continue;
             }
-            uniqueUrls.putIfAbsent(url, Boolean.TRUE);
+            uniqueUrls.add(url);
         }
     }
 
-    private boolean sendWebhookFanout(List<String> webhookUrls, Map<String, Object> payload, int timeoutMs) {
+    private boolean sendWebhookFanout(List<WebhookEndpoint> webhookEndpoints,
+                                      Map<String, Object> payload,
+                                      int timeoutMs,
+                                      int retryAttempts,
+                                      int retryBackoffMs) {
         boolean atLeastOneSuccess = false;
-        for (String webhookUrl : webhookUrls) {
-            if (sendWebhook(webhookUrl, payload, timeoutMs)) {
+        for (WebhookEndpoint endpoint : webhookEndpoints) {
+            if (sendWebhookWithRetry(endpoint, payload, timeoutMs, retryAttempts, retryBackoffMs)) {
                 atLeastOneSuccess = true;
                 continue;
             }
-            log.warn("SLA escalation webhook endpoint failed: {}", webhookUrl);
+            log.warn("SLA escalation webhook endpoint failed: {}", endpoint.url());
         }
         return atLeastOneSuccess;
+    }
+
+    private boolean sendWebhookWithRetry(WebhookEndpoint endpoint,
+                                         Map<String, Object> payload,
+                                         int timeoutMs,
+                                         int retryAttempts,
+                                         int retryBackoffMs) {
+        int attempts = Math.max(1, retryAttempts);
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            if (sendWebhook(endpoint, payload, timeoutMs)) {
+                return true;
+            }
+            if (attempt < attempts) {
+                try {
+                    Thread.sleep((long) retryBackoffMs * attempt);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+        }
+        return false;
     }
 
     private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
@@ -252,14 +307,14 @@ public class SlaEscalationWebhookNotifier {
         return result;
     }
 
-    private boolean sendWebhook(String webhookUrl, Map<String, Object> payload, int timeoutMs) {
+    private boolean sendWebhook(WebhookEndpoint endpoint, Map<String, Object> payload, int timeoutMs) {
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI(webhookUrl))
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(new URI(endpoint.url()))
                     .timeout(Duration.ofMillis(timeoutMs))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
-                    .build();
+                    .header("Content-Type", "application/json");
+            endpoint.headers().forEach(builder::header);
+            HttpRequest request = builder.POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload))).build();
             HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 == 2) {
                 return true;
@@ -276,6 +331,27 @@ public class SlaEscalationWebhookNotifier {
             log.warn("Unable to send SLA escalation webhook: {}", ex.getMessage());
             return false;
         }
+    }
+
+    private Map<String, String> extractHeaders(Object rawHeaders) {
+        if (!(rawHeaders instanceof Map<?, ?> headersMap) || headersMap.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> headers = new LinkedHashMap<>();
+        headersMap.forEach((key, value) -> {
+            String headerName = trimToNull(String.valueOf(key));
+            String headerValue = trimToNull(String.valueOf(value));
+            if (headerName != null && headerValue != null) {
+                headers.put(headerName, headerValue);
+            }
+        });
+        return headers;
+    }
+
+    private Map<String, Object> convertToObjectMap(Map<?, ?> rawMap) {
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        rawMap.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+        return normalized;
     }
 
     private void cleanupCooldownCache(Instant now, int cooldownMinutes) {
