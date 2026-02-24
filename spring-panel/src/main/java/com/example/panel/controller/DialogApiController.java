@@ -219,7 +219,8 @@ public class DialogApiController {
     @GetMapping("/macro/variables")
     public Map<String, Object> macroVariables() {
         List<Map<String, String>> variables = new ArrayList<>(BUILTIN_MACRO_VARIABLES);
-        Object configured = sharedConfigService.loadSettings().get("macro_variable_catalog");
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Object configured = settings.get("macro_variable_catalog");
         if (configured instanceof List<?> entries) {
             for (Object entry : entries) {
                 if (!(entry instanceof Map<?, ?> map)) {
@@ -240,6 +241,11 @@ public class DialogApiController {
                 }
             }
         }
+        resolveDialogConfigMacroVariableDefaults(settings).forEach((key, defaultValue) -> {
+            if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
+                variables.add(macroVariable(key, "Значение из dialog_config", defaultValue));
+            }
+        });
         return Map.of("success", true, "variables", variables);
     }
 
@@ -560,8 +566,10 @@ public class DialogApiController {
 
     private Map<String, String> resolveConfiguredMacroVariableDefaults() {
         Map<String, String> defaults = new LinkedHashMap<>();
-        Object configured = sharedConfigService.loadSettings().get("macro_variable_catalog");
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Object configured = settings.get("macro_variable_catalog");
         if (!(configured instanceof List<?> entries)) {
+            defaults.putAll(resolveDialogConfigMacroVariableDefaults(settings));
             return defaults;
         }
         for (Object entry : entries) {
@@ -574,6 +582,31 @@ public class DialogApiController {
                 defaults.putIfAbsent(key, defaultValue);
             }
         }
+        resolveDialogConfigMacroVariableDefaults(settings)
+                .forEach(defaults::putIfAbsent);
+        return defaults;
+    }
+
+    private Map<String, String> resolveDialogConfigMacroVariableDefaults(Map<String, Object> settings) {
+        Map<String, String> defaults = new LinkedHashMap<>();
+        if (settings == null || settings.isEmpty()) {
+            return defaults;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return defaults;
+        }
+        Object defaultsRaw = dialogConfig.get("macro_variable_defaults");
+        if (!(defaultsRaw instanceof Map<?, ?> configuredDefaults)) {
+            return defaults;
+        }
+        configuredDefaults.forEach((keyRaw, valueRaw) -> {
+            String key = keyRaw != null ? String.valueOf(keyRaw).trim().toLowerCase() : "";
+            String value = valueRaw != null ? String.valueOf(valueRaw).trim() : "";
+            if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
+                defaults.putIfAbsent(key, value);
+            }
+        });
         return defaults;
     }
 
