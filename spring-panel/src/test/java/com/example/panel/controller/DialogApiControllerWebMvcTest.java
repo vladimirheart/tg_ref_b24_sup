@@ -494,6 +494,12 @@ class DialogApiControllerWebMvcTest {
         );
         when(dialogService.loadDialogDetails("T-77", null, "operator"))
                 .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadClientProfileEnrichment(42L)).thenReturn(Map.of(
+                "total_dialogs", 15,
+                "open_dialogs", 3,
+                "resolved_30d", 11,
+                "segments", List.of("vip", "at_risk")
+        ));
 
         mockMvc.perform(post("/api/dialogs/macro/dry-run")
                         .with(user("operator"))
@@ -501,12 +507,12 @@ class DialogApiControllerWebMvcTest {
                         .content("""
                                 {
                                   "ticket_id": "T-77",
-                                  "template_text": "Здравствуйте, {{client_name}}. Номер {{ticket_id}}. {{unknown_var|fallback}}"
+                                  "template_text": "Здравствуйте, {{client_name}}. Номер {{ticket_id}}. Открытых: {{client_open_dialogs}}. Сегменты: {{client_segment_list}}. {{unknown_var|fallback}}"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.rendered_text").value("Здравствуйте, Клиент 77. Номер T-77. fallback"))
+                .andExpect(jsonPath("$.rendered_text").value("Здравствуйте, Клиент 77. Номер T-77. Открытых: 3. Сегменты: vip, at_risk. fallback"))
                 .andExpect(jsonPath("$.used_variables[0]").value("client_name"))
                 .andExpect(jsonPath("$.used_variables[1]").value("ticket_id"))
                 .andExpect(jsonPath("$.missing_variables[0]").value("unknown_var"));
