@@ -246,4 +246,53 @@ class SupportPanelIntegrationTests {
         });
     }
 
+    @Test
+    void workspaceRolloutDecisionHoldsWhenKpiCoverageIsTooLow() {
+        for (int i = 0; i < 300; i++) {
+            String cohort = i < 150 ? "control" : "test";
+            String ticketId = "T-COV-" + i;
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-cov-" + i, ticketId, cohort.equals("test") ? 940L : 980L, cohort);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'workspace_macro_apply', 'macro', ?, NULL, NULL, 'workspace.v1', NULL,
+                              'workspace_v1_rollout', 'control', 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-cov-kpi-c-" + i, "T-COV-KPI-C-" + i);
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'workspace_macro_apply', 'macro', ?, NULL, NULL, 'workspace.v1', NULL,
+                              'workspace_v1_rollout', 'test', 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-cov-kpi-t-" + i, "T-COV-KPI-T-" + i);
+        }
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> cohortComparison = (Map<String, Object>) summary.get("cohort_comparison");
+        Map<String, Object> kpiSignal = (Map<String, Object>) cohortComparison.get("kpi_signal");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> frtMetric = (Map<String, Object>) ((Map<String, Object>) kpiSignal.get("metrics")).get("frt");
+
+        assertThat(cohortComparison.get("sample_size_ok")).isEqualTo(true);
+        assertThat(kpiSignal.get("ready_for_decision")).isEqualTo(false);
+        assertThat(kpiSignal.get("min_coverage_rate_per_cohort")).isEqualTo(0.05d);
+        assertThat(frtMetric.get("events_ready")).isEqualTo(true);
+        assertThat(frtMetric.get("coverage_ready")).isEqualTo(false);
+        assertThat(rolloutDecision).containsEntry("action", "hold");
+        assertThat(rolloutDecision).containsEntry("kpi_signal_ready", false);
+    }
+
 }
