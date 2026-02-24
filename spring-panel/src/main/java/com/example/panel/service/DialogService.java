@@ -33,6 +33,7 @@ public class DialogService {
     private static final Logger log = LoggerFactory.getLogger(DialogService.class);
     private static final List<String> DEFAULT_REQUIRED_PRIMARY_KPIS = List.of("frt", "ttr", "sla_breach");
     private static final long DEFAULT_MIN_KPI_EVENTS_FOR_DECISION = 10L;
+    private static final double DEFAULT_MIN_KPI_COVERAGE_RATE_FOR_DECISION = 0.05d;
 
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
@@ -811,7 +812,7 @@ public class DialogService {
         comparison.put("avg_open_ms_delta", (testAvgOpen != null && controlAvgOpen != null)
                 ? testAvgOpen - controlAvgOpen
                 : null);
-        comparison.put("kpi_signal", buildPrimaryKpiSignal(controlTotals, testTotals));
+        comparison.put("kpi_signal", buildPrimaryKpiSignal(controlTotals, testTotals, controlEvents, testEvents));
         comparison.put("winner", resolveWorkspaceCohortWinner(
                 enoughData,
                 testAvgOpen,
@@ -927,9 +928,12 @@ public class DialogService {
     }
 
     private Map<String, Object> buildPrimaryKpiSignal(Map<String, Object> controlTotals,
-                                                      Map<String, Object> testTotals) {
+                                                      Map<String, Object> testTotals,
+                                                      long controlEvents,
+                                                      long testEvents) {
         List<String> requiredKpis = resolveRequiredPrimaryKpis();
         long minKpiEvents = resolveMinKpiEventsForDecision();
+        double minCoverageRate = resolveMinKpiCoverageRateForDecision();
         Map<String, Object> metrics = new LinkedHashMap<>();
         boolean ready = true;
         for (String kpi : requiredKpis) {
@@ -937,20 +941,32 @@ public class DialogService {
             long control = toLong(controlTotals.get(key));
             long test = toLong(testTotals.get(key));
             long minObserved = Math.min(control, test);
+            double controlCoverage = safeRate(control, controlEvents);
+            double testCoverage = safeRate(test, testEvents);
+            double minCoverage = Math.min(controlCoverage, testCoverage);
+            boolean eventsReady = minObserved >= minKpiEvents;
+            boolean coverageReady = minCoverage >= minCoverageRate;
             metrics.put(kpi, Map.of(
                     "control", control,
                     "test", test,
+                    "control_coverage", controlCoverage,
+                    "test_coverage", testCoverage,
+                    "min_coverage", minCoverage,
+                    "min_coverage_threshold", minCoverageRate,
                     "min_observed", minObserved,
                     "threshold", minKpiEvents,
-                    "ready", minObserved >= minKpiEvents
+                    "events_ready", eventsReady,
+                    "coverage_ready", coverageReady,
+                    "ready", eventsReady && coverageReady
             ));
-            if (minObserved < minKpiEvents) {
+            if (!eventsReady || !coverageReady) {
                 ready = false;
             }
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("required_kpis", requiredKpis);
         payload.put("min_events_per_cohort", minKpiEvents);
+        payload.put("min_coverage_rate_per_cohort", minCoverageRate);
         payload.put("ready_for_decision", ready);
         payload.put("metrics", metrics);
         return payload;
@@ -985,6 +1001,28 @@ public class DialogService {
         } catch (Exception ignored) {
             return DEFAULT_MIN_KPI_EVENTS_FOR_DECISION;
         }
+    }
+
+
+    private double resolveMinKpiCoverageRateForDecision() {
+        Object value = resolveDialogConfigValue("workspace_rollout_min_kpi_coverage_rate");
+        if (value instanceof Number number) {
+            double normalized = number.doubleValue();
+            if (normalized > 0d && normalized <= 1d) {
+                return normalized;
+            }
+        }
+        if (value instanceof String text) {
+            try {
+                double parsed = Double.parseDouble(text.trim());
+                if (parsed > 0d && parsed <= 1d) {
+                    return parsed;
+                }
+            } catch (Exception ignored) {
+                return DEFAULT_MIN_KPI_COVERAGE_RATE_FOR_DECISION;
+            }
+        }
+        return DEFAULT_MIN_KPI_COVERAGE_RATE_FOR_DECISION;
     }
 
     private Object resolveDialogConfigValue(String key) {
