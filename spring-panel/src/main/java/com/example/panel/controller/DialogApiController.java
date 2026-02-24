@@ -92,6 +92,11 @@ public class DialogApiController {
             macroVariable("location", "Локация клиента"),
             macroVariable("dialog_status", "Текущий статус диалога"),
             macroVariable("created_at", "Дата создания обращения"),
+            macroVariable("client_total_dialogs", "Всего обращений клиента"),
+            macroVariable("client_open_dialogs", "Открытые обращения клиента"),
+            macroVariable("client_resolved_30d", "Решено за 30 дней"),
+            macroVariable("client_avg_rating", "Средний рейтинг клиента"),
+            macroVariable("client_segment_list", "Сегменты клиента (через запятую)"),
             macroVariable("current_date", "Текущая дата"),
             macroVariable("current_time", "Текущее время")
     );
@@ -470,6 +475,8 @@ public class DialogApiController {
                 putMacroVariableIfAbsent(variables, "location", summary.location());
                 putMacroVariableIfAbsent(variables, "dialog_status", summary.statusLabel());
                 putMacroVariableIfAbsent(variables, "created_at", summary.createdAt());
+                Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
+                putMacroVariablesFromClientProfile(variables, profileEnrichment);
             });
         }
         putMacroVariableIfAbsent(variables, "ticket_id", safeTicketId != null ? safeTicketId : "—");
@@ -479,6 +486,76 @@ public class DialogApiController {
         putMacroVariableIfAbsent(variables, "current_date", MACRO_DATE_FORMATTER.format(Instant.now()));
         putMacroVariableIfAbsent(variables, "current_time", MACRO_TIME_FORMATTER.format(Instant.now()));
         return variables;
+    }
+
+    private void putMacroVariablesFromClientProfile(Map<String, String> variables,
+                                                    Map<String, Object> profileEnrichment) {
+        if (profileEnrichment == null || profileEnrichment.isEmpty()) {
+            return;
+        }
+        putMacroVariableIfAbsent(variables, "client_total_dialogs", stringifyMacroVariableValue(profileEnrichment.get("total_dialogs")));
+        putMacroVariableIfAbsent(variables, "client_open_dialogs", stringifyMacroVariableValue(profileEnrichment.get("open_dialogs")));
+        putMacroVariableIfAbsent(variables, "client_resolved_30d", stringifyMacroVariableValue(profileEnrichment.get("resolved_30d")));
+        putMacroVariableIfAbsent(variables, "client_avg_rating", stringifyMacroVariableValue(profileEnrichment.get("avg_rating")));
+        putMacroVariableIfAbsent(variables, "client_segment_list", stringifyMacroVariableValue(profileEnrichment.get("segments")));
+
+        profileEnrichment.forEach((key, value) -> {
+            String normalizedKey = normalizeClientProfileMacroKey(key);
+            if (!StringUtils.hasText(normalizedKey)) {
+                return;
+            }
+            putMacroVariableIfAbsent(variables, "client_" + normalizedKey, stringifyMacroVariableValue(value));
+        });
+    }
+
+    private String normalizeClientProfileMacroKey(String key) {
+        if (!StringUtils.hasText(key)) {
+            return null;
+        }
+        String normalized = key.trim().toLowerCase().replaceAll("[^a-z0-9_]+", "_").replaceAll("_+", "_");
+        if (normalized.startsWith("_")) {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.endsWith("_")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return StringUtils.hasText(normalized) ? normalized : null;
+    }
+
+    private String stringifyMacroVariableValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof CharSequence sequence) {
+            String text = sequence.toString().trim();
+            return StringUtils.hasText(text) ? text : null;
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return String.valueOf(value);
+        }
+        if (value instanceof List<?> list) {
+            return list.stream()
+                    .map(this::stringifyMacroVariableValue)
+                    .filter(StringUtils::hasText)
+                    .reduce((left, right) -> left + ", " + right)
+                    .orElse(null);
+        }
+        if (value instanceof Map<?, ?> map) {
+            return map.entrySet().stream()
+                    .map(entry -> {
+                        String mapKey = entry.getKey() != null ? String.valueOf(entry.getKey()).trim() : "";
+                        String mapValue = stringifyMacroVariableValue(entry.getValue());
+                        if (!StringUtils.hasText(mapKey) || !StringUtils.hasText(mapValue)) {
+                            return null;
+                        }
+                        return mapKey + ": " + mapValue;
+                    })
+                    .filter(StringUtils::hasText)
+                    .reduce((left, right) -> left + "; " + right)
+                    .orElse(null);
+        }
+        String fallback = String.valueOf(value).trim();
+        return StringUtils.hasText(fallback) ? fallback : null;
     }
 
     private Map<String, String> resolveConfiguredMacroVariableDefaults() {
