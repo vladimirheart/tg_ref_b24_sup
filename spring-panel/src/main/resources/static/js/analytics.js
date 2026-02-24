@@ -15,6 +15,7 @@
   const updatedAt = document.getElementById('workspaceTelemetryUpdatedAt');
   const filterState = document.getElementById('workspaceTelemetryFilterState');
   const alertBox = document.getElementById('workspaceTelemetryAlertBox');
+  const rolloutDecisionBox = document.getElementById('workspaceTelemetryRolloutDecision');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -67,6 +68,11 @@
     okBadge.classList.add('d-none');
     attentionBadge.classList.add('d-none');
     alertBox.classList.add('d-none');
+    if (rolloutDecisionBox) {
+      rolloutDecisionBox.classList.add('d-none');
+      rolloutDecisionBox.className = 'alert d-none mb-3';
+      rolloutDecisionBox.textContent = '';
+    }
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     teamTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
@@ -272,6 +278,33 @@
     URL.revokeObjectURL(url);
   }
 
+
+  function renderRolloutDecision(decision) {
+    if (!rolloutDecisionBox) {
+      return;
+    }
+    if (!decision || typeof decision !== 'object') {
+      rolloutDecisionBox.className = 'alert d-none mb-3';
+      rolloutDecisionBox.textContent = '';
+      return;
+    }
+    const action = String(decision.action || 'hold').toLowerCase();
+    const winner = decision.winner || 'insufficient_data';
+    const rationale = decision.rationale || 'Решение не сформировано.';
+
+    let alertClass = 'alert-secondary';
+    if (action === 'scale_up') {
+      alertClass = 'alert-success';
+    } else if (action === 'rollback') {
+      alertClass = 'alert-danger';
+    } else if (action === 'hold') {
+      alertClass = 'alert-warning';
+    }
+
+    rolloutDecisionBox.className = `alert ${alertClass} mb-3`;
+    rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}`;
+  }
+
   function render(payload) {
     latestPayload = payload || {};
     const totals = payload?.totals || {};
@@ -293,6 +326,7 @@
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
     renderBreakdownRows(teamTable, filteredRows(payload?.by_team, 'team', filters), 'team', 'Недостаточно данных по командам.');
     renderRiskSegments(payload, filters);
+    renderRolloutDecision(payload?.rollout_decision);
 
     if (status === 'attention') {
       alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).`;
@@ -325,6 +359,10 @@
       alertsTable.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Ошибка загрузки данных. Проверьте доступ к /api/dialogs/workspace-telemetry/summary.</td></tr>';
       shiftTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по сменам недоступны.</td></tr>';
       teamTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по командам недоступны.</td></tr>';
+      if (rolloutDecisionBox) {
+        rolloutDecisionBox.className = 'alert alert-danger mb-3';
+        rolloutDecisionBox.textContent = 'Rollout decision недоступен из-за ошибки загрузки telemetry.';
+      }
       if (riskSegmentsTable) {
         riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Данные риск-сегментов недоступны.</td></tr>';
       }

@@ -224,7 +224,8 @@
 
 5. **A/B UX-эксперименты на production-метриках** (P2, частично выполнено)
    - Feature flags + сегментация операторов внедрены, telemetry summary дополняется сравнением cohort control/test.
-   - В backlog остаются продуктовые KPI FRT/TTR/SLA breach и автоматический decisioning для rollout.
+   - Добавлен server-side `rollout_decision` (hold/rollback/scale_up) на базе cohort comparison + guardrails, чтобы сократить ручные ошибки при принятии решения по раскатке.
+   - В backlog остаются продуктовые KPI FRT/TTR/SLA breach и их автоматическая интеграция в decisioning-модель.
 
 ### 9.2. План изменений с декомпозицией
 
@@ -523,3 +524,5 @@
 - [x] **NOW-1.62 (этап D1/D2, dialog_config defaults for macro variables):** backend дополнен bridge-слоем `dialog_config.macro_variable_defaults`: значения из `dialog_config` теперь подмешиваются в `/api/dialogs/macro/variables` и в server-side dry-run как fallback для недостающих переменных. Это позволяет централизовать defaults из интеграционных конфигов и снижает зависимость от ручного дублирования `default_value` в каталоге.
 
 - [x] **NOW-1.63 (этап E1/E2, AB cohort comparison analytics):** сводка `/api/dialogs/workspace-telemetry/summary` дополнена блоком `cohort_comparison` (control/test totals, дельты по `render_error/fallback/abandon/slow_open`, `avg_open_ms_delta`, `sample_size_ok`, `winner`). Это закрывает пробел аналитики для сравнения UX-гипотез без ручных SQL-выгрузок и формирует базу для безопасного rollout decisioning.
+
+- [x] **NOW-1.64 (этап E3, rollout decisioning automation):** сводка `/api/dialogs/workspace-telemetry/summary` дополнена блоком `rollout_decision` (`action`, `winner`, `guardrails_status`, `sample_size_ok`, `rationale`), который автоматически рекомендует `hold/rollback/scale_up` на основе cohort-сравнения и guardrails. В UI аналитики добавлен явный decision-banner, чтобы операционный on-call видел рекомендацию без ручной интерпретации сырых метрик.
