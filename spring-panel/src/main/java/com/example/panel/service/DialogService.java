@@ -31,11 +31,16 @@ import java.util.stream.Collectors;
 public class DialogService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogService.class);
+    private static final List<String> DEFAULT_REQUIRED_PRIMARY_KPIS = List.of("frt", "ttr", "sla_breach");
+    private static final long DEFAULT_MIN_KPI_EVENTS_FOR_DECISION = 10L;
 
     private final JdbcTemplate jdbcTemplate;
+    private final SharedConfigService sharedConfigService;
 
-    public DialogService(JdbcTemplate jdbcTemplate) {
+    public DialogService(JdbcTemplate jdbcTemplate,
+                         SharedConfigService sharedConfigService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.sharedConfigService = sharedConfigService;
     }
 
     public DialogSummary loadSummary() {
@@ -710,6 +715,10 @@ public class DialogService {
         Map<String, Object> safeGuardrails = guardrails == null ? Map.of() : guardrails;
         String winner = String.valueOf(safeCohortComparison.getOrDefault("winner", "insufficient_data"));
         boolean sampleSizeOk = toBoolean(safeCohortComparison.get("sample_size_ok"));
+        Map<String, Object> kpiSignal = safeCohortComparison.get("kpi_signal") instanceof Map<?, ?> kpi
+                ? castObjectMap(kpi)
+                : Map.of();
+        boolean kpiSignalReady = toBoolean(kpiSignal.get("ready_for_decision"));
         String guardrailStatus = String.valueOf(safeGuardrails.getOrDefault("status", "ok"));
         boolean hasGuardrailIssues = "attention".equalsIgnoreCase(guardrailStatus);
 
@@ -718,6 +727,9 @@ public class DialogService {
         if (!sampleSizeOk) {
             action = "hold";
             rationale = "Недостаточно данных в control/test выборках для безопасного rollout decision.";
+        } else if (!kpiSignalReady) {
+            action = "hold";
+            rationale = "Недостаточно продуктовых KPI-сигналов (FRT/TTR/SLA breach) для автоматического rollout decision.";
         } else if (hasGuardrailIssues) {
             action = "rollback";
             rationale = "Guardrails в статусе attention: rollout нужно приостановить и разобрать отклонения.";
@@ -733,8 +745,15 @@ public class DialogService {
         decision.put("winner", winner);
         decision.put("guardrails_status", guardrailStatus);
         decision.put("sample_size_ok", sampleSizeOk);
+        decision.put("kpi_signal_ready", kpiSignalReady);
         decision.put("rationale", rationale);
         return decision;
+    }
+
+    private Map<String, Object> castObjectMap(Map<?, ?> source) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        source.forEach((key, value) -> payload.put(String.valueOf(key), value));
+        return payload;
     }
 
     private boolean toBoolean(Object value) {
@@ -792,6 +811,7 @@ public class DialogService {
         comparison.put("avg_open_ms_delta", (testAvgOpen != null && controlAvgOpen != null)
                 ? testAvgOpen - controlAvgOpen
                 : null);
+        comparison.put("kpi_signal", buildPrimaryKpiSignal(controlTotals, testTotals));
         comparison.put("winner", resolveWorkspaceCohortWinner(
                 enoughData,
                 testAvgOpen,
@@ -838,6 +858,9 @@ public class DialogService {
         long fallbacks = rows.stream().mapToLong(row -> toLong(row.get("fallbacks"))).sum();
         long abandons = rows.stream().mapToLong(row -> toLong(row.get("abandons"))).sum();
         long slowOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("slow_open_events"))).sum();
+        long frtKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_events"))).sum();
+        long ttrKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_events"))).sum();
+        long slaBreachKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_events"))).sum();
 
         long weightedOpenCount = rows.stream()
                 .mapToLong(row -> Math.max(toLong(row.get("events"))
@@ -865,6 +888,9 @@ public class DialogService {
         totals.put("fallbacks", fallbacks);
         totals.put("abandons", abandons);
         totals.put("slow_open_events", slowOpenEvents);
+        totals.put("kpi_frt_events", frtKpiEvents);
+        totals.put("kpi_ttr_events", ttrKpiEvents);
+        totals.put("kpi_sla_breach_events", slaBreachKpiEvents);
         totals.put("avg_open_ms", avgOpenMs);
         return totals;
     }
@@ -898,6 +924,82 @@ public class DialogService {
         comparison.put("slow_open_rate_delta", currentSlowOpenRate - previousSlowOpenRate);
         comparison.put("avg_open_ms_delta", avgOpenMsDelta);
         return comparison;
+    }
+
+    private Map<String, Object> buildPrimaryKpiSignal(Map<String, Object> controlTotals,
+                                                      Map<String, Object> testTotals) {
+        List<String> requiredKpis = resolveRequiredPrimaryKpis();
+        long minKpiEvents = resolveMinKpiEventsForDecision();
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        boolean ready = true;
+        for (String kpi : requiredKpis) {
+            String key = "kpi_" + kpi + "_events";
+            long control = toLong(controlTotals.get(key));
+            long test = toLong(testTotals.get(key));
+            long minObserved = Math.min(control, test);
+            metrics.put(kpi, Map.of(
+                    "control", control,
+                    "test", test,
+                    "min_observed", minObserved,
+                    "threshold", minKpiEvents,
+                    "ready", minObserved >= minKpiEvents
+            ));
+            if (minObserved < minKpiEvents) {
+                ready = false;
+            }
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("required_kpis", requiredKpis);
+        payload.put("min_events_per_cohort", minKpiEvents);
+        payload.put("ready_for_decision", ready);
+        payload.put("metrics", metrics);
+        return payload;
+    }
+
+    private List<String> resolveRequiredPrimaryKpis() {
+        Object value = resolveDialogConfigValue("workspace_rollout_required_primary_kpis");
+        List<String> fromConfig = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            for (Object item : list) {
+                String normalized = normalizeKpiKey(item);
+                if (normalized != null) fromConfig.add(normalized);
+            }
+        } else if (value instanceof String csv) {
+            for (String chunk : csv.split(",")) {
+                String normalized = normalizeKpiKey(chunk);
+                if (normalized != null) fromConfig.add(normalized);
+            }
+        }
+        List<String> unique = fromConfig.stream().distinct().toList();
+        return unique.isEmpty() ? DEFAULT_REQUIRED_PRIMARY_KPIS : unique;
+    }
+
+    private long resolveMinKpiEventsForDecision() {
+        Object value = resolveDialogConfigValue("workspace_rollout_min_kpi_events");
+        if (value instanceof Number number && number.longValue() > 0) {
+            return number.longValue();
+        }
+        try {
+            long parsed = Long.parseLong(String.valueOf(value));
+            return parsed > 0 ? parsed : DEFAULT_MIN_KPI_EVENTS_FOR_DECISION;
+        } catch (Exception ignored) {
+            return DEFAULT_MIN_KPI_EVENTS_FOR_DECISION;
+        }
+    }
+
+    private Object resolveDialogConfigValue(String key) {
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> map)) {
+            return null;
+        }
+        return map.get(key);
+    }
+
+    private String normalizeKpiKey(Object raw) {
+        String value = raw == null ? "" : String.valueOf(raw).trim().toLowerCase();
+        if (value.isBlank()) return null;
+        return value.replace('-', '_');
     }
 
     private Map<String, Object> buildWorkspaceGuardrails(Map<String, Object> totals,
@@ -1287,6 +1389,9 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_fallback_to_legacy' THEN 1 ELSE 0 END) AS fallbacks,
                        SUM(CASE WHEN event_type = 'workspace_abandon' THEN 1 ELSE 0 END) AS abandons,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
+                       SUM(CASE WHEN LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
+                       SUM(CASE WHEN LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
+                       SUM(CASE WHEN LOWER(COALESCE(primary_kpis, '')) LIKE '%sla_breach%' THEN 1 ELSE 0 END) AS kpi_sla_breach_events,
                        AVG(CASE WHEN event_type = 'workspace_open_ms' THEN duration_ms END) AS avg_open_ms
                   FROM workspace_telemetry_audit
                  WHERE created_at >= ?
@@ -1309,6 +1414,9 @@ public class DialogService {
                 item.put("fallbacks", rs.getLong("fallbacks"));
                 item.put("abandons", rs.getLong("abandons"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
+                item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
+                item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
+                item.put("kpi_sla_breach_events", rs.getLong("kpi_sla_breach_events"));
                 item.put("avg_open_ms", rs.getObject("avg_open_ms") != null ? Math.round(rs.getDouble("avg_open_ms")) : null);
                 return item;
             }, cutoffStart, cutoffEnd, filterExperiment, filterExperiment);
