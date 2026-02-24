@@ -692,12 +692,63 @@ public class DialogService {
         payload.put("totals", totals);
         payload.put("previous_totals", previousTotals);
         payload.put("period_comparison", buildWorkspaceTelemetryComparison(totals, previousTotals));
-        payload.put("cohort_comparison", buildWorkspaceCohortComparison(rows));
+        Map<String, Object> cohortComparison = buildWorkspaceCohortComparison(rows);
+        payload.put("cohort_comparison", cohortComparison);
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
-        payload.put("guardrails", buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows));
+        Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows);
+        payload.put("guardrails", guardrails);
+        payload.put("rollout_decision", buildWorkspaceRolloutDecision(cohortComparison, guardrails));
         return payload;
+    }
+
+    private Map<String, Object> buildWorkspaceRolloutDecision(Map<String, Object> cohortComparison,
+                                                               Map<String, Object> guardrails) {
+        Map<String, Object> decision = new LinkedHashMap<>();
+        Map<String, Object> safeCohortComparison = cohortComparison == null ? Map.of() : cohortComparison;
+        Map<String, Object> safeGuardrails = guardrails == null ? Map.of() : guardrails;
+        String winner = String.valueOf(safeCohortComparison.getOrDefault("winner", "insufficient_data"));
+        boolean sampleSizeOk = toBoolean(safeCohortComparison.get("sample_size_ok"));
+        String guardrailStatus = String.valueOf(safeGuardrails.getOrDefault("status", "ok"));
+        boolean hasGuardrailIssues = "attention".equalsIgnoreCase(guardrailStatus);
+
+        String action;
+        String rationale;
+        if (!sampleSizeOk) {
+            action = "hold";
+            rationale = "Недостаточно данных в control/test выборках для безопасного rollout decision.";
+        } else if (hasGuardrailIssues) {
+            action = "rollback";
+            rationale = "Guardrails в статусе attention: rollout нужно приостановить и разобрать отклонения.";
+        } else if ("test".equalsIgnoreCase(winner)) {
+            action = "scale_up";
+            rationale = "Test cohort выигрывает без технических регрессий: можно расширять долю workspace_v1.";
+        } else {
+            action = "hold";
+            rationale = "Control cohort остаётся стабильнее: оставляем текущий охват и продолжаем наблюдение.";
+        }
+
+        decision.put("action", action);
+        decision.put("winner", winner);
+        decision.put("guardrails_status", guardrailStatus);
+        decision.put("sample_size_ok", sampleSizeOk);
+        decision.put("rationale", rationale);
+        return decision;
+    }
+
+    private boolean toBoolean(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (value == null) {
+            return false;
+        }
+        String normalized = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(normalized) || "1".equals(normalized);
     }
 
     private Map<String, Object> buildWorkspaceCohortComparison(List<Map<String, Object>> rows) {
