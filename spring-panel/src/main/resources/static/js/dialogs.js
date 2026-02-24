@@ -240,6 +240,13 @@
   });
   const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
   const WORKSPACE_OPEN_SLO_MS = 2000;
+  const WORKSPACE_CONTRACT_TIMEOUT_MS = Math.max(1000, Math.min(30000, Number(window.DIALOG_CONFIG?.workspace_contract_timeout_ms) || 8000));
+  const configuredWorkspaceRetryAttempts = Number.parseInt(window.DIALOG_CONFIG?.workspace_contract_retry_attempts, 10);
+  const WORKSPACE_CONTRACT_RETRY_ATTEMPTS = Math.max(
+    0,
+    Math.min(3, Number.isFinite(configuredWorkspaceRetryAttempts) ? configuredWorkspaceRetryAttempts : 1),
+  );
+  const WORKSPACE_DEFAULT_INCLUDE = 'messages,context,sla,permissions';
   const WORKSPACE_MUTATING_PERMISSION_KEYS = Object.freeze(['can_assign', 'can_close', 'can_snooze', 'can_bulk']);
   const WORKSPACE_AB_TEST_CONFIG = Object.freeze({
     experimentName: String(window.DIALOG_CONFIG?.workspace_ab_experiment_name || 'workspace_v1_rollout').trim() || 'workspace_v1_rollout',
@@ -2472,12 +2479,24 @@
       .replace(/^./, (char) => char.toUpperCase()) || 'Атрибут';
   }
 
+  function resolveWorkspaceFallbackReason(error) {
+    const rawCode = String(error?.code || error?.message || '').trim();
+    if (rawCode === 'version_mismatch') return 'version_mismatch';
+    if (rawCode === 'invalid_payload') return 'invalid_payload';
+    if (rawCode === 'timeout' || rawCode === 'AbortError') return 'timeout';
+    const status = Number(error?.httpStatus);
+    if (Number.isInteger(status) && status >= 500) return '5xx';
+    if (rawCode.startsWith('workspace_http_5')) return '5xx';
+    return 'unknown_error';
+  }
+
   async function preloadWorkspaceContract(ticketId, channelId, options = {}) {
     let endpoint = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}/workspace`, channelId);
     const queryParams = new URLSearchParams();
-    if (typeof options.include === 'string' && options.include.trim()) {
-      queryParams.set('include', options.include.trim());
-    }
+    const include = typeof options.include === 'string' && options.include.trim()
+      ? options.include.trim()
+      : WORKSPACE_DEFAULT_INCLUDE;
+    queryParams.set('include', include);
     if (Number.isInteger(options.cursor) && options.cursor >= 0) {
       queryParams.set('cursor', String(options.cursor));
     }
@@ -2487,13 +2506,41 @@
     if (queryParams.size > 0) {
       endpoint += `${endpoint.includes('?') ? '&' : '?'}${queryParams.toString()}`;
     }
-    const response = await fetch(endpoint, {
-      credentials: 'same-origin',
-      cache: 'no-store',
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload?.error || `workspace_http_${response.status}`);
+    let response = null;
+    let payload = null;
+    for (let attempt = 0; attempt <= WORKSPACE_CONTRACT_RETRY_ATTEMPTS; attempt += 1) {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), WORKSPACE_CONTRACT_TIMEOUT_MS);
+      try {
+        response = await fetch(endpoint, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        payload = await response.json();
+      } catch (fetchError) {
+        window.clearTimeout(timeoutId);
+        if (fetchError?.name === 'AbortError') {
+          const timeoutError = new Error('workspace_request_timeout');
+          timeoutError.code = 'timeout';
+          throw timeoutError;
+        }
+        if (attempt < WORKSPACE_CONTRACT_RETRY_ATTEMPTS) {
+          continue;
+        }
+        const networkError = new Error('workspace_network_error');
+        networkError.code = 'network_error';
+        throw networkError;
+      }
+      window.clearTimeout(timeoutId);
+      if (response.ok) break;
+      if (response.status >= 500 && attempt < WORKSPACE_CONTRACT_RETRY_ATTEMPTS) {
+        continue;
+      }
+      const requestError = new Error(payload?.error || `workspace_http_${response.status}`);
+      requestError.code = `workspace_http_${response.status}`;
+      requestError.httpStatus = response.status;
+      throw requestError;
     }
     const contractVersion = String(payload?.contract_version || '').trim();
     if (contractVersion !== 'workspace.v1') {
@@ -2556,18 +2603,20 @@
     } catch (error) {
       setWorkspaceReadonlyMode(false);
       const durationMs = finishWorkspaceOpenTimer(ticketId);
-      const reason = String(error?.code || error?.message || 'unknown_error');
+      const reason = resolveWorkspaceFallbackReason(error);
       await emitWorkspaceTelemetry('workspace_render_error', {
         ticketId,
         durationMs,
         errorCode: reason,
         contractVersion: error?.contractVersion || null,
+        httpStatus: Number(error?.httpStatus) || null,
       });
       await emitWorkspaceTelemetry('workspace_fallback_to_legacy', {
         ticketId,
         reason,
         durationMs,
         contractVersion: error?.contractVersion || null,
+        httpStatus: Number(error?.httpStatus) || null,
       });
       if (source === 'initial_route' && workspaceShell) {
         workspaceShell.classList.remove('d-none');
