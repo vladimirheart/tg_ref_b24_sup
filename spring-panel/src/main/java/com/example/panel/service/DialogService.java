@@ -692,11 +692,92 @@ public class DialogService {
         payload.put("totals", totals);
         payload.put("previous_totals", previousTotals);
         payload.put("period_comparison", buildWorkspaceTelemetryComparison(totals, previousTotals));
+        payload.put("cohort_comparison", buildWorkspaceCohortComparison(rows));
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
         payload.put("guardrails", buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows));
         return payload;
+    }
+
+    private Map<String, Object> buildWorkspaceCohortComparison(List<Map<String, Object>> rows) {
+        List<Map<String, Object>> safeRows = rows == null ? List.of() : rows;
+        List<Map<String, Object>> controlRows = safeRows.stream()
+                .filter(row -> "control".equalsIgnoreCase(String.valueOf(row.get("experiment_cohort"))))
+                .toList();
+        List<Map<String, Object>> testRows = safeRows.stream()
+                .filter(row -> "test".equalsIgnoreCase(String.valueOf(row.get("experiment_cohort"))))
+                .toList();
+
+        Map<String, Object> controlTotals = computeWorkspaceTelemetryTotals(controlRows);
+        Map<String, Object> testTotals = computeWorkspaceTelemetryTotals(testRows);
+
+        long controlEvents = toLong(controlTotals.get("events"));
+        long testEvents = toLong(testTotals.get("events"));
+
+        double controlRenderRate = safeRate(toLong(controlTotals.get("render_errors")), controlEvents);
+        double testRenderRate = safeRate(toLong(testTotals.get("render_errors")), testEvents);
+        double controlFallbackRate = safeRate(toLong(controlTotals.get("fallbacks")), controlEvents);
+        double testFallbackRate = safeRate(toLong(testTotals.get("fallbacks")), testEvents);
+        double controlAbandonRate = safeRate(toLong(controlTotals.get("abandons")), controlEvents);
+        double testAbandonRate = safeRate(toLong(testTotals.get("abandons")), testEvents);
+        double controlSlowOpenRate = safeRate(toLong(controlTotals.get("slow_open_events")), controlEvents);
+        double testSlowOpenRate = safeRate(toLong(testTotals.get("slow_open_events")), testEvents);
+
+        Long controlAvgOpen = extractNullableLong(controlTotals.get("avg_open_ms"));
+        Long testAvgOpen = extractNullableLong(testTotals.get("avg_open_ms"));
+
+        boolean enoughData = controlEvents >= 30 && testEvents >= 30;
+        Map<String, Object> comparison = new LinkedHashMap<>();
+        comparison.put("control", controlTotals);
+        comparison.put("test", testTotals);
+        comparison.put("sample_size_ok", enoughData);
+        comparison.put("control_events", controlEvents);
+        comparison.put("test_events", testEvents);
+        comparison.put("render_error_rate_delta", testRenderRate - controlRenderRate);
+        comparison.put("fallback_rate_delta", testFallbackRate - controlFallbackRate);
+        comparison.put("abandon_rate_delta", testAbandonRate - controlAbandonRate);
+        comparison.put("slow_open_rate_delta", testSlowOpenRate - controlSlowOpenRate);
+        comparison.put("avg_open_ms_delta", (testAvgOpen != null && controlAvgOpen != null)
+                ? testAvgOpen - controlAvgOpen
+                : null);
+        comparison.put("winner", resolveWorkspaceCohortWinner(
+                enoughData,
+                testAvgOpen,
+                controlAvgOpen,
+                testRenderRate,
+                controlRenderRate,
+                testFallbackRate,
+                controlFallbackRate,
+                testAbandonRate,
+                controlAbandonRate,
+                testSlowOpenRate,
+                controlSlowOpenRate));
+        return comparison;
+    }
+
+    private String resolveWorkspaceCohortWinner(boolean enoughData,
+                                                Long testAvgOpen,
+                                                Long controlAvgOpen,
+                                                double testRenderRate,
+                                                double controlRenderRate,
+                                                double testFallbackRate,
+                                                double controlFallbackRate,
+                                                double testAbandonRate,
+                                                double controlAbandonRate,
+                                                double testSlowOpenRate,
+                                                double controlSlowOpenRate) {
+        if (!enoughData || testAvgOpen == null || controlAvgOpen == null) {
+            return "insufficient_data";
+        }
+        boolean technicalRegressions = testRenderRate > controlRenderRate
+                || testFallbackRate > controlFallbackRate
+                || testAbandonRate > controlAbandonRate
+                || testSlowOpenRate > controlSlowOpenRate;
+        if (technicalRegressions) {
+            return "control";
+        }
+        return testAvgOpen <= controlAvgOpen ? "test" : "control";
     }
 
     private Map<String, Object> computeWorkspaceTelemetryTotals(List<Map<String, Object>> rows) {
