@@ -58,13 +58,17 @@
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Abandon</div><div class="h5 mb-0" data-metric="abandons">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Slow open</div><div class="h5 mb-0" data-metric="slow_open_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Avg open ms</div><div class="h5 mb-0" data-metric="avg_open_ms">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI FRT events</div><div class="h5 mb-0" data-metric="kpi_frt_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI TTR events</div><div class="h5 mb-0" data-metric="kpi_ttr_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI SLA breach events</div><div class="h5 mb-0" data-metric="kpi_sla_breach_events">—</div></div></div>
                     </div>
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge text-bg-success d-none" id="workspaceTelemetryGuardrailsOk">Guardrails: OK</span>
                         <span class="badge text-bg-warning d-none" id="workspaceTelemetryGuardrailsAttention">Guardrails: attention</span>
                         <small class="text-muted" id="workspaceTelemetryUpdatedAt"></small>
                     </div>
-                    <div class="alert d-none mb-3" id="workspaceTelemetryRolloutDecision" role="status"></div>
+                    <div class="alert d-none mb-2" id="workspaceTelemetryRolloutDecision" role="status"></div>
+                    <div class="small text-muted mb-3" id="workspaceTelemetryKpiSignalState"></div>
                     <div class="small text-muted mb-2" id="workspaceTelemetryFilterState"></div>
                     <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryAlertBox"></div>
                     <div class="table-responsive">
