@@ -226,12 +226,16 @@ class SupportPanelIntegrationTests {
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
         Map<String, Object> previousTotals = (Map<String, Object>) summary.get("previous_totals");
         Map<String, Object> comparison = (Map<String, Object>) summary.get("period_comparison");
+        Map<String, Object> cohortComparison = (Map<String, Object>) summary.get("cohort_comparison");
         Map<String, Object> guardrails = (Map<String, Object>) summary.get("guardrails");
         List<Map<String, Object>> alerts = (List<Map<String, Object>>) guardrails.get("alerts");
 
         assertThat(totals.get("events")).isEqualTo(4L);
         assertThat(previousTotals.get("events")).isEqualTo(20L);
         assertThat(comparison).containsKeys("render_error_rate_delta", "fallback_rate_delta", "avg_open_ms_delta");
+        assertThat(cohortComparison).containsKeys("control", "test", "sample_size_ok", "winner");
+        assertThat(cohortComparison.get("sample_size_ok")).isEqualTo(false);
+        assertThat(cohortComparison.get("winner")).isEqualTo("insufficient_data");
         assertThat(alerts).anySatisfy(alert -> {
             assertThat(alert.get("metric")).isEqualTo("render_error");
             assertThat(alert).containsKey("previous_value");
