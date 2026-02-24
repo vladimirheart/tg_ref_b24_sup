@@ -222,8 +222,9 @@
    - Базовая библиотека макросов уже поддерживает версионность и подстановку переменных в UI (`{{client_name}}`, `{{ticket_id}}`, `{{operator_name}}`, `{{channel_name}}`, `{{business}}`, `{{location}}`, `{{dialog_status}}`, `{{created_at}}`, `{{current_date}}`, `{{current_time}}`) и fallback-синтаксис `{{unknown_var|значение_по_умолчанию}}`.
    - Пакетные сценарии (multi-step macros) реализованы; в backlog остаётся централизованная библиотека переменных из внешних систем (единый каталог + default values из конфигурации/интеграций).
 
-5. **A/B UX-эксперименты на production-метриках** (P2, не выполнено)
-   - Не выделен контур feature flags + аналитика для сравнения UX-гипотез.
+5. **A/B UX-эксперименты на production-метриках** (P2, частично выполнено)
+   - Feature flags + сегментация операторов внедрены, telemetry summary дополняется сравнением cohort control/test.
+   - В backlog остаются продуктовые KPI FRT/TTR/SLA breach и автоматический decisioning для rollout.
 
 ### 9.2. План изменений с декомпозицией
 
@@ -502,7 +503,7 @@
 - Telemetry-события поступают в аналитику с требуемыми полями.
 - Rollback по флагу занимает не более 5 минут и подтверждён dry-run-проверкой.
 
-### 10.6. Реализовано дополнительно после проверки roadmap (NOW-1.48 / NOW-1.49 / NOW-1.50 / NOW-1.51 / NOW-1.52 / NOW-1.53 / NOW-1.54 / NOW-1.56 / NOW-1.57)
+### 10.6. Реализовано дополнительно после проверки roadmap (NOW-1.48 / NOW-1.49 / NOW-1.50 / NOW-1.51 / NOW-1.52 / NOW-1.53 / NOW-1.54 / NOW-1.56 / NOW-1.57 / NOW-1.63)
 
 - [x] **NOW-1.48 (этап C3, SLA routing policy enrichment):** серверный `sla_critical_auto_assign_rules` расширен матчингом по `match_location`, а выбор правила переведён на best-match стратегию по специфичности (`channel + business + location` имеет приоритет над общими правилами). Это закрывает ещё один шаг backlog по распределению критичных кейсов по очередям/навыкам без hard-coded условий.
 - [x] **NOW-1.49 (этап C3, audit traceability hardening):** аудит `sla_auto_assign` дополнен полем `route` (идентификатор правила `rule_id/name` или `fallback_default`), чтобы при инцидентах было видно не только факт авто-назначения, но и конкретный policy-маршрут.
@@ -521,3 +522,4 @@
 - [x] **NOW-1.61 (этап D1/D2, external macro variables bridge):** расширен API каталога переменных `/api/dialogs/macro/variables`: теперь поддерживается `default_value` в `macro_variable_catalog`, а UI применяет эти значения как безопасный fallback при рендере макросов (включая tooltip-подсказку в каталоге). Dry-run на сервере тоже учитывает сконфигурированные default values, что закрывает следующий шаг backlog по централизованной библиотеке переменных без hard-coded значений в шаблонах.
 - [x] **NOW-1.62 (этап D1/D2, dialog_config defaults for macro variables):** backend дополнен bridge-слоем `dialog_config.macro_variable_defaults`: значения из `dialog_config` теперь подмешиваются в `/api/dialogs/macro/variables` и в server-side dry-run как fallback для недостающих переменных. Это позволяет централизовать defaults из интеграционных конфигов и снижает зависимость от ручного дублирования `default_value` в каталоге.
 
+- [x] **NOW-1.63 (этап E1/E2, AB cohort comparison analytics):** сводка `/api/dialogs/workspace-telemetry/summary` дополнена блоком `cohort_comparison` (control/test totals, дельты по `render_error/fallback/abandon/slow_open`, `avg_open_ms_delta`, `sample_size_ok`, `winner`). Это закрывает пробел аналитики для сравнения UX-гипотез без ручных SQL-выгрузок и формирует базу для безопасного rollout decisioning.
