@@ -16,6 +16,7 @@
   const filterState = document.getElementById('workspaceTelemetryFilterState');
   const alertBox = document.getElementById('workspaceTelemetryAlertBox');
   const rolloutDecisionBox = document.getElementById('workspaceTelemetryRolloutDecision');
+  const kpiSignalState = document.getElementById('workspaceTelemetryKpiSignalState');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -70,8 +71,11 @@
     alertBox.classList.add('d-none');
     if (rolloutDecisionBox) {
       rolloutDecisionBox.classList.add('d-none');
-      rolloutDecisionBox.className = 'alert d-none mb-3';
+      rolloutDecisionBox.className = 'alert d-none mb-2';
       rolloutDecisionBox.textContent = '';
+    }
+    if (kpiSignalState) {
+      kpiSignalState.textContent = '';
     }
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
@@ -279,13 +283,16 @@
   }
 
 
-  function renderRolloutDecision(decision) {
+  function renderRolloutDecision(decision, cohortComparison) {
     if (!rolloutDecisionBox) {
       return;
     }
     if (!decision || typeof decision !== 'object') {
-      rolloutDecisionBox.className = 'alert d-none mb-3';
+      rolloutDecisionBox.className = 'alert d-none mb-2';
       rolloutDecisionBox.textContent = '';
+      if (kpiSignalState) {
+        kpiSignalState.textContent = '';
+      }
       return;
     }
     const action = String(decision.action || 'hold').toLowerCase();
@@ -301,8 +308,28 @@
       alertClass = 'alert-warning';
     }
 
-    rolloutDecisionBox.className = `alert ${alertClass} mb-3`;
+    rolloutDecisionBox.className = `alert ${alertClass} mb-2`;
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}`;
+
+    if (!kpiSignalState) {
+      return;
+    }
+    const kpiSignal = cohortComparison && typeof cohortComparison === 'object'
+      ? (cohortComparison.kpi_signal || {})
+      : {};
+    const required = Array.isArray(kpiSignal.required_kpis) ? kpiSignal.required_kpis : [];
+    const threshold = Number(kpiSignal.min_events_per_cohort || 0);
+    const metrics = kpiSignal.metrics && typeof kpiSignal.metrics === 'object' ? kpiSignal.metrics : {};
+    const chunks = required.map((name) => {
+      const item = metrics[name] || {};
+      return `${name.toUpperCase()}: control ${formatNumber(item.control || 0)} / test ${formatNumber(item.test || 0)}`;
+    });
+    if (!chunks.length) {
+      kpiSignalState.textContent = 'KPI-signal: недоступен.';
+      return;
+    }
+    const ready = Boolean(kpiSignal.ready_for_decision);
+    kpiSignalState.textContent = `KPI-signal (${ready ? 'готов' : 'недостаточен'}, порог ${formatNumber(threshold)} на когорту): ${chunks.join(' · ')}.`;
   }
 
   function render(payload) {
@@ -326,7 +353,7 @@
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
     renderBreakdownRows(teamTable, filteredRows(payload?.by_team, 'team', filters), 'team', 'Недостаточно данных по командам.');
     renderRiskSegments(payload, filters);
-    renderRolloutDecision(payload?.rollout_decision);
+    renderRolloutDecision(payload?.rollout_decision, payload?.cohort_comparison);
 
     if (status === 'attention') {
       alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).`;
@@ -360,8 +387,11 @@
       shiftTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по сменам недоступны.</td></tr>';
       teamTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Данные по командам недоступны.</td></tr>';
       if (rolloutDecisionBox) {
-        rolloutDecisionBox.className = 'alert alert-danger mb-3';
+        rolloutDecisionBox.className = 'alert alert-danger mb-2';
         rolloutDecisionBox.textContent = 'Rollout decision недоступен из-за ошибки загрузки telemetry.';
+      }
+      if (kpiSignalState) {
+        kpiSignalState.textContent = '';
       }
       if (riskSegmentsTable) {
         riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Данные риск-сегментов недоступны.</td></tr>';
