@@ -306,6 +306,8 @@ public class DialogApiController {
         List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, 5);
         Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
         Map<String, Object> settings = sharedConfigService.loadSettings();
+        Set<String> hiddenProfileAttributes = resolveWorkspaceHiddenClientAttributes(settings);
+        Map<String, Object> filteredProfileEnrichment = filterWorkspaceProfileEnrichment(profileEnrichment, hiddenProfileAttributes);
         Map<String, Object> workspaceClient = new LinkedHashMap<>();
         workspaceClient.put("id", summary.userId());
         workspaceClient.put("name", summary.displayClientName());
@@ -319,13 +321,21 @@ public class DialogApiController {
         workspaceClient.put("unread_count", summary.unreadCount());
         workspaceClient.put("rating", summary.rating());
         workspaceClient.put("last_message_at", summary.lastMessageTimestamp());
-        workspaceClient.put("segments", buildWorkspaceClientSegments(summary, profileEnrichment));
-        Map<String, Object> externalLinks = resolveWorkspaceExternalProfileLinks(settings, summary, ticketId);
+        workspaceClient.put("segments", buildWorkspaceClientSegments(summary, filteredProfileEnrichment));
+        Map<String, Object> externalLinks = resolveWorkspaceExternalProfileLinks(settings, summary, ticketId, filteredProfileEnrichment);
         if (!externalLinks.isEmpty()) {
             workspaceClient.put("external_links", externalLinks);
         }
-        if (profileEnrichment != null && !profileEnrichment.isEmpty()) {
-            workspaceClient.putAll(profileEnrichment);
+        Map<String, String> attributeLabels = resolveWorkspaceClientAttributeLabels(settings);
+        List<String> attributeOrder = resolveWorkspaceClientAttributeOrder(settings);
+        if (!attributeLabels.isEmpty()) {
+            workspaceClient.put("attribute_labels", attributeLabels);
+        }
+        if (!attributeOrder.isEmpty()) {
+            workspaceClient.put("attribute_order", attributeOrder);
+        }
+        if (!filteredProfileEnrichment.isEmpty()) {
+            workspaceClient.putAll(filteredProfileEnrichment);
         }
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -1071,7 +1081,8 @@ public class DialogApiController {
 
     private Map<String, Object> resolveWorkspaceExternalProfileLinks(Map<String, Object> settings,
                                                                      DialogListItem summary,
-                                                                     String ticketId) {
+                                                                     String ticketId,
+                                                                     Map<String, Object> profileEnrichment) {
         if (settings == null || summary == null) {
             return Map.of();
         }
@@ -1080,11 +1091,43 @@ public class DialogApiController {
             return Map.of();
         }
         Map<String, Object> links = new LinkedHashMap<>();
+        Map<String, String> placeholders = buildWorkspaceExternalLinkPlaceholders(summary, ticketId, profileEnrichment);
         appendWorkspaceExternalProfileLink(links, "crm", dialogConfig, "workspace_client_crm_profile_url_template",
-                "workspace_client_crm_profile_label", "CRM профиль", summary, ticketId);
+                "workspace_client_crm_profile_label", "CRM профиль", placeholders);
         appendWorkspaceExternalProfileLink(links, "contract", dialogConfig, "workspace_client_contract_profile_url_template",
-                "workspace_client_contract_profile_label", "Договор/контракт", summary, ticketId);
+                "workspace_client_contract_profile_label", "Договор/контракт", placeholders);
+        appendConfiguredWorkspaceExternalProfileLinks(links, dialogConfig, placeholders);
         return links;
+    }
+
+    private void appendConfiguredWorkspaceExternalProfileLinks(Map<String, Object> links,
+                                                               Map<?, ?> dialogConfig,
+                                                               Map<String, String> placeholders) {
+        Object configuredRaw = dialogConfig.get("workspace_client_external_links");
+        if (!(configuredRaw instanceof List<?> configuredLinks)) {
+            return;
+        }
+        for (Object candidate : configuredLinks) {
+            if (!(candidate instanceof Map<?, ?> linkConfig)) {
+                continue;
+            }
+            boolean enabled = !linkConfig.containsKey("enabled") || asBoolean(linkConfig.get("enabled"));
+            if (!enabled) {
+                continue;
+            }
+            String key = normalizeMacroVariableKey(String.valueOf(linkConfig.get("key")));
+            if (!StringUtils.hasText(key) || links.containsKey(key)) {
+                continue;
+            }
+            String template = trimToNull(String.valueOf(linkConfig.get("url_template")));
+            if (!StringUtils.hasText(template)) {
+                continue;
+            }
+            String fallbackLabel = StringUtils.hasText(trimToNull(String.valueOf(linkConfig.get("label"))))
+                ? trimToNull(String.valueOf(linkConfig.get("label")))
+                : "Внешний профиль";
+            appendWorkspaceExternalProfileLink(links, key, linkConfig, "url_template", "label", fallbackLabel, placeholders);
+        }
     }
 
     private void appendWorkspaceExternalProfileLink(Map<String, Object> links,
@@ -1093,16 +1136,15 @@ public class DialogApiController {
                                                     String templateKey,
                                                     String labelKey,
                                                     String fallbackLabel,
-                                                    DialogListItem summary,
-                                                    String ticketId) {
+                                                    Map<String, String> placeholders) {
         String template = trimToNull(String.valueOf(dialogConfig.get(templateKey)));
         if (!StringUtils.hasText(template)) {
             return;
         }
-        String resolved = template
-                .replace("{user_id}", summary.userId() != null ? String.valueOf(summary.userId()) : "")
-                .replace("{ticket_id}", StringUtils.hasText(ticketId) ? ticketId : "")
-                .replace("{username}", StringUtils.hasText(summary.username()) ? summary.username() : "");
+        String resolved = template;
+        for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+            resolved = resolved.replace("{" + entry.getKey() + "}", entry.getValue());
+        }
         resolved = trimToNull(resolved);
         if (!StringUtils.hasText(resolved) || !(resolved.startsWith("https://") || resolved.startsWith("http://"))) {
             return;
@@ -1112,6 +1154,112 @@ public class DialogApiController {
                 "label", StringUtils.hasText(label) ? label : fallbackLabel,
                 "url", resolved
         ));
+    }
+
+    private Map<String, String> buildWorkspaceExternalLinkPlaceholders(DialogListItem summary,
+                                                                        String ticketId,
+                                                                        Map<String, Object> profileEnrichment) {
+        Map<String, String> placeholders = new LinkedHashMap<>();
+        placeholders.put("ticket_id", StringUtils.hasText(ticketId) ? ticketId : "");
+        placeholders.put("user_id", summary.userId() != null ? String.valueOf(summary.userId()) : "");
+        placeholders.put("username", StringUtils.hasText(summary.username()) ? summary.username() : "");
+        placeholders.put("channel", StringUtils.hasText(summary.channelLabel()) ? summary.channelLabel() : "");
+        placeholders.put("business", StringUtils.hasText(summary.businessLabel()) ? summary.businessLabel() : "");
+        placeholders.put("location", StringUtils.hasText(summary.location()) ? summary.location() : "");
+        placeholders.put("responsible", StringUtils.hasText(summary.responsible()) ? summary.responsible() : "");
+        if (profileEnrichment != null && !profileEnrichment.isEmpty()) {
+            profileEnrichment.forEach((keyRaw, valueRaw) -> {
+                String key = normalizeMacroVariableKey(String.valueOf(keyRaw));
+                String value = stringifyMacroVariableValue(valueRaw);
+                if (StringUtils.hasText(key) && value != null && !placeholders.containsKey(key)) {
+                    placeholders.put(key, value);
+                }
+            });
+        }
+        return placeholders;
+    }
+
+    private Set<String> resolveWorkspaceHiddenClientAttributes(Map<String, Object> settings) {
+        Set<String> hidden = new HashSet<>();
+        if (settings == null || settings.isEmpty()) {
+            return hidden;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return hidden;
+        }
+        Object hiddenRaw = dialogConfig.get("workspace_client_hidden_attributes");
+        if (!(hiddenRaw instanceof List<?> hiddenList)) {
+            return hidden;
+        }
+        hiddenList.forEach(item -> {
+            String normalized = normalizeMacroVariableKey(String.valueOf(item));
+            if (StringUtils.hasText(normalized)) {
+                hidden.add(normalized);
+            }
+        });
+        return hidden;
+    }
+
+    private Map<String, Object> filterWorkspaceProfileEnrichment(Map<String, Object> profileEnrichment,
+                                                                  Set<String> hiddenAttributes) {
+        Map<String, Object> filtered = new LinkedHashMap<>();
+        if (profileEnrichment == null || profileEnrichment.isEmpty()) {
+            return filtered;
+        }
+        profileEnrichment.forEach((keyRaw, valueRaw) -> {
+            String normalizedKey = normalizeMacroVariableKey(String.valueOf(keyRaw));
+            if (StringUtils.hasText(normalizedKey) && hiddenAttributes.contains(normalizedKey)) {
+                return;
+            }
+            filtered.put(String.valueOf(keyRaw), valueRaw);
+        });
+        return filtered;
+    }
+
+    private Map<String, String> resolveWorkspaceClientAttributeLabels(Map<String, Object> settings) {
+        Map<String, String> labels = new LinkedHashMap<>();
+        if (settings == null || settings.isEmpty()) {
+            return labels;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return labels;
+        }
+        Object labelsRaw = dialogConfig.get("workspace_client_attribute_labels");
+        if (!(labelsRaw instanceof Map<?, ?> labelMap)) {
+            return labels;
+        }
+        labelMap.forEach((keyRaw, valueRaw) -> {
+            String key = normalizeMacroVariableKey(String.valueOf(keyRaw));
+            String value = trimToNull(String.valueOf(valueRaw));
+            if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
+                labels.put(key, value);
+            }
+        });
+        return labels;
+    }
+
+    private List<String> resolveWorkspaceClientAttributeOrder(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return List.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return List.of();
+        }
+        Object orderRaw = dialogConfig.get("workspace_client_attribute_order");
+        if (!(orderRaw instanceof List<?> orderList)) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>();
+        orderList.forEach(item -> {
+            String key = normalizeMacroVariableKey(String.valueOf(item));
+            if (StringUtils.hasText(key) && !normalized.contains(key)) {
+                normalized.add(key);
+            }
+        });
+        return normalized;
     }
 
     private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
