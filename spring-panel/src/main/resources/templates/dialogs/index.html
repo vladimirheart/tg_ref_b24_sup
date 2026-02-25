@@ -602,6 +602,24 @@
                 <p class="small text-muted mb-2" id="dialogExperimentTelemetrySummaryState">Загрузка агрегатов telemetry…</p>
                 <div class="alert alert-success py-2 px-3 small d-none" id="dialogExperimentTelemetryGuardrailState" role="status"></div>
                 <ul class="small mb-2 ps-3 d-none" id="dialogExperimentTelemetryGuardrailAlerts"></ul>
+                <div class="alert py-2 px-3 small d-none" id="dialogExperimentRolloutDecisionState" role="status"></div>
+                <ul class="small mb-2 ps-3 d-none" id="dialogExperimentRolloutDecisionChecklist"></ul>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutKpiOutcomesWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">KPI</th>
+                            <th scope="col" class="text-end">Control</th>
+                            <th scope="col" class="text-end">Test</th>
+                            <th scope="col" class="text-end">Δ</th>
+                            <th scope="col" class="text-end">Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentRolloutKpiOutcomeRows">
+                        <tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
