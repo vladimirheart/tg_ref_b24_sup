@@ -283,6 +283,7 @@
   let activeWorkspaceMacroTemplate = null;
   let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
   let activeWorkspaceChannelId = null;
+  let activeWorkspacePayload = null;
   let workspaceMessagesNextCursor = null;
   let workspaceMessagesHasMore = false;
   let workspaceMessagesLoadingMore = false;
@@ -2226,6 +2227,82 @@
     workspaceMessagesLoadMore.textContent = workspaceMessagesLoadingMore ? 'Загрузка…' : 'Загрузить ещё';
   }
 
+
+  function resolveWorkspaceSlaBadgeClass(state) {
+    const normalized = String(state || '').trim().toLowerCase();
+    if (normalized === 'breached') return 'text-bg-danger';
+    if (normalized === 'at_risk') return 'text-bg-warning';
+    if (normalized === 'closed') return 'text-bg-secondary';
+    return 'text-bg-success';
+  }
+
+  function formatWorkspaceSlaRemaining(minutesLeft) {
+    const value = Number(minutesLeft);
+    if (!Number.isFinite(value)) return '—';
+    if (value === 0) return '0м';
+    const absValue = Math.abs(Math.round(value));
+    const hours = Math.floor(absValue / 60);
+    const minutes = absValue % 60;
+    const suffix = value < 0 ? 'назад' : 'осталось';
+    if (hours > 0) {
+      return `${hours}ч ${minutes}м ${suffix}`;
+    }
+    return `${minutes}м ${suffix}`;
+  }
+
+  function mergeWorkspacePayload(basePayload, partialPayload, include) {
+    const includeSet = new Set(String(include || '').split(',').map((item) => item.trim()).filter(Boolean));
+    if (!basePayload || typeof basePayload !== 'object') {
+      return partialPayload;
+    }
+    if (!partialPayload || typeof partialPayload !== 'object') {
+      return basePayload;
+    }
+    const merged = {
+      ...basePayload,
+      conversation: partialPayload.conversation || basePayload.conversation,
+      meta: partialPayload.meta || basePayload.meta,
+      success: partialPayload.success,
+    };
+    if (includeSet.has('messages')) {
+      merged.messages = partialPayload.messages || basePayload.messages;
+    }
+    if (includeSet.has('context')) {
+      merged.context = partialPayload.context || basePayload.context;
+    }
+    if (includeSet.has('sla')) {
+      merged.sla = partialPayload.sla || basePayload.sla;
+    }
+    if (includeSet.has('permissions')) {
+      merged.permissions = partialPayload.permissions || basePayload.permissions;
+    }
+    return merged;
+  }
+
+  function setWorkspaceSectionLoading(stateEl, errorEl, message) {
+    if (errorEl) errorEl.classList.add('d-none');
+    if (stateEl) {
+      stateEl.classList.remove('d-none');
+      stateEl.textContent = message;
+    }
+  }
+
+  async function reloadWorkspaceSection(include, options = {}) {
+    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
+    const channelId = activeWorkspaceChannelId;
+    setWorkspaceSectionLoading(options.stateElement, options.errorElement, options.statusText || 'Повторная загрузка...');
+    try {
+      const partialPayload = await preloadWorkspaceContract(activeWorkspaceTicketId, channelId, { include });
+      activeWorkspacePayload = mergeWorkspacePayload(activeWorkspacePayload, partialPayload, include);
+      renderWorkspaceShell(activeWorkspacePayload);
+    } catch (_error) {
+      if (options.errorElement) options.errorElement.classList.remove('d-none');
+      if (typeof showNotification === 'function') {
+        showNotification(options.failMessage || 'Не удалось обновить секцию workspace.', 'warning');
+      }
+    }
+  }
+
   async function loadMoreWorkspaceMessages() {
     if (!activeWorkspaceTicketId || !workspaceMessagesHasMore || workspaceMessagesLoadingMore) return;
     workspaceMessagesLoadingMore = true;
@@ -2375,8 +2452,13 @@
       if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
       if (workspaceSlaError) workspaceSlaError.classList.add('d-none');
       if (workspaceSlaContent) {
+        const badgeClass = resolveWorkspaceSlaBadgeClass(sla.state);
+        const remaining = formatWorkspaceSlaRemaining(sla.minutes_left);
+        const escalationHint = sla.escalation_required === true
+          ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
+          : '';
         workspaceSlaContent.classList.remove('d-none');
-        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge text-bg-secondary">${escapeHtml(sla.state)}</span></div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>`;
+        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">До дедлайна: ${escapeHtml(remaining)}</div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}`;
       }
     } else {
       if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
@@ -2426,6 +2508,7 @@
       'last_ticket_activity_at',
       'language',
       'segments',
+      'external_links',
     ]);
     const rows = fields
       .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
@@ -2449,7 +2532,24 @@
       ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>${extraRows}`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${extraSection}${segmentBadges}`;
+    const externalLinks = (client.external_links && typeof client.external_links === 'object')
+      ? Object.values(client.external_links)
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => {
+          const url = String(item.url || '').trim();
+          if (!url || !(url.startsWith('http://') || url.startsWith('https://'))) {
+            return '';
+          }
+          const label = String(item.label || 'Профиль').trim() || 'Профиль';
+          return `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+        })
+        .filter(Boolean)
+      : [];
+    const linksSection = externalLinks.length > 0
+      ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
+      : '';
+
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
@@ -2574,6 +2674,7 @@
   }
 
   async function openDialogWithWorkspaceFallback(ticketId, row, options = {}) {
+    activeWorkspacePayload = null;
     const source = options.source || 'manual_open';
     const channelId = row?.dataset?.channelId || null;
     startWorkspaceOpenTimer(ticketId);
@@ -2590,6 +2691,7 @@
       }
       activeWorkspaceTicketId = String(ticketId || '').trim();
       activeWorkspaceChannelId = channelId;
+      activeWorkspacePayload = workspacePayload;
       if (source === 'initial_route' || WORKSPACE_INLINE_NAVIGATION) {
         renderWorkspaceShell(workspacePayload);
         if (source !== 'initial_route') {
@@ -4830,7 +4932,12 @@
   }
   if (workspaceMessagesRetry) {
     workspaceMessagesRetry.addEventListener('click', () => {
-      reloadWorkspaceForInitialRoute();
+      reloadWorkspaceSection('messages', {
+        stateElement: workspaceMessagesState,
+        errorElement: workspaceMessagesError,
+        statusText: 'Повторная загрузка ленты…',
+        failMessage: 'Не удалось обновить ленту workspace.',
+      });
     });
   }
 
@@ -4842,25 +4949,45 @@
 
   if (workspaceClientRetry) {
     workspaceClientRetry.addEventListener('click', () => {
-      reloadWorkspaceForInitialRoute('Повторная загрузка контекста клиента…');
+      reloadWorkspaceSection('context', {
+        stateElement: workspaceClientState,
+        errorElement: workspaceClientError,
+        statusText: 'Повторная загрузка профиля клиента…',
+        failMessage: 'Не удалось обновить профиль клиента.',
+      });
     });
   }
 
   if (workspaceHistoryRetry) {
     workspaceHistoryRetry.addEventListener('click', () => {
-      reloadWorkspaceForInitialRoute('Повторная загрузка истории клиента…');
+      reloadWorkspaceSection('context', {
+        stateElement: workspaceHistoryState,
+        errorElement: workspaceHistoryError,
+        statusText: 'Повторная загрузка истории клиента…',
+        failMessage: 'Не удалось обновить историю клиента.',
+      });
     });
   }
 
   if (workspaceRelatedEventsRetry) {
     workspaceRelatedEventsRetry.addEventListener('click', () => {
-      reloadWorkspaceForInitialRoute('Повторная загрузка связанных событий…');
+      reloadWorkspaceSection('context', {
+        stateElement: workspaceRelatedEventsState,
+        errorElement: workspaceRelatedEventsError,
+        statusText: 'Повторная загрузка связанных событий…',
+        failMessage: 'Не удалось обновить связанные события.',
+      });
     });
   }
 
   if (workspaceSlaRetry) {
     workspaceSlaRetry.addEventListener('click', () => {
-      reloadWorkspaceForInitialRoute('Повторная загрузка SLA-контекста…');
+      reloadWorkspaceSection('sla', {
+        stateElement: workspaceSlaState,
+        errorElement: workspaceSlaError,
+        statusText: 'Повторная загрузка SLA-контекста…',
+        failMessage: 'Не удалось обновить SLA-контекст.',
+      });
     });
   }
 
