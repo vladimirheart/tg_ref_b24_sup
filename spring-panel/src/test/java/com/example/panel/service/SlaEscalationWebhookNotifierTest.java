@@ -284,6 +284,72 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals(Collections.emptyMap(), endpoints.get(1).headers());
     }
 
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsRoundRobinPoolStrategy() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram"),
+                Map.of("ticket_id", "T-2", "channel", "Telegram"),
+                Map.of("ticket_id", "T-3", "channel", "Telegram")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "rr_pool",
+                                "match_channel", "telegram",
+                                "assign_to_pool", List.of("shift_a", "shift_b"),
+                                "assign_to_pool_strategy", "round_robin"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(3, decisions.size());
+        assertEquals("shift_a", decisions.get(0).assignee());
+        assertEquals("shift_b", decisions.get(1).assignee());
+        assertEquals("shift_a", decisions.get(2).assignee());
+        assertEquals("rule_pool:shift_a:round_robin", decisions.get(0).route());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsLeastLoadedPoolStrategy() {
+        DialogService dialogService = org.mockito.Mockito.mock(DialogService.class);
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, dialogService, new ObjectMapper());
+
+        org.mockito.Mockito.when(dialogService.loadDialogs("busy_operator"))
+                .thenReturn(List.of(
+                        dialog("B-1", Instant.now().toString(), "open", "busy_operator"),
+                        dialog("B-2", Instant.now().toString(), "open", "busy_operator")
+                ));
+        org.mockito.Mockito.when(dialogService.loadDialogs("free_operator"))
+                .thenReturn(List.of(
+                        dialog("F-1", Instant.now().toString(), "resolved", "free_operator")
+                ));
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-11", "channel", "Telegram")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "least_loaded_pool",
+                                "match_channel", "telegram",
+                                "assign_to_pool", List.of("busy_operator", "free_operator"),
+                                "assign_to_pool_strategy", "least_loaded"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(1, decisions.size());
+        assertEquals("free_operator", decisions.get(0).assignee());
+        assertEquals("rule_pool:busy_operator:least_loaded", decisions.get(0).route());
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,
