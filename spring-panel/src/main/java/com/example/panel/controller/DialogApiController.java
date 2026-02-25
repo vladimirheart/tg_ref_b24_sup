@@ -294,9 +294,13 @@ public class DialogApiController {
                 resolveDialogConfigMinutes("sla_warning_minutes", DEFAULT_SLA_WARNING_MINUTES),
                 slaTargetMinutes
         );
+        int slaCriticalMinutes = Math.min(resolveDialogConfigMinutes("sla_critical_minutes", 30), slaTargetMinutes);
+        String slaState = resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey());
+        Long slaMinutesLeft = resolveSlaMinutesLeft(summary.createdAt(), slaTargetMinutes, summary.statusKey(), System.currentTimeMillis());
         List<Map<String, Object>> clientHistory = dialogService.loadClientDialogHistory(summary.userId(), ticketId, 5);
         List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, 5);
         Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
+        Map<String, Object> settings = sharedConfigService.loadSettings();
         Map<String, Object> workspaceClient = new LinkedHashMap<>();
         workspaceClient.put("id", summary.userId());
         workspaceClient.put("name", summary.displayClientName());
@@ -311,6 +315,10 @@ public class DialogApiController {
         workspaceClient.put("rating", summary.rating());
         workspaceClient.put("last_message_at", summary.lastMessageTimestamp());
         workspaceClient.put("segments", buildWorkspaceClientSegments(summary, profileEnrichment));
+        Map<String, Object> externalLinks = resolveWorkspaceExternalProfileLinks(settings, summary, ticketId);
+        if (!externalLinks.isEmpty()) {
+            workspaceClient.put("external_links", externalLinks);
+        }
         if (profileEnrichment != null && !profileEnrichment.isEmpty()) {
             workspaceClient.putAll(profileEnrichment);
         }
@@ -358,14 +366,20 @@ public class DialogApiController {
                 ? Map.of(
                 "target_minutes", slaTargetMinutes,
                 "warning_minutes", slaWarningMinutes,
+                "critical_minutes", slaCriticalMinutes,
                 "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
-                "state", resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey())
+                "state", slaState,
+                "minutes_left", slaMinutesLeft,
+                "escalation_required", slaMinutesLeft != null && slaMinutesLeft <= slaCriticalMinutes
         )
                 : Map.of(
                 "target_minutes", slaTargetMinutes,
                 "warning_minutes", slaWarningMinutes,
+                "critical_minutes", slaCriticalMinutes,
                 "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
                 "state", "unknown",
+                "minutes_left", null,
+                "escalation_required", false,
                 "unavailable", true
         ));
         payload.put("meta", Map.of(
@@ -1048,6 +1062,51 @@ public class DialogApiController {
             return false;
         }
         return fallbackValue;
+    }
+
+    private Map<String, Object> resolveWorkspaceExternalProfileLinks(Map<String, Object> settings,
+                                                                     DialogListItem summary,
+                                                                     String ticketId) {
+        if (settings == null || summary == null) {
+            return Map.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return Map.of();
+        }
+        Map<String, Object> links = new LinkedHashMap<>();
+        appendWorkspaceExternalProfileLink(links, "crm", dialogConfig, "workspace_client_crm_profile_url_template",
+                "workspace_client_crm_profile_label", "CRM профиль", summary, ticketId);
+        appendWorkspaceExternalProfileLink(links, "contract", dialogConfig, "workspace_client_contract_profile_url_template",
+                "workspace_client_contract_profile_label", "Договор/контракт", summary, ticketId);
+        return links;
+    }
+
+    private void appendWorkspaceExternalProfileLink(Map<String, Object> links,
+                                                    String key,
+                                                    Map<?, ?> dialogConfig,
+                                                    String templateKey,
+                                                    String labelKey,
+                                                    String fallbackLabel,
+                                                    DialogListItem summary,
+                                                    String ticketId) {
+        String template = trimToNull(String.valueOf(dialogConfig.get(templateKey)));
+        if (!StringUtils.hasText(template)) {
+            return;
+        }
+        String resolved = template
+                .replace("{user_id}", summary.userId() != null ? String.valueOf(summary.userId()) : "")
+                .replace("{ticket_id}", StringUtils.hasText(ticketId) ? ticketId : "")
+                .replace("{username}", StringUtils.hasText(summary.username()) ? summary.username() : "");
+        resolved = trimToNull(resolved);
+        if (!StringUtils.hasText(resolved) || !(resolved.startsWith("https://") || resolved.startsWith("http://"))) {
+            return;
+        }
+        String label = trimToNull(String.valueOf(dialogConfig.get(labelKey)));
+        links.put(key, Map.of(
+                "label", StringUtils.hasText(label) ? label : fallbackLabel,
+                "url", resolved
+        ));
     }
 
     private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
