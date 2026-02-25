@@ -78,6 +78,8 @@ public class DialogApiController {
             Map.entry("kpi_frt_recorded", "kpi"),
             Map.entry("kpi_ttr_recorded", "kpi"),
             Map.entry("kpi_sla_breach_recorded", "kpi"),
+            Map.entry("kpi_dialogs_per_shift_recorded", "kpi"),
+            Map.entry("kpi_csat_recorded", "kpi"),
             Map.entry("macro_preview", "macro"),
             Map.entry("macro_apply", "macro"),
             Map.entry("triage_view_switch", "triage"),
