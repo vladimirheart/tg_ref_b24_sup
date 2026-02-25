@@ -269,6 +269,8 @@
     kpi_frt_recorded: 'kpi',
     kpi_ttr_recorded: 'kpi',
     kpi_sla_breach_recorded: 'kpi',
+    kpi_dialogs_per_shift_recorded: 'kpi',
+    kpi_csat_recorded: 'kpi',
     triage_view_switch: 'triage',
     triage_quick_assign: 'triage',
     triage_quick_snooze: 'triage',
