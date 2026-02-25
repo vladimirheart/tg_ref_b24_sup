@@ -496,6 +496,71 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(false));
     }
 
+
+    @Test
+    void macroVariablesIncludesSourcesAndTicketContextVariables() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "macro_variable_catalog", List.of(Map.of(
+                        "key", "crm_segment",
+                        "label", "CRM сегмент",
+                        "default_value", "standard"
+                ))
+        ));
+        DialogListItem summary = new DialogListItem(
+                "T-501",
+                501L,
+                55L,
+                "user55",
+                "Клиент 55",
+                "retail",
+                3L,
+                "telegram",
+                "city",
+                "location",
+                "problem",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "label",
+                "user",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "category"
+        );
+        when(dialogService.loadDialogDetails("T-501", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadClientProfileEnrichment(55L)).thenReturn(Map.of("contract_tier", "gold"));
+
+        mockMvc.perform(get("/api/dialogs/macro/variables")
+                        .param("ticketId", "T-501")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.variables[0].source").value("builtin"))
+                .andExpect(jsonPath("$.variables[?(@.key=='crm_segment')][0].source").value("settings_catalog"))
+                .andExpect(jsonPath("$.variables[?(@.key=='client_contract_tier')][0].source").value("ticket_context"));
+    }
+
+    @Test
+    void macroVariablesReturnsCatalogWithoutTicketContextWhenTicketMissing() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(dialogService.loadDialogDetails("T-404", null, "operator")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/dialogs/macro/variables")
+                        .param("ticketId", "T-404")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.variables[?(@.source=='ticket_context')]").isEmpty());
+    }
+
     @Test
     void macroDryRunRendersTemplateWithDialogVariables() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
