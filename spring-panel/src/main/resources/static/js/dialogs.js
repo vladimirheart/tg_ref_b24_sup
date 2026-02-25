@@ -15,6 +15,10 @@
   const experimentTelemetrySummaryState = document.getElementById('dialogExperimentTelemetrySummaryState');
   const experimentTelemetryGuardrailState = document.getElementById('dialogExperimentTelemetryGuardrailState');
   const experimentTelemetryGuardrailAlerts = document.getElementById('dialogExperimentTelemetryGuardrailAlerts');
+  const experimentRolloutDecisionState = document.getElementById('dialogExperimentRolloutDecisionState');
+  const experimentRolloutDecisionChecklist = document.getElementById('dialogExperimentRolloutDecisionChecklist');
+  const experimentRolloutKpiOutcomesWrap = document.getElementById('dialogExperimentRolloutKpiOutcomesWrap');
+  const experimentRolloutKpiOutcomeRows = document.getElementById('dialogExperimentRolloutKpiOutcomeRows');
   const experimentTelemetrySummaryRows = document.getElementById('dialogExperimentTelemetrySummaryRows');
   const experimentTelemetryShiftRows = document.getElementById('dialogExperimentTelemetryShiftRows');
   const experimentTelemetryTeamRows = document.getElementById('dialogExperimentTelemetryTeamRows');
@@ -1937,6 +1941,100 @@
     experimentTelemetryGuardrailState.classList.add('alert-success');
     experimentTelemetryGuardrailState.textContent = `Guardrails в норме. ${summary}`;
   }
+
+  function formatRolloutDecisionAction(action) {
+    const safe = String(action || 'hold').trim().toLowerCase();
+    if (safe === 'scale_up') return 'scale_up';
+    if (safe === 'rollback') return 'rollback';
+    return 'hold';
+  }
+
+  function formatKpiOutcomeDelta(metricName, value) {
+    const safe = Number(value);
+    if (!Number.isFinite(safe)) return '—';
+    const isPercentMetric = String(metricName || '').toLowerCase() === 'sla_breach';
+    if (isPercentMetric) {
+      return formatDeltaPercent(safe);
+    }
+    const sign = safe > 0 ? '+' : '';
+    return `${sign}${Math.round(safe)}мс`;
+  }
+
+  function renderExperimentRolloutDecision(decision, cohortComparison) {
+    if (!experimentRolloutDecisionState || !experimentRolloutDecisionChecklist || !experimentRolloutKpiOutcomesWrap || !experimentRolloutKpiOutcomeRows) return;
+    const safeDecision = decision && typeof decision === 'object' ? decision : null;
+    const safeComparison = cohortComparison && typeof cohortComparison === 'object' ? cohortComparison : null;
+    if (!safeDecision) {
+      experimentRolloutDecisionState.classList.add('d-none');
+      experimentRolloutDecisionState.textContent = '';
+      experimentRolloutDecisionChecklist.classList.add('d-none');
+      experimentRolloutDecisionChecklist.innerHTML = '';
+      experimentRolloutKpiOutcomesWrap.classList.add('d-none');
+      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>';
+      return;
+    }
+
+    const action = formatRolloutDecisionAction(safeDecision?.action);
+    const winner = String(safeDecision?.winner || 'insufficient_data');
+    const rationale = String(safeDecision?.rationale || 'Решение будет доступно после накопления данных.');
+
+    experimentRolloutDecisionState.classList.remove('d-none', 'alert-success', 'alert-warning', 'alert-danger');
+    if (action === 'scale_up') {
+      experimentRolloutDecisionState.classList.add('alert-success');
+    } else if (action === 'rollback') {
+      experimentRolloutDecisionState.classList.add('alert-danger');
+    } else {
+      experimentRolloutDecisionState.classList.add('alert-warning');
+    }
+    experimentRolloutDecisionState.textContent = `Rollout decision: ${action.toUpperCase()} · winner: ${winner}. ${rationale}`;
+
+    const checks = [
+      { ok: Boolean(safeDecision?.sample_size_ok), label: 'Достаточная выборка control/test' },
+      { ok: Boolean(safeDecision?.kpi_signal_ready), label: 'Покрытие KPI-сигналов (FRT/TTR/SLA breach)' },
+      { ok: Boolean(safeDecision?.kpi_outcome_ready), label: 'Готовность KPI-результатов к сравнению' },
+      { ok: !Boolean(safeDecision?.kpi_outcome_regressions), label: 'Нет деградации product KPI в test cohort' },
+    ];
+    experimentRolloutDecisionChecklist.classList.remove('d-none');
+    experimentRolloutDecisionChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? '✅' : '⚠️'} ${escapeHtml(item.label)}</li>`)).join('');
+
+    const outcomeMetrics = safeComparison?.kpi_outcome_signal?.metrics;
+    const metricEntries = outcomeMetrics && typeof outcomeMetrics === 'object' ? Object.entries(outcomeMetrics) : [];
+    if (!metricEntries.length) {
+      experimentRolloutKpiOutcomesWrap.classList.add('d-none');
+      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>';
+      return;
+    }
+    experimentRolloutKpiOutcomesWrap.classList.remove('d-none');
+    experimentRolloutKpiOutcomeRows.innerHTML = metricEntries.map(([metricName, metricPayload]) => {
+      const metric = metricPayload && typeof metricPayload === 'object' ? metricPayload : {};
+      const ready = Boolean(metric?.ready);
+      const regression = Boolean(metric?.regression);
+      const status = !ready ? 'waiting' : (regression ? 'regression' : 'ok');
+      const statusBadge = status === 'ok'
+        ? '<span class="badge text-bg-success">ok</span>'
+        : (status === 'regression'
+          ? '<span class="badge text-bg-danger">regression</span>'
+          : '<span class="badge text-bg-secondary">waiting</span>');
+      const controlValue = Number(metric?.control_value);
+      const testValue = Number(metric?.test_value);
+      const controlDisplay = Number.isFinite(controlValue)
+        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(controlValue) : `${Math.round(controlValue)}мс`)
+        : '—';
+      const testDisplay = Number.isFinite(testValue)
+        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(testValue) : `${Math.round(testValue)}мс`)
+        : '—';
+      return `
+        <tr>
+          <td>${escapeHtml(String(metricName))}</td>
+          <td class="text-end">${escapeHtml(controlDisplay)}</td>
+          <td class="text-end">${escapeHtml(testDisplay)}</td>
+          <td class="text-end">${escapeHtml(formatKpiOutcomeDelta(metricName, metric?.delta))}</td>
+          <td class="text-end">${statusBadge}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   function renderExperimentTelemetrySummaryRows(rows) {
     if (!experimentTelemetrySummaryRows) return;
     const safeRows = Array.isArray(rows) ? rows : [];
@@ -2013,6 +2111,7 @@
       renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, payload?.by_shift || [], 'shift');
       renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, payload?.by_team || [], 'team');
       renderExperimentTelemetryGuardrails(payload?.guardrails || {});
+      renderExperimentRolloutDecision(payload?.rollout_decision || {}, payload?.cohort_comparison || {});
       if (experimentTelemetrySummaryState) {
         const totals = payload?.totals || {};
         const previousTotals = payload?.previous_totals || {};
@@ -2027,6 +2126,7 @@
       renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, [], 'shift');
       renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, [], 'team');
       renderExperimentTelemetryGuardrails(null);
+      renderExperimentRolloutDecision(null, null);
       if (experimentTelemetrySummaryState) {
         experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
       }
