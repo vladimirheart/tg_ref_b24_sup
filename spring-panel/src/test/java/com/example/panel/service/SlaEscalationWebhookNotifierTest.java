@@ -147,6 +147,70 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("fallback_default", decisions.get(1).route());
     }
 
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsUnreadAndSlaWindowRuleMatching() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "minutes_left", 12, "unread_count", 6),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "minutes_left", 45, "unread_count", 6)
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "urgent_hot_queue",
+                                "match_channel", "telegram",
+                                "match_minutes_left_lte", 15,
+                                "match_unread_min", 5,
+                                "assign_to", "urgent_duty"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("urgent_duty", decisions.get(0).assignee());
+        assertEquals("urgent_hot_queue", decisions.get(0).route());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+        assertEquals("fallback_default", decisions.get(1).route());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsUsesPriorityAsTieBreakerWhenSpecificityEqual() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "minutes_left", 8, "unread_count", 2)
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "team_a",
+                                "match_channel", "telegram",
+                                "match_minutes_left_lte", 15,
+                                "priority", 1,
+                                "assign_to", "queue_a"
+                        ),
+                        Map.of(
+                                "rule_id", "team_b",
+                                "match_channel", "telegram",
+                                "match_minutes_left_lte", 15,
+                                "priority", 50,
+                                "assign_to", "queue_b"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(1, decisions.size());
+        assertEquals("queue_b", decisions.get(0).assignee());
+        assertEquals("team_b", decisions.get(0).route());
+    }
+
     @Test
     void resolveAutoAssignTicketIdsReturnsEmptyWhenDisabled() {
         SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
