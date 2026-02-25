@@ -296,6 +296,31 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryAggregatesSecondaryKpiSignals() {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op-sec-1', 'workspace_open_ms', 'performance', 'T-SEC-1', NULL, NULL, 'workspace.v1', 980,
+                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, 'dialogs_per_shift,csat', NULL, NULL, datetime('now', '-1 hour')),
+                    ('op-sec-2', 'kpi_dialogs_per_shift_recorded', 'kpi', 'T-SEC-2', NULL, NULL, 'workspace.v1', NULL,
+                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, 'dialogs_per_shift', NULL, NULL, datetime('now', '-1 hour')),
+                    ('op-sec-3', 'kpi_csat_recorded', 'kpi', 'T-SEC-3', NULL, NULL, 'workspace.v1', NULL,
+                     'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, 'csat', NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+
+        assertThat(totals).containsEntry("kpi_dialogs_per_shift_events", 2L);
+        assertThat(totals).containsEntry("kpi_csat_events", 2L);
+        assertThat(totals).containsEntry("kpi_dialogs_per_shift_recorded_events", 1L);
+        assertThat(totals).containsEntry("kpi_csat_recorded_events", 1L);
+    }
+
+    @Test
     void workspaceRolloutDecisionHoldsWhenPrimaryKpiOutcomesRegressInTestCohort() {
         for (int i = 0; i < 40; i++) {
             String cohort = i < 20 ? "control" : "test";

@@ -416,6 +416,22 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetryAcceptsSecondaryKpiEventTypes() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "kpi_csat_recorded",
+                                  "ticket_id": "T-3",
+                                  "secondary_kpis": ["CSAT", "DIALOGS_PER_SHIFT"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void workspaceTelemetryRejectsMissingEventType() throws Exception {
         mockMvc.perform(post("/api/dialogs/workspace-telemetry")
                         .contentType(MediaType.APPLICATION_JSON)
