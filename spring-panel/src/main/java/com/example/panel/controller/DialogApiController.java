@@ -46,6 +46,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/dialogs")
@@ -224,8 +225,11 @@ public class DialogApiController {
     }
 
     @GetMapping("/macro/variables")
-    public Map<String, Object> macroVariables() {
-        List<Map<String, String>> variables = new ArrayList<>(BUILTIN_MACRO_VARIABLES);
+    public Map<String, Object> macroVariables(@RequestParam(value = "ticketId", required = false) String ticketId,
+                                              Authentication authentication) {
+        List<Map<String, String>> variables = BUILTIN_MACRO_VARIABLES.stream()
+                .map(item -> macroVariable(item.get("key"), item.get("label"), null, "builtin"))
+                .collect(Collectors.toCollection(ArrayList::new));
         Map<String, Object> settings = sharedConfigService.loadSettings();
         Object configured = settings.get("macro_variable_catalog");
         if (configured instanceof List<?> entries) {
@@ -240,31 +244,53 @@ public class DialogApiController {
                     continue;
                 }
                 if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
-                    if (StringUtils.hasText(defaultValue)) {
-                        variables.add(macroVariable(key, label, defaultValue));
-                    } else {
-                        variables.add(macroVariable(key, label));
-                    }
+                    variables.add(macroVariable(key, label, defaultValue, "settings_catalog"));
                 }
             }
         }
         resolveDialogConfigMacroVariableDefaults(settings).forEach((key, defaultValue) -> {
             if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
-                variables.add(macroVariable(key, "Значение из dialog_config", defaultValue));
+                variables.add(macroVariable(key, "Значение из dialog_config", defaultValue, "dialog_config_default"));
+            }
+        });
+        if (StringUtils.hasText(ticketId)) {
+            String operator = authentication != null ? authentication.getName() : null;
+            Map<String, String> contextVariables = buildMacroVariables(ticketId.trim(), operator, null);
+            contextVariables.forEach((key, value) -> {
+                if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
+                    variables.add(macroVariable(key, humanizeMacroVariableLabel(key), value, "ticket_context"));
+                }
             }
         });
         return Map.of("success", true, "variables", variables);
     }
 
+    private String humanizeMacroVariableLabel(String key) {
+        if (!StringUtils.hasText(key)) {
+            return "Переменная";
+        }
+        return Arrays.stream(key.trim().toLowerCase().split("_"))
+                .filter(StringUtils::hasText)
+                .map(token -> Character.toUpperCase(token.charAt(0)) + token.substring(1))
+                .collect(Collectors.joining(" "));
+    }
+
     private static Map<String, String> macroVariable(String key, String label) {
-        return Map.of("key", key, "label", label);
+        return macroVariable(key, label, null, "builtin");
     }
 
     private static Map<String, String> macroVariable(String key, String label, String defaultValue) {
+        return macroVariable(key, label, defaultValue, "custom");
+    }
+
+    private static Map<String, String> macroVariable(String key, String label, String defaultValue, String source) {
         Map<String, String> variable = new LinkedHashMap<>();
         variable.put("key", key);
         variable.put("label", label);
-        variable.put("default_value", defaultValue);
+        variable.put("source", StringUtils.hasText(source) ? source : "custom");
+        if (StringUtils.hasText(defaultValue)) {
+            variable.put("default_value", defaultValue);
+        }
         return variable;
     }
 
