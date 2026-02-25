@@ -75,6 +75,8 @@ public class DialogApiController {
             Map.entry("workspace_fallback_to_legacy", "stability"),
             Map.entry("workspace_abandon", "engagement"),
             Map.entry("workspace_experiment_exposure", "experiment"),
+            Map.entry("workspace_draft_saved", "workspace"),
+            Map.entry("workspace_draft_restored", "workspace"),
             Map.entry("kpi_frt_recorded", "kpi"),
             Map.entry("kpi_ttr_recorded", "kpi"),
             Map.entry("kpi_sla_breach_recorded", "kpi"),
