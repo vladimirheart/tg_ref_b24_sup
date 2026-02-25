@@ -876,9 +876,13 @@ public class DialogService {
         long frtKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_events"))).sum();
         long ttrKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_events"))).sum();
         long slaBreachKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_events"))).sum();
+        long dialogsPerShiftKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_dialogs_per_shift_events"))).sum();
+        long csatKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_csat_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
+        long dialogsPerShiftRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_dialogs_per_shift_recorded_events"))).sum();
+        long csatRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_csat_recorded_events"))).sum();
 
         long weightedOpenCount = rows.stream()
                 .mapToLong(row -> Math.max(toLong(row.get("events"))
@@ -911,9 +915,13 @@ public class DialogService {
         totals.put("kpi_frt_events", frtKpiEvents);
         totals.put("kpi_ttr_events", ttrKpiEvents);
         totals.put("kpi_sla_breach_events", slaBreachKpiEvents);
+        totals.put("kpi_dialogs_per_shift_events", dialogsPerShiftKpiEvents);
+        totals.put("kpi_csat_events", csatKpiEvents);
         totals.put("kpi_frt_recorded_events", frtRecordedEvents);
         totals.put("kpi_ttr_recorded_events", ttrRecordedEvents);
         totals.put("kpi_sla_breach_recorded_events", slaBreachRecordedEvents);
+        totals.put("kpi_dialogs_per_shift_recorded_events", dialogsPerShiftRecordedEvents);
+        totals.put("kpi_csat_recorded_events", csatRecordedEvents);
         totals.put("avg_frt_ms", avgFrtMs);
         totals.put("avg_ttr_ms", avgTtrMs);
         totals.put("avg_open_ms", avgOpenMs);
@@ -1563,9 +1571,13 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
                        SUM(CASE WHEN event_type = 'kpi_sla_breach_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%sla_breach%' THEN 1 ELSE 0 END) AS kpi_sla_breach_events,
+                       SUM(CASE WHEN event_type = 'kpi_dialogs_per_shift_recorded' OR LOWER(COALESCE(secondary_kpis, '')) LIKE '%dialogs_per_shift%' THEN 1 ELSE 0 END) AS kpi_dialogs_per_shift_events,
+                       SUM(CASE WHEN event_type = 'kpi_csat_recorded' OR LOWER(COALESCE(secondary_kpis, '')) LIKE '%csat%' THEN 1 ELSE 0 END) AS kpi_csat_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' THEN 1 ELSE 0 END) AS kpi_frt_recorded_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' THEN 1 ELSE 0 END) AS kpi_ttr_recorded_events,
                        SUM(CASE WHEN event_type = 'kpi_sla_breach_recorded' THEN 1 ELSE 0 END) AS kpi_sla_breach_recorded_events,
+                       SUM(CASE WHEN event_type = 'kpi_dialogs_per_shift_recorded' THEN 1 ELSE 0 END) AS kpi_dialogs_per_shift_recorded_events,
+                       SUM(CASE WHEN event_type = 'kpi_csat_recorded' THEN 1 ELSE 0 END) AS kpi_csat_recorded_events,
                        AVG(CASE WHEN event_type = 'kpi_frt_recorded' THEN duration_ms END) AS avg_frt_ms,
                        AVG(CASE WHEN event_type = 'kpi_ttr_recorded' THEN duration_ms END) AS avg_ttr_ms,
                        AVG(CASE WHEN event_type = 'workspace_open_ms' THEN duration_ms END) AS avg_open_ms
@@ -1593,9 +1605,13 @@ public class DialogService {
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
                 item.put("kpi_sla_breach_events", rs.getLong("kpi_sla_breach_events"));
+                item.put("kpi_dialogs_per_shift_events", rs.getLong("kpi_dialogs_per_shift_events"));
+                item.put("kpi_csat_events", rs.getLong("kpi_csat_events"));
                 item.put("kpi_frt_recorded_events", rs.getLong("kpi_frt_recorded_events"));
                 item.put("kpi_ttr_recorded_events", rs.getLong("kpi_ttr_recorded_events"));
                 item.put("kpi_sla_breach_recorded_events", rs.getLong("kpi_sla_breach_recorded_events"));
+                item.put("kpi_dialogs_per_shift_recorded_events", rs.getLong("kpi_dialogs_per_shift_recorded_events"));
+                item.put("kpi_csat_recorded_events", rs.getLong("kpi_csat_recorded_events"));
                 item.put("avg_frt_ms", rs.getObject("avg_frt_ms") != null ? Math.round(rs.getDouble("avg_frt_ms")) : null);
                 item.put("avg_ttr_ms", rs.getObject("avg_ttr_ms") != null ? Math.round(rs.getDouble("avg_ttr_ms")) : null);
                 item.put("avg_open_ms", rs.getObject("avg_open_ms") != null ? Math.round(rs.getDouble("avg_open_ms")) : null);
