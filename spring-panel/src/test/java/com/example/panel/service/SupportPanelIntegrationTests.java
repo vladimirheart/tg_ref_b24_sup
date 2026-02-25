@@ -295,4 +295,59 @@ class SupportPanelIntegrationTests {
         assertThat(rolloutDecision).containsEntry("kpi_signal_ready", false);
     }
 
+    @Test
+    void workspaceRolloutDecisionHoldsWhenPrimaryKpiOutcomesRegressInTestCohort() {
+        for (int i = 0; i < 40; i++) {
+            String cohort = i < 20 ? "control" : "test";
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-outcome-open-" + i, "T-OUTCOME-OPEN-" + i, cohort.equals("test") ? 970L : 980L, cohort);
+        }
+
+        for (int i = 0; i < 12; i++) {
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-outcome-frt-" + i, "T-OUTCOME-FRT-" + i, i < 6 ? 1200L : 1700L, i < 6 ? "control" : "test");
+
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-outcome-ttr-" + i, "T-OUTCOME-TTR-" + i, i < 6 ? 2400L : 3600L, i < 6 ? "control" : "test");
+
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-outcome-sla-" + i, "T-OUTCOME-SLA-" + i, i < 6 ? "control" : "test");
+        }
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> cohortComparison = (Map<String, Object>) summary.get("cohort_comparison");
+        Map<String, Object> kpiOutcome = (Map<String, Object>) cohortComparison.get("kpi_outcome_signal");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+
+        assertThat(kpiOutcome.get("ready_for_decision")).isEqualTo(true);
+        assertThat(kpiOutcome.get("has_regression")).isEqualTo(true);
+        assertThat(rolloutDecision).containsEntry("action", "hold");
+        assertThat(rolloutDecision).containsEntry("kpi_outcome_ready", true);
+        assertThat(rolloutDecision).containsEntry("kpi_outcome_regressions", true);
+    }
+
 }
