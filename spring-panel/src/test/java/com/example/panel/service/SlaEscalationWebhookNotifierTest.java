@@ -350,6 +350,78 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("rule_pool:busy_operator:least_loaded", decisions.get(0).route());
     }
 
+
+    @Test
+    void findEscalationCandidatesIncludesSlaState() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Instant now = Instant.now();
+
+        DialogListItem overdue = dialog("T-overdue", now.minusSeconds(26 * 60 * 60).toString(), "open", null);
+        DialogListItem atRisk = dialog("T-risk", now.minusSeconds(23 * 60 * 60 + 40 * 60).toString(), "open", null);
+
+        List<Map<String, Object>> candidates = notifier.findEscalationCandidates(List.of(overdue, atRisk), 24 * 60, 120);
+        assertEquals(2, candidates.size());
+        assertEquals("breached", candidates.get(0).get("sla_state"));
+        assertEquals("at_risk", candidates.get(1).get("sla_state"));
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsMinutesLeftGteRuleFilter() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-overdue", "channel", "Telegram", "minutes_left", -6, "sla_state", "breached"),
+                Map.of("ticket_id", "T-risk", "channel", "Telegram", "minutes_left", 12, "sla_state", "at_risk")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "negative_window",
+                                "match_channel", "telegram",
+                                "match_minutes_left_lte", 0,
+                                "match_minutes_left_gte", -10,
+                                "assign_to", "breach_recovery"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("breach_recovery", decisions.get(0).assignee());
+        assertEquals("negative_window", decisions.get(0).route());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsSlaStateRouting() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-overdue", "channel", "Telegram", "minutes_left", -15, "sla_state", "overdue"),
+                Map.of("ticket_id", "T-risk", "channel", "Telegram", "minutes_left", 5, "sla_state", "at_risk")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "breached_only",
+                                "match_channel", "telegram",
+                                "match_sla_states", "breached,overdue",
+                                "assign_to", "incident_queue"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("incident_queue", decisions.get(0).assignee());
+        assertEquals("breached_only", decisions.get(0).route());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,

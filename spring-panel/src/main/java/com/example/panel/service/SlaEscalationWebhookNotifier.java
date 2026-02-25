@@ -260,6 +260,7 @@ public class SlaEscalationWebhookNotifier {
             Set<String> candidateCategories = parseCandidateCategories(candidate.get("categories"));
             Integer candidateUnreadCount = parseOptionalNonNegativeInt(candidate.get("unread_count"));
             Long candidateMinutesLeft = parseOptionalLong(candidate.get("minutes_left"));
+            String candidateSlaState = normalizeSlaState(candidate.get("sla_state"));
 
             AutoAssignRule matchedRule = findBestMatchedRule(
                     rules,
@@ -268,7 +269,8 @@ public class SlaEscalationWebhookNotifier {
                     candidateLocation,
                     candidateCategories,
                     candidateUnreadCount,
-                    candidateMinutesLeft
+                    candidateMinutesLeft,
+                    candidateSlaState
             );
             String assignee = matchedRule != null ? resolveRuleAssignee(matchedRule, ticketId) : fallbackAssignee;
             String source = matchedRule != null ? "rules" : "fallback";
@@ -315,6 +317,7 @@ public class SlaEscalationWebhookNotifier {
             row.put("location", dialog.location());
             row.put("categories", dialog.categories());
             row.put("unread_count", dialog.unreadCount());
+            row.put("sla_state", minutesLeft < 0 ? "breached" : "at_risk");
             result.add(row);
         }
         return result;
@@ -389,11 +392,12 @@ public class SlaEscalationWebhookNotifier {
                                                       String candidateLocation,
                                                       Set<String> candidateCategories,
                                                       Integer candidateUnreadCount,
-                                                      Long candidateMinutesLeft) {
+                                                      Long candidateMinutesLeft,
+                                                      String candidateSlaState) {
         AutoAssignRule best = null;
         for (AutoAssignRule rule : rules) {
             if (!rule.matches(candidateChannel, candidateBusiness, candidateLocation, candidateCategories,
-                    candidateUnreadCount, candidateMinutesLeft)) {
+                    candidateUnreadCount, candidateMinutesLeft, candidateSlaState)) {
                 continue;
             }
             if (best == null
@@ -425,9 +429,11 @@ public class SlaEscalationWebhookNotifier {
             Set<String> categories = parseRuleCategories(ruleMap.get("match_category"), ruleMap.get("match_categories"));
             Integer unreadMin = parseOptionalNonNegativeInt(ruleMap.get("match_unread_min"));
             Long minutesLeftLte = parseOptionalLong(ruleMap.get("match_minutes_left_lte"));
+            Long minutesLeftGte = parseOptionalLong(ruleMap.get("match_minutes_left_gte"));
+            Set<String> slaStates = parseRuleSlaStates(ruleMap.get("match_sla_state"), ruleMap.get("match_sla_states"));
             int priority = parsePriority(ruleMap.get("priority"));
             if (channel == null && business == null && location == null && categories.isEmpty()
-                    && unreadMin == null && minutesLeftLte == null) {
+                    && unreadMin == null && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()) {
                 continue;
             }
             String route = trimToNull(String.valueOf(ruleMap.get("rule_id")));
@@ -436,9 +442,48 @@ public class SlaEscalationWebhookNotifier {
             }
             PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
             rules.add(new AutoAssignRule(channel, business, location, categories,
-                    unreadMin, minutesLeftLte, priority, assignee, assigneePool, route, poolStrategy));
+                    unreadMin, minutesLeftLte, minutesLeftGte, slaStates,
+                    priority, assignee, assigneePool, route, poolStrategy));
         }
         return rules;
+    }
+
+
+    private Set<String> parseRuleSlaStates(Object rawState, Object rawStates) {
+        Set<String> values = new LinkedHashSet<>();
+        addSlaState(values, normalizeSlaState(rawState));
+        if (rawStates instanceof List<?> list) {
+            for (Object value : list) {
+                addSlaState(values, normalizeSlaState(value));
+            }
+        } else if (rawStates instanceof String text) {
+            String[] chunks = text.split("[,\n]");
+            for (String chunk : chunks) {
+                addSlaState(values, normalizeSlaState(chunk));
+            }
+        }
+        return values;
+    }
+
+    private void addSlaState(Set<String> values, String state) {
+        if (state != null) {
+            values.add(state);
+        }
+    }
+
+    private String normalizeSlaState(Object value) {
+        String normalized = trimToNull(String.valueOf(value));
+        if (normalized == null) {
+            return null;
+        }
+        String lowered = normalized.toLowerCase();
+        return switch (lowered) {
+            case "breached", "overdue", "expired" -> "breached";
+            case "at_risk", "risk", "warning" -> "at_risk";
+            case "normal", "ok" -> "normal";
+            case "closed" -> "closed";
+            default -> null;
+        };
     }
 
     private PoolAssignStrategy parsePoolAssignStrategy(Object rawValue) {
@@ -700,6 +745,8 @@ public class SlaEscalationWebhookNotifier {
                                   Set<String> categories,
                                   Integer unreadMin,
                                   Long minutesLeftLte,
+                                  Long minutesLeftGte,
+                                  Set<String> slaStates,
                                   int priority,
                                   String assignee,
                                   List<String> assigneePool,
@@ -710,7 +757,8 @@ public class SlaEscalationWebhookNotifier {
                         String candidateLocation,
                         Set<String> candidateCategories,
                         Integer candidateUnreadCount,
-                        Long candidateMinutesLeft) {
+                        Long candidateMinutesLeft,
+                        String candidateSlaState) {
             if (channel != null && (candidateChannel == null || !channel.equals(candidateChannel))) {
                 return false;
             }
@@ -735,6 +783,14 @@ public class SlaEscalationWebhookNotifier {
             if (minutesLeftLte != null && (candidateMinutesLeft == null || candidateMinutesLeft > minutesLeftLte)) {
                 return false;
             }
+            if (minutesLeftGte != null && (candidateMinutesLeft == null || candidateMinutesLeft < minutesLeftGte)) {
+                return false;
+            }
+            if (slaStates != null && !slaStates.isEmpty()) {
+                if (candidateSlaState == null || !slaStates.contains(candidateSlaState)) {
+                    return false;
+                }
+            }
             return true;
         }
 
@@ -756,6 +812,12 @@ public class SlaEscalationWebhookNotifier {
                 score++;
             }
             if (minutesLeftLte != null) {
+                score++;
+            }
+            if (minutesLeftGte != null) {
+                score++;
+            }
+            if (slaStates != null && !slaStates.isEmpty()) {
                 score++;
             }
             return score;
