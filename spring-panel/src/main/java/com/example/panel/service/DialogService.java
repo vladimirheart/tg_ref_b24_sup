@@ -719,7 +719,12 @@ public class DialogService {
         Map<String, Object> kpiSignal = safeCohortComparison.get("kpi_signal") instanceof Map<?, ?> kpi
                 ? castObjectMap(kpi)
                 : Map.of();
+        Map<String, Object> kpiOutcomeSignal = safeCohortComparison.get("kpi_outcome_signal") instanceof Map<?, ?> kpiOutcome
+                ? castObjectMap(kpiOutcome)
+                : Map.of();
         boolean kpiSignalReady = toBoolean(kpiSignal.get("ready_for_decision"));
+        boolean kpiOutcomeReady = toBoolean(kpiOutcomeSignal.get("ready_for_decision"));
+        boolean kpiOutcomeRegressions = toBoolean(kpiOutcomeSignal.get("has_regression"));
         String guardrailStatus = String.valueOf(safeGuardrails.getOrDefault("status", "ok"));
         boolean hasGuardrailIssues = "attention".equalsIgnoreCase(guardrailStatus);
 
@@ -731,6 +736,12 @@ public class DialogService {
         } else if (!kpiSignalReady) {
             action = "hold";
             rationale = "Недостаточно продуктовых KPI-сигналов (FRT/TTR/SLA breach) для автоматического rollout decision.";
+        } else if (!kpiOutcomeReady) {
+            action = "hold";
+            rationale = "Недостаточно измерений продуктовых KPI-результатов (FRT/TTR/SLA breach) для автоматического rollout decision.";
+        } else if (kpiOutcomeRegressions) {
+            action = "hold";
+            rationale = "Зафиксирована деградация по FRT/TTR/SLA breach в test cohort: rollout оставлен на hold до стабилизации.";
         } else if (hasGuardrailIssues) {
             action = "rollback";
             rationale = "Guardrails в статусе attention: rollout нужно приостановить и разобрать отклонения.";
@@ -747,6 +758,8 @@ public class DialogService {
         decision.put("guardrails_status", guardrailStatus);
         decision.put("sample_size_ok", sampleSizeOk);
         decision.put("kpi_signal_ready", kpiSignalReady);
+        decision.put("kpi_outcome_ready", kpiOutcomeReady);
+        decision.put("kpi_outcome_regressions", kpiOutcomeRegressions);
         decision.put("rationale", rationale);
         return decision;
     }
@@ -813,6 +826,7 @@ public class DialogService {
                 ? testAvgOpen - controlAvgOpen
                 : null);
         comparison.put("kpi_signal", buildPrimaryKpiSignal(controlTotals, testTotals, controlEvents, testEvents));
+        comparison.put("kpi_outcome_signal", buildPrimaryKpiOutcomeSignal(controlTotals, testTotals));
         comparison.put("winner", resolveWorkspaceCohortWinner(
                 enoughData,
                 testAvgOpen,
@@ -862,6 +876,9 @@ public class DialogService {
         long frtKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_events"))).sum();
         long ttrKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_events"))).sum();
         long slaBreachKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_events"))).sum();
+        long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
+        long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
+        long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
 
         long weightedOpenCount = rows.stream()
                 .mapToLong(row -> Math.max(toLong(row.get("events"))
@@ -883,6 +900,8 @@ public class DialogService {
                 })
                 .sum();
         Long avgOpenMs = weightedOpenCount > 0 ? Math.round((double) weightedOpenSum / weightedOpenCount) : null;
+        Long avgFrtMs = weightedAverage(rows, "kpi_frt_recorded_events", "avg_frt_ms");
+        Long avgTtrMs = weightedAverage(rows, "kpi_ttr_recorded_events", "avg_ttr_ms");
 
         totals.put("events", events);
         totals.put("render_errors", renderErrors);
@@ -892,8 +911,122 @@ public class DialogService {
         totals.put("kpi_frt_events", frtKpiEvents);
         totals.put("kpi_ttr_events", ttrKpiEvents);
         totals.put("kpi_sla_breach_events", slaBreachKpiEvents);
+        totals.put("kpi_frt_recorded_events", frtRecordedEvents);
+        totals.put("kpi_ttr_recorded_events", ttrRecordedEvents);
+        totals.put("kpi_sla_breach_recorded_events", slaBreachRecordedEvents);
+        totals.put("avg_frt_ms", avgFrtMs);
+        totals.put("avg_ttr_ms", avgTtrMs);
         totals.put("avg_open_ms", avgOpenMs);
         return totals;
+    }
+
+    private Long weightedAverage(List<Map<String, Object>> rows, String weightKey, String avgKey) {
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        long weightSum = 0L;
+        long weightedValueSum = 0L;
+        for (Map<String, Object> row : rows) {
+            long weight = toLong(row.get(weightKey));
+            Long avg = extractNullableLong(row.get(avgKey));
+            if (weight <= 0 || avg == null) {
+                continue;
+            }
+            weightSum += weight;
+            weightedValueSum += avg * weight;
+        }
+        return weightSum > 0 ? Math.round((double) weightedValueSum / weightSum) : null;
+    }
+
+    private Map<String, Object> buildPrimaryKpiOutcomeSignal(Map<String, Object> controlTotals,
+                                                             Map<String, Object> testTotals) {
+        Map<String, Object> signal = new LinkedHashMap<>();
+        Map<String, Object> metrics = new LinkedHashMap<>();
+
+        Map<String, Object> frtMetric = buildLatencyMetricSignal(
+                "frt",
+                extractNullableLong(controlTotals.get("avg_frt_ms")),
+                extractNullableLong(testTotals.get("avg_frt_ms")),
+                toLong(controlTotals.get("kpi_frt_recorded_events")),
+                toLong(testTotals.get("kpi_frt_recorded_events")),
+                0.10d);
+        Map<String, Object> ttrMetric = buildLatencyMetricSignal(
+                "ttr",
+                extractNullableLong(controlTotals.get("avg_ttr_ms")),
+                extractNullableLong(testTotals.get("avg_ttr_ms")),
+                toLong(controlTotals.get("kpi_ttr_recorded_events")),
+                toLong(testTotals.get("kpi_ttr_recorded_events")),
+                0.10d);
+        Map<String, Object> slaBreachMetric = buildRateMetricSignal(
+                "sla_breach",
+                toLong(controlTotals.get("kpi_sla_breach_recorded_events")),
+                toLong(testTotals.get("kpi_sla_breach_recorded_events")),
+                0.02d,
+                1.20d);
+
+        metrics.put("frt", frtMetric);
+        metrics.put("ttr", ttrMetric);
+        metrics.put("sla_breach", slaBreachMetric);
+
+        boolean ready = toBoolean(frtMetric.get("ready"))
+                && toBoolean(ttrMetric.get("ready"))
+                && toBoolean(slaBreachMetric.get("ready"));
+        boolean hasRegression = toBoolean(frtMetric.get("regression"))
+                || toBoolean(ttrMetric.get("regression"))
+                || toBoolean(slaBreachMetric.get("regression"));
+
+        signal.put("ready_for_decision", ready);
+        signal.put("has_regression", hasRegression);
+        signal.put("metrics", metrics);
+        return signal;
+    }
+
+    private Map<String, Object> buildLatencyMetricSignal(String key,
+                                                         Long controlAvgMs,
+                                                         Long testAvgMs,
+                                                         long controlSamples,
+                                                         long testSamples,
+                                                         double maxRelativeRegression) {
+        Map<String, Object> metric = new LinkedHashMap<>();
+        boolean ready = controlSamples >= 5 && testSamples >= 5 && controlAvgMs != null && testAvgMs != null;
+        Long deltaMs = ready ? testAvgMs - controlAvgMs : null;
+        double relativeDelta = ready && controlAvgMs > 0 ? (double) deltaMs / controlAvgMs : 0d;
+        boolean regression = ready && relativeDelta > maxRelativeRegression;
+        metric.put("type", "latency_ms");
+        metric.put("key", key);
+        metric.put("control_value", controlAvgMs);
+        metric.put("test_value", testAvgMs);
+        metric.put("control_samples", controlSamples);
+        metric.put("test_samples", testSamples);
+        metric.put("delta", deltaMs);
+        metric.put("relative_delta", relativeDelta);
+        metric.put("max_relative_regression", maxRelativeRegression);
+        metric.put("ready", ready);
+        metric.put("regression", regression);
+        return metric;
+    }
+
+    private Map<String, Object> buildRateMetricSignal(String key,
+                                                      long controlCount,
+                                                      long testCount,
+                                                      double maxAbsoluteDelta,
+                                                      double maxRelativeMultiplier) {
+        Map<String, Object> metric = new LinkedHashMap<>();
+        boolean ready = controlCount >= 5 && testCount >= 5;
+        double delta = testCount - controlCount;
+        double multiplier = controlCount > 0 ? (double) testCount / controlCount : (testCount > 0 ? Double.POSITIVE_INFINITY : 1d);
+        boolean regression = ready && (delta > maxAbsoluteDelta * Math.max(controlCount, 1) || multiplier > maxRelativeMultiplier);
+        metric.put("type", "events_count");
+        metric.put("key", key);
+        metric.put("control_value", controlCount);
+        metric.put("test_value", testCount);
+        metric.put("delta", delta);
+        metric.put("multiplier", multiplier);
+        metric.put("max_absolute_delta", maxAbsoluteDelta);
+        metric.put("max_relative_multiplier", maxRelativeMultiplier);
+        metric.put("ready", ready);
+        metric.put("regression", regression);
+        return metric;
     }
 
     private Map<String, Object> buildWorkspaceTelemetryComparison(Map<String, Object> currentTotals,
@@ -1427,9 +1560,14 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_fallback_to_legacy' THEN 1 ELSE 0 END) AS fallbacks,
                        SUM(CASE WHEN event_type = 'workspace_abandon' THEN 1 ELSE 0 END) AS abandons,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
-                       SUM(CASE WHEN LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
-                       SUM(CASE WHEN LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
-                       SUM(CASE WHEN LOWER(COALESCE(primary_kpis, '')) LIKE '%sla_breach%' THEN 1 ELSE 0 END) AS kpi_sla_breach_events,
+                       SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
+                       SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
+                       SUM(CASE WHEN event_type = 'kpi_sla_breach_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%sla_breach%' THEN 1 ELSE 0 END) AS kpi_sla_breach_events,
+                       SUM(CASE WHEN event_type = 'kpi_frt_recorded' THEN 1 ELSE 0 END) AS kpi_frt_recorded_events,
+                       SUM(CASE WHEN event_type = 'kpi_ttr_recorded' THEN 1 ELSE 0 END) AS kpi_ttr_recorded_events,
+                       SUM(CASE WHEN event_type = 'kpi_sla_breach_recorded' THEN 1 ELSE 0 END) AS kpi_sla_breach_recorded_events,
+                       AVG(CASE WHEN event_type = 'kpi_frt_recorded' THEN duration_ms END) AS avg_frt_ms,
+                       AVG(CASE WHEN event_type = 'kpi_ttr_recorded' THEN duration_ms END) AS avg_ttr_ms,
                        AVG(CASE WHEN event_type = 'workspace_open_ms' THEN duration_ms END) AS avg_open_ms
                   FROM workspace_telemetry_audit
                  WHERE created_at >= ?
@@ -1455,6 +1593,11 @@ public class DialogService {
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
                 item.put("kpi_sla_breach_events", rs.getLong("kpi_sla_breach_events"));
+                item.put("kpi_frt_recorded_events", rs.getLong("kpi_frt_recorded_events"));
+                item.put("kpi_ttr_recorded_events", rs.getLong("kpi_ttr_recorded_events"));
+                item.put("kpi_sla_breach_recorded_events", rs.getLong("kpi_sla_breach_recorded_events"));
+                item.put("avg_frt_ms", rs.getObject("avg_frt_ms") != null ? Math.round(rs.getDouble("avg_frt_ms")) : null);
+                item.put("avg_ttr_ms", rs.getObject("avg_ttr_ms") != null ? Math.round(rs.getDouble("avg_ttr_ms")) : null);
                 item.put("avg_open_ms", rs.getObject("avg_open_ms") != null ? Math.round(rs.getDouble("avg_open_ms")) : null);
                 return item;
             }, cutoffStart, cutoffEnd, filterExperiment, filterExperiment);
