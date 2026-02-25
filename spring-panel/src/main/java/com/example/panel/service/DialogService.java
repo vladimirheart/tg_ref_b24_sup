@@ -946,18 +946,18 @@ public class DialogService {
             double minCoverage = Math.min(controlCoverage, testCoverage);
             boolean eventsReady = minObserved >= minKpiEvents;
             boolean coverageReady = minCoverage >= minCoverageRate;
-            metrics.put(kpi, Map.of(
-                    "control", control,
-                    "test", test,
-                    "control_coverage", controlCoverage,
-                    "test_coverage", testCoverage,
-                    "min_coverage", minCoverage,
-                    "min_coverage_threshold", minCoverageRate,
-                    "min_observed", minObserved,
-                    "threshold", minKpiEvents,
-                    "events_ready", eventsReady,
-                    "coverage_ready", coverageReady,
-                    "ready", eventsReady && coverageReady
+            metrics.put(kpi, Map.ofEntries(
+                    Map.entry("control", control),
+                    Map.entry("test", test),
+                    Map.entry("control_coverage", controlCoverage),
+                    Map.entry("test_coverage", testCoverage),
+                    Map.entry("min_coverage", minCoverage),
+                    Map.entry("min_coverage_threshold", minCoverageRate),
+                    Map.entry("min_observed", minObserved),
+                    Map.entry("threshold", minKpiEvents),
+                    Map.entry("events_ready", eventsReady),
+                    Map.entry("coverage_ready", coverageReady),
+                    Map.entry("ready", eventsReady && coverageReady)
             ));
             if (!eventsReady || !coverageReady) {
                 ready = false;
