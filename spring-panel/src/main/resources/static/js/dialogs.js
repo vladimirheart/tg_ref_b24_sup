@@ -1041,9 +1041,17 @@
     const badge = slaCell.querySelector('.dialog-sla-badge');
     if (!badge) return;
     const state = computeSlaState(row);
+    const criticalPinned = isCriticalSlaDialog(row);
+    const escalationRequired = isEscalationRequiredDialog(row);
+    const pinMarker = criticalPinned ? ' 📌' : '';
+    const escalationMarker = escalationRequired ? ' ⚠' : '';
     badge.className = `badge rounded-pill dialog-sla-badge ${state.className}`;
-    badge.textContent = state.label;
-    badge.title = state.title || '';
+    badge.textContent = `${state.label}${pinMarker}${escalationMarker}`;
+    const markers = [
+      criticalPinned ? 'Автопин: критичный SLA' : '',
+      escalationRequired ? 'Требуется эскалация' : '',
+    ].filter(Boolean).join(' · ');
+    badge.title = markers ? `${state.title || ''} · ${markers}` : (state.title || '');
   }
 
   function updateAllSlaBadges() {
@@ -1605,6 +1613,29 @@
 
     const rows = selectedRows();
     if (!rows.length) return;
+
+    const eligibilitySelectorMap = {
+      take: '.dialog-take-btn:not(.d-none)',
+      snooze: '.dialog-snooze-btn:not(.d-none)',
+      close: '.dialog-close-btn:not(.d-none)',
+    };
+    const selector = eligibilitySelectorMap[action];
+    const eligibleRows = selector
+      ? rows.filter((row) => Boolean(row.querySelector(selector)))
+      : rows;
+    const skippedRows = rows.filter((row) => !eligibleRows.includes(row));
+    if (!eligibleRows.length) {
+      if (typeof showNotification === 'function') {
+        showNotification('Нет диалогов, подходящих для выбранного группового действия.', 'warning');
+      }
+      emitWorkspaceTelemetry('triage_bulk_action', {
+        reason: `${action || 'unknown'}:nothing_eligible:selected=${rows.length}`,
+      });
+      return;
+    }
+    if (skippedRows.length && typeof showNotification === 'function') {
+      showNotification(`Пропущено ${skippedRows.length} диалог(ов): действие недоступно для текущего статуса/прав.`, 'warning');
+    }
     let processedCount = 0;
     const originalDisabled = [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn]
       .filter(Boolean)
@@ -1614,7 +1645,7 @@
     });
 
     const errors = [];
-    for (const row of rows) {
+    for (const row of eligibleRows) {
       const ticketId = String(row.dataset.ticketId || '');
       if (!ticketId) continue;
       try {
@@ -1657,8 +1688,8 @@
       showNotification(successMap[action] || 'Групповое действие выполнено', 'success');
     }
     emitWorkspaceTelemetry('triage_bulk_action', {
-      reason: `${action || 'unknown'}:${errors.length ? 'partial_failure' : 'success'}:processed=${processedCount}:errors=${errors.length}`,
-      ticketId: rows.length === 1 ? String(rows[0]?.dataset?.ticketId || '') : null,
+      reason: `${action || 'unknown'}:${errors.length ? 'partial_failure' : 'success'}:processed=${processedCount}:errors=${errors.length}:skipped=${skippedRows.length}`,
+      ticketId: eligibleRows.length === 1 ? String(eligibleRows[0]?.dataset?.ticketId || '') : null,
     });
 
     clearSelection();
@@ -5255,11 +5286,11 @@
       scheduleWorkspaceDraftAutosave();
     });
     workspaceComposerText.addEventListener('keydown', (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      if (((event.ctrlKey || event.metaKey || event.altKey) && event.key === 'Enter')) {
         event.preventDefault();
         sendWorkspaceReply();
       }
-      if ((event.ctrlKey || event.metaKey) && String(event.key).toLowerCase() === 's') {
+      if (((event.ctrlKey || event.metaKey || event.altKey) && String(event.key).toLowerCase() === 's')) {
         event.preventDefault();
         saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'manual' });
       }
