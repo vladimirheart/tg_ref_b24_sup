@@ -260,6 +260,8 @@
   const STORAGE_WORKSPACE_AB = 'iguana:dialogs:workspace-ab-cohort';
   const OPERATOR_IDENTITY = String(document.body?.dataset?.operatorIdentity || 'anonymous').trim() || 'anonymous';
   const STORAGE_WORKSPACE_DRAFT_PREFIX = 'iguana:dialogs:workspace-draft:';
+  const WORKSPACE_DRAFT_AUTOSAVE_DELAY_MS = Math.max(300, Math.min(5000, Number(window.DIALOG_CONFIG?.workspace_draft_autosave_delay_ms) || 900));
+  const WORKSPACE_DRAFT_TELEMETRY_MIN_INTERVAL_MS = Math.max(5000, Math.min(120000, Number(window.DIALOG_CONFIG?.workspace_draft_telemetry_interval_ms) || 30000));
   const DIALOGS_TELEMETRY_EVENT_GROUPS = Object.freeze({
     workspace_open_ms: 'performance',
     workspace_render_error: 'stability',
@@ -278,6 +280,8 @@
     triage_bulk_action: 'triage',
     macro_preview: 'macro',
     macro_apply: 'macro',
+    workspace_draft_saved: 'workspace',
+    workspace_draft_restored: 'workspace',
   });
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
@@ -292,6 +296,9 @@
   let workspaceMessagesNextCursor = null;
   let workspaceMessagesHasMore = false;
   let workspaceMessagesLoadingMore = false;
+  let workspaceDraftAutosaveTimer = null;
+  let workspaceDraftLastSavedValue = '';
+  let workspaceDraftLastTelemetryAt = 0;
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -2044,6 +2051,32 @@
     return `${STORAGE_WORKSPACE_DRAFT_PREFIX}${String(ticketId || '').trim()}`;
   }
 
+  function getStoredWorkspaceDraft(ticketId) {
+    if (!ticketId) return '';
+    try {
+      return localStorage.getItem(getWorkspaceDraftStorageKey(ticketId)) || '';
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  function hasUnsavedWorkspaceComposerChanges(nextTicketId) {
+    if (!workspaceComposerText || !workspaceComposerTicketId) return false;
+    if (!workspaceComposerText.value.trim()) return false;
+    if (String(nextTicketId || '').trim() === String(workspaceComposerTicketId || '').trim()) return false;
+    const stored = getStoredWorkspaceDraft(workspaceComposerTicketId).trim();
+    return workspaceComposerText.value.trim() !== stored;
+  }
+
+  function confirmWorkspaceTicketSwitch(nextTicketId) {
+    if (!hasUnsavedWorkspaceComposerChanges(nextTicketId)) return true;
+    const accepted = window.confirm('Есть несохранённые изменения в черновике. Сохранить текущий черновик перед переключением диалога?');
+    if (accepted) {
+      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '', { reason: 'manual' });
+    }
+    return accepted;
+  }
+
   function updateWorkspaceDraftState(text) {
     if (!workspaceComposerDraftState) return;
     workspaceComposerDraftState.textContent = text || 'Черновик не сохранён';
@@ -2059,8 +2092,20 @@
         updateWorkspaceDraftState('Черновик очищен');
       } else {
         localStorage.setItem(storageKey, value);
+        workspaceDraftLastSavedValue = value;
         if (!options.silent) {
           updateWorkspaceDraftState(`Черновик сохранён · ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+        }
+        const now = Date.now();
+        const shouldSendDraftTelemetry = options.reason === 'manual'
+          || (options.reason === 'autosave' && now - workspaceDraftLastTelemetryAt >= WORKSPACE_DRAFT_TELEMETRY_MIN_INTERVAL_MS);
+        if (shouldSendDraftTelemetry) {
+          workspaceDraftLastTelemetryAt = now;
+          emitWorkspaceTelemetry('workspace_draft_saved', {
+            ticketId,
+            reason: options.reason || 'manual',
+            length: value.length,
+          });
         }
       }
     } catch (_error) {
@@ -2074,15 +2119,33 @@
     try {
       const stored = localStorage.getItem(storageKey);
       workspaceComposerText.value = stored || '';
+      workspaceDraftLastSavedValue = workspaceComposerText.value.trim();
       if (stored) {
         updateWorkspaceDraftState('Черновик восстановлен');
+        emitWorkspaceTelemetry('workspace_draft_restored', {
+          ticketId,
+          length: stored.length,
+        });
       } else {
         updateWorkspaceDraftState('Черновик не сохранён');
       }
     } catch (_error) {
       workspaceComposerText.value = '';
+      workspaceDraftLastSavedValue = '';
       updateWorkspaceDraftState('Не удалось загрузить черновик');
     }
+  }
+
+  function scheduleWorkspaceDraftAutosave() {
+    if (!workspaceComposerTicketId || !workspaceComposerText) return;
+    const value = workspaceComposerText.value.trim();
+    if (workspaceDraftAutosaveTimer) {
+      window.clearTimeout(workspaceDraftAutosaveTimer);
+    }
+    workspaceDraftAutosaveTimer = window.setTimeout(() => {
+      if (value === workspaceDraftLastSavedValue) return;
+      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'autosave' });
+    }, WORKSPACE_DRAFT_AUTOSAVE_DELAY_MS);
   }
 
   function appendWorkspaceMessage(message) {
@@ -2804,6 +2867,9 @@
 
   function openDialogEntry(ticketId, row) {
     if (!ticketId) return;
+    if (!confirmWorkspaceTicketSwitch(ticketId)) {
+      return;
+    }
     setWorkspaceReadonlyMode(false);
     if (!WORKSPACE_EXPERIENCE_ENABLED) {
       openDialogDetails(ticketId, row);
@@ -5067,13 +5133,13 @@
 
   if (workspaceComposerSaveDraft) {
     workspaceComposerSaveDraft.addEventListener('click', () => {
-      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '');
+      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '', { reason: 'manual' });
     });
   }
 
   if (workspaceComposerText) {
     workspaceComposerText.addEventListener('input', () => {
-      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { silent: true });
+      scheduleWorkspaceDraftAutosave();
     });
     workspaceComposerText.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
@@ -5082,7 +5148,7 @@
       }
       if ((event.ctrlKey || event.metaKey) && String(event.key).toLowerCase() === 's') {
         event.preventDefault();
-        saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value);
+        saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'manual' });
       }
     });
   }
@@ -5207,12 +5273,22 @@
     }
   }
 
+  window.addEventListener('beforeunload', () => {
+    if (!workspaceComposerTicketId || !workspaceComposerText || !workspaceComposerText.value.trim()) return;
+    saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'autosave' });
+  });
+
   if (WORKSPACE_EXPERIENCE_ENABLED && WORKSPACE_INLINE_NAVIGATION) {
     window.addEventListener('popstate', () => {
       const path = window.location.pathname || '';
       const match = path.match(/^\/dialogs\/([^/]+)$/);
       if (!match?.[1]) return;
       const ticketId = decodeURIComponent(match[1]);
+      if (!confirmWorkspaceTicketSwitch(ticketId)) {
+        const rollbackUrl = buildWorkspaceDialogUrl(activeWorkspaceTicketId, activeWorkspaceChannelId);
+        window.history.pushState({ ticketId: activeWorkspaceTicketId }, '', rollbackUrl);
+        return;
+      }
       const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
       setActiveDialogRow(row, { ensureVisible: true });
       openDialogWithWorkspaceFallback(ticketId, row, { source: 'initial_route' });
