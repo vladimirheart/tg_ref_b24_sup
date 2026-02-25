@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -37,6 +38,7 @@ public class SlaEscalationWebhookNotifier {
     private final DialogService dialogService;
     private final ObjectMapper objectMapper;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
+    private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
     record WebhookEndpoint(String url, Map<String, String> headers) {}
 
@@ -268,7 +270,7 @@ public class SlaEscalationWebhookNotifier {
                     candidateUnreadCount,
                     candidateMinutesLeft
             );
-            String assignee = matchedRule != null ? matchedRule.resolveAssignee(ticketId) : fallbackAssignee;
+            String assignee = matchedRule != null ? resolveRuleAssignee(matchedRule, ticketId) : fallbackAssignee;
             String source = matchedRule != null ? "rules" : "fallback";
             String route = matchedRule != null ? matchedRule.route() : "fallback_default";
             if (assignee == null) {
@@ -432,10 +434,65 @@ public class SlaEscalationWebhookNotifier {
             if (route == null) {
                 route = trimToNull(String.valueOf(ruleMap.get("name")));
             }
+            PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
             rules.add(new AutoAssignRule(channel, business, location, categories,
-                    unreadMin, minutesLeftLte, priority, assignee, assigneePool, route));
+                    unreadMin, minutesLeftLte, priority, assignee, assigneePool, route, poolStrategy));
         }
         return rules;
+    }
+
+    private PoolAssignStrategy parsePoolAssignStrategy(Object rawValue) {
+        String raw = trimToNull(String.valueOf(rawValue));
+        if (raw == null) {
+            return PoolAssignStrategy.HASH_BY_TICKET;
+        }
+        return switch (raw.trim().toLowerCase()) {
+            case "round_robin", "rr" -> PoolAssignStrategy.ROUND_ROBIN;
+            case "least_loaded", "least_load", "load" -> PoolAssignStrategy.LEAST_LOADED;
+            default -> PoolAssignStrategy.HASH_BY_TICKET;
+        };
+    }
+
+    private String resolveRuleAssignee(AutoAssignRule rule, String ticketId) {
+        if (rule.assigneePool() == null || rule.assigneePool().isEmpty()) {
+            return rule.assignee();
+        }
+        return switch (rule.poolAssignStrategy()) {
+            case ROUND_ROBIN -> resolvePoolAssigneeRoundRobin(rule);
+            case LEAST_LOADED -> resolvePoolAssigneeLeastLoaded(rule.assigneePool());
+            case HASH_BY_TICKET -> resolvePoolAssigneeByHash(rule.assigneePool(), ticketId);
+        };
+    }
+
+    private String resolvePoolAssigneeByHash(List<String> assigneePool, String ticketId) {
+        int idx = Math.floorMod(String.valueOf(ticketId).hashCode(), assigneePool.size());
+        return assigneePool.get(idx);
+    }
+
+    private String resolvePoolAssigneeRoundRobin(AutoAssignRule rule) {
+        String key = rule.route();
+        int cursor = roundRobinCursorByRoute.compute(key, (k, value) -> value == null ? 0 : value + 1);
+        int idx = Math.floorMod(cursor, rule.assigneePool().size());
+        return rule.assigneePool().get(idx);
+    }
+
+    private String resolvePoolAssigneeLeastLoaded(List<String> assigneePool) {
+        if (dialogService == null) {
+            return assigneePool.get(0);
+        }
+        Map<String, Long> openLoadByOperator = new LinkedHashMap<>();
+        for (String operator : assigneePool) {
+            long openCount = dialogService.loadDialogs(operator).stream()
+                    .filter(dialog -> "open".equals(normalizeLifecycleState(dialog.statusKey())))
+                    .count();
+            openLoadByOperator.put(operator, openCount);
+        }
+        return assigneePool.stream()
+                .sorted(Comparator
+                        .comparingLong((String operator) -> openLoadByOperator.getOrDefault(operator, Long.MAX_VALUE))
+                        .thenComparing(String::compareToIgnoreCase))
+                .findFirst()
+                .orElse(assigneePool.get(0));
     }
 
 
@@ -631,6 +688,12 @@ public class SlaEscalationWebhookNotifier {
     record AutoAssignDecision(String ticketId, String assignee, String source, String route) {
     }
 
+    private enum PoolAssignStrategy {
+        HASH_BY_TICKET,
+        ROUND_ROBIN,
+        LEAST_LOADED
+    }
+
     private record AutoAssignRule(String channel,
                                   String business,
                                   String location,
@@ -640,7 +703,8 @@ public class SlaEscalationWebhookNotifier {
                                   int priority,
                                   String assignee,
                                   List<String> assigneePool,
-                                  String routeName) {
+                                  String routeName,
+                                  PoolAssignStrategy poolAssignStrategy) {
         boolean matches(String candidateChannel,
                         String candidateBusiness,
                         String candidateLocation,
@@ -697,14 +761,6 @@ public class SlaEscalationWebhookNotifier {
             return score;
         }
 
-        String resolveAssignee(String ticketId) {
-            if (assigneePool != null && !assigneePool.isEmpty()) {
-                int idx = Math.floorMod(String.valueOf(ticketId).hashCode(), assigneePool.size());
-                return assigneePool.get(idx);
-            }
-            return assignee;
-        }
-
         String route() {
             if (routeName != null) {
                 return routeName;
@@ -713,7 +769,7 @@ public class SlaEscalationWebhookNotifier {
                 return "rule:" + assignee;
             }
             if (assigneePool != null && !assigneePool.isEmpty()) {
-                return "rule_pool:" + assigneePool.get(0);
+                return "rule_pool:" + assigneePool.get(0) + ":" + poolAssignStrategy.name().toLowerCase();
             }
             return "rule:unknown";
         }
