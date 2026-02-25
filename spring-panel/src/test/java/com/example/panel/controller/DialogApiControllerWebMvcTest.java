@@ -399,6 +399,23 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetryAcceptsKpiRecordedEventType() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "kpi_frt_recorded",
+                                  "ticket_id": "T-2",
+                                  "duration_ms": 1430,
+                                  "primary_kpis": ["FRT", "TTR", "SLA_BREACH"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void workspaceTelemetryRejectsMissingEventType() throws Exception {
         mockMvc.perform(post("/api/dialogs/workspace-telemetry")
                         .contentType(MediaType.APPLICATION_JSON)
