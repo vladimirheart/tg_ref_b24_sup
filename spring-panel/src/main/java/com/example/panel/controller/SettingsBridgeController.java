@@ -634,6 +634,19 @@ public class SettingsBridgeController {
             int version = resolveTemplateVersion(previous);
             boolean changedMeaningfully = templateMeaningfullyChanged(previous, name, message, tags)
                 || !Objects.equals(normalizeWorkflowForComparison(previous != null ? previous.get("workflow") : null), workflow);
+
+            boolean previouslyPublished = previous != null && asBoolean(previous.get("published"));
+            if (!canPublishMacros && previouslyPublished && changedMeaningfully) {
+                warnings.add("Недостаточно прав для изменения опубликованного макроса «"
+                    + name
+                    + "»: правки сохранены только для пользователей с правом DIALOG_MACRO_PUBLISH.");
+                name = stringValue(previous.get("name"));
+                message = stringValue(previous.get("message"));
+                tags = normalizeTemplateTags(previous.get("tags"));
+                workflow = normalizeMacroWorkflow(previous.get("workflow"), previous);
+                changedMeaningfully = false;
+            }
+
             if (changedMeaningfully) {
                 version += 1;
             }
@@ -679,7 +692,7 @@ public class SettingsBridgeController {
             if (!approvedForPublish) {
                 published = false;
             }
-            boolean wasPublished = previous != null && asBoolean(previous.get("published"));
+            boolean wasPublished = previouslyPublished;
             String previousPublishedAt = previous != null ? stringValue(previous.get("published_at")) : "";
             String previousPublishedBy = previous != null ? stringValue(previous.get("published_by")) : "";
             String publishedAt = published
