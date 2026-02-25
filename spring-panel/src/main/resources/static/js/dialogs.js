@@ -286,6 +286,7 @@
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
   let macroVariableCatalogInitialized = false;
+  let macroVariableCatalogTicketId = null;
   let macroVariableDefaults = {};
   let workspaceComposerTicketId = '';
   let workspaceComposerMacroTemplates = [];
@@ -3432,8 +3433,13 @@
       const key = String(item?.key || '').trim();
       const label = String(item?.label || '').trim();
       const defaultValue = String(item?.default_value || '').trim();
+      const source = String(item?.source || '').trim();
       code.textContent = `{{${key}}}`;
-      code.title = defaultValue ? `${label || key} · default: ${defaultValue}` : (label || key);
+      const titleParts = [];
+      if (label || key) titleParts.push(label || key);
+      if (defaultValue) titleParts.push(`default: ${defaultValue}`);
+      if (source) titleParts.push(`source: ${source}`);
+      code.title = titleParts.join(' · ');
       macroVariableCatalog.appendChild(code);
       if (index < variables.length - 1) {
         macroVariableCatalog.appendChild(document.createTextNode(', '));
@@ -3453,9 +3459,11 @@
     return defaults;
   }
 
-  async function initMacroVariableCatalog() {
-    if (macroVariableCatalogInitialized) return;
+  async function initMacroVariableCatalog(ticketId, forceReload = false) {
+    const normalizedTicketId = ticketId ? String(ticketId).trim() : '';
+    if (!forceReload && macroVariableCatalogInitialized && macroVariableCatalogTicketId === normalizedTicketId) return;
     macroVariableCatalogInitialized = true;
+    macroVariableCatalogTicketId = normalizedTicketId;
     const fallbackVariables = [
       { key: 'client_name', label: 'Имя клиента' },
       { key: 'ticket_id', label: 'ID обращения' },
@@ -3469,7 +3477,10 @@
       { key: 'current_time', label: 'Текущее время' },
     ];
     try {
-      const response = await fetch('/api/dialogs/macro/variables', { headers: { Accept: 'application/json' } });
+      const params = new URLSearchParams();
+      if (normalizedTicketId) params.set('ticketId', normalizedTicketId);
+      const endpoint = params.toString() ? `/api/dialogs/macro/variables?${params.toString()}` : '/api/dialogs/macro/variables';
+      const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       const catalogVariables = Array.isArray(payload?.variables) ? payload.variables : fallbackVariables;
@@ -3610,7 +3621,7 @@
       macroTemplatesCache = templates;
       macroTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates) {
-        initMacroVariableCatalog();
+        initMacroVariableCatalog(activeDialogTicketId, true);
       }
       if (hasTemplates && macroTemplateSelect) {
         renderMacroTemplateOptions(templates);
@@ -4203,6 +4214,7 @@
   async function openDialogDetails(ticketId, fallbackRow) {
     if (!ticketId || !detailsModal) return;
     activeDialogTicketId = ticketId;
+    initMacroVariableCatalog(ticketId, true);
     setActiveDialogRow(fallbackRow || null, { ensureVisible: true });
     activeDialogChannelId = fallbackRow?.dataset?.channelId || null;
     updateDialogUnreadCount(Number(fallbackRow?.dataset?.unread) || 0);
@@ -4870,6 +4882,7 @@
     });
     detailsModalEl.addEventListener('hidden.bs.modal', () => {
       activeDialogTicketId = null;
+      initMacroVariableCatalog(null, true);
       activeDialogChannelId = null;
       setActiveDialogRow(null);
       if (detailsReplyText) detailsReplyText.value = '';
