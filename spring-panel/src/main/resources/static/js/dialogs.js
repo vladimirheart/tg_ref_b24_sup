@@ -2514,16 +2514,24 @@
       'language',
       'segments',
       'external_links',
+      'attribute_labels',
+      'attribute_order',
     ]);
     const rows = fields
       .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
       .map(([label, value]) => `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(String(value))}</span></div>`)
       .join('');
 
-    const extraRows = Object.entries(client)
-      .filter(([key, value]) => !reservedClientKeys.has(key) && isWorkspaceClientExtraValue(value))
+    const extraAttributeLabelMap = resolveWorkspaceClientAttributeLabelMap(client.attribute_labels);
+    const extraAttributeOrder = resolveWorkspaceClientAttributeOrder(client.attribute_order);
+    const orderedExtraEntries = orderWorkspaceClientExtraEntries(
+      Object.entries(client)
+        .filter(([key, value]) => !reservedClientKeys.has(key) && isWorkspaceClientExtraValue(value)),
+      extraAttributeOrder,
+    );
+    const extraRows = orderedExtraEntries
       .map(([key, value]) => {
-        const label = prettifyWorkspaceClientExtraKey(key);
+        const label = extraAttributeLabelMap.get(normalizeWorkspaceClientAttributeKey(key)) || prettifyWorkspaceClientExtraKey(key);
         return `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(formatWorkspaceClientExtraValue(value))}</span></div>`;
       })
       .join('');
@@ -2582,6 +2590,61 @@
       .replace(/\s+/g, ' ')
       .trim()
       .replace(/^./, (char) => char.toUpperCase()) || 'Атрибут';
+  }
+
+  function resolveWorkspaceClientAttributeLabelMap(rawLabels) {
+    const labels = new Map();
+    if (!rawLabels || typeof rawLabels !== 'object') {
+      return labels;
+    }
+    Object.entries(rawLabels).forEach(([key, value]) => {
+      const normalizedKey = normalizeWorkspaceClientAttributeKey(key);
+      const label = String(value || '').trim();
+      if (!normalizedKey || !label) return;
+      labels.set(normalizedKey, label);
+    });
+    return labels;
+  }
+
+  function resolveWorkspaceClientAttributeOrder(rawOrder) {
+    if (!Array.isArray(rawOrder)) {
+      return [];
+    }
+    const order = [];
+    rawOrder.forEach((item) => {
+      const normalizedKey = normalizeWorkspaceClientAttributeKey(item);
+      if (!normalizedKey || order.includes(normalizedKey)) return;
+      order.push(normalizedKey);
+    });
+    return order;
+  }
+
+  function orderWorkspaceClientExtraEntries(entries, order) {
+    if (!Array.isArray(entries) || entries.length === 0 || !Array.isArray(order) || order.length === 0) {
+      return Array.isArray(entries) ? entries : [];
+    }
+    const priority = new Map(order.map((key, index) => [key, index]));
+    return [...entries].sort(([leftKey], [rightKey]) => {
+      const leftPriority = priority.has(normalizeWorkspaceClientAttributeKey(leftKey))
+        ? priority.get(normalizeWorkspaceClientAttributeKey(leftKey))
+        : Number.POSITIVE_INFINITY;
+      const rightPriority = priority.has(normalizeWorkspaceClientAttributeKey(rightKey))
+        ? priority.get(normalizeWorkspaceClientAttributeKey(rightKey))
+        : Number.POSITIVE_INFINITY;
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority;
+      }
+      return String(leftKey).localeCompare(String(rightKey), 'ru');
+    });
+  }
+
+  function normalizeWorkspaceClientAttributeKey(key) {
+    return String(key || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_+/g, '_');
   }
 
   function resolveWorkspaceFallbackReason(error) {
