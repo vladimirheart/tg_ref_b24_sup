@@ -1975,10 +1975,20 @@
                       <label for="dialogSlaAutoAssignActor" class="form-label">Audit actor</label>
                       <input type="text" class="form-control" id="dialogSlaAutoAssignActor" placeholder="sla_orchestrator">
                     </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaAutoAssignMaxOpenPerOperator" class="form-label">Лимит open-диалогов на оператора</label>
+                      <input type="number" class="form-control" id="dialogSlaAutoAssignMaxOpenPerOperator" min="1" max="5000" step="1" placeholder="Без ограничения">
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaAutoAssignRequireCategories">
+                        <label class="form-check-label" for="dialogSlaAutoAssignRequireCategories">Только с заполненными категориями</label>
+                      </div>
+                    </div>
                     <div class="col-12">
                       <label for="dialogSlaAutoAssignRules" class="form-label">Правила auto-assign (JSON-массив)</label>
                       <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
-                      <div class="form-text">Поддерживаются match_channel(s), match_business(es), match_location(s), match_category(ies), match_categories_mode=any|all, match_sla_state(s), match_unread_min/max, assign_to/assign_to_pool.</div>
+                      <div class="form-text">Поддерживаются match_channel(s), match_business(es), match_location(s), match_category(ies), match_categories_mode=any|all, match_sla_state(s), match_unread_min/max, match_request_prefix(es), assign_to/assign_to_pool.</div>
                     </div>
                     <div class="col-md-3">
                       <div class="form-check mt-4 pt-2">
@@ -3849,6 +3859,8 @@
     auto_assign_max_per_run: 5,
     auto_assign_actor: 'sla_orchestrator',
     auto_assign_rules: [],
+    auto_assign_max_open_per_operator: null,
+    auto_assign_require_categories: false,
     escalation_webhook_enabled: false,
     escalation_webhook_urls: '',
     escalation_webhook_cooldown_minutes: 30,
@@ -12862,6 +12874,8 @@
       autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
       autoAssignMaxPerRun: document.getElementById('dialogSlaAutoAssignMaxPerRun'),
       autoAssignActor: document.getElementById('dialogSlaAutoAssignActor'),
+      autoAssignMaxOpenPerOperator: document.getElementById('dialogSlaAutoAssignMaxOpenPerOperator'),
+      autoAssignRequireCategories: document.getElementById('dialogSlaAutoAssignRequireCategories'),
       autoAssignRules: document.getElementById('dialogSlaAutoAssignRules'),
       escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
       escalationWebhookUrls: document.getElementById('dialogSlaEscalationWebhookUrls'),
@@ -12962,6 +12976,15 @@
     if (inputs.autoAssignActor) {
       const actor = String(DIALOG_CONFIG.sla_critical_auto_assign_actor || '').trim();
       inputs.autoAssignActor.value = actor || DEFAULT_DIALOG_SLA_CONFIG.auto_assign_actor;
+    }
+    if (inputs.autoAssignMaxOpenPerOperator) {
+      const maxOpen = Number.parseInt(DIALOG_CONFIG.sla_critical_auto_assign_max_open_per_operator, 10);
+      inputs.autoAssignMaxOpenPerOperator.value = Number.isFinite(maxOpen) && maxOpen >= 1
+        ? Math.min(5000, maxOpen)
+        : '';
+    }
+    if (inputs.autoAssignRequireCategories instanceof HTMLInputElement) {
+      inputs.autoAssignRequireCategories.checked = Boolean(DIALOG_CONFIG.sla_critical_auto_assign_require_categories);
     }
     if (inputs.autoAssignRules) {
       const rawRules = Array.isArray(DIALOG_CONFIG.sla_critical_auto_assign_rules)
@@ -13340,8 +13363,19 @@
       : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_max_per_run;
     const safeAutoAssignActor = String(inputs.autoAssignActor?.value || '').trim()
       || DEFAULT_DIALOG_SLA_CONFIG.auto_assign_actor;
+    const autoAssignMaxOpenPerOperatorRaw = Math.round(Number(inputs.autoAssignMaxOpenPerOperator?.value));
+    const safeAutoAssignMaxOpenPerOperator = Number.isFinite(autoAssignMaxOpenPerOperatorRaw)
+      ? Math.min(5000, Math.max(1, autoAssignMaxOpenPerOperatorRaw))
+      : null;
     if (!Number.isFinite(autoAssignMaxPerRunRaw) || autoAssignMaxPerRunRaw < 1 || autoAssignMaxPerRunRaw > 100) {
       errors.push('Лимит авто-назначений за проход должен быть в диапазоне 1..100.');
+    }
+    const autoAssignMaxOpenPerOperatorHasValue = String(inputs.autoAssignMaxOpenPerOperator?.value || '').trim() !== '';
+    if (autoAssignMaxOpenPerOperatorHasValue
+      && (!Number.isFinite(autoAssignMaxOpenPerOperatorRaw)
+        || autoAssignMaxOpenPerOperatorRaw < 1
+        || autoAssignMaxOpenPerOperatorRaw > 5000)) {
+      errors.push('Лимит open-диалогов на оператора должен быть в диапазоне 1..5000 или пустым.');
     }
     let safeAutoAssignRules = [];
     const autoAssignRulesRaw = (inputs.autoAssignRules?.value || '').trim();
@@ -13962,6 +13996,8 @@
         dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),
         dialog_sla_critical_auto_assign_max_per_run: safeAutoAssignMaxPerRun,
         dialog_sla_critical_auto_assign_actor: safeAutoAssignActor,
+        dialog_sla_critical_auto_assign_max_open_per_operator: safeAutoAssignMaxOpenPerOperator,
+        dialog_sla_critical_auto_assign_require_categories: Boolean(inputs.autoAssignRequireCategories?.checked),
         dialog_sla_critical_auto_assign_rules: safeAutoAssignRules,
         dialog_sla_critical_escalation_webhook_enabled: Boolean(inputs.escalationWebhookEnabled?.checked),
         dialog_sla_critical_escalation_webhook_urls: safeEscalationWebhookUrls,
