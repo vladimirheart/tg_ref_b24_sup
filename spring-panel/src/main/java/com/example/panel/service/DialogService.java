@@ -39,6 +39,8 @@ public class DialogService {
     private static final double DEFAULT_KPI_OUTCOME_TTR_MAX_RELATIVE_REGRESSION = 0.10d;
     private static final double DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_ABSOLUTE_DELTA = 0.02d;
     private static final double DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_RELATIVE_MULTIPLIER = 1.20d;
+    private static final double DEFAULT_WORKSPACE_WINNER_MIN_OPEN_IMPROVEMENT = 0d;
+    private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
     private static final double DEFAULT_GUARDRAIL_ABANDON_RATE = 0.10d;
@@ -823,6 +825,7 @@ public class DialogService {
 
         Long controlAvgOpen = extractNullableLong(controlTotals.get("avg_open_ms"));
         Long testAvgOpen = extractNullableLong(testTotals.get("avg_open_ms"));
+        double minOpenImprovementPercent = resolveWinnerMinOpenImprovementPercent();
 
         long minCohortEvents = resolveLongConfig(telemetryConfig, "cohort_min_events", DEFAULT_COHORT_MIN_EVENTS, 5, 1000);
         boolean enoughData = controlEvents >= minCohortEvents && testEvents >= minCohortEvents;
@@ -840,6 +843,7 @@ public class DialogService {
         comparison.put("avg_open_ms_delta", (testAvgOpen != null && controlAvgOpen != null)
                 ? testAvgOpen - controlAvgOpen
                 : null);
+        comparison.put("winner_min_open_improvement_percent", minOpenImprovementPercent * 100d);
         comparison.put("kpi_signal", buildPrimaryKpiSignal(controlTotals, testTotals, controlEvents, testEvents));
         comparison.put("kpi_outcome_signal", buildPrimaryKpiOutcomeSignal(controlTotals, testTotals));
         comparison.put("winner", resolveWorkspaceCohortWinner(
@@ -853,7 +857,8 @@ public class DialogService {
                 testAbandonRate,
                 controlAbandonRate,
                 testSlowOpenRate,
-                controlSlowOpenRate));
+                controlSlowOpenRate,
+                minOpenImprovementPercent));
         return comparison;
     }
 
@@ -867,7 +872,8 @@ public class DialogService {
                                                 double testAbandonRate,
                                                 double controlAbandonRate,
                                                 double testSlowOpenRate,
-                                                double controlSlowOpenRate) {
+                                                double controlSlowOpenRate,
+                                                double minOpenImprovementPercent) {
         if (!enoughData || testAvgOpen == null || controlAvgOpen == null) {
             return "insufficient_data";
         }
@@ -878,7 +884,10 @@ public class DialogService {
         if (technicalRegressions) {
             return "control";
         }
-        return testAvgOpen <= controlAvgOpen ? "test" : "control";
+        double relativeImprovement = controlAvgOpen > 0
+                ? (double) (controlAvgOpen - testAvgOpen) / controlAvgOpen
+                : 0d;
+        return relativeImprovement >= minOpenImprovementPercent ? "test" : "control";
     }
 
     private Map<String, Object> computeWorkspaceTelemetryTotals(List<Map<String, Object>> rows) {
@@ -1003,13 +1012,20 @@ public class DialogService {
         metrics.put("ttr", ttrMetric);
         metrics.put("sla_breach", slaBreachMetric);
 
-        boolean ready = toBoolean(frtMetric.get("ready"))
-                && toBoolean(ttrMetric.get("ready"))
-                && toBoolean(slaBreachMetric.get("ready"));
-        boolean hasRegression = toBoolean(frtMetric.get("regression"))
-                || toBoolean(ttrMetric.get("regression"))
-                || toBoolean(slaBreachMetric.get("regression"));
+        Set<String> requiredOutcomeKpis = resolveRequiredOutcomeKpis();
+        List<Map<String, Object>> evaluatedMetrics = metrics.entrySet().stream()
+                .filter(entry -> requiredOutcomeKpis.contains(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .map(this::castObjectMap)
+                .toList();
+        boolean ready = !evaluatedMetrics.isEmpty()
+                && evaluatedMetrics.stream().allMatch(metric -> toBoolean(metric.get("ready")));
+        boolean hasRegression = evaluatedMetrics.stream().anyMatch(metric -> toBoolean(metric.get("regression")));
 
+        signal.put("required_kpis", requiredOutcomeKpis);
+        signal.put("evaluated_kpis", evaluatedMetrics.stream()
+                .map(metric -> String.valueOf(metric.get("key")))
+                .toList());
         signal.put("ready_for_decision", ready);
         signal.put("has_regression", hasRegression);
         signal.put("min_samples_per_cohort", minSamplesPerCohort);
@@ -1131,6 +1147,52 @@ public class DialogService {
             }
         }
         return DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_ABSOLUTE_DELTA;
+    }
+
+    private Set<String> resolveRequiredOutcomeKpis() {
+        Object value = resolveDialogConfigValue("workspace_rollout_required_outcome_kpis");
+        Set<String> resolved = parseKpiKeySet(value);
+        return resolved.isEmpty() ? DEFAULT_REQUIRED_KPI_OUTCOME_KEYS : resolved;
+    }
+
+    private Set<String> parseKpiKeySet(Object rawValue) {
+        if (rawValue == null) {
+            return Set.of();
+        }
+        List<String> values = new ArrayList<>();
+        if (rawValue instanceof List<?> list) {
+            for (Object item : list) {
+                values.add(String.valueOf(item));
+            }
+        } else {
+            values.addAll(List.of(String.valueOf(rawValue).split(",")));
+        }
+        return values.stream()
+                .map(value -> String.valueOf(value).trim().toLowerCase())
+                .filter(StringUtils::hasText)
+                .filter(DEFAULT_REQUIRED_KPI_OUTCOME_KEYS::contains)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private double resolveWinnerMinOpenImprovementPercent() {
+        Object value = resolveDialogConfigValue("workspace_rollout_winner_min_open_improvement");
+        if (value instanceof Number number) {
+            double normalized = number.doubleValue();
+            if (normalized >= 0d && normalized <= 0.5d) {
+                return normalized;
+            }
+        }
+        if (value instanceof String text) {
+            try {
+                double parsed = Double.parseDouble(text.trim());
+                if (parsed >= 0d && parsed <= 0.5d) {
+                    return parsed;
+                }
+            } catch (Exception ignored) {
+                return DEFAULT_WORKSPACE_WINNER_MIN_OPEN_IMPROVEMENT;
+            }
+        }
+        return DEFAULT_WORKSPACE_WINNER_MIN_OPEN_IMPROVEMENT;
     }
 
     private double resolveOutcomeRateRelativeMultiplierThreshold() {
