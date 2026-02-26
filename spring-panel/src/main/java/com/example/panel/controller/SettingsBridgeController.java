@@ -152,6 +152,15 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_escalation_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_to")
+                || payload.containsKey("dialog_sla_critical_auto_assign_max_per_run")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_urls")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_cooldown_minutes")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_timeout_ms")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_retry_attempts")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_retry_backoff_ms")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_event_name")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_severity")
                 || payload.containsKey("dialog_sla_window_presets_minutes")
                 || payload.containsKey("dialog_sla_window_default_minutes")
                 || payload.containsKey("dialog_default_view")
@@ -218,6 +227,33 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_auto_assign_to")) {
                     dialogConfig.put("sla_critical_auto_assign_to", payload.get("dialog_sla_critical_auto_assign_to"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_max_per_run")) {
+                    dialogConfig.put("sla_critical_auto_assign_max_per_run", payload.get("dialog_sla_critical_auto_assign_max_per_run"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_enabled", payload.get("dialog_sla_critical_escalation_webhook_enabled"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_urls")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_urls", payload.get("dialog_sla_critical_escalation_webhook_urls"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_cooldown_minutes")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_cooldown_minutes", payload.get("dialog_sla_critical_escalation_webhook_cooldown_minutes"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_timeout_ms")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_timeout_ms", payload.get("dialog_sla_critical_escalation_webhook_timeout_ms"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_retry_attempts")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_retry_attempts", payload.get("dialog_sla_critical_escalation_webhook_retry_attempts"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_retry_backoff_ms")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_retry_backoff_ms", payload.get("dialog_sla_critical_escalation_webhook_retry_backoff_ms"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_event_name")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_event_name", payload.get("dialog_sla_critical_escalation_webhook_event_name"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_severity")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_severity", payload.get("dialog_sla_critical_escalation_webhook_severity"));
                 }
                 if (payload.containsKey("dialog_sla_window_presets_minutes")) {
                     dialogConfig.put("sla_window_presets_minutes", payload.get("dialog_sla_window_presets_minutes"));
