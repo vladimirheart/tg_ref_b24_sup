@@ -2032,6 +2032,15 @@
                         <option value="escalation_required">Нужна эскалация</option>
                       </select>
                     </div>
+                    <div class="col-md-3">
+                      <label for="dialogQuickSnoozeMinutes" class="form-label">Quick snooze, мин</label>
+                      <input type="number" class="form-control" id="dialogQuickSnoozeMinutes" min="5" max="1440" step="5">
+                      <div class="form-text">Длительность действия «Отложить» в triage и bulk.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogOverdueThresholdHours" class="form-label">Порог view «Просроченные», ч</label>
+                      <input type="number" class="form-control" id="dialogOverdueThresholdHours" min="1" max="168" step="1">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Workspace runtime-параметры</h6>
@@ -2058,6 +2067,14 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceDraftTelemetryIntervalMs" class="form-label">Интервал telemetry черновиков, мс</label>
                       <input type="number" class="form-control" id="dialogWorkspaceDraftTelemetryIntervalMs" min="5000" max="120000" step="1000">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogListPollIntervalMs" class="form-label">Интервал автообновления списка, мс</label>
+                      <input type="number" class="form-control" id="dialogListPollIntervalMs" min="3000" max="60000" step="500">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogHistoryPollIntervalMs" class="form-label">Интервал обновления истории, мс</label>
+                      <input type="number" class="form-control" id="dialogHistoryPollIntervalMs" min="3000" max="60000" step="500">
                     </div>
                   </div>
                   <hr class="my-4">
@@ -3714,6 +3731,10 @@
     workspace_draft_autosave_delay_ms: 900,
     workspace_draft_telemetry_interval_ms: 30000,
     workspace_inline_navigation: true,
+    quick_snooze_minutes: 60,
+    overdue_threshold_hours: 24,
+    list_poll_interval_ms: 8000,
+    history_poll_interval_ms: 8000,
     workspace_guardrail_render_error_rate: 0.01,
     workspace_guardrail_fallback_rate: 0.03,
     workspace_guardrail_abandon_rate: 0.10,
@@ -12697,11 +12718,15 @@
       slaWindowPresets: document.getElementById('dialogSlaWindowPresets'),
       slaWindowDefault: document.getElementById('dialogSlaWindowDefault'),
       defaultView: document.getElementById('dialogDefaultView'),
+      quickSnoozeMinutes: document.getElementById('dialogQuickSnoozeMinutes'),
+      overdueThresholdHours: document.getElementById('dialogOverdueThresholdHours'),
       workspaceInlineNavigation: document.getElementById('dialogWorkspaceInlineNavigation'),
       workspaceContractTimeout: document.getElementById('dialogWorkspaceContractTimeoutMs'),
       workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
       workspaceDraftAutosaveDelay: document.getElementById('dialogWorkspaceDraftAutosaveDelayMs'),
       workspaceDraftTelemetryInterval: document.getElementById('dialogWorkspaceDraftTelemetryIntervalMs'),
+      listPollIntervalMs: document.getElementById('dialogListPollIntervalMs'),
+      historyPollIntervalMs: document.getElementById('dialogHistoryPollIntervalMs'),
       guardrailRenderErrorRate: document.getElementById('dialogWorkspaceGuardrailRenderErrorRate'),
       guardrailFallbackRate: document.getElementById('dialogWorkspaceGuardrailFallbackRate'),
       guardrailAbandonRate: document.getElementById('dialogWorkspaceGuardrailAbandonRate'),
@@ -12815,6 +12840,18 @@
       const allowedViews = new Set(['all', 'active', 'new', 'unassigned', 'overdue', 'sla_critical', 'escalation_required']);
       inputs.defaultView.value = allowedViews.has(normalizedView) ? normalizedView : 'all';
     }
+    if (inputs.quickSnoozeMinutes) {
+      const quickSnooze = Number.parseInt(DIALOG_CONFIG.quick_snooze_minutes, 10);
+      inputs.quickSnoozeMinutes.value = Number.isFinite(quickSnooze) && quickSnooze >= 5
+        ? Math.min(1440, quickSnooze)
+        : DEFAULT_DIALOG_SLA_CONFIG.quick_snooze_minutes;
+    }
+    if (inputs.overdueThresholdHours) {
+      const overdueThreshold = Number.parseInt(DIALOG_CONFIG.overdue_threshold_hours, 10);
+      inputs.overdueThresholdHours.value = Number.isFinite(overdueThreshold) && overdueThreshold >= 1
+        ? Math.min(168, overdueThreshold)
+        : DEFAULT_DIALOG_SLA_CONFIG.overdue_threshold_hours;
+    }
     if (inputs.workspaceInlineNavigation instanceof HTMLInputElement) {
       inputs.workspaceInlineNavigation.checked = DIALOG_CONFIG.workspace_inline_navigation !== false;
     }
@@ -12841,6 +12878,18 @@
       inputs.workspaceDraftTelemetryInterval.value = Number.isFinite(telemetryInterval) && telemetryInterval >= 5000
         ? telemetryInterval
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_telemetry_interval_ms;
+    }
+    if (inputs.listPollIntervalMs) {
+      const listPoll = Number.parseInt(DIALOG_CONFIG.list_poll_interval_ms, 10);
+      inputs.listPollIntervalMs.value = Number.isFinite(listPoll) && listPoll >= 3000
+        ? Math.min(60000, listPoll)
+        : DEFAULT_DIALOG_SLA_CONFIG.list_poll_interval_ms;
+    }
+    if (inputs.historyPollIntervalMs) {
+      const historyPoll = Number.parseInt(DIALOG_CONFIG.history_poll_interval_ms, 10);
+      inputs.historyPollIntervalMs.value = Number.isFinite(historyPoll) && historyPoll >= 3000
+        ? Math.min(60000, historyPoll)
+        : DEFAULT_DIALOG_SLA_CONFIG.history_poll_interval_ms;
     }
     const applyPercent = (input, rawValue, fallback) => {
       if (!input) return;
@@ -13005,6 +13054,10 @@
     const workspaceRetryAttemptsRaw = Math.round(Number(inputs.workspaceRetryAttempts?.value));
     const workspaceAutosaveDelayRaw = Math.round(Number(inputs.workspaceDraftAutosaveDelay?.value));
     const workspaceTelemetryIntervalRaw = Math.round(Number(inputs.workspaceDraftTelemetryInterval?.value));
+    const quickSnoozeMinutesRaw = Math.round(Number(inputs.quickSnoozeMinutes?.value));
+    const overdueThresholdHoursRaw = Math.round(Number(inputs.overdueThresholdHours?.value));
+    const listPollIntervalRaw = Math.round(Number(inputs.listPollIntervalMs?.value));
+    const historyPollIntervalRaw = Math.round(Number(inputs.historyPollIntervalMs?.value));
 
     const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
       ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
@@ -13018,6 +13071,18 @@
     const safeWorkspaceTelemetryInterval = Number.isFinite(workspaceTelemetryIntervalRaw)
       ? Math.min(120000, Math.max(5000, workspaceTelemetryIntervalRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_telemetry_interval_ms;
+    const safeQuickSnoozeMinutes = Number.isFinite(quickSnoozeMinutesRaw)
+      ? Math.min(1440, Math.max(5, quickSnoozeMinutesRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.quick_snooze_minutes;
+    const safeOverdueThresholdHours = Number.isFinite(overdueThresholdHoursRaw)
+      ? Math.min(168, Math.max(1, overdueThresholdHoursRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.overdue_threshold_hours;
+    const safeListPollInterval = Number.isFinite(listPollIntervalRaw)
+      ? Math.min(60000, Math.max(3000, listPollIntervalRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.list_poll_interval_ms;
+    const safeHistoryPollInterval = Number.isFinite(historyPollIntervalRaw)
+      ? Math.min(60000, Math.max(3000, historyPollIntervalRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.history_poll_interval_ms;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
@@ -13035,6 +13100,18 @@
     }
     if (!Number.isFinite(workspaceTelemetryIntervalRaw) || workspaceTelemetryIntervalRaw < 5000 || workspaceTelemetryIntervalRaw > 120000) {
       errors.push('Интервал telemetry черновиков должен быть в диапазоне 5000..120000 мс.');
+    }
+    if (!Number.isFinite(quickSnoozeMinutesRaw) || quickSnoozeMinutesRaw < 5 || quickSnoozeMinutesRaw > 1440) {
+      errors.push('Quick snooze должен быть в диапазоне 5..1440 минут.');
+    }
+    if (!Number.isFinite(overdueThresholdHoursRaw) || overdueThresholdHoursRaw < 1 || overdueThresholdHoursRaw > 168) {
+      errors.push('Порог просроченных диалогов должен быть в диапазоне 1..168 часов.');
+    }
+    if (!Number.isFinite(listPollIntervalRaw) || listPollIntervalRaw < 3000 || listPollIntervalRaw > 60000) {
+      errors.push('Интервал автообновления списка должен быть в диапазоне 3000..60000 мс.');
+    }
+    if (!Number.isFinite(historyPollIntervalRaw) || historyPollIntervalRaw < 3000 || historyPollIntervalRaw > 60000) {
+      errors.push('Интервал обновления истории должен быть в диапазоне 3000..60000 мс.');
     }
 
     const parsePercentThreshold = (rawValue, fallbackValue, label) => {
@@ -13296,11 +13373,15 @@
         dialog_sla_window_presets_minutes: safeSlaWindowPresets,
         dialog_sla_window_default_minutes: safeSlaWindowDefault,
         dialog_default_view: safeDefaultView,
+        dialog_quick_snooze_minutes: safeQuickSnoozeMinutes,
+        dialog_overdue_threshold_hours: safeOverdueThresholdHours,
         dialog_workspace_inline_navigation: Boolean(inputs.workspaceInlineNavigation?.checked),
         dialog_workspace_contract_timeout_ms: safeWorkspaceContractTimeout,
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
         dialog_workspace_draft_autosave_delay_ms: safeWorkspaceAutosaveDelay,
         dialog_workspace_draft_telemetry_interval_ms: safeWorkspaceTelemetryInterval,
+        dialog_list_poll_interval_ms: safeListPollInterval,
+        dialog_history_poll_interval_ms: safeHistoryPollInterval,
         dialog_workspace_guardrail_render_error_rate: safeRenderErrorRate,
         dialog_workspace_guardrail_fallback_rate: safeFallbackRate,
         dialog_workspace_guardrail_abandon_rate: safeAbandonRate,

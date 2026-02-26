@@ -164,6 +164,10 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_window_presets_minutes")
                 || payload.containsKey("dialog_sla_window_default_minutes")
                 || payload.containsKey("dialog_default_view")
+                || payload.containsKey("dialog_quick_snooze_minutes")
+                || payload.containsKey("dialog_overdue_threshold_hours")
+                || payload.containsKey("dialog_list_poll_interval_ms")
+                || payload.containsKey("dialog_history_poll_interval_ms")
                 || payload.containsKey("dialog_workspace_inline_navigation")
                 || payload.containsKey("dialog_workspace_contract_timeout_ms")
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
@@ -263,6 +267,18 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_default_view")) {
                     dialogConfig.put("default_view", payload.get("dialog_default_view"));
+                }
+                if (payload.containsKey("dialog_quick_snooze_minutes")) {
+                    dialogConfig.put("quick_snooze_minutes", payload.get("dialog_quick_snooze_minutes"));
+                }
+                if (payload.containsKey("dialog_overdue_threshold_hours")) {
+                    dialogConfig.put("overdue_threshold_hours", payload.get("dialog_overdue_threshold_hours"));
+                }
+                if (payload.containsKey("dialog_list_poll_interval_ms")) {
+                    dialogConfig.put("list_poll_interval_ms", payload.get("dialog_list_poll_interval_ms"));
+                }
+                if (payload.containsKey("dialog_history_poll_interval_ms")) {
+                    dialogConfig.put("history_poll_interval_ms", payload.get("dialog_history_poll_interval_ms"));
                 }
                 if (payload.containsKey("dialog_workspace_inline_navigation")) {
                     dialogConfig.put("workspace_inline_navigation", payload.get("dialog_workspace_inline_navigation"));

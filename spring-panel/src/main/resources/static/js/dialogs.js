@@ -162,8 +162,10 @@
   const STORAGE_VIEW = 'iguana:dialogs:view';
   const STORAGE_SLA_WINDOW = 'iguana:dialogs:sla-window';
   const STORAGE_SORT_MODE = 'iguana:dialogs:sort-mode';
-  const HISTORY_POLL_INTERVAL = 8000;
-  const LIST_POLL_INTERVAL = 8000;
+  const DEFAULT_LIST_POLL_INTERVAL_MS = 8000;
+  const DEFAULT_HISTORY_POLL_INTERVAL_MS = 8000;
+  const DEFAULT_QUICK_SNOOZE_MINUTES = 60;
+  const DEFAULT_OVERDUE_THRESHOLD_HOURS = 24;
   const DEFAULT_PAGE_SIZE = 20;
   const DEFAULT_DIALOG_FONT = 14;
   const DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
@@ -228,10 +230,37 @@
     return normalized.length ? normalized : [15, 30, 60, 120];
   }
 
+  function normalizeNumberInRange(value, fallbackValue, minValue, maxValue) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) {
+      return fallbackValue;
+    }
+    return Math.min(maxValue, Math.max(minValue, parsed));
+  }
+
   function normalizeDialogView(value) {
     const normalized = String(value || '').trim().toLowerCase();
     const allowed = new Set(['all', 'active', 'new', 'unassigned', 'overdue', 'sla_critical', 'escalation_required']);
     return allowed.has(normalized) ? normalized : 'all';
+  }
+
+  function formatSnoozeActionLabel(minutes) {
+    const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
+    if (normalizedMinutes % 60 === 0) {
+      const hours = normalizedMinutes / 60;
+      return `Отложить ${hours}ч`;
+    }
+    return `Отложить ${normalizedMinutes}м`;
+  }
+
+  function formatBulkSnoozeLabel(minutes) {
+    const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
+    if (normalizedMinutes % 60 === 0) {
+      const hours = normalizedMinutes / 60;
+      const hoursLabel = hours === 1 ? '1 час' : `${hours} ч`;
+      return `Выбранные диалоги отложены на ${hoursLabel}`;
+    }
+    return `Выбранные диалоги отложены на ${normalizedMinutes} мин`;
   }
 
   const SLA_TARGET_MINUTES = normalizeSlaMinutes(
@@ -253,6 +282,30 @@
     return Number.isFinite(parsed) && DIALOG_SLA_WINDOW_PRESETS.includes(parsed) ? parsed : null;
   })();
   const DIALOG_DEFAULT_VIEW = normalizeDialogView(window.DIALOG_CONFIG?.default_view || 'all');
+  const QUICK_SNOOZE_MINUTES = normalizeNumberInRange(
+    window.DIALOG_CONFIG?.quick_snooze_minutes,
+    DEFAULT_QUICK_SNOOZE_MINUTES,
+    5,
+    24 * 60,
+  );
+  const OVERDUE_THRESHOLD_HOURS = normalizeNumberInRange(
+    window.DIALOG_CONFIG?.overdue_threshold_hours,
+    DEFAULT_OVERDUE_THRESHOLD_HOURS,
+    1,
+    168,
+  );
+  const LIST_POLL_INTERVAL = normalizeNumberInRange(
+    window.DIALOG_CONFIG?.list_poll_interval_ms,
+    DEFAULT_LIST_POLL_INTERVAL_MS,
+    3000,
+    60000,
+  );
+  const HISTORY_POLL_INTERVAL = normalizeNumberInRange(
+    window.DIALOG_CONFIG?.history_poll_interval_ms,
+    DEFAULT_HISTORY_POLL_INTERVAL_MS,
+    3000,
+    60000,
+  );
   const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
@@ -1215,7 +1268,7 @@
         <td class="dialog-actions">
           <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
           <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${hasResponsible || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Назначить мне</button>
-          <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Отложить 1ч</button>
+          <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
           <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
           <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
              data-ticket-id="${escapeHtml(ticketId)}"
@@ -1267,7 +1320,9 @@
       snoozeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_snooze'));
       const ticketId = row.dataset.ticketId;
       const until = getSnoozeUntil(ticketId);
-      snoozeBtn.textContent = until ? `Отложен до ${new Date(until).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : 'Отложить 1ч';
+      snoozeBtn.textContent = until
+        ? `Отложен до ${new Date(until).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+        : formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
     }
   }
 
@@ -1548,7 +1603,7 @@
     if (!createdAtRaw) return false;
     const createdAt = new Date(createdAtRaw);
     if (Number.isNaN(createdAt.getTime())) return false;
-    const overdueThresholdMs = 24 * 60 * 60 * 1000;
+    const overdueThresholdMs = OVERDUE_THRESHOLD_HOURS * 60 * 60 * 1000;
     return Date.now() - createdAt.getTime() > overdueThresholdMs;
   }
 
@@ -1669,7 +1724,7 @@
   async function runBulkAction(action) {
     const permissionMap = {
       take: ['can_bulk', 'can_assign', 'Назначить выбранные на меня'],
-      snooze: ['can_bulk', 'can_snooze', 'Отложить выбранные на 1ч'],
+      snooze: ['can_bulk', 'can_snooze', `Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`],
       close: ['can_bulk', 'can_close', 'Закрыть выбранные'],
     };
     const [bulkPermission, actionPermission, actionTitle] = permissionMap[action] || [];
@@ -1727,8 +1782,8 @@
         if (action === 'snooze') {
           const snoozeBtn = row.querySelector('.dialog-snooze-btn:not(.d-none)');
           if (!snoozeBtn) continue;
-          await snoozeDialog(ticketId, 60, snoozeBtn);
-          setSnooze(ticketId, 60);
+          await snoozeDialog(ticketId, QUICK_SNOOZE_MINUTES, snoozeBtn);
+          setSnooze(ticketId, QUICK_SNOOZE_MINUTES);
           updateRowQuickActions(row);
         }
         if (action === 'close') {
@@ -1752,7 +1807,7 @@
     } else if (typeof showNotification === 'function') {
       const successMap = {
         take: 'Выбранные диалоги назначены на вас',
-        snooze: 'Выбранные диалоги отложены на 1 час',
+        snooze: formatBulkSnoozeLabel(QUICK_SNOOZE_MINUTES),
         close: 'Выбранные диалоги закрыты',
       };
       showNotification(successMap[action] || 'Групповое действие выполнено', 'success');
@@ -3143,7 +3198,7 @@
     if (event.shiftKey && key === 's') {
       event.preventDefault();
       if (!canRunAction('can_bulk') || !canRunAction('can_snooze')) {
-        notifyPermissionDenied('Отложить выбранные на 1ч');
+        notifyPermissionDenied(`Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`);
         return;
       }
       runBulkAction('snooze');
@@ -3188,7 +3243,7 @@
     if (key === 's') {
       event.preventDefault();
       if (!canRunAction('can_snooze')) {
-        notifyPermissionDenied('Отложить 1ч');
+        notifyPermissionDenied(formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES));
         return;
       }
       const row = getShortcutTargetRow();
@@ -3196,13 +3251,13 @@
       const ticketId = snoozeBtn?.dataset.ticketId;
       if (!ticketId || !snoozeBtn) return;
       setActiveDialogRow(row, { ensureVisible: true });
-      snoozeDialog(ticketId, 60, snoozeBtn)
+      snoozeDialog(ticketId, QUICK_SNOOZE_MINUTES, snoozeBtn)
         .then(() => {
-          setSnooze(ticketId, 60);
+          setSnooze(ticketId, QUICK_SNOOZE_MINUTES);
           updateRowQuickActions(row);
           applyFilters();
           if (typeof showNotification === 'function') {
-            showNotification('Диалог отложен на 1 час', 'success');
+            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
           }
         })
         .catch((error) => {
@@ -4654,19 +4709,19 @@
     if (snoozeBtn) {
       event.preventDefault();
       if (!canRunAction('can_snooze')) {
-        notifyPermissionDenied('Отложить 1ч');
+        notifyPermissionDenied(formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES));
         return;
       }
       const ticketId = snoozeBtn.dataset.ticketId;
       const row = snoozeBtn.closest('tr');
       setActiveDialogRow(row, { ensureVisible: true });
-      snoozeDialog(ticketId, 60, snoozeBtn)
+      snoozeDialog(ticketId, QUICK_SNOOZE_MINUTES, snoozeBtn)
         .then(() => {
-          setSnooze(ticketId, 60);
+          setSnooze(ticketId, QUICK_SNOOZE_MINUTES);
           updateRowQuickActions(row);
           applyFilters();
           if (typeof showNotification === 'function') {
-            showNotification('Диалог отложен на 1 час', 'success');
+            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
           }
         })
         .catch((error) => {
