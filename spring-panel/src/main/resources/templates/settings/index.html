@@ -1995,6 +1995,41 @@
                       <input type="number" class="form-control" id="dialogWorkspaceDraftTelemetryIntervalMs" min="5000" max="120000" step="1000">
                     </div>
                   </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Guardrails и decisioning</h6>
+                  <p class="small text-muted">Настраиваемые пороги для rollout telemetry и минимальные выборки для cohort/segment decision.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailRenderErrorRate" class="form-label">Render error SLO, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailRenderErrorRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailFallbackRate" class="form-label">Fallback SLO, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailFallbackRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailAbandonRate" class="form-label">Abandon порог, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailAbandonRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailSlowOpenRate" class="form-label">Slow open порог, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailSlowOpenRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceDimensionMinEvents" class="form-label">Мин. событий для сегментов (cohort/shift/team)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceDimensionMinEvents" min="5" max="1000" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceCohortMinEvents" class="form-label">Мин. событий на cohort для decision</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceCohortMinEvents" min="5" max="1000" step="1">
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Default переменные макросов</h6>
+                  <p class="small text-muted">Резервные значения для переменных {{name}} в macro dry-run и при реальном применении.</p>
+                  <label for="dialogMacroVariableDefaults" class="form-label">JSON-объект defaults</label>
+                  <textarea class="form-control font-monospace" id="dialogMacroVariableDefaults" rows="5" placeholder='{"business":"Iguana", "location":"N/A"}'></textarea>
+                  <div class="form-text">Формат: {"ключ":"значение"}. Ключи нормализуются в lowercase. Пустые значения игнорируются.</div>
                 </section>
               </div>
 
@@ -3555,6 +3590,12 @@
     workspace_draft_autosave_delay_ms: 900,
     workspace_draft_telemetry_interval_ms: 30000,
     workspace_inline_navigation: true,
+    workspace_guardrail_render_error_rate: 0.01,
+    workspace_guardrail_fallback_rate: 0.03,
+    workspace_guardrail_abandon_rate: 0.10,
+    workspace_guardrail_slow_open_rate: 0.05,
+    workspace_dimension_min_events: 20,
+    workspace_cohort_min_events: 30,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12520,6 +12561,13 @@
       workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
       workspaceDraftAutosaveDelay: document.getElementById('dialogWorkspaceDraftAutosaveDelayMs'),
       workspaceDraftTelemetryInterval: document.getElementById('dialogWorkspaceDraftTelemetryIntervalMs'),
+      guardrailRenderErrorRate: document.getElementById('dialogWorkspaceGuardrailRenderErrorRate'),
+      guardrailFallbackRate: document.getElementById('dialogWorkspaceGuardrailFallbackRate'),
+      guardrailAbandonRate: document.getElementById('dialogWorkspaceGuardrailAbandonRate'),
+      guardrailSlowOpenRate: document.getElementById('dialogWorkspaceGuardrailSlowOpenRate'),
+      dimensionMinEvents: document.getElementById('dialogWorkspaceDimensionMinEvents'),
+      cohortMinEvents: document.getElementById('dialogWorkspaceCohortMinEvents'),
+      macroVariableDefaults: document.getElementById('dialogMacroVariableDefaults'),
     };
   }
 
@@ -12573,6 +12621,37 @@
         ? telemetryInterval
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_telemetry_interval_ms;
     }
+    const applyPercent = (input, rawValue, fallback) => {
+      if (!input) return;
+      const value = Number(rawValue);
+      input.value = Number.isFinite(value) && value > 0 && value <= 1
+        ? (value * 100).toFixed(2)
+        : (fallback * 100).toFixed(2);
+    };
+    applyPercent(inputs.guardrailRenderErrorRate, DIALOG_CONFIG.guardrail_render_error_rate, DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_render_error_rate);
+    applyPercent(inputs.guardrailFallbackRate, DIALOG_CONFIG.guardrail_fallback_rate, DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_fallback_rate);
+    applyPercent(inputs.guardrailAbandonRate, DIALOG_CONFIG.guardrail_abandon_rate, DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_abandon_rate);
+    applyPercent(inputs.guardrailSlowOpenRate, DIALOG_CONFIG.guardrail_slow_open_rate, DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_slow_open_rate);
+    if (inputs.dimensionMinEvents) {
+      const dimensionMinEvents = Number.parseInt(DIALOG_CONFIG.dimension_min_events, 10);
+      inputs.dimensionMinEvents.value = Number.isFinite(dimensionMinEvents) && dimensionMinEvents >= 5
+        ? dimensionMinEvents
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_dimension_min_events;
+    }
+    if (inputs.cohortMinEvents) {
+      const cohortMinEvents = Number.parseInt(DIALOG_CONFIG.cohort_min_events, 10);
+      inputs.cohortMinEvents.value = Number.isFinite(cohortMinEvents) && cohortMinEvents >= 5
+        ? cohortMinEvents
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_cohort_min_events;
+    }
+    if (inputs.macroVariableDefaults) {
+      const defaults = DIALOG_CONFIG.macro_variable_defaults;
+      if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
+        inputs.macroVariableDefaults.value = JSON.stringify(defaults, null, 2);
+      } else {
+        inputs.macroVariableDefaults.value = '{}';
+      }
+    }
   }
 
   function collectDialogSlaConfig() {
@@ -12621,6 +12700,75 @@
       errors.push('Интервал telemetry черновиков должен быть в диапазоне 5000..120000 мс.');
     }
 
+    const parsePercentThreshold = (rawValue, fallbackValue, label) => {
+      const parsed = Number(rawValue);
+      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100) {
+        errors.push(`${label} должен быть в диапазоне 0.01..100%.`);
+        return fallbackValue;
+      }
+      return Math.min(1, Math.max(0.0001, parsed / 100));
+    };
+
+    const safeRenderErrorRate = parsePercentThreshold(
+      inputs.guardrailRenderErrorRate?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_render_error_rate,
+      'Render error SLO',
+    );
+    const safeFallbackRate = parsePercentThreshold(
+      inputs.guardrailFallbackRate?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_fallback_rate,
+      'Fallback SLO',
+    );
+    const safeAbandonRate = parsePercentThreshold(
+      inputs.guardrailAbandonRate?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_abandon_rate,
+      'Abandon порог',
+    );
+    const safeSlowOpenRate = parsePercentThreshold(
+      inputs.guardrailSlowOpenRate?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_slow_open_rate,
+      'Slow open порог',
+    );
+
+    const dimensionMinEventsRaw = Math.round(Number(inputs.dimensionMinEvents?.value));
+    const cohortMinEventsRaw = Math.round(Number(inputs.cohortMinEvents?.value));
+    const safeDimensionMinEvents = Number.isFinite(dimensionMinEventsRaw)
+      ? Math.min(1000, Math.max(5, dimensionMinEventsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_dimension_min_events;
+    const safeCohortMinEvents = Number.isFinite(cohortMinEventsRaw)
+      ? Math.min(1000, Math.max(5, cohortMinEventsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_cohort_min_events;
+
+    if (!Number.isFinite(dimensionMinEventsRaw) || dimensionMinEventsRaw < 5 || dimensionMinEventsRaw > 1000) {
+      errors.push('Мин. событий для сегментов должно быть в диапазоне 5..1000.');
+    }
+    if (!Number.isFinite(cohortMinEventsRaw) || cohortMinEventsRaw < 5 || cohortMinEventsRaw > 1000) {
+      errors.push('Мин. событий на cohort должно быть в диапазоне 5..1000.');
+    }
+
+    let safeMacroVariableDefaults = {};
+    const macroDefaultsRaw = (inputs.macroVariableDefaults?.value || '').trim();
+    if (macroDefaultsRaw) {
+      try {
+        const parsed = JSON.parse(macroDefaultsRaw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          errors.push('Default переменные макросов должны быть JSON-объектом вида {"key":"value"}.');
+        } else {
+          const normalized = {};
+          Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+            const key = String(keyRaw || '').trim().toLowerCase();
+            const value = String(valueRaw ?? '').trim();
+            if (key && value) {
+              normalized[key] = value;
+            }
+          });
+          safeMacroVariableDefaults = normalized;
+        }
+      } catch (err) {
+        errors.push('Default переменные макросов: некорректный JSON.');
+      }
+    }
+
     return {
       errors,
       config: {
@@ -12635,6 +12783,13 @@
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
         dialog_workspace_draft_autosave_delay_ms: safeWorkspaceAutosaveDelay,
         dialog_workspace_draft_telemetry_interval_ms: safeWorkspaceTelemetryInterval,
+        dialog_workspace_guardrail_render_error_rate: safeRenderErrorRate,
+        dialog_workspace_guardrail_fallback_rate: safeFallbackRate,
+        dialog_workspace_guardrail_abandon_rate: safeAbandonRate,
+        dialog_workspace_guardrail_slow_open_rate: safeSlowOpenRate,
+        dialog_workspace_dimension_min_events: safeDimensionMinEvents,
+        dialog_workspace_cohort_min_events: safeCohortMinEvents,
+        dialog_macro_variable_defaults: safeMacroVariableDefaults,
       },
     };
   }
