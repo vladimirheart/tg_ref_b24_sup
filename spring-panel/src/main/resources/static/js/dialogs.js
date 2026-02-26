@@ -322,7 +322,12 @@
     ...CONFIG_OPERATOR_PERMISSIONS,
   });
   const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
-  const WORKSPACE_OPEN_SLO_MS = 2000;
+  const WORKSPACE_OPEN_SLO_MS = normalizeNumberInRange(
+    window.DIALOG_CONFIG?.workspace_open_slo_ms,
+    2000,
+    500,
+    10000,
+  );
   const WORKSPACE_CONTRACT_TIMEOUT_MS = Math.max(1000, Math.min(30000, Number(window.DIALOG_CONFIG?.workspace_contract_timeout_ms) || 8000));
   const configuredWorkspaceRetryAttempts = Number.parseInt(window.DIALOG_CONFIG?.workspace_contract_retry_attempts, 10);
   const WORKSPACE_CONTRACT_RETRY_ATTEMPTS = Math.max(
@@ -349,6 +354,7 @@
     workspace_open_ms: 'performance',
     workspace_render_error: 'stability',
     workspace_fallback_to_legacy: 'stability',
+    workspace_guardrail_breach: 'stability',
     workspace_abandon: 'engagement',
     workspace_experiment_exposure: 'experiment',
     kpi_frt_recorded: 'kpi',
@@ -3077,6 +3083,14 @@
       });
       if (Number.isFinite(durationMs) && durationMs > WORKSPACE_OPEN_SLO_MS) {
         console.warn(`workspace_open_ms degraded for ticket ${ticketId}: ${durationMs}ms > ${WORKSPACE_OPEN_SLO_MS}ms`);
+        await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+          ticketId,
+          reason: 'slow_open',
+          sloMs: WORKSPACE_OPEN_SLO_MS,
+          durationMs,
+          source,
+          contractVersion: workspacePayload?.contract_version || null,
+        });
       }
       activeWorkspaceTicketId = String(ticketId || '').trim();
       activeWorkspaceChannelId = channelId;
@@ -3102,10 +3116,28 @@
         contractVersion: error?.contractVersion || null,
         httpStatus: Number(error?.httpStatus) || null,
       });
+      await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+        ticketId,
+        reason: 'render_error',
+        errorCode: reason,
+        durationMs,
+        source,
+        contractVersion: error?.contractVersion || null,
+        httpStatus: Number(error?.httpStatus) || null,
+      });
       await emitWorkspaceTelemetry('workspace_fallback_to_legacy', {
         ticketId,
         reason,
         durationMs,
+        contractVersion: error?.contractVersion || null,
+        httpStatus: Number(error?.httpStatus) || null,
+      });
+      await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+        ticketId,
+        reason: 'fallback_to_legacy',
+        fallbackReason: reason,
+        durationMs,
+        source,
         contractVersion: error?.contractVersion || null,
         httpStatus: Number(error?.httpStatus) || null,
       });

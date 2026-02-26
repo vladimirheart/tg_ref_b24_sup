@@ -182,6 +182,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
                 || payload.containsKey("dialog_workspace_draft_autosave_delay_ms")
                 || payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")
+                || payload.containsKey("dialog_workspace_open_slo_ms")
                 || payload.containsKey("dialog_workspace_guardrail_render_error_rate")
                 || payload.containsKey("dialog_workspace_guardrail_fallback_rate")
                 || payload.containsKey("dialog_workspace_guardrail_abandon_rate")
@@ -336,6 +337,9 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")) {
                     dialogConfig.put("workspace_draft_telemetry_interval_ms", payload.get("dialog_workspace_draft_telemetry_interval_ms"));
+                }
+                if (payload.containsKey("dialog_workspace_open_slo_ms")) {
+                    dialogConfig.put("workspace_open_slo_ms", payload.get("dialog_workspace_open_slo_ms"));
                 }
                 if (payload.containsKey("dialog_workspace_guardrail_render_error_rate")) {
                     dialogConfig.put("guardrail_render_error_rate", payload.get("dialog_workspace_guardrail_render_error_rate"));
