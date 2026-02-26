@@ -34,6 +34,12 @@ public class DialogService {
     private static final List<String> DEFAULT_REQUIRED_PRIMARY_KPIS = List.of("frt", "ttr", "sla_breach");
     private static final long DEFAULT_MIN_KPI_EVENTS_FOR_DECISION = 10L;
     private static final double DEFAULT_MIN_KPI_COVERAGE_RATE_FOR_DECISION = 0.05d;
+    private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
+    private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
+    private static final double DEFAULT_GUARDRAIL_ABANDON_RATE = 0.10d;
+    private static final double DEFAULT_GUARDRAIL_SLOW_OPEN_RATE = 0.05d;
+    private static final int DEFAULT_DIMENSION_MIN_EVENTS = 20;
+    private static final int DEFAULT_COHORT_MIN_EVENTS = 30;
 
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
@@ -684,6 +690,7 @@ public class DialogService {
     }
 
     public Map<String, Object> loadWorkspaceTelemetrySummary(int days, String experimentName) {
+        Map<String, Object> workspaceTelemetryConfig = resolveWorkspaceTelemetryConfig();
         int windowDays = Math.max(1, Math.min(days, 30));
         List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowDays, experimentName, 0);
         List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(windowDays, experimentName, windowDays);
@@ -698,12 +705,12 @@ public class DialogService {
         payload.put("totals", totals);
         payload.put("previous_totals", previousTotals);
         payload.put("period_comparison", buildWorkspaceTelemetryComparison(totals, previousTotals));
-        Map<String, Object> cohortComparison = buildWorkspaceCohortComparison(rows);
+        Map<String, Object> cohortComparison = buildWorkspaceCohortComparison(rows, workspaceTelemetryConfig);
         payload.put("cohort_comparison", cohortComparison);
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
-        Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows);
+        Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows, workspaceTelemetryConfig);
         payload.put("guardrails", guardrails);
         payload.put("rollout_decision", buildWorkspaceRolloutDecision(cohortComparison, guardrails));
         return payload;
@@ -784,7 +791,8 @@ public class DialogService {
         return "true".equalsIgnoreCase(normalized) || "1".equals(normalized);
     }
 
-    private Map<String, Object> buildWorkspaceCohortComparison(List<Map<String, Object>> rows) {
+    private Map<String, Object> buildWorkspaceCohortComparison(List<Map<String, Object>> rows,
+                                                               Map<String, Object> telemetryConfig) {
         List<Map<String, Object>> safeRows = rows == null ? List.of() : rows;
         List<Map<String, Object>> controlRows = safeRows.stream()
                 .filter(row -> "control".equalsIgnoreCase(String.valueOf(row.get("experiment_cohort"))))
@@ -811,11 +819,13 @@ public class DialogService {
         Long controlAvgOpen = extractNullableLong(controlTotals.get("avg_open_ms"));
         Long testAvgOpen = extractNullableLong(testTotals.get("avg_open_ms"));
 
-        boolean enoughData = controlEvents >= 30 && testEvents >= 30;
+        long minCohortEvents = resolveLongConfig(telemetryConfig, "cohort_min_events", DEFAULT_COHORT_MIN_EVENTS, 5, 1000);
+        boolean enoughData = controlEvents >= minCohortEvents && testEvents >= minCohortEvents;
         Map<String, Object> comparison = new LinkedHashMap<>();
         comparison.put("control", controlTotals);
         comparison.put("test", testTotals);
         comparison.put("sample_size_ok", enoughData);
+        comparison.put("sample_size_min_events", minCohortEvents);
         comparison.put("control_events", controlEvents);
         comparison.put("test_events", testEvents);
         comparison.put("render_error_rate_delta", testRenderRate - controlRenderRate);
@@ -1185,7 +1195,8 @@ public class DialogService {
                                                           Map<String, Object> previousTotals,
                                                           List<Map<String, Object>> cohortRows,
                                                           List<Map<String, Object>> shiftRows,
-                                                          List<Map<String, Object>> teamRows) {
+                                                          List<Map<String, Object>> teamRows,
+                                                          Map<String, Object> telemetryConfig) {
         long events = Math.max(1L, toLong(totals.get("events")));
         long renderErrors = toLong(totals.get("render_errors"));
         long fallbacks = toLong(totals.get("fallbacks"));
@@ -1197,40 +1208,48 @@ public class DialogService {
         double abandonRate = (double) abandons / events;
         double slowOpenRate = (double) slowOpenEvents / events;
 
+        double renderErrorThreshold = resolveDoubleConfig(telemetryConfig, "guardrail_render_error_rate", DEFAULT_GUARDRAIL_RENDER_ERROR_RATE, 0.0001d, 1d);
+        double fallbackThreshold = resolveDoubleConfig(telemetryConfig, "guardrail_fallback_rate", DEFAULT_GUARDRAIL_FALLBACK_RATE, 0.0001d, 1d);
+        double abandonThreshold = resolveDoubleConfig(telemetryConfig, "guardrail_abandon_rate", DEFAULT_GUARDRAIL_ABANDON_RATE, 0.0001d, 1d);
+        double slowOpenThreshold = resolveDoubleConfig(telemetryConfig, "guardrail_slow_open_rate", DEFAULT_GUARDRAIL_SLOW_OPEN_RATE, 0.0001d, 1d);
+        int minDimensionEvents = (int) resolveLongConfig(telemetryConfig, "dimension_min_events", DEFAULT_DIMENSION_MIN_EVENTS, 5, 1000);
+
         Map<String, Object> rates = new LinkedHashMap<>();
         rates.put("render_error", renderErrorRate);
         rates.put("fallback", fallbackRate);
         rates.put("abandon", abandonRate);
         rates.put("slow_open", slowOpenRate);
+        rates.put("threshold_render_error", renderErrorThreshold);
+        rates.put("threshold_fallback", fallbackThreshold);
+        rates.put("threshold_abandon", abandonThreshold);
+        rates.put("threshold_slow_open", slowOpenThreshold);
 
         List<Map<String, Object>> alerts = new ArrayList<>();
         appendGuardrailAlert(alerts,
                 "render_error",
                 "Доля workspace_render_error превышает SLO 1%.",
                 renderErrorRate,
-                0.01d,
+                renderErrorThreshold,
                 "below_or_equal");
         appendGuardrailAlert(alerts,
                 "fallback",
                 "Доля fallback в legacy превышает SLO 3%.",
                 fallbackRate,
-                0.03d,
+                fallbackThreshold,
                 "below_or_equal");
         appendGuardrailAlert(alerts,
                 "abandon",
                 "Доля abandon в workspace превышает рабочий порог 10%.",
                 abandonRate,
-                0.10d,
+                abandonThreshold,
                 "below_or_equal");
         appendGuardrailAlert(alerts,
                 "slow_open",
                 "Доля медленных workspace_open_ms (>2000ms) превышает рабочий порог 5%.",
                 slowOpenRate,
-                0.05d,
+                slowOpenThreshold,
                 "below_or_equal");
         appendRegressionGuardrailAlerts(alerts, totals, previousTotals);
-
-        int minDimensionEvents = 20;
         appendDimensionGuardrailAlerts(alerts, cohortRows, "cohort", "experiment_cohort", minDimensionEvents);
         appendDimensionGuardrailAlerts(alerts, shiftRows, "shift", "shift", minDimensionEvents);
         appendDimensionGuardrailAlerts(alerts, teamRows, "team", "team", minDimensionEvents);
@@ -1239,7 +1258,78 @@ public class DialogService {
         guardrails.put("status", alerts.isEmpty() ? "ok" : "attention");
         guardrails.put("rates", rates);
         guardrails.put("alerts", alerts);
+        guardrails.put("dimension_min_events", minDimensionEvents);
         return guardrails;
+    }
+
+    private Map<String, Object> resolveWorkspaceTelemetryConfig() {
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        if (settings == null || settings.isEmpty()) {
+            return Map.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (dialogConfigRaw instanceof Map<?, ?> dialogConfig) {
+            return castObjectMap(dialogConfig);
+        }
+        return Map.of();
+    }
+
+    private double resolveDoubleConfig(Map<String, Object> source,
+                                       String key,
+                                       double fallback,
+                                       double min,
+                                       double max) {
+        if (source == null || source.isEmpty()) {
+            return fallback;
+        }
+        Object raw = source.get(key);
+        if (raw instanceof Number number) {
+            double value = number.doubleValue();
+            if (Double.isFinite(value) && value >= min && value <= max) {
+                return value;
+            }
+            return fallback;
+        }
+        if (raw instanceof String stringValue) {
+            try {
+                double value = Double.parseDouble(stringValue.trim());
+                if (Double.isFinite(value) && value >= min && value <= max) {
+                    return value;
+                }
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private long resolveLongConfig(Map<String, Object> source,
+                                   String key,
+                                   long fallback,
+                                   long min,
+                                   long max) {
+        if (source == null || source.isEmpty()) {
+            return fallback;
+        }
+        Object raw = source.get(key);
+        if (raw instanceof Number number) {
+            long value = number.longValue();
+            if (value >= min && value <= max) {
+                return value;
+            }
+            return fallback;
+        }
+        if (raw instanceof String stringValue) {
+            try {
+                long value = Long.parseLong(stringValue.trim());
+                if (value >= min && value <= max) {
+                    return value;
+                }
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
     }
 
     private void appendRegressionGuardrailAlerts(List<Map<String, Object>> alerts,
