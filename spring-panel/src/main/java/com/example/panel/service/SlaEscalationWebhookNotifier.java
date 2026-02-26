@@ -62,6 +62,7 @@ public class SlaEscalationWebhookNotifier {
         int criticalMinutes = resolvePositiveInt(dialogConfig, "sla_critical_minutes", 30, targetMinutes);
         int cooldownMinutes = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_cooldown_minutes", 30, 24 * 60);
         int timeoutMs = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_timeout_ms", 4000, 15000);
+        int maxTicketsPerRun = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_max_tickets_per_run", 50, 500);
 
         List<Map<String, Object>> candidates = findEscalationCandidates(dialogService.loadDialogs(null), targetMinutes, criticalMinutes);
         if (candidates.isEmpty()) {
@@ -93,6 +94,11 @@ public class SlaEscalationWebhookNotifier {
             return;
         }
 
+        readyToNotify.sort(Comparator.comparingLong(this::extractMinutesLeftOrMax));
+        if (readyToNotify.size() > maxTicketsPerRun) {
+            readyToNotify = new ArrayList<>(readyToNotify.subList(0, maxTicketsPerRun));
+        }
+
         String eventName = trimToNull(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_event_name")));
         if (eventName == null) {
             eventName = "sla_critical_escalation_required";
@@ -106,6 +112,8 @@ public class SlaEscalationWebhookNotifier {
         payload.put("generated_at", now.toString());
         payload.put("critical_threshold_minutes", criticalMinutes);
         payload.put("target_minutes", targetMinutes);
+        payload.put("total_candidates_before_limit", candidates.size());
+        payload.put("tickets_in_payload", readyToNotify.size());
         payload.put("tickets", readyToNotify);
 
         int retryAttempts = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_retry_attempts", 1, 3);
@@ -437,12 +445,14 @@ public class SlaEscalationWebhookNotifier {
             Set<String> categories = parseRuleCategories(ruleMap.get("match_category"), ruleMap.get("match_categories"));
             CategoryMatchMode categoryMatchMode = parseCategoryMatchMode(ruleMap.get("match_categories_mode"));
             Integer unreadMin = parseOptionalNonNegativeInt(ruleMap.get("match_unread_min"));
+            Integer unreadMax = parseOptionalNonNegativeInt(ruleMap.get("match_unread_max"));
             Long minutesLeftLte = parseOptionalLong(ruleMap.get("match_minutes_left_lte"));
             Long minutesLeftGte = parseOptionalLong(ruleMap.get("match_minutes_left_gte"));
             Set<String> slaStates = parseRuleSlaStates(ruleMap.get("match_sla_state"), ruleMap.get("match_sla_states"));
             int priority = parsePriority(ruleMap.get("priority"));
             if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && categories.isEmpty()
-                    && unreadMin == null && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()) {
+                    && unreadMin == null && unreadMax == null
+                    && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()) {
                 continue;
             }
             String route = trimToNull(String.valueOf(ruleMap.get("rule_id")));
@@ -451,10 +461,15 @@ public class SlaEscalationWebhookNotifier {
             }
             PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
             rules.add(new AutoAssignRule(channels, businesses, locations, categories, categoryMatchMode,
-                    unreadMin, minutesLeftLte, minutesLeftGte, slaStates,
+                    unreadMin, unreadMax, minutesLeftLte, minutesLeftGte, slaStates,
                     priority, assignee, assigneePool, route, poolStrategy));
         }
         return rules;
+    }
+
+    private long extractMinutesLeftOrMax(Map<String, Object> candidate) {
+        Long minutesLeft = parseOptionalLong(candidate == null ? null : candidate.get("minutes_left"));
+        return minutesLeft != null ? minutesLeft : Long.MAX_VALUE;
     }
 
     private Set<String> parseRuleMatchValues(Object rawSingle, Object rawMultiple) {
@@ -805,6 +820,7 @@ public class SlaEscalationWebhookNotifier {
                                   Set<String> categories,
                                   CategoryMatchMode categoryMatchMode,
                                   Integer unreadMin,
+                                  Integer unreadMax,
                                   Long minutesLeftLte,
                                   Long minutesLeftGte,
                                   Set<String> slaStates,
@@ -843,6 +859,9 @@ public class SlaEscalationWebhookNotifier {
             if (unreadMin != null && (candidateUnreadCount == null || candidateUnreadCount < unreadMin)) {
                 return false;
             }
+            if (unreadMax != null && (candidateUnreadCount == null || candidateUnreadCount > unreadMax)) {
+                return false;
+            }
             if (minutesLeftLte != null && (candidateMinutesLeft == null || candidateMinutesLeft > minutesLeftLte)) {
                 return false;
             }
@@ -872,6 +891,9 @@ public class SlaEscalationWebhookNotifier {
                 score++;
             }
             if (unreadMin != null) {
+                score++;
+            }
+            if (unreadMax != null) {
                 score++;
             }
             if (minutesLeftLte != null) {

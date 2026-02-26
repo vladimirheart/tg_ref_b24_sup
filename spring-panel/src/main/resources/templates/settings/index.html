@@ -1978,7 +1978,7 @@
                     <div class="col-12">
                       <label for="dialogSlaAutoAssignRules" class="form-label">Правила auto-assign (JSON-массив)</label>
                       <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
-                      <div class="form-text">Поддерживаются match_channel(s), match_business(es), match_location(s), match_category(ies), match_categories_mode=any|all, match_sla_state(s), assign_to/assign_to_pool.</div>
+                      <div class="form-text">Поддерживаются match_channel(s), match_business(es), match_location(s), match_category(ies), match_categories_mode=any|all, match_sla_state(s), match_unread_min/max, assign_to/assign_to_pool.</div>
                     </div>
                     <div class="col-md-3">
                       <div class="form-check mt-4 pt-2">
@@ -2018,6 +2018,10 @@
                         <option value="medium">medium</option>
                         <option value="low">low</option>
                       </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookMaxTicketsPerRun" class="form-label">Макс. тикетов в webhook payload</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookMaxTicketsPerRun" min="1" max="500" step="1">
                     </div>
                     <div class="col-md-6">
                       <label for="dialogSlaWindowPresets" class="form-label">Пресеты фильтра «Требует реакции», мин</label>
@@ -3859,6 +3863,7 @@
     workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: 1.20,
     workspace_rollout_required_outcome_kpis: ['frt', 'ttr', 'sla_breach'],
     workspace_rollout_winner_min_open_improvement: 0.00,
+    escalation_webhook_max_tickets_per_run: 50,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12830,6 +12835,7 @@
       escalationWebhookRetryBackoffMs: document.getElementById('dialogSlaEscalationWebhookRetryBackoff'),
       escalationWebhookEventName: document.getElementById('dialogSlaEscalationWebhookEventName'),
       escalationWebhookSeverity: document.getElementById('dialogSlaEscalationWebhookSeverity'),
+      escalationWebhookMaxTicketsPerRun: document.getElementById('dialogSlaEscalationWebhookMaxTicketsPerRun'),
       slaWindowPresets: document.getElementById('dialogSlaWindowPresets'),
       slaWindowDefault: document.getElementById('dialogSlaWindowDefault'),
       defaultView: document.getElementById('dialogDefaultView'),
@@ -12965,6 +12971,12 @@
       inputs.escalationWebhookSeverity.value = allowedSeverities.has(severity)
         ? severity
         : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_event_severity;
+    }
+    if (inputs.escalationWebhookMaxTicketsPerRun) {
+      const maxTicketsPerRun = Number.parseInt(DIALOG_CONFIG.sla_critical_escalation_webhook_max_tickets_per_run, 10);
+      inputs.escalationWebhookMaxTicketsPerRun.value = Number.isFinite(maxTicketsPerRun) && maxTicketsPerRun >= 1
+        ? Math.min(500, maxTicketsPerRun)
+        : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_max_tickets_per_run;
     }
     if (inputs.slaWindowPresets) {
       const rawPresets = Array.isArray(DIALOG_CONFIG.sla_window_presets_minutes)
@@ -13313,6 +13325,14 @@
     const safeEscalationWebhookSeverity = allowedEscalationSeverities.has(severityRaw)
       ? severityRaw
       : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_event_severity;
+
+    const escalationWebhookMaxTicketsRaw = Math.round(Number(inputs.escalationWebhookMaxTicketsPerRun?.value));
+    const safeEscalationWebhookMaxTicketsPerRun = Number.isFinite(escalationWebhookMaxTicketsRaw)
+      ? Math.min(500, Math.max(1, escalationWebhookMaxTicketsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_max_tickets_per_run;
+    if (!Number.isFinite(escalationWebhookMaxTicketsRaw) || escalationWebhookMaxTicketsRaw < 1 || escalationWebhookMaxTicketsRaw > 500) {
+      errors.push('Лимит тикетов webhook payload должен быть в диапазоне 1..500.');
+    }
 
     if (Boolean(inputs.escalationWebhookEnabled?.checked) && safeEscalationWebhookUrls.length === 0) {
       errors.push('Укажите хотя бы один webhook URL для включённого режима уведомлений.');
@@ -13825,6 +13845,7 @@
         dialog_sla_critical_escalation_webhook_retry_backoff_ms: safeEscalationWebhookRetryBackoff,
         dialog_sla_critical_escalation_webhook_event_name: safeEscalationWebhookEventName,
         dialog_sla_critical_escalation_webhook_severity: safeEscalationWebhookSeverity,
+        dialog_sla_critical_escalation_webhook_max_tickets_per_run: safeEscalationWebhookMaxTicketsPerRun,
         dialog_sla_window_presets_minutes: safeSlaWindowPresets,
         dialog_sla_window_default_minutes: safeSlaWindowDefault,
         dialog_default_view: safeDefaultView,
