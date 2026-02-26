@@ -159,6 +159,9 @@
   const STORAGE_PAGE_SIZE = 'iguana:dialogs:page-size';
   const STORAGE_DIALOG_FONT = 'iguana:dialogs:font-size';
   const STORAGE_SNOOZED = 'iguana:dialogs:snoozed';
+  const STORAGE_VIEW = 'iguana:dialogs:view';
+  const STORAGE_SLA_WINDOW = 'iguana:dialogs:sla-window';
+  const STORAGE_SORT_MODE = 'iguana:dialogs:sort-mode';
   const HISTORY_POLL_INTERVAL = 8000;
   const LIST_POLL_INTERVAL = 8000;
   const DEFAULT_PAGE_SIZE = 20;
@@ -214,6 +217,23 @@
     return parsed;
   }
 
+  function normalizeSlaWindowPresets(value) {
+    if (!Array.isArray(value)) {
+      return [15, 30, 60, 120];
+    }
+    const normalized = Array.from(new Set(value
+      .map((item) => Number.parseInt(item, 10))
+      .filter((item) => Number.isFinite(item) && item >= 5 && item <= 1440)))
+      .sort((left, right) => left - right);
+    return normalized.length ? normalized : [15, 30, 60, 120];
+  }
+
+  function normalizeDialogView(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    const allowed = new Set(['all', 'active', 'new', 'unassigned', 'overdue', 'sla_critical', 'escalation_required']);
+    return allowed.has(normalized) ? normalized : 'all';
+  }
+
   const SLA_TARGET_MINUTES = normalizeSlaMinutes(
     window.DIALOG_CONFIG?.sla_target_minutes,
     DEFAULT_SLA_TARGET_MINUTES,
@@ -227,6 +247,12 @@
     SLA_TARGET_MINUTES,
   );
   const AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW = window.DIALOG_CONFIG?.sla_critical_auto_sort !== false;
+  const DIALOG_SLA_WINDOW_PRESETS = normalizeSlaWindowPresets(window.DIALOG_CONFIG?.sla_window_presets_minutes);
+  const DIALOG_DEFAULT_SLA_WINDOW = (() => {
+    const parsed = Number.parseInt(window.DIALOG_CONFIG?.sla_window_default_minutes, 10);
+    return Number.isFinite(parsed) && DIALOG_SLA_WINDOW_PRESETS.includes(parsed) ? parsed : null;
+  })();
+  const DIALOG_DEFAULT_VIEW = normalizeDialogView(window.DIALOG_CONFIG?.default_view || 'all');
   const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
@@ -595,12 +621,56 @@
     }
   }
 
+  function configureSlaWindowSelect() {
+    if (!slaWindowSelect) {
+      return;
+    }
+    const optionsMarkup = ['<option value="">SLA: все</option>']
+      .concat(DIALOG_SLA_WINDOW_PRESETS.map((minutes) => `<option value="${minutes}">Реакция ≤ ${minutes}м</option>`))
+      .join('');
+    slaWindowSelect.innerHTML = optionsMarkup;
+    slaWindowSelect.value = Number.isFinite(filterState.slaWindowMinutes)
+      ? String(filterState.slaWindowMinutes)
+      : '';
+  }
+
   function persistPageSize() {
     if (filterState.pageSize === Infinity) {
       localStorage.setItem(STORAGE_PAGE_SIZE, 'all');
       return;
     }
     localStorage.setItem(STORAGE_PAGE_SIZE, String(filterState.pageSize));
+  }
+
+  function restoreDialogPreferences() {
+    try {
+      const storedView = localStorage.getItem(STORAGE_VIEW);
+      if (storedView) {
+        filterState.view = normalizeDialogView(storedView);
+      }
+      const storedSlaWindow = Number.parseInt(localStorage.getItem(STORAGE_SLA_WINDOW), 10);
+      if (Number.isFinite(storedSlaWindow) && DIALOG_SLA_WINDOW_PRESETS.includes(storedSlaWindow)) {
+        filterState.slaWindowMinutes = storedSlaWindow;
+      }
+      const storedSortMode = String(localStorage.getItem(STORAGE_SORT_MODE) || '').trim().toLowerCase();
+      filterState.sortMode = storedSortMode === 'sla_priority' ? 'sla_priority' : filterState.sortMode;
+    } catch (_error) {
+      // ignore storage read errors
+    }
+  }
+
+  function persistDialogPreferences() {
+    try {
+      localStorage.setItem(STORAGE_VIEW, filterState.view || 'all');
+      if (Number.isFinite(filterState.slaWindowMinutes) && filterState.slaWindowMinutes > 0) {
+        localStorage.setItem(STORAGE_SLA_WINDOW, String(filterState.slaWindowMinutes));
+      } else {
+        localStorage.removeItem(STORAGE_SLA_WINDOW);
+      }
+      localStorage.setItem(STORAGE_SORT_MODE, filterState.sortMode || 'default');
+    } catch (_error) {
+      // ignore storage write errors
+    }
   }
 
   function applyDialogFontSize(value) {
@@ -1356,9 +1426,9 @@
   const filterState = {
     search: '',
     status: '',
-    view: 'all',
+    view: DIALOG_DEFAULT_VIEW,
     pageSize: DEFAULT_PAGE_SIZE,
-    slaWindowMinutes: null,
+    slaWindowMinutes: DIALOG_DEFAULT_SLA_WINDOW,
     sortMode: 'default',
   };
   let lastManualSortMode = filterState.sortMode;
@@ -1778,6 +1848,7 @@
     if (previousView !== resolvedView) {
       emitWorkspaceTelemetry('triage_view_switch', { reason: `${previousView}->${resolvedView}` });
     }
+    persistDialogPreferences();
     applyFilters();
   }
 
@@ -4913,6 +4984,7 @@
     slaWindowSelect.addEventListener('change', () => {
       const parsed = Number.parseInt(slaWindowSelect.value, 10);
       filterState.slaWindowMinutes = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      persistDialogPreferences();
       applyFilters();
     });
   }
@@ -4924,6 +4996,7 @@
       if (filterState.sortMode !== 'sla_priority') {
         lastManualSortMode = filterState.sortMode;
       }
+      persistDialogPreferences();
       applyFilters();
     });
   }
@@ -4965,6 +5038,7 @@
       }
       filterState.sortMode = 'default';
       lastManualSortMode = 'default';
+      persistDialogPreferences();
       applyFilters();
     });
   }
@@ -5366,7 +5440,12 @@
   })));
   startDialogsPolling();
   loadColumnState();
+  restoreDialogPreferences();
   loadPageSize();
+  configureSlaWindowSelect();
+  if (sortModeSelect) {
+    sortModeSelect.value = filterState.sortMode;
+  }
   loadDialogFontSize();
   buildColumnsList();
   applyColumnState();
@@ -5399,8 +5478,9 @@
     reason: WORKSPACE_AB_TEST_CONFIG.enabled ? 'bootstrap' : 'experiment_disabled',
   });
   if (viewTabs.length) {
-    const activeTab = Array.from(viewTabs).find((tab) => tab.classList.contains('active'));
-    setViewTab(activeTab?.dataset.dialogView || 'all');
+    const activeTab = Array.from(viewTabs).find((tab) => tab.dataset.dialogView === filterState.view)
+      || Array.from(viewTabs).find((tab) => tab.classList.contains('active'));
+    setViewTab(activeTab?.dataset.dialogView || filterState.view || 'all');
   } else {
     applyFilters();
   }
