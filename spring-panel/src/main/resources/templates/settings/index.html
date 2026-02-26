@@ -2023,6 +2023,26 @@
                       <label for="dialogWorkspaceCohortMinEvents" class="form-label">Мин. событий на cohort для decision</label>
                       <input type="number" class="form-control" id="dialogWorkspaceCohortMinEvents" min="5" max="1000" step="1">
                     </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeMinSamples" class="form-label">Мин. KPI-сэмплов на cohort (outcome)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeMinSamples" min="1" max="1000" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeFrtRegressionPercent" class="form-label">FRT: макс. относительная деградация, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeFrtRegressionPercent" min="0.1" max="500" step="0.1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeTtrRegressionPercent" class="form-label">TTR: макс. относительная деградация, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeTtrRegressionPercent" min="0.1" max="500" step="0.1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeSlaAbsDeltaPercent" class="form-label">SLA breach: макс. абсолютная дельта, п.п.</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeSlaAbsDeltaPercent" min="0.1" max="100" step="0.1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeSlaRelativeMultiplier" class="form-label">SLA breach: макс. относительный множитель</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeSlaRelativeMultiplier" min="1" max="10" step="0.01">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Default переменные макросов</h6>
@@ -3596,6 +3616,11 @@
     workspace_guardrail_slow_open_rate: 0.05,
     workspace_dimension_min_events: 20,
     workspace_cohort_min_events: 30,
+    workspace_rollout_kpi_outcome_min_samples_per_cohort: 5,
+    workspace_rollout_kpi_outcome_frt_max_relative_regression: 0.10,
+    workspace_rollout_kpi_outcome_ttr_max_relative_regression: 0.10,
+    workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta: 0.02,
+    workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: 1.20,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12567,6 +12592,11 @@
       guardrailSlowOpenRate: document.getElementById('dialogWorkspaceGuardrailSlowOpenRate'),
       dimensionMinEvents: document.getElementById('dialogWorkspaceDimensionMinEvents'),
       cohortMinEvents: document.getElementById('dialogWorkspaceCohortMinEvents'),
+      kpiOutcomeMinSamples: document.getElementById('dialogWorkspaceKpiOutcomeMinSamples'),
+      kpiOutcomeFrtRegressionPercent: document.getElementById('dialogWorkspaceKpiOutcomeFrtRegressionPercent'),
+      kpiOutcomeTtrRegressionPercent: document.getElementById('dialogWorkspaceKpiOutcomeTtrRegressionPercent'),
+      kpiOutcomeSlaAbsDeltaPercent: document.getElementById('dialogWorkspaceKpiOutcomeSlaAbsDeltaPercent'),
+      kpiOutcomeSlaRelativeMultiplier: document.getElementById('dialogWorkspaceKpiOutcomeSlaRelativeMultiplier'),
       macroVariableDefaults: document.getElementById('dialogMacroVariableDefaults'),
     };
   }
@@ -12628,6 +12658,13 @@
         ? (value * 100).toFixed(2)
         : (fallback * 100).toFixed(2);
     };
+    const applyRelativePercent = (input, rawValue, fallback) => {
+      if (!input) return;
+      const value = Number(rawValue);
+      input.value = Number.isFinite(value) && value > 0 && value <= 5
+        ? (value * 100).toFixed(2)
+        : (fallback * 100).toFixed(2);
+    };
     applyPercent(inputs.guardrailRenderErrorRate, DIALOG_CONFIG.guardrail_render_error_rate, DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_render_error_rate);
     applyPercent(inputs.guardrailFallbackRate, DIALOG_CONFIG.guardrail_fallback_rate, DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_fallback_rate);
     applyPercent(inputs.guardrailAbandonRate, DIALOG_CONFIG.guardrail_abandon_rate, DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_abandon_rate);
@@ -12643,6 +12680,33 @@
       inputs.cohortMinEvents.value = Number.isFinite(cohortMinEvents) && cohortMinEvents >= 5
         ? cohortMinEvents
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_cohort_min_events;
+    }
+    if (inputs.kpiOutcomeMinSamples) {
+      const minSamples = Number.parseInt(DIALOG_CONFIG.workspace_rollout_kpi_outcome_min_samples_per_cohort, 10);
+      inputs.kpiOutcomeMinSamples.value = Number.isFinite(minSamples) && minSamples > 0
+        ? minSamples
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_min_samples_per_cohort;
+    }
+    applyRelativePercent(
+      inputs.kpiOutcomeFrtRegressionPercent,
+      DIALOG_CONFIG.workspace_rollout_kpi_outcome_frt_max_relative_regression,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_frt_max_relative_regression,
+    );
+    applyRelativePercent(
+      inputs.kpiOutcomeTtrRegressionPercent,
+      DIALOG_CONFIG.workspace_rollout_kpi_outcome_ttr_max_relative_regression,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_ttr_max_relative_regression,
+    );
+    applyPercent(
+      inputs.kpiOutcomeSlaAbsDeltaPercent,
+      DIALOG_CONFIG.workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta,
+    );
+    if (inputs.kpiOutcomeSlaRelativeMultiplier) {
+      const multiplier = Number(DIALOG_CONFIG.workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier);
+      inputs.kpiOutcomeSlaRelativeMultiplier.value = Number.isFinite(multiplier) && multiplier >= 1 && multiplier <= 10
+        ? multiplier.toFixed(2)
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier.toFixed(2);
     }
     if (inputs.macroVariableDefaults) {
       const defaults = DIALOG_CONFIG.macro_variable_defaults;
@@ -12709,6 +12773,15 @@
       return Math.min(1, Math.max(0.0001, parsed / 100));
     };
 
+    const parseRelativePercentThreshold = (rawValue, fallbackValue, label) => {
+      const parsed = Number(rawValue);
+      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 500) {
+        errors.push(`${label} должен быть в диапазоне 0.1..500%.`);
+        return fallbackValue;
+      }
+      return Math.min(5, Math.max(0.001, parsed / 100));
+    };
+
     const safeRenderErrorRate = parsePercentThreshold(
       inputs.guardrailRenderErrorRate?.value,
       DEFAULT_DIALOG_SLA_CONFIG.workspace_guardrail_render_error_rate,
@@ -12744,6 +12817,43 @@
     }
     if (!Number.isFinite(cohortMinEventsRaw) || cohortMinEventsRaw < 5 || cohortMinEventsRaw > 1000) {
       errors.push('Мин. событий на cohort должно быть в диапазоне 5..1000.');
+    }
+
+    const kpiOutcomeMinSamplesRaw = Math.round(Number(inputs.kpiOutcomeMinSamples?.value));
+    const safeKpiOutcomeMinSamples = Number.isFinite(kpiOutcomeMinSamplesRaw)
+      ? Math.min(1000, Math.max(1, kpiOutcomeMinSamplesRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_min_samples_per_cohort;
+    if (!Number.isFinite(kpiOutcomeMinSamplesRaw) || kpiOutcomeMinSamplesRaw < 1 || kpiOutcomeMinSamplesRaw > 1000) {
+      errors.push('Мин. KPI-сэмплов на cohort должно быть в диапазоне 1..1000.');
+    }
+
+    const safeFrtRelativeRegression = parseRelativePercentThreshold(
+      inputs.kpiOutcomeFrtRegressionPercent?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_frt_max_relative_regression,
+      'FRT относительная деградация',
+    );
+
+    const safeTtrRelativeRegression = parseRelativePercentThreshold(
+      inputs.kpiOutcomeTtrRegressionPercent?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_ttr_max_relative_regression,
+      'TTR относительная деградация',
+    );
+
+    const safeSlaAbsoluteDelta = parsePercentThreshold(
+      inputs.kpiOutcomeSlaAbsDeltaPercent?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta,
+      'SLA breach абсолютная дельта',
+    );
+    if (safeSlaAbsoluteDelta > 1) {
+      errors.push('SLA breach абсолютная дельта не может быть больше 100 п.п.');
+    }
+
+    const slaRelativeMultiplierRaw = Number(inputs.kpiOutcomeSlaRelativeMultiplier?.value);
+    const safeSlaRelativeMultiplier = Number.isFinite(slaRelativeMultiplierRaw)
+      ? Math.min(10, Math.max(1, slaRelativeMultiplierRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier;
+    if (!Number.isFinite(slaRelativeMultiplierRaw) || slaRelativeMultiplierRaw < 1 || slaRelativeMultiplierRaw > 10) {
+      errors.push('SLA breach относительный множитель должен быть в диапазоне 1..10.');
     }
 
     let safeMacroVariableDefaults = {};
@@ -12789,6 +12899,11 @@
         dialog_workspace_guardrail_slow_open_rate: safeSlowOpenRate,
         dialog_workspace_dimension_min_events: safeDimensionMinEvents,
         dialog_workspace_cohort_min_events: safeCohortMinEvents,
+        dialog_workspace_rollout_kpi_outcome_min_samples_per_cohort: safeKpiOutcomeMinSamples,
+        dialog_workspace_rollout_kpi_outcome_frt_max_relative_regression: safeFrtRelativeRegression,
+        dialog_workspace_rollout_kpi_outcome_ttr_max_relative_regression: safeTtrRelativeRegression,
+        dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta: safeSlaAbsoluteDelta,
+        dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: safeSlaRelativeMultiplier,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
       },
     };
