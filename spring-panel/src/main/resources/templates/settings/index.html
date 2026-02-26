@@ -1968,6 +1968,33 @@
                       <input type="text" class="form-control" id="dialogSlaAutoAssignTo" placeholder="Например, teamlead_support">
                     </div>
                   </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Workspace runtime-параметры</h6>
+                  <p class="small text-muted">Закрывает backlog по production-parity: параметры надёжности workspace теперь настраиваются без правок кода.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceInlineNavigation">
+                        <label class="form-check-label" for="dialogWorkspaceInlineNavigation">Inline-навигация в workspace (без legacy modal)</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceContractTimeoutMs" class="form-label">Таймаут workspace-контракта, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceContractTimeoutMs" min="1000" max="30000" step="100">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRetryAttempts" class="form-label">Retry попытки запроса workspace</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceRetryAttempts" min="0" max="5" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceDraftAutosaveDelayMs" class="form-label">Автосохранение черновика, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceDraftAutosaveDelayMs" min="300" max="5000" step="50">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceDraftTelemetryIntervalMs" class="form-label">Интервал telemetry черновиков, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceDraftTelemetryIntervalMs" min="5000" max="120000" step="1000">
+                    </div>
+                  </div>
                 </section>
               </div>
 
@@ -3523,6 +3550,11 @@
     escalation_enabled: true,
     auto_assign_enabled: false,
     auto_assign_to: '',
+    workspace_contract_timeout_ms: 8000,
+    workspace_contract_retry_attempts: 1,
+    workspace_draft_autosave_delay_ms: 900,
+    workspace_draft_telemetry_interval_ms: 30000,
+    workspace_inline_navigation: true,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12483,6 +12515,11 @@
       escalationEnabled: document.getElementById('dialogSlaEscalationEnabled'),
       autoAssignEnabled: document.getElementById('dialogSlaAutoAssignEnabled'),
       autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
+      workspaceInlineNavigation: document.getElementById('dialogWorkspaceInlineNavigation'),
+      workspaceContractTimeout: document.getElementById('dialogWorkspaceContractTimeoutMs'),
+      workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
+      workspaceDraftAutosaveDelay: document.getElementById('dialogWorkspaceDraftAutosaveDelayMs'),
+      workspaceDraftTelemetryInterval: document.getElementById('dialogWorkspaceDraftTelemetryIntervalMs'),
     };
   }
 
@@ -12509,6 +12546,33 @@
         ? DIALOG_CONFIG.sla_critical_auto_assign_to
         : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_to;
     }
+    if (inputs.workspaceInlineNavigation instanceof HTMLInputElement) {
+      inputs.workspaceInlineNavigation.checked = DIALOG_CONFIG.workspace_inline_navigation !== false;
+    }
+    if (inputs.workspaceContractTimeout) {
+      const timeout = Number.parseInt(DIALOG_CONFIG.workspace_contract_timeout_ms, 10);
+      inputs.workspaceContractTimeout.value = Number.isFinite(timeout) && timeout >= 1000
+        ? timeout
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_timeout_ms;
+    }
+    if (inputs.workspaceRetryAttempts) {
+      const retries = Number.parseInt(DIALOG_CONFIG.workspace_contract_retry_attempts, 10);
+      inputs.workspaceRetryAttempts.value = Number.isFinite(retries) && retries >= 0
+        ? retries
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_retry_attempts;
+    }
+    if (inputs.workspaceDraftAutosaveDelay) {
+      const autosave = Number.parseInt(DIALOG_CONFIG.workspace_draft_autosave_delay_ms, 10);
+      inputs.workspaceDraftAutosaveDelay.value = Number.isFinite(autosave) && autosave >= 300
+        ? autosave
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_autosave_delay_ms;
+    }
+    if (inputs.workspaceDraftTelemetryInterval) {
+      const telemetryInterval = Number.parseInt(DIALOG_CONFIG.workspace_draft_telemetry_interval_ms, 10);
+      inputs.workspaceDraftTelemetryInterval.value = Number.isFinite(telemetryInterval) && telemetryInterval >= 5000
+        ? telemetryInterval
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_telemetry_interval_ms;
+    }
   }
 
   function collectDialogSlaConfig() {
@@ -12521,12 +12585,41 @@
     const safeTarget = Number.isFinite(target) && target > 0 ? target : DEFAULT_DIALOG_SLA_CONFIG.target_minutes;
     const safeWarning = Number.isFinite(warning) && warning > 0 ? warning : DEFAULT_DIALOG_SLA_CONFIG.warning_minutes;
     const safeCritical = Number.isFinite(critical) && critical > 0 ? critical : DEFAULT_DIALOG_SLA_CONFIG.critical_minutes;
+    const workspaceContractTimeoutRaw = Math.round(Number(inputs.workspaceContractTimeout?.value));
+    const workspaceRetryAttemptsRaw = Math.round(Number(inputs.workspaceRetryAttempts?.value));
+    const workspaceAutosaveDelayRaw = Math.round(Number(inputs.workspaceDraftAutosaveDelay?.value));
+    const workspaceTelemetryIntervalRaw = Math.round(Number(inputs.workspaceDraftTelemetryInterval?.value));
+
+    const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
+      ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_timeout_ms;
+    const safeWorkspaceRetryAttempts = Number.isFinite(workspaceRetryAttemptsRaw)
+      ? Math.min(5, Math.max(0, workspaceRetryAttemptsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_retry_attempts;
+    const safeWorkspaceAutosaveDelay = Number.isFinite(workspaceAutosaveDelayRaw)
+      ? Math.min(5000, Math.max(300, workspaceAutosaveDelayRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_autosave_delay_ms;
+    const safeWorkspaceTelemetryInterval = Number.isFinite(workspaceTelemetryIntervalRaw)
+      ? Math.min(120000, Math.max(5000, workspaceTelemetryIntervalRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_telemetry_interval_ms;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
     if (!Number.isFinite(critical) || critical <= 0) errors.push('Критичный SLA должен быть положительным числом.');
     if (safeWarning >= safeTarget) errors.push('Порог предупреждения SLA должен быть меньше SLA-цели.');
     if (safeCritical >= safeTarget) errors.push('Критичный SLA должен быть меньше SLA-цели.');
+    if (!Number.isFinite(workspaceContractTimeoutRaw) || workspaceContractTimeoutRaw < 1000 || workspaceContractTimeoutRaw > 30000) {
+      errors.push('Таймаут workspace-контракта должен быть в диапазоне 1000..30000 мс.');
+    }
+    if (!Number.isFinite(workspaceRetryAttemptsRaw) || workspaceRetryAttemptsRaw < 0 || workspaceRetryAttemptsRaw > 5) {
+      errors.push('Retry попытки workspace должны быть в диапазоне 0..5.');
+    }
+    if (!Number.isFinite(workspaceAutosaveDelayRaw) || workspaceAutosaveDelayRaw < 300 || workspaceAutosaveDelayRaw > 5000) {
+      errors.push('Задержка автосохранения черновика должна быть в диапазоне 300..5000 мс.');
+    }
+    if (!Number.isFinite(workspaceTelemetryIntervalRaw) || workspaceTelemetryIntervalRaw < 5000 || workspaceTelemetryIntervalRaw > 120000) {
+      errors.push('Интервал telemetry черновиков должен быть в диапазоне 5000..120000 мс.');
+    }
 
     return {
       errors,
@@ -12537,6 +12630,11 @@
         dialog_sla_critical_escalation_enabled: Boolean(inputs.escalationEnabled?.checked),
         dialog_sla_critical_auto_assign_enabled: Boolean(inputs.autoAssignEnabled?.checked),
         dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),
+        dialog_workspace_inline_navigation: Boolean(inputs.workspaceInlineNavigation?.checked),
+        dialog_workspace_contract_timeout_ms: safeWorkspaceContractTimeout,
+        dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
+        dialog_workspace_draft_autosave_delay_ms: safeWorkspaceAutosaveDelay,
+        dialog_workspace_draft_telemetry_interval_ms: safeWorkspaceTelemetryInterval,
       },
     };
   }
