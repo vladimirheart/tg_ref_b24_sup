@@ -2046,6 +2046,24 @@
                   <h6 class="mb-2">Workspace runtime-параметры</h6>
                   <p class="small text-muted">Закрывает backlog по production-parity: параметры надёжности workspace теперь настраиваются без правок кода.</p>
                   <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceEnabled">
+                        <label class="form-check-label" for="dialogWorkspaceEnabled">Workspace v1 включён</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaCriticalAutoSort">
+                        <label class="form-check-label" for="dialogSlaCriticalAutoSort">SLA critical view: auto Sla-first сортировка</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceAbEnabled">
+                        <label class="form-check-label" for="dialogWorkspaceAbEnabled">A/B rollout для workspace</label>
+                      </div>
+                    </div>
                     <div class="col-md-6">
                       <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceInlineNavigation">
@@ -2075,6 +2093,18 @@
                     <div class="col-md-6">
                       <label for="dialogHistoryPollIntervalMs" class="form-label">Интервал обновления истории, мс</label>
                       <input type="number" class="form-control" id="dialogHistoryPollIntervalMs" min="3000" max="60000" step="500">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceAbRolloutPercent" class="form-label">A/B rollout, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceAbRolloutPercent" min="0" max="100" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceAbExperimentName" class="form-label">A/B experiment name</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbExperimentName" placeholder="workspace_v1_rollout">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceAbOperatorSegment" class="form-label">A/B operator segment</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbOperatorSegment" placeholder="all_operators">
                     </div>
                   </div>
                   <hr class="my-4">
@@ -3730,7 +3760,13 @@
     workspace_contract_retry_attempts: 1,
     workspace_draft_autosave_delay_ms: 900,
     workspace_draft_telemetry_interval_ms: 30000,
+    workspace_enabled: true,
     workspace_inline_navigation: true,
+    sla_critical_auto_sort: true,
+    workspace_ab_enabled: false,
+    workspace_ab_rollout_percent: 0,
+    workspace_ab_experiment_name: 'workspace_v1_rollout',
+    workspace_ab_operator_segment: 'all_operators',
     quick_snooze_minutes: 60,
     overdue_threshold_hours: 24,
     list_poll_interval_ms: 8000,
@@ -12720,6 +12756,9 @@
       defaultView: document.getElementById('dialogDefaultView'),
       quickSnoozeMinutes: document.getElementById('dialogQuickSnoozeMinutes'),
       overdueThresholdHours: document.getElementById('dialogOverdueThresholdHours'),
+      workspaceEnabled: document.getElementById('dialogWorkspaceEnabled'),
+      slaCriticalAutoSort: document.getElementById('dialogSlaCriticalAutoSort'),
+      workspaceAbEnabled: document.getElementById('dialogWorkspaceAbEnabled'),
       workspaceInlineNavigation: document.getElementById('dialogWorkspaceInlineNavigation'),
       workspaceContractTimeout: document.getElementById('dialogWorkspaceContractTimeoutMs'),
       workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
@@ -12727,6 +12766,9 @@
       workspaceDraftTelemetryInterval: document.getElementById('dialogWorkspaceDraftTelemetryIntervalMs'),
       listPollIntervalMs: document.getElementById('dialogListPollIntervalMs'),
       historyPollIntervalMs: document.getElementById('dialogHistoryPollIntervalMs'),
+      workspaceAbRolloutPercent: document.getElementById('dialogWorkspaceAbRolloutPercent'),
+      workspaceAbExperimentName: document.getElementById('dialogWorkspaceAbExperimentName'),
+      workspaceAbOperatorSegment: document.getElementById('dialogWorkspaceAbOperatorSegment'),
       guardrailRenderErrorRate: document.getElementById('dialogWorkspaceGuardrailRenderErrorRate'),
       guardrailFallbackRate: document.getElementById('dialogWorkspaceGuardrailFallbackRate'),
       guardrailAbandonRate: document.getElementById('dialogWorkspaceGuardrailAbandonRate'),
@@ -12852,6 +12894,15 @@
         ? Math.min(168, overdueThreshold)
         : DEFAULT_DIALOG_SLA_CONFIG.overdue_threshold_hours;
     }
+    if (inputs.workspaceEnabled instanceof HTMLInputElement) {
+      inputs.workspaceEnabled.checked = DIALOG_CONFIG.workspace_v1 !== false;
+    }
+    if (inputs.slaCriticalAutoSort instanceof HTMLInputElement) {
+      inputs.slaCriticalAutoSort.checked = DIALOG_CONFIG.sla_critical_auto_sort !== false;
+    }
+    if (inputs.workspaceAbEnabled instanceof HTMLInputElement) {
+      inputs.workspaceAbEnabled.checked = Boolean(DIALOG_CONFIG.workspace_ab_enabled);
+    }
     if (inputs.workspaceInlineNavigation instanceof HTMLInputElement) {
       inputs.workspaceInlineNavigation.checked = DIALOG_CONFIG.workspace_inline_navigation !== false;
     }
@@ -12890,6 +12941,20 @@
       inputs.historyPollIntervalMs.value = Number.isFinite(historyPoll) && historyPoll >= 3000
         ? Math.min(60000, historyPoll)
         : DEFAULT_DIALOG_SLA_CONFIG.history_poll_interval_ms;
+    }
+    if (inputs.workspaceAbRolloutPercent) {
+      const rolloutPercent = Number.parseInt(DIALOG_CONFIG.workspace_ab_rollout_percent, 10);
+      inputs.workspaceAbRolloutPercent.value = Number.isFinite(rolloutPercent)
+        ? Math.min(100, Math.max(0, rolloutPercent))
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_rollout_percent;
+    }
+    if (inputs.workspaceAbExperimentName) {
+      const experimentName = String(DIALOG_CONFIG.workspace_ab_experiment_name || '').trim();
+      inputs.workspaceAbExperimentName.value = experimentName || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_experiment_name;
+    }
+    if (inputs.workspaceAbOperatorSegment) {
+      const operatorSegment = String(DIALOG_CONFIG.workspace_ab_operator_segment || '').trim();
+      inputs.workspaceAbOperatorSegment.value = operatorSegment || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_operator_segment;
     }
     const applyPercent = (input, rawValue, fallback) => {
       if (!input) return;
@@ -13058,6 +13123,7 @@
     const overdueThresholdHoursRaw = Math.round(Number(inputs.overdueThresholdHours?.value));
     const listPollIntervalRaw = Math.round(Number(inputs.listPollIntervalMs?.value));
     const historyPollIntervalRaw = Math.round(Number(inputs.historyPollIntervalMs?.value));
+    const workspaceAbRolloutPercentRaw = Math.round(Number(inputs.workspaceAbRolloutPercent?.value));
 
     const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
       ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
@@ -13083,6 +13149,9 @@
     const safeHistoryPollInterval = Number.isFinite(historyPollIntervalRaw)
       ? Math.min(60000, Math.max(3000, historyPollIntervalRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.history_poll_interval_ms;
+    const safeWorkspaceAbRolloutPercent = Number.isFinite(workspaceAbRolloutPercentRaw)
+      ? Math.min(100, Math.max(0, workspaceAbRolloutPercentRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_rollout_percent;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
@@ -13112,6 +13181,9 @@
     }
     if (!Number.isFinite(historyPollIntervalRaw) || historyPollIntervalRaw < 3000 || historyPollIntervalRaw > 60000) {
       errors.push('Интервал обновления истории должен быть в диапазоне 3000..60000 мс.');
+    }
+    if (!Number.isFinite(workspaceAbRolloutPercentRaw) || workspaceAbRolloutPercentRaw < 0 || workspaceAbRolloutPercentRaw > 100) {
+      errors.push('A/B rollout должен быть в диапазоне 0..100%.');
     }
 
     const parsePercentThreshold = (rawValue, fallbackValue, label) => {
@@ -13234,6 +13306,11 @@
     const safeSlaWindowDefault = Number.isFinite(slaWindowDefaultRaw) && slaWindowDefaultRaw >= 5 && slaWindowDefaultRaw <= 1440
       ? slaWindowDefaultRaw
       : null;
+
+    const safeWorkspaceAbExperimentName = String(inputs.workspaceAbExperimentName?.value || '').trim()
+      || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_experiment_name;
+    const safeWorkspaceAbOperatorSegment = String(inputs.workspaceAbOperatorSegment?.value || '').trim()
+      || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_operator_segment;
     if (inputs.slaWindowDefault?.value && safeSlaWindowDefault === null) {
       errors.push('Пресет SLA по умолчанию должен быть в диапазоне 5..1440 минут.');
     }
@@ -13375,6 +13452,8 @@
         dialog_default_view: safeDefaultView,
         dialog_quick_snooze_minutes: safeQuickSnoozeMinutes,
         dialog_overdue_threshold_hours: safeOverdueThresholdHours,
+        dialog_workspace_v1: Boolean(inputs.workspaceEnabled?.checked),
+        dialog_sla_critical_auto_sort: Boolean(inputs.slaCriticalAutoSort?.checked),
         dialog_workspace_inline_navigation: Boolean(inputs.workspaceInlineNavigation?.checked),
         dialog_workspace_contract_timeout_ms: safeWorkspaceContractTimeout,
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
@@ -13382,6 +13461,10 @@
         dialog_workspace_draft_telemetry_interval_ms: safeWorkspaceTelemetryInterval,
         dialog_list_poll_interval_ms: safeListPollInterval,
         dialog_history_poll_interval_ms: safeHistoryPollInterval,
+        dialog_workspace_ab_enabled: Boolean(inputs.workspaceAbEnabled?.checked),
+        dialog_workspace_ab_rollout_percent: safeWorkspaceAbRolloutPercent,
+        dialog_workspace_ab_experiment_name: safeWorkspaceAbExperimentName,
+        dialog_workspace_ab_operator_segment: safeWorkspaceAbOperatorSegment,
         dialog_workspace_guardrail_render_error_rate: safeRenderErrorRate,
         dialog_workspace_guardrail_fallback_rate: safeFallbackRate,
         dialog_workspace_guardrail_abandon_rate: safeAbandonRate,
