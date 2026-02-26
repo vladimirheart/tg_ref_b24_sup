@@ -2226,6 +2226,18 @@
                   <label for="dialogWorkspaceClientExternalLinks" class="form-label mt-3">Дополнительные external links (JSON-массив)</label>
                   <textarea class="form-control font-monospace" id="dialogWorkspaceClientExternalLinks" rows="6" placeholder='[{"key":"billing","label":"Billing","url_template":"https://billing.company.local/{client_id}","enabled":true}]'></textarea>
                   <div class="form-text">Поддерживаемые placeholder: {ticket_id}, {client_id}, {client_name}, {phone}, {channel_id}, {channel_name}, {business}, {location}.</div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Enterprise-атрибуты клиента (workspace)</h6>
+                  <p class="small text-muted">Управление enrichment-полями в правой панели: можно скрыть шумные атрибуты, задать человеко-понятные названия и порядок отображения.</p>
+                  <label for="dialogWorkspaceClientHiddenAttributes" class="form-label">Скрытые атрибуты (JSON-массив)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientHiddenAttributes" rows="4" placeholder='["risk_score", "contract_internal_id"]'></textarea>
+                  <div class="form-text">Формат: ["attribute_key"]. Ключи нормализуются в lowercase, пустые значения игнорируются.</div>
+                  <label for="dialogWorkspaceClientAttributeLabels" class="form-label mt-3">Переименования атрибутов (JSON-объект)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientAttributeLabels" rows="4" placeholder='{"contract_tier":"Тариф","risk_score":"Risk score"}'></textarea>
+                  <div class="form-text">Формат: {"attribute_key":"Название в UI"}. Помогает привести enterprise-ключи к бизнес-терминам.</div>
+                  <label for="dialogWorkspaceClientAttributeOrder" class="form-label mt-3">Порядок атрибутов (JSON-массив)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientAttributeOrder" rows="4" placeholder='["contract_tier", "risk_score", "vip_level"]'></textarea>
+                  <div class="form-text">Формат: ["attribute_key"]. Указанные ключи будут показываться первыми в заданном порядке.</div>
                 </section>
               </div>
 
@@ -12837,6 +12849,9 @@
       workspaceClientContractProfileUrlTemplate: document.getElementById('dialogWorkspaceClientContractProfileUrlTemplate'),
       workspaceClientContractProfileLabel: document.getElementById('dialogWorkspaceClientContractProfileLabel'),
       workspaceClientExternalLinks: document.getElementById('dialogWorkspaceClientExternalLinks'),
+      workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
+      workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
+      workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
     };
   }
 
@@ -13147,6 +13162,26 @@
         ? DIALOG_CONFIG.workspace_client_external_links
         : [];
       inputs.workspaceClientExternalLinks.value = JSON.stringify(links, null, 2);
+    }
+    if (inputs.workspaceClientHiddenAttributes) {
+      const hiddenAttributes = Array.isArray(DIALOG_CONFIG.workspace_client_hidden_attributes)
+        ? DIALOG_CONFIG.workspace_client_hidden_attributes
+        : [];
+      inputs.workspaceClientHiddenAttributes.value = JSON.stringify(hiddenAttributes, null, 2);
+    }
+    if (inputs.workspaceClientAttributeLabels) {
+      const attributeLabels = DIALOG_CONFIG.workspace_client_attribute_labels;
+      if (attributeLabels && typeof attributeLabels === 'object' && !Array.isArray(attributeLabels)) {
+        inputs.workspaceClientAttributeLabels.value = JSON.stringify(attributeLabels, null, 2);
+      } else {
+        inputs.workspaceClientAttributeLabels.value = '{}';
+      }
+    }
+    if (inputs.workspaceClientAttributeOrder) {
+      const attributeOrder = Array.isArray(DIALOG_CONFIG.workspace_client_attribute_order)
+        ? DIALOG_CONFIG.workspace_client_attribute_order
+        : [];
+      inputs.workspaceClientAttributeOrder.value = JSON.stringify(attributeOrder, null, 2);
     }
   }
 
@@ -13620,6 +13655,63 @@
       }
     }
 
+    let safeWorkspaceClientHiddenAttributes = [];
+    const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
+    if (hiddenAttributesRaw) {
+      try {
+        const parsed = JSON.parse(hiddenAttributesRaw);
+        if (!Array.isArray(parsed)) {
+          errors.push('Скрытые атрибуты клиента должны быть JSON-массивом.');
+        } else {
+          safeWorkspaceClientHiddenAttributes = Array.from(new Set(parsed
+            .map((item) => String(item || '').trim().toLowerCase())
+            .filter(Boolean)));
+        }
+      } catch (err) {
+        errors.push('Скрытые атрибуты клиента: некорректный JSON.');
+      }
+    }
+
+    let safeWorkspaceClientAttributeLabels = {};
+    const attributeLabelsRaw = (inputs.workspaceClientAttributeLabels?.value || '').trim();
+    if (attributeLabelsRaw) {
+      try {
+        const parsed = JSON.parse(attributeLabelsRaw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          errors.push('Переименования атрибутов клиента должны быть JSON-объектом вида {"key":"label"}.');
+        } else {
+          const normalized = {};
+          Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+            const key = String(keyRaw || '').trim().toLowerCase();
+            const label = String(valueRaw || '').trim();
+            if (key && label) {
+              normalized[key] = label;
+            }
+          });
+          safeWorkspaceClientAttributeLabels = normalized;
+        }
+      } catch (err) {
+        errors.push('Переименования атрибутов клиента: некорректный JSON.');
+      }
+    }
+
+    let safeWorkspaceClientAttributeOrder = [];
+    const attributeOrderRaw = (inputs.workspaceClientAttributeOrder?.value || '').trim();
+    if (attributeOrderRaw) {
+      try {
+        const parsed = JSON.parse(attributeOrderRaw);
+        if (!Array.isArray(parsed)) {
+          errors.push('Порядок атрибутов клиента должен быть JSON-массивом.');
+        } else {
+          safeWorkspaceClientAttributeOrder = Array.from(new Set(parsed
+            .map((item) => String(item || '').trim().toLowerCase())
+            .filter(Boolean)));
+        }
+      } catch (err) {
+        errors.push('Порядок атрибутов клиента: некорректный JSON.');
+      }
+    }
+
     return {
       errors,
       config: {
@@ -13682,6 +13774,9 @@
         dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,
         dialog_workspace_client_contract_profile_label: safeContractProfileLabel,
         dialog_workspace_client_external_links: safeWorkspaceExternalLinks,
+        dialog_workspace_client_hidden_attributes: safeWorkspaceClientHiddenAttributes,
+        dialog_workspace_client_attribute_labels: safeWorkspaceClientAttributeLabels,
+        dialog_workspace_client_attribute_order: safeWorkspaceClientAttributeOrder,
       },
     };
   }
