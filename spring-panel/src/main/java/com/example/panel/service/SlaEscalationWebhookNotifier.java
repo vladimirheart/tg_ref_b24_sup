@@ -93,8 +93,16 @@ public class SlaEscalationWebhookNotifier {
             return;
         }
 
+        String eventName = trimToNull(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_event_name")));
+        if (eventName == null) {
+            eventName = "sla_critical_escalation_required";
+        }
+        String severity = normalizeSeverity(dialogConfig.get("sla_critical_escalation_webhook_severity"));
+
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("event", "sla_critical_escalation_required");
+        payload.put("event", eventName);
+        payload.put("severity", severity);
+        payload.put("source", "iguana_panel");
         payload.put("generated_at", now.toString());
         payload.put("critical_threshold_minutes", criticalMinutes);
         payload.put("target_minutes", targetMinutes);
@@ -678,6 +686,18 @@ public class SlaEscalationWebhookNotifier {
             return result;
         }
         return Map.of();
+    }
+
+    private String normalizeSeverity(Object rawSeverity) {
+        String normalized = trimToNull(String.valueOf(rawSeverity));
+        if (normalized == null) {
+            return "critical";
+        }
+        String value = normalized.toLowerCase();
+        if ("critical".equals(value) || "high".equals(value) || "medium".equals(value) || "low".equals(value)) {
+            return value;
+        }
+        return "critical";
     }
 
     private String trimToNull(String value) {
