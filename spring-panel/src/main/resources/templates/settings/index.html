@@ -2106,6 +2106,19 @@
                       <label for="dialogWorkspaceAbOperatorSegment" class="form-label">A/B operator segment</label>
                       <input type="text" class="form-control" id="dialogWorkspaceAbOperatorSegment" placeholder="all_operators">
                     </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceAbPrimaryKpis" class="form-label">A/B primary KPI (через запятую)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbPrimaryKpis" placeholder="frt,ttr,sla_breach">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceAbSecondaryKpis" class="form-label">A/B secondary KPI (через запятую)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbSecondaryKpis" placeholder="dialogs_per_operator_shift,csat,ui_error_rate">
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceAbOperatorOverrides" class="form-label">A/B operator overrides (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceAbOperatorOverrides" rows="4" placeholder='{"ivanov":"test","petrova":"control"}'></textarea>
+                      <div class="form-text">Формат: {"operator_identity":"test|control"}. Невалидные значения игнорируются.</div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Guardrails и decisioning</h6>
@@ -3767,6 +3780,9 @@
     workspace_ab_rollout_percent: 0,
     workspace_ab_experiment_name: 'workspace_v1_rollout',
     workspace_ab_operator_segment: 'all_operators',
+    workspace_ab_primary_kpis: ['frt', 'ttr', 'sla_breach'],
+    workspace_ab_secondary_kpis: ['dialogs_per_operator_shift', 'csat', 'ui_error_rate'],
+    workspace_ab_operator_overrides: {},
     quick_snooze_minutes: 60,
     overdue_threshold_hours: 24,
     list_poll_interval_ms: 8000,
@@ -12769,6 +12785,9 @@
       workspaceAbRolloutPercent: document.getElementById('dialogWorkspaceAbRolloutPercent'),
       workspaceAbExperimentName: document.getElementById('dialogWorkspaceAbExperimentName'),
       workspaceAbOperatorSegment: document.getElementById('dialogWorkspaceAbOperatorSegment'),
+      workspaceAbPrimaryKpis: document.getElementById('dialogWorkspaceAbPrimaryKpis'),
+      workspaceAbSecondaryKpis: document.getElementById('dialogWorkspaceAbSecondaryKpis'),
+      workspaceAbOperatorOverrides: document.getElementById('dialogWorkspaceAbOperatorOverrides'),
       guardrailRenderErrorRate: document.getElementById('dialogWorkspaceGuardrailRenderErrorRate'),
       guardrailFallbackRate: document.getElementById('dialogWorkspaceGuardrailFallbackRate'),
       guardrailAbandonRate: document.getElementById('dialogWorkspaceGuardrailAbandonRate'),
@@ -12955,6 +12974,31 @@
     if (inputs.workspaceAbOperatorSegment) {
       const operatorSegment = String(DIALOG_CONFIG.workspace_ab_operator_segment || '').trim();
       inputs.workspaceAbOperatorSegment.value = operatorSegment || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_operator_segment;
+    }
+    if (inputs.workspaceAbPrimaryKpis) {
+      const primaryKpis = Array.isArray(DIALOG_CONFIG.workspace_ab_primary_kpis)
+        ? DIALOG_CONFIG.workspace_ab_primary_kpis
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_primary_kpis;
+      inputs.workspaceAbPrimaryKpis.value = primaryKpis
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(',');
+    }
+    if (inputs.workspaceAbSecondaryKpis) {
+      const secondaryKpis = Array.isArray(DIALOG_CONFIG.workspace_ab_secondary_kpis)
+        ? DIALOG_CONFIG.workspace_ab_secondary_kpis
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_secondary_kpis;
+      inputs.workspaceAbSecondaryKpis.value = secondaryKpis
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(',');
+    }
+    if (inputs.workspaceAbOperatorOverrides) {
+      const rawOverrides = DIALOG_CONFIG.workspace_ab_operator_overrides;
+      const safeOverrides = rawOverrides && typeof rawOverrides === 'object' && !Array.isArray(rawOverrides)
+        ? rawOverrides
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_operator_overrides;
+      inputs.workspaceAbOperatorOverrides.value = JSON.stringify(safeOverrides, null, 2);
     }
     const applyPercent = (input, rawValue, fallback) => {
       if (!input) return;
@@ -13311,6 +13355,54 @@
       || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_experiment_name;
     const safeWorkspaceAbOperatorSegment = String(inputs.workspaceAbOperatorSegment?.value || '').trim()
       || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_operator_segment;
+    const normalizeCsvKpis = (rawValue, fallback) => {
+      const normalized = String(rawValue || '')
+        .split(',')
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+      const unique = Array.from(new Set(normalized));
+      return unique.length ? unique : [...fallback];
+    };
+    const safeWorkspaceAbPrimaryKpis = normalizeCsvKpis(
+      inputs.workspaceAbPrimaryKpis?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_primary_kpis,
+    );
+    const safeWorkspaceAbSecondaryKpis = normalizeCsvKpis(
+      inputs.workspaceAbSecondaryKpis?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_secondary_kpis,
+    );
+    if (safeWorkspaceAbPrimaryKpis.length > 10) {
+      errors.push('Список A/B primary KPI должен содержать не более 10 значений.');
+    }
+    if (safeWorkspaceAbSecondaryKpis.length > 15) {
+      errors.push('Список A/B secondary KPI должен содержать не более 15 значений.');
+    }
+
+    let safeWorkspaceAbOperatorOverrides = {};
+    const abOverridesRaw = (inputs.workspaceAbOperatorOverrides?.value || '').trim();
+    if (abOverridesRaw) {
+      try {
+        const parsed = JSON.parse(abOverridesRaw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          errors.push('A/B operator overrides должны быть JSON-объектом вида {"operator":"test|control"}.');
+        } else {
+          Object.entries(parsed).forEach(([identityRaw, variantRaw]) => {
+            const identity = String(identityRaw || '').trim();
+            const variant = String(variantRaw || '').trim().toLowerCase();
+            if (!identity) {
+              return;
+            }
+            if (variant !== 'test' && variant !== 'control') {
+              return;
+            }
+            safeWorkspaceAbOperatorOverrides[identity] = variant;
+          });
+        }
+      } catch (err) {
+        errors.push('A/B operator overrides: некорректный JSON.');
+      }
+    }
+
     if (inputs.slaWindowDefault?.value && safeSlaWindowDefault === null) {
       errors.push('Пресет SLA по умолчанию должен быть в диапазоне 5..1440 минут.');
     }
@@ -13465,6 +13557,9 @@
         dialog_workspace_ab_rollout_percent: safeWorkspaceAbRolloutPercent,
         dialog_workspace_ab_experiment_name: safeWorkspaceAbExperimentName,
         dialog_workspace_ab_operator_segment: safeWorkspaceAbOperatorSegment,
+        dialog_workspace_ab_primary_kpis: safeWorkspaceAbPrimaryKpis,
+        dialog_workspace_ab_secondary_kpis: safeWorkspaceAbSecondaryKpis,
+        dialog_workspace_ab_operator_overrides: safeWorkspaceAbOperatorOverrides,
         dialog_workspace_guardrail_render_error_rate: safeRenderErrorRate,
         dialog_workspace_guardrail_fallback_rate: safeFallbackRate,
         dialog_workspace_guardrail_abandon_rate: safeAbandonRate,
