@@ -1972,6 +1972,15 @@
                       <input type="number" class="form-control" id="dialogSlaAutoAssignMaxPerRun" min="1" max="100" step="1">
                     </div>
                     <div class="col-md-3">
+                      <label for="dialogSlaAutoAssignActor" class="form-label">Audit actor</label>
+                      <input type="text" class="form-control" id="dialogSlaAutoAssignActor" placeholder="sla_orchestrator">
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogSlaAutoAssignRules" class="form-label">Правила auto-assign (JSON-массив)</label>
+                      <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
+                      <div class="form-text">Поддерживаются match_channel(s), match_business(es), match_location(s), match_category(ies), match_categories_mode=any|all, match_sla_state(s), assign_to/assign_to_pool.</div>
+                    </div>
+                    <div class="col-md-3">
                       <div class="form-check mt-4 pt-2">
                         <input class="form-check-input" type="checkbox" id="dialogSlaEscalationWebhookEnabled">
                         <label class="form-check-label" for="dialogSlaEscalationWebhookEnabled">Webhook-уведомления инцидентов</label>
@@ -3765,6 +3774,8 @@
     auto_assign_enabled: false,
     auto_assign_to: '',
     auto_assign_max_per_run: 5,
+    auto_assign_actor: 'sla_orchestrator',
+    auto_assign_rules: [],
     escalation_webhook_enabled: false,
     escalation_webhook_urls: '',
     escalation_webhook_cooldown_minutes: 30,
@@ -12764,6 +12775,8 @@
       autoAssignEnabled: document.getElementById('dialogSlaAutoAssignEnabled'),
       autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
       autoAssignMaxPerRun: document.getElementById('dialogSlaAutoAssignMaxPerRun'),
+      autoAssignActor: document.getElementById('dialogSlaAutoAssignActor'),
+      autoAssignRules: document.getElementById('dialogSlaAutoAssignRules'),
       escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
       escalationWebhookUrls: document.getElementById('dialogSlaEscalationWebhookUrls'),
       escalationWebhookCooldownMinutes: document.getElementById('dialogSlaEscalationWebhookCooldown'),
@@ -12843,6 +12856,16 @@
       inputs.autoAssignMaxPerRun.value = Number.isFinite(autoAssignMax) && autoAssignMax >= 1
         ? autoAssignMax
         : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_max_per_run;
+    }
+    if (inputs.autoAssignActor) {
+      const actor = String(DIALOG_CONFIG.sla_critical_auto_assign_actor || '').trim();
+      inputs.autoAssignActor.value = actor || DEFAULT_DIALOG_SLA_CONFIG.auto_assign_actor;
+    }
+    if (inputs.autoAssignRules) {
+      const rawRules = Array.isArray(DIALOG_CONFIG.sla_critical_auto_assign_rules)
+        ? DIALOG_CONFIG.sla_critical_auto_assign_rules
+        : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_rules;
+      inputs.autoAssignRules.value = JSON.stringify(rawRules, null, 2);
     }
     if (inputs.escalationWebhookEnabled instanceof HTMLInputElement) {
       inputs.escalationWebhookEnabled.checked = Boolean(DIALOG_CONFIG.sla_critical_escalation_webhook_enabled);
@@ -13117,8 +13140,24 @@
     const safeAutoAssignMaxPerRun = Number.isFinite(autoAssignMaxPerRunRaw)
       ? Math.min(100, Math.max(1, autoAssignMaxPerRunRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_max_per_run;
+    const safeAutoAssignActor = String(inputs.autoAssignActor?.value || '').trim()
+      || DEFAULT_DIALOG_SLA_CONFIG.auto_assign_actor;
     if (!Number.isFinite(autoAssignMaxPerRunRaw) || autoAssignMaxPerRunRaw < 1 || autoAssignMaxPerRunRaw > 100) {
       errors.push('Лимит авто-назначений за проход должен быть в диапазоне 1..100.');
+    }
+    let safeAutoAssignRules = [];
+    const autoAssignRulesRaw = (inputs.autoAssignRules?.value || '').trim();
+    if (autoAssignRulesRaw) {
+      try {
+        const parsedAutoAssignRules = JSON.parse(autoAssignRulesRaw);
+        if (!Array.isArray(parsedAutoAssignRules)) {
+          errors.push('Правила auto-assign должны быть JSON-массивом.');
+        } else {
+          safeAutoAssignRules = parsedAutoAssignRules;
+        }
+      } catch (err) {
+        errors.push('Правила auto-assign: некорректный JSON.');
+      }
     }
 
     const escalationWebhookUrls = String(inputs.escalationWebhookUrls?.value || '')
@@ -13550,6 +13589,8 @@
         dialog_sla_critical_auto_assign_enabled: Boolean(inputs.autoAssignEnabled?.checked),
         dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),
         dialog_sla_critical_auto_assign_max_per_run: safeAutoAssignMaxPerRun,
+        dialog_sla_critical_auto_assign_actor: safeAutoAssignActor,
+        dialog_sla_critical_auto_assign_rules: safeAutoAssignRules,
         dialog_sla_critical_escalation_webhook_enabled: Boolean(inputs.escalationWebhookEnabled?.checked),
         dialog_sla_critical_escalation_webhook_urls: safeEscalationWebhookUrls,
         dialog_sla_critical_escalation_webhook_cooldown_minutes: safeEscalationWebhookCooldown,
