@@ -335,10 +335,12 @@ public class DialogApiController {
         int slaCriticalMinutes = Math.min(resolveDialogConfigMinutes("sla_critical_minutes", 30), slaTargetMinutes);
         String slaState = resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey());
         Long slaMinutesLeft = resolveSlaMinutesLeft(summary.createdAt(), slaTargetMinutes, summary.statusKey(), System.currentTimeMillis());
-        List<Map<String, Object>> clientHistory = dialogService.loadClientDialogHistory(summary.userId(), ticketId, 5);
-        List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, 5);
-        Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
         Map<String, Object> settings = sharedConfigService.loadSettings();
+        int workspaceHistoryLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_history_limit", 5, 1, 20);
+        int workspaceRelatedEventsLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_related_events_limit", 5, 1, 20);
+        List<Map<String, Object>> clientHistory = dialogService.loadClientDialogHistory(summary.userId(), ticketId, workspaceHistoryLimit);
+        List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, workspaceRelatedEventsLimit);
+        Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
         Set<String> hiddenProfileAttributes = resolveWorkspaceHiddenClientAttributes(settings);
         Map<String, Object> filteredProfileEnrichment = filterWorkspaceProfileEnrichment(profileEnrichment, hiddenProfileAttributes);
         Map<String, Object> workspaceClient = new LinkedHashMap<>();
@@ -354,7 +356,7 @@ public class DialogApiController {
         workspaceClient.put("unread_count", summary.unreadCount());
         workspaceClient.put("rating", summary.rating());
         workspaceClient.put("last_message_at", summary.lastMessageTimestamp());
-        workspaceClient.put("segments", buildWorkspaceClientSegments(summary, filteredProfileEnrichment));
+        workspaceClient.put("segments", buildWorkspaceClientSegments(summary, filteredProfileEnrichment, settings));
         Map<String, Object> externalLinks = resolveWorkspaceExternalProfileLinks(settings, summary, ticketId, filteredProfileEnrichment);
         if (!externalLinks.isEmpty()) {
             workspaceClient.put("external_links", externalLinks);
@@ -439,7 +441,9 @@ public class DialogApiController {
         return ResponseEntity.ok(payload);
     }
 
-    private List<String> buildWorkspaceClientSegments(DialogListItem summary, Map<String, Object> profileEnrichment) {
+    private List<String> buildWorkspaceClientSegments(DialogListItem summary,
+                                                      Map<String, Object> profileEnrichment,
+                                                      Map<String, Object> settings) {
         if (summary == null) {
             return List.of();
         }
@@ -461,16 +465,72 @@ public class DialogApiController {
         int openDialogs = parseInteger(profileEnrichment != null ? profileEnrichment.get("open_dialogs") : null);
         int resolved30d = parseInteger(profileEnrichment != null ? profileEnrichment.get("resolved_30d") : null);
 
-        if (totalDialogs >= 5) {
+        int highLifetimeDialogsThreshold = resolveDialogConfigRangeMinutes(
+                settings,
+                "workspace_segment_high_lifetime_volume_min_dialogs",
+                5,
+                1,
+                500
+        );
+        int multiOpenDialogsThreshold = resolveDialogConfigRangeMinutes(
+                settings,
+                "workspace_segment_multi_open_dialogs_min_open",
+                2,
+                1,
+                50
+        );
+        int reactivationDialogsThreshold = resolveDialogConfigRangeMinutes(
+                settings,
+                "workspace_segment_reactivation_risk_min_dialogs",
+                3,
+                1,
+                500
+        );
+        int reactivationResolvedThreshold = resolveDialogConfigRangeMinutes(
+                settings,
+                "workspace_segment_reactivation_risk_max_resolved_30d",
+                0,
+                0,
+                100
+        );
+
+        if (totalDialogs >= highLifetimeDialogsThreshold) {
             segments.add("high_lifetime_volume");
         }
-        if (openDialogs >= 2) {
+        if (openDialogs >= multiOpenDialogsThreshold) {
             segments.add("multi_open_dialogs");
         }
-        if (totalDialogs >= 3 && resolved30d == 0) {
+        if (totalDialogs >= reactivationDialogsThreshold && resolved30d <= reactivationResolvedThreshold) {
             segments.add("reactivation_risk");
         }
         return segments;
+    }
+
+    private int resolveDialogConfigRangeMinutes(Map<String, Object> settings,
+                                                String key,
+                                                int fallbackValue,
+                                                int min,
+                                                int max) {
+        if (settings == null || settings.isEmpty()) {
+            return fallbackValue;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return fallbackValue;
+        }
+        Object value = dialogConfig.get(key);
+        if (value == null) {
+            return fallbackValue;
+        }
+        try {
+            int parsed = Integer.parseInt(String.valueOf(value).trim());
+            if (parsed < min || parsed > max) {
+                return fallbackValue;
+            }
+            return parsed;
+        } catch (NumberFormatException ex) {
+            return fallbackValue;
+        }
     }
 
     private int parseInteger(Object value) {
