@@ -212,7 +212,13 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_external_links")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
-                || payload.containsKey("dialog_workspace_client_attribute_order")) {
+                || payload.containsKey("dialog_workspace_client_attribute_order")
+                || payload.containsKey("dialog_workspace_context_history_limit")
+                || payload.containsKey("dialog_workspace_context_related_events_limit")
+                || payload.containsKey("dialog_workspace_segment_high_lifetime_volume_min_dialogs")
+                || payload.containsKey("dialog_workspace_segment_multi_open_dialogs_min_open")
+                || payload.containsKey("dialog_workspace_segment_reactivation_risk_min_dialogs")
+                || payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -457,6 +463,30 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_attribute_order")) {
                     dialogConfig.put("workspace_client_attribute_order",
                             payload.get("dialog_workspace_client_attribute_order"));
+                }
+                if (payload.containsKey("dialog_workspace_context_history_limit")) {
+                    dialogConfig.put("workspace_context_history_limit",
+                            payload.get("dialog_workspace_context_history_limit"));
+                }
+                if (payload.containsKey("dialog_workspace_context_related_events_limit")) {
+                    dialogConfig.put("workspace_context_related_events_limit",
+                            payload.get("dialog_workspace_context_related_events_limit"));
+                }
+                if (payload.containsKey("dialog_workspace_segment_high_lifetime_volume_min_dialogs")) {
+                    dialogConfig.put("workspace_segment_high_lifetime_volume_min_dialogs",
+                            payload.get("dialog_workspace_segment_high_lifetime_volume_min_dialogs"));
+                }
+                if (payload.containsKey("dialog_workspace_segment_multi_open_dialogs_min_open")) {
+                    dialogConfig.put("workspace_segment_multi_open_dialogs_min_open",
+                            payload.get("dialog_workspace_segment_multi_open_dialogs_min_open"));
+                }
+                if (payload.containsKey("dialog_workspace_segment_reactivation_risk_min_dialogs")) {
+                    dialogConfig.put("workspace_segment_reactivation_risk_min_dialogs",
+                            payload.get("dialog_workspace_segment_reactivation_risk_min_dialogs"));
+                }
+                if (payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")) {
+                    dialogConfig.put("workspace_segment_reactivation_risk_max_resolved_30d",
+                            payload.get("dialog_workspace_segment_reactivation_risk_max_resolved_30d"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
