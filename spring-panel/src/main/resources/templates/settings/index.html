@@ -2115,6 +2115,36 @@
                   <label for="dialogMacroVariableDefaults" class="form-label">JSON-объект defaults</label>
                   <textarea class="form-control font-monospace" id="dialogMacroVariableDefaults" rows="5" placeholder='{"business":"Iguana", "location":"N/A"}'></textarea>
                   <div class="form-text">Формат: {"ключ":"значение"}. Ключи нормализуются в lowercase. Пустые значения игнорируются.</div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Каталог macro-переменных</h6>
+                  <p class="small text-muted">Единый каталог для внешних систем: ключ, label и default-подстановка для предпросмотра.</p>
+                  <label for="dialogMacroVariableCatalog" class="form-label">JSON-массив каталога</label>
+                  <textarea class="form-control font-monospace" id="dialogMacroVariableCatalog" rows="6" placeholder='[{"key":"contract_tier","label":"Тариф клиента","default_value":"standard"}]'></textarea>
+                  <div class="form-text">Формат элемента: {"key":"variable_name","label":"Название","default_value":"опционально"}.</div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Внешние профили клиента (workspace)</h6>
+                  <p class="small text-muted">Позволяет подключить CRM/contract-системы и дополнительные enterprise-ссылки без code-deploy.</p>
+                  <div class="row g-3">
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientCrmProfileUrlTemplate" class="form-label">CRM URL-шаблон</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientCrmProfileUrlTemplate" placeholder="https://crm.company.local/client/{client_id}">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientCrmProfileLabel" class="form-label">CRM label</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientCrmProfileLabel" placeholder="CRM профиль">
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientContractProfileUrlTemplate" class="form-label">Contract URL-шаблон</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientContractProfileUrlTemplate" placeholder="https://contracts.company.local/{ticket_id}">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientContractProfileLabel" class="form-label">Contract label</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientContractProfileLabel" placeholder="Договор/контракт">
+                    </div>
+                  </div>
+                  <label for="dialogWorkspaceClientExternalLinks" class="form-label mt-3">Дополнительные external links (JSON-массив)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientExternalLinks" rows="6" placeholder='[{"key":"billing","label":"Billing","url_template":"https://billing.company.local/{client_id}","enabled":true}]'></textarea>
+                  <div class="form-text">Поддерживаемые placeholder: {ticket_id}, {client_id}, {client_name}, {phone}, {channel_id}, {channel_name}, {business}, {location}.</div>
                 </section>
               </div>
 
@@ -12684,6 +12714,12 @@
       kpiOutcomeSlaAbsDeltaPercent: document.getElementById('dialogWorkspaceKpiOutcomeSlaAbsDeltaPercent'),
       kpiOutcomeSlaRelativeMultiplier: document.getElementById('dialogWorkspaceKpiOutcomeSlaRelativeMultiplier'),
       macroVariableDefaults: document.getElementById('dialogMacroVariableDefaults'),
+      macroVariableCatalog: document.getElementById('dialogMacroVariableCatalog'),
+      workspaceClientCrmProfileUrlTemplate: document.getElementById('dialogWorkspaceClientCrmProfileUrlTemplate'),
+      workspaceClientCrmProfileLabel: document.getElementById('dialogWorkspaceClientCrmProfileLabel'),
+      workspaceClientContractProfileUrlTemplate: document.getElementById('dialogWorkspaceClientContractProfileUrlTemplate'),
+      workspaceClientContractProfileLabel: document.getElementById('dialogWorkspaceClientContractProfileLabel'),
+      workspaceClientExternalLinks: document.getElementById('dialogWorkspaceClientExternalLinks'),
     };
   }
 
@@ -12870,6 +12906,30 @@
       } else {
         inputs.macroVariableDefaults.value = '{}';
       }
+    }
+    if (inputs.macroVariableCatalog) {
+      const catalog = Array.isArray(DIALOG_CONFIG.macro_variable_catalog)
+        ? DIALOG_CONFIG.macro_variable_catalog
+        : [];
+      inputs.macroVariableCatalog.value = JSON.stringify(catalog, null, 2);
+    }
+    if (inputs.workspaceClientCrmProfileUrlTemplate) {
+      inputs.workspaceClientCrmProfileUrlTemplate.value = String(DIALOG_CONFIG.workspace_client_crm_profile_url_template || '').trim();
+    }
+    if (inputs.workspaceClientCrmProfileLabel) {
+      inputs.workspaceClientCrmProfileLabel.value = String(DIALOG_CONFIG.workspace_client_crm_profile_label || '').trim();
+    }
+    if (inputs.workspaceClientContractProfileUrlTemplate) {
+      inputs.workspaceClientContractProfileUrlTemplate.value = String(DIALOG_CONFIG.workspace_client_contract_profile_url_template || '').trim();
+    }
+    if (inputs.workspaceClientContractProfileLabel) {
+      inputs.workspaceClientContractProfileLabel.value = String(DIALOG_CONFIG.workspace_client_contract_profile_label || '').trim();
+    }
+    if (inputs.workspaceClientExternalLinks) {
+      const links = Array.isArray(DIALOG_CONFIG.workspace_client_external_links)
+        ? DIALOG_CONFIG.workspace_client_external_links
+        : [];
+      inputs.workspaceClientExternalLinks.value = JSON.stringify(links, null, 2);
     }
   }
 
@@ -13127,6 +13187,94 @@
       }
     }
 
+    let safeMacroVariableCatalog = [];
+    const macroCatalogRaw = (inputs.macroVariableCatalog?.value || '').trim();
+    if (macroCatalogRaw) {
+      try {
+        const parsed = JSON.parse(macroCatalogRaw);
+        if (!Array.isArray(parsed)) {
+          errors.push('Каталог macro-переменных должен быть JSON-массивом.');
+        } else {
+          const normalized = [];
+          const keys = new Set();
+          parsed.forEach((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+              return;
+            }
+            const key = String(entry.key || '').trim().toLowerCase();
+            const label = String(entry.label || '').trim();
+            const defaultValue = String(entry.default_value ?? '').trim();
+            if (!key || !label || keys.has(key)) {
+              return;
+            }
+            keys.add(key);
+            const item = { key, label };
+            if (defaultValue) {
+              item.default_value = defaultValue;
+            }
+            normalized.push(item);
+          });
+          safeMacroVariableCatalog = normalized;
+        }
+      } catch (err) {
+        errors.push('Каталог macro-переменных: некорректный JSON.');
+      }
+    }
+
+    const safeCrmProfileTemplate = String(inputs.workspaceClientCrmProfileUrlTemplate?.value || '').trim();
+    const safeCrmProfileLabel = String(inputs.workspaceClientCrmProfileLabel?.value || '').trim();
+    const safeContractProfileTemplate = String(inputs.workspaceClientContractProfileUrlTemplate?.value || '').trim();
+    const safeContractProfileLabel = String(inputs.workspaceClientContractProfileLabel?.value || '').trim();
+
+    const validateExternalUrlTemplate = (value, title) => {
+      if (!value) return;
+      if (!(value.startsWith('https://') || value.startsWith('http://'))) {
+        errors.push(`${title}: URL-шаблон должен начинаться с http:// или https://.`);
+      }
+    };
+
+    validateExternalUrlTemplate(safeCrmProfileTemplate, 'CRM профиль');
+    validateExternalUrlTemplate(safeContractProfileTemplate, 'Contract профиль');
+
+    let safeWorkspaceExternalLinks = [];
+    const externalLinksRaw = (inputs.workspaceClientExternalLinks?.value || '').trim();
+    if (externalLinksRaw) {
+      try {
+        const parsed = JSON.parse(externalLinksRaw);
+        if (!Array.isArray(parsed)) {
+          errors.push('Дополнительные external links должны быть JSON-массивом.');
+        } else {
+          const normalized = [];
+          const keys = new Set();
+          parsed.forEach((entry) => {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+              return;
+            }
+            const key = String(entry.key || '').trim().toLowerCase();
+            const label = String(entry.label || '').trim();
+            const urlTemplate = String(entry.url_template || '').trim();
+            if (!key || !label || !urlTemplate || keys.has(key)) {
+              return;
+            }
+            if (!(urlTemplate.startsWith('https://') || urlTemplate.startsWith('http://'))) {
+              errors.push(`External link ${key}: url_template должен начинаться с http:// или https://.`);
+              return;
+            }
+            keys.add(key);
+            normalized.push({
+              key,
+              label,
+              url_template: urlTemplate,
+              enabled: entry.enabled !== false,
+            });
+          });
+          safeWorkspaceExternalLinks = normalized;
+        }
+      } catch (err) {
+        errors.push('Дополнительные external links: некорректный JSON.');
+      }
+    }
+
     return {
       errors,
       config: {
@@ -13165,6 +13313,12 @@
         dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta: safeSlaAbsoluteDelta,
         dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: safeSlaRelativeMultiplier,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
+        dialog_macro_variable_catalog: safeMacroVariableCatalog,
+        dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
+        dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
+        dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,
+        dialog_workspace_client_contract_profile_label: safeContractProfileLabel,
+        dialog_workspace_client_external_links: safeWorkspaceExternalLinks,
       },
     };
   }

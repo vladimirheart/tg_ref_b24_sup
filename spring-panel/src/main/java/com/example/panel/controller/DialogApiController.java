@@ -232,6 +232,10 @@ public class DialogApiController {
                 .collect(Collectors.toCollection(ArrayList::new));
         Map<String, Object> settings = sharedConfigService.loadSettings();
         Object configured = settings.get("macro_variable_catalog");
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (dialogConfigRaw instanceof Map<?, ?> dialogConfig && dialogConfig.get("macro_variable_catalog") instanceof List<?>) {
+            configured = dialogConfig.get("macro_variable_catalog");
+        }
         if (configured instanceof List<?> entries) {
             for (Object entry : entries) {
                 if (!(entry instanceof Map<?, ?> map)) {
