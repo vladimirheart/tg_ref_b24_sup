@@ -1967,6 +1967,49 @@
                       <label for="dialogSlaAutoAssignTo" class="form-label">Fallback-исполнитель (логин)</label>
                       <input type="text" class="form-control" id="dialogSlaAutoAssignTo" placeholder="Например, teamlead_support">
                     </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaAutoAssignMaxPerRun" class="form-label">Лимит авто-назначений за проход</label>
+                      <input type="number" class="form-control" id="dialogSlaAutoAssignMaxPerRun" min="1" max="100" step="1">
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaEscalationWebhookEnabled">
+                        <label class="form-check-label" for="dialogSlaEscalationWebhookEnabled">Webhook-уведомления инцидентов</label>
+                      </div>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogSlaEscalationWebhookUrls" class="form-label">Webhook URL (через запятую или новую строку)</label>
+                      <textarea class="form-control" id="dialogSlaEscalationWebhookUrls" rows="2" placeholder="https://incident.example/hook"></textarea>
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogSlaEscalationWebhookCooldown" class="form-label">Cooldown, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookCooldown" min="1" max="1440" step="1">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogSlaEscalationWebhookTimeout" class="form-label">Timeout, мс</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookTimeout" min="500" max="30000" step="100">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookRetryAttempts" class="form-label">Retry попытки</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookRetryAttempts" min="1" max="5" step="1">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookRetryBackoff" class="form-label">Retry backoff, мс</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookRetryBackoff" min="50" max="5000" step="50">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookEventName" class="form-label">Event name</label>
+                      <input type="text" class="form-control" id="dialogSlaEscalationWebhookEventName" placeholder="sla_critical_escalation_required">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookSeverity" class="form-label">Severity</label>
+                      <select class="form-select" id="dialogSlaEscalationWebhookSeverity">
+                        <option value="critical">critical</option>
+                        <option value="high">high</option>
+                        <option value="medium">medium</option>
+                        <option value="low">low</option>
+                      </select>
+                    </div>
                     <div class="col-md-6">
                       <label for="dialogSlaWindowPresets" class="form-label">Пресеты фильтра «Требует реакции», мин</label>
                       <input type="text" class="form-control" id="dialogSlaWindowPresets" placeholder="15,30,60,120">
@@ -3627,6 +3670,15 @@
     escalation_enabled: true,
     auto_assign_enabled: false,
     auto_assign_to: '',
+    auto_assign_max_per_run: 5,
+    escalation_webhook_enabled: false,
+    escalation_webhook_urls: '',
+    escalation_webhook_cooldown_minutes: 30,
+    escalation_webhook_timeout_ms: 4000,
+    escalation_webhook_retry_attempts: 1,
+    escalation_webhook_retry_backoff_ms: 250,
+    escalation_webhook_event_name: 'sla_critical_escalation_required',
+    escalation_webhook_event_severity: 'critical',
     workspace_contract_timeout_ms: 8000,
     workspace_contract_retry_attempts: 1,
     workspace_draft_autosave_delay_ms: 900,
@@ -12603,6 +12655,15 @@
       escalationEnabled: document.getElementById('dialogSlaEscalationEnabled'),
       autoAssignEnabled: document.getElementById('dialogSlaAutoAssignEnabled'),
       autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
+      autoAssignMaxPerRun: document.getElementById('dialogSlaAutoAssignMaxPerRun'),
+      escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
+      escalationWebhookUrls: document.getElementById('dialogSlaEscalationWebhookUrls'),
+      escalationWebhookCooldownMinutes: document.getElementById('dialogSlaEscalationWebhookCooldown'),
+      escalationWebhookTimeoutMs: document.getElementById('dialogSlaEscalationWebhookTimeout'),
+      escalationWebhookRetryAttempts: document.getElementById('dialogSlaEscalationWebhookRetryAttempts'),
+      escalationWebhookRetryBackoffMs: document.getElementById('dialogSlaEscalationWebhookRetryBackoff'),
+      escalationWebhookEventName: document.getElementById('dialogSlaEscalationWebhookEventName'),
+      escalationWebhookSeverity: document.getElementById('dialogSlaEscalationWebhookSeverity'),
       slaWindowPresets: document.getElementById('dialogSlaWindowPresets'),
       slaWindowDefault: document.getElementById('dialogSlaWindowDefault'),
       defaultView: document.getElementById('dialogDefaultView'),
@@ -12648,6 +12709,57 @@
       inputs.autoAssignTo.value = typeof DIALOG_CONFIG.sla_critical_auto_assign_to === 'string'
         ? DIALOG_CONFIG.sla_critical_auto_assign_to
         : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_to;
+    }
+    if (inputs.autoAssignMaxPerRun) {
+      const autoAssignMax = Number.parseInt(DIALOG_CONFIG.sla_critical_auto_assign_max_per_run, 10);
+      inputs.autoAssignMaxPerRun.value = Number.isFinite(autoAssignMax) && autoAssignMax >= 1
+        ? autoAssignMax
+        : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_max_per_run;
+    }
+    if (inputs.escalationWebhookEnabled instanceof HTMLInputElement) {
+      inputs.escalationWebhookEnabled.checked = Boolean(DIALOG_CONFIG.sla_critical_escalation_webhook_enabled);
+    }
+    if (inputs.escalationWebhookUrls) {
+      const webhookUrls = Array.isArray(DIALOG_CONFIG.sla_critical_escalation_webhook_urls)
+        ? DIALOG_CONFIG.sla_critical_escalation_webhook_urls
+        : [];
+      inputs.escalationWebhookUrls.value = webhookUrls.map((value) => String(value || '').trim()).filter(Boolean).join('
+');
+    }
+    if (inputs.escalationWebhookCooldownMinutes) {
+      const cooldown = Number.parseInt(DIALOG_CONFIG.sla_critical_escalation_webhook_cooldown_minutes, 10);
+      inputs.escalationWebhookCooldownMinutes.value = Number.isFinite(cooldown) && cooldown >= 1
+        ? cooldown
+        : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_cooldown_minutes;
+    }
+    if (inputs.escalationWebhookTimeoutMs) {
+      const timeoutMs = Number.parseInt(DIALOG_CONFIG.sla_critical_escalation_webhook_timeout_ms, 10);
+      inputs.escalationWebhookTimeoutMs.value = Number.isFinite(timeoutMs) && timeoutMs >= 500
+        ? timeoutMs
+        : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_timeout_ms;
+    }
+    if (inputs.escalationWebhookRetryAttempts) {
+      const retryAttempts = Number.parseInt(DIALOG_CONFIG.sla_critical_escalation_webhook_retry_attempts, 10);
+      inputs.escalationWebhookRetryAttempts.value = Number.isFinite(retryAttempts) && retryAttempts >= 1
+        ? retryAttempts
+        : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_retry_attempts;
+    }
+    if (inputs.escalationWebhookRetryBackoffMs) {
+      const retryBackoffMs = Number.parseInt(DIALOG_CONFIG.sla_critical_escalation_webhook_retry_backoff_ms, 10);
+      inputs.escalationWebhookRetryBackoffMs.value = Number.isFinite(retryBackoffMs) && retryBackoffMs >= 50
+        ? retryBackoffMs
+        : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_retry_backoff_ms;
+    }
+    if (inputs.escalationWebhookEventName) {
+      const eventName = String(DIALOG_CONFIG.sla_critical_escalation_webhook_event_name || '').trim();
+      inputs.escalationWebhookEventName.value = eventName || DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_event_name;
+    }
+    if (inputs.escalationWebhookSeverity) {
+      const severity = String(DIALOG_CONFIG.sla_critical_escalation_webhook_severity || '').trim().toLowerCase();
+      const allowedSeverities = new Set(['critical', 'high', 'medium', 'low']);
+      inputs.escalationWebhookSeverity.value = allowedSeverities.has(severity)
+        ? severity
+        : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_event_severity;
     }
     if (inputs.slaWindowPresets) {
       const rawPresets = Array.isArray(DIALOG_CONFIG.sla_window_presets_minutes)
@@ -12771,6 +12883,64 @@
     const safeTarget = Number.isFinite(target) && target > 0 ? target : DEFAULT_DIALOG_SLA_CONFIG.target_minutes;
     const safeWarning = Number.isFinite(warning) && warning > 0 ? warning : DEFAULT_DIALOG_SLA_CONFIG.warning_minutes;
     const safeCritical = Number.isFinite(critical) && critical > 0 ? critical : DEFAULT_DIALOG_SLA_CONFIG.critical_minutes;
+    const autoAssignMaxPerRunRaw = Math.round(Number(inputs.autoAssignMaxPerRun?.value));
+    const safeAutoAssignMaxPerRun = Number.isFinite(autoAssignMaxPerRunRaw)
+      ? Math.min(100, Math.max(1, autoAssignMaxPerRunRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_max_per_run;
+    if (!Number.isFinite(autoAssignMaxPerRunRaw) || autoAssignMaxPerRunRaw < 1 || autoAssignMaxPerRunRaw > 100) {
+      errors.push('Лимит авто-назначений за проход должен быть в диапазоне 1..100.');
+    }
+
+    const escalationWebhookUrls = String(inputs.escalationWebhookUrls?.value || '')
+      .split(/[
+,;]/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const safeEscalationWebhookUrls = Array.from(new Set(escalationWebhookUrls));
+    const escalationWebhookCooldownRaw = Math.round(Number(inputs.escalationWebhookCooldownMinutes?.value));
+    const safeEscalationWebhookCooldown = Number.isFinite(escalationWebhookCooldownRaw)
+      ? Math.min(1440, Math.max(1, escalationWebhookCooldownRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_cooldown_minutes;
+    if (!Number.isFinite(escalationWebhookCooldownRaw) || escalationWebhookCooldownRaw < 1 || escalationWebhookCooldownRaw > 1440) {
+      errors.push('Cooldown webhook должен быть в диапазоне 1..1440 минут.');
+    }
+
+    const escalationWebhookTimeoutRaw = Math.round(Number(inputs.escalationWebhookTimeoutMs?.value));
+    const safeEscalationWebhookTimeout = Number.isFinite(escalationWebhookTimeoutRaw)
+      ? Math.min(30000, Math.max(500, escalationWebhookTimeoutRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_timeout_ms;
+    if (!Number.isFinite(escalationWebhookTimeoutRaw) || escalationWebhookTimeoutRaw < 500 || escalationWebhookTimeoutRaw > 30000) {
+      errors.push('Timeout webhook должен быть в диапазоне 500..30000 мс.');
+    }
+
+    const escalationWebhookRetryAttemptsRaw = Math.round(Number(inputs.escalationWebhookRetryAttempts?.value));
+    const safeEscalationWebhookRetryAttempts = Number.isFinite(escalationWebhookRetryAttemptsRaw)
+      ? Math.min(5, Math.max(1, escalationWebhookRetryAttemptsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_retry_attempts;
+    if (!Number.isFinite(escalationWebhookRetryAttemptsRaw) || escalationWebhookRetryAttemptsRaw < 1 || escalationWebhookRetryAttemptsRaw > 5) {
+      errors.push('Retry попытки webhook должны быть в диапазоне 1..5.');
+    }
+
+    const escalationWebhookRetryBackoffRaw = Math.round(Number(inputs.escalationWebhookRetryBackoffMs?.value));
+    const safeEscalationWebhookRetryBackoff = Number.isFinite(escalationWebhookRetryBackoffRaw)
+      ? Math.min(5000, Math.max(50, escalationWebhookRetryBackoffRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_retry_backoff_ms;
+    if (!Number.isFinite(escalationWebhookRetryBackoffRaw) || escalationWebhookRetryBackoffRaw < 50 || escalationWebhookRetryBackoffRaw > 5000) {
+      errors.push('Retry backoff webhook должен быть в диапазоне 50..5000 мс.');
+    }
+
+    const safeEscalationWebhookEventName = String(inputs.escalationWebhookEventName?.value || '').trim()
+      || DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_event_name;
+    const severityRaw = String(inputs.escalationWebhookSeverity?.value || '').trim().toLowerCase();
+    const allowedEscalationSeverities = new Set(['critical', 'high', 'medium', 'low']);
+    const safeEscalationWebhookSeverity = allowedEscalationSeverities.has(severityRaw)
+      ? severityRaw
+      : DEFAULT_DIALOG_SLA_CONFIG.escalation_webhook_event_severity;
+
+    if (Boolean(inputs.escalationWebhookEnabled?.checked) && safeEscalationWebhookUrls.length === 0) {
+      errors.push('Укажите хотя бы один webhook URL для включённого режима уведомлений.');
+    }
+
     const workspaceContractTimeoutRaw = Math.round(Number(inputs.workspaceContractTimeout?.value));
     const workspaceRetryAttemptsRaw = Math.round(Number(inputs.workspaceRetryAttempts?.value));
     const workspaceAutosaveDelayRaw = Math.round(Number(inputs.workspaceDraftAutosaveDelay?.value));
@@ -12966,6 +13136,15 @@
         dialog_sla_critical_escalation_enabled: Boolean(inputs.escalationEnabled?.checked),
         dialog_sla_critical_auto_assign_enabled: Boolean(inputs.autoAssignEnabled?.checked),
         dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),
+        dialog_sla_critical_auto_assign_max_per_run: safeAutoAssignMaxPerRun,
+        dialog_sla_critical_escalation_webhook_enabled: Boolean(inputs.escalationWebhookEnabled?.checked),
+        dialog_sla_critical_escalation_webhook_urls: safeEscalationWebhookUrls,
+        dialog_sla_critical_escalation_webhook_cooldown_minutes: safeEscalationWebhookCooldown,
+        dialog_sla_critical_escalation_webhook_timeout_ms: safeEscalationWebhookTimeout,
+        dialog_sla_critical_escalation_webhook_retry_attempts: safeEscalationWebhookRetryAttempts,
+        dialog_sla_critical_escalation_webhook_retry_backoff_ms: safeEscalationWebhookRetryBackoff,
+        dialog_sla_critical_escalation_webhook_event_name: safeEscalationWebhookEventName,
+        dialog_sla_critical_escalation_webhook_severity: safeEscalationWebhookSeverity,
         dialog_sla_window_presets_minutes: safeSlaWindowPresets,
         dialog_sla_window_default_minutes: safeSlaWindowDefault,
         dialog_default_view: safeDefaultView,
