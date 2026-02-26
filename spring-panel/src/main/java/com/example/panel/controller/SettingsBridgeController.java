@@ -163,6 +163,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_retry_backoff_ms")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_event_name")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_severity")
+                || payload.containsKey("dialog_sla_critical_escalation_webhook_max_tickets_per_run")
                 || payload.containsKey("dialog_sla_window_presets_minutes")
                 || payload.containsKey("dialog_sla_window_default_minutes")
                 || payload.containsKey("dialog_default_view")
@@ -291,6 +292,9 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_escalation_webhook_severity")) {
                     dialogConfig.put("sla_critical_escalation_webhook_severity", payload.get("dialog_sla_critical_escalation_webhook_severity"));
+                }
+                if (payload.containsKey("dialog_sla_critical_escalation_webhook_max_tickets_per_run")) {
+                    dialogConfig.put("sla_critical_escalation_webhook_max_tickets_per_run", payload.get("dialog_sla_critical_escalation_webhook_max_tickets_per_run"));
                 }
                 if (payload.containsKey("dialog_sla_window_presets_minutes")) {
                     dialogConfig.put("sla_window_presets_minutes", payload.get("dialog_sla_window_presets_minutes"));

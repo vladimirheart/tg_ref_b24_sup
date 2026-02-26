@@ -503,6 +503,65 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("billing_tier1", decisions.get(0).assignee());
     }
 
+    @Test
+    void resolveAutoAssignDecisionsSupportsUnreadMaxRuleFilter() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "unread_count", 2),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "unread_count", 9)
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "low_unread_queue",
+                                "match_channel", "telegram",
+                                "match_unread_max", 3,
+                                "assign_to", "fast_lane"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("fast_lane", decisions.get(0).assignee());
+        assertEquals("low_unread_queue", decisions.get(0).route());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsUnreadRangeWithMinAndMax() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "unread_count", 1),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "unread_count", 4),
+                Map.of("ticket_id", "T-3", "channel", "Telegram", "unread_count", 7)
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "balanced_unread",
+                                "match_channel", "telegram",
+                                "match_unread_min", 3,
+                                "match_unread_max", 5,
+                                "assign_to", "balanced_queue"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(3, decisions.size());
+        assertEquals("fallback_duty", decisions.get(0).assignee());
+        assertEquals("balanced_queue", decisions.get(1).assignee());
+        assertEquals("fallback_duty", decisions.get(2).assignee());
+    }
+
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,
