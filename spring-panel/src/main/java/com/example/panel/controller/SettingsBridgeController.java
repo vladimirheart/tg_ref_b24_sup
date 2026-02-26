@@ -204,7 +204,10 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_crm_profile_label")
                 || payload.containsKey("dialog_workspace_client_contract_profile_url_template")
                 || payload.containsKey("dialog_workspace_client_contract_profile_label")
-                || payload.containsKey("dialog_workspace_client_external_links")) {
+                || payload.containsKey("dialog_workspace_client_external_links")
+                || payload.containsKey("dialog_workspace_client_hidden_attributes")
+                || payload.containsKey("dialog_workspace_client_attribute_labels")
+                || payload.containsKey("dialog_workspace_client_attribute_order")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -422,6 +425,18 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_external_links")) {
                     dialogConfig.put("workspace_client_external_links",
                             payload.get("dialog_workspace_client_external_links"));
+                }
+                if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
+                    dialogConfig.put("workspace_client_hidden_attributes",
+                            payload.get("dialog_workspace_client_hidden_attributes"));
+                }
+                if (payload.containsKey("dialog_workspace_client_attribute_labels")) {
+                    dialogConfig.put("workspace_client_attribute_labels",
+                            payload.get("dialog_workspace_client_attribute_labels"));
+                }
+                if (payload.containsKey("dialog_workspace_client_attribute_order")) {
+                    dialogConfig.put("workspace_client_attribute_order",
+                            payload.get("dialog_workspace_client_attribute_order"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
