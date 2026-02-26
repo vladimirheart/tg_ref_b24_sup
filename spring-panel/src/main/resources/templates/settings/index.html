@@ -1967,6 +1967,28 @@
                       <label for="dialogSlaAutoAssignTo" class="form-label">Fallback-исполнитель (логин)</label>
                       <input type="text" class="form-control" id="dialogSlaAutoAssignTo" placeholder="Например, teamlead_support">
                     </div>
+                    <div class="col-md-6">
+                      <label for="dialogSlaWindowPresets" class="form-label">Пресеты фильтра «Требует реакции», мин</label>
+                      <input type="text" class="form-control" id="dialogSlaWindowPresets" placeholder="15,30,60,120">
+                      <div class="form-text">Список через запятую, от 1 до 12 значений, диапазон 5..1440 минут.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaWindowDefault" class="form-label">Пресет по умолчанию</label>
+                      <input type="number" class="form-control" id="dialogSlaWindowDefault" min="5" max="1440" step="1" placeholder="например, 30">
+                      <div class="form-text">Пусто = SLA: все.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogDefaultView" class="form-label">Стартовый saved view</label>
+                      <select class="form-select" id="dialogDefaultView">
+                        <option value="all">Все</option>
+                        <option value="active">Активные</option>
+                        <option value="new">Новые</option>
+                        <option value="unassigned">Без ответственного</option>
+                        <option value="overdue">Просроченные</option>
+                        <option value="sla_critical">SLA критичные</option>
+                        <option value="escalation_required">Нужна эскалация</option>
+                      </select>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Workspace runtime-параметры</h6>
@@ -12581,6 +12603,9 @@
       escalationEnabled: document.getElementById('dialogSlaEscalationEnabled'),
       autoAssignEnabled: document.getElementById('dialogSlaAutoAssignEnabled'),
       autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
+      slaWindowPresets: document.getElementById('dialogSlaWindowPresets'),
+      slaWindowDefault: document.getElementById('dialogSlaWindowDefault'),
+      defaultView: document.getElementById('dialogDefaultView'),
       workspaceInlineNavigation: document.getElementById('dialogWorkspaceInlineNavigation'),
       workspaceContractTimeout: document.getElementById('dialogWorkspaceContractTimeoutMs'),
       workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
@@ -12623,6 +12648,24 @@
       inputs.autoAssignTo.value = typeof DIALOG_CONFIG.sla_critical_auto_assign_to === 'string'
         ? DIALOG_CONFIG.sla_critical_auto_assign_to
         : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_to;
+    }
+    if (inputs.slaWindowPresets) {
+      const rawPresets = Array.isArray(DIALOG_CONFIG.sla_window_presets_minutes)
+        ? DIALOG_CONFIG.sla_window_presets_minutes
+        : [15, 30, 60, 120];
+      const normalizedPresets = rawPresets
+        .map((value) => Number.parseInt(value, 10))
+        .filter((value) => Number.isFinite(value) && value >= 5 && value <= 1440);
+      inputs.slaWindowPresets.value = Array.from(new Set(normalizedPresets)).join(',');
+    }
+    if (inputs.slaWindowDefault) {
+      const defaultMinutes = Number.parseInt(DIALOG_CONFIG.sla_window_default_minutes, 10);
+      inputs.slaWindowDefault.value = Number.isFinite(defaultMinutes) && defaultMinutes > 0 ? defaultMinutes : '';
+    }
+    if (inputs.defaultView) {
+      const normalizedView = String(DIALOG_CONFIG.default_view || 'all').trim().toLowerCase();
+      const allowedViews = new Set(['all', 'active', 'new', 'unassigned', 'overdue', 'sla_critical', 'escalation_required']);
+      inputs.defaultView.value = allowedViews.has(normalizedView) ? normalizedView : 'all';
     }
     if (inputs.workspaceInlineNavigation instanceof HTMLInputElement) {
       inputs.workspaceInlineNavigation.checked = DIALOG_CONFIG.workspace_inline_navigation !== false;
@@ -12856,6 +12899,41 @@
       errors.push('SLA breach относительный множитель должен быть в диапазоне 1..10.');
     }
 
+    const allowedViews = new Set(['all', 'active', 'new', 'unassigned', 'overdue', 'sla_critical', 'escalation_required']);
+    const safeDefaultViewRaw = String(inputs.defaultView?.value || 'all').trim().toLowerCase();
+    const safeDefaultView = allowedViews.has(safeDefaultViewRaw) ? safeDefaultViewRaw : 'all';
+
+    const rawWindowPresetList = String(inputs.slaWindowPresets?.value || '')
+      .split(',')
+      .map((value) => Number.parseInt(value.trim(), 10))
+      .filter((value) => Number.isFinite(value));
+    const normalizedWindowPresetList = Array.from(new Set(rawWindowPresetList))
+      .filter((value) => value >= 5 && value <= 1440)
+      .sort((left, right) => left - right);
+    const safeSlaWindowPresets = normalizedWindowPresetList.length
+      ? normalizedWindowPresetList.slice(0, 12)
+      : [15, 30, 60, 120];
+    if (rawWindowPresetList.length === 0) {
+      errors.push('Добавьте хотя бы один пресет SLA-фильтра (в минутах).');
+    }
+    if (normalizedWindowPresetList.length !== rawWindowPresetList.length) {
+      errors.push('Пресеты SLA-фильтра должны быть в диапазоне 5..1440 минут.');
+    }
+    if (normalizedWindowPresetList.length > 12) {
+      errors.push('Слишком много пресетов SLA-фильтра: максимум 12 значений.');
+    }
+
+    const slaWindowDefaultRaw = Number.parseInt(inputs.slaWindowDefault?.value, 10);
+    const safeSlaWindowDefault = Number.isFinite(slaWindowDefaultRaw) && slaWindowDefaultRaw >= 5 && slaWindowDefaultRaw <= 1440
+      ? slaWindowDefaultRaw
+      : null;
+    if (inputs.slaWindowDefault?.value && safeSlaWindowDefault === null) {
+      errors.push('Пресет SLA по умолчанию должен быть в диапазоне 5..1440 минут.');
+    }
+    if (safeSlaWindowDefault !== null && !safeSlaWindowPresets.includes(safeSlaWindowDefault)) {
+      errors.push('Пресет SLA по умолчанию должен входить в список пресетов.');
+    }
+
     let safeMacroVariableDefaults = {};
     const macroDefaultsRaw = (inputs.macroVariableDefaults?.value || '').trim();
     if (macroDefaultsRaw) {
@@ -12888,6 +12966,9 @@
         dialog_sla_critical_escalation_enabled: Boolean(inputs.escalationEnabled?.checked),
         dialog_sla_critical_auto_assign_enabled: Boolean(inputs.autoAssignEnabled?.checked),
         dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),
+        dialog_sla_window_presets_minutes: safeSlaWindowPresets,
+        dialog_sla_window_default_minutes: safeSlaWindowDefault,
+        dialog_default_view: safeDefaultView,
         dialog_workspace_inline_navigation: Boolean(inputs.workspaceInlineNavigation?.checked),
         dialog_workspace_contract_timeout_ms: safeWorkspaceContractTimeout,
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
