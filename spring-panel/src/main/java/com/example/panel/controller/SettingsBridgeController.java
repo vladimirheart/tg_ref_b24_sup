@@ -196,6 +196,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_kpi_outcome_ttr_max_relative_regression")
                 || payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta")
                 || payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier")
+                || payload.containsKey("dialog_workspace_rollout_required_outcome_kpis")
+                || payload.containsKey("dialog_workspace_rollout_winner_min_open_improvement")
                 || payload.containsKey("dialog_macro_variable_defaults")
                 || payload.containsKey("dialog_macro_variable_catalog")
                 || payload.containsKey("dialog_workspace_client_crm_profile_url_template")
@@ -386,6 +388,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier")) {
                     dialogConfig.put("workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier",
                             payload.get("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_required_outcome_kpis")) {
+                    dialogConfig.put("workspace_rollout_required_outcome_kpis",
+                            payload.get("dialog_workspace_rollout_required_outcome_kpis"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_winner_min_open_improvement")) {
+                    dialogConfig.put("workspace_rollout_winner_min_open_improvement",
+                            payload.get("dialog_workspace_rollout_winner_min_open_improvement"));
                 }
                 if (payload.containsKey("dialog_macro_variable_defaults")) {
                     dialogConfig.put("macro_variable_defaults", payload.get("dialog_macro_variable_defaults"));

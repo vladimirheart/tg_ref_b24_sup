@@ -2181,6 +2181,14 @@
                       <label for="dialogWorkspaceKpiOutcomeSlaRelativeMultiplier" class="form-label">SLA breach: макс. относительный множитель</label>
                       <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeSlaRelativeMultiplier" min="1" max="10" step="0.01">
                     </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRolloutRequiredOutcomeKpis" class="form-label">Обязательные outcome KPI для rollout (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceRolloutRequiredOutcomeKpis" placeholder="frt,ttr,sla_breach">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceWinnerMinOpenImprovementPercent" class="form-label">Мин. улучшение open time для победы test, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceWinnerMinOpenImprovementPercent" min="0" max="50" step="0.1">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Default переменные макросов</h6>
@@ -3814,6 +3822,8 @@
     workspace_rollout_kpi_outcome_ttr_max_relative_regression: 0.10,
     workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta: 0.02,
     workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: 1.20,
+    workspace_rollout_required_outcome_kpis: ['frt', 'ttr', 'sla_breach'],
+    workspace_rollout_winner_min_open_improvement: 0.00,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12818,6 +12828,8 @@
       kpiOutcomeTtrRegressionPercent: document.getElementById('dialogWorkspaceKpiOutcomeTtrRegressionPercent'),
       kpiOutcomeSlaAbsDeltaPercent: document.getElementById('dialogWorkspaceKpiOutcomeSlaAbsDeltaPercent'),
       kpiOutcomeSlaRelativeMultiplier: document.getElementById('dialogWorkspaceKpiOutcomeSlaRelativeMultiplier'),
+      rolloutRequiredOutcomeKpis: document.getElementById('dialogWorkspaceRolloutRequiredOutcomeKpis'),
+      winnerMinOpenImprovementPercent: document.getElementById('dialogWorkspaceWinnerMinOpenImprovementPercent'),
       macroVariableDefaults: document.getElementById('dialogMacroVariableDefaults'),
       macroVariableCatalog: document.getElementById('dialogMacroVariableCatalog'),
       workspaceClientCrmProfileUrlTemplate: document.getElementById('dialogWorkspaceClientCrmProfileUrlTemplate'),
@@ -13091,6 +13103,18 @@
       inputs.kpiOutcomeSlaRelativeMultiplier.value = Number.isFinite(multiplier) && multiplier >= 1 && multiplier <= 10
         ? multiplier.toFixed(2)
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier.toFixed(2);
+    }
+    if (inputs.rolloutRequiredOutcomeKpis) {
+      const requiredOutcomeKpis = Array.isArray(DIALOG_CONFIG.workspace_rollout_required_outcome_kpis)
+        ? DIALOG_CONFIG.workspace_rollout_required_outcome_kpis
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_required_outcome_kpis;
+      inputs.rolloutRequiredOutcomeKpis.value = requiredOutcomeKpis.join(',');
+    }
+    if (inputs.winnerMinOpenImprovementPercent) {
+      const winnerMinImprovement = Number(DIALOG_CONFIG.workspace_rollout_winner_min_open_improvement);
+      inputs.winnerMinOpenImprovementPercent.value = Number.isFinite(winnerMinImprovement) && winnerMinImprovement >= 0 && winnerMinImprovement <= 0.5
+        ? (winnerMinImprovement * 100).toFixed(2)
+        : (DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_winner_min_open_improvement * 100).toFixed(2);
     }
     if (inputs.macroVariableDefaults) {
       const defaults = DIALOG_CONFIG.macro_variable_defaults;
@@ -13380,6 +13404,23 @@
       errors.push('SLA breach относительный множитель должен быть в диапазоне 1..10.');
     }
 
+    const allowedOutcomeKpis = new Set(['frt', 'ttr', 'sla_breach']);
+    const safeRequiredOutcomeKpis = normalizeCsvKpis(
+      inputs.rolloutRequiredOutcomeKpis?.value,
+      DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_required_outcome_kpis,
+    ).filter((kpi) => allowedOutcomeKpis.has(kpi));
+    if (!safeRequiredOutcomeKpis.length) {
+      errors.push('Укажите хотя бы один корректный outcome KPI (frt, ttr, sla_breach).');
+    }
+
+    const winnerMinOpenImprovementPercentRaw = Number(inputs.winnerMinOpenImprovementPercent?.value);
+    const safeWinnerMinOpenImprovement = Number.isFinite(winnerMinOpenImprovementPercentRaw)
+      ? Math.min(50, Math.max(0, winnerMinOpenImprovementPercentRaw)) / 100
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_winner_min_open_improvement;
+    if (!Number.isFinite(winnerMinOpenImprovementPercentRaw) || winnerMinOpenImprovementPercentRaw < 0 || winnerMinOpenImprovementPercentRaw > 50) {
+      errors.push('Мин. улучшение open time должно быть в диапазоне 0..50%.');
+    }
+
     const allowedViews = new Set(['all', 'active', 'new', 'unassigned', 'overdue', 'sla_critical', 'escalation_required']);
     const safeDefaultViewRaw = String(inputs.defaultView?.value || 'all').trim().toLowerCase();
     const safeDefaultView = allowedViews.has(safeDefaultViewRaw) ? safeDefaultViewRaw : 'all';
@@ -13413,14 +13454,14 @@
       || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_experiment_name;
     const safeWorkspaceAbOperatorSegment = String(inputs.workspaceAbOperatorSegment?.value || '').trim()
       || DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_operator_segment;
-    const normalizeCsvKpis = (rawValue, fallback) => {
+    function normalizeCsvKpis(rawValue, fallback) {
       const normalized = String(rawValue || '')
         .split(',')
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean);
       const unique = Array.from(new Set(normalized));
       return unique.length ? unique : [...fallback];
-    };
+    }
     const safeWorkspaceAbPrimaryKpis = normalizeCsvKpis(
       inputs.workspaceAbPrimaryKpis?.value,
       DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_primary_kpis,
@@ -13632,6 +13673,8 @@
         dialog_workspace_rollout_kpi_outcome_ttr_max_relative_regression: safeTtrRelativeRegression,
         dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta: safeSlaAbsoluteDelta,
         dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: safeSlaRelativeMultiplier,
+        dialog_workspace_rollout_required_outcome_kpis: safeRequiredOutcomeKpis,
+        dialog_workspace_rollout_winner_min_open_improvement: safeWinnerMinOpenImprovement,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
         dialog_macro_variable_catalog: safeMacroVariableCatalog,
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
