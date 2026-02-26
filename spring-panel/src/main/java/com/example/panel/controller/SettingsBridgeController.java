@@ -152,6 +152,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_escalation_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_to")
+                || payload.containsKey("dialog_sla_window_presets_minutes")
+                || payload.containsKey("dialog_sla_window_default_minutes")
+                || payload.containsKey("dialog_default_view")
                 || payload.containsKey("dialog_workspace_inline_navigation")
                 || payload.containsKey("dialog_workspace_contract_timeout_ms")
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
@@ -215,6 +218,15 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_auto_assign_to")) {
                     dialogConfig.put("sla_critical_auto_assign_to", payload.get("dialog_sla_critical_auto_assign_to"));
+                }
+                if (payload.containsKey("dialog_sla_window_presets_minutes")) {
+                    dialogConfig.put("sla_window_presets_minutes", payload.get("dialog_sla_window_presets_minutes"));
+                }
+                if (payload.containsKey("dialog_sla_window_default_minutes")) {
+                    dialogConfig.put("sla_window_default_minutes", payload.get("dialog_sla_window_default_minutes"));
+                }
+                if (payload.containsKey("dialog_default_view")) {
+                    dialogConfig.put("default_view", payload.get("dialog_default_view"));
                 }
                 if (payload.containsKey("dialog_workspace_inline_navigation")) {
                     dialogConfig.put("workspace_inline_navigation", payload.get("dialog_workspace_inline_navigation"));
