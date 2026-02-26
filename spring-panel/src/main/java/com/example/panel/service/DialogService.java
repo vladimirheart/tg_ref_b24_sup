@@ -34,6 +34,11 @@ public class DialogService {
     private static final List<String> DEFAULT_REQUIRED_PRIMARY_KPIS = List.of("frt", "ttr", "sla_breach");
     private static final long DEFAULT_MIN_KPI_EVENTS_FOR_DECISION = 10L;
     private static final double DEFAULT_MIN_KPI_COVERAGE_RATE_FOR_DECISION = 0.05d;
+    private static final long DEFAULT_KPI_OUTCOME_MIN_SAMPLES_PER_COHORT = 5L;
+    private static final double DEFAULT_KPI_OUTCOME_FRT_MAX_RELATIVE_REGRESSION = 0.10d;
+    private static final double DEFAULT_KPI_OUTCOME_TTR_MAX_RELATIVE_REGRESSION = 0.10d;
+    private static final double DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_ABSOLUTE_DELTA = 0.02d;
+    private static final double DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_RELATIVE_MULTIPLIER = 1.20d;
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
     private static final double DEFAULT_GUARDRAIL_ABANDON_RATE = 0.10d;
@@ -960,6 +965,15 @@ public class DialogService {
                                                              Map<String, Object> testTotals) {
         Map<String, Object> signal = new LinkedHashMap<>();
         Map<String, Object> metrics = new LinkedHashMap<>();
+        long minSamplesPerCohort = resolveOutcomeMinSamplesPerCohort();
+        double frtRelativeRegression = resolveOutcomeRelativeRegressionThreshold(
+                "workspace_rollout_kpi_outcome_frt_max_relative_regression",
+                DEFAULT_KPI_OUTCOME_FRT_MAX_RELATIVE_REGRESSION);
+        double ttrRelativeRegression = resolveOutcomeRelativeRegressionThreshold(
+                "workspace_rollout_kpi_outcome_ttr_max_relative_regression",
+                DEFAULT_KPI_OUTCOME_TTR_MAX_RELATIVE_REGRESSION);
+        double slaBreachAbsoluteDelta = resolveOutcomeRateAbsoluteDeltaThreshold();
+        double slaBreachRelativeMultiplier = resolveOutcomeRateRelativeMultiplierThreshold();
 
         Map<String, Object> frtMetric = buildLatencyMetricSignal(
                 "frt",
@@ -967,20 +981,23 @@ public class DialogService {
                 extractNullableLong(testTotals.get("avg_frt_ms")),
                 toLong(controlTotals.get("kpi_frt_recorded_events")),
                 toLong(testTotals.get("kpi_frt_recorded_events")),
-                0.10d);
+                minSamplesPerCohort,
+                frtRelativeRegression);
         Map<String, Object> ttrMetric = buildLatencyMetricSignal(
                 "ttr",
                 extractNullableLong(controlTotals.get("avg_ttr_ms")),
                 extractNullableLong(testTotals.get("avg_ttr_ms")),
                 toLong(controlTotals.get("kpi_ttr_recorded_events")),
                 toLong(testTotals.get("kpi_ttr_recorded_events")),
-                0.10d);
+                minSamplesPerCohort,
+                ttrRelativeRegression);
         Map<String, Object> slaBreachMetric = buildRateMetricSignal(
                 "sla_breach",
                 toLong(controlTotals.get("kpi_sla_breach_recorded_events")),
                 toLong(testTotals.get("kpi_sla_breach_recorded_events")),
-                0.02d,
-                1.20d);
+                minSamplesPerCohort,
+                slaBreachAbsoluteDelta,
+                slaBreachRelativeMultiplier);
 
         metrics.put("frt", frtMetric);
         metrics.put("ttr", ttrMetric);
@@ -995,6 +1012,13 @@ public class DialogService {
 
         signal.put("ready_for_decision", ready);
         signal.put("has_regression", hasRegression);
+        signal.put("min_samples_per_cohort", minSamplesPerCohort);
+        signal.put("thresholds", Map.of(
+                "frt_max_relative_regression", frtRelativeRegression,
+                "ttr_max_relative_regression", ttrRelativeRegression,
+                "sla_breach_max_absolute_delta", slaBreachAbsoluteDelta,
+                "sla_breach_max_relative_multiplier", slaBreachRelativeMultiplier
+        ));
         signal.put("metrics", metrics);
         return signal;
     }
@@ -1004,9 +1028,13 @@ public class DialogService {
                                                          Long testAvgMs,
                                                          long controlSamples,
                                                          long testSamples,
+                                                         long minSamplesPerCohort,
                                                          double maxRelativeRegression) {
         Map<String, Object> metric = new LinkedHashMap<>();
-        boolean ready = controlSamples >= 5 && testSamples >= 5 && controlAvgMs != null && testAvgMs != null;
+        boolean ready = controlSamples >= minSamplesPerCohort
+                && testSamples >= minSamplesPerCohort
+                && controlAvgMs != null
+                && testAvgMs != null;
         Long deltaMs = ready ? testAvgMs - controlAvgMs : null;
         double relativeDelta = ready && controlAvgMs > 0 ? (double) deltaMs / controlAvgMs : 0d;
         boolean regression = ready && relativeDelta > maxRelativeRegression;
@@ -1016,6 +1044,7 @@ public class DialogService {
         metric.put("test_value", testAvgMs);
         metric.put("control_samples", controlSamples);
         metric.put("test_samples", testSamples);
+        metric.put("min_samples_per_cohort", minSamplesPerCohort);
         metric.put("delta", deltaMs);
         metric.put("relative_delta", relativeDelta);
         metric.put("max_relative_regression", maxRelativeRegression);
@@ -1027,10 +1056,11 @@ public class DialogService {
     private Map<String, Object> buildRateMetricSignal(String key,
                                                       long controlCount,
                                                       long testCount,
+                                                      long minSamplesPerCohort,
                                                       double maxAbsoluteDelta,
                                                       double maxRelativeMultiplier) {
         Map<String, Object> metric = new LinkedHashMap<>();
-        boolean ready = controlCount >= 5 && testCount >= 5;
+        boolean ready = controlCount >= minSamplesPerCohort && testCount >= minSamplesPerCohort;
         double delta = testCount - controlCount;
         double multiplier = controlCount > 0 ? (double) testCount / controlCount : (testCount > 0 ? Double.POSITIVE_INFINITY : 1d);
         boolean regression = ready && (delta > maxAbsoluteDelta * Math.max(controlCount, 1) || multiplier > maxRelativeMultiplier);
@@ -1038,6 +1068,7 @@ public class DialogService {
         metric.put("key", key);
         metric.put("control_value", controlCount);
         metric.put("test_value", testCount);
+        metric.put("min_samples_per_cohort", minSamplesPerCohort);
         metric.put("delta", delta);
         metric.put("multiplier", multiplier);
         metric.put("max_absolute_delta", maxAbsoluteDelta);
@@ -1045,6 +1076,82 @@ public class DialogService {
         metric.put("ready", ready);
         metric.put("regression", regression);
         return metric;
+    }
+
+    private long resolveOutcomeMinSamplesPerCohort() {
+        Object value = resolveDialogConfigValue("workspace_rollout_kpi_outcome_min_samples_per_cohort");
+        if (value instanceof Number number && number.longValue() > 0) {
+            return number.longValue();
+        }
+        try {
+            long parsed = Long.parseLong(String.valueOf(value));
+            return parsed > 0 ? parsed : DEFAULT_KPI_OUTCOME_MIN_SAMPLES_PER_COHORT;
+        } catch (Exception ignored) {
+            return DEFAULT_KPI_OUTCOME_MIN_SAMPLES_PER_COHORT;
+        }
+    }
+
+    private double resolveOutcomeRelativeRegressionThreshold(String key, double fallback) {
+        Object value = resolveDialogConfigValue(key);
+        if (value instanceof Number number) {
+            double normalized = number.doubleValue();
+            if (normalized > 0d && normalized <= 5d) {
+                return normalized;
+            }
+        }
+        if (value instanceof String text) {
+            try {
+                double parsed = Double.parseDouble(text.trim());
+                if (parsed > 0d && parsed <= 5d) {
+                    return parsed;
+                }
+            } catch (Exception ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private double resolveOutcomeRateAbsoluteDeltaThreshold() {
+        Object value = resolveDialogConfigValue("workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta");
+        if (value instanceof Number number) {
+            double normalized = number.doubleValue();
+            if (normalized > 0d && normalized <= 1d) {
+                return normalized;
+            }
+        }
+        if (value instanceof String text) {
+            try {
+                double parsed = Double.parseDouble(text.trim());
+                if (parsed > 0d && parsed <= 1d) {
+                    return parsed;
+                }
+            } catch (Exception ignored) {
+                return DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_ABSOLUTE_DELTA;
+            }
+        }
+        return DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_ABSOLUTE_DELTA;
+    }
+
+    private double resolveOutcomeRateRelativeMultiplierThreshold() {
+        Object value = resolveDialogConfigValue("workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier");
+        if (value instanceof Number number) {
+            double normalized = number.doubleValue();
+            if (normalized >= 1d && normalized <= 10d) {
+                return normalized;
+            }
+        }
+        if (value instanceof String text) {
+            try {
+                double parsed = Double.parseDouble(text.trim());
+                if (parsed >= 1d && parsed <= 10d) {
+                    return parsed;
+                }
+            } catch (Exception ignored) {
+                return DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_RELATIVE_MULTIPLIER;
+            }
+        }
+        return DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_RELATIVE_MULTIPLIER;
     }
 
     private Map<String, Object> buildWorkspaceTelemetryComparison(Map<String, Object> currentTotals,

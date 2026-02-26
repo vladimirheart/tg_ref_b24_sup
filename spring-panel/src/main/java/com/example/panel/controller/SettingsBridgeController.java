@@ -163,6 +163,11 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_guardrail_slow_open_rate")
                 || payload.containsKey("dialog_workspace_dimension_min_events")
                 || payload.containsKey("dialog_workspace_cohort_min_events")
+                || payload.containsKey("dialog_workspace_rollout_kpi_outcome_min_samples_per_cohort")
+                || payload.containsKey("dialog_workspace_rollout_kpi_outcome_frt_max_relative_regression")
+                || payload.containsKey("dialog_workspace_rollout_kpi_outcome_ttr_max_relative_regression")
+                || payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta")
+                || payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier")
                 || payload.containsKey("dialog_macro_variable_defaults")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
@@ -243,6 +248,26 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_cohort_min_events")) {
                     dialogConfig.put("cohort_min_events", payload.get("dialog_workspace_cohort_min_events"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_kpi_outcome_min_samples_per_cohort")) {
+                    dialogConfig.put("workspace_rollout_kpi_outcome_min_samples_per_cohort",
+                            payload.get("dialog_workspace_rollout_kpi_outcome_min_samples_per_cohort"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_kpi_outcome_frt_max_relative_regression")) {
+                    dialogConfig.put("workspace_rollout_kpi_outcome_frt_max_relative_regression",
+                            payload.get("dialog_workspace_rollout_kpi_outcome_frt_max_relative_regression"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_kpi_outcome_ttr_max_relative_regression")) {
+                    dialogConfig.put("workspace_rollout_kpi_outcome_ttr_max_relative_regression",
+                            payload.get("dialog_workspace_rollout_kpi_outcome_ttr_max_relative_regression"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta")) {
+                    dialogConfig.put("workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta",
+                            payload.get("dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier")) {
+                    dialogConfig.put("workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier",
+                            payload.get("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier"));
                 }
                 if (payload.containsKey("dialog_macro_variable_defaults")) {
                     dialogConfig.put("macro_variable_defaults", payload.get("dialog_macro_variable_defaults"));
