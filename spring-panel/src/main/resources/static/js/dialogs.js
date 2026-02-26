@@ -335,6 +335,22 @@
     Math.min(3, Number.isFinite(configuredWorkspaceRetryAttempts) ? configuredWorkspaceRetryAttempts : 1),
   );
   const WORKSPACE_DEFAULT_INCLUDE = 'messages,context,sla,permissions';
+  const WORKSPACE_ALLOWED_INCLUDE_BLOCKS = Object.freeze(['messages', 'context', 'sla', 'permissions']);
+  const WORKSPACE_CONTRACT_INCLUDE = (() => {
+    const configured = String(window.DIALOG_CONFIG?.workspace_contract_include || '')
+      .split(',')
+      .map((part) => part.trim().toLowerCase())
+      .filter(Boolean);
+    const unique = [];
+    configured.forEach((block) => {
+      if (!WORKSPACE_ALLOWED_INCLUDE_BLOCKS.includes(block) || unique.includes(block)) return;
+      unique.push(block);
+    });
+    return unique.length > 0 ? unique.join(',') : WORKSPACE_DEFAULT_INCLUDE;
+  })();
+  const WORKSPACE_MESSAGES_PAGE_LIMIT = Math.max(10, Math.min(200, Number(window.DIALOG_CONFIG?.workspace_messages_page_limit) || 50));
+  const WORKSPACE_FAILURE_STREAK_THRESHOLD = Math.max(1, Math.min(10, Number(window.DIALOG_CONFIG?.workspace_failure_streak_threshold) || 3));
+  const WORKSPACE_FAILURE_COOLDOWN_MS = Math.max(1000, Math.min(120000, Number(window.DIALOG_CONFIG?.workspace_failure_cooldown_ms) || 30000));
   const WORKSPACE_MUTATING_PERMISSION_KEYS = Object.freeze(['can_assign', 'can_close', 'can_snooze', 'can_bulk']);
   const WORKSPACE_AB_TEST_CONFIG = Object.freeze({
     experimentName: String(window.DIALOG_CONFIG?.workspace_ab_experiment_name || 'workspace_v1_rollout').trim() || 'workspace_v1_rollout',
@@ -378,6 +394,8 @@
   let macroVariableCatalogTicketId = null;
   let macroVariableDefaults = {};
   let workspaceComposerTicketId = '';
+  let workspaceFailureStreak = 0;
+  let workspaceTemporarilyDisabledUntil = 0;
   let workspaceComposerMacroTemplates = [];
   let activeWorkspaceMacroTemplate = null;
   let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
@@ -2643,6 +2661,7 @@
       const workspacePayload = await preloadWorkspaceContract(activeWorkspaceTicketId, activeWorkspaceChannelId, {
         include: 'messages',
         cursor: workspaceMessagesNextCursor,
+        limit: WORKSPACE_MESSAGES_PAGE_LIMIT,
       });
       const messages = workspacePayload?.messages || {};
       const items = Array.isArray(messages.items) ? messages.items : [];
@@ -2990,7 +3009,7 @@
     const queryParams = new URLSearchParams();
     const include = typeof options.include === 'string' && options.include.trim()
       ? options.include.trim()
-      : WORKSPACE_DEFAULT_INCLUDE;
+      : WORKSPACE_CONTRACT_INCLUDE;
     queryParams.set('include', include);
     if (Number.isInteger(options.cursor) && options.cursor >= 0) {
       queryParams.set('cursor', String(options.cursor));
@@ -3068,13 +3087,36 @@
     await openDialogWithWorkspaceFallback(activeWorkspaceTicketId, initialRow, { source: 'initial_route' });
   }
 
+  function isWorkspaceTemporarilyDisabled() {
+    return workspaceTemporarilyDisabledUntil > Date.now();
+  }
+
+  function registerWorkspaceFailure() {
+    workspaceFailureStreak += 1;
+    if (workspaceFailureStreak >= WORKSPACE_FAILURE_STREAK_THRESHOLD) {
+      workspaceTemporarilyDisabledUntil = Date.now() + WORKSPACE_FAILURE_COOLDOWN_MS;
+      workspaceFailureStreak = 0;
+      return true;
+    }
+    return false;
+  }
+
+  function clearWorkspaceFailureStreak() {
+    workspaceFailureStreak = 0;
+    workspaceTemporarilyDisabledUntil = 0;
+  }
+
   async function openDialogWithWorkspaceFallback(ticketId, row, options = {}) {
     activeWorkspacePayload = null;
     const source = options.source || 'manual_open';
     const channelId = row?.dataset?.channelId || null;
+    if (isWorkspaceTemporarilyDisabled()) {
+      await openDialogDetails(ticketId, row);
+      return;
+    }
     startWorkspaceOpenTimer(ticketId);
     try {
-      const workspacePayload = await preloadWorkspaceContract(ticketId, channelId);
+      const workspacePayload = await preloadWorkspaceContract(ticketId, channelId, { limit: WORKSPACE_MESSAGES_PAGE_LIMIT });
       const durationMs = finishWorkspaceOpenTimer(ticketId);
       await emitWorkspaceTelemetry('workspace_open_ms', {
         ticketId,
@@ -3092,6 +3134,7 @@
           contractVersion: workspacePayload?.contract_version || null,
         });
       }
+      clearWorkspaceFailureStreak();
       activeWorkspaceTicketId = String(ticketId || '').trim();
       activeWorkspaceChannelId = channelId;
       activeWorkspacePayload = workspacePayload;
@@ -3141,6 +3184,19 @@
         contractVersion: error?.contractVersion || null,
         httpStatus: Number(error?.httpStatus) || null,
       });
+      const activatedCooldown = registerWorkspaceFailure();
+      if (activatedCooldown) {
+        await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+          ticketId,
+          reason: 'fallback_streak_cooldown',
+          threshold: WORKSPACE_FAILURE_STREAK_THRESHOLD,
+          cooldownMs: WORKSPACE_FAILURE_COOLDOWN_MS,
+          source,
+        });
+        if (typeof showNotification === 'function') {
+          showNotification('Workspace временно переведён в cooldown из-за серии ошибок. Используется legacy-режим.', 'warning');
+        }
+      }
       if (source === 'initial_route' && workspaceShell) {
         workspaceShell.classList.remove('d-none');
         if (workspaceMessagesState) {

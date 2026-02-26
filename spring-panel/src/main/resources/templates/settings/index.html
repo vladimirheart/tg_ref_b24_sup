@@ -2088,6 +2088,25 @@
                       <input type="number" class="form-control" id="dialogWorkspaceRetryAttempts" min="0" max="5" step="1">
                     </div>
                     <div class="col-md-6">
+                      <label for="dialogWorkspaceContractInclude" class="form-label">Состав workspace-контракта (include)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceContractInclude" placeholder="messages,context,sla,permissions">
+                      <div class="form-text">Разрешённые блоки: messages, context, sla, permissions. Пусто = безопасный дефолт.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceMessagesPageLimit" class="form-label">Лимит сообщений на запрос workspace</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceMessagesPageLimit" min="10" max="200" step="5">
+                      <div class="form-text">Применяется к первичной загрузке и кнопке «Загрузить ещё».</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceFailureStreakThreshold" class="form-label">Порог fallback подряд до cooldown</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceFailureStreakThreshold" min="1" max="10" step="1">
+                      <div class="form-text">После N ошибок workspace временно отключается для текущей сессии.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceFailureCooldownMs" class="form-label">Cooldown после серии fallback, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceFailureCooldownMs" min="1000" max="120000" step="500">
+                    </div>
+                    <div class="col-md-6">
                       <label for="dialogWorkspaceDraftAutosaveDelayMs" class="form-label">Автосохранение черновика, мс</label>
                       <input type="number" class="form-control" id="dialogWorkspaceDraftAutosaveDelayMs" min="300" max="5000" step="50">
                     </div>
@@ -3806,6 +3825,10 @@
     escalation_webhook_event_severity: 'critical',
     workspace_contract_timeout_ms: 8000,
     workspace_contract_retry_attempts: 1,
+    workspace_contract_include: 'messages,context,sla,permissions',
+    workspace_messages_page_limit: 50,
+    workspace_failure_streak_threshold: 3,
+    workspace_failure_cooldown_ms: 30000,
     workspace_draft_autosave_delay_ms: 900,
     workspace_draft_telemetry_interval_ms: 30000,
     workspace_open_slo_ms: 2000,
@@ -12818,6 +12841,10 @@
       workspaceInlineNavigation: document.getElementById('dialogWorkspaceInlineNavigation'),
       workspaceContractTimeout: document.getElementById('dialogWorkspaceContractTimeoutMs'),
       workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
+      workspaceContractInclude: document.getElementById('dialogWorkspaceContractInclude'),
+      workspaceMessagesPageLimit: document.getElementById('dialogWorkspaceMessagesPageLimit'),
+      workspaceFailureStreakThreshold: document.getElementById('dialogWorkspaceFailureStreakThreshold'),
+      workspaceFailureCooldownMs: document.getElementById('dialogWorkspaceFailureCooldownMs'),
       workspaceDraftAutosaveDelay: document.getElementById('dialogWorkspaceDraftAutosaveDelayMs'),
       workspaceDraftTelemetryInterval: document.getElementById('dialogWorkspaceDraftTelemetryIntervalMs'),
       workspaceOpenSloMs: document.getElementById('dialogWorkspaceOpenSloMs'),
@@ -12992,6 +13019,28 @@
       inputs.workspaceRetryAttempts.value = Number.isFinite(retries) && retries >= 0
         ? retries
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_retry_attempts;
+    }
+    if (inputs.workspaceContractInclude) {
+      const includeRaw = String(DIALOG_CONFIG.workspace_contract_include || '').trim();
+      inputs.workspaceContractInclude.value = includeRaw || DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_include;
+    }
+    if (inputs.workspaceMessagesPageLimit) {
+      const pageLimit = Number.parseInt(DIALOG_CONFIG.workspace_messages_page_limit, 10);
+      inputs.workspaceMessagesPageLimit.value = Number.isFinite(pageLimit) && pageLimit >= 10
+        ? pageLimit
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_messages_page_limit;
+    }
+    if (inputs.workspaceFailureStreakThreshold) {
+      const streak = Number.parseInt(DIALOG_CONFIG.workspace_failure_streak_threshold, 10);
+      inputs.workspaceFailureStreakThreshold.value = Number.isFinite(streak) && streak >= 1
+        ? streak
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_failure_streak_threshold;
+    }
+    if (inputs.workspaceFailureCooldownMs) {
+      const cooldown = Number.parseInt(DIALOG_CONFIG.workspace_failure_cooldown_ms, 10);
+      inputs.workspaceFailureCooldownMs.value = Number.isFinite(cooldown) && cooldown >= 1000
+        ? cooldown
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_failure_cooldown_ms;
     }
     if (inputs.workspaceDraftAutosaveDelay) {
       const autosave = Number.parseInt(DIALOG_CONFIG.workspace_draft_autosave_delay_ms, 10);
@@ -13271,6 +13320,10 @@
 
     const workspaceContractTimeoutRaw = Math.round(Number(inputs.workspaceContractTimeout?.value));
     const workspaceRetryAttemptsRaw = Math.round(Number(inputs.workspaceRetryAttempts?.value));
+    const workspaceContractIncludeRaw = String(inputs.workspaceContractInclude?.value || '');
+    const workspaceMessagesPageLimitRaw = Math.round(Number(inputs.workspaceMessagesPageLimit?.value));
+    const workspaceFailureStreakThresholdRaw = Math.round(Number(inputs.workspaceFailureStreakThreshold?.value));
+    const workspaceFailureCooldownMsRaw = Math.round(Number(inputs.workspaceFailureCooldownMs?.value));
     const workspaceAutosaveDelayRaw = Math.round(Number(inputs.workspaceDraftAutosaveDelay?.value));
     const workspaceTelemetryIntervalRaw = Math.round(Number(inputs.workspaceDraftTelemetryInterval?.value));
     const workspaceOpenSloMsRaw = Math.round(Number(inputs.workspaceOpenSloMs?.value));
@@ -13286,6 +13339,29 @@
     const safeWorkspaceRetryAttempts = Number.isFinite(workspaceRetryAttemptsRaw)
       ? Math.min(5, Math.max(0, workspaceRetryAttemptsRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_retry_attempts;
+    const workspaceIncludeAllowed = ['messages', 'context', 'sla', 'permissions'];
+    const safeWorkspaceContractInclude = (() => {
+      const parts = workspaceContractIncludeRaw
+        .split(',')
+        .map((part) => part.trim().toLowerCase())
+        .filter(Boolean);
+      const unique = [];
+      parts.forEach((part) => {
+        if (!workspaceIncludeAllowed.includes(part) || unique.includes(part)) return;
+        unique.push(part);
+      });
+      if (unique.length === 0) return DEFAULT_DIALOG_SLA_CONFIG.workspace_contract_include;
+      return unique.join(',');
+    })();
+    const safeWorkspaceMessagesPageLimit = Number.isFinite(workspaceMessagesPageLimitRaw)
+      ? Math.min(200, Math.max(10, workspaceMessagesPageLimitRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_messages_page_limit;
+    const safeWorkspaceFailureStreakThreshold = Number.isFinite(workspaceFailureStreakThresholdRaw)
+      ? Math.min(10, Math.max(1, workspaceFailureStreakThresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_failure_streak_threshold;
+    const safeWorkspaceFailureCooldownMs = Number.isFinite(workspaceFailureCooldownMsRaw)
+      ? Math.min(120000, Math.max(1000, workspaceFailureCooldownMsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_failure_cooldown_ms;
     const safeWorkspaceAutosaveDelay = Number.isFinite(workspaceAutosaveDelayRaw)
       ? Math.min(5000, Math.max(300, workspaceAutosaveDelayRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_autosave_delay_ms;
@@ -13321,6 +13397,23 @@
     }
     if (!Number.isFinite(workspaceRetryAttemptsRaw) || workspaceRetryAttemptsRaw < 0 || workspaceRetryAttemptsRaw > 5) {
       errors.push('Retry попытки workspace должны быть в диапазоне 0..5.');
+    }
+    const workspaceIncludeInvalid = workspaceContractIncludeRaw
+      .split(',')
+      .map((part) => part.trim().toLowerCase())
+      .filter(Boolean)
+      .some((part) => !workspaceIncludeAllowed.includes(part));
+    if (workspaceIncludeInvalid) {
+      errors.push('Состав workspace-контракта: разрешены только messages, context, sla, permissions.');
+    }
+    if (!Number.isFinite(workspaceMessagesPageLimitRaw) || workspaceMessagesPageLimitRaw < 10 || workspaceMessagesPageLimitRaw > 200) {
+      errors.push('Лимит сообщений workspace должен быть в диапазоне 10..200.');
+    }
+    if (!Number.isFinite(workspaceFailureStreakThresholdRaw) || workspaceFailureStreakThresholdRaw < 1 || workspaceFailureStreakThresholdRaw > 10) {
+      errors.push('Порог fallback подряд должен быть в диапазоне 1..10.');
+    }
+    if (!Number.isFinite(workspaceFailureCooldownMsRaw) || workspaceFailureCooldownMsRaw < 1000 || workspaceFailureCooldownMsRaw > 120000) {
+      errors.push('Cooldown fallback должен быть в диапазоне 1000..120000 мс.');
     }
     if (!Number.isFinite(workspaceAutosaveDelayRaw) || workspaceAutosaveDelayRaw < 300 || workspaceAutosaveDelayRaw > 5000) {
       errors.push('Задержка автосохранения черновика должна быть в диапазоне 300..5000 мс.');
@@ -13742,6 +13835,10 @@
         dialog_workspace_inline_navigation: Boolean(inputs.workspaceInlineNavigation?.checked),
         dialog_workspace_contract_timeout_ms: safeWorkspaceContractTimeout,
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
+        dialog_workspace_contract_include: safeWorkspaceContractInclude,
+        dialog_workspace_messages_page_limit: safeWorkspaceMessagesPageLimit,
+        dialog_workspace_failure_streak_threshold: safeWorkspaceFailureStreakThreshold,
+        dialog_workspace_failure_cooldown_ms: safeWorkspaceFailureCooldownMs,
         dialog_workspace_draft_autosave_delay_ms: safeWorkspaceAutosaveDelay,
         dialog_workspace_draft_telemetry_interval_ms: safeWorkspaceTelemetryInterval,
         dialog_workspace_open_slo_ms: safeWorkspaceOpenSloMs,
