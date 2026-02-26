@@ -320,6 +320,29 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_macro_variable_defaults")) {
                     dialogConfig.put("macro_variable_defaults", payload.get("dialog_macro_variable_defaults"));
                 }
+                if (payload.containsKey("dialog_macro_variable_catalog")) {
+                    dialogConfig.put("macro_variable_catalog", payload.get("dialog_macro_variable_catalog"));
+                }
+                if (payload.containsKey("dialog_workspace_client_crm_profile_url_template")) {
+                    dialogConfig.put("workspace_client_crm_profile_url_template",
+                            payload.get("dialog_workspace_client_crm_profile_url_template"));
+                }
+                if (payload.containsKey("dialog_workspace_client_crm_profile_label")) {
+                    dialogConfig.put("workspace_client_crm_profile_label",
+                            payload.get("dialog_workspace_client_crm_profile_label"));
+                }
+                if (payload.containsKey("dialog_workspace_client_contract_profile_url_template")) {
+                    dialogConfig.put("workspace_client_contract_profile_url_template",
+                            payload.get("dialog_workspace_client_contract_profile_url_template"));
+                }
+                if (payload.containsKey("dialog_workspace_client_contract_profile_label")) {
+                    dialogConfig.put("workspace_client_contract_profile_label",
+                            payload.get("dialog_workspace_client_contract_profile_label"));
+                }
+                if (payload.containsKey("dialog_workspace_client_external_links")) {
+                    dialogConfig.put("workspace_client_external_links",
+                            payload.get("dialog_workspace_client_external_links"));
+                }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
                     Object existingBadges = dialogConfig.get("summary_badges");
