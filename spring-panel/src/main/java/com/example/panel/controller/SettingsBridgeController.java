@@ -175,6 +175,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_ab_rollout_percent")
                 || payload.containsKey("dialog_workspace_ab_experiment_name")
                 || payload.containsKey("dialog_workspace_ab_operator_segment")
+                || payload.containsKey("dialog_workspace_ab_primary_kpis")
+                || payload.containsKey("dialog_workspace_ab_secondary_kpis")
+                || payload.containsKey("dialog_workspace_ab_operator_overrides")
                 || payload.containsKey("dialog_workspace_contract_timeout_ms")
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
                 || payload.containsKey("dialog_workspace_draft_autosave_delay_ms")
@@ -190,7 +193,13 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_kpi_outcome_ttr_max_relative_regression")
                 || payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta")
                 || payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier")
-                || payload.containsKey("dialog_macro_variable_defaults")) {
+                || payload.containsKey("dialog_macro_variable_defaults")
+                || payload.containsKey("dialog_macro_variable_catalog")
+                || payload.containsKey("dialog_workspace_client_crm_profile_url_template")
+                || payload.containsKey("dialog_workspace_client_crm_profile_label")
+                || payload.containsKey("dialog_workspace_client_contract_profile_url_template")
+                || payload.containsKey("dialog_workspace_client_contract_profile_label")
+                || payload.containsKey("dialog_workspace_client_external_links")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -306,6 +315,15 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_ab_operator_segment")) {
                     dialogConfig.put("workspace_ab_operator_segment", payload.get("dialog_workspace_ab_operator_segment"));
+                }
+                if (payload.containsKey("dialog_workspace_ab_primary_kpis")) {
+                    dialogConfig.put("workspace_ab_primary_kpis", payload.get("dialog_workspace_ab_primary_kpis"));
+                }
+                if (payload.containsKey("dialog_workspace_ab_secondary_kpis")) {
+                    dialogConfig.put("workspace_ab_secondary_kpis", payload.get("dialog_workspace_ab_secondary_kpis"));
+                }
+                if (payload.containsKey("dialog_workspace_ab_operator_overrides")) {
+                    dialogConfig.put("workspace_ab_operator_overrides", payload.get("dialog_workspace_ab_operator_overrides"));
                 }
                 if (payload.containsKey("dialog_workspace_contract_timeout_ms")) {
                     dialogConfig.put("workspace_contract_timeout_ms", payload.get("dialog_workspace_contract_timeout_ms"));
