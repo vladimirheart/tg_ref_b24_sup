@@ -168,7 +168,13 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_overdue_threshold_hours")
                 || payload.containsKey("dialog_list_poll_interval_ms")
                 || payload.containsKey("dialog_history_poll_interval_ms")
+                || payload.containsKey("dialog_workspace_v1")
+                || payload.containsKey("dialog_sla_critical_auto_sort")
                 || payload.containsKey("dialog_workspace_inline_navigation")
+                || payload.containsKey("dialog_workspace_ab_enabled")
+                || payload.containsKey("dialog_workspace_ab_rollout_percent")
+                || payload.containsKey("dialog_workspace_ab_experiment_name")
+                || payload.containsKey("dialog_workspace_ab_operator_segment")
                 || payload.containsKey("dialog_workspace_contract_timeout_ms")
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
                 || payload.containsKey("dialog_workspace_draft_autosave_delay_ms")
@@ -280,8 +286,26 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_history_poll_interval_ms")) {
                     dialogConfig.put("history_poll_interval_ms", payload.get("dialog_history_poll_interval_ms"));
                 }
+                if (payload.containsKey("dialog_workspace_v1")) {
+                    dialogConfig.put("workspace_v1", payload.get("dialog_workspace_v1"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_sort")) {
+                    dialogConfig.put("sla_critical_auto_sort", payload.get("dialog_sla_critical_auto_sort"));
+                }
                 if (payload.containsKey("dialog_workspace_inline_navigation")) {
                     dialogConfig.put("workspace_inline_navigation", payload.get("dialog_workspace_inline_navigation"));
+                }
+                if (payload.containsKey("dialog_workspace_ab_enabled")) {
+                    dialogConfig.put("workspace_ab_enabled", payload.get("dialog_workspace_ab_enabled"));
+                }
+                if (payload.containsKey("dialog_workspace_ab_rollout_percent")) {
+                    dialogConfig.put("workspace_ab_rollout_percent", payload.get("dialog_workspace_ab_rollout_percent"));
+                }
+                if (payload.containsKey("dialog_workspace_ab_experiment_name")) {
+                    dialogConfig.put("workspace_ab_experiment_name", payload.get("dialog_workspace_ab_experiment_name"));
+                }
+                if (payload.containsKey("dialog_workspace_ab_operator_segment")) {
+                    dialogConfig.put("workspace_ab_operator_segment", payload.get("dialog_workspace_ab_operator_segment"));
                 }
                 if (payload.containsKey("dialog_workspace_contract_timeout_ms")) {
                     dialogConfig.put("workspace_contract_timeout_ms", payload.get("dialog_workspace_contract_timeout_ms"));
