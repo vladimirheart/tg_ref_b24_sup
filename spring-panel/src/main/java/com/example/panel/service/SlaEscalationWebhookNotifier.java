@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -256,11 +257,14 @@ public class SlaEscalationWebhookNotifier {
         List<AutoAssignRule> rules = parseAutoAssignRules(dialogConfig.get("sla_critical_auto_assign_rules"));
         String fallbackAssignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
         int maxPerRun = resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_max_per_run", 5, 100);
+        Integer maxOpenPerOperator = resolveOptionalNonNegativeInt(dialogConfig.get("sla_critical_auto_assign_max_open_per_operator"));
+        boolean requireCategories = resolveBoolean(dialogConfig, "sla_critical_auto_assign_require_categories", false);
         if ((rules.isEmpty() && fallbackAssignee == null) || candidates == null || candidates.isEmpty()) {
             return List.of();
         }
         List<AutoAssignDecision> decisions = new ArrayList<>();
         List<String> processedTicketIds = new ArrayList<>();
+        Map<String, Long> openLoadCache = new HashMap<>();
         for (Map<String, Object> candidate : candidates) {
             if (decisions.size() >= maxPerRun) {
                 break;
@@ -274,9 +278,13 @@ public class SlaEscalationWebhookNotifier {
             String candidateBusiness = normalizeMatchValue(candidate.get("business"));
             String candidateLocation = normalizeMatchValue(candidate.get("location"));
             Set<String> candidateCategories = parseCandidateCategories(candidate.get("categories"));
+            if (requireCategories && candidateCategories.isEmpty()) {
+                continue;
+            }
             Integer candidateUnreadCount = parseOptionalNonNegativeInt(candidate.get("unread_count"));
             Long candidateMinutesLeft = parseOptionalLong(candidate.get("minutes_left"));
             String candidateSlaState = normalizeSlaState(candidate.get("sla_state"));
+            String candidateRequestNumber = trimToNull(String.valueOf(candidate.get("request_number")));
 
             AutoAssignRule matchedRule = findBestMatchedRule(
                     rules,
@@ -286,9 +294,19 @@ public class SlaEscalationWebhookNotifier {
                     candidateCategories,
                     candidateUnreadCount,
                     candidateMinutesLeft,
-                    candidateSlaState
+                    candidateSlaState,
+                    candidateRequestNumber
             );
-            String assignee = matchedRule != null ? resolveRuleAssignee(matchedRule, ticketId) : fallbackAssignee;
+            String assignee = matchedRule != null
+                    ? resolveRuleAssignee(matchedRule, ticketId, maxOpenPerOperator, openLoadCache)
+                    : fallbackAssignee;
+            if (!isAssigneeEligible(assignee, maxOpenPerOperator, openLoadCache)) {
+                assignee = null;
+            }
+            if (assignee == null && fallbackAssignee != null && isAssigneeEligible(fallbackAssignee, maxOpenPerOperator, openLoadCache)) {
+                assignee = fallbackAssignee;
+                matchedRule = null;
+            }
             String source = matchedRule != null ? "rules" : "fallback";
             String route = matchedRule != null ? matchedRule.route() : "fallback_default";
             if (assignee == null) {
@@ -409,11 +427,12 @@ public class SlaEscalationWebhookNotifier {
                                                       Set<String> candidateCategories,
                                                       Integer candidateUnreadCount,
                                                       Long candidateMinutesLeft,
-                                                      String candidateSlaState) {
+                                                      String candidateSlaState,
+                                                      String candidateRequestNumber) {
         AutoAssignRule best = null;
         for (AutoAssignRule rule : rules) {
             if (!rule.matches(candidateChannel, candidateBusiness, candidateLocation, candidateCategories,
-                    candidateUnreadCount, candidateMinutesLeft, candidateSlaState)) {
+                    candidateUnreadCount, candidateMinutesLeft, candidateSlaState, candidateRequestNumber)) {
                 continue;
             }
             if (best == null
@@ -449,10 +468,12 @@ public class SlaEscalationWebhookNotifier {
             Long minutesLeftLte = parseOptionalLong(ruleMap.get("match_minutes_left_lte"));
             Long minutesLeftGte = parseOptionalLong(ruleMap.get("match_minutes_left_gte"));
             Set<String> slaStates = parseRuleSlaStates(ruleMap.get("match_sla_state"), ruleMap.get("match_sla_states"));
+            Set<String> requestPrefixes = parseRuleRequestPrefixes(ruleMap.get("match_request_prefix"), ruleMap.get("match_request_prefixes"));
             int priority = parsePriority(ruleMap.get("priority"));
             if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && categories.isEmpty()
                     && unreadMin == null && unreadMax == null
-                    && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()) {
+                    && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()
+                    && requestPrefixes.isEmpty()) {
                 continue;
             }
             String route = trimToNull(String.valueOf(ruleMap.get("rule_id")));
@@ -461,10 +482,32 @@ public class SlaEscalationWebhookNotifier {
             }
             PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
             rules.add(new AutoAssignRule(channels, businesses, locations, categories, categoryMatchMode,
-                    unreadMin, unreadMax, minutesLeftLte, minutesLeftGte, slaStates,
+                    unreadMin, unreadMax, minutesLeftLte, minutesLeftGte, slaStates, requestPrefixes,
                     priority, assignee, assigneePool, route, poolStrategy));
         }
         return rules;
+    }
+
+    private Set<String> parseRuleRequestPrefixes(Object rawSingle, Object rawMultiple) {
+        Set<String> values = new LinkedHashSet<>();
+        addRequestPrefix(values, rawSingle);
+        if (rawMultiple instanceof List<?> list) {
+            for (Object value : list) {
+                addRequestPrefix(values, value);
+            }
+        } else if (rawMultiple instanceof String text) {
+            for (String chunk : text.split("[,;\\n]")) {
+                addRequestPrefix(values, chunk);
+            }
+        }
+        return values;
+    }
+
+    private void addRequestPrefix(Set<String> values, Object rawValue) {
+        String normalized = trimToNull(String.valueOf(rawValue));
+        if (normalized != null) {
+            values.add(normalized.toLowerCase());
+        }
     }
 
     private long extractMinutesLeftOrMax(Map<String, Object> candidate) {
@@ -556,13 +599,16 @@ public class SlaEscalationWebhookNotifier {
         };
     }
 
-    private String resolveRuleAssignee(AutoAssignRule rule, String ticketId) {
+    private String resolveRuleAssignee(AutoAssignRule rule,
+                                       String ticketId,
+                                       Integer maxOpenPerOperator,
+                                       Map<String, Long> openLoadCache) {
         if (rule.assigneePool() == null || rule.assigneePool().isEmpty()) {
             return rule.assignee();
         }
         return switch (rule.poolAssignStrategy()) {
             case ROUND_ROBIN -> resolvePoolAssigneeRoundRobin(rule);
-            case LEAST_LOADED -> resolvePoolAssigneeLeastLoaded(rule.assigneePool());
+            case LEAST_LOADED -> resolvePoolAssigneeLeastLoaded(rule.assigneePool(), maxOpenPerOperator, openLoadCache);
             case HASH_BY_TICKET -> resolvePoolAssigneeByHash(rule.assigneePool(), ticketId);
         };
     }
@@ -579,23 +625,38 @@ public class SlaEscalationWebhookNotifier {
         return rule.assigneePool().get(idx);
     }
 
-    private String resolvePoolAssigneeLeastLoaded(List<String> assigneePool) {
+    private String resolvePoolAssigneeLeastLoaded(List<String> assigneePool,
+                                                  Integer maxOpenPerOperator,
+                                                  Map<String, Long> openLoadCache) {
         if (dialogService == null) {
             return assigneePool.get(0);
         }
-        Map<String, Long> openLoadByOperator = new LinkedHashMap<>();
-        for (String operator : assigneePool) {
-            long openCount = dialogService.loadDialogs(operator).stream()
-                    .filter(dialog -> "open".equals(normalizeLifecycleState(dialog.statusKey())))
-                    .count();
-            openLoadByOperator.put(operator, openCount);
-        }
         return assigneePool.stream()
+                .filter(operator -> isAssigneeEligible(operator, maxOpenPerOperator, openLoadCache))
                 .sorted(Comparator
-                        .comparingLong((String operator) -> openLoadByOperator.getOrDefault(operator, Long.MAX_VALUE))
+                        .comparingLong((String operator) -> loadOpenCount(operator, openLoadCache))
                         .thenComparing(String::compareToIgnoreCase))
                 .findFirst()
-                .orElse(assigneePool.get(0));
+                .orElse(null);
+    }
+
+    private boolean isAssigneeEligible(String assignee, Integer maxOpenPerOperator, Map<String, Long> openLoadCache) {
+        if (assignee == null || maxOpenPerOperator == null) {
+            return assignee != null;
+        }
+        return loadOpenCount(assignee, openLoadCache) < maxOpenPerOperator;
+    }
+
+    private long loadOpenCount(String operator, Map<String, Long> openLoadCache) {
+        if (operator == null) {
+            return Long.MAX_VALUE;
+        }
+        if (dialogService == null) {
+            return 0L;
+        }
+        return openLoadCache.computeIfAbsent(operator, key -> dialogService.loadDialogs(key).stream()
+                .filter(dialog -> "open".equals(normalizeLifecycleState(dialog.statusKey())))
+                .count());
     }
 
 
@@ -612,6 +673,11 @@ public class SlaEscalationWebhookNotifier {
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private Integer resolveOptionalNonNegativeInt(Object rawValue) {
+        Integer parsed = parseOptionalNonNegativeInt(rawValue);
+        return parsed == null || parsed <= 0 ? null : parsed;
     }
 
     private Long parseOptionalLong(Object rawValue) {
@@ -824,6 +890,7 @@ public class SlaEscalationWebhookNotifier {
                                   Long minutesLeftLte,
                                   Long minutesLeftGte,
                                   Set<String> slaStates,
+                                  Set<String> requestPrefixes,
                                   int priority,
                                   String assignee,
                                   List<String> assigneePool,
@@ -835,7 +902,8 @@ public class SlaEscalationWebhookNotifier {
                         Set<String> candidateCategories,
                         Integer candidateUnreadCount,
                         Long candidateMinutesLeft,
-                        String candidateSlaState) {
+                        String candidateSlaState,
+                        String candidateRequestNumber) {
             if (channels != null && !channels.isEmpty() && (candidateChannel == null || !channels.contains(candidateChannel))) {
                 return false;
             }
@@ -873,6 +941,13 @@ public class SlaEscalationWebhookNotifier {
                     return false;
                 }
             }
+            if (requestPrefixes != null && !requestPrefixes.isEmpty()) {
+                String requestValue = candidateRequestNumber == null ? null : candidateRequestNumber.toLowerCase();
+                boolean matched = requestValue != null && requestPrefixes.stream().anyMatch(requestValue::startsWith);
+                if (!matched) {
+                    return false;
+                }
+            }
             return true;
         }
 
@@ -903,6 +978,9 @@ public class SlaEscalationWebhookNotifier {
                 score++;
             }
             if (slaStates != null && !slaStates.isEmpty()) {
+                score++;
+            }
+            if (requestPrefixes != null && !requestPrefixes.isEmpty()) {
                 score++;
             }
             return score;

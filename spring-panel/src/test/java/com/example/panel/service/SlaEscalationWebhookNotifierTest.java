@@ -562,6 +562,84 @@ class SlaEscalationWebhookNotifierTest {
     }
 
 
+    @Test
+    void resolveAutoAssignDecisionsSupportsRequestPrefixRouting() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "request_number", "VIP-1023"),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "request_number", "REG-778")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "vip_prefix",
+                                "match_channel", "telegram",
+                                "match_request_prefixes", List.of("vip-", "priority-"),
+                                "assign_to", "vip_queue"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("vip_queue", decisions.get(0).assignee());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsCanRequireCategoriesGlobally() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "categories", List.of("billing")),
+                Map.of("ticket_id", "T-2", "channel", "Telegram")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_require_categories", true
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(1, decisions.size());
+        assertEquals("T-1", decisions.get(0).ticketId());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsSkipsWhenFallbackAssigneeOverloadLimitReached() {
+        DialogService dialogService = org.mockito.Mockito.mock(DialogService.class);
+        org.mockito.Mockito.when(dialogService.loadDialogs("fallback_duty"))
+                .thenReturn(List.of(
+                        dialog("B-1", Instant.now().toString(), "open", "fallback_duty")
+                ));
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, dialogService, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "request_number", "REG-001")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_max_open_per_operator", 0
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(1, decisions.size(), "0 трактуется как невалидное значение и отключает лимит");
+
+        Map<String, Object> strictConfig = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_max_open_per_operator", 1
+        );
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> strictDecisions = notifier.resolveAutoAssignDecisions(candidates, strictConfig);
+        assertEquals(0, strictDecisions.size(), "При load=1 и лимите 1 оператор исключается из назначения.");
+    }
+
+
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,
