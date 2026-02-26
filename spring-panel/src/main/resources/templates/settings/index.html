@@ -2087,6 +2087,10 @@
                       <input type="number" class="form-control" id="dialogWorkspaceDraftTelemetryIntervalMs" min="5000" max="120000" step="1000">
                     </div>
                     <div class="col-md-6">
+                      <label for="dialogWorkspaceOpenSloMs" class="form-label">Open SLO p95, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceOpenSloMs" min="500" max="10000" step="100">
+                    </div>
+                    <div class="col-md-6">
                       <label for="dialogListPollIntervalMs" class="form-label">Интервал автообновления списка, мс</label>
                       <input type="number" class="form-control" id="dialogListPollIntervalMs" min="3000" max="60000" step="500">
                     </div>
@@ -3773,6 +3777,7 @@
     workspace_contract_retry_attempts: 1,
     workspace_draft_autosave_delay_ms: 900,
     workspace_draft_telemetry_interval_ms: 30000,
+    workspace_open_slo_ms: 2000,
     workspace_enabled: true,
     workspace_inline_navigation: true,
     sla_critical_auto_sort: true,
@@ -12780,6 +12785,7 @@
       workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
       workspaceDraftAutosaveDelay: document.getElementById('dialogWorkspaceDraftAutosaveDelayMs'),
       workspaceDraftTelemetryInterval: document.getElementById('dialogWorkspaceDraftTelemetryIntervalMs'),
+      workspaceOpenSloMs: document.getElementById('dialogWorkspaceOpenSloMs'),
       listPollIntervalMs: document.getElementById('dialogListPollIntervalMs'),
       historyPollIntervalMs: document.getElementById('dialogHistoryPollIntervalMs'),
       workspaceAbRolloutPercent: document.getElementById('dialogWorkspaceAbRolloutPercent'),
@@ -12948,6 +12954,12 @@
       inputs.workspaceDraftTelemetryInterval.value = Number.isFinite(telemetryInterval) && telemetryInterval >= 5000
         ? telemetryInterval
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_draft_telemetry_interval_ms;
+    }
+    if (inputs.workspaceOpenSloMs) {
+      const openSlo = Number.parseInt(DIALOG_CONFIG.workspace_open_slo_ms, 10);
+      inputs.workspaceOpenSloMs.value = Number.isFinite(openSlo) && openSlo >= 500
+        ? Math.min(10000, openSlo)
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_open_slo_ms;
     }
     if (inputs.listPollIntervalMs) {
       const listPoll = Number.parseInt(DIALOG_CONFIG.list_poll_interval_ms, 10);
@@ -13163,6 +13175,7 @@
     const workspaceRetryAttemptsRaw = Math.round(Number(inputs.workspaceRetryAttempts?.value));
     const workspaceAutosaveDelayRaw = Math.round(Number(inputs.workspaceDraftAutosaveDelay?.value));
     const workspaceTelemetryIntervalRaw = Math.round(Number(inputs.workspaceDraftTelemetryInterval?.value));
+    const workspaceOpenSloMsRaw = Math.round(Number(inputs.workspaceOpenSloMs?.value));
     const quickSnoozeMinutesRaw = Math.round(Number(inputs.quickSnoozeMinutes?.value));
     const overdueThresholdHoursRaw = Math.round(Number(inputs.overdueThresholdHours?.value));
     const listPollIntervalRaw = Math.round(Number(inputs.listPollIntervalMs?.value));
@@ -13193,6 +13206,9 @@
     const safeHistoryPollInterval = Number.isFinite(historyPollIntervalRaw)
       ? Math.min(60000, Math.max(3000, historyPollIntervalRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.history_poll_interval_ms;
+    const safeWorkspaceOpenSloMs = Number.isFinite(workspaceOpenSloMsRaw)
+      ? Math.min(10000, Math.max(500, workspaceOpenSloMsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_open_slo_ms;
     const safeWorkspaceAbRolloutPercent = Number.isFinite(workspaceAbRolloutPercentRaw)
       ? Math.min(100, Math.max(0, workspaceAbRolloutPercentRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_rollout_percent;
@@ -13213,6 +13229,9 @@
     }
     if (!Number.isFinite(workspaceTelemetryIntervalRaw) || workspaceTelemetryIntervalRaw < 5000 || workspaceTelemetryIntervalRaw > 120000) {
       errors.push('Интервал telemetry черновиков должен быть в диапазоне 5000..120000 мс.');
+    }
+    if (!Number.isFinite(workspaceOpenSloMsRaw) || workspaceOpenSloMsRaw < 500 || workspaceOpenSloMsRaw > 10000) {
+      errors.push('Open SLO должен быть в диапазоне 500..10000 мс.');
     }
     if (!Number.isFinite(quickSnoozeMinutesRaw) || quickSnoozeMinutesRaw < 5 || quickSnoozeMinutesRaw > 1440) {
       errors.push('Quick snooze должен быть в диапазоне 5..1440 минут.');
@@ -13551,6 +13570,7 @@
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
         dialog_workspace_draft_autosave_delay_ms: safeWorkspaceAutosaveDelay,
         dialog_workspace_draft_telemetry_interval_ms: safeWorkspaceTelemetryInterval,
+        dialog_workspace_open_slo_ms: safeWorkspaceOpenSloMs,
         dialog_list_poll_interval_ms: safeListPollInterval,
         dialog_history_poll_interval_ms: safeHistoryPollInterval,
         dialog_workspace_ab_enabled: Boolean(inputs.workspaceAbEnabled?.checked),
