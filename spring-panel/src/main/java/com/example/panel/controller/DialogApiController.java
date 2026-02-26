@@ -74,6 +74,7 @@ public class DialogApiController {
             Map.entry("workspace_open_ms", "performance"),
             Map.entry("workspace_render_error", "stability"),
             Map.entry("workspace_fallback_to_legacy", "stability"),
+            Map.entry("workspace_guardrail_breach", "stability"),
             Map.entry("workspace_abandon", "engagement"),
             Map.entry("workspace_experiment_exposure", "experiment"),
             Map.entry("workspace_draft_saved", "workspace"),
