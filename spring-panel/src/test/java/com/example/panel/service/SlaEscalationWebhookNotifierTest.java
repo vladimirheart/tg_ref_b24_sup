@@ -422,6 +422,87 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("fallback_duty", decisions.get(1).assignee());
     }
 
+    @Test
+    void resolveAutoAssignDecisionsSupportsPluralChannelBusinessAndLocationMatchers() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "VK", "business", "SMB", "location", "SPB"),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "business", "Retail", "location", "Moscow")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "omni_route",
+                                "match_channels", List.of("telegram", "vk"),
+                                "match_businesses", "smb,enterprise",
+                                "match_locations", List.of("spb", "kazan"),
+                                "assign_to", "omni_queue"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("omni_queue", decisions.get(0).assignee());
+        assertEquals("omni_route", decisions.get(0).route());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsSupportsAllCategoryMode() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "categories", List.of("billing", "refund")),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "categories", List.of("billing"))
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "billing_refund_all",
+                                "match_channel", "telegram",
+                                "match_categories", List.of("billing", "refund"),
+                                "match_categories_mode", "all",
+                                "assign_to", "billing_tier2"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("billing_tier2", decisions.get(0).assignee());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+    }
+
+    @Test
+    void resolveAutoAssignDecisionsKeepsAnyCategoryModeAsDefault() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "categories", List.of("billing"))
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "billing_or_refund",
+                                "match_channel", "telegram",
+                                "match_categories", List.of("billing", "refund"),
+                                "assign_to", "billing_tier1"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(1, decisions.size());
+        assertEquals("billing_tier1", decisions.get(0).assignee());
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,
