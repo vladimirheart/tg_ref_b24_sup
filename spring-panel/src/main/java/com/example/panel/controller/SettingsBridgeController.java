@@ -153,6 +153,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_auto_assign_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_to")
                 || payload.containsKey("dialog_sla_critical_auto_assign_max_per_run")
+                || payload.containsKey("dialog_sla_critical_auto_assign_actor")
+                || payload.containsKey("dialog_sla_critical_auto_assign_rules")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_urls")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_cooldown_minutes")
@@ -250,6 +252,12 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_auto_assign_max_per_run")) {
                     dialogConfig.put("sla_critical_auto_assign_max_per_run", payload.get("dialog_sla_critical_auto_assign_max_per_run"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_actor")) {
+                    dialogConfig.put("sla_critical_auto_assign_actor", payload.get("dialog_sla_critical_auto_assign_actor"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_rules")) {
+                    dialogConfig.put("sla_critical_auto_assign_rules", payload.get("dialog_sla_critical_auto_assign_rules"));
                 }
                 if (payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")) {
                     dialogConfig.put("sla_critical_escalation_webhook_enabled", payload.get("dialog_sla_critical_escalation_webhook_enabled"));

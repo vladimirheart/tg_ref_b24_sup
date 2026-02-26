@@ -431,16 +431,17 @@ public class SlaEscalationWebhookNotifier {
             if (assignee == null && assigneePool.isEmpty()) {
                 continue;
             }
-            String channel = normalizeMatchValue(ruleMap.get("match_channel"));
-            String business = normalizeMatchValue(ruleMap.get("match_business"));
-            String location = normalizeMatchValue(ruleMap.get("match_location"));
+            Set<String> channels = parseRuleMatchValues(ruleMap.get("match_channel"), ruleMap.get("match_channels"));
+            Set<String> businesses = parseRuleMatchValues(ruleMap.get("match_business"), ruleMap.get("match_businesses"));
+            Set<String> locations = parseRuleMatchValues(ruleMap.get("match_location"), ruleMap.get("match_locations"));
             Set<String> categories = parseRuleCategories(ruleMap.get("match_category"), ruleMap.get("match_categories"));
+            CategoryMatchMode categoryMatchMode = parseCategoryMatchMode(ruleMap.get("match_categories_mode"));
             Integer unreadMin = parseOptionalNonNegativeInt(ruleMap.get("match_unread_min"));
             Long minutesLeftLte = parseOptionalLong(ruleMap.get("match_minutes_left_lte"));
             Long minutesLeftGte = parseOptionalLong(ruleMap.get("match_minutes_left_gte"));
             Set<String> slaStates = parseRuleSlaStates(ruleMap.get("match_sla_state"), ruleMap.get("match_sla_states"));
             int priority = parsePriority(ruleMap.get("priority"));
-            if (channel == null && business == null && location == null && categories.isEmpty()
+            if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && categories.isEmpty()
                     && unreadMin == null && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()) {
                 continue;
             }
@@ -449,11 +450,45 @@ public class SlaEscalationWebhookNotifier {
                 route = trimToNull(String.valueOf(ruleMap.get("name")));
             }
             PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
-            rules.add(new AutoAssignRule(channel, business, location, categories,
+            rules.add(new AutoAssignRule(channels, businesses, locations, categories, categoryMatchMode,
                     unreadMin, minutesLeftLte, minutesLeftGte, slaStates,
                     priority, assignee, assigneePool, route, poolStrategy));
         }
         return rules;
+    }
+
+    private Set<String> parseRuleMatchValues(Object rawSingle, Object rawMultiple) {
+        Set<String> values = new LinkedHashSet<>();
+        addMatchValue(values, rawSingle);
+        if (rawMultiple instanceof List<?> list) {
+            for (Object value : list) {
+                addMatchValue(values, value);
+            }
+        } else if (rawMultiple instanceof String text) {
+            String[] chunks = text.split("[,\n]");
+            for (String chunk : chunks) {
+                addMatchValue(values, chunk);
+            }
+        }
+        return values;
+    }
+
+    private void addMatchValue(Set<String> values, Object rawValue) {
+        String normalized = normalizeMatchValue(rawValue);
+        if (normalized != null) {
+            values.add(normalized);
+        }
+    }
+
+    private CategoryMatchMode parseCategoryMatchMode(Object rawMode) {
+        String mode = rawMode == null ? null : trimToNull(String.valueOf(rawMode));
+        if (mode == null) {
+            return CategoryMatchMode.ANY;
+        }
+        return switch (mode.trim().toLowerCase()) {
+            case "all", "every", "all_of" -> CategoryMatchMode.ALL;
+            default -> CategoryMatchMode.ANY;
+        };
     }
 
 
@@ -759,10 +794,16 @@ public class SlaEscalationWebhookNotifier {
         LEAST_LOADED
     }
 
-    private record AutoAssignRule(String channel,
-                                  String business,
-                                  String location,
+    private enum CategoryMatchMode {
+        ANY,
+        ALL
+    }
+
+    private record AutoAssignRule(Set<String> channels,
+                                  Set<String> businesses,
+                                  Set<String> locations,
                                   Set<String> categories,
+                                  CategoryMatchMode categoryMatchMode,
                                   Integer unreadMin,
                                   Long minutesLeftLte,
                                   Long minutesLeftGte,
@@ -779,20 +820,22 @@ public class SlaEscalationWebhookNotifier {
                         Integer candidateUnreadCount,
                         Long candidateMinutesLeft,
                         String candidateSlaState) {
-            if (channel != null && (candidateChannel == null || !channel.equals(candidateChannel))) {
+            if (channels != null && !channels.isEmpty() && (candidateChannel == null || !channels.contains(candidateChannel))) {
                 return false;
             }
-            if (business != null && (candidateBusiness == null || !business.equals(candidateBusiness))) {
+            if (businesses != null && !businesses.isEmpty() && (candidateBusiness == null || !businesses.contains(candidateBusiness))) {
                 return false;
             }
-            if (location != null && (candidateLocation == null || !location.equals(candidateLocation))) {
+            if (locations != null && !locations.isEmpty() && (candidateLocation == null || !locations.contains(candidateLocation))) {
                 return false;
             }
             if (categories != null && !categories.isEmpty()) {
                 if (candidateCategories == null || candidateCategories.isEmpty()) {
                     return false;
                 }
-                boolean categoryMatched = categories.stream().anyMatch(candidateCategories::contains);
+                boolean categoryMatched = categoryMatchMode == CategoryMatchMode.ALL
+                        ? categories.stream().allMatch(candidateCategories::contains)
+                        : categories.stream().anyMatch(candidateCategories::contains);
                 if (!categoryMatched) {
                     return false;
                 }
@@ -816,13 +859,13 @@ public class SlaEscalationWebhookNotifier {
 
         int specificityScore() {
             int score = 0;
-            if (channel != null) {
+            if (channels != null && !channels.isEmpty()) {
                 score++;
             }
-            if (business != null) {
+            if (businesses != null && !businesses.isEmpty()) {
                 score++;
             }
-            if (location != null) {
+            if (locations != null && !locations.isEmpty()) {
                 score++;
             }
             if (categories != null && !categories.isEmpty()) {
