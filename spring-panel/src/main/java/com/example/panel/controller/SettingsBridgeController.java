@@ -182,6 +182,10 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_ab_operator_overrides")
                 || payload.containsKey("dialog_workspace_contract_timeout_ms")
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
+                || payload.containsKey("dialog_workspace_contract_include")
+                || payload.containsKey("dialog_workspace_messages_page_limit")
+                || payload.containsKey("dialog_workspace_failure_streak_threshold")
+                || payload.containsKey("dialog_workspace_failure_cooldown_ms")
                 || payload.containsKey("dialog_workspace_draft_autosave_delay_ms")
                 || payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")
                 || payload.containsKey("dialog_workspace_open_slo_ms")
@@ -344,6 +348,18 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_contract_retry_attempts")) {
                     dialogConfig.put("workspace_contract_retry_attempts", payload.get("dialog_workspace_contract_retry_attempts"));
+                }
+                if (payload.containsKey("dialog_workspace_contract_include")) {
+                    dialogConfig.put("workspace_contract_include", payload.get("dialog_workspace_contract_include"));
+                }
+                if (payload.containsKey("dialog_workspace_messages_page_limit")) {
+                    dialogConfig.put("workspace_messages_page_limit", payload.get("dialog_workspace_messages_page_limit"));
+                }
+                if (payload.containsKey("dialog_workspace_failure_streak_threshold")) {
+                    dialogConfig.put("workspace_failure_streak_threshold", payload.get("dialog_workspace_failure_streak_threshold"));
+                }
+                if (payload.containsKey("dialog_workspace_failure_cooldown_ms")) {
+                    dialogConfig.put("workspace_failure_cooldown_ms", payload.get("dialog_workspace_failure_cooldown_ms"));
                 }
                 if (payload.containsKey("dialog_workspace_draft_autosave_delay_ms")) {
                     dialogConfig.put("workspace_draft_autosave_delay_ms", payload.get("dialog_workspace_draft_autosave_delay_ms"));
