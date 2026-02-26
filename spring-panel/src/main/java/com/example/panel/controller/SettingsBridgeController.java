@@ -151,7 +151,12 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_minutes")
                 || payload.containsKey("dialog_sla_critical_escalation_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_enabled")
-                || payload.containsKey("dialog_sla_critical_auto_assign_to")) {
+                || payload.containsKey("dialog_sla_critical_auto_assign_to")
+                || payload.containsKey("dialog_workspace_inline_navigation")
+                || payload.containsKey("dialog_workspace_contract_timeout_ms")
+                || payload.containsKey("dialog_workspace_contract_retry_attempts")
+                || payload.containsKey("dialog_workspace_draft_autosave_delay_ms")
+                || payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -198,6 +203,21 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_auto_assign_to")) {
                     dialogConfig.put("sla_critical_auto_assign_to", payload.get("dialog_sla_critical_auto_assign_to"));
+                }
+                if (payload.containsKey("dialog_workspace_inline_navigation")) {
+                    dialogConfig.put("workspace_inline_navigation", payload.get("dialog_workspace_inline_navigation"));
+                }
+                if (payload.containsKey("dialog_workspace_contract_timeout_ms")) {
+                    dialogConfig.put("workspace_contract_timeout_ms", payload.get("dialog_workspace_contract_timeout_ms"));
+                }
+                if (payload.containsKey("dialog_workspace_contract_retry_attempts")) {
+                    dialogConfig.put("workspace_contract_retry_attempts", payload.get("dialog_workspace_contract_retry_attempts"));
+                }
+                if (payload.containsKey("dialog_workspace_draft_autosave_delay_ms")) {
+                    dialogConfig.put("workspace_draft_autosave_delay_ms", payload.get("dialog_workspace_draft_autosave_delay_ms"));
+                }
+                if (payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")) {
+                    dialogConfig.put("workspace_draft_telemetry_interval_ms", payload.get("dialog_workspace_draft_telemetry_interval_ms"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
