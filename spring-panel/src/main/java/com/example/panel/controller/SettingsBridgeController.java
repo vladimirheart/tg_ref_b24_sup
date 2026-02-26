@@ -156,7 +156,14 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_contract_timeout_ms")
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
                 || payload.containsKey("dialog_workspace_draft_autosave_delay_ms")
-                || payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")) {
+                || payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")
+                || payload.containsKey("dialog_workspace_guardrail_render_error_rate")
+                || payload.containsKey("dialog_workspace_guardrail_fallback_rate")
+                || payload.containsKey("dialog_workspace_guardrail_abandon_rate")
+                || payload.containsKey("dialog_workspace_guardrail_slow_open_rate")
+                || payload.containsKey("dialog_workspace_dimension_min_events")
+                || payload.containsKey("dialog_workspace_cohort_min_events")
+                || payload.containsKey("dialog_macro_variable_defaults")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -218,6 +225,27 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_draft_telemetry_interval_ms")) {
                     dialogConfig.put("workspace_draft_telemetry_interval_ms", payload.get("dialog_workspace_draft_telemetry_interval_ms"));
+                }
+                if (payload.containsKey("dialog_workspace_guardrail_render_error_rate")) {
+                    dialogConfig.put("guardrail_render_error_rate", payload.get("dialog_workspace_guardrail_render_error_rate"));
+                }
+                if (payload.containsKey("dialog_workspace_guardrail_fallback_rate")) {
+                    dialogConfig.put("guardrail_fallback_rate", payload.get("dialog_workspace_guardrail_fallback_rate"));
+                }
+                if (payload.containsKey("dialog_workspace_guardrail_abandon_rate")) {
+                    dialogConfig.put("guardrail_abandon_rate", payload.get("dialog_workspace_guardrail_abandon_rate"));
+                }
+                if (payload.containsKey("dialog_workspace_guardrail_slow_open_rate")) {
+                    dialogConfig.put("guardrail_slow_open_rate", payload.get("dialog_workspace_guardrail_slow_open_rate"));
+                }
+                if (payload.containsKey("dialog_workspace_dimension_min_events")) {
+                    dialogConfig.put("dimension_min_events", payload.get("dialog_workspace_dimension_min_events"));
+                }
+                if (payload.containsKey("dialog_workspace_cohort_min_events")) {
+                    dialogConfig.put("cohort_min_events", payload.get("dialog_workspace_cohort_min_events"));
+                }
+                if (payload.containsKey("dialog_macro_variable_defaults")) {
+                    dialogConfig.put("macro_variable_defaults", payload.get("dialog_macro_variable_defaults"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
