@@ -2352,6 +2352,10 @@
                       <input type="number" class="form-control" id="dialogPublicFormRateLimitMaxRequests" min="1" max="500" step="1">
                     </div>
                     <div class="col-md-4">
+                      <label for="dialogPublicFormSessionPollingIntervalSeconds" class="form-label">Интервал автообновления истории, сек</label>
+                      <input type="number" class="form-control" id="dialogPublicFormSessionPollingIntervalSeconds" min="5" max="300" step="1">
+                    </div>
+                    <div class="col-md-4">
                       <label for="dialogPublicFormCaptchaSharedSecret" class="form-label">CAPTCHA shared secret</label>
                       <input type="text" class="form-control" id="dialogPublicFormCaptchaSharedSecret" placeholder="Секрет для captchaToken">
                     </div>
@@ -2363,6 +2367,10 @@
                       <div class="form-check form-switch mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogPublicFormMetricsEnabled">
                         <label class="form-check-label" for="dialogPublicFormMetricsEnabled">Собирать runtime-метрики публичных форм (views/submits/errors)</label>
+                      </div>
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogPublicFormSessionPollingEnabled">
+                        <label class="form-check-label" for="dialogPublicFormSessionPollingEnabled">Включить автообновление истории в публичной форме по токену</label>
                       </div>
                     </div>
                   </div>
@@ -4022,6 +4030,8 @@
     public_form_rate_limit_window_seconds: 60,
     public_form_rate_limit_max_requests: 5,
     public_form_metrics_enabled: true,
+    public_form_session_polling_enabled: true,
+    public_form_session_polling_interval_seconds: 15,
     public_form_captcha_shared_secret: '',
   });
 
@@ -13064,6 +13074,8 @@
       publicFormRateLimitWindowSeconds: document.getElementById('dialogPublicFormRateLimitWindowSeconds'),
       publicFormRateLimitMaxRequests: document.getElementById('dialogPublicFormRateLimitMaxRequests'),
       publicFormMetricsEnabled: document.getElementById('dialogPublicFormMetricsEnabled'),
+      publicFormSessionPollingEnabled: document.getElementById('dialogPublicFormSessionPollingEnabled'),
+      publicFormSessionPollingIntervalSeconds: document.getElementById('dialogPublicFormSessionPollingIntervalSeconds'),
       publicFormCaptchaSharedSecret: document.getElementById('dialogPublicFormCaptchaSharedSecret'),
     };
   }
@@ -13523,6 +13535,9 @@
     if (inputs.publicFormMetricsEnabled instanceof HTMLInputElement) {
       inputs.publicFormMetricsEnabled.checked = DIALOG_CONFIG.public_form_metrics_enabled !== false;
     }
+    if (inputs.publicFormSessionPollingEnabled instanceof HTMLInputElement) {
+      inputs.publicFormSessionPollingEnabled.checked = DIALOG_CONFIG.public_form_session_polling_enabled !== false;
+    }
     if (inputs.publicFormRateLimitWindowSeconds) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_rate_limit_window_seconds, 10);
       inputs.publicFormRateLimitWindowSeconds.value = Number.isFinite(value) && value >= 10
@@ -13534,6 +13549,12 @@
       inputs.publicFormRateLimitMaxRequests.value = Number.isFinite(value) && value >= 1
         ? Math.min(500, value)
         : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_max_requests;
+    }
+    if (inputs.publicFormSessionPollingIntervalSeconds) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_session_polling_interval_seconds, 10);
+      inputs.publicFormSessionPollingIntervalSeconds.value = Number.isFinite(value) && value >= 5
+        ? Math.min(300, value)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_polling_interval_seconds;
     }
     if (inputs.publicFormCaptchaSharedSecret) {
       inputs.publicFormCaptchaSharedSecret.value = String(DIALOG_CONFIG.public_form_captcha_shared_secret || '').trim();
@@ -13663,6 +13684,7 @@
     const publicFormIdempotencyTtlSecondsRaw = Math.round(Number(inputs.publicFormIdempotencyTtlSeconds?.value));
     const publicFormRateLimitWindowSecondsRaw = Math.round(Number(inputs.publicFormRateLimitWindowSeconds?.value));
     const publicFormRateLimitMaxRequestsRaw = Math.round(Number(inputs.publicFormRateLimitMaxRequests?.value));
+    const publicFormSessionPollingIntervalSecondsRaw = Math.round(Number(inputs.publicFormSessionPollingIntervalSeconds?.value));
 
     const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
       ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
@@ -13735,6 +13757,9 @@
     const safePublicFormRateLimitMaxRequests = Number.isFinite(publicFormRateLimitMaxRequestsRaw)
       ? Math.min(500, Math.max(1, publicFormRateLimitMaxRequestsRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_max_requests;
+    const safePublicFormSessionPollingIntervalSeconds = Number.isFinite(publicFormSessionPollingIntervalSecondsRaw)
+      ? Math.min(300, Math.max(5, publicFormSessionPollingIntervalSecondsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_polling_interval_seconds;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
@@ -13805,6 +13830,11 @@
     }
     if (!Number.isFinite(publicFormRateLimitMaxRequestsRaw) || publicFormRateLimitMaxRequestsRaw < 1 || publicFormRateLimitMaxRequestsRaw > 500) {
       errors.push('Лимит запросов формы должен быть в диапазоне 1..500.');
+    }
+    if (!Number.isFinite(publicFormSessionPollingIntervalSecondsRaw)
+      || publicFormSessionPollingIntervalSecondsRaw < 5
+      || publicFormSessionPollingIntervalSecondsRaw > 300) {
+      errors.push('Интервал автообновления истории публичной формы должен быть в диапазоне 5..300 секунд.');
     }
 
     const parsePercentThreshold = (rawValue, fallbackValue, label) => {
@@ -14338,6 +14368,8 @@
         dialog_public_form_rate_limit_window_seconds: safePublicFormRateLimitWindowSeconds,
         dialog_public_form_rate_limit_max_requests: safePublicFormRateLimitMaxRequests,
         dialog_public_form_metrics_enabled: Boolean(inputs.publicFormMetricsEnabled?.checked),
+        dialog_public_form_session_polling_enabled: Boolean(inputs.publicFormSessionPollingEnabled?.checked),
+        dialog_public_form_session_polling_interval_seconds: safePublicFormSessionPollingIntervalSeconds,
         dialog_public_form_captcha_shared_secret: String(inputs.publicFormCaptchaSharedSecret?.value || '').trim(),
       },
     };

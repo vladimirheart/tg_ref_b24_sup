@@ -19,6 +19,8 @@
     let currentToken = initial.initialToken || null;
     let historyPollTimer = null;
     let answersTotalMaxLength = 6000;
+    let sessionPollingEnabled = true;
+    let sessionPollingIntervalMs = 15000;
 
 
     function generateRequestId() {
@@ -51,13 +53,14 @@
     function startHistoryPolling(token) {
         if (historyPollTimer) {
             clearInterval(historyPollTimer);
+            historyPollTimer = null;
         }
-        if (!token) {
+        if (!token || !sessionPollingEnabled) {
             return;
         }
         historyPollTimer = window.setInterval(() => {
             loadSession(token);
-        }, 15000);
+        }, sessionPollingIntervalMs);
     }
 
     function showError(message) {
@@ -304,8 +307,17 @@
             answersTotalMaxLength = Number.isFinite(configuredAnswersLimit)
                 ? Math.min(50000, Math.max(200, configuredAnswersLimit))
                 : 6000;
+            sessionPollingEnabled = payload.sessionPollingEnabled !== false;
+            const configuredPollingInterval = Number.parseInt(payload.sessionPollingIntervalSeconds, 10);
+            const safePollingIntervalSeconds = Number.isFinite(configuredPollingInterval)
+                ? Math.min(300, Math.max(5, configuredPollingInterval))
+                : 15;
+            sessionPollingIntervalMs = safePollingIntervalSeconds * 1000;
             renderQuestions(payload.questions || []);
             renderCaptcha();
+            if (currentToken) {
+                startHistoryPolling(currentToken);
+            }
         } catch (error) {
             showError(error.message || 'Не удалось загрузить форму');
         }
