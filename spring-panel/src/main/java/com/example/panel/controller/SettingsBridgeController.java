@@ -231,6 +231,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_public_form_rate_limit_enabled")
                 || payload.containsKey("dialog_public_form_rate_limit_window_seconds")
                 || payload.containsKey("dialog_public_form_rate_limit_max_requests")
+                || payload.containsKey("dialog_public_form_metrics_enabled")
                 || payload.containsKey("dialog_public_form_captcha_shared_secret")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
@@ -546,6 +547,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_public_form_rate_limit_max_requests")) {
                     dialogConfig.put("public_form_rate_limit_max_requests",
                             payload.get("dialog_public_form_rate_limit_max_requests"));
+                }
+                if (payload.containsKey("dialog_public_form_metrics_enabled")) {
+                    dialogConfig.put("public_form_metrics_enabled",
+                            payload.get("dialog_public_form_metrics_enabled"));
                 }
                 if (payload.containsKey("dialog_public_form_captcha_shared_secret")) {
                     dialogConfig.put("public_form_captcha_shared_secret",
