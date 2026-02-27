@@ -2365,6 +2365,10 @@
                         <label class="form-check-label" for="dialogPublicFormRateLimitEnabled">Включить server-side rate-limit для публичных форм</label>
                       </div>
                       <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogPublicFormRateLimitUseFingerprint">
+                        <label class="form-check-label" for="dialogPublicFormRateLimitUseFingerprint">Учитывать browser fingerprint в bucket rate-limit (IP + fingerprint + канал)</label>
+                      </div>
+                      <div class="form-check form-switch mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogPublicFormMetricsEnabled">
                         <label class="form-check-label" for="dialogPublicFormMetricsEnabled">Собирать runtime-метрики публичных форм (views/submits/errors)</label>
                       </div>
@@ -4029,6 +4033,7 @@
     public_form_rate_limit_enabled: true,
     public_form_rate_limit_window_seconds: 60,
     public_form_rate_limit_max_requests: 5,
+    public_form_rate_limit_use_fingerprint: true,
     public_form_metrics_enabled: true,
     public_form_session_polling_enabled: true,
     public_form_session_polling_interval_seconds: 15,
@@ -13073,6 +13078,7 @@
       publicFormRateLimitEnabled: document.getElementById('dialogPublicFormRateLimitEnabled'),
       publicFormRateLimitWindowSeconds: document.getElementById('dialogPublicFormRateLimitWindowSeconds'),
       publicFormRateLimitMaxRequests: document.getElementById('dialogPublicFormRateLimitMaxRequests'),
+      publicFormRateLimitUseFingerprint: document.getElementById('dialogPublicFormRateLimitUseFingerprint'),
       publicFormMetricsEnabled: document.getElementById('dialogPublicFormMetricsEnabled'),
       publicFormSessionPollingEnabled: document.getElementById('dialogPublicFormSessionPollingEnabled'),
       publicFormSessionPollingIntervalSeconds: document.getElementById('dialogPublicFormSessionPollingIntervalSeconds'),
@@ -13531,6 +13537,9 @@
     }
     if (inputs.publicFormRateLimitEnabled instanceof HTMLInputElement) {
       inputs.publicFormRateLimitEnabled.checked = DIALOG_CONFIG.public_form_rate_limit_enabled !== false;
+    }
+    if (inputs.publicFormRateLimitUseFingerprint instanceof HTMLInputElement) {
+      inputs.publicFormRateLimitUseFingerprint.checked = DIALOG_CONFIG.public_form_rate_limit_use_fingerprint !== false;
     }
     if (inputs.publicFormMetricsEnabled instanceof HTMLInputElement) {
       inputs.publicFormMetricsEnabled.checked = DIALOG_CONFIG.public_form_metrics_enabled !== false;
@@ -14367,6 +14376,7 @@
         dialog_public_form_rate_limit_enabled: Boolean(inputs.publicFormRateLimitEnabled?.checked),
         dialog_public_form_rate_limit_window_seconds: safePublicFormRateLimitWindowSeconds,
         dialog_public_form_rate_limit_max_requests: safePublicFormRateLimitMaxRequests,
+        dialog_public_form_rate_limit_use_fingerprint: Boolean(inputs.publicFormRateLimitUseFingerprint?.checked),
         dialog_public_form_metrics_enabled: Boolean(inputs.publicFormMetricsEnabled?.checked),
         dialog_public_form_session_polling_enabled: Boolean(inputs.publicFormSessionPollingEnabled?.checked),
         dialog_public_form_session_polling_interval_seconds: safePublicFormSessionPollingIntervalSeconds,

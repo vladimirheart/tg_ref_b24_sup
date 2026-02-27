@@ -37,6 +37,21 @@
         return form.dataset.requestId;
     }
 
+    function getClientFingerprint() {
+        const key = 'publicFormFingerprint';
+        try {
+            const existing = window.localStorage?.getItem(key);
+            if (existing && existing.trim()) {
+                return existing.trim();
+            }
+            const created = `fp_${generateRequestId()}`;
+            window.localStorage?.setItem(key, created);
+            return created;
+        } catch (e) {
+            return `fp_${generateRequestId()}`;
+        }
+    }
+
     function setTokenInUrl(token) {
         if (!token) {
             return;
@@ -351,7 +366,8 @@
                 const response = await fetch(`${apiBase}/sessions`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Public-Form-Fingerprint': getClientFingerprint()
                     },
                     body: JSON.stringify(payload)
                 });
