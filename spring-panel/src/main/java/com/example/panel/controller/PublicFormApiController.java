@@ -59,6 +59,7 @@ public class PublicFormApiController {
         }
         log.info("Public form config loaded for channel {} (id={}) with {} questions", channelId,
                 config.get().channelId(), config.get().questions().size());
+        publicFormService.recordConfigView(config.get().channelId());
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
         payload.put("channel", Map.of(
@@ -96,10 +97,12 @@ public class PublicFormApiController {
                     "id", session.channelId(),
                     "publicId", session.channelPublicId()
             ));
+            publicFormService.recordSubmitSuccess(session.channelId());
             log.info("Public form session created for channel {} (ticketId={}, token set={})", channelId,
                     session.ticketId(), session.token() != null && !session.token().isBlank());
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException ex) {
+            publicFormService.recordSubmitError(config.get().channelId(), ex.getMessage());
             log.warn("Failed to create public form session for channel {}: {}", channelId, ex.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
         }
