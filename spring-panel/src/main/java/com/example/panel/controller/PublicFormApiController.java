@@ -146,14 +146,19 @@ public class PublicFormApiController {
 
     private String resolveRequesterKey(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
+        String requesterIp;
         if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+            requesterIp = forwarded.split(",")[0].trim();
+        } else {
+            String realIp = request.getHeader("X-Real-IP");
+            if (realIp != null && !realIp.isBlank()) {
+                requesterIp = realIp.trim();
+            } else {
+                requesterIp = request.getRemoteAddr();
+            }
         }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        String fingerprint = request.getHeader("X-Public-Form-Fingerprint");
+        return publicFormService.buildRequesterKey(requesterIp, fingerprint);
     }
     private Map<String, Object> questionToMap(PublicFormQuestion question) {
         Map<String, Object> map = new LinkedHashMap<>();
