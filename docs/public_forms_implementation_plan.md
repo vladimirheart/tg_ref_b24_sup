@@ -171,3 +171,5 @@
 - [x] **Security/UX:** добавлена idempotency-защита submit по `requestId` (клиент + сервер), чтобы повторная отправка не создавала дубликаты обращений.
 - [x] **Public UI:** добавлен авто-polling истории диалога и сохранение `token` в URL, чтобы пользователь мог восстановить сессию после перезагрузки страницы.
 - [x] **Tests:** добавлены интеграционные тесты на idempotency-поведение (повтор с тем же payload и конфликт payload при том же `requestId`).
+- [x] **Observability:** добавлены runtime-метрики публичных форм (`views/submits/submitErrors/captchaFailures/rateLimitRejections`) с серверным endpoint `/api/dialogs/public-form-metrics` для операторского мониторинга.
+- [x] **Settings:** добавлен флаг `dialog_config.public_form_metrics_enabled` в разделе «Настройки → Диалоги», чтобы включать/выключать сбор form-метрик без деплоя.

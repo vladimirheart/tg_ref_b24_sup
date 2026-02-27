@@ -26,6 +26,7 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -35,6 +36,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -54,6 +56,7 @@ public class PublicFormService {
     private final SharedConfigService sharedConfigService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
     private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
+    private final Map<Long, PublicFormMetricsAccumulator> metricsByChannel = new ConcurrentHashMap<>();
 
     public PublicFormService(ChannelRepository channelRepository,
                              WebFormSessionRepository sessionRepository,
@@ -139,6 +142,69 @@ public class PublicFormService {
         );
         cacheIdempotentSession(channel, requesterKey, requestId, payloadHash, result);
         return result;
+    }
+
+    public void recordConfigView(Long channelId) {
+        if (!isMetricsEnabled() || channelId == null) {
+            return;
+        }
+        metrics(channelId).views.incrementAndGet();
+        metrics(channelId).touch();
+    }
+
+    public void recordSubmitSuccess(Long channelId) {
+        if (!isMetricsEnabled() || channelId == null) {
+            return;
+        }
+        metrics(channelId).submits.incrementAndGet();
+        metrics(channelId).touch();
+    }
+
+    public void recordSubmitError(Long channelId, String reason) {
+        if (!isMetricsEnabled() || channelId == null) {
+            return;
+        }
+        PublicFormMetricsAccumulator accumulator = metrics(channelId);
+        accumulator.submitErrors.incrementAndGet();
+        String normalizedReason = Optional.ofNullable(reason).orElse("unknown").trim().toLowerCase(Locale.ROOT);
+        if (normalizedReason.contains("captcha")) {
+            accumulator.captchaFailures.incrementAndGet();
+        }
+        if (normalizedReason.contains("слишком много запросов")) {
+            accumulator.rateLimitRejections.incrementAndGet();
+        }
+        accumulator.touch();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> loadMetricsSnapshot(Long channelId) {
+        List<Map<String, Object>> channels = metricsByChannel.entrySet().stream()
+                .filter(entry -> channelId == null || channelId.equals(entry.getKey()))
+                .sorted(Comparator.comparingLong(Map.Entry::getKey))
+                .map(entry -> {
+                    PublicFormMetricsAccumulator metric = entry.getValue();
+                    long views = metric.views.get();
+                    long submits = metric.submits.get();
+                    long submitErrors = metric.submitErrors.get();
+                    long captchaFailures = metric.captchaFailures.get();
+                    long rateLimitRejections = metric.rateLimitRejections.get();
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("channelId", entry.getKey());
+                    row.put("views", views);
+                    row.put("submits", submits);
+                    row.put("submitErrors", submitErrors);
+                    row.put("captchaFailures", captchaFailures);
+                    row.put("rateLimitRejections", rateLimitRejections);
+                    row.put("conversion", views > 0 ? (double) submits / views : 0.0d);
+                    row.put("errorRate", submits > 0 ? (double) submitErrors / submits : 0.0d);
+                    row.put("updatedAt", OffsetDateTime.ofInstant(java.time.Instant.ofEpochMilli(metric.lastUpdatedAtMs.get()), java.time.ZoneOffset.UTC));
+                    return row;
+                })
+                .toList();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("enabled", isMetricsEnabled());
+        payload.put("channels", channels);
+        return payload;
     }
 
     @Transactional(readOnly = true)
@@ -422,6 +488,14 @@ public class PublicFormService {
         }
     }
 
+    private boolean isMetricsEnabled() {
+        return readDialogConfigBoolean("public_form_metrics_enabled", true);
+    }
+
+    private PublicFormMetricsAccumulator metrics(Long channelId) {
+        return metricsByChannel.computeIfAbsent(channelId, key -> new PublicFormMetricsAccumulator());
+    }
+
     private PublicFormQuestion normalizeQuestion(Map<String, Object> raw, int index) {
         String id = value(raw.getOrDefault("id", "q" + index));
         String text = value(raw.get("text"));
@@ -621,6 +695,19 @@ public class PublicFormService {
                                             List<Map<String, Object>> fields) {
         private static ParsedPublicFormSettings defaults() {
             return new ParsedPublicFormSettings(1, true, false, 404, List.of());
+        }
+    }
+
+    private static final class PublicFormMetricsAccumulator {
+        private final AtomicLong views = new AtomicLong(0);
+        private final AtomicLong submits = new AtomicLong(0);
+        private final AtomicLong submitErrors = new AtomicLong(0);
+        private final AtomicLong captchaFailures = new AtomicLong(0);
+        private final AtomicLong rateLimitRejections = new AtomicLong(0);
+        private final AtomicLong lastUpdatedAtMs = new AtomicLong(System.currentTimeMillis());
+
+        private void touch() {
+            lastUpdatedAtMs.set(System.currentTimeMillis());
         }
     }
 }

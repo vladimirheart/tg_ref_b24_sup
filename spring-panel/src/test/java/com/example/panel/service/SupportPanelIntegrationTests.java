@@ -247,6 +247,30 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void publicFormServiceCollectsRuntimeMetricsWhenEnabled() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (31, 'web-metrics', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-metrics')");
+
+        publicFormService.recordConfigView(31L);
+        publicFormService.recordConfigView(31L);
+        publicFormService.recordSubmitSuccess(31L);
+        publicFormService.recordSubmitError(31L, "CAPTCHA token is invalid");
+        publicFormService.recordSubmitError(31L, "Слишком много запросов. Попробуйте чуть позже.");
+
+        Map<String, Object> snapshot = publicFormService.loadMetricsSnapshot(31L);
+        assertThat(snapshot).containsEntry("enabled", true);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> channels = (List<Map<String, Object>>) snapshot.get("channels");
+        assertThat(channels).hasSize(1);
+        Map<String, Object> row = channels.get(0);
+        assertThat(row.get("channelId")).isEqualTo(31L);
+        assertThat(row.get("views")).isEqualTo(2L);
+        assertThat(row.get("submits")).isEqualTo(1L);
+        assertThat(row.get("submitErrors")).isEqualTo(2L);
+        assertThat(row.get("captchaFailures")).isEqualTo(1L);
+        assertThat(row.get("rateLimitRejections")).isEqualTo(1L);
+    }
+
+    @Test
     void notificationServiceCountsAndMarksAsRead() {
         jdbcTemplate.update("INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
                 "operator", "Новое сообщение", "/tickets/T-1", 0);

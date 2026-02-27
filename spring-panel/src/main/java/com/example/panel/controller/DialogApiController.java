@@ -8,6 +8,7 @@ import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.PublicFormService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import com.fasterxml.jackson.annotation.JsonAlias;
@@ -61,6 +62,7 @@ public class DialogApiController {
     private final AttachmentService attachmentService;
     private final SharedConfigService sharedConfigService;
     private final PermissionService permissionService;
+    private final PublicFormService publicFormService;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
@@ -115,13 +117,15 @@ public class DialogApiController {
                                DialogNotificationService dialogNotificationService,
                                AttachmentService attachmentService,
                                SharedConfigService sharedConfigService,
-                               PermissionService permissionService) {
+                               PermissionService permissionService,
+                               PublicFormService publicFormService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
         this.attachmentService = attachmentService;
         this.sharedConfigService = sharedConfigService;
         this.permissionService = permissionService;
+        this.publicFormService = publicFormService;
     }
 
     @GetMapping
@@ -135,6 +139,14 @@ public class DialogApiController {
         payload.put("success", true);
         log.info("Loaded dialogs API payload: {} dialogs, summary stats loaded", dialogs.size());
         return payload;
+    }
+
+    @GetMapping("/public-form-metrics")
+    public Map<String, Object> publicFormMetrics(@RequestParam(value = "channelId", required = false) Long channelId) {
+        return Map.of(
+                "success", true,
+                "metrics", publicFormService.loadMetricsSnapshot(channelId)
+        );
     }
 
     private Map<String, Object> buildSlaOrchestration(List<DialogListItem> dialogs) {
