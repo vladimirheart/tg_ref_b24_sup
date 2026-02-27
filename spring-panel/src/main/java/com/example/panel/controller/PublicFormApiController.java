@@ -70,6 +70,8 @@ public class PublicFormApiController {
         payload.put("schemaVersion", config.get().schemaVersion());
         payload.put("captchaEnabled", config.get().captchaEnabled());
         payload.put("answersTotalMaxLength", publicFormService.resolveAnswersPayloadMaxLength());
+        payload.put("sessionPollingEnabled", publicFormService.isSessionPollingEnabled());
+        payload.put("sessionPollingIntervalSeconds", publicFormService.resolveSessionPollingIntervalSeconds());
         payload.put("disabledStatus", config.get().disabledStatus());
         payload.put("questions", config.get().questions().stream().map(this::questionToMap).toList());
         return ResponseEntity.ok(payload);
