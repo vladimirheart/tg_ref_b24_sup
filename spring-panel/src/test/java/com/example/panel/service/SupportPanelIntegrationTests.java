@@ -196,6 +196,23 @@ class SupportPanelIntegrationTests {
                 .hasMessageContaining("Слишком много запросов");
     }
 
+    @Test
+    void publicFormServiceBuildsRateLimitRequesterKeyWithFingerprintToggle() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_rate_limit_use_fingerprint\":true}");
+
+        String keyA = publicFormService.buildRequesterKey("same-ip", "browser-A");
+        String keyB = publicFormService.buildRequesterKey("same-ip", "browser-B");
+        assertThat(keyA).contains("same-ip|fp:");
+        assertThat(keyA).isNotEqualTo(keyB);
+
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_rate_limit_use_fingerprint\":false}");
+
+        String keyWithoutFingerprint = publicFormService.buildRequesterKey("same-ip", "browser-A");
+        assertThat(keyWithoutFingerprint).isEqualTo("same-ip");
+    }
+
 
     @Test
     void publicFormServiceReturnsSameSessionForSameRequestId() {
