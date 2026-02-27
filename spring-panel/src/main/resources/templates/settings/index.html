@@ -2356,6 +2356,14 @@
                       <input type="number" class="form-control" id="dialogPublicFormSessionPollingIntervalSeconds" min="5" max="300" step="1">
                     </div>
                     <div class="col-md-4">
+                      <label for="dialogPublicFormDefaultLocale" class="form-label">Язык публичной формы</label>
+                      <select class="form-select" id="dialogPublicFormDefaultLocale">
+                        <option value="auto">Авто (по браузеру)</option>
+                        <option value="ru">Русский</option>
+                        <option value="en">English</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
                       <label for="dialogPublicFormCaptchaSharedSecret" class="form-label">CAPTCHA shared secret</label>
                       <input type="text" class="form-control" id="dialogPublicFormCaptchaSharedSecret" placeholder="Секрет для captchaToken">
                     </div>
@@ -4060,6 +4068,7 @@
     public_form_session_polling_enabled: true,
     public_form_session_polling_interval_seconds: 15,
     public_form_session_token_rotate_on_read: false,
+    public_form_default_locale: 'auto',
     public_form_captcha_shared_secret: '',
   });
 
@@ -13107,6 +13116,7 @@
       publicFormSessionPollingEnabled: document.getElementById('dialogPublicFormSessionPollingEnabled'),
       publicFormSessionTokenRotateOnRead: document.getElementById('dialogPublicFormSessionTokenRotateOnRead'),
       publicFormSessionPollingIntervalSeconds: document.getElementById('dialogPublicFormSessionPollingIntervalSeconds'),
+      publicFormDefaultLocale: document.getElementById('dialogPublicFormDefaultLocale'),
       publicFormCaptchaSharedSecret: document.getElementById('dialogPublicFormCaptchaSharedSecret'),
     };
   }
@@ -13595,6 +13605,12 @@
       inputs.publicFormSessionPollingIntervalSeconds.value = Number.isFinite(value) && value >= 5
         ? Math.min(300, value)
         : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_polling_interval_seconds;
+    }
+    if (inputs.publicFormDefaultLocale) {
+      const localeRaw = String(DIALOG_CONFIG.public_form_default_locale || DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale).trim().toLowerCase();
+      inputs.publicFormDefaultLocale.value = ['auto', 'ru', 'en'].includes(localeRaw)
+        ? localeRaw
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale;
     }
     if (inputs.publicFormCaptchaSharedSecret) {
       inputs.publicFormCaptchaSharedSecret.value = String(DIALOG_CONFIG.public_form_captcha_shared_secret || '').trim();
@@ -14413,6 +14429,9 @@
         dialog_public_form_session_polling_enabled: Boolean(inputs.publicFormSessionPollingEnabled?.checked),
         dialog_public_form_session_token_rotate_on_read: Boolean(inputs.publicFormSessionTokenRotateOnRead?.checked),
         dialog_public_form_session_polling_interval_seconds: safePublicFormSessionPollingIntervalSeconds,
+        dialog_public_form_default_locale: ['auto', 'ru', 'en'].includes(String(inputs.publicFormDefaultLocale?.value || '').trim().toLowerCase())
+          ? String(inputs.publicFormDefaultLocale?.value || '').trim().toLowerCase()
+          : DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale,
         dialog_public_form_captcha_shared_secret: String(inputs.publicFormCaptchaSharedSecret?.value || '').trim(),
       },
     };
