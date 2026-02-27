@@ -159,6 +159,22 @@ class SupportPanelIntegrationTests {
                 .hasMessageContaining("Заполните поле");
     }
 
+
+    @Test
+    void publicFormServiceValidatesRequiredCheckboxField() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (25, 'web-checkbox', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-checkbox', ?)",
+                "[{\"id\":\"consent\",\"text\":\"Согласие\",\"type\":\"checkbox\",\"required\":true}]");
+
+        PublicFormSubmission invalid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "false"));
+        assertThatThrownBy(() -> publicFormService.createSession("web-checkbox", invalid, "ip-checkbox"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Подтвердите поле");
+
+        PublicFormSubmission valid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "true"));
+        PublicFormSessionDto session = publicFormService.createSession("web-checkbox", valid, "ip-checkbox-ok");
+        assertThat(session.ticketId()).startsWith("web-");
+    }
+
     @Test
     void publicFormServiceAppliesRateLimitByRequester() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (22, 'web-rate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rate')");
