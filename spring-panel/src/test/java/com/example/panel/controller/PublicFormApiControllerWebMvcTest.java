@@ -56,6 +56,7 @@ class PublicFormApiControllerWebMvcTest {
                 List.of()
         );
         when(publicFormService.loadConfigRaw("web-gone")).thenReturn(Optional.of(disabledConfig));
+        when(publicFormService.resolveUiLocale()).thenReturn("ru");
 
         mockMvc.perform(get("/api/public/forms/web-gone/config"))
                 .andExpect(status().isGone())
@@ -87,6 +88,7 @@ class PublicFormApiControllerWebMvcTest {
         );
 
         when(publicFormService.loadConfigRaw("web-enabled")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.resolveUiLocale()).thenReturn("en");
         when(publicFormService.buildRequesterKey("203.0.113.1", "fp-001")).thenReturn("ip+fp-key");
         when(publicFormService.createSession(eq("web-enabled"), any(PublicFormSubmission.class), eq("ip+fp-key")))
                 .thenReturn(createdSession);
@@ -114,4 +116,29 @@ class PublicFormApiControllerWebMvcTest {
         verify(publicFormService).createSession(eq("web-enabled"), submissionCaptor.capture(), eq("ip+fp-key"));
         assertThat(submissionCaptor.getValue().requestId()).isEqualTo("req-42");
     }
+
+    @Test
+    void configReturnsUiLocaleFromSettings() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                9L,
+                "web-locale",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                List.of()
+        );
+        when(publicFormService.loadConfigRaw("web-locale")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.resolveAnswersPayloadMaxLength()).thenReturn(6000);
+        when(publicFormService.isSessionPollingEnabled()).thenReturn(true);
+        when(publicFormService.resolveSessionPollingIntervalSeconds()).thenReturn(15);
+        when(publicFormService.resolveUiLocale()).thenReturn("en");
+
+        mockMvc.perform(get("/api/public/forms/web-locale/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.uiLocale").value("en"));
+    }
+
 }

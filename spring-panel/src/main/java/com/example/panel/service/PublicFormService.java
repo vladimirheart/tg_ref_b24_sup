@@ -645,6 +645,15 @@ public class PublicFormService {
         return readDialogConfigInt("public_form_session_polling_interval_seconds", 15, 5, 300);
     }
 
+    public String resolveUiLocale() {
+        String configured = readDialogConfigString("public_form_default_locale", "auto");
+        String normalized = configured.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "ru", "en", "auto" -> normalized;
+            default -> "auto";
+        };
+    }
+
     private PublicFormMetricsAccumulator metrics(Long channelId) {
         return metricsByChannel.computeIfAbsent(channelId, key -> new PublicFormMetricsAccumulator());
     }
@@ -844,6 +853,15 @@ public class PublicFormService {
             }
         }
         return Math.max(minValue, Math.min(maxValue, value));
+    }
+
+    private String readDialogConfigString(String key, String defaultValue) {
+        Object raw = readDialogConfig().get(key);
+        if (raw == null) {
+            return defaultValue;
+        }
+        String value = raw.toString().trim();
+        return StringUtils.hasText(value) ? value : defaultValue;
     }
 
     private String generateToken() {
