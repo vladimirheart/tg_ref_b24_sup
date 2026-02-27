@@ -135,7 +135,7 @@ class SupportPanelIntegrationTests {
     @Test
     void publicFormServiceCreatesSessionsAndHistory() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (2, 'web', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-demo')");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
         PublicFormSessionDto session = publicFormService.createSession("web-demo", submission, "test-ip");
         assertThat(session.token()).isNotBlank();
         assertThat(session.ticketId()).startsWith("web-");
@@ -152,7 +152,7 @@ class SupportPanelIntegrationTests {
     void publicFormServiceValidatesRequiredDynamicField() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (21, 'web-required', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-required', ?)",
                 "[{\"id\":\"email\",\"text\":\"Email\",\"type\":\"email\",\"required\":true}]");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
 
         assertThatThrownBy(() -> publicFormService.createSession("web-required", submission, "ip-required"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -165,12 +165,12 @@ class SupportPanelIntegrationTests {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (25, 'web-checkbox', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-checkbox', ?)",
                 "[{\"id\":\"consent\",\"text\":\"Согласие\",\"type\":\"checkbox\",\"required\":true}]");
 
-        PublicFormSubmission invalid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "false"));
+        PublicFormSubmission invalid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "false"), null);
         assertThatThrownBy(() -> publicFormService.createSession("web-checkbox", invalid, "ip-checkbox"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Подтвердите поле");
 
-        PublicFormSubmission valid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "true"));
+        PublicFormSubmission valid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "true"), null);
         PublicFormSessionDto session = publicFormService.createSession("web-checkbox", valid, "ip-checkbox-ok");
         assertThat(session.ticketId()).startsWith("web-");
     }
@@ -178,7 +178,7 @@ class SupportPanelIntegrationTests {
     @Test
     void publicFormServiceAppliesRateLimitByRequester() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (22, 'web-rate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rate')");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
 
         for (int i = 0; i < 5; i++) {
             PublicFormSessionDto session = publicFormService.createSession("web-rate", submission, "same-ip");
@@ -192,10 +192,37 @@ class SupportPanelIntegrationTests {
 
 
     @Test
+    void publicFormServiceReturnsSameSessionForSameRequestId() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (26, 'web-idempotent', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-idempotent')");
+        PublicFormSubmission first = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("topic", "billing"), "req-1");
+
+        PublicFormSessionDto created = publicFormService.createSession("web-idempotent", first, "same-ip-idem");
+        PublicFormSessionDto duplicated = publicFormService.createSession("web-idempotent", first, "same-ip-idem");
+
+        assertThat(duplicated.ticketId()).isEqualTo(created.ticketId());
+        assertThat(duplicated.token()).isEqualTo(created.token());
+        Integer historyCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM chat_history WHERE ticket_id = ?", Integer.class, created.ticketId());
+        assertThat(historyCount).isEqualTo(1);
+    }
+
+    @Test
+    void publicFormServiceRejectsDifferentPayloadWithSameRequestId() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (27, 'web-idempotent-2', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-idempotent-2')");
+        PublicFormSubmission first = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("topic", "billing"), "req-2");
+        PublicFormSubmission changed = new PublicFormSubmission("Другой текст", "Анна", "+79991234567", "anna", null, Map.of("topic", "billing"), "req-2");
+
+        publicFormService.createSession("web-idempotent-2", first, "same-ip-idem-2");
+        assertThatThrownBy(() -> publicFormService.createSession("web-idempotent-2", changed, "same-ip-idem-2"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("requestId");
+    }
+
+
+    @Test
     void publicFormServiceRejectsWhenFormDisabledInConfig() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (23, 'web-disabled', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-disabled', ?)",
                 "{\"schemaVersion\":1,\"enabled\":false,\"fields\":[]}");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
 
         assertThatThrownBy(() -> publicFormService.createSession("web-disabled", submission, "ip-disabled"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -209,12 +236,12 @@ class SupportPanelIntegrationTests {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", "{\"public_form_captcha_shared_secret\":\"captcha-123\"}");
 
-        PublicFormSubmission bad = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "wrong", Map.of());
+        PublicFormSubmission bad = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "wrong", Map.of(), null);
         assertThatThrownBy(() -> publicFormService.createSession("web-captcha", bad, "ip-captcha"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("CAPTCHA");
 
-        PublicFormSubmission good = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "captcha-123", Map.of());
+        PublicFormSubmission good = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "captcha-123", Map.of(), null);
         PublicFormSessionDto session = publicFormService.createSession("web-captcha", good, "ip-captcha-ok");
         assertThat(session.ticketId()).startsWith("web-");
     }

@@ -7,5 +7,6 @@ public record PublicFormSubmission(String message,
                                    String clientContact,
                                    String username,
                                    String captchaToken,
-                                   Map<String, String> answers) {
+                                   Map<String, String> answers,
+                                   String requestId) {
 }
