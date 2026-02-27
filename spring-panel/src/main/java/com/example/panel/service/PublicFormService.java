@@ -480,12 +480,19 @@ public class PublicFormService {
     }
 
     private void enforceRateLimit(Channel channel, String requesterKey) {
-        boolean enabled = readDialogConfigBoolean("public_form_rate_limit_enabled", true);
+        ParsedPublicFormSettings settings = parseSettings(channel);
+        boolean enabled = settings.rateLimitEnabled() != null
+                ? settings.rateLimitEnabled()
+                : readDialogConfigBoolean("public_form_rate_limit_enabled", true);
         if (!enabled) {
             return;
         }
-        int windowSeconds = readDialogConfigInt("public_form_rate_limit_window_seconds", 60, 10, 3600);
-        int maxRequests = readDialogConfigInt("public_form_rate_limit_max_requests", 5, 1, 500);
+        int windowSeconds = settings.rateLimitWindowSeconds() != null
+                ? settings.rateLimitWindowSeconds()
+                : readDialogConfigInt("public_form_rate_limit_window_seconds", 60, 10, 3600);
+        int maxRequests = settings.rateLimitMaxRequests() != null
+                ? settings.rateLimitMaxRequests()
+                : readDialogConfigInt("public_form_rate_limit_max_requests", 5, 1, 500);
         String bucketKey = (channel.getId() == null ? "unknown" : channel.getId()) + ":" + (StringUtils.hasText(requesterKey) ? requesterKey : "anon");
         long now = System.currentTimeMillis();
         long threshold = now - (windowSeconds * 1000L);
@@ -578,7 +585,17 @@ public class PublicFormService {
                         ? objectMapper.convertValue(fieldsNode, new TypeReference<List<Map<String, Object>>>() {
                         })
                         : List.of();
-                return new ParsedPublicFormSettings(schemaVersion, enabled, captchaEnabled, disabledStatus, fields);
+                Boolean rateLimitEnabled = root.has("rateLimitEnabled")
+                        ? root.path("rateLimitEnabled").asBoolean(false)
+                        : null;
+                Integer rateLimitWindowSeconds = root.has("rateLimitWindowSeconds")
+                        ? normalizeRange(root.path("rateLimitWindowSeconds").asInt(60), 10, 3600)
+                        : null;
+                Integer rateLimitMaxRequests = root.has("rateLimitMaxRequests")
+                        ? normalizeRange(root.path("rateLimitMaxRequests").asInt(5), 1, 500)
+                        : null;
+                return new ParsedPublicFormSettings(schemaVersion, enabled, captchaEnabled, disabledStatus,
+                        rateLimitEnabled, rateLimitWindowSeconds, rateLimitMaxRequests, fields);
             }
             return ParsedPublicFormSettings.defaults();
         } catch (Exception ex) {
@@ -838,6 +855,10 @@ public class PublicFormService {
         return value == 410 ? 410 : 404;
     }
 
+    private int normalizeRange(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     private record IdempotencyEntry(String payloadHash, PublicFormSessionDto session, long createdAtMs) {
     }
 
@@ -845,9 +866,13 @@ public class PublicFormService {
                                             boolean enabled,
                                             boolean captchaEnabled,
                                             int disabledStatus,
+                                            Boolean rateLimitEnabled,
+                                            Integer rateLimitWindowSeconds,
+                                            Integer rateLimitMaxRequests,
                                             List<Map<String, Object>> fields) {
         private static ParsedPublicFormSettings defaults() {
-            return new ParsedPublicFormSettings(1, true, false, 404, List.of());
+            return new ParsedPublicFormSettings(1, true, false, 404,
+                    null, null, null, List.of());
         }
     }
 
