@@ -26,32 +26,50 @@
                     <th>ID</th>
                     <th>Название</th>
                     <th>Бот</th>
-                    <th>Публичный ID</th>
+                    <th>Публичная форма</th>
                     <th>Активен</th>
+                    <th class="text-end">Действия</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(channels)}">
-                    <td colspan="5" class="text-center text-muted py-4">Каналы отсутствуют</td>
+                    <td colspan="6" class="text-center text-muted py-4">Каналы отсутствуют</td>
                 </tr>
-                <tr th:each="channel : ${channels}">
+                <tr th:each="channel : ${channels}"
+                    th:attr="data-channel-id=${channel.id},data-public-id=${channel.publicId}">
                     <td th:text="${channel.id}"></td>
                     <td>
                         <div class="fw-semibold" th:text="${channel.channelName}"></div>
                         <div class="text-muted small" th:text="${channel.botName} ?: '—'"></div>
                     </td>
                     <td th:text="${channel.botUsername} ?: '—'"></td>
-                    <td th:text="${channel.publicId} ?: '—'"></td>
+                    <td>
+                        <div class="small font-monospace mb-1" data-role="public-id" th:text="${channel.publicId} ?: '—'"></div>
+                        <a class="small" target="_blank" rel="noopener"
+                           th:if="${channel.publicId != null and !#strings.isEmpty(channel.publicId)}"
+                           th:href="@{'/public/forms/' + ${channel.publicId}}"
+                           data-role="public-link"
+                           th:text="@{'/public/forms/' + ${channel.publicId}}"></a>
+                        <span class="small text-muted" th:if="${channel.publicId == null or #strings.isEmpty(channel.publicId)}">Ссылка не настроена</span>
+                    </td>
                     <td>
                         <span th:classappend="${channel.active} ? 'badge text-bg-success' : 'badge text-bg-secondary'"
                               th:text="${channel.active} ? 'Да' : 'Нет'"></span>
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-secondary" data-action="copy-public-link">Скопировать</button>
+                            <button type="button" class="btn btn-outline-danger" data-action="regenerate-public-id">Регенерировать</button>
+                        </div>
                     </td>
                 </tr>
                 </tbody>
             </table>
         </div>
     </div>
+    <div id="channelsActionAlert" class="alert alert-success mt-3 d-none" role="alert"></div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/channels-public-links.js}"></script>
 </body>
 </html>
