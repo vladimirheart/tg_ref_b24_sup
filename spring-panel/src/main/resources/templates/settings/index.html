@@ -3663,7 +3663,9 @@
             <div class="mt-2 text-muted small">
               ID для форм: <span class="font-monospace" data-channel-editor-public-id>—</span>
               <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" id="channelEditorRegeneratePublicIdBtn">Регенерировать</button>
+              <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" id="channelEditorCopyPublicLinkBtn">Скопировать ссылку</button>
             </div>
+            <div class="text-muted small" data-channel-editor-public-link>—</div>
             <div class="text-muted small">Токен: <span class="font-monospace" data-channel-editor-token>—</span></div>
             <div class="text-muted small" data-channel-editor-meta></div>
             <div class="mt-2">
@@ -3691,10 +3693,17 @@
             <input class="form-check-input" type="checkbox" id="channelEditorPublicFormEnabled" />
             <label class="form-check-label" for="channelEditorPublicFormEnabled">Включить внешнюю форму для канала</label>
           </div>
-          <div class="form-check form-switch mb-4">
+          <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" id="channelEditorPublicFormCaptchaEnabled" />
             <label class="form-check-label" for="channelEditorPublicFormCaptchaEnabled">Требовать CAPTCHA на публичной форме</label>
             <div class="form-text">Токен сверяется с dialog_config.public_form_captcha_shared_secret.</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label" for="channelEditorPublicFormDisabledStatus">HTTP-статус при отключённой форме</label>
+            <select class="form-select" id="channelEditorPublicFormDisabledStatus">
+              <option value="404">404 Not Found (скрыть существование формы)</option>
+              <option value="410">410 Gone (форма отозвана)</option>
+            </select>
           </div>
           <div class="row g-3">
             <div class="col-12 col-md-4">
@@ -14556,8 +14565,11 @@
   const channelEditorTokenEl = document.querySelector('[data-channel-editor-token]');
   const channelEditorPublicIdEl = document.querySelector('[data-channel-editor-public-id]');
   const channelEditorRegeneratePublicIdBtn = document.getElementById('channelEditorRegeneratePublicIdBtn');
+  const channelEditorCopyPublicLinkBtn = document.getElementById('channelEditorCopyPublicLinkBtn');
   const channelEditorPublicFormEnabledInput = document.getElementById('channelEditorPublicFormEnabled');
   const channelEditorPublicFormCaptchaEnabledInput = document.getElementById('channelEditorPublicFormCaptchaEnabled');
+  const channelEditorPublicFormDisabledStatusInput = document.getElementById('channelEditorPublicFormDisabledStatus');
+  const channelEditorPublicLinkEl = document.querySelector('[data-channel-editor-public-link]');
   const channelEditorMetaEl = document.querySelector('[data-channel-editor-meta]');
   const channelEditorHintEl = document.querySelector('[data-channel-editor-hint]');
   const channelEditorNewTokenInput = document.getElementById('channelEditorNewToken');
@@ -14711,6 +14723,11 @@
     }
   }
 
+  function buildPublicFormUrl(channel) {
+    if (!channel?.public_id) return '';
+    return `${window.location.origin}/public/forms/${encodeURIComponent(channel.public_id)}`;
+  }
+
   function formatBotLabel(channel) {
     const parts = [];
     const botName = channel.bot_name || channel.botName;
@@ -14757,6 +14774,14 @@
     }
     if (channelEditorPublicFormCaptchaEnabledInput) {
       channelEditorPublicFormCaptchaEnabledInput.checked = Boolean(channel.questions_cfg?.captchaEnabled);
+    }
+    if (channelEditorPublicFormDisabledStatusInput) {
+      const status = Number.parseInt(channel.questions_cfg?.disabledStatus || 404, 10);
+      channelEditorPublicFormDisabledStatusInput.value = status === 410 ? '410' : '404';
+    }
+    if (channelEditorPublicLinkEl) {
+      const link = buildPublicFormUrl(channel);
+      channelEditorPublicLinkEl.textContent = link || 'Публичная ссылка появится после сохранения.';
     }
     if (channelEditorHintEl) {
       channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
@@ -15113,26 +15138,28 @@
   };
 
   function parseQuestionsCfg(raw) {
-    if (!raw) return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: [] };
+    if (!raw) return { schemaVersion: 1, enabled: true, captchaEnabled: false, disabledStatus: 404, fields: [] };
     if (Array.isArray(raw)) {
-      return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: raw };
+      return { schemaVersion: 1, enabled: true, captchaEnabled: false, disabledStatus: 404, fields: raw };
     }
     if (typeof raw === "string") {
       try {
         return parseQuestionsCfg(JSON.parse(raw));
       } catch (e) {
-        return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: [] };
+        return { schemaVersion: 1, enabled: true, captchaEnabled: false, disabledStatus: 404, fields: [] };
       }
     }
     if (typeof raw === "object") {
+      const disabledStatusRaw = Number.parseInt(raw.disabledStatus || 404, 10);
       return {
         schemaVersion: Number.parseInt(raw.schemaVersion || 1, 10) || 1,
         enabled: raw.enabled !== false,
         captchaEnabled: Boolean(raw.captchaEnabled),
+        disabledStatus: disabledStatusRaw === 410 ? 410 : 404,
         fields: Array.isArray(raw.fields) ? raw.fields : [],
       };
     }
-    return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: [] };
+    return { schemaVersion: 1, enabled: true, captchaEnabled: false, disabledStatus: 404, fields: [] };
   }
 
   function parsePlatformConfig(raw) {
@@ -15420,10 +15447,12 @@
     if (channelEditorAutoSelect && !channelEditorAutoSelect.disabled) {
       body.auto_action_template_id = channelEditorAutoSelect.value || '';
     }
+    const disabledStatus = Number.parseInt(channelEditorPublicFormDisabledStatusInput?.value || existingQuestionsCfg.disabledStatus || 404, 10);
     body.questions_cfg = {
       schemaVersion: Math.max(1, Number.parseInt(existingQuestionsCfg.schemaVersion || 1, 10) || 1),
       enabled: channelEditorPublicFormEnabledInput?.checked !== false,
       captchaEnabled: Boolean(channelEditorPublicFormCaptchaEnabledInput?.checked),
+      disabledStatus: disabledStatus === 410 ? 410 : 404,
       fields: Array.isArray(existingQuestionsCfg.fields) ? existingQuestionsCfg.fields : [],
     };
 
@@ -15640,6 +15669,23 @@
         await loadChannels();
       } catch (error) {
         showPopup('Ошибка регенерации: ' + error.message);
+      }
+    });
+
+    channelEditorCopyPublicLinkBtn?.addEventListener('click', async () => {
+      const channel = channelEditorState.channelId !== null
+        ? CHANNELS_REGISTRY.get(String(channelEditorState.channelId))
+        : null;
+      const link = buildPublicFormUrl(channel);
+      if (!link) {
+        showPopup('Ссылка недоступна: сначала сохраните канал с public_id.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(link);
+        showPopup('Публичная ссылка скопирована.');
+      } catch (error) {
+        showPopup('Не удалось скопировать ссылку автоматически: ' + link);
       }
     });
 
