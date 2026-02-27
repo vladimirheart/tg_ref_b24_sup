@@ -20,35 +20,47 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class PublicFormService {
 
     private static final Logger log = LoggerFactory.getLogger(PublicFormService.class);
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^[+]?[-()\\s0-9]{6,20}$");
+    private static final int DEFAULT_MESSAGE_MAX_LENGTH = 4000;
 
     private final ChannelRepository channelRepository;
     private final WebFormSessionRepository sessionRepository;
     private final ChatHistoryRepository chatHistoryRepository;
     private final ObjectMapper objectMapper;
+    private final SharedConfigService sharedConfigService;
+    private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
 
     public PublicFormService(ChannelRepository channelRepository,
                              WebFormSessionRepository sessionRepository,
                              ChatHistoryRepository chatHistoryRepository,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             SharedConfigService sharedConfigService) {
         this.channelRepository = channelRepository;
         this.sessionRepository = sessionRepository;
         this.chatHistoryRepository = chatHistoryRepository;
         this.objectMapper = objectMapper;
+        this.sharedConfigService = sharedConfigService;
     }
 
     @Transactional(readOnly = true)
@@ -59,15 +71,18 @@ public class PublicFormService {
         return resolveChannel(channelRef).map(this::toConfig);
     }
 
-    public PublicFormSessionDto createSession(String channelRef, PublicFormSubmission submission) {
+    public PublicFormSessionDto createSession(String channelRef, PublicFormSubmission submission, String requesterKey) {
         Channel channel = resolveChannel(channelRef)
                 .orElseThrow(() -> new IllegalArgumentException("Канал не найден"));
-        if (!StringUtils.hasText(submission.message())) {
-            throw new IllegalArgumentException("Опишите проблему");
+        if (!Boolean.TRUE.equals(channel.getActive())) {
+            throw new IllegalArgumentException("Форма канала временно отключена");
         }
 
-        Map<String, String> answers = sanitizeAnswers(submission.answers());
         PublicFormConfig config = toConfig(channel);
+        enforceRateLimit(channel, requesterKey);
+        validateSubmission(config, submission);
+
+        Map<String, String> answers = sanitizeAnswers(submission.answers());
         String combinedMessage = buildCombinedMessage(config, answers, submission.message());
 
         WebFormSession session = new WebFormSession();
@@ -124,6 +139,74 @@ public class PublicFormService {
                         )));
     }
 
+    private void validateSubmission(PublicFormConfig config, PublicFormSubmission submission) {
+        if (!StringUtils.hasText(submission.message())) {
+            throw new IllegalArgumentException("Опишите проблему");
+        }
+        int maxLength = readDialogConfigInt("public_form_message_max_length", DEFAULT_MESSAGE_MAX_LENGTH, 300, 20000);
+        if (submission.message().trim().length() > maxLength) {
+            throw new IllegalArgumentException("Сообщение слишком длинное (макс. " + maxLength + " символов)");
+        }
+        Map<String, String> answers = sanitizeAnswers(submission.answers());
+        for (PublicFormQuestion question : config.questions()) {
+            String value = answers.get(question.id());
+            if (isRequired(question) && !StringUtils.hasText(value)) {
+                throw new IllegalArgumentException("Заполните поле: " + questionLabel(question));
+            }
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+            int minLength = metadataInt(question, "minLength", 0);
+            int maxQuestionLength = metadataInt(question, "maxLength", 500);
+            if (value.length() < minLength) {
+                throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» должно содержать минимум " + minLength + " символов");
+            }
+            if (value.length() > maxQuestionLength) {
+                throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» превышает лимит " + maxQuestionLength + " символов");
+            }
+            validateByType(question, value);
+        }
+    }
+
+    private void validateByType(PublicFormQuestion question, String value) {
+        String type = Optional.ofNullable(question.type()).orElse("text").toLowerCase(Locale.ROOT);
+        if ("email".equals(type) && !EMAIL_PATTERN.matcher(value).matches()) {
+            throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» должно содержать корректный email");
+        }
+        if ("phone".equals(type) && !PHONE_PATTERN.matcher(value).matches()) {
+            throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» должно содержать корректный телефон");
+        }
+        if ("select".equals(type)) {
+            List<String> options = metadataStringList(question, "options");
+            boolean allowCustom = metadataBoolean(question, "allowCustom", false);
+            if (!allowCustom && !options.isEmpty() && options.stream().noneMatch(value::equalsIgnoreCase)) {
+                throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» содержит недопустимое значение");
+            }
+        }
+    }
+
+    private void enforceRateLimit(Channel channel, String requesterKey) {
+        boolean enabled = readDialogConfigBoolean("public_form_rate_limit_enabled", true);
+        if (!enabled) {
+            return;
+        }
+        int windowSeconds = readDialogConfigInt("public_form_rate_limit_window_seconds", 60, 10, 3600);
+        int maxRequests = readDialogConfigInt("public_form_rate_limit_max_requests", 5, 1, 500);
+        String bucketKey = (channel.getId() == null ? "unknown" : channel.getId()) + ":" + (StringUtils.hasText(requesterKey) ? requesterKey : "anon");
+        long now = System.currentTimeMillis();
+        long threshold = now - (windowSeconds * 1000L);
+        Deque<Long> bucket = rateLimitBuckets.computeIfAbsent(bucketKey, key -> new ArrayDeque<>());
+        synchronized (bucket) {
+            while (!bucket.isEmpty() && bucket.peekFirst() < threshold) {
+                bucket.removeFirst();
+            }
+            if (bucket.size() >= maxRequests) {
+                throw new IllegalArgumentException("Слишком много запросов. Попробуйте чуть позже.");
+            }
+            bucket.addLast(now);
+        }
+    }
+
     private Optional<Channel> resolveChannel(String channelRef) {
         if (!StringUtils.hasText(channelRef)) {
             return Optional.empty();
@@ -133,22 +216,19 @@ public class PublicFormService {
         if (direct.isPresent()) {
             return direct;
         }
-        if (trimmed.chars().allMatch(Character::isDigit)) {
-            try {
-                long id = Long.parseLong(trimmed);
-                return channelRepository.findById(id);
-            } catch (NumberFormatException ignored) {
-                // ignore
-            }
+        try {
+            long id = Long.parseLong(trimmed);
+            return channelRepository.findById(id);
+        } catch (NumberFormatException ignored) {
+            return Optional.empty();
         }
-        return Optional.empty();
     }
 
     private PublicFormConfig toConfig(Channel channel) {
         List<PublicFormQuestion> questions = parseQuestions(channel);
         String publicId = StringUtils.hasText(channel.getPublicId())
                 ? channel.getPublicId()
-                : (channel.getId() != null ? channel.getId().toString() : null);
+                : String.valueOf(channel.getId());
         return new PublicFormConfig(channel.getId(), publicId, channel.getChannelName(), questions);
     }
 
@@ -157,11 +237,12 @@ public class PublicFormService {
                 new PublicFormQuestion("client_name", "Как вас зовут?", "text", 1, Map.of("required", true)),
                 new PublicFormQuestion("contact", "Как с вами связаться?", "text", 2, Map.of("required", true)),
                 new PublicFormQuestion("urgency", "Насколько срочно решить вопрос?", "select", 3, Map.of(
+                        "required", true,
                         "options", List.of("Срочно", "В течение дня", "Не горит"),
                         "placeholder", "Выберите приоритет"
                 )),
                 new PublicFormQuestion("location", "Где возникла проблема?", "text", 4, Map.of("placeholder", "Адрес или подразделение")),
-                new PublicFormQuestion("details", "Опишите ситуацию подробнее", "textarea", 5, Map.of("rows", 3))
+                new PublicFormQuestion("details", "Опишите ситуацию подробнее", "textarea", 5, Map.of("rows", 3, "maxLength", 1000))
         );
 
         return new PublicFormConfig(0L, "demo", "Демо-канал", demoQuestions);
@@ -178,7 +259,8 @@ public class PublicFormService {
                 return List.of();
             }
             AtomicInteger index = new AtomicInteger(0);
-            return objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {})
+            return objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
+                    })
                     .stream()
                     .map(entry -> normalizeQuestion(entry, index.incrementAndGet()))
                     .sorted((a, b) -> Integer.compare(Optional.ofNullable(a.order()).orElse(0), Optional.ofNullable(b.order()).orElse(0)))
@@ -192,7 +274,7 @@ public class PublicFormService {
     private PublicFormQuestion normalizeQuestion(Map<String, Object> raw, int index) {
         String id = value(raw.getOrDefault("id", "q" + index));
         String text = value(raw.get("text"));
-        String type = value(raw.getOrDefault("type", "custom"));
+        String type = value(raw.getOrDefault("type", "text"));
         Integer order = raw.get("order") instanceof Number number ? number.intValue() : index;
         Map<String, Object> metadata = raw.entrySet().stream()
                 .filter(entry -> !List.of("id", "text", "type", "order").contains(entry.getKey()))
@@ -237,8 +319,7 @@ public class PublicFormService {
         if (!StringUtils.hasText(answer)) {
             return null;
         }
-        String label = StringUtils.hasText(question.text()) ? question.text().trim() : "Вопрос";
-        return label + ": " + answer.trim();
+        return questionLabel(question) + ": " + answer.trim();
     }
 
     private String writeJson(Map<String, String> answers) {
@@ -260,6 +341,103 @@ public class PublicFormService {
             }
         }
         return "Клиент веб-формы";
+    }
+
+    private boolean isRequired(PublicFormQuestion question) {
+        return metadataBoolean(question, "required", false);
+    }
+
+    private String questionLabel(PublicFormQuestion question) {
+        return StringUtils.hasText(question.text()) ? question.text().trim() : "Вопрос";
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean metadataBoolean(PublicFormQuestion question, String key, boolean defaultValue) {
+        if (question.metadata() == null) {
+            return defaultValue;
+        }
+        Object raw = question.metadata().get(key);
+        if (raw instanceof Boolean bool) {
+            return bool;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (raw instanceof String text) {
+            return "true".equalsIgnoreCase(text.trim()) || "1".equals(text.trim());
+        }
+        return defaultValue;
+    }
+
+    private int metadataInt(PublicFormQuestion question, String key, int defaultValue) {
+        if (question.metadata() == null) {
+            return defaultValue;
+        }
+        Object raw = question.metadata().get(key);
+        if (raw instanceof Number number) {
+            return number.intValue();
+        }
+        if (raw instanceof String text) {
+            try {
+                return Integer.parseInt(text.trim());
+            } catch (NumberFormatException ignored) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    private List<String> metadataStringList(PublicFormQuestion question, String key) {
+        if (question.metadata() == null) {
+            return List.of();
+        }
+        Object raw = question.metadata().get(key);
+        if (raw instanceof List<?> list) {
+            return list.stream().map(String::valueOf).map(String::trim).filter(StringUtils::hasText).toList();
+        }
+        if (raw instanceof String text) {
+            return Arrays.stream(text.split(",")).map(String::trim).filter(StringUtils::hasText).toList();
+        }
+        return List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readDialogConfig() {
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Object dialogConfig = settings.get("dialog_config");
+        if (dialogConfig instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
+    }
+
+    private boolean readDialogConfigBoolean(String key, boolean defaultValue) {
+        Object raw = readDialogConfig().get(key);
+        if (raw instanceof Boolean bool) {
+            return bool;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (raw instanceof String text) {
+            return "true".equalsIgnoreCase(text.trim()) || "1".equals(text.trim());
+        }
+        return defaultValue;
+    }
+
+    private int readDialogConfigInt(String key, int defaultValue, int minValue, int maxValue) {
+        Object raw = readDialogConfig().get(key);
+        int value = defaultValue;
+        if (raw instanceof Number number) {
+            value = number.intValue();
+        } else if (raw instanceof String text) {
+            try {
+                value = Integer.parseInt(text.trim());
+            } catch (NumberFormatException ignored) {
+                value = defaultValue;
+            }
+        }
+        return Math.max(minValue, Math.min(maxValue, value));
     }
 
     private String generateToken() {
