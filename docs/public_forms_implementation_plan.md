@@ -142,7 +142,7 @@
 - [ ] UI: конструктор полей в канале + preview.
 - [ ] Public UI: динамический рендер полей + unified validation.
 - [ ] Flow: create ticket/dialog в полной доменной модели.
-- [ ] Security: rate-limit + captcha toggle + token policy.
+- [~] Security: rate-limit + captcha toggle + token policy. (Реализовано: CAPTCHA toggle + global rate-limit + channel-level override лимитов; в backlog остаётся расширение token policy/rotation.)
 - [ ] Observability: metrics + audit events.
 - [ ] Tests: unit + integration + e2e smoke.
 - [ ] Docs: admin guide + runbook + troubleshooting.

@@ -618,15 +618,50 @@ public class ChannelApiController {
         int schemaVersion = Math.max(1, root.path("schemaVersion").asInt(1));
         boolean enabled = !root.has("enabled") || root.path("enabled").asBoolean(true);
         boolean captchaEnabled = root.path("captchaEnabled").asBoolean(false);
+        Boolean rateLimitEnabled = root.has("rateLimitEnabled") ? root.path("rateLimitEnabled").asBoolean(false) : null;
+        Integer rateLimitWindowSeconds = root.has("rateLimitWindowSeconds")
+                ? normalizeIntegerOrNull(root.path("rateLimitWindowSeconds"), 10, 3600)
+                : null;
+        Integer rateLimitMaxRequests = root.has("rateLimitMaxRequests")
+                ? normalizeIntegerOrNull(root.path("rateLimitMaxRequests"), 1, 500)
+                : null;
         int disabledStatus = root.path("disabledStatus").asInt(404) == 410 ? 410 : 404;
         List<Map<String, Object>> fields = normalizeQuestionFields(root.path("fields"));
-        return serializeIfNeeded(Map.of(
-                "schemaVersion", schemaVersion,
-                "enabled", enabled,
-                "captchaEnabled", captchaEnabled,
-                "disabledStatus", disabledStatus,
-                "fields", fields
-        ));
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put("schemaVersion", schemaVersion);
+        normalized.put("enabled", enabled);
+        normalized.put("captchaEnabled", captchaEnabled);
+        if (rateLimitEnabled != null) {
+            normalized.put("rateLimitEnabled", rateLimitEnabled);
+        }
+        if (rateLimitWindowSeconds != null) {
+            normalized.put("rateLimitWindowSeconds", rateLimitWindowSeconds);
+        }
+        if (rateLimitMaxRequests != null) {
+            normalized.put("rateLimitMaxRequests", rateLimitMaxRequests);
+        }
+        normalized.put("disabledStatus", disabledStatus);
+        normalized.put("fields", fields);
+        return serializeIfNeeded(normalized);
+    }
+
+    private Integer normalizeIntegerOrNull(JsonNode node, int min, int max) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        Integer value;
+        if (node.isIntegralNumber()) {
+            value = node.asInt();
+        } else if (node.isTextual()) {
+            try {
+                value = Integer.parseInt(node.asText().trim());
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("Значение должно быть целым числом");
+            }
+        } else {
+            throw new IllegalArgumentException("Значение должно быть целым числом");
+        }
+        return Math.max(min, Math.min(max, value));
     }
 
     private List<Map<String, Object>> normalizeQuestionFields(JsonNode fieldsNode) {
