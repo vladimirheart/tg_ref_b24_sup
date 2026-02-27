@@ -320,6 +320,13 @@
     50,
   );
   const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_HIDE_TECHNICAL = window.DIALOG_CONFIG?.workspace_client_extra_attributes_hide_technical !== false;
+  const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_TECHNICAL_PREFIXES = normalizeStringArray(
+    window.DIALOG_CONFIG?.workspace_client_extra_attributes_technical_prefixes,
+    ['_', 'internal_'],
+  ).map((value) => value.toLowerCase());
+  const WORKSPACE_CLIENT_HIDDEN_ATTRIBUTES = new Set(
+    normalizeStringArray(window.DIALOG_CONFIG?.workspace_client_hidden_attributes, []).map((value) => value.toLowerCase()),
+  );
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
@@ -2890,20 +2897,35 @@
     );
     const filteredExtraEntries = orderedExtraEntries
       .filter(([key]) => {
+        const normalized = normalizeWorkspaceClientAttributeKey(key);
+        if (!normalized) {
+          return false;
+        }
+        if (WORKSPACE_CLIENT_HIDDEN_ATTRIBUTES.has(normalized)) {
+          return false;
+        }
         if (!WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_HIDE_TECHNICAL) {
           return true;
         }
-        const normalized = normalizeWorkspaceClientAttributeKey(key);
-        return normalized && !normalized.startsWith('_') && !normalized.startsWith('internal_');
+        return !WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_TECHNICAL_PREFIXES
+          .some((prefix) => prefix && normalized.startsWith(prefix));
       });
     const limitedExtraEntries = filteredExtraEntries.slice(0, WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX);
-    const hiddenExtraCount = Math.max(0, filteredExtraEntries.length - limitedExtraEntries.length);
-    const collapsedExtraCount = Math.max(0, limitedExtraEntries.length - WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER);
+    const hiddenByLimitCount = Math.max(0, filteredExtraEntries.length - limitedExtraEntries.length);
+    const expandedExtraEntries = limitedExtraEntries.slice(0, WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER);
+    const collapsedExtraEntries = limitedExtraEntries.slice(WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER);
 
-    const extraRows = limitedExtraEntries
+    const renderExtraRow = ([key, value]) => {
+      const label = extraAttributeLabelMap.get(normalizeWorkspaceClientAttributeKey(key)) || prettifyWorkspaceClientExtraKey(key);
+      return `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(formatWorkspaceClientExtraValue(value))}</span></div>`;
+    };
+
+    const expandedRows = expandedExtraEntries
+      .map((entry) => renderExtraRow(entry))
+      .join('');
+    const collapsedRows = collapsedExtraEntries
       .map(([key, value]) => {
-        const label = extraAttributeLabelMap.get(normalizeWorkspaceClientAttributeKey(key)) || prettifyWorkspaceClientExtraKey(key);
-        return `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(formatWorkspaceClientExtraValue(value))}</span></div>`;
+        return renderExtraRow([key, value]);
       })
       .join('');
 
@@ -2912,11 +2934,11 @@
       ? `<div class="d-flex flex-wrap gap-1 mt-2">${segments.map((segment) => `<span class="badge text-bg-light border">${escapeHtml(segment)}</span>`).join('')}</div>`
       : '';
 
-    const extraSection = extraRows
+    const extraSection = expandedRows || collapsedRows
       ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>
-        <div>${extraRows}</div>
-        ${collapsedExtraCount > 0 ? `<div class="small text-muted mt-1">Показаны первые ${WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER} из ${limitedExtraEntries.length}; остальные ${collapsedExtraCount} доступны в карточке клиента.</div>` : ''}
-        ${hiddenExtraCount > 0 ? `<div class="small text-muted">Скрыто по лимиту: ${hiddenExtraCount}.</div>` : ''}`
+        <div>${expandedRows}</div>
+        ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Показать ещё ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
+        ${hiddenByLimitCount > 0 ? `<div class="small text-muted">Скрыто по лимиту: ${hiddenByLimitCount}.</div>` : ''}`
       : '';
 
     const externalLinks = (client.external_links && typeof client.external_links === 'object')

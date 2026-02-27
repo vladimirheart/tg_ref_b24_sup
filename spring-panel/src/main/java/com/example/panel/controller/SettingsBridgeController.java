@@ -218,6 +218,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_extra_attributes_max")
                 || payload.containsKey("dialog_workspace_client_extra_attributes_collapse_after")
                 || payload.containsKey("dialog_workspace_client_extra_attributes_hide_technical")
+                || payload.containsKey("dialog_workspace_client_extra_attributes_technical_prefixes")
                 || payload.containsKey("dialog_workspace_context_history_limit")
                 || payload.containsKey("dialog_workspace_context_related_events_limit")
                 || payload.containsKey("dialog_workspace_segment_high_lifetime_volume_min_dialogs")
@@ -486,6 +487,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_extra_attributes_hide_technical")) {
                     dialogConfig.put("workspace_client_extra_attributes_hide_technical",
                             payload.get("dialog_workspace_client_extra_attributes_hide_technical"));
+                }
+                if (payload.containsKey("dialog_workspace_client_extra_attributes_technical_prefixes")) {
+                    dialogConfig.put("workspace_client_extra_attributes_technical_prefixes",
+                            payload.get("dialog_workspace_client_extra_attributes_technical_prefixes"));
                 }
                 if (payload.containsKey("dialog_workspace_context_history_limit")) {
                     dialogConfig.put("workspace_context_history_limit",
