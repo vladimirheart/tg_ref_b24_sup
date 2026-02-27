@@ -2287,6 +2287,11 @@
                         <label class="form-check-label" for="dialogWorkspaceClientExtraAttributesHideTechnical">Скрывать ключи `_` и `internal_*`</label>
                       </div>
                     </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceClientExtraAttributesTechnicalPrefixes" class="form-label">Технические префиксы (через запятую)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientExtraAttributesTechnicalPrefixes" placeholder="_, internal_, debug_">
+                      <div class="form-text">Ключи с этими префиксами будут скрываться при включенном переключателе «Скрывать тех. ключи».</div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Контекст и risk-сегменты workspace</h6>
@@ -3932,6 +3937,7 @@
     workspace_client_extra_attributes_max: 20,
     workspace_client_extra_attributes_collapse_after: 8,
     workspace_client_extra_attributes_hide_technical: true,
+    workspace_client_extra_attributes_technical_prefixes: ["_", "internal_"],
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12958,6 +12964,7 @@
       workspaceClientExtraAttributesMax: document.getElementById('dialogWorkspaceClientExtraAttributesMax'),
       workspaceClientExtraAttributesCollapseAfter: document.getElementById('dialogWorkspaceClientExtraAttributesCollapseAfter'),
       workspaceClientExtraAttributesHideTechnical: document.getElementById('dialogWorkspaceClientExtraAttributesHideTechnical'),
+      workspaceClientExtraAttributesTechnicalPrefixes: document.getElementById('dialogWorkspaceClientExtraAttributesTechnicalPrefixes'),
       workspaceContextHistoryLimit: document.getElementById('dialogWorkspaceContextHistoryLimit'),
       workspaceContextRelatedEventsLimit: document.getElementById('dialogWorkspaceContextRelatedEventsLimit'),
       workspaceSegmentHighLifetimeMinDialogs: document.getElementById('dialogWorkspaceSegmentHighLifetimeMinDialogs'),
@@ -13346,6 +13353,15 @@
     }
     if (inputs.workspaceClientExtraAttributesHideTechnical) {
       inputs.workspaceClientExtraAttributesHideTechnical.checked = DIALOG_CONFIG.workspace_client_extra_attributes_hide_technical !== false;
+    }
+    if (inputs.workspaceClientExtraAttributesTechnicalPrefixes) {
+      const prefixes = Array.isArray(DIALOG_CONFIG.workspace_client_extra_attributes_technical_prefixes)
+        ? DIALOG_CONFIG.workspace_client_extra_attributes_technical_prefixes
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_extra_attributes_technical_prefixes;
+      inputs.workspaceClientExtraAttributesTechnicalPrefixes.value = prefixes
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(', ');
     }
     if (inputs.workspaceContextHistoryLimit) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_context_history_limit, 10);
@@ -13996,6 +14012,13 @@
       errors.push('Порог сворачивания не может быть больше лимита доп. атрибутов.');
     }
 
+    const safeWorkspaceClientExtraAttributesTechnicalPrefixes = Array.from(new Set(
+      String(inputs.workspaceClientExtraAttributesTechnicalPrefixes?.value || '')
+        .split(/[\n,;]/)
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean),
+    ));
+
     const safeWorkspaceContextHistoryLimitRaw = Math.round(Number(inputs.workspaceContextHistoryLimit?.value));
     const safeWorkspaceContextHistoryLimit = Number.isFinite(safeWorkspaceContextHistoryLimitRaw)
       ? Math.min(20, Math.max(1, safeWorkspaceContextHistoryLimitRaw))
@@ -14119,6 +14142,7 @@
         dialog_workspace_client_extra_attributes_max: safeWorkspaceClientExtraAttributesMax,
         dialog_workspace_client_extra_attributes_collapse_after: safeWorkspaceClientExtraAttributesCollapseAfter,
         dialog_workspace_client_extra_attributes_hide_technical: Boolean(inputs.workspaceClientExtraAttributesHideTechnical?.checked),
+        dialog_workspace_client_extra_attributes_technical_prefixes: safeWorkspaceClientExtraAttributesTechnicalPrefixes,
         dialog_workspace_context_history_limit: safeWorkspaceContextHistoryLimit,
         dialog_workspace_context_related_events_limit: safeWorkspaceContextRelatedEventsLimit,
         dialog_workspace_segment_high_lifetime_volume_min_dialogs: safeHighLifetimeThreshold,
