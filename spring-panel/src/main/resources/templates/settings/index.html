@@ -1988,7 +1988,7 @@
                     <div class="col-12">
                       <label for="dialogSlaAutoAssignRules" class="form-label">Правила auto-assign (JSON-массив)</label>
                       <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
-                      <div class="form-text">Поддерживаются match_channel(s), match_business(es), match_location(s), match_category(ies), match_categories_mode=any|all, match_sla_state(s), match_unread_min/max, match_request_prefix(es), assign_to/assign_to_pool.</div>
+                      <div class="form-text">Поддерживаются match/exclude channel|business|location|category|request_prefix, match_categories_mode=any|all, match_has_categories=true|false, match_sla_state(s), match_unread_min/max, assign_to/assign_to_pool.</div>
                     </div>
                     <div class="col-md-3">
                       <div class="form-check mt-4 pt-2">

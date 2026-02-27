@@ -462,18 +462,22 @@ public class SlaEscalationWebhookNotifier {
             Set<String> businesses = parseRuleMatchValues(ruleMap.get("match_business"), ruleMap.get("match_businesses"));
             Set<String> locations = parseRuleMatchValues(ruleMap.get("match_location"), ruleMap.get("match_locations"));
             Set<String> categories = parseRuleCategories(ruleMap.get("match_category"), ruleMap.get("match_categories"));
+            Set<String> excludedCategories = parseRuleCategories(ruleMap.get("exclude_category"), ruleMap.get("exclude_categories"));
             CategoryMatchMode categoryMatchMode = parseCategoryMatchMode(ruleMap.get("match_categories_mode"));
+            Boolean matchHasCategories = parseOptionalBoolean(ruleMap.get("match_has_categories"));
             Integer unreadMin = parseOptionalNonNegativeInt(ruleMap.get("match_unread_min"));
             Integer unreadMax = parseOptionalNonNegativeInt(ruleMap.get("match_unread_max"));
             Long minutesLeftLte = parseOptionalLong(ruleMap.get("match_minutes_left_lte"));
             Long minutesLeftGte = parseOptionalLong(ruleMap.get("match_minutes_left_gte"));
             Set<String> slaStates = parseRuleSlaStates(ruleMap.get("match_sla_state"), ruleMap.get("match_sla_states"));
             Set<String> requestPrefixes = parseRuleRequestPrefixes(ruleMap.get("match_request_prefix"), ruleMap.get("match_request_prefixes"));
+            Set<String> excludeRequestPrefixes = parseRuleRequestPrefixes(ruleMap.get("exclude_request_prefix"), ruleMap.get("exclude_request_prefixes"));
             int priority = parsePriority(ruleMap.get("priority"));
-            if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && categories.isEmpty()
+            if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && categories.isEmpty() && excludedCategories.isEmpty()
+                    && matchHasCategories == null
                     && unreadMin == null && unreadMax == null
                     && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()
-                    && requestPrefixes.isEmpty()) {
+                    && requestPrefixes.isEmpty() && excludeRequestPrefixes.isEmpty()) {
                 continue;
             }
             String route = trimToNull(String.valueOf(ruleMap.get("rule_id")));
@@ -481,11 +485,33 @@ public class SlaEscalationWebhookNotifier {
                 route = trimToNull(String.valueOf(ruleMap.get("name")));
             }
             PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
-            rules.add(new AutoAssignRule(channels, businesses, locations, categories, categoryMatchMode,
-                    unreadMin, unreadMax, minutesLeftLte, minutesLeftGte, slaStates, requestPrefixes,
+            rules.add(new AutoAssignRule(channels, businesses, locations, categories, excludedCategories, categoryMatchMode,
+                    matchHasCategories, unreadMin, unreadMax, minutesLeftLte, minutesLeftGte,
+                    slaStates, requestPrefixes, excludeRequestPrefixes,
                     priority, assignee, assigneePool, route, poolStrategy));
         }
         return rules;
+    }
+
+    private Boolean parseOptionalBoolean(Object rawValue) {
+        if (rawValue instanceof Boolean bool) {
+            return bool;
+        }
+        if (rawValue instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String raw = trimToNull(String.valueOf(rawValue));
+        if (raw == null) {
+            return null;
+        }
+        String normalized = raw.toLowerCase();
+        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
+            return true;
+        }
+        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
+            return false;
+        }
+        return null;
     }
 
     private Set<String> parseRuleRequestPrefixes(Object rawSingle, Object rawMultiple) {
@@ -884,13 +910,16 @@ public class SlaEscalationWebhookNotifier {
                                   Set<String> businesses,
                                   Set<String> locations,
                                   Set<String> categories,
+                                  Set<String> excludedCategories,
                                   CategoryMatchMode categoryMatchMode,
+                                  Boolean matchHasCategories,
                                   Integer unreadMin,
                                   Integer unreadMax,
                                   Long minutesLeftLte,
                                   Long minutesLeftGte,
                                   Set<String> slaStates,
                                   Set<String> requestPrefixes,
+                                  Set<String> excludeRequestPrefixes,
                                   int priority,
                                   String assignee,
                                   List<String> assigneePool,
@@ -924,6 +953,17 @@ public class SlaEscalationWebhookNotifier {
                     return false;
                 }
             }
+            if (excludedCategories != null && !excludedCategories.isEmpty()
+                    && candidateCategories != null && !candidateCategories.isEmpty()
+                    && excludedCategories.stream().anyMatch(candidateCategories::contains)) {
+                return false;
+            }
+            if (matchHasCategories != null) {
+                boolean hasCategories = candidateCategories != null && !candidateCategories.isEmpty();
+                if (matchHasCategories != hasCategories) {
+                    return false;
+                }
+            }
             if (unreadMin != null && (candidateUnreadCount == null || candidateUnreadCount < unreadMin)) {
                 return false;
             }
@@ -948,6 +988,12 @@ public class SlaEscalationWebhookNotifier {
                     return false;
                 }
             }
+            if (excludeRequestPrefixes != null && !excludeRequestPrefixes.isEmpty()) {
+                String requestValue = candidateRequestNumber == null ? null : candidateRequestNumber.toLowerCase();
+                if (requestValue != null && excludeRequestPrefixes.stream().anyMatch(requestValue::startsWith)) {
+                    return false;
+                }
+            }
             return true;
         }
 
@@ -963,6 +1009,12 @@ public class SlaEscalationWebhookNotifier {
                 score++;
             }
             if (categories != null && !categories.isEmpty()) {
+                score++;
+            }
+            if (excludedCategories != null && !excludedCategories.isEmpty()) {
+                score++;
+            }
+            if (matchHasCategories != null) {
                 score++;
             }
             if (unreadMin != null) {
@@ -981,6 +1033,9 @@ public class SlaEscalationWebhookNotifier {
                 score++;
             }
             if (requestPrefixes != null && !requestPrefixes.isEmpty()) {
+                score++;
+            }
+            if (excludeRequestPrefixes != null && !excludeRequestPrefixes.isEmpty()) {
                 score++;
             }
             return score;
