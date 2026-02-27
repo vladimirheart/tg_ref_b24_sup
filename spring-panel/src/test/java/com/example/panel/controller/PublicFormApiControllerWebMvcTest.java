@@ -23,6 +23,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -139,6 +140,60 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.uiLocale").value("en"));
+    }
+
+    @Test
+    void createSessionReturnsServerErrorOnUnexpectedException() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                12L,
+                "web-err",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-err")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-err"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new RuntimeException("db down"));
+
+        mockMvc.perform(post("/api/public/forms/web-err/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(publicFormService, times(1)).recordSubmitError(12L, "internal_error");
+    }
+
+    @Test
+    void sessionTracksLookupMetrics() throws Exception {
+        PublicFormSessionDto session = new PublicFormSessionDto(
+                "token-2",
+                "T-202",
+                15L,
+                "web-session",
+                "Иван",
+                null,
+                "web_form",
+                OffsetDateTime.parse("2026-01-01T10:15:30+03:00")
+        );
+        when(publicFormService.resolveChannelId("web-session")).thenReturn(Optional.of(15L));
+        when(publicFormService.findSession("web-session", "token-2")).thenReturn(Optional.of(session));
+        when(dialogService.loadHistory("T-202", null)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/public/forms/web-session/sessions/token-2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(publicFormService).recordSessionLookup(15L, true);
     }
 
 }
