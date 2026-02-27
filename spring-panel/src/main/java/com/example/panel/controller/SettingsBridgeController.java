@@ -224,7 +224,14 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_segment_high_lifetime_volume_min_dialogs")
                 || payload.containsKey("dialog_workspace_segment_multi_open_dialogs_min_open")
                 || payload.containsKey("dialog_workspace_segment_reactivation_risk_min_dialogs")
-                || payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")) {
+                || payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")
+                || payload.containsKey("dialog_public_form_message_max_length")
+                || payload.containsKey("dialog_public_form_session_ttl_hours")
+                || payload.containsKey("dialog_public_form_idempotency_ttl_seconds")
+                || payload.containsKey("dialog_public_form_rate_limit_enabled")
+                || payload.containsKey("dialog_public_form_rate_limit_window_seconds")
+                || payload.containsKey("dialog_public_form_rate_limit_max_requests")
+                || payload.containsKey("dialog_public_form_captcha_shared_secret")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -515,6 +522,34 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")) {
                     dialogConfig.put("workspace_segment_reactivation_risk_max_resolved_30d",
                             payload.get("dialog_workspace_segment_reactivation_risk_max_resolved_30d"));
+                }
+                if (payload.containsKey("dialog_public_form_message_max_length")) {
+                    dialogConfig.put("public_form_message_max_length",
+                            payload.get("dialog_public_form_message_max_length"));
+                }
+                if (payload.containsKey("dialog_public_form_session_ttl_hours")) {
+                    dialogConfig.put("public_form_session_ttl_hours",
+                            payload.get("dialog_public_form_session_ttl_hours"));
+                }
+                if (payload.containsKey("dialog_public_form_idempotency_ttl_seconds")) {
+                    dialogConfig.put("public_form_idempotency_ttl_seconds",
+                            payload.get("dialog_public_form_idempotency_ttl_seconds"));
+                }
+                if (payload.containsKey("dialog_public_form_rate_limit_enabled")) {
+                    dialogConfig.put("public_form_rate_limit_enabled",
+                            payload.get("dialog_public_form_rate_limit_enabled"));
+                }
+                if (payload.containsKey("dialog_public_form_rate_limit_window_seconds")) {
+                    dialogConfig.put("public_form_rate_limit_window_seconds",
+                            payload.get("dialog_public_form_rate_limit_window_seconds"));
+                }
+                if (payload.containsKey("dialog_public_form_rate_limit_max_requests")) {
+                    dialogConfig.put("public_form_rate_limit_max_requests",
+                            payload.get("dialog_public_form_rate_limit_max_requests"));
+                }
+                if (payload.containsKey("dialog_public_form_captcha_shared_secret")) {
+                    dialogConfig.put("public_form_captcha_shared_secret",
+                            payload.get("dialog_public_form_captcha_shared_secret"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
