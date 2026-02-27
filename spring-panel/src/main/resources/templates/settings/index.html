@@ -2271,6 +2271,23 @@
                   <label for="dialogWorkspaceClientAttributeOrder" class="form-label mt-3">Порядок атрибутов (JSON-массив)</label>
                   <textarea class="form-control font-monospace" id="dialogWorkspaceClientAttributeOrder" rows="4" placeholder='["contract_tier", "risk_score", "vip_level"]'></textarea>
                   <div class="form-text">Формат: ["attribute_key"]. Указанные ключи будут показываться первыми в заданном порядке.</div>
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientExtraAttributesMax" class="form-label">Макс. кол-во доп. атрибутов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExtraAttributesMax" min="1" max="100" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientExtraAttributesCollapseAfter" class="form-label">Кол-во атрибутов до сворачивания</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExtraAttributesCollapseAfter" min="1" max="50" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label d-block">Фильтрация тех. ключей</label>
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceClientExtraAttributesHideTechnical">
+                        <label class="form-check-label" for="dialogWorkspaceClientExtraAttributesHideTechnical">Скрывать ключи `_` и `internal_*`</label>
+                      </div>
+                    </div>
+                  </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Контекст и risk-сегменты workspace</h6>
                   <p class="small text-muted">Тонкая настройка объёма правой панели и порогов авто-сегментации клиента без code-deploy.</p>
@@ -3912,6 +3929,9 @@
     workspace_segment_multi_open_dialogs_min_open: 2,
     workspace_segment_reactivation_risk_min_dialogs: 3,
     workspace_segment_reactivation_risk_max_resolved_30d: 0,
+    workspace_client_extra_attributes_max: 20,
+    workspace_client_extra_attributes_collapse_after: 8,
+    workspace_client_extra_attributes_hide_technical: true,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -12935,6 +12955,9 @@
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
+      workspaceClientExtraAttributesMax: document.getElementById('dialogWorkspaceClientExtraAttributesMax'),
+      workspaceClientExtraAttributesCollapseAfter: document.getElementById('dialogWorkspaceClientExtraAttributesCollapseAfter'),
+      workspaceClientExtraAttributesHideTechnical: document.getElementById('dialogWorkspaceClientExtraAttributesHideTechnical'),
       workspaceContextHistoryLimit: document.getElementById('dialogWorkspaceContextHistoryLimit'),
       workspaceContextRelatedEventsLimit: document.getElementById('dialogWorkspaceContextRelatedEventsLimit'),
       workspaceSegmentHighLifetimeMinDialogs: document.getElementById('dialogWorkspaceSegmentHighLifetimeMinDialogs'),
@@ -13308,6 +13331,21 @@
         ? DIALOG_CONFIG.workspace_client_attribute_order
         : [];
       inputs.workspaceClientAttributeOrder.value = JSON.stringify(attributeOrder, null, 2);
+    }
+    if (inputs.workspaceClientExtraAttributesMax) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_client_extra_attributes_max, 10);
+      inputs.workspaceClientExtraAttributesMax.value = Number.isFinite(value) && value >= 1 && value <= 100
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_extra_attributes_max;
+    }
+    if (inputs.workspaceClientExtraAttributesCollapseAfter) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_client_extra_attributes_collapse_after, 10);
+      inputs.workspaceClientExtraAttributesCollapseAfter.value = Number.isFinite(value) && value >= 1 && value <= 50
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_extra_attributes_collapse_after;
+    }
+    if (inputs.workspaceClientExtraAttributesHideTechnical) {
+      inputs.workspaceClientExtraAttributesHideTechnical.checked = DIALOG_CONFIG.workspace_client_extra_attributes_hide_technical !== false;
     }
     if (inputs.workspaceContextHistoryLimit) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_context_history_limit, 10);
@@ -13937,6 +13975,27 @@
       }
     }
 
+    const safeWorkspaceClientExtraAttributesMaxRaw = Math.round(Number(inputs.workspaceClientExtraAttributesMax?.value));
+    const safeWorkspaceClientExtraAttributesMax = Number.isFinite(safeWorkspaceClientExtraAttributesMaxRaw)
+      ? Math.min(100, Math.max(1, safeWorkspaceClientExtraAttributesMaxRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_extra_attributes_max;
+    if (!Number.isFinite(safeWorkspaceClientExtraAttributesMaxRaw) || safeWorkspaceClientExtraAttributesMaxRaw < 1 || safeWorkspaceClientExtraAttributesMaxRaw > 100) {
+      errors.push('Максимум доп. атрибутов клиента должен быть в диапазоне 1..100.');
+    }
+
+    const safeWorkspaceClientExtraAttributesCollapseAfterRaw = Math.round(Number(inputs.workspaceClientExtraAttributesCollapseAfter?.value));
+    const safeWorkspaceClientExtraAttributesCollapseAfter = Number.isFinite(safeWorkspaceClientExtraAttributesCollapseAfterRaw)
+      ? Math.min(50, Math.max(1, safeWorkspaceClientExtraAttributesCollapseAfterRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_extra_attributes_collapse_after;
+    if (!Number.isFinite(safeWorkspaceClientExtraAttributesCollapseAfterRaw)
+      || safeWorkspaceClientExtraAttributesCollapseAfterRaw < 1
+      || safeWorkspaceClientExtraAttributesCollapseAfterRaw > 50) {
+      errors.push('Порог сворачивания доп. атрибутов клиента должен быть в диапазоне 1..50.');
+    }
+    if (safeWorkspaceClientExtraAttributesCollapseAfter > safeWorkspaceClientExtraAttributesMax) {
+      errors.push('Порог сворачивания не может быть больше лимита доп. атрибутов.');
+    }
+
     const safeWorkspaceContextHistoryLimitRaw = Math.round(Number(inputs.workspaceContextHistoryLimit?.value));
     const safeWorkspaceContextHistoryLimit = Number.isFinite(safeWorkspaceContextHistoryLimitRaw)
       ? Math.min(20, Math.max(1, safeWorkspaceContextHistoryLimitRaw))
@@ -14057,6 +14116,9 @@
         dialog_workspace_client_hidden_attributes: safeWorkspaceClientHiddenAttributes,
         dialog_workspace_client_attribute_labels: safeWorkspaceClientAttributeLabels,
         dialog_workspace_client_attribute_order: safeWorkspaceClientAttributeOrder,
+        dialog_workspace_client_extra_attributes_max: safeWorkspaceClientExtraAttributesMax,
+        dialog_workspace_client_extra_attributes_collapse_after: safeWorkspaceClientExtraAttributesCollapseAfter,
+        dialog_workspace_client_extra_attributes_hide_technical: Boolean(inputs.workspaceClientExtraAttributesHideTechnical?.checked),
         dialog_workspace_context_history_limit: safeWorkspaceContextHistoryLimit,
         dialog_workspace_context_related_events_limit: safeWorkspaceContextRelatedEventsLimit,
         dialog_workspace_segment_high_lifetime_volume_min_dialogs: safeHighLifetimeThreshold,
