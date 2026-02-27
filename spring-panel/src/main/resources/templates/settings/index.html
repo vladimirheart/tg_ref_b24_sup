@@ -15096,17 +15096,34 @@
     if (!channelEditorPublicFormFieldsList) return;
     channelEditorPublicFormFieldsList.innerHTML = '';
     const fields = channelEditorState.publicFormFields || [];
+    const reorderFields = (fromIndex, toIndex) => {
+      if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return;
+      if (fromIndex < 0 || toIndex < 0) return;
+      if (fromIndex >= fields.length || toIndex >= fields.length || fromIndex === toIndex) return;
+      const [movedField] = fields.splice(fromIndex, 1);
+      fields.splice(toIndex, 0, movedField);
+      channelEditorState.publicFormFields = fields.map((entry, idx) => normalizePublicFormField(entry, idx + 1));
+      renderPublicFormFieldsEditor();
+      renderPublicFormPreview();
+    };
+
     fields.forEach((field, index) => {
       const row = document.createElement('div');
       row.className = 'border rounded-2 p-2';
       row.dataset.publicFormFieldRow = 'true';
+      row.dataset.publicFieldIndex = String(index);
+      row.draggable = true;
       row.innerHTML = `
         <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-1">
+            <label class="form-label small d-block">Порядок</label>
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100" data-public-field-drag-handle title="Перетащите поле для изменения порядка">↕</button>
+          </div>
           <div class="col-12 col-md-3">
             <label class="form-label small">ID</label>
             <input class="form-control form-control-sm" data-public-field-id value="${escapeHtml(field.id)}">
           </div>
-          <div class="col-12 col-md-5">
+          <div class="col-12 col-md-4">
             <label class="form-label small">Название</label>
             <input class="form-control form-control-sm" data-public-field-text value="${escapeHtml(field.text)}">
           </div>
@@ -15164,19 +15181,31 @@
         renderPublicFormFieldsEditor();
         renderPublicFormPreview();
       });
-      row.querySelector('[data-public-field-up]')?.addEventListener('click', () => {
-        if (index <= 0) return;
-        [fields[index - 1], fields[index]] = [fields[index], fields[index - 1]];
-        channelEditorState.publicFormFields = fields.map((entry, idx) => normalizePublicFormField(entry, idx + 1));
-        renderPublicFormFieldsEditor();
-        renderPublicFormPreview();
+      row.querySelector('[data-public-field-up]')?.addEventListener('click', () => reorderFields(index, index - 1));
+      row.querySelector('[data-public-field-down]')?.addEventListener('click', () => reorderFields(index, index + 1));
+      row.addEventListener('dragstart', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (!target.closest('[data-public-field-drag-handle]')) {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer?.setData('text/plain', String(index));
+        event.dataTransfer?.setDragImage(row, 24, 24);
+        row.classList.add('opacity-50');
       });
-      row.querySelector('[data-public-field-down]')?.addEventListener('click', () => {
-        if (index >= fields.length - 1) return;
-        [fields[index + 1], fields[index]] = [fields[index], fields[index + 1]];
-        channelEditorState.publicFormFields = fields.map((entry, idx) => normalizePublicFormField(entry, idx + 1));
-        renderPublicFormFieldsEditor();
-        renderPublicFormPreview();
+      row.addEventListener('dragend', () => {
+        row.classList.remove('opacity-50');
+      });
+      row.addEventListener('dragover', (event) => {
+        event.preventDefault();
+      });
+      row.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const fromRaw = event.dataTransfer?.getData('text/plain');
+        const fromIndex = Number.parseInt(String(fromRaw || ''), 10);
+        const toIndex = Number.parseInt(String(row.dataset.publicFieldIndex || ''), 10);
+        reorderFields(fromIndex, toIndex);
       });
       channelEditorPublicFormFieldsList.appendChild(row);
     });
