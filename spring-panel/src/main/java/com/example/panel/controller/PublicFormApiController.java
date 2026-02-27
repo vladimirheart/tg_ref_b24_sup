@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,9 +68,10 @@ public class PublicFormApiController {
 
     @PostMapping("/{channelId}/sessions")
     public ResponseEntity<Map<String, Object>> createSession(@PathVariable String channelId,
-                                                             @Valid @RequestBody PublicFormRequest request) {
+                                                             @Valid @RequestBody PublicFormRequest request,
+                                                             HttpServletRequest servletRequest) {
         try {
-            PublicFormSessionDto session = publicFormService.createSession(channelId, request.toSubmission());
+            PublicFormSessionDto session = publicFormService.createSession(channelId, request.toSubmission(), resolveRequesterKey(servletRequest));
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("success", true);
             response.put("token", session.token());
@@ -113,6 +116,18 @@ public class PublicFormApiController {
         return ResponseEntity.ok(response);
     }
 
+
+    private String resolveRequesterKey(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
+    }
     private Map<String, Object> questionToMap(PublicFormQuestion question) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", question.id());
