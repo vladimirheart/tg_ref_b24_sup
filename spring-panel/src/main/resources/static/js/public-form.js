@@ -15,6 +15,7 @@
 
     const apiBase = `/api/public/forms/${encodeURIComponent(channelRef)}`;
     let activeQuestions = [];
+    let captchaEnabled = false;
 
     function showError(message) {
         errorBox.textContent = message;
@@ -205,6 +206,19 @@
         return null;
     }
 
+
+    function renderCaptcha() {
+        const container = document.querySelector('[data-role="captcha-container"]');
+        if (!container) {
+            return;
+        }
+        container.classList.toggle('d-none', !captchaEnabled);
+        const input = container.querySelector('input[name="captchaToken"]');
+        if (input) {
+            input.required = captchaEnabled;
+        }
+    }
+
     async function loadConfig() {
         try {
             const response = await fetch(`${apiBase}/config`);
@@ -212,7 +226,9 @@
             if (!response.ok || !payload.success) {
                 throw new Error(payload.error || 'Не удалось загрузить конфигурацию формы');
             }
+            captchaEnabled = Boolean(payload.captchaEnabled);
             renderQuestions(payload.questions || []);
+            renderCaptcha();
         } catch (error) {
             showError(error.message || 'Не удалось загрузить форму');
         }
@@ -258,6 +274,7 @@
             clientContact: (formData.get('clientContact') || '').toString().trim(),
             message: (formData.get('message') || '').toString().trim(),
             answers,
+            captchaToken: (formData.get('captchaToken') || '').toString().trim(),
         };
 
         setSubmitting(true);
