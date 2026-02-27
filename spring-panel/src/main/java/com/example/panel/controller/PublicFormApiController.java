@@ -109,6 +109,11 @@ public class PublicFormApiController {
             publicFormService.recordSubmitError(config.get().channelId(), ex.getMessage());
             log.warn("Failed to create public form session for channel {}: {}", channelId, ex.getMessage());
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+        } catch (Exception ex) {
+            publicFormService.recordSubmitError(config.get().channelId(), "internal_error");
+            log.error("Unexpected error during public form submit for channel {}", channelId, ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "error", "Внутренняя ошибка сервера"));
         }
     }
 
@@ -116,7 +121,9 @@ public class PublicFormApiController {
     public ResponseEntity<Map<String, Object>> session(@PathVariable String channelId,
                                                        @PathVariable String token,
                                                        @RequestParam(value = "channel", required = false) Long channelFilter) {
+        Optional<Long> resolvedChannelId = publicFormService.resolveChannelId(channelId);
         Optional<PublicFormSessionDto> session = publicFormService.findSession(channelId, token);
+        resolvedChannelId.ifPresent(id -> publicFormService.recordSessionLookup(id, session.isPresent()));
         if (session.isEmpty()) {
             log.warn("Public form session not found for channel {}, token {}", channelId, token);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
