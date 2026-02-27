@@ -65,12 +65,15 @@ public class PublicFormService {
 
     @Transactional(readOnly = true)
     public Optional<PublicFormConfig> loadConfig(String channelRef) {
+        return loadConfigRaw(channelRef).filter(PublicFormConfig::enabled);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<PublicFormConfig> loadConfigRaw(String channelRef) {
         if (channelRef != null && channelRef.trim().equalsIgnoreCase("demo")) {
             return Optional.of(buildDemoConfig());
         }
-        return resolveChannel(channelRef)
-                .map(this::toConfig)
-                .filter(PublicFormConfig::enabled);
+        return resolveChannel(channelRef).map(this::toConfig);
     }
 
     public PublicFormSessionDto createSession(String channelRef, PublicFormSubmission submission, String requesterKey) {
@@ -247,7 +250,7 @@ public class PublicFormService {
                 : String.valueOf(channel.getId());
         ParsedPublicFormSettings settings = parseSettings(channel);
         return new PublicFormConfig(channel.getId(), publicId, channel.getChannelName(), settings.schemaVersion(), settings.enabled(),
-                settings.captchaEnabled(), questions);
+                settings.captchaEnabled(), settings.disabledStatus(), questions);
     }
 
     private PublicFormConfig buildDemoConfig() {
@@ -263,7 +266,7 @@ public class PublicFormService {
                 new PublicFormQuestion("details", "Опишите ситуацию подробнее", "textarea", 5, Map.of("rows", 3, "maxLength", 1000))
         );
 
-        return new PublicFormConfig(0L, "demo", "Демо-канал", 1, true, false, demoQuestions);
+        return new PublicFormConfig(0L, "demo", "Демо-канал", 1, true, false, 404, demoQuestions);
     }
 
     private List<PublicFormQuestion> parseQuestions(Channel channel) {
@@ -288,18 +291,19 @@ public class PublicFormService {
             if (root.isArray()) {
                 List<Map<String, Object>> fields = objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
                 });
-                return new ParsedPublicFormSettings(1, true, false, fields);
+                return new ParsedPublicFormSettings(1, true, false, 404, fields);
             }
             if (root.isObject()) {
                 int schemaVersion = Math.max(1, root.path("schemaVersion").asInt(1));
                 boolean enabled = !root.has("enabled") || root.path("enabled").asBoolean(true);
                 boolean captchaEnabled = root.path("captchaEnabled").asBoolean(false);
+                int disabledStatus = normalizeDisabledStatus(root.path("disabledStatus").asInt(404));
                 JsonNode fieldsNode = root.path("fields");
                 List<Map<String, Object>> fields = fieldsNode.isArray()
                         ? objectMapper.convertValue(fieldsNode, new TypeReference<List<Map<String, Object>>>() {
                         })
                         : List.of();
-                return new ParsedPublicFormSettings(schemaVersion, enabled, captchaEnabled, fields);
+                return new ParsedPublicFormSettings(schemaVersion, enabled, captchaEnabled, disabledStatus, fields);
             }
             return ParsedPublicFormSettings.defaults();
         } catch (Exception ex) {
@@ -507,12 +511,17 @@ public class PublicFormService {
         return value != null ? value.toString() : null;
     }
 
+    private int normalizeDisabledStatus(int value) {
+        return value == 410 ? 410 : 404;
+    }
+
     private record ParsedPublicFormSettings(int schemaVersion,
                                             boolean enabled,
                                             boolean captchaEnabled,
+                                            int disabledStatus,
                                             List<Map<String, Object>> fields) {
         private static ParsedPublicFormSettings defaults() {
-            return new ParsedPublicFormSettings(1, true, false, List.of());
+            return new ParsedPublicFormSettings(1, true, false, 404, List.of());
         }
     }
 }

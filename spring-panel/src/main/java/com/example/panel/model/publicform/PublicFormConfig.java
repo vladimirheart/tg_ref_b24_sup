@@ -8,5 +8,6 @@ public record PublicFormConfig(Long channelId,
                                Integer schemaVersion,
                                boolean enabled,
                                boolean captchaEnabled,
+                               int disabledStatus,
                                List<PublicFormQuestion> questions) {
 }
