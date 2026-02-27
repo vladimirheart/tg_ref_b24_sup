@@ -215,6 +215,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
+                || payload.containsKey("dialog_workspace_client_extra_attributes_max")
+                || payload.containsKey("dialog_workspace_client_extra_attributes_collapse_after")
+                || payload.containsKey("dialog_workspace_client_extra_attributes_hide_technical")
                 || payload.containsKey("dialog_workspace_context_history_limit")
                 || payload.containsKey("dialog_workspace_context_related_events_limit")
                 || payload.containsKey("dialog_workspace_segment_high_lifetime_volume_min_dialogs")
@@ -471,6 +474,18 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_attribute_order")) {
                     dialogConfig.put("workspace_client_attribute_order",
                             payload.get("dialog_workspace_client_attribute_order"));
+                }
+                if (payload.containsKey("dialog_workspace_client_extra_attributes_max")) {
+                    dialogConfig.put("workspace_client_extra_attributes_max",
+                            payload.get("dialog_workspace_client_extra_attributes_max"));
+                }
+                if (payload.containsKey("dialog_workspace_client_extra_attributes_collapse_after")) {
+                    dialogConfig.put("workspace_client_extra_attributes_collapse_after",
+                            payload.get("dialog_workspace_client_extra_attributes_collapse_after"));
+                }
+                if (payload.containsKey("dialog_workspace_client_extra_attributes_hide_technical")) {
+                    dialogConfig.put("workspace_client_extra_attributes_hide_technical",
+                            payload.get("dialog_workspace_client_extra_attributes_hide_technical"));
                 }
                 if (payload.containsKey("dialog_workspace_context_history_limit")) {
                     dialogConfig.put("workspace_context_history_limit",
