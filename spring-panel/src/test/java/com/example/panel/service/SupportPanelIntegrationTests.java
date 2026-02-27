@@ -297,6 +297,45 @@ class SupportPanelIntegrationTests {
         assertThat(session.ticketId()).startsWith("web-");
     }
 
+
+    @Test
+    void publicFormServiceStripsHtmlTagsWhenEnabledAndCanBeDisabledFromSettings() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (33, 'web-strip', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-strip', ?)",
+                "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_strip_html_tags\":true}");
+
+        PublicFormSubmission sanitized = new PublicFormSubmission("<b>Нужна</b> помощь <script>alert(1)</script>", "<b>Анна</b>", "+79991234567", "anna", null,
+                Map.of("details", "<i>Срочно</i> нужна <u>помощь</u>"), null);
+        PublicFormSessionDto sanitizedSession = publicFormService.createSession("web-strip", sanitized, "ip-strip-on");
+
+        String sanitizedHistory = jdbcTemplate.queryForObject(
+                "SELECT message FROM chat_history WHERE ticket_id = ? ORDER BY created_at DESC LIMIT 1",
+                String.class,
+                sanitizedSession.ticketId());
+        assertThat(sanitizedHistory).contains("Нужна помощь alert(1)").doesNotContain("<b>").doesNotContain("<script>");
+        String sanitizedClientName = jdbcTemplate.queryForObject(
+                "SELECT client_name FROM web_form_sessions WHERE ticket_id = ?",
+                String.class,
+                sanitizedSession.ticketId());
+        assertThat(sanitizedClientName).isEqualTo("Анна");
+
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (34, 'web-strip-off', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-strip-off', ?)",
+                "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_strip_html_tags\":false}");
+
+        PublicFormSubmission raw = new PublicFormSubmission("<b>Нужна</b> помощь", "<b>Олег</b>", "+79990000000", "oleg", null,
+                Map.of("details", "<i>Не трогать HTML</i>"), null);
+        PublicFormSessionDto rawSession = publicFormService.createSession("web-strip-off", raw, "ip-strip-off");
+
+        String rawHistory = jdbcTemplate.queryForObject(
+                "SELECT message FROM chat_history WHERE ticket_id = ? ORDER BY created_at DESC LIMIT 1",
+                String.class,
+                rawSession.ticketId());
+        assertThat(rawHistory).contains("<b>Нужна</b>").contains("<i>Не трогать HTML</i>");
+    }
+
     @Test
     void publicFormServiceCollectsRuntimeMetricsWhenEnabled() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (31, 'web-metrics', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-metrics')");
