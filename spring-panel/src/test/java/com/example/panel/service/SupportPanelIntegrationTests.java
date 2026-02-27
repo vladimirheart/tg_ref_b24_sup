@@ -144,6 +144,12 @@ class SupportPanelIntegrationTests {
         assertThat(loaded.clientName()).isEqualTo("Анна");
 
         assertThat(dialogService.loadHistory(session.ticketId(), null)).isNotEmpty();
+        assertThat(dialogService.loadDialogs(null)).extracting("ticketId").contains(session.ticketId());
+
+        Integer ticketCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tickets WHERE ticket_id = ?", Integer.class, session.ticketId());
+        Integer messageCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages WHERE ticket_id = ?", Integer.class, session.ticketId());
+        assertThat(ticketCount).isEqualTo(1);
+        assertThat(messageCount).isEqualTo(1);
     }
 
 

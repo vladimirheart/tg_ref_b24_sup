@@ -2,6 +2,9 @@ package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.ChatHistory;
+import com.example.panel.entity.Message;
+import com.example.panel.entity.Ticket;
+import com.example.panel.entity.TicketId;
 import com.example.panel.entity.WebFormSession;
 import com.example.panel.model.publicform.PublicFormConfig;
 import com.example.panel.model.publicform.PublicFormQuestion;
@@ -9,6 +12,8 @@ import com.example.panel.model.publicform.PublicFormSessionDto;
 import com.example.panel.model.publicform.PublicFormSubmission;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.ChatHistoryRepository;
+import com.example.panel.repository.MessageRepository;
+import com.example.panel.repository.TicketRepository;
 import com.example.panel.repository.WebFormSessionRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -52,20 +57,27 @@ public class PublicFormService {
     private final ChannelRepository channelRepository;
     private final WebFormSessionRepository sessionRepository;
     private final ChatHistoryRepository chatHistoryRepository;
+    private final TicketRepository ticketRepository;
+    private final MessageRepository messageRepository;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
     private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
     private final Map<Long, PublicFormMetricsAccumulator> metricsByChannel = new ConcurrentHashMap<>();
+    private final AtomicLong syntheticMessageId = new AtomicLong(System.currentTimeMillis());
 
     public PublicFormService(ChannelRepository channelRepository,
                              WebFormSessionRepository sessionRepository,
                              ChatHistoryRepository chatHistoryRepository,
+                             TicketRepository ticketRepository,
+                             MessageRepository messageRepository,
                              ObjectMapper objectMapper,
                              SharedConfigService sharedConfigService) {
         this.channelRepository = channelRepository;
         this.sessionRepository = sessionRepository;
         this.chatHistoryRepository = chatHistoryRepository;
+        this.ticketRepository = ticketRepository;
+        this.messageRepository = messageRepository;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
     }
@@ -112,6 +124,7 @@ public class PublicFormService {
         session.setChannel(channel);
         session.setToken(generateToken());
         session.setTicketId(generateTicketId());
+        session.setUserId(generateSyntheticUserId(channel.getId(), requesterKey));
         session.setAnswersJson(writeJson(answers));
         session.setClientName(resolveClientName(submission, answers));
         session.setClientContact(trim(submission.clientContact()));
@@ -119,6 +132,7 @@ public class PublicFormService {
         OffsetDateTime now = OffsetDateTime.now();
         session.setCreatedAt(now);
         session.setLastActiveAt(now);
+        createTicketProjection(channel, session, submission, answers, now);
         WebFormSession saved = sessionRepository.save(session);
 
         ChatHistory history = new ChatHistory();
@@ -142,6 +156,63 @@ public class PublicFormService {
         );
         cacheIdempotentSession(channel, requesterKey, requestId, payloadHash, result);
         return result;
+    }
+
+    private void createTicketProjection(Channel channel,
+                                        WebFormSession session,
+                                        PublicFormSubmission submission,
+                                        Map<String, String> answers,
+                                        OffsetDateTime now) {
+        Ticket ticket = new Ticket();
+        TicketId ticketId = new TicketId();
+        ticketId.setTicketId(session.getTicketId());
+        ticketId.setUserId(session.getUserId());
+        ticket.setId(ticketId);
+        ticket.setGroupMessageId(nextSyntheticMessageId());
+        ticket.setStatus("open");
+        ticket.setChannel(channel);
+        ticket.setReopenCount(0);
+        ticket.setClosedCount(0);
+        ticket.setWorkTimeTotalSec(0L);
+        ticketRepository.save(ticket);
+
+        Message message = new Message();
+        message.setId(ticket.getGroupMessageId());
+        message.setUserId(session.getUserId());
+        message.setBusiness(firstNonBlankAnswer(answers, "business", "department"));
+        message.setCity(firstNonBlankAnswer(answers, "city"));
+        message.setLocationName(firstNonBlankAnswer(answers, "location", "location_name", "office"));
+        message.setProblem(trim(submission.message()));
+        message.setCreatedAt(now);
+        message.setUsername(session.getUsername());
+        message.setTicketId(session.getTicketId());
+        message.setCreatedDate(now.toLocalDate());
+        message.setCreatedTime(now.toLocalTime().withNano(0).toString());
+        message.setClientName(session.getClientName());
+        message.setChannel(channel);
+        message.setUpdatedAt(now);
+        message.setUpdatedBy("public_form");
+        messageRepository.save(message);
+    }
+
+    private Long nextSyntheticMessageId() {
+        return syntheticMessageId.incrementAndGet();
+    }
+
+    private long generateSyntheticUserId(Long channelId, String requesterKey) {
+        String seed = (channelId == null ? "0" : channelId.toString()) + "|"
+                + (requesterKey == null ? "anon" : requesterKey.trim());
+        return 900_000_000L + Integer.toUnsignedLong(seed.hashCode());
+    }
+
+    private String firstNonBlankAnswer(Map<String, String> answers, String... keys) {
+        for (String key : keys) {
+            String value = answers.get(key);
+            if (StringUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     public void recordConfigView(Long channelId) {
