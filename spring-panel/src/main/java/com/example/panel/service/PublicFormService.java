@@ -293,7 +293,6 @@ public class PublicFormService {
         return payload;
     }
 
-    @Transactional(readOnly = true)
     public Optional<PublicFormSessionDto> findSession(String channelRef, String token) {
         if (!StringUtils.hasText(token)) {
             return Optional.empty();
@@ -302,8 +301,10 @@ public class PublicFormService {
                 .flatMap(channel -> sessionRepository.findByToken(token)
                         .filter(session -> session.getChannel() != null && session.getChannel().getId().equals(channel.getId()))
                         .filter(this::isSessionActive)
-                        .map(session -> new PublicFormSessionDto(
-                                session.getToken(),
+                        .map(session -> {
+                            WebFormSession persistedSession = maybeRotateSessionToken(session);
+                            return new PublicFormSessionDto(
+                                persistedSession.getToken(),
                                 session.getTicketId(),
                                 channel.getId(),
                                 channel.getPublicId(),
@@ -311,7 +312,17 @@ public class PublicFormService {
                                 session.getClientContact(),
                                 session.getUsername(),
                                 session.getCreatedAt()
-                        )));
+                            );
+                        }));
+    }
+
+    private WebFormSession maybeRotateSessionToken(WebFormSession session) {
+        if (!readDialogConfigBoolean("public_form_session_token_rotate_on_read", false)) {
+            return session;
+        }
+        session.setToken(generateToken());
+        session.setLastActiveAt(OffsetDateTime.now());
+        return sessionRepository.save(session);
     }
 
     private boolean isSessionActive(WebFormSession session) {
