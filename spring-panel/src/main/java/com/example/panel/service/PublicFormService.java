@@ -52,6 +52,8 @@ public class PublicFormService {
     private static final Logger log = LoggerFactory.getLogger(PublicFormService.class);
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern PHONE_PATTERN = Pattern.compile("^[+]?[-()\\s0-9]{6,20}$");
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("(?i)<\\/?[a-z][^>]*>");
+    private static final Pattern CONTROL_CHARS_PATTERN = Pattern.compile("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]");
     private static final int DEFAULT_MESSAGE_MAX_LENGTH = 4000;
     private static final int DEFAULT_ANSWERS_TOTAL_MAX_LENGTH = 6000;
 
@@ -110,9 +112,11 @@ public class PublicFormService {
         if (!config.enabled()) {
             throw new IllegalArgumentException("Форма канала временно отключена");
         }
-        Map<String, String> answers = sanitizeAnswers(submission.answers());
+        boolean stripHtmlTags = readDialogConfigBoolean("public_form_strip_html_tags", true);
+        PublicFormSubmission normalizedSubmission = normalizeSubmission(submission, stripHtmlTags);
+        Map<String, String> answers = sanitizeAnswers(submission.answers(), stripHtmlTags);
         String requestId = normalizeRequestId(submission.requestId());
-        String payloadHash = buildPayloadHash(submission, answers);
+        String payloadHash = buildPayloadHash(normalizedSubmission, answers);
         Optional<PublicFormSessionDto> duplicate = findIdempotentSession(channel, requesterKey, requestId, payloadHash);
         if (duplicate.isPresent()) {
             log.info("Public form idempotency hit for channel {} requester {} requestId {}", channel.getId(), requesterKey, requestId);
@@ -120,9 +124,9 @@ public class PublicFormService {
         }
 
         enforceRateLimit(channel, requesterKey);
-        enforceCaptcha(config, submission);
-        validateSubmission(config, submission, answers);
-        String combinedMessage = buildCombinedMessage(config, answers, submission.message());
+        enforceCaptcha(config, normalizedSubmission);
+        validateSubmission(config, normalizedSubmission, answers);
+        String combinedMessage = buildCombinedMessage(config, answers, normalizedSubmission.message());
 
         WebFormSession session = new WebFormSession();
         session.setChannel(channel);
@@ -130,13 +134,13 @@ public class PublicFormService {
         session.setTicketId(generateTicketId());
         session.setUserId(generateSyntheticUserId(channel.getId(), requesterKey));
         session.setAnswersJson(writeJson(answers));
-        session.setClientName(resolveClientName(submission, answers));
-        session.setClientContact(trim(submission.clientContact()));
-        session.setUsername(StringUtils.hasText(submission.username()) ? submission.username().trim() : "web_form");
+        session.setClientName(resolveClientName(normalizedSubmission, answers));
+        session.setClientContact(trim(normalizedSubmission.clientContact()));
+        session.setUsername(StringUtils.hasText(normalizedSubmission.username()) ? normalizedSubmission.username().trim() : "web_form");
         OffsetDateTime now = OffsetDateTime.now();
         session.setCreatedAt(now);
         session.setLastActiveAt(now);
-        createTicketProjection(channel, session, submission, answers, now);
+        createTicketProjection(channel, session, normalizedSubmission, answers, now);
         WebFormSession saved = sessionRepository.save(session);
 
         ChatHistory history = new ChatHistory();
@@ -628,17 +632,45 @@ public class PublicFormService {
         return new PublicFormQuestion(id, text, type, order, metadata);
     }
 
-    private Map<String, String> sanitizeAnswers(Map<String, String> source) {
+    private Map<String, String> sanitizeAnswers(Map<String, String> source, boolean stripHtmlTags) {
         if (source == null || source.isEmpty()) {
             return Collections.emptyMap();
         }
         Map<String, String> result = new LinkedHashMap<>();
         source.forEach((key, value) -> {
             if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
-                result.put(key.trim(), value.trim());
+                String normalizedValue = normalizeFreeText(value, stripHtmlTags);
+                if (StringUtils.hasText(normalizedValue)) {
+                    result.put(key.trim(), normalizedValue);
+                }
             }
         });
         return result;
+    }
+
+    private PublicFormSubmission normalizeSubmission(PublicFormSubmission submission, boolean stripHtmlTags) {
+        return new PublicFormSubmission(
+                normalizeFreeText(submission.message(), stripHtmlTags),
+                normalizeFreeText(submission.clientName(), stripHtmlTags),
+                normalizeFreeText(submission.clientContact(), stripHtmlTags),
+                normalizeFreeText(submission.username(), stripHtmlTags),
+                submission.captchaToken(),
+                submission.answers(),
+                submission.requestId()
+        );
+    }
+
+    private String normalizeFreeText(String value, boolean stripHtmlTags) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (stripHtmlTags) {
+            normalized = HTML_TAG_PATTERN.matcher(normalized).replaceAll("");
+        }
+        normalized = CONTROL_CHARS_PATTERN.matcher(normalized).replaceAll("");
+        normalized = normalized.trim();
+        return StringUtils.hasText(normalized) ? normalized : null;
     }
 
     private String buildCombinedMessage(PublicFormConfig config, Map<String, String> answers, String message) {

@@ -564,6 +564,10 @@ public class SettingsBridgeController {
                     dialogConfig.put("public_form_metrics_enabled",
                             payload.get("dialog_public_form_metrics_enabled"));
                 }
+                if (payload.containsKey("dialog_public_form_strip_html_tags")) {
+                    dialogConfig.put("public_form_strip_html_tags",
+                            payload.get("dialog_public_form_strip_html_tags"));
+                }
                 if (payload.containsKey("dialog_public_form_captcha_shared_secret")) {
                     dialogConfig.put("public_form_captcha_shared_secret",
                             payload.get("dialog_public_form_captcha_shared_secret"));
