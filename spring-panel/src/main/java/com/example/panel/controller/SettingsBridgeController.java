@@ -232,6 +232,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_public_form_rate_limit_enabled")
                 || payload.containsKey("dialog_public_form_rate_limit_window_seconds")
                 || payload.containsKey("dialog_public_form_rate_limit_max_requests")
+                || payload.containsKey("dialog_public_form_rate_limit_use_fingerprint")
                 || payload.containsKey("dialog_public_form_metrics_enabled")
                 || payload.containsKey("dialog_public_form_captcha_shared_secret")
                 || payload.containsKey("dialog_public_form_session_polling_enabled")
@@ -554,6 +555,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_public_form_rate_limit_max_requests")) {
                     dialogConfig.put("public_form_rate_limit_max_requests",
                             payload.get("dialog_public_form_rate_limit_max_requests"));
+                }
+                if (payload.containsKey("dialog_public_form_rate_limit_use_fingerprint")) {
+                    dialogConfig.put("public_form_rate_limit_use_fingerprint",
+                            payload.get("dialog_public_form_rate_limit_use_fingerprint"));
                 }
                 if (payload.containsKey("dialog_public_form_metrics_enabled")) {
                     dialogConfig.put("public_form_metrics_enabled",
