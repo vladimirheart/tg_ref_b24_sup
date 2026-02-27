@@ -307,6 +307,19 @@
     60000,
   );
   const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
+  const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX = normalizeNumberInRange(
+    window.DIALOG_CONFIG?.workspace_client_extra_attributes_max,
+    20,
+    1,
+    100,
+  );
+  const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER = normalizeNumberInRange(
+    window.DIALOG_CONFIG?.workspace_client_extra_attributes_collapse_after,
+    8,
+    1,
+    50,
+  );
+  const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_HIDE_TECHNICAL = window.DIALOG_CONFIG?.workspace_client_extra_attributes_hide_technical !== false;
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
@@ -2875,7 +2888,19 @@
         .filter(([key, value]) => !reservedClientKeys.has(key) && isWorkspaceClientExtraValue(value)),
       extraAttributeOrder,
     );
-    const extraRows = orderedExtraEntries
+    const filteredExtraEntries = orderedExtraEntries
+      .filter(([key]) => {
+        if (!WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_HIDE_TECHNICAL) {
+          return true;
+        }
+        const normalized = normalizeWorkspaceClientAttributeKey(key);
+        return normalized && !normalized.startsWith('_') && !normalized.startsWith('internal_');
+      });
+    const limitedExtraEntries = filteredExtraEntries.slice(0, WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX);
+    const hiddenExtraCount = Math.max(0, filteredExtraEntries.length - limitedExtraEntries.length);
+    const collapsedExtraCount = Math.max(0, limitedExtraEntries.length - WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER);
+
+    const extraRows = limitedExtraEntries
       .map(([key, value]) => {
         const label = extraAttributeLabelMap.get(normalizeWorkspaceClientAttributeKey(key)) || prettifyWorkspaceClientExtraKey(key);
         return `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(formatWorkspaceClientExtraValue(value))}</span></div>`;
@@ -2888,7 +2913,10 @@
       : '';
 
     const extraSection = extraRows
-      ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>${extraRows}`
+      ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>
+        <div>${extraRows}</div>
+        ${collapsedExtraCount > 0 ? `<div class="small text-muted mt-1">Показаны первые ${WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER} из ${limitedExtraEntries.length}; остальные ${collapsedExtraCount} доступны в карточке клиента.</div>` : ''}
+        ${hiddenExtraCount > 0 ? `<div class="small text-muted">Скрыто по лимиту: ${hiddenExtraCount}.</div>` : ''}`
       : '';
 
     const externalLinks = (client.external_links && typeof client.external_links === 'object')
