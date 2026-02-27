@@ -34,12 +34,12 @@
         successBox.classList.add('d-none');
     }
 
-    function setSubmitting(isSubmitting) {
+    function setSubmitting(isSubmitting, label) {
         if (!submitButton) {
             return;
         }
         submitButton.disabled = isSubmitting;
-        submitButton.textContent = isSubmitting ? 'Отправляем…' : 'Отправить';
+        submitButton.textContent = label || (isSubmitting ? 'Отправляем…' : 'Отправить');
     }
 
     function renderMessages(messages) {
@@ -105,6 +105,12 @@
             });
             return el;
         }
+        if (question.type === 'checkbox') {
+            const input = document.createElement('input');
+            input.className = 'form-check-input';
+            input.type = 'checkbox';
+            return input;
+        }
         const input = document.createElement('input');
         input.className = 'form-control';
         input.type = ['email', 'phone'].includes(question.type) ? (question.type === 'phone' ? 'tel' : 'email') : 'text';
@@ -125,24 +131,38 @@
             const label = document.createElement('label');
             label.className = 'form-label';
             label.textContent = question.text;
-            wrapper.appendChild(label);
 
             const control = makeQuestionControl(question);
             control.name = `answer_${question.id}`;
             control.dataset.questionId = question.id;
-            if (question.placeholder && control.tagName !== 'SELECT') {
-                control.placeholder = question.placeholder;
+
+            if (question.type === 'checkbox') {
+                const checkboxWrap = document.createElement('div');
+                checkboxWrap.className = 'form-check';
+                checkboxWrap.appendChild(control);
+                const checkboxLabel = document.createElement('label');
+                checkboxLabel.className = 'form-check-label';
+                checkboxLabel.textContent = question.placeholder || 'Подтверждаю';
+                checkboxWrap.appendChild(checkboxLabel);
+                wrapper.appendChild(label);
+                wrapper.appendChild(checkboxWrap);
+            } else {
+                wrapper.appendChild(label);
+                if (question.placeholder && control.tagName !== 'SELECT') {
+                    control.placeholder = question.placeholder;
+                }
+                if (question.maxLength > 0 && control.tagName !== 'SELECT') {
+                    control.maxLength = question.maxLength;
+                }
+                if (question.minLength > 0) {
+                    control.minLength = question.minLength;
+                }
+                wrapper.appendChild(control);
             }
+
             if (question.required) {
                 control.required = true;
             }
-            if (question.minLength > 0) {
-                control.minLength = question.minLength;
-            }
-            if (question.maxLength > 0 && control.tagName !== 'SELECT') {
-                control.maxLength = question.maxLength;
-            }
-            wrapper.appendChild(control);
 
             const invalid = document.createElement('div');
             invalid.className = 'invalid-feedback';
@@ -163,6 +183,10 @@
     function buildAnswers(formData) {
         const answers = {};
         activeQuestions.forEach(question => {
+            if (question.type === 'checkbox') {
+                answers[question.id] = formData.get(`answer_${question.id}`) ? 'true' : 'false';
+                return;
+            }
             const raw = formData.get(`answer_${question.id}`);
             const value = typeof raw === 'string' ? raw.trim() : '';
             if (value) {
@@ -175,23 +199,24 @@
     function validateAnswers(answers) {
         for (const question of activeQuestions) {
             const value = answers[question.id] || '';
+            if (question.type === 'checkbox') {
+                const isChecked = value === 'true' || value === '1';
+                if (question.required && !isChecked) {
+                    return `Подтвердите поле: ${question.text}`;
+                }
+                continue;
+            }
             if (question.required && !value) {
                 return `Заполните поле: ${question.text}`;
             }
             if (!value) {
                 continue;
             }
-            if (question.type === 'email') {
-                const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-                if (!ok) {
-                    return `Проверьте email в поле «${question.text}».`;
-                }
+            if (question.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                return `Проверьте email в поле «${question.text}».`;
             }
-            if (question.type === 'phone') {
-                const ok = /^[+]?[-()\s0-9]{6,20}$/.test(value);
-                if (!ok) {
-                    return `Проверьте телефон в поле «${question.text}».`;
-                }
+            if (question.type === 'phone' && !/^[+]?[-()\s0-9]{6,20}$/.test(value)) {
+                return `Проверьте телефон в поле «${question.text}».`;
             }
             if (question.type === 'select' && question.options.length > 0 && !question.options.includes(value)) {
                 return `Выберите корректный вариант в поле «${question.text}».`;
@@ -205,7 +230,6 @@
         }
         return null;
     }
-
 
     function renderCaptcha() {
         const container = document.querySelector('[data-role="captcha-container"]');
@@ -254,6 +278,37 @@
         }
     }
 
+    async function submitWithRetry(payload, attempts = 2) {
+        let lastError;
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            setSubmitting(true, attempt > 1 ? `Повторная отправка (${attempt}/${attempts})…` : 'Отправляем…');
+            try {
+                const response = await fetch(`${apiBase}/sessions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.success) {
+                    if (response.status >= 500 && attempt < attempts) {
+                        lastError = new Error(data.error || 'Временная ошибка сервера');
+                        continue;
+                    }
+                    throw new Error(data.error || 'Не удалось создать обращение');
+                }
+                return data;
+            } catch (error) {
+                lastError = error;
+                if (attempt >= attempts) {
+                    throw error;
+                }
+            }
+        }
+        throw lastError || new Error('Не удалось создать обращение');
+    }
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         form.classList.add('was-validated');
@@ -277,27 +332,15 @@
             captchaToken: (formData.get('captchaToken') || '').toString().trim(),
         };
 
-        setSubmitting(true);
         try {
-            const response = await fetch(`${apiBase}/sessions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                showError(data.error || 'Не удалось создать обращение');
-                return;
-            }
-            showSuccess(`Обращение создано! Номер: ${data.ticketId}. Токен: ${data.token}`);
-            statusLabel.textContent = `Диалог ${data.ticketId} создан ${data.createdAt || ''}`;
+            const data = await submitWithRetry(payload, 2);
+            showSuccess(`Обращение создано! Номер: ${data.ticketId}. Сохраните токен: ${data.token}. Мы ответим в этом окне.`);
+            statusLabel.textContent = `Диалог ${data.ticketId} создан ${data.createdAt || ''}. Обновляйте страницу по этому токену.`;
             await loadSession(data.token);
         } catch (e) {
-            showError('Произошла ошибка. Попробуйте позже.');
+            showError(e?.message || 'Произошла ошибка. Попробуйте позже.');
         } finally {
-            setSubmitting(false);
+            setSubmitting(false, 'Отправить');
         }
     });
 

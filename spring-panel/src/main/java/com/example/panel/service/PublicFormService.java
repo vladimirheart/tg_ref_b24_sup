@@ -189,6 +189,15 @@ public class PublicFormService {
 
     private void validateByType(PublicFormQuestion question, String value) {
         String type = Optional.ofNullable(question.type()).orElse("text").toLowerCase(Locale.ROOT);
+        if ("checkbox".equals(type)) {
+            if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value) && !"1".equals(value) && !"0".equals(value)) {
+                throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» должно быть булевым значением");
+            }
+            if (isRequired(question) && !("true".equalsIgnoreCase(value) || "1".equals(value))) {
+                throw new IllegalArgumentException("Подтвердите поле: " + questionLabel(question));
+            }
+            return;
+        }
         if ("email".equals(type) && !EMAIL_PATTERN.matcher(value).matches()) {
             throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» должно содержать корректный email");
         }
