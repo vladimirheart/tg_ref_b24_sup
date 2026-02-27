@@ -68,7 +68,9 @@ public class PublicFormService {
         if (channelRef != null && channelRef.trim().equalsIgnoreCase("demo")) {
             return Optional.of(buildDemoConfig());
         }
-        return resolveChannel(channelRef).map(this::toConfig);
+        return resolveChannel(channelRef)
+                .map(this::toConfig)
+                .filter(PublicFormConfig::enabled);
     }
 
     public PublicFormSessionDto createSession(String channelRef, PublicFormSubmission submission, String requesterKey) {
@@ -79,7 +81,11 @@ public class PublicFormService {
         }
 
         PublicFormConfig config = toConfig(channel);
+        if (!config.enabled()) {
+            throw new IllegalArgumentException("Форма канала временно отключена");
+        }
         enforceRateLimit(channel, requesterKey);
+        enforceCaptcha(config, submission);
         validateSubmission(config, submission);
 
         Map<String, String> answers = sanitizeAnswers(submission.answers());
@@ -127,6 +133,7 @@ public class PublicFormService {
         return resolveChannel(channelRef)
                 .flatMap(channel -> sessionRepository.findByToken(token)
                         .filter(session -> session.getChannel() != null && session.getChannel().getId().equals(channel.getId()))
+                        .filter(this::isSessionActive)
                         .map(session -> new PublicFormSessionDto(
                                 session.getToken(),
                                 session.getTicketId(),
@@ -137,6 +144,15 @@ public class PublicFormService {
                                 session.getUsername(),
                                 session.getCreatedAt()
                         )));
+    }
+
+    private boolean isSessionActive(WebFormSession session) {
+        int ttlHours = readDialogConfigInt("public_form_session_ttl_hours", 72, 1, 24 * 30);
+        OffsetDateTime createdAt = session.getCreatedAt();
+        if (createdAt == null) {
+            return true;
+        }
+        return createdAt.plusHours(ttlHours).isAfter(OffsetDateTime.now());
     }
 
     private void validateSubmission(PublicFormConfig config, PublicFormSubmission submission) {
@@ -229,7 +245,9 @@ public class PublicFormService {
         String publicId = StringUtils.hasText(channel.getPublicId())
                 ? channel.getPublicId()
                 : String.valueOf(channel.getId());
-        return new PublicFormConfig(channel.getId(), publicId, channel.getChannelName(), questions);
+        ParsedPublicFormSettings settings = parseSettings(channel);
+        return new PublicFormConfig(channel.getId(), publicId, channel.getChannelName(), settings.schemaVersion(), settings.enabled(),
+                settings.captchaEnabled(), questions);
     }
 
     private PublicFormConfig buildDemoConfig() {
@@ -245,29 +263,62 @@ public class PublicFormService {
                 new PublicFormQuestion("details", "Опишите ситуацию подробнее", "textarea", 5, Map.of("rows", 3, "maxLength", 1000))
         );
 
-        return new PublicFormConfig(0L, "demo", "Демо-канал", demoQuestions);
+        return new PublicFormConfig(0L, "demo", "Демо-канал", 1, true, false, demoQuestions);
     }
 
     private List<PublicFormQuestion> parseQuestions(Channel channel) {
+        ParsedPublicFormSettings settings = parseSettings(channel);
+        if (settings.fields().isEmpty()) {
+            return List.of();
+        }
+        AtomicInteger index = new AtomicInteger(0);
+        return settings.fields().stream()
+                .map(entry -> normalizeQuestion(entry, index.incrementAndGet()))
+                .sorted((a, b) -> Integer.compare(Optional.ofNullable(a.order()).orElse(0), Optional.ofNullable(b.order()).orElse(0)))
+                .toList();
+    }
+
+    private ParsedPublicFormSettings parseSettings(Channel channel) {
         String payload = channel.getQuestionsCfg();
         if (!StringUtils.hasText(payload)) {
-            return List.of();
+            return ParsedPublicFormSettings.defaults();
         }
         try {
             JsonNode root = objectMapper.readTree(payload);
-            if (!root.isArray()) {
-                return List.of();
+            if (root.isArray()) {
+                List<Map<String, Object>> fields = objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
+                });
+                return new ParsedPublicFormSettings(1, true, false, fields);
             }
-            AtomicInteger index = new AtomicInteger(0);
-            return objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
-                    })
-                    .stream()
-                    .map(entry -> normalizeQuestion(entry, index.incrementAndGet()))
-                    .sorted((a, b) -> Integer.compare(Optional.ofNullable(a.order()).orElse(0), Optional.ofNullable(b.order()).orElse(0)))
-                    .toList();
+            if (root.isObject()) {
+                int schemaVersion = Math.max(1, root.path("schemaVersion").asInt(1));
+                boolean enabled = !root.has("enabled") || root.path("enabled").asBoolean(true);
+                boolean captchaEnabled = root.path("captchaEnabled").asBoolean(false);
+                JsonNode fieldsNode = root.path("fields");
+                List<Map<String, Object>> fields = fieldsNode.isArray()
+                        ? objectMapper.convertValue(fieldsNode, new TypeReference<List<Map<String, Object>>>() {
+                        })
+                        : List.of();
+                return new ParsedPublicFormSettings(schemaVersion, enabled, captchaEnabled, fields);
+            }
+            return ParsedPublicFormSettings.defaults();
         } catch (Exception ex) {
             log.warn("Failed to parse questions configuration for channel {}: {}", channel.getId(), ex.getMessage());
-            return List.of();
+            return ParsedPublicFormSettings.defaults();
+        }
+    }
+
+    private void enforceCaptcha(PublicFormConfig config, PublicFormSubmission submission) {
+        if (!config.captchaEnabled()) {
+            return;
+        }
+        String expected = value(readDialogConfig().get("public_form_captcha_shared_secret"));
+        String token = submission.captchaToken();
+        if (!StringUtils.hasText(expected)) {
+            throw new IllegalArgumentException("CAPTCHA включена, но секрет не настроен");
+        }
+        if (!StringUtils.hasText(token) || !expected.trim().equals(token.trim())) {
+            throw new IllegalArgumentException("Проверка CAPTCHA не пройдена");
         }
     }
 
@@ -454,5 +505,14 @@ public class PublicFormService {
 
     private String value(Object value) {
         return value != null ? value.toString() : null;
+    }
+
+    private record ParsedPublicFormSettings(int schemaVersion,
+                                            boolean enabled,
+                                            boolean captchaEnabled,
+                                            List<Map<String, Object>> fields) {
+        private static ParsedPublicFormSettings defaults() {
+            return new ParsedPublicFormSettings(1, true, false, List.of());
+        }
     }
 }

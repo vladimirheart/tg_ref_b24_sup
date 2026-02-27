@@ -3662,6 +3662,7 @@
             </div>
             <div class="mt-2 text-muted small">
               ID для форм: <span class="font-monospace" data-channel-editor-public-id>—</span>
+              <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" id="channelEditorRegeneratePublicIdBtn">Регенерировать</button>
             </div>
             <div class="text-muted small">Токен: <span class="font-monospace" data-channel-editor-token>—</span></div>
             <div class="text-muted small" data-channel-editor-meta></div>
@@ -3685,6 +3686,15 @@
             <input class="form-check-input" type="checkbox" id="channelEditorIsActive" />
             <label class="form-check-label" for="channelEditorIsActive">Канал активен</label>
             <div class="form-text" data-channel-editor-status-label>Канал выключен</div>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="channelEditorPublicFormEnabled" />
+            <label class="form-check-label" for="channelEditorPublicFormEnabled">Включить внешнюю форму для канала</label>
+          </div>
+          <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" id="channelEditorPublicFormCaptchaEnabled" />
+            <label class="form-check-label" for="channelEditorPublicFormCaptchaEnabled">Требовать CAPTCHA на публичной форме</label>
+            <div class="form-text">Токен сверяется с dialog_config.public_form_captcha_shared_secret.</div>
           </div>
           <div class="row g-3">
             <div class="col-12 col-md-4">
@@ -14545,6 +14555,9 @@
   const channelEditorBotEl = document.querySelector('[data-channel-editor-bot]');
   const channelEditorTokenEl = document.querySelector('[data-channel-editor-token]');
   const channelEditorPublicIdEl = document.querySelector('[data-channel-editor-public-id]');
+  const channelEditorRegeneratePublicIdBtn = document.getElementById('channelEditorRegeneratePublicIdBtn');
+  const channelEditorPublicFormEnabledInput = document.getElementById('channelEditorPublicFormEnabled');
+  const channelEditorPublicFormCaptchaEnabledInput = document.getElementById('channelEditorPublicFormCaptchaEnabled');
   const channelEditorMetaEl = document.querySelector('[data-channel-editor-meta]');
   const channelEditorHintEl = document.querySelector('[data-channel-editor-hint]');
   const channelEditorNewTokenInput = document.getElementById('channelEditorNewToken');
@@ -14738,6 +14751,12 @@
     }
     if (channelEditorMetaEl) {
       channelEditorMetaEl.textContent = `ID канала: #${channel.id}`;
+    }
+    if (channelEditorPublicFormEnabledInput) {
+      channelEditorPublicFormEnabledInput.checked = channel.questions_cfg?.enabled !== false;
+    }
+    if (channelEditorPublicFormCaptchaEnabledInput) {
+      channelEditorPublicFormCaptchaEnabledInput.checked = Boolean(channel.questions_cfg?.captchaEnabled);
     }
     if (channelEditorHintEl) {
       channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
@@ -15093,6 +15112,29 @@
     auto_action_template_id: getAutoActionTemplateSummary,
   };
 
+  function parseQuestionsCfg(raw) {
+    if (!raw) return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: [] };
+    if (Array.isArray(raw)) {
+      return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: raw };
+    }
+    if (typeof raw === "string") {
+      try {
+        return parseQuestionsCfg(JSON.parse(raw));
+      } catch (e) {
+        return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: [] };
+      }
+    }
+    if (typeof raw === "object") {
+      return {
+        schemaVersion: Number.parseInt(raw.schemaVersion || 1, 10) || 1,
+        enabled: raw.enabled !== false,
+        captchaEnabled: Boolean(raw.captchaEnabled),
+        fields: Array.isArray(raw.fields) ? raw.fields : [],
+      };
+    }
+    return { schemaVersion: 1, enabled: true, captchaEnabled: false, fields: [] };
+  }
+
   function parsePlatformConfig(raw) {
     if (!raw) return {};
     if (typeof raw === 'string') {
@@ -15156,6 +15198,7 @@
         vk_group_id: vkGroupId,
         support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
         delivery_settings: deliverySettings,
+        questions_cfg: parseQuestionsCfg(row.questions_cfg ?? row.questionsCfg),
       };
 
       CHANNELS_REGISTRY.set(String(row.id), prepared);
@@ -15364,23 +15407,25 @@
       schedule_simultaneous: channelEditorScheduleSimultaneousInput?.checked ?? false,
     };
 
-    const configPayload = {};
+    const currentChannel = CHANNELS_REGISTRY.get(String(id));
+    const existingQuestionsCfg = parseQuestionsCfg(currentChannel?.questions_cfg);
     if (channelEditorQuestionSelect && !channelEditorQuestionSelect.disabled) {
       const value = channelEditorQuestionSelect.value || '';
       body.question_template_id = value;
-      if (value) configPayload.question_template_id = value;
     }
     if (channelEditorRatingSelect && !channelEditorRatingSelect.disabled) {
       const value = channelEditorRatingSelect.value || '';
       body.rating_template_id = value;
-      if (value) configPayload.rating_template_id = value;
     }
     if (channelEditorAutoSelect && !channelEditorAutoSelect.disabled) {
       body.auto_action_template_id = channelEditorAutoSelect.value || '';
     }
-    if (Object.keys(configPayload).length) {
-      body.questions_cfg = configPayload;
-    }
+    body.questions_cfg = {
+      schemaVersion: Math.max(1, Number.parseInt(existingQuestionsCfg.schemaVersion || 1, 10) || 1),
+      enabled: channelEditorPublicFormEnabledInput?.checked !== false,
+      captchaEnabled: Boolean(channelEditorPublicFormCaptchaEnabledInput?.checked),
+      fields: Array.isArray(existingQuestionsCfg.fields) ? existingQuestionsCfg.fields : [],
+    };
 
     async function parseJsonSafe(response) {
       try {
@@ -15583,6 +15628,21 @@
   }
 
   function initChannelEditorControls() {
+    channelEditorRegeneratePublicIdBtn?.addEventListener('click', async () => {
+      if (channelEditorState.channelId === null) return;
+      try {
+        const resp = await fetch(`/api/channels/${channelEditorState.channelId}/public-id/regenerate`, { method: "POST" });
+        const data = await resp.json();
+        if (!resp.ok || data.success === false) {
+          throw new Error(data.error || ('HTTP ' + resp.status));
+        }
+        showPopup('Публичная ссылка пересоздана.');
+        await loadChannels();
+      } catch (error) {
+        showPopup('Ошибка регенерации: ' + error.message);
+      }
+    });
+
     channelEditorActiveInput?.addEventListener('change', () => {
       updateChannelEditorStatusLabel(channelEditorActiveInput.checked);
     });

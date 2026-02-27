@@ -44,6 +44,11 @@
                         <textarea class="form-control" name="message" rows="6" required></textarea>
                         <div class="invalid-feedback">Опишите проблему, чтобы мы могли помочь.</div>
                     </div>
+                    <div class="mb-3 d-none" data-role="captcha-container">
+                        <label class="form-label">CAPTCHA токен</label>
+                        <input type="text" class="form-control" name="captchaToken" placeholder="Введите токен CAPTCHA">
+                        <div class="form-text">Поле включается, если для канала активирована CAPTCHA-защита.</div>
+                    </div>
                     <button class="btn btn-primary w-100" type="submit">Отправить</button>
                     <div class="alert alert-danger mt-3 d-none" role="alert" data-role="error"></div>
                     <div class="alert alert-success mt-3 d-none" role="alert" data-role="success"></div>

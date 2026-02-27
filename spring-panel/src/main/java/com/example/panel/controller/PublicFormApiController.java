@@ -62,6 +62,8 @@ public class PublicFormApiController {
                 "publicId", config.get().channelPublicId(),
                 "name", config.get().channelName()
         ));
+        payload.put("schemaVersion", config.get().schemaVersion());
+        payload.put("captchaEnabled", config.get().captchaEnabled());
         payload.put("questions", config.get().questions().stream().map(this::questionToMap).toList());
         return ResponseEntity.ok(payload);
     }
@@ -153,9 +155,10 @@ public class PublicFormApiController {
                                     String clientName,
                                     String clientContact,
                                     String username,
+                                    String captchaToken,
                                     Map<String, String> answers) {
         public PublicFormSubmission toSubmission() {
-            return new PublicFormSubmission(message, clientName, clientContact, username, answers);
+            return new PublicFormSubmission(message, clientName, clientContact, username, captchaToken, answers);
         }
     }
 }
