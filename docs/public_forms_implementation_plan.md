@@ -173,3 +173,5 @@
 - [x] **Tests:** добавлены интеграционные тесты на idempotency-поведение (повтор с тем же payload и конфликт payload при том же `requestId`).
 - [x] **Observability:** добавлены runtime-метрики публичных форм (`views/submits/submitErrors/captchaFailures/rateLimitRejections`) с серверным endpoint `/api/dialogs/public-form-metrics` для операторского мониторинга.
 - [x] **Settings:** добавлен флаг `dialog_config.public_form_metrics_enabled` в разделе «Настройки → Диалоги», чтобы включать/выключать сбор form-метрик без деплоя.
+- [x] **Flow:** submit публичной формы теперь создаёт `tickets` + `messages` в основной доменной модели (не только `chat_history`), поэтому обращение сразу попадает в штатный список диалогов операторов.
+- [x] **Tests:** интеграционный тест `publicFormServiceCreatesSessionsAndHistory` расширен проверками на появление обращения в `DialogService.loadDialogs` и на фактические записи в `tickets/messages`.
