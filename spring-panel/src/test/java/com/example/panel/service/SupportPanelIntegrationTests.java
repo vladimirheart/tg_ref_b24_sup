@@ -247,6 +247,24 @@ class SupportPanelIntegrationTests {
                 .hasMessageContaining("requestId");
     }
 
+    @Test
+    void publicFormSessionTokenRotatesOnReadWhenEnabled() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (35, 'web-rotate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rotate')");
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_session_token_rotate_on_read\":true}");
+
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
+        PublicFormSessionDto created = publicFormService.createSession("web-rotate", submission, "ip-rotate");
+
+        PublicFormSessionDto firstRead = publicFormService.findSession("web-rotate", created.token()).orElseThrow();
+        assertThat(firstRead.token()).isNotEqualTo(created.token());
+
+        PublicFormSessionDto secondRead = publicFormService.findSession("web-rotate", firstRead.token()).orElseThrow();
+        assertThat(secondRead.token()).isNotEqualTo(firstRead.token());
+
+        assertThat(publicFormService.findSession("web-rotate", created.token())).isEmpty();
+    }
+
 
     @Test
     void publicFormServiceRejectsWhenFormDisabledInConfig() {
