@@ -148,8 +148,15 @@ class SupportPanelIntegrationTests {
 
         Integer ticketCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tickets WHERE ticket_id = ?", Integer.class, session.ticketId());
         Integer messageCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages WHERE ticket_id = ?", Integer.class, session.ticketId());
+        Integer auditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dialog_action_audit WHERE ticket_id = ? AND action = ?",
+                Integer.class,
+                session.ticketId(),
+                "public_form_submit"
+        );
         assertThat(ticketCount).isEqualTo(1);
         assertThat(messageCount).isEqualTo(1);
+        assertThat(auditCount).isEqualTo(1);
     }
 
 
