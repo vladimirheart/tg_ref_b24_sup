@@ -351,6 +351,12 @@
             if (!payload.success) {
                 return;
             }
+            const nextToken = payload.session?.token;
+            if (nextToken && nextToken !== currentToken) {
+                currentToken = nextToken;
+                setTokenInUrl(nextToken);
+                startHistoryPolling(nextToken);
+            }
             statusLabel.textContent = `Диалог ${payload.session.ticketId} создан ${payload.session.createdAt || ''}`;
             renderMessages(payload.messages || []);
         } catch (e) {
