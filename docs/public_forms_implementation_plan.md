@@ -184,3 +184,4 @@
 - [x] **Tests:** интеграционный тест покрывает оба режима санитизации (включено/выключено) и фиксирует предсказуемое поведение сохранённой истории/клиентских атрибутов.
 - [x] **Tests/API smoke:** добавлен `PublicFormApiControllerWebMvcTest` с проверками `disabledStatus=410` для отключенной формы и корректной передачи `requestId` + anti-spam requester key (`X-Forwarded-For` + fingerprint) при создании сессии.
 - [x] **Docs/Runbook:** добавлен runbook `docs/runbooks/public_forms_incidents.md` с процедурой triage, диагностикой метрик/audit-событий и шагами реакции на дубли, спам и недоступность публичной формы.
+- [x] **Security/Token policy:** добавлена ротация токена публичной сессии при чтении истории (`dialog_config.public_form_session_token_rotate_on_read`, по умолчанию выключено) с управлением через «Настройки → Диалоги». Это закрывает оставшийся подпункт roadmap по token rotation policy без code-deploy.
