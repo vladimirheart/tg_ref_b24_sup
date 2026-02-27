@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -310,9 +311,13 @@ public class ChannelApiController {
         }
 
         if (data.containsKey("questions_cfg")) {
-            String encoded = serializeIfNeeded(data.get("questions_cfg"));
-            channel.setQuestionsCfg(encoded);
-            updated = true;
+            try {
+                String encoded = normalizeQuestionsConfig(data.get("questions_cfg"));
+                channel.setQuestionsCfg(encoded);
+                updated = true;
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+            }
         }
 
         if (data.containsKey("token")) {
@@ -592,6 +597,98 @@ public class ChannelApiController {
         int visible = Math.min(4, trimmed.length());
         String suffix = trimmed.substring(trimmed.length() - visible);
         return "*".repeat(Math.max(0, trimmed.length() - visible)) + suffix;
+    }
+
+
+    private String normalizeQuestionsConfig(Object raw) {
+        JsonNode node = objectMapper.valueToTree(raw);
+        JsonNode root = node != null && !node.isNull() ? node : objectMapper.createObjectNode();
+        if (root.isArray()) {
+            return serializeIfNeeded(Map.of(
+                    "schemaVersion", 1,
+                    "enabled", true,
+                    "captchaEnabled", false,
+                    "disabledStatus", 404,
+                    "fields", normalizeQuestionFields(root)
+            ));
+        }
+        if (!root.isObject()) {
+            throw new IllegalArgumentException("questions_cfg должен быть объектом или массивом");
+        }
+        int schemaVersion = Math.max(1, root.path("schemaVersion").asInt(1));
+        boolean enabled = !root.has("enabled") || root.path("enabled").asBoolean(true);
+        boolean captchaEnabled = root.path("captchaEnabled").asBoolean(false);
+        int disabledStatus = root.path("disabledStatus").asInt(404) == 410 ? 410 : 404;
+        List<Map<String, Object>> fields = normalizeQuestionFields(root.path("fields"));
+        return serializeIfNeeded(Map.of(
+                "schemaVersion", schemaVersion,
+                "enabled", enabled,
+                "captchaEnabled", captchaEnabled,
+                "disabledStatus", disabledStatus,
+                "fields", fields
+        ));
+    }
+
+    private List<Map<String, Object>> normalizeQuestionFields(JsonNode fieldsNode) {
+        if (fieldsNode == null || fieldsNode.isNull()) {
+            return List.of();
+        }
+        if (!fieldsNode.isArray()) {
+            throw new IllegalArgumentException("questions_cfg.fields должен быть массивом");
+        }
+        Set<String> allowedTypes = Set.of("text", "textarea", "select", "checkbox", "phone", "email");
+        List<Map<String, Object>> fields = new ArrayList<>();
+        int index = 0;
+        for (JsonNode fieldNode : fieldsNode) {
+            index++;
+            if (!fieldNode.isObject()) {
+                throw new IllegalArgumentException("Каждое поле формы должно быть объектом");
+            }
+            String id = stringValue(fieldNode.path("id").asText(""));
+            String text = stringValue(fieldNode.path("text").asText(""));
+            String type = stringValue(fieldNode.path("type").asText("text")).toLowerCase();
+            if (id.isEmpty()) {
+                throw new IllegalArgumentException("Поле #" + index + " должно содержать id");
+            }
+            if (text.isEmpty()) {
+                throw new IllegalArgumentException("Поле «" + id + "» должно содержать название");
+            }
+            if (!allowedTypes.contains(type)) {
+                throw new IllegalArgumentException("Поле «" + id + "» содержит неподдерживаемый тип: " + type);
+            }
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            normalized.put("id", id);
+            normalized.put("text", text);
+            normalized.put("type", type);
+            normalized.put("order", fieldNode.path("order").asInt(index));
+            if (fieldNode.has("required")) {
+                normalized.put("required", fieldNode.path("required").asBoolean(false));
+            }
+            if (fieldNode.has("placeholder")) {
+                normalized.put("placeholder", stringValue(fieldNode.path("placeholder").asText("")));
+            }
+            if (fieldNode.has("helpText")) {
+                normalized.put("helpText", stringValue(fieldNode.path("helpText").asText("")));
+            }
+            if (fieldNode.has("minLength")) {
+                normalized.put("minLength", Math.max(0, fieldNode.path("minLength").asInt(0)));
+            }
+            if (fieldNode.has("maxLength")) {
+                normalized.put("maxLength", Math.max(1, fieldNode.path("maxLength").asInt(500)));
+            }
+            if ("select".equals(type) && fieldNode.has("options") && fieldNode.path("options").isArray()) {
+                List<String> options = new ArrayList<>();
+                for (JsonNode optionNode : fieldNode.path("options")) {
+                    String option = stringValue(optionNode.asText(""));
+                    if (!option.isEmpty()) {
+                        options.add(option);
+                    }
+                }
+                normalized.put("options", options);
+            }
+            fields.add(normalized);
+        }
+        return fields;
     }
 
     private String serializeIfNeeded(Object value) {

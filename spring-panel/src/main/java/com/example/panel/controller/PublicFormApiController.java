@@ -47,11 +47,15 @@ public class PublicFormApiController {
 
     @GetMapping("/{channelId}/config")
     public ResponseEntity<Map<String, Object>> config(@PathVariable String channelId) {
-        Optional<PublicFormConfig> config = publicFormService.loadConfig(channelId);
+        Optional<PublicFormConfig> config = publicFormService.loadConfigRaw(channelId);
         if (config.isEmpty()) {
             log.warn("Public form config not found for channel {}", channelId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Канал не найден"));
+        }
+        if (!config.get().enabled()) {
+            return ResponseEntity.status(resolveDisabledStatus(config.get()))
+                    .body(Map.of("success", false, "error", "Форма канала отключена"));
         }
         log.info("Public form config loaded for channel {} (id={}) with {} questions", channelId,
                 config.get().channelId(), config.get().questions().size());
@@ -64,6 +68,7 @@ public class PublicFormApiController {
         ));
         payload.put("schemaVersion", config.get().schemaVersion());
         payload.put("captchaEnabled", config.get().captchaEnabled());
+        payload.put("disabledStatus", config.get().disabledStatus());
         payload.put("questions", config.get().questions().stream().map(this::questionToMap).toList());
         return ResponseEntity.ok(payload);
     }
@@ -72,6 +77,14 @@ public class PublicFormApiController {
     public ResponseEntity<Map<String, Object>> createSession(@PathVariable String channelId,
                                                              @Valid @RequestBody PublicFormRequest request,
                                                              HttpServletRequest servletRequest) {
+        Optional<PublicFormConfig> config = publicFormService.loadConfigRaw(channelId);
+        if (config.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("success", false, "error", "Канал не найден"));
+        }
+        if (!config.get().enabled()) {
+            return ResponseEntity.status(resolveDisabledStatus(config.get()))
+                    .body(Map.of("success", false, "error", "Форма канала отключена"));
+        }
         try {
             PublicFormSessionDto session = publicFormService.createSession(channelId, request.toSubmission(), resolveRequesterKey(servletRequest));
             Map<String, Object> response = new LinkedHashMap<>();
@@ -118,6 +131,12 @@ public class PublicFormApiController {
         return ResponseEntity.ok(response);
     }
 
+
+
+    private HttpStatus resolveDisabledStatus(PublicFormConfig config) {
+        HttpStatus status = HttpStatus.resolve(config.disabledStatus());
+        return status != null ? status : HttpStatus.NOT_FOUND;
+    }
 
     private String resolveRequesterKey(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
