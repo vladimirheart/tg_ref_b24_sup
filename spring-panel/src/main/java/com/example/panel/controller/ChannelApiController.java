@@ -676,13 +676,18 @@ public class ChannelApiController {
             if (fieldNode.has("maxLength")) {
                 normalized.put("maxLength", Math.max(1, fieldNode.path("maxLength").asInt(500)));
             }
-            if ("select".equals(type) && fieldNode.has("options") && fieldNode.path("options").isArray()) {
+            if ("select".equals(type)) {
                 List<String> options = new ArrayList<>();
-                for (JsonNode optionNode : fieldNode.path("options")) {
-                    String option = stringValue(optionNode.asText(""));
-                    if (!option.isEmpty()) {
-                        options.add(option);
+                if (fieldNode.has("options") && fieldNode.path("options").isArray()) {
+                    for (JsonNode optionNode : fieldNode.path("options")) {
+                        String option = stringValue(optionNode.asText(""));
+                        if (!option.isEmpty()) {
+                            options.add(option);
+                        }
                     }
+                }
+                if (options.isEmpty()) {
+                    throw new IllegalArgumentException("Поле «" + id + "» типа select должно содержать хотя бы одну option");
                 }
                 normalized.put("options", options);
             }
