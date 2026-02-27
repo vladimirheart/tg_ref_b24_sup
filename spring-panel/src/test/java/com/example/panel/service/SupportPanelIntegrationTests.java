@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("sqlite")
@@ -135,7 +136,7 @@ class SupportPanelIntegrationTests {
     void publicFormServiceCreatesSessionsAndHistory() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (2, 'web', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-demo')");
         PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", Map.of());
-        PublicFormSessionDto session = publicFormService.createSession("web-demo", submission);
+        PublicFormSessionDto session = publicFormService.createSession("web-demo", submission, "test-ip");
         assertThat(session.token()).isNotBlank();
         assertThat(session.ticketId()).startsWith("web-");
 
@@ -143,6 +144,34 @@ class SupportPanelIntegrationTests {
         assertThat(loaded.clientName()).isEqualTo("Анна");
 
         assertThat(dialogService.loadHistory(session.ticketId(), null)).isNotEmpty();
+    }
+
+
+
+    @Test
+    void publicFormServiceValidatesRequiredDynamicField() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (21, 'web-required', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-required', ?)",
+                "[{\"id\":\"email\",\"text\":\"Email\",\"type\":\"email\",\"required\":true}]");
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", Map.of());
+
+        assertThatThrownBy(() -> publicFormService.createSession("web-required", submission, "ip-required"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Заполните поле");
+    }
+
+    @Test
+    void publicFormServiceAppliesRateLimitByRequester() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (22, 'web-rate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rate')");
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", Map.of());
+
+        for (int i = 0; i < 5; i++) {
+            PublicFormSessionDto session = publicFormService.createSession("web-rate", submission, "same-ip");
+            assertThat(session.ticketId()).startsWith("web-");
+        }
+
+        assertThatThrownBy(() -> publicFormService.createSession("web-rate", submission, "same-ip"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Слишком много запросов");
     }
 
     @Test
