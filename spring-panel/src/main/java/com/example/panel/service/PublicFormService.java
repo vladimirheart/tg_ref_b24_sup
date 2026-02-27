@@ -577,6 +577,14 @@ public class PublicFormService {
         return readDialogConfigInt("public_form_answers_total_max_length", DEFAULT_ANSWERS_TOTAL_MAX_LENGTH, 200, 50000);
     }
 
+    public boolean isSessionPollingEnabled() {
+        return readDialogConfigBoolean("public_form_session_polling_enabled", true);
+    }
+
+    public int resolveSessionPollingIntervalSeconds() {
+        return readDialogConfigInt("public_form_session_polling_interval_seconds", 15, 5, 300);
+    }
+
     private PublicFormMetricsAccumulator metrics(Long channelId) {
         return metricsByChannel.computeIfAbsent(channelId, key -> new PublicFormMetricsAccumulator());
     }
