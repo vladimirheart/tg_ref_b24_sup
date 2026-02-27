@@ -34,10 +34,15 @@ public class PublicFormController {
                        @RequestParam(value = "token", required = false) String token,
                        @RequestParam(value = "dialog", required = false) String dialog,
                        Model model) {
-        Optional<PublicFormConfig> config = publicFormService.loadConfig(channelId);
+        Optional<PublicFormConfig> config = publicFormService.loadConfigRaw(channelId);
         if (config.isEmpty()) {
             log.warn("Public form requested for unknown channel {}", channelId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        if (!config.get().enabled()) {
+            int disabledStatus = config.get().disabledStatus();
+            HttpStatus status = HttpStatus.resolve(disabledStatus);
+            throw new ResponseStatusException(status != null ? status : HttpStatus.NOT_FOUND);
         }
         String initialToken = Optional.ofNullable(token).filter(t -> !t.isBlank()).orElse(dialog);
         model.addAttribute("channelId", config.get().channelId());
