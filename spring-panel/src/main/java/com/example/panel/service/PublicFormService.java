@@ -427,24 +427,42 @@ public class PublicFormService {
     }
 
     private String buildPayloadHash(PublicFormSubmission submission, Map<String, String> answers) {
+        StringBuilder builder = new StringBuilder()
+                .append(Optional.ofNullable(submission.message()).orElse("").trim())
+                .append('|')
+                .append(Optional.ofNullable(submission.clientName()).orElse("").trim())
+                .append('|')
+                .append(Optional.ofNullable(submission.clientContact()).orElse("").trim());
+        for (Map.Entry<String, String> entry : answers.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            builder.append('|').append(entry.getKey()).append('=')
+                    .append(Optional.ofNullable(entry.getValue()).orElse(""));
+        }
+        return hashValue(builder.toString());
+    }
+
+    private String hashValue(String payload) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update(Optional.ofNullable(submission.message()).orElse("").trim().getBytes(StandardCharsets.UTF_8));
-            digest.update((byte) '|');
-            digest.update(Optional.ofNullable(submission.clientName()).orElse("").trim().getBytes(StandardCharsets.UTF_8));
-            digest.update((byte) '|');
-            digest.update(Optional.ofNullable(submission.clientContact()).orElse("").trim().getBytes(StandardCharsets.UTF_8));
-            digest.update((byte) '|');
-            for (Map.Entry<String, String> entry : answers.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
-                digest.update(entry.getKey().getBytes(StandardCharsets.UTF_8));
-                digest.update((byte) '=');
-                digest.update(Optional.ofNullable(entry.getValue()).orElse("").getBytes(StandardCharsets.UTF_8));
-                digest.update((byte) ';');
-            }
+            digest.update(Optional.ofNullable(payload).orElse("").getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest.digest());
         } catch (Exception ex) {
             throw new IllegalStateException("Не удалось подготовить хеш запроса", ex);
         }
+    }
+
+    public String buildRequesterKey(String requesterIp, String fingerprint) {
+        String ipPart = StringUtils.hasText(requesterIp) ? requesterIp.trim() : "anon";
+        if (!readDialogConfigBoolean("public_form_rate_limit_use_fingerprint", true)) {
+            return ipPart;
+        }
+        if (!StringUtils.hasText(fingerprint)) {
+            return ipPart;
+        }
+        String normalizedFingerprint = fingerprint.trim();
+        if (normalizedFingerprint.length() > 256) {
+            normalizedFingerprint = normalizedFingerprint.substring(0, 256);
+        }
+        return ipPart + "|fp:" + hashValue(normalizedFingerprint);
     }
 
     private void enforceRateLimit(Channel channel, String requesterKey) {
