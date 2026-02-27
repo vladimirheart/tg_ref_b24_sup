@@ -256,8 +256,22 @@ public class PublicFormService {
         if (normalizedReason.contains("captcha")) {
             accumulator.captchaFailures.incrementAndGet();
         }
-        if (normalizedReason.contains("слишком много запросов")) {
+        if (normalizedReason.contains("слишком много запросов")
+                || normalizedReason.contains("too many requests")
+                || normalizedReason.contains("rate limit")) {
             accumulator.rateLimitRejections.incrementAndGet();
+        }
+        accumulator.touch();
+    }
+
+    public void recordSessionLookup(Long channelId, boolean found) {
+        if (!isMetricsEnabled() || channelId == null) {
+            return;
+        }
+        PublicFormMetricsAccumulator accumulator = metrics(channelId);
+        accumulator.sessionLookups.incrementAndGet();
+        if (!found) {
+            accumulator.sessionLookupMisses.incrementAndGet();
         }
         accumulator.touch();
     }
@@ -274,6 +288,8 @@ public class PublicFormService {
                     long submitErrors = metric.submitErrors.get();
                     long captchaFailures = metric.captchaFailures.get();
                     long rateLimitRejections = metric.rateLimitRejections.get();
+                    long sessionLookups = metric.sessionLookups.get();
+                    long sessionLookupMisses = metric.sessionLookupMisses.get();
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("channelId", entry.getKey());
                     row.put("views", views);
@@ -281,6 +297,9 @@ public class PublicFormService {
                     row.put("submitErrors", submitErrors);
                     row.put("captchaFailures", captchaFailures);
                     row.put("rateLimitRejections", rateLimitRejections);
+                    row.put("sessionLookups", sessionLookups);
+                    row.put("sessionLookupMisses", sessionLookupMisses);
+                    row.put("sessionLookupMissRate", sessionLookups > 0 ? (double) sessionLookupMisses / sessionLookups : 0.0d);
                     row.put("conversion", views > 0 ? (double) submits / views : 0.0d);
                     row.put("errorRate", submits > 0 ? (double) submitErrors / submits : 0.0d);
                     row.put("updatedAt", OffsetDateTime.ofInstant(java.time.Instant.ofEpochMilli(metric.lastUpdatedAtMs.get()), java.time.ZoneOffset.UTC));
@@ -314,6 +333,11 @@ public class PublicFormService {
                                 session.getCreatedAt()
                             );
                         }));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Long> resolveChannelId(String channelRef) {
+        return resolveChannel(channelRef).map(Channel::getId);
     }
 
     private WebFormSession maybeRotateSessionToken(WebFormSession session) {
@@ -911,6 +935,8 @@ public class PublicFormService {
         private final AtomicLong submitErrors = new AtomicLong(0);
         private final AtomicLong captchaFailures = new AtomicLong(0);
         private final AtomicLong rateLimitRejections = new AtomicLong(0);
+        private final AtomicLong sessionLookups = new AtomicLong(0);
+        private final AtomicLong sessionLookupMisses = new AtomicLong(0);
         private final AtomicLong lastUpdatedAtMs = new AtomicLong(System.currentTimeMillis());
 
         private void touch() {

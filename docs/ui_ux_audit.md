@@ -633,3 +633,6 @@
 - [x] **NOW-1.162 (public forms, session token rotation policy):** добавлен runtime-флаг `dialog_config.public_form_session_token_rotate_on_read` (UI «Настройки → Диалоги» + bridge + backend-обработка). При включении `PublicFormService.findSession` ротирует `token` на каждом чтении истории, а `public-form.js` автоматически подхватывает новый токен и обновляет URL/polling. Это закрывает оставшийся пункт backlog по token rotation policy из public forms roadmap.
 
 - [x] **UX/Localization:** добавлена локализация публичной формы (RU/EN + auto по языку браузера) для клиентских ошибок, состояний submit и системных подсказок; в «Настройки → Диалоги» добавлен runtime-параметр `dialog_config.public_form_default_locale` (auto/ru/en) для принудительного выбора языка без code-deploy.
+
+- [x] **NOW-1.163 (public forms, observability for session lifecycle):** в backend добавлены метрики чтения публичных сессий `sessionLookups/sessionLookupMisses/sessionLookupMissRate` в snapshot `public-form-metrics`, а `PublicFormApiController` теперь безопасно обрабатывает неожиданные ошибки submit с ответом `500` и учётом `submitErrors`. Это закрывает следующий шаг roadmap по observability (metrics + error transparency) без изменения API контракта формы.
+
