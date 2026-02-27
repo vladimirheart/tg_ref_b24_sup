@@ -2323,6 +2323,41 @@
                     </div>
                   </div>
                   <div class="form-text">Сегмент reactivation_risk активируется, если total_dialogs ≥ порога и resolved_30d ≤ max значения.</div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
+                  <p class="small text-muted">Закрывает пункты roadmap по эксплуатационной защите форм (rate-limit, идемпотентность и лимиты payload) без доработок кода.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormMessageMaxLength" class="form-label">Макс. длина сообщения</label>
+                      <input type="number" class="form-control" id="dialogPublicFormMessageMaxLength" min="300" max="20000" step="100">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormSessionTtlHours" class="form-label">TTL сессии, часов</label>
+                      <input type="number" class="form-control" id="dialogPublicFormSessionTtlHours" min="1" max="720" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormIdempotencyTtlSeconds" class="form-label">TTL идемпотентности, сек</label>
+                      <input type="number" class="form-control" id="dialogPublicFormIdempotencyTtlSeconds" min="30" max="3600" step="10">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormRateLimitWindowSeconds" class="form-label">Окно rate-limit, сек</label>
+                      <input type="number" class="form-control" id="dialogPublicFormRateLimitWindowSeconds" min="10" max="3600" step="10">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormRateLimitMaxRequests" class="form-label">Лимит запросов в окне</label>
+                      <input type="number" class="form-control" id="dialogPublicFormRateLimitMaxRequests" min="1" max="500" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormCaptchaSharedSecret" class="form-label">CAPTCHA shared secret</label>
+                      <input type="text" class="form-control" id="dialogPublicFormCaptchaSharedSecret" placeholder="Секрет для captchaToken">
+                    </div>
+                    <div class="col-12">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogPublicFormRateLimitEnabled">
+                        <label class="form-check-label" for="dialogPublicFormRateLimitEnabled">Включить server-side rate-limit для публичных форм</label>
+                      </div>
+                    </div>
+                  </div>
                 </section>
               </div>
 
@@ -3971,6 +4006,13 @@
     workspace_client_extra_attributes_collapse_after: 8,
     workspace_client_extra_attributes_hide_technical: true,
     workspace_client_extra_attributes_technical_prefixes: ["_", "internal_"],
+    public_form_message_max_length: 4000,
+    public_form_session_ttl_hours: 72,
+    public_form_idempotency_ttl_seconds: 300,
+    public_form_rate_limit_enabled: true,
+    public_form_rate_limit_window_seconds: 60,
+    public_form_rate_limit_max_requests: 5,
+    public_form_captcha_shared_secret: '',
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -13004,6 +13046,13 @@
       workspaceSegmentMultiOpenMinDialogs: document.getElementById('dialogWorkspaceSegmentMultiOpenMinDialogs'),
       workspaceSegmentReactivationMinDialogs: document.getElementById('dialogWorkspaceSegmentReactivationMinDialogs'),
       workspaceSegmentReactivationMaxResolved30d: document.getElementById('dialogWorkspaceSegmentReactivationMaxResolved30d'),
+      publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
+      publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
+      publicFormIdempotencyTtlSeconds: document.getElementById('dialogPublicFormIdempotencyTtlSeconds'),
+      publicFormRateLimitEnabled: document.getElementById('dialogPublicFormRateLimitEnabled'),
+      publicFormRateLimitWindowSeconds: document.getElementById('dialogPublicFormRateLimitWindowSeconds'),
+      publicFormRateLimitMaxRequests: document.getElementById('dialogPublicFormRateLimitMaxRequests'),
+      publicFormCaptchaSharedSecret: document.getElementById('dialogPublicFormCaptchaSharedSecret'),
     };
   }
 
@@ -13432,6 +13481,42 @@
         ? value
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_segment_reactivation_risk_max_resolved_30d;
     }
+    if (inputs.publicFormMessageMaxLength) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
+      inputs.publicFormMessageMaxLength.value = Number.isFinite(value) && value >= 300
+        ? Math.min(20000, value)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_message_max_length;
+    }
+    if (inputs.publicFormSessionTtlHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_session_ttl_hours, 10);
+      inputs.publicFormSessionTtlHours.value = Number.isFinite(value) && value >= 1
+        ? Math.min(720, value)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_ttl_hours;
+    }
+    if (inputs.publicFormIdempotencyTtlSeconds) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_idempotency_ttl_seconds, 10);
+      inputs.publicFormIdempotencyTtlSeconds.value = Number.isFinite(value) && value >= 30
+        ? Math.min(3600, value)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_idempotency_ttl_seconds;
+    }
+    if (inputs.publicFormRateLimitEnabled instanceof HTMLInputElement) {
+      inputs.publicFormRateLimitEnabled.checked = DIALOG_CONFIG.public_form_rate_limit_enabled !== false;
+    }
+    if (inputs.publicFormRateLimitWindowSeconds) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_rate_limit_window_seconds, 10);
+      inputs.publicFormRateLimitWindowSeconds.value = Number.isFinite(value) && value >= 10
+        ? Math.min(3600, value)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_window_seconds;
+    }
+    if (inputs.publicFormRateLimitMaxRequests) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_rate_limit_max_requests, 10);
+      inputs.publicFormRateLimitMaxRequests.value = Number.isFinite(value) && value >= 1
+        ? Math.min(500, value)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_max_requests;
+    }
+    if (inputs.publicFormCaptchaSharedSecret) {
+      inputs.publicFormCaptchaSharedSecret.value = String(DIALOG_CONFIG.public_form_captcha_shared_secret || '').trim();
+    }
   }
 
   function collectDialogSlaConfig() {
@@ -13551,6 +13636,11 @@
     const listPollIntervalRaw = Math.round(Number(inputs.listPollIntervalMs?.value));
     const historyPollIntervalRaw = Math.round(Number(inputs.historyPollIntervalMs?.value));
     const workspaceAbRolloutPercentRaw = Math.round(Number(inputs.workspaceAbRolloutPercent?.value));
+    const publicFormMessageMaxLengthRaw = Math.round(Number(inputs.publicFormMessageMaxLength?.value));
+    const publicFormSessionTtlHoursRaw = Math.round(Number(inputs.publicFormSessionTtlHours?.value));
+    const publicFormIdempotencyTtlSecondsRaw = Math.round(Number(inputs.publicFormIdempotencyTtlSeconds?.value));
+    const publicFormRateLimitWindowSecondsRaw = Math.round(Number(inputs.publicFormRateLimitWindowSeconds?.value));
+    const publicFormRateLimitMaxRequestsRaw = Math.round(Number(inputs.publicFormRateLimitMaxRequests?.value));
 
     const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
       ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
@@ -13605,6 +13695,21 @@
     const safeWorkspaceAbRolloutPercent = Number.isFinite(workspaceAbRolloutPercentRaw)
       ? Math.min(100, Math.max(0, workspaceAbRolloutPercentRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_rollout_percent;
+    const safePublicFormMessageMaxLength = Number.isFinite(publicFormMessageMaxLengthRaw)
+      ? Math.min(20000, Math.max(300, publicFormMessageMaxLengthRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_message_max_length;
+    const safePublicFormSessionTtlHours = Number.isFinite(publicFormSessionTtlHoursRaw)
+      ? Math.min(720, Math.max(1, publicFormSessionTtlHoursRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_ttl_hours;
+    const safePublicFormIdempotencyTtlSeconds = Number.isFinite(publicFormIdempotencyTtlSecondsRaw)
+      ? Math.min(3600, Math.max(30, publicFormIdempotencyTtlSecondsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_idempotency_ttl_seconds;
+    const safePublicFormRateLimitWindowSeconds = Number.isFinite(publicFormRateLimitWindowSecondsRaw)
+      ? Math.min(3600, Math.max(10, publicFormRateLimitWindowSecondsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_window_seconds;
+    const safePublicFormRateLimitMaxRequests = Number.isFinite(publicFormRateLimitMaxRequestsRaw)
+      ? Math.min(500, Math.max(1, publicFormRateLimitMaxRequestsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_max_requests;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
@@ -13657,6 +13762,21 @@
     }
     if (!Number.isFinite(workspaceAbRolloutPercentRaw) || workspaceAbRolloutPercentRaw < 0 || workspaceAbRolloutPercentRaw > 100) {
       errors.push('A/B rollout должен быть в диапазоне 0..100%.');
+    }
+    if (!Number.isFinite(publicFormMessageMaxLengthRaw) || publicFormMessageMaxLengthRaw < 300 || publicFormMessageMaxLengthRaw > 20000) {
+      errors.push('Макс. длина сообщения формы должна быть в диапазоне 300..20000.');
+    }
+    if (!Number.isFinite(publicFormSessionTtlHoursRaw) || publicFormSessionTtlHoursRaw < 1 || publicFormSessionTtlHoursRaw > 720) {
+      errors.push('TTL сессии формы должен быть в диапазоне 1..720 часов.');
+    }
+    if (!Number.isFinite(publicFormIdempotencyTtlSecondsRaw) || publicFormIdempotencyTtlSecondsRaw < 30 || publicFormIdempotencyTtlSecondsRaw > 3600) {
+      errors.push('TTL идемпотентности формы должен быть в диапазоне 30..3600 секунд.');
+    }
+    if (!Number.isFinite(publicFormRateLimitWindowSecondsRaw) || publicFormRateLimitWindowSecondsRaw < 10 || publicFormRateLimitWindowSecondsRaw > 3600) {
+      errors.push('Окно rate-limit формы должно быть в диапазоне 10..3600 секунд.');
+    }
+    if (!Number.isFinite(publicFormRateLimitMaxRequestsRaw) || publicFormRateLimitMaxRequestsRaw < 1 || publicFormRateLimitMaxRequestsRaw > 500) {
+      errors.push('Лимит запросов формы должен быть в диапазоне 1..500.');
     }
 
     const parsePercentThreshold = (rawValue, fallbackValue, label) => {
@@ -14182,6 +14302,13 @@
         dialog_workspace_segment_multi_open_dialogs_min_open: safeMultiOpenThreshold,
         dialog_workspace_segment_reactivation_risk_min_dialogs: safeReactivationMinDialogs,
         dialog_workspace_segment_reactivation_risk_max_resolved_30d: safeReactivationMaxResolved,
+        dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
+        dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
+        dialog_public_form_idempotency_ttl_seconds: safePublicFormIdempotencyTtlSeconds,
+        dialog_public_form_rate_limit_enabled: Boolean(inputs.publicFormRateLimitEnabled?.checked),
+        dialog_public_form_rate_limit_window_seconds: safePublicFormRateLimitWindowSeconds,
+        dialog_public_form_rate_limit_max_requests: safePublicFormRateLimitMaxRequests,
+        dialog_public_form_captcha_shared_secret: String(inputs.publicFormCaptchaSharedSecret?.value || '').trim(),
       },
     };
   }
