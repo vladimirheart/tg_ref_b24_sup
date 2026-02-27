@@ -337,6 +337,22 @@ public class ChannelApiController {
         return ResponseEntity.ok(Map.of("success", true, "channel", toChannelResponse(channel, credentials)));
     }
 
+    @PostMapping("/{id}/public-id/regenerate")
+    public ResponseEntity<Map<String, Object>> regeneratePublicId(@PathVariable("id") long id) {
+        Channel channel = channelRepository.findById(id).orElse(null);
+        if (channel == null) {
+            return ResponseEntity.status(404).body(Map.of("success", false, "error", "Канал не найден"));
+        }
+        channel.setPublicId(UUID.randomUUID().toString().replace("-", ""));
+        channel.setUpdatedAt(OffsetDateTime.now());
+        channelRepository.save(channel);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "public_id", channel.getPublicId(),
+                "channel", toChannelResponse(channel, buildCredentialIndex(loadBotCredentials()))
+        ));
+    }
+
     @GetMapping("/bot-credentials")
     public ResponseEntity<Map<String, Object>> getBotCredentials() {
         List<BotCredential> credentials = loadBotCredentials();
@@ -489,10 +505,29 @@ public class ChannelApiController {
         response.put("support_chat_id", channel.getSupportChatId());
         response.put("delivery_settings", parseJsonMap(channel.getDeliverySettings()));
         response.put("public_id", channel.getPublicId());
+        response.put("questions_cfg", parseJsonValue(channel.getQuestionsCfg()));
         if (channel.getCredentialId() != null) {
             response.put("credential", credentials.get(channel.getCredentialId()));
         }
         return response;
+    }
+
+    private Object parseJsonValue(String raw) {
+        if (isBlank(raw)) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            if (node != null && node.isArray()) {
+                return objectMapper.convertValue(node, objectMapper.getTypeFactory().constructCollectionType(List.class, Object.class));
+            }
+            if (node != null && node.isObject()) {
+                return objectMapper.convertValue(node, objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class));
+            }
+        } catch (Exception ex) {
+            log.debug("Unable to parse json value: {}", ex.getMessage());
+        }
+        return new LinkedHashMap<>();
     }
 
     private Map<String, Object> parseJsonMap(String raw) {

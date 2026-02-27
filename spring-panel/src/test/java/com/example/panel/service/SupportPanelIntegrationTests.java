@@ -135,7 +135,7 @@ class SupportPanelIntegrationTests {
     @Test
     void publicFormServiceCreatesSessionsAndHistory() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (2, 'web', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-demo')");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", Map.of());
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
         PublicFormSessionDto session = publicFormService.createSession("web-demo", submission, "test-ip");
         assertThat(session.token()).isNotBlank();
         assertThat(session.ticketId()).startsWith("web-");
@@ -152,7 +152,7 @@ class SupportPanelIntegrationTests {
     void publicFormServiceValidatesRequiredDynamicField() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (21, 'web-required', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-required', ?)",
                 "[{\"id\":\"email\",\"text\":\"Email\",\"type\":\"email\",\"required\":true}]");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", Map.of());
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
 
         assertThatThrownBy(() -> publicFormService.createSession("web-required", submission, "ip-required"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -162,7 +162,7 @@ class SupportPanelIntegrationTests {
     @Test
     void publicFormServiceAppliesRateLimitByRequester() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (22, 'web-rate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rate')");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", Map.of());
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
 
         for (int i = 0; i < 5; i++) {
             PublicFormSessionDto session = publicFormService.createSession("web-rate", submission, "same-ip");
@@ -172,6 +172,35 @@ class SupportPanelIntegrationTests {
         assertThatThrownBy(() -> publicFormService.createSession("web-rate", submission, "same-ip"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Слишком много запросов");
+    }
+
+
+    @Test
+    void publicFormServiceRejectsWhenFormDisabledInConfig() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (23, 'web-disabled', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-disabled', ?)",
+                "{\"schemaVersion\":1,\"enabled\":false,\"fields\":[]}");
+        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of());
+
+        assertThatThrownBy(() -> publicFormService.createSession("web-disabled", submission, "ip-disabled"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("временно отключена");
+    }
+
+    @Test
+    void publicFormServiceRequiresCaptchaWhenEnabled() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (24, 'web-captcha', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-captcha', ?)",
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":true,\"fields\":[]}");
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_captcha_shared_secret\":\"captcha-123\"}");
+
+        PublicFormSubmission bad = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "wrong", Map.of());
+        assertThatThrownBy(() -> publicFormService.createSession("web-captcha", bad, "ip-captcha"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("CAPTCHA");
+
+        PublicFormSubmission good = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "captcha-123", Map.of());
+        PublicFormSessionDto session = publicFormService.createSession("web-captcha", good, "ip-captcha-ok");
+        assertThat(session.ticketId()).startsWith("web-");
     }
 
     @Test

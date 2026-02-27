@@ -5,5 +5,8 @@ import java.util.List;
 public record PublicFormConfig(Long channelId,
                                String channelPublicId,
                                String channelName,
+                               Integer schemaVersion,
+                               boolean enabled,
+                               boolean captchaEnabled,
                                List<PublicFormQuestion> questions) {
 }
