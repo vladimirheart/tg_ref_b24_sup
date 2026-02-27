@@ -342,7 +342,7 @@ public class ChannelApiController {
         return ResponseEntity.ok(Map.of("success", true, "channel", toChannelResponse(channel, credentials)));
     }
 
-    @PostMapping("/{id}/public-id/regenerate")
+    @PostMapping({"/{id}/public-id/regenerate", "/channels/{id}/public-id/regenerate"})
     public ResponseEntity<Map<String, Object>> regeneratePublicId(@PathVariable("id") long id) {
         Channel channel = channelRepository.findById(id).orElse(null);
         if (channel == null) {
