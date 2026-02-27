@@ -53,6 +53,7 @@ public class PublicFormService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern PHONE_PATTERN = Pattern.compile("^[+]?[-()\\s0-9]{6,20}$");
     private static final int DEFAULT_MESSAGE_MAX_LENGTH = 4000;
+    private static final int DEFAULT_ANSWERS_TOTAL_MAX_LENGTH = 6000;
 
     private final ChannelRepository channelRepository;
     private final WebFormSessionRepository sessionRepository;
@@ -316,6 +317,15 @@ public class PublicFormService {
         if (submission.message().trim().length() > maxLength) {
             throw new IllegalArgumentException("Сообщение слишком длинное (макс. " + maxLength + " символов)");
         }
+        int answersPayloadMaxLength = readDialogConfigInt("public_form_answers_total_max_length", DEFAULT_ANSWERS_TOTAL_MAX_LENGTH, 200, 50000);
+        int answersPayloadLength = answers.values().stream()
+                .filter(StringUtils::hasText)
+                .mapToInt(String::length)
+                .sum();
+        if (answersPayloadLength > answersPayloadMaxLength) {
+            throw new IllegalArgumentException("Суммарный объём ответов формы превышает лимит "
+                    + answersPayloadMaxLength + " символов");
+        }
         for (PublicFormQuestion question : config.questions()) {
             String value = answers.get(question.id());
             if (isRequired(question) && !StringUtils.hasText(value)) {
@@ -561,6 +571,10 @@ public class PublicFormService {
 
     private boolean isMetricsEnabled() {
         return readDialogConfigBoolean("public_form_metrics_enabled", true);
+    }
+
+    public int resolveAnswersPayloadMaxLength() {
+        return readDialogConfigInt("public_form_answers_total_max_length", DEFAULT_ANSWERS_TOTAL_MAX_LENGTH, 200, 50000);
     }
 
     private PublicFormMetricsAccumulator metrics(Long channelId) {

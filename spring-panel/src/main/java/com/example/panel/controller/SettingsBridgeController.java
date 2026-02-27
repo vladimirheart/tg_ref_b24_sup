@@ -226,6 +226,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_segment_reactivation_risk_min_dialogs")
                 || payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")
                 || payload.containsKey("dialog_public_form_message_max_length")
+                || payload.containsKey("dialog_public_form_answers_total_max_length")
                 || payload.containsKey("dialog_public_form_session_ttl_hours")
                 || payload.containsKey("dialog_public_form_idempotency_ttl_seconds")
                 || payload.containsKey("dialog_public_form_rate_limit_enabled")
@@ -527,6 +528,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_public_form_message_max_length")) {
                     dialogConfig.put("public_form_message_max_length",
                             payload.get("dialog_public_form_message_max_length"));
+                }
+                if (payload.containsKey("dialog_public_form_answers_total_max_length")) {
+                    dialogConfig.put("public_form_answers_total_max_length",
+                            payload.get("dialog_public_form_answers_total_max_length"));
                 }
                 if (payload.containsKey("dialog_public_form_session_ttl_hours")) {
                     dialogConfig.put("public_form_session_ttl_hours",

@@ -252,6 +252,27 @@ class SupportPanelIntegrationTests {
         assertThat(session.ticketId()).startsWith("web-");
     }
 
+
+    @Test
+    void publicFormServiceLimitsTotalAnswersPayload() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (32, 'web-payload', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-payload', ?)",
+                "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_answers_total_max_length\":200}");
+
+        PublicFormSubmission oversized = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null,
+                Map.of("details", "x".repeat(205)), null);
+
+        assertThatThrownBy(() -> publicFormService.createSession("web-payload", oversized, "ip-payload"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Суммарный объём ответов формы превышает лимит");
+
+        PublicFormSubmission valid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null,
+                Map.of("details", "x".repeat(150)), null);
+        PublicFormSessionDto session = publicFormService.createSession("web-payload", valid, "ip-payload-ok");
+        assertThat(session.ticketId()).startsWith("web-");
+    }
+
     @Test
     void publicFormServiceCollectsRuntimeMetricsWhenEnabled() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (31, 'web-metrics', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-metrics')");
