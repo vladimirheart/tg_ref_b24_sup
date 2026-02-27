@@ -2373,6 +2373,10 @@
                         <label class="form-check-label" for="dialogPublicFormMetricsEnabled">Собирать runtime-метрики публичных форм (views/submits/errors)</label>
                       </div>
                       <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogPublicFormStripHtmlTags">
+                        <label class="form-check-label" for="dialogPublicFormStripHtmlTags">Удалять HTML-теги и управляющие символы из ответов публичной формы</label>
+                      </div>
+                      <div class="form-check form-switch mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogPublicFormSessionPollingEnabled">
                         <label class="form-check-label" for="dialogPublicFormSessionPollingEnabled">Включить автообновление истории в публичной форме по токену</label>
                       </div>
@@ -13080,6 +13084,7 @@
       publicFormRateLimitMaxRequests: document.getElementById('dialogPublicFormRateLimitMaxRequests'),
       publicFormRateLimitUseFingerprint: document.getElementById('dialogPublicFormRateLimitUseFingerprint'),
       publicFormMetricsEnabled: document.getElementById('dialogPublicFormMetricsEnabled'),
+      publicFormStripHtmlTags: document.getElementById('dialogPublicFormStripHtmlTags'),
       publicFormSessionPollingEnabled: document.getElementById('dialogPublicFormSessionPollingEnabled'),
       publicFormSessionPollingIntervalSeconds: document.getElementById('dialogPublicFormSessionPollingIntervalSeconds'),
       publicFormCaptchaSharedSecret: document.getElementById('dialogPublicFormCaptchaSharedSecret'),
@@ -13543,6 +13548,9 @@
     }
     if (inputs.publicFormMetricsEnabled instanceof HTMLInputElement) {
       inputs.publicFormMetricsEnabled.checked = DIALOG_CONFIG.public_form_metrics_enabled !== false;
+    }
+    if (inputs.publicFormStripHtmlTags instanceof HTMLInputElement) {
+      inputs.publicFormStripHtmlTags.checked = DIALOG_CONFIG.public_form_strip_html_tags !== false;
     }
     if (inputs.publicFormSessionPollingEnabled instanceof HTMLInputElement) {
       inputs.publicFormSessionPollingEnabled.checked = DIALOG_CONFIG.public_form_session_polling_enabled !== false;
@@ -14378,6 +14386,7 @@
         dialog_public_form_rate_limit_max_requests: safePublicFormRateLimitMaxRequests,
         dialog_public_form_rate_limit_use_fingerprint: Boolean(inputs.publicFormRateLimitUseFingerprint?.checked),
         dialog_public_form_metrics_enabled: Boolean(inputs.publicFormMetricsEnabled?.checked),
+        dialog_public_form_strip_html_tags: Boolean(inputs.publicFormStripHtmlTags?.checked),
         dialog_public_form_session_polling_enabled: Boolean(inputs.publicFormSessionPollingEnabled?.checked),
         dialog_public_form_session_polling_interval_seconds: safePublicFormSessionPollingIntervalSeconds,
         dialog_public_form_captcha_shared_secret: String(inputs.publicFormCaptchaSharedSecret?.value || '').trim(),
