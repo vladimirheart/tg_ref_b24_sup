@@ -16,6 +16,48 @@
     const apiBase = `/api/public/forms/${encodeURIComponent(channelRef)}`;
     let activeQuestions = [];
     let captchaEnabled = false;
+    let currentToken = initial.initialToken || null;
+    let historyPollTimer = null;
+
+
+    function generateRequestId() {
+        if (window.crypto?.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+        return `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    function ensureRequestId() {
+        if (!form.dataset.requestId) {
+            form.dataset.requestId = generateRequestId();
+        }
+        return form.dataset.requestId;
+    }
+
+    function setTokenInUrl(token) {
+        if (!token) {
+            return;
+        }
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('token', token);
+            window.history.replaceState({}, '', url.toString());
+        } catch (e) {
+            console.warn('Failed to update token in URL', e);
+        }
+    }
+
+    function startHistoryPolling(token) {
+        if (historyPollTimer) {
+            clearInterval(historyPollTimer);
+        }
+        if (!token) {
+            return;
+        }
+        historyPollTimer = window.setInterval(() => {
+            loadSession(token);
+        }, 15000);
+    }
 
     function showError(message) {
         errorBox.textContent = message;
@@ -330,13 +372,18 @@
             message: (formData.get('message') || '').toString().trim(),
             answers,
             captchaToken: (formData.get('captchaToken') || '').toString().trim(),
+            requestId: ensureRequestId(),
         };
 
         try {
             const data = await submitWithRetry(payload, 2);
             showSuccess(`Обращение создано! Номер: ${data.ticketId}. Сохраните токен: ${data.token}. Мы ответим в этом окне.`);
             statusLabel.textContent = `Диалог ${data.ticketId} создан ${data.createdAt || ''}. Обновляйте страницу по этому токену.`;
+            currentToken = data.token;
+            setTokenInUrl(data.token);
+            startHistoryPolling(data.token);
             await loadSession(data.token);
+            form.dataset.requestId = '';
         } catch (e) {
             showError(e?.message || 'Произошла ошибка. Попробуйте позже.');
         } finally {
@@ -345,7 +392,17 @@
     });
 
     loadConfig();
-    if (initial.initialToken) {
-        loadSession(initial.initialToken);
+    ensureRequestId();
+    try {
+        const urlToken = new URL(window.location.href).searchParams.get('token');
+        if (urlToken) {
+            currentToken = urlToken;
+        }
+    } catch (e) {
+        console.warn('Failed to read token from URL', e);
+    }
+    if (currentToken) {
+        loadSession(currentToken);
+        startHistoryPolling(currentToken);
     }
 })();

@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -28,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +53,7 @@ public class PublicFormService {
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
+    private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
 
     public PublicFormService(ChannelRepository channelRepository,
                              WebFormSessionRepository sessionRepository,
@@ -87,11 +91,18 @@ public class PublicFormService {
         if (!config.enabled()) {
             throw new IllegalArgumentException("Форма канала временно отключена");
         }
+        Map<String, String> answers = sanitizeAnswers(submission.answers());
+        String requestId = normalizeRequestId(submission.requestId());
+        String payloadHash = buildPayloadHash(submission, answers);
+        Optional<PublicFormSessionDto> duplicate = findIdempotentSession(channel, requesterKey, requestId, payloadHash);
+        if (duplicate.isPresent()) {
+            log.info("Public form idempotency hit for channel {} requester {} requestId {}", channel.getId(), requesterKey, requestId);
+            return duplicate.get();
+        }
+
         enforceRateLimit(channel, requesterKey);
         enforceCaptcha(config, submission);
-        validateSubmission(config, submission);
-
-        Map<String, String> answers = sanitizeAnswers(submission.answers());
+        validateSubmission(config, submission, answers);
         String combinedMessage = buildCombinedMessage(config, answers, submission.message());
 
         WebFormSession session = new WebFormSession();
@@ -116,7 +127,7 @@ public class PublicFormService {
         history.setMessageType("text");
         chatHistoryRepository.save(history);
 
-        return new PublicFormSessionDto(
+        PublicFormSessionDto result = new PublicFormSessionDto(
                 saved.getToken(),
                 saved.getTicketId(),
                 channel.getId(),
@@ -126,6 +137,8 @@ public class PublicFormService {
                 saved.getUsername(),
                 saved.getCreatedAt()
         );
+        cacheIdempotentSession(channel, requesterKey, requestId, payloadHash, result);
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +171,7 @@ public class PublicFormService {
         return createdAt.plusHours(ttlHours).isAfter(OffsetDateTime.now());
     }
 
-    private void validateSubmission(PublicFormConfig config, PublicFormSubmission submission) {
+    private void validateSubmission(PublicFormConfig config, PublicFormSubmission submission, Map<String, String> answers) {
         if (!StringUtils.hasText(submission.message())) {
             throw new IllegalArgumentException("Опишите проблему");
         }
@@ -166,7 +179,6 @@ public class PublicFormService {
         if (submission.message().trim().length() > maxLength) {
             throw new IllegalArgumentException("Сообщение слишком длинное (макс. " + maxLength + " символов)");
         }
-        Map<String, String> answers = sanitizeAnswers(submission.answers());
         for (PublicFormQuestion question : config.questions()) {
             String value = answers.get(question.id());
             if (isRequired(question) && !StringUtils.hasText(value)) {
@@ -210,6 +222,81 @@ public class PublicFormService {
             if (!allowCustom && !options.isEmpty() && options.stream().noneMatch(value::equalsIgnoreCase)) {
                 throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» содержит недопустимое значение");
             }
+        }
+    }
+
+    private Optional<PublicFormSessionDto> findIdempotentSession(Channel channel,
+                                                              String requesterKey,
+                                                              String requestId,
+                                                              String payloadHash) {
+        if (!StringUtils.hasText(requestId)) {
+            return Optional.empty();
+        }
+        purgeExpiredIdempotencyEntries();
+        IdempotencyEntry entry = idempotencyCache.get(idempotencyCacheKey(channel, requesterKey, requestId));
+        if (entry == null) {
+            return Optional.empty();
+        }
+        if (!entry.payloadHash().equals(payloadHash)) {
+            throw new IllegalArgumentException("Запрос с таким requestId уже был отправлен с другим payload");
+        }
+        return Optional.of(entry.session());
+    }
+
+    private void cacheIdempotentSession(Channel channel,
+                                        String requesterKey,
+                                        String requestId,
+                                        String payloadHash,
+                                        PublicFormSessionDto session) {
+        if (!StringUtils.hasText(requestId)) {
+            return;
+        }
+        purgeExpiredIdempotencyEntries();
+        idempotencyCache.put(idempotencyCacheKey(channel, requesterKey, requestId),
+                new IdempotencyEntry(payloadHash, session, System.currentTimeMillis()));
+    }
+
+    private void purgeExpiredIdempotencyEntries() {
+        long now = System.currentTimeMillis();
+        int ttlSeconds = readDialogConfigInt("public_form_idempotency_ttl_seconds", 300, 30, 3600);
+        long ttlMs = ttlSeconds * 1000L;
+        idempotencyCache.entrySet().removeIf(entry -> (now - entry.getValue().createdAtMs()) > ttlMs);
+    }
+
+    private String idempotencyCacheKey(Channel channel, String requesterKey, String requestId) {
+        String requester = StringUtils.hasText(requesterKey) ? requesterKey.trim() : "unknown";
+        return channel.getId() + "|" + requester + "|" + requestId;
+    }
+
+    private String normalizeRequestId(String requestId) {
+        if (!StringUtils.hasText(requestId)) {
+            return null;
+        }
+        String normalized = requestId.trim();
+        if (normalized.length() > 128) {
+            throw new IllegalArgumentException("requestId слишком длинный");
+        }
+        return normalized;
+    }
+
+    private String buildPayloadHash(PublicFormSubmission submission, Map<String, String> answers) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(Optional.ofNullable(submission.message()).orElse("").trim().getBytes(StandardCharsets.UTF_8));
+            digest.update((byte) '|');
+            digest.update(Optional.ofNullable(submission.clientName()).orElse("").trim().getBytes(StandardCharsets.UTF_8));
+            digest.update((byte) '|');
+            digest.update(Optional.ofNullable(submission.clientContact()).orElse("").trim().getBytes(StandardCharsets.UTF_8));
+            digest.update((byte) '|');
+            for (Map.Entry<String, String> entry : answers.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+                digest.update(entry.getKey().getBytes(StandardCharsets.UTF_8));
+                digest.update((byte) '=');
+                digest.update(Optional.ofNullable(entry.getValue()).orElse("").getBytes(StandardCharsets.UTF_8));
+                digest.update((byte) ';');
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (Exception ex) {
+            throw new IllegalStateException("Не удалось подготовить хеш запроса", ex);
         }
     }
 
@@ -522,6 +609,9 @@ public class PublicFormService {
 
     private int normalizeDisabledStatus(int value) {
         return value == 410 ? 410 : 404;
+    }
+
+    private record IdempotencyEntry(String payloadHash, PublicFormSessionDto session, long createdAtMs) {
     }
 
     private record ParsedPublicFormSettings(int schemaVersion,

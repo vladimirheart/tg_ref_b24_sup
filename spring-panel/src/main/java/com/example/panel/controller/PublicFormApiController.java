@@ -175,9 +175,10 @@ public class PublicFormApiController {
                                     String clientContact,
                                     String username,
                                     String captchaToken,
-                                    Map<String, String> answers) {
+                                    Map<String, String> answers,
+                                    String requestId) {
         public PublicFormSubmission toSubmission() {
-            return new PublicFormSubmission(message, clientName, clientContact, username, captchaToken, answers);
+            return new PublicFormSubmission(message, clientName, clientContact, username, captchaToken, answers, requestId);
         }
     }
 }
