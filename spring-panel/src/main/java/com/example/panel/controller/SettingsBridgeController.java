@@ -233,7 +233,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_public_form_rate_limit_window_seconds")
                 || payload.containsKey("dialog_public_form_rate_limit_max_requests")
                 || payload.containsKey("dialog_public_form_metrics_enabled")
-                || payload.containsKey("dialog_public_form_captcha_shared_secret")) {
+                || payload.containsKey("dialog_public_form_captcha_shared_secret")
+                || payload.containsKey("dialog_public_form_session_polling_enabled")
+                || payload.containsKey("dialog_public_form_session_polling_interval_seconds")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -560,6 +562,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_public_form_captcha_shared_secret")) {
                     dialogConfig.put("public_form_captcha_shared_secret",
                             payload.get("dialog_public_form_captcha_shared_secret"));
+                }
+                if (payload.containsKey("dialog_public_form_session_polling_enabled")) {
+                    dialogConfig.put("public_form_session_polling_enabled",
+                            payload.get("dialog_public_form_session_polling_enabled"));
+                }
+                if (payload.containsKey("dialog_public_form_session_polling_interval_seconds")) {
+                    dialogConfig.put("public_form_session_polling_interval_seconds",
+                            payload.get("dialog_public_form_session_polling_interval_seconds"));
                 }
                 if (payload.containsKey("dialog_summary_badges")) {
                     Map<String, Object> summaryBadges = new LinkedHashMap<>();
