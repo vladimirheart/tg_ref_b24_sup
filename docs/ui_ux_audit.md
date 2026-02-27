@@ -635,4 +635,4 @@
 - [x] **UX/Localization:** добавлена локализация публичной формы (RU/EN + auto по языку браузера) для клиентских ошибок, состояний submit и системных подсказок; в «Настройки → Диалоги» добавлен runtime-параметр `dialog_config.public_form_default_locale` (auto/ru/en) для принудительного выбора языка без code-deploy.
 
 - [x] **NOW-1.163 (public forms, observability for session lifecycle):** в backend добавлены метрики чтения публичных сессий `sessionLookups/sessionLookupMisses/sessionLookupMissRate` в snapshot `public-form-metrics`, а `PublicFormApiController` теперь безопасно обрабатывает неожиданные ошибки submit с ответом `500` и учётом `submitErrors`. Это закрывает следующий шаг roadmap по observability (metrics + error transparency) без изменения API контракта формы.
-
+- [x] **NOW-1.164 (public forms, channel editor UX parity):** в редакторе внешней формы канала добавлен drag&drop reorder полей (с сохранением кнопок ↑/↓ как fallback), что закрывает практический пробел roadmap по удобной настройке порядка полей без редактирования `questions_cfg` вручную.
