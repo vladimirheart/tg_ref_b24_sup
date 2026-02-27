@@ -62,6 +62,7 @@ public class PublicFormService {
     private final MessageRepository messageRepository;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
+    private final DialogService dialogService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
     private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
     private final Map<Long, PublicFormMetricsAccumulator> metricsByChannel = new ConcurrentHashMap<>();
@@ -73,7 +74,8 @@ public class PublicFormService {
                              TicketRepository ticketRepository,
                              MessageRepository messageRepository,
                              ObjectMapper objectMapper,
-                             SharedConfigService sharedConfigService) {
+                             SharedConfigService sharedConfigService,
+                             DialogService dialogService) {
         this.channelRepository = channelRepository;
         this.sessionRepository = sessionRepository;
         this.chatHistoryRepository = chatHistoryRepository;
@@ -81,6 +83,7 @@ public class PublicFormService {
         this.messageRepository = messageRepository;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
+        this.dialogService = dialogService;
     }
 
     @Transactional(readOnly = true)
@@ -154,6 +157,13 @@ public class PublicFormService {
                 saved.getClientContact(),
                 saved.getUsername(),
                 saved.getCreatedAt()
+        );
+        dialogService.logDialogActionAudit(
+                saved.getTicketId(),
+                saved.getUsername(),
+                "public_form_submit",
+                "success",
+                "channel=" + channel.getId() + ", source=web_form"
         );
         cacheIdempotentSession(channel, requesterKey, requestId, payloadHash, result);
         return result;
