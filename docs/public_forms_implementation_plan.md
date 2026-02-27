@@ -179,3 +179,4 @@
 - [x] **Settings/Tests:** в «Настройки → Диалоги» добавлен параметр лимита объёма ответов, а интеграционный тест покрывает reject oversized payload и успешный submit в пределах лимита.
 - [x] **Security/Settings:** rate-limit ключ расширен до `IP + browser fingerprint + channel` (fingerprint хэшируется server-side), добавлен runtime-флаг `dialog_config.public_form_rate_limit_use_fingerprint` в «Настройки → Диалоги» для безопасного включения/отката без деплоя.
 - [x] **Tests:** добавлен интеграционный тест на поведение `buildRequesterKey` при включённом/выключенном fingerprint-режиме, чтобы зафиксировать предсказуемость anti-spam bucket-логики.
+- [x] **Observability/Audit:** submit публичной формы теперь пишет аудит-событие `public_form_submit` в `dialog_action_audit`, поэтому оператор видит факт входящего обращения в «Связанных событиях» тикета и может расследовать цепочку действий без внешних логов.
