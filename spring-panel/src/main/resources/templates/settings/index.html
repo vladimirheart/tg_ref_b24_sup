@@ -2332,6 +2332,10 @@
                       <input type="number" class="form-control" id="dialogPublicFormMessageMaxLength" min="300" max="20000" step="100">
                     </div>
                     <div class="col-md-4">
+                      <label for="dialogPublicFormAnswersTotalMaxLength" class="form-label">Лимит объёма ответов, симв.</label>
+                      <input type="number" class="form-control" id="dialogPublicFormAnswersTotalMaxLength" min="200" max="50000" step="100">
+                    </div>
+                    <div class="col-md-4">
                       <label for="dialogPublicFormSessionTtlHours" class="form-label">TTL сессии, часов</label>
                       <input type="number" class="form-control" id="dialogPublicFormSessionTtlHours" min="1" max="720" step="1">
                     </div>
@@ -4011,6 +4015,7 @@
     workspace_client_extra_attributes_hide_technical: true,
     workspace_client_extra_attributes_technical_prefixes: ["_", "internal_"],
     public_form_message_max_length: 4000,
+    public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
     public_form_idempotency_ttl_seconds: 300,
     public_form_rate_limit_enabled: true,
@@ -13052,6 +13057,7 @@
       workspaceSegmentReactivationMinDialogs: document.getElementById('dialogWorkspaceSegmentReactivationMinDialogs'),
       workspaceSegmentReactivationMaxResolved30d: document.getElementById('dialogWorkspaceSegmentReactivationMaxResolved30d'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
+      publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
       publicFormIdempotencyTtlSeconds: document.getElementById('dialogPublicFormIdempotencyTtlSeconds'),
       publicFormRateLimitEnabled: document.getElementById('dialogPublicFormRateLimitEnabled'),
@@ -13493,6 +13499,12 @@
         ? Math.min(20000, value)
         : DEFAULT_DIALOG_SLA_CONFIG.public_form_message_max_length;
     }
+    if (inputs.publicFormAnswersTotalMaxLength) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_answers_total_max_length, 10);
+      inputs.publicFormAnswersTotalMaxLength.value = Number.isFinite(value) && value >= 200
+        ? Math.min(50000, value)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_answers_total_max_length;
+    }
     if (inputs.publicFormSessionTtlHours) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_session_ttl_hours, 10);
       inputs.publicFormSessionTtlHours.value = Number.isFinite(value) && value >= 1
@@ -13646,6 +13658,7 @@
     const historyPollIntervalRaw = Math.round(Number(inputs.historyPollIntervalMs?.value));
     const workspaceAbRolloutPercentRaw = Math.round(Number(inputs.workspaceAbRolloutPercent?.value));
     const publicFormMessageMaxLengthRaw = Math.round(Number(inputs.publicFormMessageMaxLength?.value));
+    const publicFormAnswersTotalMaxLengthRaw = Math.round(Number(inputs.publicFormAnswersTotalMaxLength?.value));
     const publicFormSessionTtlHoursRaw = Math.round(Number(inputs.publicFormSessionTtlHours?.value));
     const publicFormIdempotencyTtlSecondsRaw = Math.round(Number(inputs.publicFormIdempotencyTtlSeconds?.value));
     const publicFormRateLimitWindowSecondsRaw = Math.round(Number(inputs.publicFormRateLimitWindowSeconds?.value));
@@ -13707,6 +13720,9 @@
     const safePublicFormMessageMaxLength = Number.isFinite(publicFormMessageMaxLengthRaw)
       ? Math.min(20000, Math.max(300, publicFormMessageMaxLengthRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.public_form_message_max_length;
+    const safePublicFormAnswersTotalMaxLength = Number.isFinite(publicFormAnswersTotalMaxLengthRaw)
+      ? Math.min(50000, Math.max(200, publicFormAnswersTotalMaxLengthRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_answers_total_max_length;
     const safePublicFormSessionTtlHours = Number.isFinite(publicFormSessionTtlHoursRaw)
       ? Math.min(720, Math.max(1, publicFormSessionTtlHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_ttl_hours;
@@ -13774,6 +13790,9 @@
     }
     if (!Number.isFinite(publicFormMessageMaxLengthRaw) || publicFormMessageMaxLengthRaw < 300 || publicFormMessageMaxLengthRaw > 20000) {
       errors.push('Макс. длина сообщения формы должна быть в диапазоне 300..20000.');
+    }
+    if (!Number.isFinite(publicFormAnswersTotalMaxLengthRaw) || publicFormAnswersTotalMaxLengthRaw < 200 || publicFormAnswersTotalMaxLengthRaw > 50000) {
+      errors.push('Лимит объёма ответов формы должен быть в диапазоне 200..50000.');
     }
     if (!Number.isFinite(publicFormSessionTtlHoursRaw) || publicFormSessionTtlHoursRaw < 1 || publicFormSessionTtlHoursRaw > 720) {
       errors.push('TTL сессии формы должен быть в диапазоне 1..720 часов.');
@@ -14312,6 +14331,7 @@
         dialog_workspace_segment_reactivation_risk_min_dialogs: safeReactivationMinDialogs,
         dialog_workspace_segment_reactivation_risk_max_resolved_30d: safeReactivationMaxResolved,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
+        dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
         dialog_public_form_idempotency_ttl_seconds: safePublicFormIdempotencyTtlSeconds,
         dialog_public_form_rate_limit_enabled: Boolean(inputs.publicFormRateLimitEnabled?.checked),

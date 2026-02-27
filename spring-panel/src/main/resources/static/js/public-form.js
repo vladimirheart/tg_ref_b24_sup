@@ -18,6 +18,7 @@
     let captchaEnabled = false;
     let currentToken = initial.initialToken || null;
     let historyPollTimer = null;
+    let answersTotalMaxLength = 6000;
 
 
     function generateRequestId() {
@@ -239,6 +240,12 @@
     }
 
     function validateAnswers(answers) {
+        const answersPayloadLength = Object.values(answers || {})
+            .map((value) => (typeof value === 'string' ? value.length : 0))
+            .reduce((sum, length) => sum + length, 0);
+        if (answersPayloadLength > answersTotalMaxLength) {
+            return `Суммарный объём ответов превышает ${answersTotalMaxLength} символов.`;
+        }
         for (const question of activeQuestions) {
             const value = answers[question.id] || '';
             if (question.type === 'checkbox') {
@@ -293,6 +300,10 @@
                 throw new Error(payload.error || 'Не удалось загрузить конфигурацию формы');
             }
             captchaEnabled = Boolean(payload.captchaEnabled);
+            const configuredAnswersLimit = Number.parseInt(payload.answersTotalMaxLength, 10);
+            answersTotalMaxLength = Number.isFinite(configuredAnswersLimit)
+                ? Math.min(50000, Math.max(200, configuredAnswersLimit))
+                : 6000;
             renderQuestions(payload.questions || []);
             renderCaptcha();
         } catch (error) {
