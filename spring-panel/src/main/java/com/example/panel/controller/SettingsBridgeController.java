@@ -236,6 +236,10 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_public_form_rate_limit_use_fingerprint")
                 || payload.containsKey("dialog_public_form_metrics_enabled")
                 || payload.containsKey("dialog_public_form_captcha_shared_secret")
+                || payload.containsKey("dialog_public_form_captcha_mode")
+                || payload.containsKey("dialog_public_form_turnstile_secret_key")
+                || payload.containsKey("dialog_public_form_turnstile_verify_url")
+                || payload.containsKey("dialog_public_form_turnstile_timeout_ms")
                 || payload.containsKey("dialog_public_form_session_polling_enabled")
                 || payload.containsKey("dialog_public_form_session_polling_interval_seconds")
                 || payload.containsKey("dialog_public_form_session_token_rotate_on_read")
@@ -577,6 +581,22 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_public_form_captcha_shared_secret")) {
                     dialogConfig.put("public_form_captcha_shared_secret",
                             payload.get("dialog_public_form_captcha_shared_secret"));
+                }
+                if (payload.containsKey("dialog_public_form_captcha_mode")) {
+                    dialogConfig.put("public_form_captcha_mode",
+                            payload.get("dialog_public_form_captcha_mode"));
+                }
+                if (payload.containsKey("dialog_public_form_turnstile_secret_key")) {
+                    dialogConfig.put("public_form_turnstile_secret_key",
+                            payload.get("dialog_public_form_turnstile_secret_key"));
+                }
+                if (payload.containsKey("dialog_public_form_turnstile_verify_url")) {
+                    dialogConfig.put("public_form_turnstile_verify_url",
+                            payload.get("dialog_public_form_turnstile_verify_url"));
+                }
+                if (payload.containsKey("dialog_public_form_turnstile_timeout_ms")) {
+                    dialogConfig.put("public_form_turnstile_timeout_ms",
+                            payload.get("dialog_public_form_turnstile_timeout_ms"));
                 }
                 if (payload.containsKey("dialog_public_form_session_polling_enabled")) {
                     dialogConfig.put("public_form_session_polling_enabled",
