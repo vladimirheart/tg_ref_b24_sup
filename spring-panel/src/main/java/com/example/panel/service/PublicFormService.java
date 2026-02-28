@@ -119,7 +119,8 @@ public class PublicFormService {
         String payloadHash = buildPayloadHash(normalizedSubmission, answers);
         Optional<PublicFormSessionDto> duplicate = findIdempotentSession(channel, requesterKey, requestId, payloadHash);
         if (duplicate.isPresent()) {
-            log.info("Public form idempotency hit for channel {} requester {} requestId {}", channel.getId(), requesterKey, requestId);
+            log.info("Public form idempotency hit for channel {} requesterHash {} requestId {}",
+                    channel.getId(), summarizeRequester(requesterKey), requestId);
             return duplicate.get();
         }
 
@@ -457,6 +458,17 @@ public class PublicFormService {
         int ttlSeconds = readDialogConfigInt("public_form_idempotency_ttl_seconds", 300, 30, 3600);
         long ttlMs = ttlSeconds * 1000L;
         idempotencyCache.entrySet().removeIf(entry -> (now - entry.getValue().createdAtMs()) > ttlMs);
+    }
+
+    private String summarizeRequester(String requesterKey) {
+        if (!StringUtils.hasText(requesterKey)) {
+            return "unknown";
+        }
+        String normalized = requesterKey.trim();
+        if (normalized.length() <= 12) {
+            return hashValue(normalized).substring(0, 12);
+        }
+        return normalized.substring(0, 6) + "…" + hashValue(normalized).substring(0, 6);
     }
 
     private String idempotencyCacheKey(Channel channel, String requesterKey, String requestId) {
