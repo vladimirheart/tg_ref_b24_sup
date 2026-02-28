@@ -2112,6 +2112,13 @@
                       <div class="form-text">Применяется к первичной загрузке и кнопке «Загрузить ещё».</div>
                     </div>
                     <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceDisableLegacyFallback">
+                        <label class="form-check-label" for="dialogWorkspaceDisableLegacyFallback">Workspace strict mode: не переключаться автоматически в legacy modal</label>
+                      </div>
+                      <div class="form-text">Используйте для rollout-проверки паритета: при ошибках workspace остаётся в текущем экране и не выполняет auto-fallback.</div>
+                    </div>
+                    <div class="col-md-6">
                       <label for="dialogWorkspaceFailureStreakThreshold" class="form-label">Порог fallback подряд до cooldown</label>
                       <input type="number" class="form-control" id="dialogWorkspaceFailureStreakThreshold" min="1" max="10" step="1">
                       <div class="form-text">После N ошибок workspace временно отключается для текущей сессии.</div>
@@ -4013,6 +4020,7 @@
     workspace_contract_retry_attempts: 1,
     workspace_contract_include: 'messages,context,sla,permissions',
     workspace_messages_page_limit: 50,
+    workspace_disable_legacy_fallback: false,
     workspace_failure_streak_threshold: 3,
     workspace_failure_cooldown_ms: 30000,
     workspace_draft_autosave_delay_ms: 900,
@@ -13057,6 +13065,7 @@
       workspaceRetryAttempts: document.getElementById('dialogWorkspaceRetryAttempts'),
       workspaceContractInclude: document.getElementById('dialogWorkspaceContractInclude'),
       workspaceMessagesPageLimit: document.getElementById('dialogWorkspaceMessagesPageLimit'),
+      workspaceDisableLegacyFallback: document.getElementById('dialogWorkspaceDisableLegacyFallback'),
       workspaceFailureStreakThreshold: document.getElementById('dialogWorkspaceFailureStreakThreshold'),
       workspaceFailureCooldownMs: document.getElementById('dialogWorkspaceFailureCooldownMs'),
       workspaceDraftAutosaveDelay: document.getElementById('dialogWorkspaceDraftAutosaveDelayMs'),
@@ -13261,6 +13270,9 @@
     }
     if (inputs.workspaceInlineNavigation instanceof HTMLInputElement) {
       inputs.workspaceInlineNavigation.checked = DIALOG_CONFIG.workspace_inline_navigation !== false;
+    }
+    if (inputs.workspaceDisableLegacyFallback instanceof HTMLInputElement) {
+      inputs.workspaceDisableLegacyFallback.checked = DIALOG_CONFIG.workspace_disable_legacy_fallback === true;
     }
     if (inputs.workspaceContractTimeout) {
       const timeout = Number.parseInt(DIALOG_CONFIG.workspace_contract_timeout_ms, 10);
@@ -14369,6 +14381,7 @@
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
         dialog_workspace_contract_include: safeWorkspaceContractInclude,
         dialog_workspace_messages_page_limit: safeWorkspaceMessagesPageLimit,
+        dialog_workspace_disable_legacy_fallback: Boolean(inputs.workspaceDisableLegacyFallback?.checked),
         dialog_workspace_failure_streak_threshold: safeWorkspaceFailureStreakThreshold,
         dialog_workspace_failure_cooldown_ms: safeWorkspaceFailureCooldownMs,
         dialog_workspace_draft_autosave_delay_ms: safeWorkspaceAutosaveDelay,
