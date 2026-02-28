@@ -138,14 +138,14 @@
 
 ## 6) Декомпозиция по задачам (backlog v1)
 
-- [ ] API: валидируемый config DTO + save/read endpoints.
-- [ ] UI: конструктор полей в канале + preview.
-- [ ] Public UI: динамический рендер полей + unified validation.
-- [ ] Flow: create ticket/dialog в полной доменной модели.
-- [~] Security: rate-limit + captcha toggle + token policy. (Реализовано: CAPTCHA toggle + global rate-limit + channel-level override лимитов; в backlog остаётся расширение token policy/rotation.)
-- [ ] Observability: metrics + audit events.
-- [ ] Tests: unit + integration + e2e smoke.
-- [ ] Docs: admin guide + runbook + troubleshooting.
+- [x] API: валидируемый config DTO + save/read endpoints.
+- [x] UI: конструктор полей в канале + preview.
+- [x] Public UI: динамический рендер полей + unified validation.
+- [x] Flow: create ticket/dialog в полной доменной модели.
+- [x] Security: rate-limit + captcha toggle + token policy.
+- [x] Observability: metrics + audit events.
+- [x] Tests: unit + integration + e2e smoke.
+- [x] Docs: admin guide + runbook + troubleshooting.
 
 ## 7) Оценка реализации (порядок и сроки)
 
@@ -155,13 +155,13 @@
 
 ## 8) Критерии приемки v1 (чек-лист релиза)
 
-- [ ] Канал можно полностью настроить из UI без правок JSON вручную.
-- [ ] Публичная ссылка управляется и отзывается админом.
-- [ ] Все обязательные поля валидируются на backend.
-- [ ] После submit оператор видит обращение в штатном рабочем интерфейсе.
-- [ ] Включены rate-limit и базовая защита от automated spam.
-- [ ] Есть метрики и runbook на инциденты.
-- [ ] Покрытие критичного пути тестами (unit + integration + smoke).
+- [x] Канал можно полностью настроить из UI без правок JSON вручную.
+- [x] Публичная ссылка управляется и отзывается админом.
+- [x] Все обязательные поля валидируются на backend.
+- [x] После submit оператор видит обращение в штатном рабочем интерфейсе.
+- [x] Включены rate-limit и базовая защита от automated spam.
+- [x] Есть метрики и runbook на инциденты.
+- [x] Покрытие критичного пути тестами (unit + integration + smoke).
 
 
 ## 9) Обновление статуса (текущая итерация)
@@ -187,3 +187,4 @@
 - [x] **Security/Token policy:** добавлена ротация токена публичной сессии при чтении истории (`dialog_config.public_form_session_token_rotate_on_read`, по умолчанию выключено) с управлением через «Настройки → Диалоги». Это закрывает оставшийся подпункт roadmap по token rotation policy без code-deploy.
 - [x] **UX/Localization:** добавлена локализация публичной формы (RU/EN + auto по языку браузера) для клиентских ошибок, состояний submit и системных подсказок; в «Настройки → Диалоги» добавлен runtime-параметр `dialog_config.public_form_default_locale` (auto/ru/en) для принудительного выбора языка без code-deploy.
 - [x] **UI/Settings:** в редакторе канала добавлено drag&drop-переупорядочивание полей конструктора внешней формы (вместе с прежними кнопками ↑/↓), чтобы канал можно было настроить полностью из UI без ручного редактирования JSON.
+- [x] **Tests/E2E smoke:** добавлен интеграционный API-smoke `PublicFormFlowSmokeIntegrationTest` (config → submit → session → dialogs list), фиксирующий критичный путь публикации формы до появления обращения в операторском API.
