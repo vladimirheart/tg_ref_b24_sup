@@ -51,11 +51,11 @@ public class PublicFormApiController {
         if (config.isEmpty()) {
             log.warn("Public form config not found for channel {}", channelId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("success", false, "error", "Канал не найден"));
+                    .body(Map.of("success", false, "error", "Канал не найден", "errorCode", "CHANNEL_NOT_FOUND"));
         }
         if (!config.get().enabled()) {
             return ResponseEntity.status(resolveDisabledStatus(config.get()))
-                    .body(Map.of("success", false, "error", "Форма канала отключена"));
+                    .body(Map.of("success", false, "error", "Форма канала отключена", "errorCode", "FORM_DISABLED"));
         }
         log.info("Public form config loaded for channel {} (id={}) with {} questions", channelId,
                 config.get().channelId(), config.get().questions().size());
@@ -84,11 +84,12 @@ public class PublicFormApiController {
                                                              HttpServletRequest servletRequest) {
         Optional<PublicFormConfig> config = publicFormService.loadConfigRaw(channelId);
         if (config.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("success", false, "error", "Канал не найден"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "error", "Канал не найден", "errorCode", "CHANNEL_NOT_FOUND"));
         }
         if (!config.get().enabled()) {
             return ResponseEntity.status(resolveDisabledStatus(config.get()))
-                    .body(Map.of("success", false, "error", "Форма канала отключена"));
+                    .body(Map.of("success", false, "error", "Форма канала отключена", "errorCode", "FORM_DISABLED"));
         }
         try {
             PublicFormSessionDto session = publicFormService.createSession(channelId, request.toSubmission(), resolveRequesterKey(servletRequest));
@@ -108,12 +109,13 @@ public class PublicFormApiController {
         } catch (IllegalArgumentException ex) {
             publicFormService.recordSubmitError(config.get().channelId(), ex.getMessage());
             log.warn("Failed to create public form session for channel {}: {}", channelId, ex.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "error", ex.getMessage(), "errorCode", resolveErrorCode(ex.getMessage())));
         } catch (Exception ex) {
             publicFormService.recordSubmitError(config.get().channelId(), "internal_error");
             log.error("Unexpected error during public form submit for channel {}", channelId, ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("success", false, "error", "Внутренняя ошибка сервера"));
+                    .body(Map.of("success", false, "error", "Внутренняя ошибка сервера", "errorCode", "INTERNAL_ERROR"));
         }
     }
 
@@ -127,7 +129,7 @@ public class PublicFormApiController {
         if (session.isEmpty()) {
             log.warn("Public form session not found for channel {}, token {}", channelId, token);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("success", false, "error", "Диалог не найден"));
+                    .body(Map.of("success", false, "error", "Диалог не найден", "errorCode", "SESSION_NOT_FOUND"));
         }
         List<ChatMessageDto> history = dialogService.loadHistory(session.get().ticketId(), channelFilter);
         log.info("Public form session {} for channel {} loaded with {} history messages", token, channelId, history.size());
@@ -150,6 +152,35 @@ public class PublicFormApiController {
     private HttpStatus resolveDisabledStatus(PublicFormConfig config) {
         HttpStatus status = HttpStatus.resolve(config.disabledStatus());
         return status != null ? status : HttpStatus.NOT_FOUND;
+    }
+
+    private String resolveErrorCode(String message) {
+        String normalized = Optional.ofNullable(message).orElse("").trim().toLowerCase();
+        if (normalized.contains("слишком много запросов") || normalized.contains("rate limit") || normalized.contains("too many requests")) {
+            return "RATE_LIMITED";
+        }
+        if (normalized.contains("captcha")) {
+            return "CAPTCHA_FAILED";
+        }
+        if (normalized.contains("заполните поле") || normalized.contains("подтвердите поле") || normalized.contains("required")) {
+            return "VALIDATION_REQUIRED";
+        }
+        if (normalized.contains("корректный email") || normalized.contains("invalid email")) {
+            return "VALIDATION_EMAIL";
+        }
+        if (normalized.contains("корректный телефон") || normalized.contains("invalid phone")) {
+            return "VALIDATION_PHONE";
+        }
+        if (normalized.contains("превышает лимит") || normalized.contains("слишком длин") || normalized.contains("max")) {
+            return "VALIDATION_MAX_LENGTH";
+        }
+        if (normalized.contains("должно содержать минимум") || normalized.contains("minimum")) {
+            return "VALIDATION_MIN_LENGTH";
+        }
+        if (normalized.contains("idempotency") || normalized.contains("requestid")) {
+            return "IDEMPOTENCY_CONFLICT";
+        }
+        return "VALIDATION_ERROR";
     }
 
     private String resolveRequesterKey(HttpServletRequest request) {
