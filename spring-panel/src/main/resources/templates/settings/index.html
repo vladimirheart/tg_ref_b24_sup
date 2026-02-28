@@ -2371,8 +2371,27 @@
                       </select>
                     </div>
                     <div class="col-md-4">
+                      <label for="dialogPublicFormCaptchaMode" class="form-label">Режим CAPTCHA-проверки</label>
+                      <select class="form-select" id="dialogPublicFormCaptchaMode">
+                        <option value="shared_secret">Shared secret (legacy)</option>
+                        <option value="turnstile">Cloudflare Turnstile</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
                       <label for="dialogPublicFormCaptchaSharedSecret" class="form-label">CAPTCHA shared secret</label>
                       <input type="text" class="form-control" id="dialogPublicFormCaptchaSharedSecret" placeholder="Секрет для captchaToken">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormTurnstileSecretKey" class="form-label">Turnstile secret key</label>
+                      <input type="text" class="form-control" id="dialogPublicFormTurnstileSecretKey" placeholder="0x4AAAA...">
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogPublicFormTurnstileVerifyUrl" class="form-label">Turnstile verify URL</label>
+                      <input type="url" class="form-control" id="dialogPublicFormTurnstileVerifyUrl" placeholder="https://challenges.cloudflare.com/turnstile/v0/siteverify">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogPublicFormTurnstileTimeoutMs" class="form-label">Turnstile timeout, мс</label>
+                      <input type="number" class="form-control" id="dialogPublicFormTurnstileTimeoutMs" min="500" max="15000" step="100">
                     </div>
                     <div class="col-12">
                       <div class="form-check form-switch mt-2">
@@ -3774,7 +3793,7 @@
           <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" id="channelEditorPublicFormCaptchaEnabled" />
             <label class="form-check-label" for="channelEditorPublicFormCaptchaEnabled">Требовать CAPTCHA на публичной форме</label>
-            <div class="form-text">Токен сверяется с dialog_config.public_form_captcha_shared_secret.</div>
+            <div class="form-text">В режиме shared secret токен сверяется с dialog_config.public_form_captcha_shared_secret; в режиме Turnstile выполняется server-side проверка по verify URL.</div>
           </div>
           <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" id="channelEditorPublicFormRateLimitEnabled" />
@@ -4078,6 +4097,10 @@
     public_form_session_token_rotate_on_read: false,
     public_form_default_locale: 'auto',
     public_form_captcha_shared_secret: '',
+    public_form_captcha_mode: 'shared_secret',
+    public_form_turnstile_secret_key: '',
+    public_form_turnstile_verify_url: 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+    public_form_turnstile_timeout_ms: 4000,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -13126,7 +13149,11 @@
       publicFormSessionTokenRotateOnRead: document.getElementById('dialogPublicFormSessionTokenRotateOnRead'),
       publicFormSessionPollingIntervalSeconds: document.getElementById('dialogPublicFormSessionPollingIntervalSeconds'),
       publicFormDefaultLocale: document.getElementById('dialogPublicFormDefaultLocale'),
+      publicFormCaptchaMode: document.getElementById('dialogPublicFormCaptchaMode'),
       publicFormCaptchaSharedSecret: document.getElementById('dialogPublicFormCaptchaSharedSecret'),
+      publicFormTurnstileSecretKey: document.getElementById('dialogPublicFormTurnstileSecretKey'),
+      publicFormTurnstileVerifyUrl: document.getElementById('dialogPublicFormTurnstileVerifyUrl'),
+      publicFormTurnstileTimeoutMs: document.getElementById('dialogPublicFormTurnstileTimeoutMs'),
     };
   }
 
@@ -13624,8 +13651,27 @@
         ? localeRaw
         : DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale;
     }
+    if (inputs.publicFormCaptchaMode) {
+      const modeRaw = String(DIALOG_CONFIG.public_form_captcha_mode || DEFAULT_DIALOG_SLA_CONFIG.public_form_captcha_mode).trim().toLowerCase();
+      inputs.publicFormCaptchaMode.value = ['shared_secret', 'turnstile'].includes(modeRaw)
+        ? modeRaw
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_captcha_mode;
+    }
     if (inputs.publicFormCaptchaSharedSecret) {
       inputs.publicFormCaptchaSharedSecret.value = String(DIALOG_CONFIG.public_form_captcha_shared_secret || '').trim();
+    }
+    if (inputs.publicFormTurnstileSecretKey) {
+      inputs.publicFormTurnstileSecretKey.value = String(DIALOG_CONFIG.public_form_turnstile_secret_key || '').trim();
+    }
+    if (inputs.publicFormTurnstileVerifyUrl) {
+      const verifyUrl = String(DIALOG_CONFIG.public_form_turnstile_verify_url || DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_verify_url).trim();
+      inputs.publicFormTurnstileVerifyUrl.value = verifyUrl || DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_verify_url;
+    }
+    if (inputs.publicFormTurnstileTimeoutMs) {
+      const timeout = Number.parseInt(DIALOG_CONFIG.public_form_turnstile_timeout_ms, 10);
+      inputs.publicFormTurnstileTimeoutMs.value = Number.isFinite(timeout) && timeout >= 500
+        ? Math.min(15000, timeout)
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_timeout_ms;
     }
   }
 
@@ -13753,6 +13799,7 @@
     const publicFormRateLimitWindowSecondsRaw = Math.round(Number(inputs.publicFormRateLimitWindowSeconds?.value));
     const publicFormRateLimitMaxRequestsRaw = Math.round(Number(inputs.publicFormRateLimitMaxRequests?.value));
     const publicFormSessionPollingIntervalSecondsRaw = Math.round(Number(inputs.publicFormSessionPollingIntervalSeconds?.value));
+    const publicFormTurnstileTimeoutMsRaw = Math.round(Number(inputs.publicFormTurnstileTimeoutMs?.value));
 
     const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
       ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
@@ -13828,6 +13875,9 @@
     const safePublicFormSessionPollingIntervalSeconds = Number.isFinite(publicFormSessionPollingIntervalSecondsRaw)
       ? Math.min(300, Math.max(5, publicFormSessionPollingIntervalSecondsRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_polling_interval_seconds;
+    const safePublicFormTurnstileTimeoutMs = Number.isFinite(publicFormTurnstileTimeoutMsRaw)
+      ? Math.min(15000, Math.max(500, publicFormTurnstileTimeoutMsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_timeout_ms;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
@@ -13903,6 +13953,11 @@
       || publicFormSessionPollingIntervalSecondsRaw < 5
       || publicFormSessionPollingIntervalSecondsRaw > 300) {
       errors.push('Интервал автообновления истории публичной формы должен быть в диапазоне 5..300 секунд.');
+    }
+    if (!Number.isFinite(publicFormTurnstileTimeoutMsRaw)
+      || publicFormTurnstileTimeoutMsRaw < 500
+      || publicFormTurnstileTimeoutMsRaw > 15000) {
+      errors.push('Turnstile timeout должен быть в диапазоне 500..15000 мс.');
     }
 
     const parsePercentThreshold = (rawValue, fallbackValue, label) => {
@@ -14445,7 +14500,14 @@
         dialog_public_form_default_locale: ['auto', 'ru', 'en'].includes(String(inputs.publicFormDefaultLocale?.value || '').trim().toLowerCase())
           ? String(inputs.publicFormDefaultLocale?.value || '').trim().toLowerCase()
           : DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale,
+        dialog_public_form_captcha_mode: ['shared_secret', 'turnstile'].includes(String(inputs.publicFormCaptchaMode?.value || '').trim().toLowerCase())
+          ? String(inputs.publicFormCaptchaMode?.value || '').trim().toLowerCase()
+          : DEFAULT_DIALOG_SLA_CONFIG.public_form_captcha_mode,
         dialog_public_form_captcha_shared_secret: String(inputs.publicFormCaptchaSharedSecret?.value || '').trim(),
+        dialog_public_form_turnstile_secret_key: String(inputs.publicFormTurnstileSecretKey?.value || '').trim(),
+        dialog_public_form_turnstile_verify_url: String(inputs.publicFormTurnstileVerifyUrl?.value || '').trim()
+          || DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_verify_url,
+        dialog_public_form_turnstile_timeout_ms: safePublicFormTurnstileTimeoutMs,
       },
     };
   }

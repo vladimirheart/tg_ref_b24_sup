@@ -25,6 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.util.ArrayDeque;
@@ -69,6 +74,7 @@ public class PublicFormService {
     private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
     private final Map<Long, PublicFormMetricsAccumulator> metricsByChannel = new ConcurrentHashMap<>();
     private final AtomicLong syntheticMessageId = new AtomicLong(System.currentTimeMillis());
+    private final HttpClient httpClient = HttpClient.newBuilder().build();
 
     public PublicFormService(ChannelRepository channelRepository,
                              WebFormSessionRepository sessionRepository,
@@ -655,6 +661,11 @@ public class PublicFormService {
         if (!config.captchaEnabled()) {
             return;
         }
+        String mode = readDialogConfigString("public_form_captcha_mode", "shared_secret").trim().toLowerCase(Locale.ROOT);
+        if ("turnstile".equals(mode)) {
+            verifyTurnstileCaptcha(submission.captchaToken());
+            return;
+        }
         String expected = value(readDialogConfig().get("public_form_captcha_shared_secret"));
         String token = submission.captchaToken();
         if (!StringUtils.hasText(expected)) {
@@ -663,6 +674,46 @@ public class PublicFormService {
         if (!StringUtils.hasText(token) || !expected.trim().equals(token.trim())) {
             throw new IllegalArgumentException("Проверка CAPTCHA не пройдена");
         }
+    }
+
+    private void verifyTurnstileCaptcha(String token) {
+        String secret = readDialogConfigString("public_form_turnstile_secret_key", "");
+        if (!StringUtils.hasText(secret)) {
+            throw new IllegalArgumentException("Turnstile включён, но secret key не настроен");
+        }
+        if (!StringUtils.hasText(token)) {
+            throw new IllegalArgumentException("Проверка CAPTCHA не пройдена");
+        }
+        String verifyUrl = readDialogConfigString("public_form_turnstile_verify_url",
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify");
+        int timeoutMs = readDialogConfigInt("public_form_turnstile_timeout_ms", 4000, 500, 15000);
+        String payload = "secret=" + urlEncode(secret)
+                + "&response=" + urlEncode(token.trim());
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(verifyUrl))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .timeout(java.time.Duration.ofMillis(timeoutMs))
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalArgumentException("CAPTCHA-сервис недоступен");
+            }
+            JsonNode root = objectMapper.readTree(Optional.ofNullable(response.body()).orElse("{}"));
+            if (!root.path("success").asBoolean(false)) {
+                throw new IllegalArgumentException("Проверка CAPTCHA не пройдена");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.warn("Turnstile verification failed: {}", ex.getMessage());
+            throw new IllegalArgumentException("Не удалось проверить CAPTCHA, попробуйте позже");
+        }
+    }
+
+    private String urlEncode(String value) {
+        return URLEncoder.encode(Optional.ofNullable(value).orElse(""), StandardCharsets.UTF_8);
     }
 
     private boolean isMetricsEnabled() {
