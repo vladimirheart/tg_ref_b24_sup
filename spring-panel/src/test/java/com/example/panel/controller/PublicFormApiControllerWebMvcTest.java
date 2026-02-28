@@ -62,7 +62,8 @@ class PublicFormApiControllerWebMvcTest {
         mockMvc.perform(get("/api/public/forms/web-gone/config"))
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("Форма канала отключена"));
+                .andExpect(jsonPath("$.error").value("Форма канала отключена"))
+                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"));
     }
 
     @Test
@@ -168,9 +169,43 @@ class PublicFormApiControllerWebMvcTest {
                                 }
                                 """))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("INTERNAL_ERROR"));
 
         verify(publicFormService, times(1)).recordSubmitError(12L, "internal_error");
+    }
+
+
+    @Test
+    void createSessionReturnsStructuredValidationErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                13L,
+                "web-limit",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-limit")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-limit"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("Слишком много запросов. Попробуйте позже"));
+
+        mockMvc.perform(post("/api/public/forms/web-limit/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("RATE_LIMITED"));
+
+        verify(publicFormService, times(1)).recordSubmitError(13L, "Слишком много запросов. Попробуйте позже");
     }
 
     @Test
