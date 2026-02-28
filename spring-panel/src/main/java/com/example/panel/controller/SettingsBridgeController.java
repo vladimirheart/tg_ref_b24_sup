@@ -187,6 +187,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_contract_retry_attempts")
                 || payload.containsKey("dialog_workspace_contract_include")
                 || payload.containsKey("dialog_workspace_messages_page_limit")
+                || payload.containsKey("dialog_workspace_disable_legacy_fallback")
                 || payload.containsKey("dialog_workspace_failure_streak_threshold")
                 || payload.containsKey("dialog_workspace_failure_cooldown_ms")
                 || payload.containsKey("dialog_workspace_draft_autosave_delay_ms")
@@ -390,6 +391,9 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_messages_page_limit")) {
                     dialogConfig.put("workspace_messages_page_limit", payload.get("dialog_workspace_messages_page_limit"));
+                }
+                if (payload.containsKey("dialog_workspace_disable_legacy_fallback")) {
+                    dialogConfig.put("workspace_disable_legacy_fallback", payload.get("dialog_workspace_disable_legacy_fallback"));
                 }
                 if (payload.containsKey("dialog_workspace_failure_streak_threshold")) {
                     dialogConfig.put("workspace_failure_streak_threshold", payload.get("dialog_workspace_failure_streak_threshold"));
