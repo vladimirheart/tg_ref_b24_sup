@@ -24,7 +24,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.OffsetDateTime;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,12 +130,13 @@ public class PublicFormApiController {
         Optional<PublicFormSessionDto> session = publicFormService.findSession(channelId, token);
         resolvedChannelId.ifPresent(id -> publicFormService.recordSessionLookup(id, session.isPresent()));
         if (session.isEmpty()) {
-            log.warn("Public form session not found for channel {}, token {}", channelId, token);
+            log.warn("Public form session not found for channel {}, token {}", channelId, maskToken(token));
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден", "errorCode", "SESSION_NOT_FOUND"));
         }
         List<ChatMessageDto> history = dialogService.loadHistory(session.get().ticketId(), channelFilter);
-        log.info("Public form session {} for channel {} loaded with {} history messages", token, channelId, history.size());
+        log.info("Public form session {} for channel {} loaded with {} history messages",
+                maskToken(token), channelId, history.size());
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("success", true);
         response.put("session", Map.of(
@@ -199,6 +203,30 @@ public class PublicFormApiController {
         String fingerprint = request.getHeader("X-Public-Form-Fingerprint");
         return publicFormService.buildRequesterKey(requesterIp, fingerprint);
     }
+
+    private String maskToken(String token) {
+        if (token == null || token.isBlank()) {
+            return "[empty]";
+        }
+        String normalized = token.trim();
+        if (normalized.length() <= 8) {
+            return "tok:" + HexFormat.of().formatHex(digestUtf8(normalized), 0, 4);
+        }
+        return normalized.substring(0, 4) + "…" + normalized.substring(normalized.length() - 4);
+    }
+
+    private byte[] digestUtf8(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(Optional.ofNullable(value).orElse("").getBytes(StandardCharsets.UTF_8));
+        } catch (Exception ex) {
+            byte[] fallback = Optional.ofNullable(value).orElse("").getBytes(StandardCharsets.UTF_8);
+            byte[] padded = new byte[4];
+            System.arraycopy(fallback, 0, padded, 0, Math.min(fallback.length, 4));
+            return padded;
+        }
+    }
+
     private Map<String, Object> questionToMap(PublicFormQuestion question) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", question.id());
