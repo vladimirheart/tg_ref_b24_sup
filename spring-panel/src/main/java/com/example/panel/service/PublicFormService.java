@@ -585,7 +585,8 @@ public class PublicFormService {
                 : String.valueOf(channel.getId());
         ParsedPublicFormSettings settings = parseSettings(channel);
         return new PublicFormConfig(channel.getId(), publicId, channel.getChannelName(), settings.schemaVersion(), settings.enabled(),
-                settings.captchaEnabled(), settings.disabledStatus(), questions);
+                settings.captchaEnabled(), settings.disabledStatus(), settings.successInstruction(),
+                settings.responseEtaMinutes(), questions);
     }
 
     private PublicFormConfig buildDemoConfig() {
@@ -601,7 +602,8 @@ public class PublicFormService {
                 new PublicFormQuestion("details", "Опишите ситуацию подробнее", "textarea", 5, Map.of("rows", 3, "maxLength", 1000))
         );
 
-        return new PublicFormConfig(0L, "demo", "Демо-канал", 1, true, false, 404, demoQuestions);
+        return new PublicFormConfig(0L, "demo", "Демо-канал", 1, true, false, 404,
+                "Обычно отвечаем в течение рабочего дня.", 240, demoQuestions);
     }
 
     private List<PublicFormQuestion> parseQuestions(Channel channel) {
@@ -626,7 +628,8 @@ public class PublicFormService {
             if (root.isArray()) {
                 List<Map<String, Object>> fields = objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
                 });
-                return new ParsedPublicFormSettings(1, true, false, 404, fields);
+                return new ParsedPublicFormSettings(1, true, false, 404,
+                        null, null, fields, null, null);
             }
             if (root.isObject()) {
                 int schemaVersion = Math.max(1, root.path("schemaVersion").asInt(1));
@@ -647,8 +650,13 @@ public class PublicFormService {
                 Integer rateLimitMaxRequests = root.has("rateLimitMaxRequests")
                         ? normalizeRange(root.path("rateLimitMaxRequests").asInt(5), 1, 500)
                         : null;
+                String successInstruction = trim(value(root.get("successInstruction")));
+                Integer responseEtaMinutes = root.has("responseEtaMinutes")
+                        ? normalizeRange(root.path("responseEtaMinutes").asInt(0), 0, 7 * 24 * 60)
+                        : null;
                 return new ParsedPublicFormSettings(schemaVersion, enabled, captchaEnabled, disabledStatus,
-                        rateLimitEnabled, rateLimitWindowSeconds, rateLimitMaxRequests, fields);
+                        rateLimitEnabled, rateLimitWindowSeconds, rateLimitMaxRequests,
+                        fields, successInstruction, responseEtaMinutes);
             }
             return ParsedPublicFormSettings.defaults();
         } catch (Exception ex) {
@@ -985,10 +993,12 @@ public class PublicFormService {
                                             Boolean rateLimitEnabled,
                                             Integer rateLimitWindowSeconds,
                                             Integer rateLimitMaxRequests,
-                                            List<Map<String, Object>> fields) {
+                                            List<Map<String, Object>> fields,
+                                            String successInstruction,
+                                            Integer responseEtaMinutes) {
         private static ParsedPublicFormSettings defaults() {
             return new ParsedPublicFormSettings(1, true, false, 404,
-                    null, null, null, List.of());
+                    null, null, null, List.of(), null, null);
         }
     }
 

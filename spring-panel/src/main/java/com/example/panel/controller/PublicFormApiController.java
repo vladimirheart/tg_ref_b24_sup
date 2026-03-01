@@ -77,6 +77,8 @@ public class PublicFormApiController {
         payload.put("sessionPollingIntervalSeconds", publicFormService.resolveSessionPollingIntervalSeconds());
         payload.put("uiLocale", publicFormService.resolveUiLocale());
         payload.put("disabledStatus", config.get().disabledStatus());
+        payload.put("successInstruction", config.get().successInstruction());
+        payload.put("responseEtaMinutes", config.get().responseEtaMinutes());
         payload.put("questions", config.get().questions().stream().map(this::questionToMap).toList());
         return ResponseEntity.ok(payload);
     }
