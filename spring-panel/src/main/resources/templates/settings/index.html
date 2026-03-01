@@ -3816,6 +3816,18 @@
               <option value="410">410 Gone (форма отозвана)</option>
             </select>
           </div>
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-md-7">
+              <label class="form-label" for="channelEditorPublicFormSuccessInstruction">Инструкция после отправки</label>
+              <textarea class="form-control" id="channelEditorPublicFormSuccessInstruction" rows="2" maxlength="300" placeholder="Например: Ответим в рабочее время с 09:00 до 18:00"></textarea>
+              <div class="form-text">Показывается пользователю после успешной отправки формы.</div>
+            </div>
+            <div class="col-12 col-md-5">
+              <label class="form-label" for="channelEditorPublicFormResponseEtaMinutes">Ожидаемое время ответа (мин)</label>
+              <input class="form-control" type="number" id="channelEditorPublicFormResponseEtaMinutes" min="0" max="10080" step="5" placeholder="0 — скрыть" />
+              <div class="form-text">Если указано, клиент увидит ориентир по времени ответа.</div>
+            </div>
+          </div>
           <div class="border rounded-3 p-3 mb-4">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <div>
@@ -14912,6 +14924,8 @@
   const channelEditorPublicFormRateLimitWindowSecondsInput = document.getElementById('channelEditorPublicFormRateLimitWindowSeconds');
   const channelEditorPublicFormRateLimitMaxRequestsInput = document.getElementById('channelEditorPublicFormRateLimitMaxRequests');
   const channelEditorPublicFormDisabledStatusInput = document.getElementById('channelEditorPublicFormDisabledStatus');
+  const channelEditorPublicFormSuccessInstructionInput = document.getElementById('channelEditorPublicFormSuccessInstruction');
+  const channelEditorPublicFormResponseEtaMinutesInput = document.getElementById('channelEditorPublicFormResponseEtaMinutes');
   const channelEditorPublicFormFieldsList = document.querySelector('[data-public-form-fields-list]');
   const channelEditorPublicFormPreview = document.querySelector('[data-public-form-preview]');
   const channelEditorPublicFormAddFieldBtn = document.getElementById('channelEditorPublicFormAddFieldBtn');
@@ -15349,6 +15363,15 @@
       const status = Number.parseInt(channel.questions_cfg?.disabledStatus || 404, 10);
       channelEditorPublicFormDisabledStatusInput.value = status === 410 ? '410' : '404';
     }
+    if (channelEditorPublicFormSuccessInstructionInput) {
+      channelEditorPublicFormSuccessInstructionInput.value = String(channel.questions_cfg?.successInstruction || '').trim();
+    }
+    if (channelEditorPublicFormResponseEtaMinutesInput) {
+      const etaValue = Number.parseInt(channel.questions_cfg?.responseEtaMinutes, 10);
+      channelEditorPublicFormResponseEtaMinutesInput.value = Number.isFinite(etaValue) && etaValue > 0
+        ? String(Math.max(0, Math.min(10080, etaValue)))
+        : '';
+    }
     const cfgFields = Array.isArray(channel.questions_cfg?.fields) ? channel.questions_cfg.fields : [];
     channelEditorState.publicFormFields = cfgFields.map((field, index) => normalizePublicFormField(field, index + 1));
     renderPublicFormFieldsEditor();
@@ -15711,7 +15734,7 @@
   };
 
   function parseQuestionsCfg(raw) {
-    if (!raw) return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, fields: [] };
+    if (!raw) return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [] };
     if (Array.isArray(raw)) {
       return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, fields: raw };
     }
@@ -15719,7 +15742,7 @@
       try {
         return parseQuestionsCfg(JSON.parse(raw));
       } catch (e) {
-        return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, fields: [] };
+        return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [] };
       }
     }
     if (typeof raw === "object") {
@@ -15732,10 +15755,14 @@
         rateLimitWindowSeconds: Number.isFinite(Number.parseInt(raw.rateLimitWindowSeconds, 10)) ? Number.parseInt(raw.rateLimitWindowSeconds, 10) : null,
         rateLimitMaxRequests: Number.isFinite(Number.parseInt(raw.rateLimitMaxRequests, 10)) ? Number.parseInt(raw.rateLimitMaxRequests, 10) : null,
         disabledStatus: disabledStatusRaw === 410 ? 410 : 404,
+        successInstruction: String(raw.successInstruction || '').trim(),
+        responseEtaMinutes: Number.isFinite(Number.parseInt(raw.responseEtaMinutes, 10))
+          ? Math.max(0, Math.min(10080, Number.parseInt(raw.responseEtaMinutes, 10)))
+          : null,
         fields: Array.isArray(raw.fields) ? raw.fields : [],
       };
     }
-    return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, fields: [] };
+    return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [] };
   }
 
   function parsePlatformConfig(raw) {
@@ -16037,6 +16064,12 @@
       rateLimitWindowSeconds,
       rateLimitMaxRequests,
       disabledStatus: disabledStatus === 410 ? 410 : 404,
+      successInstruction: String(channelEditorPublicFormSuccessInstructionInput?.value || '').trim(),
+      responseEtaMinutes: (() => {
+        const etaRaw = Number.parseInt(channelEditorPublicFormResponseEtaMinutesInput?.value || existingQuestionsCfg.responseEtaMinutes || 0, 10);
+        if (!Number.isFinite(etaRaw) || etaRaw <= 0) return null;
+        return Math.max(0, Math.min(10080, etaRaw));
+      })(),
       fields: channelEditorState.publicFormFields.map((field, index) => ({
         ...field,
         order: index + 1,
