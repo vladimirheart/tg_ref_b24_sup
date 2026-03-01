@@ -54,6 +54,8 @@ class PublicFormApiControllerWebMvcTest {
                 false,
                 false,
                 410,
+                null,
+                null,
                 List.of()
         );
         when(publicFormService.loadConfigRaw("web-gone")).thenReturn(Optional.of(disabledConfig));
@@ -76,6 +78,8 @@ class PublicFormApiControllerWebMvcTest {
                 true,
                 false,
                 404,
+                null,
+                null,
                 List.of(new PublicFormQuestion("topic", "Тема", "text", 10, Map.of("required", true)))
         );
         PublicFormSessionDto createdSession = new PublicFormSessionDto(
@@ -129,6 +133,8 @@ class PublicFormApiControllerWebMvcTest {
                 true,
                 false,
                 404,
+                "Ответим в течение дня",
+                120,
                 List.of()
         );
         when(publicFormService.loadConfigRaw("web-locale")).thenReturn(Optional.of(enabledConfig));
@@ -140,7 +146,9 @@ class PublicFormApiControllerWebMvcTest {
         mockMvc.perform(get("/api/public/forms/web-locale/config"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.uiLocale").value("en"));
+                .andExpect(jsonPath("$.uiLocale").value("en"))
+                .andExpect(jsonPath("$.successInstruction").value("Ответим в течение дня"))
+                .andExpect(jsonPath("$.responseEtaMinutes").value(120));
     }
 
     @Test
@@ -153,6 +161,8 @@ class PublicFormApiControllerWebMvcTest {
                 true,
                 false,
                 404,
+                null,
+                null,
                 List.of()
         );
 
@@ -186,6 +196,8 @@ class PublicFormApiControllerWebMvcTest {
                 true,
                 false,
                 404,
+                null,
+                null,
                 List.of()
         );
 
