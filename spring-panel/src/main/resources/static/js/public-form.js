@@ -21,6 +21,8 @@
     let answersTotalMaxLength = 6000;
     let sessionPollingEnabled = true;
     let sessionPollingIntervalMs = 15000;
+    let successInstruction = '';
+    let responseEtaMinutes = null;
 
     let uiLocale = 'auto';
 
@@ -59,6 +61,7 @@
             errorCodeInternalError: 'Внутренняя ошибка сервера. Повторите попытку позже.',
             createdSuccess: 'Обращение создано! Номер: {ticketId}. Сохраните токен: {token}. Мы ответим в этом окне.',
             dialogCreatedStatus: 'Диалог {ticketId} создан {createdAt}. Обновляйте страницу по этому токену.',
+            etaHint: 'Ожидаемое время ответа: {eta}.',
             unknownError: 'Произошла ошибка. Попробуйте позже.'
         },
         en: {
@@ -95,6 +98,7 @@
             errorCodeInternalError: 'Internal server error. Please try again later.',
             createdSuccess: 'Request created! Ticket: {ticketId}. Save your token: {token}. We will answer in this window.',
             dialogCreatedStatus: 'Dialog {ticketId} created {createdAt}. Keep this token URL to continue.',
+            etaHint: 'Estimated response time: {eta}.',
             unknownError: 'Something went wrong. Please try again later.'
         }
     };
@@ -429,6 +433,47 @@
         }
     }
 
+
+    function formatEta(minutesValue) {
+        const minutes = Number.parseInt(minutesValue, 10);
+        if (!Number.isFinite(minutes) || minutes <= 0) {
+            return '';
+        }
+        if (activeLocale === 'ru') {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            const parts = [];
+            if (hours > 0) {
+                const hourWord = hours % 10 === 1 && hours % 100 !== 11 ? 'час' : (hours % 10 >= 2 && hours % 10 <= 4 && (hours % 100 < 10 || hours % 100 >= 20) ? 'часа' : 'часов');
+                parts.push(`${hours} ${hourWord}`);
+            }
+            if (mins > 0) {
+                const minWord = mins % 10 === 1 && mins % 100 !== 11 ? 'минута' : (mins % 10 >= 2 && mins % 10 <= 4 && (mins % 100 < 10 || mins % 100 >= 20) ? 'минуты' : 'минут');
+                parts.push(`${mins} ${minWord}`);
+            }
+            return parts.join(' ') || `${minutes} мин`;
+        }
+        if (minutes < 60) {
+            return `${minutes} min`;
+        }
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+
+    function buildSuccessMessage(ticketId, token) {
+        const base = t('createdSuccess', { ticketId, token });
+        const details = [];
+        if (successInstruction) {
+            details.push(successInstruction);
+        }
+        const etaText = formatEta(responseEtaMinutes);
+        if (etaText) {
+            details.push(t('etaHint', { eta: etaText }));
+        }
+        return details.length ? `${base} ${details.join(' ')}` : base;
+    }
+
     async function loadConfig() {
         try {
             const response = await fetch(`${apiBase}/config`);
@@ -443,6 +488,11 @@
                 : 6000;
             sessionPollingEnabled = payload.sessionPollingEnabled !== false;
             uiLocale = payload.uiLocale || "auto";
+            successInstruction = String(payload.successInstruction || '').trim();
+            const responseEtaRaw = Number.parseInt(payload.responseEtaMinutes, 10);
+            responseEtaMinutes = Number.isFinite(responseEtaRaw) && responseEtaRaw > 0
+                ? Math.max(1, Math.min(10080, responseEtaRaw))
+                : null;
             const configuredPollingInterval = Number.parseInt(payload.sessionPollingIntervalSeconds, 10);
             const safePollingIntervalSeconds = Number.isFinite(configuredPollingInterval)
                 ? Math.min(300, Math.max(5, configuredPollingInterval))
@@ -542,7 +592,7 @@
 
         try {
             const data = await submitWithRetry(payload, 2);
-            showSuccess(t('createdSuccess', { ticketId: data.ticketId, token: data.token }));
+            showSuccess(buildSuccessMessage(data.ticketId, data.token));
             statusLabel.textContent = t('dialogCreatedStatus', { ticketId: data.ticketId, createdAt: data.createdAt || '' });
             currentToken = data.token;
             setTokenInUrl(data.token);

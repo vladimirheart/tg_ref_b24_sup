@@ -9,5 +9,7 @@ public record PublicFormConfig(Long channelId,
                                boolean enabled,
                                boolean captchaEnabled,
                                int disabledStatus,
+                               String successInstruction,
+                               Integer responseEtaMinutes,
                                List<PublicFormQuestion> questions) {
 }
