@@ -357,6 +357,8 @@ class SupportPanelIntegrationTests {
     @Test
     void publicFormServiceCollectsRuntimeMetricsWhenEnabled() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (31, 'web-metrics', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-metrics')");
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", "{\"public_form_alert_min_views\":1,\"public_form_alert_error_rate_threshold\":0.5,\"public_form_alert_captcha_failure_rate_threshold\":0.3,\"public_form_alert_rate_limit_rejection_rate_threshold\":0.3}");
 
         publicFormService.recordConfigView(31L);
         publicFormService.recordConfigView(31L);
@@ -366,6 +368,8 @@ class SupportPanelIntegrationTests {
 
         Map<String, Object> snapshot = publicFormService.loadMetricsSnapshot(31L);
         assertThat(snapshot).containsEntry("enabled", true);
+        assertThat(snapshot).containsEntry("alertsEnabled", true);
+        assertThat(snapshot.get("channelsWithAlerts")).isEqualTo(1L);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> channels = (List<Map<String, Object>>) snapshot.get("channels");
         assertThat(channels).hasSize(1);
@@ -376,6 +380,10 @@ class SupportPanelIntegrationTests {
         assertThat(row.get("submitErrors")).isEqualTo(2L);
         assertThat(row.get("captchaFailures")).isEqualTo(1L);
         assertThat(row.get("rateLimitRejections")).isEqualTo(1L);
+        assertThat(row.get("submitErrorRateByAttempts")).isEqualTo(2d / 3d);
+        assertThat(row.get("captchaFailureRateByAttempts")).isEqualTo(1d / 3d);
+        assertThat(row.get("rateLimitRejectionRateByAttempts")).isEqualTo(1d / 3d);
+        assertThat(row.get("alerts")).asList().contains("high_submit_error_rate", "high_captcha_failure_rate", "high_rate_limit_rejection_rate");
     }
 
     @Test
