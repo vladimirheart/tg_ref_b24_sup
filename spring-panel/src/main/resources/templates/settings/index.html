@@ -2407,6 +2407,32 @@
                         <label class="form-check-label" for="dialogPublicFormMetricsEnabled">Собирать runtime-метрики публичных форм (views/submits/errors)</label>
                       </div>
                       <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogPublicFormAlertsEnabled">
+                        <label class="form-check-label" for="dialogPublicFormAlertsEnabled">Включить alert-эвристику по аномалиям (ошибки/капча/rate-limit/session miss)</label>
+                      </div>
+                      <div class="row g-2 mt-2">
+                        <div class="col-md-4">
+                          <label class="form-label" for="dialogPublicFormAlertMinViews">Мин. просмотров для алертов</label>
+                          <input type="number" class="form-control" id="dialogPublicFormAlertMinViews" min="1" max="10000" step="1">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label" for="dialogPublicFormAlertErrorRateThreshold">Порог submit error rate</label>
+                          <input type="number" class="form-control" id="dialogPublicFormAlertErrorRateThreshold" min="0.01" max="1" step="0.01">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label" for="dialogPublicFormAlertCaptchaFailureRateThreshold">Порог CAPTCHA failure rate</label>
+                          <input type="number" class="form-control" id="dialogPublicFormAlertCaptchaFailureRateThreshold" min="0.01" max="1" step="0.01">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label" for="dialogPublicFormAlertRateLimitRejectionRateThreshold">Порог rate-limit rejection rate</label>
+                          <input type="number" class="form-control" id="dialogPublicFormAlertRateLimitRejectionRateThreshold" min="0.01" max="1" step="0.01">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label" for="dialogPublicFormAlertSessionLookupMissRateThreshold">Порог session miss rate</label>
+                          <input type="number" class="form-control" id="dialogPublicFormAlertSessionLookupMissRateThreshold" min="0.01" max="1" step="0.01">
+                        </div>
+                      </div>
+                      <div class="form-check form-switch mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogPublicFormStripHtmlTags">
                         <label class="form-check-label" for="dialogPublicFormStripHtmlTags">Удалять HTML-теги и управляющие символы из ответов публичной формы</label>
                       </div>
@@ -4104,6 +4130,12 @@
     public_form_rate_limit_max_requests: 5,
     public_form_rate_limit_use_fingerprint: true,
     public_form_metrics_enabled: true,
+    public_form_alerts_enabled: true,
+    public_form_alert_min_views: 20,
+    public_form_alert_error_rate_threshold: 0.35,
+    public_form_alert_captcha_failure_rate_threshold: 0.20,
+    public_form_alert_rate_limit_rejection_rate_threshold: 0.20,
+    public_form_alert_session_lookup_miss_rate_threshold: 0.30,
     public_form_session_polling_enabled: true,
     public_form_session_polling_interval_seconds: 15,
     public_form_session_token_rotate_on_read: false,
@@ -13156,6 +13188,12 @@
       publicFormRateLimitMaxRequests: document.getElementById('dialogPublicFormRateLimitMaxRequests'),
       publicFormRateLimitUseFingerprint: document.getElementById('dialogPublicFormRateLimitUseFingerprint'),
       publicFormMetricsEnabled: document.getElementById('dialogPublicFormMetricsEnabled'),
+      publicFormAlertsEnabled: document.getElementById('dialogPublicFormAlertsEnabled'),
+      publicFormAlertMinViews: document.getElementById('dialogPublicFormAlertMinViews'),
+      publicFormAlertErrorRateThreshold: document.getElementById('dialogPublicFormAlertErrorRateThreshold'),
+      publicFormAlertCaptchaFailureRateThreshold: document.getElementById('dialogPublicFormAlertCaptchaFailureRateThreshold'),
+      publicFormAlertRateLimitRejectionRateThreshold: document.getElementById('dialogPublicFormAlertRateLimitRejectionRateThreshold'),
+      publicFormAlertSessionLookupMissRateThreshold: document.getElementById('dialogPublicFormAlertSessionLookupMissRateThreshold'),
       publicFormStripHtmlTags: document.getElementById('dialogPublicFormStripHtmlTags'),
       publicFormSessionPollingEnabled: document.getElementById('dialogPublicFormSessionPollingEnabled'),
       publicFormSessionTokenRotateOnRead: document.getElementById('dialogPublicFormSessionTokenRotateOnRead'),
@@ -13630,6 +13668,39 @@
     if (inputs.publicFormMetricsEnabled instanceof HTMLInputElement) {
       inputs.publicFormMetricsEnabled.checked = DIALOG_CONFIG.public_form_metrics_enabled !== false;
     }
+    if (inputs.publicFormAlertsEnabled instanceof HTMLInputElement) {
+      inputs.publicFormAlertsEnabled.checked = DIALOG_CONFIG.public_form_alerts_enabled !== false;
+    }
+    if (inputs.publicFormAlertMinViews) {
+      const value = Number.parseInt(DIALOG_CONFIG.public_form_alert_min_views, 10);
+      inputs.publicFormAlertMinViews.value = Number.isFinite(value) && value >= 1
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_min_views;
+    }
+    if (inputs.publicFormAlertErrorRateThreshold) {
+      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_error_rate_threshold);
+      inputs.publicFormAlertErrorRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_error_rate_threshold;
+    }
+    if (inputs.publicFormAlertCaptchaFailureRateThreshold) {
+      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_captcha_failure_rate_threshold);
+      inputs.publicFormAlertCaptchaFailureRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_captcha_failure_rate_threshold;
+    }
+    if (inputs.publicFormAlertRateLimitRejectionRateThreshold) {
+      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_rate_limit_rejection_rate_threshold);
+      inputs.publicFormAlertRateLimitRejectionRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_rate_limit_rejection_rate_threshold;
+    }
+    if (inputs.publicFormAlertSessionLookupMissRateThreshold) {
+      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_session_lookup_miss_rate_threshold);
+      inputs.publicFormAlertSessionLookupMissRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_session_lookup_miss_rate_threshold;
+    }
     if (inputs.publicFormStripHtmlTags instanceof HTMLInputElement) {
       inputs.publicFormStripHtmlTags.checked = DIALOG_CONFIG.public_form_strip_html_tags !== false;
     }
@@ -13812,6 +13883,11 @@
     const publicFormRateLimitMaxRequestsRaw = Math.round(Number(inputs.publicFormRateLimitMaxRequests?.value));
     const publicFormSessionPollingIntervalSecondsRaw = Math.round(Number(inputs.publicFormSessionPollingIntervalSeconds?.value));
     const publicFormTurnstileTimeoutMsRaw = Math.round(Number(inputs.publicFormTurnstileTimeoutMs?.value));
+    const publicFormAlertMinViewsRaw = Math.round(Number(inputs.publicFormAlertMinViews?.value));
+    const publicFormAlertErrorRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertErrorRateThreshold?.value);
+    const publicFormAlertCaptchaFailureRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertCaptchaFailureRateThreshold?.value);
+    const publicFormAlertRateLimitRejectionRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertRateLimitRejectionRateThreshold?.value);
+    const publicFormAlertSessionLookupMissRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertSessionLookupMissRateThreshold?.value);
 
     const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
       ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
@@ -13890,6 +13966,21 @@
     const safePublicFormTurnstileTimeoutMs = Number.isFinite(publicFormTurnstileTimeoutMsRaw)
       ? Math.min(15000, Math.max(500, publicFormTurnstileTimeoutMsRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_timeout_ms;
+    const safePublicFormAlertMinViews = Number.isFinite(publicFormAlertMinViewsRaw)
+      ? Math.min(10000, Math.max(1, publicFormAlertMinViewsRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_min_views;
+    const safePublicFormAlertErrorRateThreshold = Number.isFinite(publicFormAlertErrorRateThresholdRaw)
+      ? Math.min(1, Math.max(0.01, publicFormAlertErrorRateThresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_error_rate_threshold;
+    const safePublicFormAlertCaptchaFailureRateThreshold = Number.isFinite(publicFormAlertCaptchaFailureRateThresholdRaw)
+      ? Math.min(1, Math.max(0.01, publicFormAlertCaptchaFailureRateThresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_captcha_failure_rate_threshold;
+    const safePublicFormAlertRateLimitRejectionRateThreshold = Number.isFinite(publicFormAlertRateLimitRejectionRateThresholdRaw)
+      ? Math.min(1, Math.max(0.01, publicFormAlertRateLimitRejectionRateThresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_rate_limit_rejection_rate_threshold;
+    const safePublicFormAlertSessionLookupMissRateThreshold = Number.isFinite(publicFormAlertSessionLookupMissRateThresholdRaw)
+      ? Math.min(1, Math.max(0.01, publicFormAlertSessionLookupMissRateThresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_session_lookup_miss_rate_threshold;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
@@ -13970,6 +14061,31 @@
       || publicFormTurnstileTimeoutMsRaw < 500
       || publicFormTurnstileTimeoutMsRaw > 15000) {
       errors.push('Turnstile timeout должен быть в диапазоне 500..15000 мс.');
+    }
+    if (!Number.isFinite(publicFormAlertMinViewsRaw)
+      || publicFormAlertMinViewsRaw < 1
+      || publicFormAlertMinViewsRaw > 10000) {
+      errors.push('Мин. просмотров для алертов должен быть в диапазоне 1..10000.');
+    }
+    if (!Number.isFinite(publicFormAlertErrorRateThresholdRaw)
+      || publicFormAlertErrorRateThresholdRaw < 0.01
+      || publicFormAlertErrorRateThresholdRaw > 1) {
+      errors.push('Порог submit error rate должен быть в диапазоне 0.01..1.');
+    }
+    if (!Number.isFinite(publicFormAlertCaptchaFailureRateThresholdRaw)
+      || publicFormAlertCaptchaFailureRateThresholdRaw < 0.01
+      || publicFormAlertCaptchaFailureRateThresholdRaw > 1) {
+      errors.push('Порог CAPTCHA failure rate должен быть в диапазоне 0.01..1.');
+    }
+    if (!Number.isFinite(publicFormAlertRateLimitRejectionRateThresholdRaw)
+      || publicFormAlertRateLimitRejectionRateThresholdRaw < 0.01
+      || publicFormAlertRateLimitRejectionRateThresholdRaw > 1) {
+      errors.push('Порог rate-limit rejection rate должен быть в диапазоне 0.01..1.');
+    }
+    if (!Number.isFinite(publicFormAlertSessionLookupMissRateThresholdRaw)
+      || publicFormAlertSessionLookupMissRateThresholdRaw < 0.01
+      || publicFormAlertSessionLookupMissRateThresholdRaw > 1) {
+      errors.push('Порог session miss rate должен быть в диапазоне 0.01..1.');
     }
 
     const parsePercentThreshold = (rawValue, fallbackValue, label) => {
@@ -14505,6 +14621,12 @@
         dialog_public_form_rate_limit_max_requests: safePublicFormRateLimitMaxRequests,
         dialog_public_form_rate_limit_use_fingerprint: Boolean(inputs.publicFormRateLimitUseFingerprint?.checked),
         dialog_public_form_metrics_enabled: Boolean(inputs.publicFormMetricsEnabled?.checked),
+        dialog_public_form_alerts_enabled: Boolean(inputs.publicFormAlertsEnabled?.checked),
+        dialog_public_form_alert_min_views: safePublicFormAlertMinViews,
+        dialog_public_form_alert_error_rate_threshold: safePublicFormAlertErrorRateThreshold,
+        dialog_public_form_alert_captcha_failure_rate_threshold: safePublicFormAlertCaptchaFailureRateThreshold,
+        dialog_public_form_alert_rate_limit_rejection_rate_threshold: safePublicFormAlertRateLimitRejectionRateThreshold,
+        dialog_public_form_alert_session_lookup_miss_rate_threshold: safePublicFormAlertSessionLookupMissRateThreshold,
         dialog_public_form_strip_html_tags: Boolean(inputs.publicFormStripHtmlTags?.checked),
         dialog_public_form_session_polling_enabled: Boolean(inputs.publicFormSessionPollingEnabled?.checked),
         dialog_public_form_session_token_rotate_on_read: Boolean(inputs.publicFormSessionTokenRotateOnRead?.checked),

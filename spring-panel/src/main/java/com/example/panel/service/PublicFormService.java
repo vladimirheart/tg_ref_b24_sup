@@ -61,6 +61,11 @@ public class PublicFormService {
     private static final Pattern CONTROL_CHARS_PATTERN = Pattern.compile("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]");
     private static final int DEFAULT_MESSAGE_MAX_LENGTH = 4000;
     private static final int DEFAULT_ANSWERS_TOTAL_MAX_LENGTH = 6000;
+    private static final int DEFAULT_ALERT_MIN_VIEWS = 20;
+    private static final double DEFAULT_ALERT_ERROR_RATE = 0.35d;
+    private static final double DEFAULT_ALERT_CAPTCHA_FAILURE_RATE = 0.20d;
+    private static final double DEFAULT_ALERT_RATE_LIMIT_REJECTION_RATE = 0.20d;
+    private static final double DEFAULT_ALERT_SESSION_LOOKUP_MISS_RATE = 0.30d;
 
     private final ChannelRepository channelRepository;
     private final WebFormSessionRepository sessionRepository;
@@ -285,6 +290,12 @@ public class PublicFormService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> loadMetricsSnapshot(Long channelId) {
+        boolean alertsEnabled = readDialogConfigBoolean("public_form_alerts_enabled", true);
+        int minViews = readDialogConfigInt("public_form_alert_min_views", DEFAULT_ALERT_MIN_VIEWS, 1, 10_000);
+        double errorRateThreshold = readDialogConfigDouble("public_form_alert_error_rate_threshold", DEFAULT_ALERT_ERROR_RATE, 0.01d, 1d);
+        double captchaFailureRateThreshold = readDialogConfigDouble("public_form_alert_captcha_failure_rate_threshold", DEFAULT_ALERT_CAPTCHA_FAILURE_RATE, 0.01d, 1d);
+        double rateLimitRejectionRateThreshold = readDialogConfigDouble("public_form_alert_rate_limit_rejection_rate_threshold", DEFAULT_ALERT_RATE_LIMIT_REJECTION_RATE, 0.01d, 1d);
+        double sessionLookupMissRateThreshold = readDialogConfigDouble("public_form_alert_session_lookup_miss_rate_threshold", DEFAULT_ALERT_SESSION_LOOKUP_MISS_RATE, 0.01d, 1d);
         List<Map<String, Object>> channels = metricsByChannel.entrySet().stream()
                 .filter(entry -> channelId == null || channelId.equals(entry.getKey()))
                 .sorted(Comparator.comparingLong(Map.Entry::getKey))
@@ -297,6 +308,22 @@ public class PublicFormService {
                     long rateLimitRejections = metric.rateLimitRejections.get();
                     long sessionLookups = metric.sessionLookups.get();
                     long sessionLookupMisses = metric.sessionLookupMisses.get();
+                    long submitAttempts = submits + submitErrors;
+                    double submitErrorRateByAttempts = submitAttempts > 0 ? (double) submitErrors / submitAttempts : 0.0d;
+                    double captchaFailureRateByAttempts = submitAttempts > 0 ? (double) captchaFailures / submitAttempts : 0.0d;
+                    double rateLimitRejectionRateByAttempts = submitAttempts > 0 ? (double) rateLimitRejections / submitAttempts : 0.0d;
+                    double sessionLookupMissRate = sessionLookups > 0 ? (double) sessionLookupMisses / sessionLookups : 0.0d;
+                    List<String> alerts = buildMetricAlerts(alertsEnabled,
+                            views,
+                            minViews,
+                            submitErrorRateByAttempts,
+                            errorRateThreshold,
+                            captchaFailureRateByAttempts,
+                            captchaFailureRateThreshold,
+                            rateLimitRejectionRateByAttempts,
+                            rateLimitRejectionRateThreshold,
+                            sessionLookupMissRate,
+                            sessionLookupMissRateThreshold);
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("channelId", entry.getKey());
                     row.put("views", views);
@@ -306,17 +333,61 @@ public class PublicFormService {
                     row.put("rateLimitRejections", rateLimitRejections);
                     row.put("sessionLookups", sessionLookups);
                     row.put("sessionLookupMisses", sessionLookupMisses);
-                    row.put("sessionLookupMissRate", sessionLookups > 0 ? (double) sessionLookupMisses / sessionLookups : 0.0d);
+                    row.put("sessionLookupMissRate", sessionLookupMissRate);
                     row.put("conversion", views > 0 ? (double) submits / views : 0.0d);
                     row.put("errorRate", submits > 0 ? (double) submitErrors / submits : 0.0d);
+                    row.put("submitErrorRateByAttempts", submitErrorRateByAttempts);
+                    row.put("captchaFailureRateByAttempts", captchaFailureRateByAttempts);
+                    row.put("rateLimitRejectionRateByAttempts", rateLimitRejectionRateByAttempts);
+                    row.put("alerts", alerts);
                     row.put("updatedAt", OffsetDateTime.ofInstant(java.time.Instant.ofEpochMilli(metric.lastUpdatedAtMs.get()), java.time.ZoneOffset.UTC));
                     return row;
                 })
                 .toList();
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("enabled", isMetricsEnabled());
+        payload.put("alertsEnabled", alertsEnabled);
+        payload.put("alertThresholds", Map.of(
+                "minViews", minViews,
+                "errorRate", errorRateThreshold,
+                "captchaFailureRate", captchaFailureRateThreshold,
+                "rateLimitRejectionRate", rateLimitRejectionRateThreshold,
+                "sessionLookupMissRate", sessionLookupMissRateThreshold));
+        payload.put("channelsWithAlerts", channels.stream()
+                .filter(channel -> channel.get("alerts") instanceof List<?> alertList && !alertList.isEmpty())
+                .count());
         payload.put("channels", channels);
         return payload;
+    }
+
+    private List<String> buildMetricAlerts(boolean alertsEnabled,
+                                           long views,
+                                           int minViews,
+                                           double submitErrorRate,
+                                           double submitErrorThreshold,
+                                           double captchaFailureRate,
+                                           double captchaFailureThreshold,
+                                           double rateLimitRejectionRate,
+                                           double rateLimitRejectionThreshold,
+                                           double sessionLookupMissRate,
+                                           double sessionLookupMissRateThreshold) {
+        if (!alertsEnabled || views < minViews) {
+            return List.of();
+        }
+        List<String> alerts = new java.util.ArrayList<>();
+        if (submitErrorRate >= submitErrorThreshold) {
+            alerts.add("high_submit_error_rate");
+        }
+        if (captchaFailureRate >= captchaFailureThreshold) {
+            alerts.add("high_captcha_failure_rate");
+        }
+        if (rateLimitRejectionRate >= rateLimitRejectionThreshold) {
+            alerts.add("high_rate_limit_rejection_rate");
+        }
+        if (sessionLookupMissRate >= sessionLookupMissRateThreshold) {
+            alerts.add("high_session_lookup_miss_rate");
+        }
+        return alerts;
     }
 
     public Optional<PublicFormSessionDto> findSession(String channelRef, String token) {
@@ -948,6 +1019,22 @@ public class PublicFormService {
             }
         }
         return Math.max(minValue, Math.min(maxValue, value));
+    }
+
+    private double readDialogConfigDouble(String key, double defaultValue, double minValue, double maxValue) {
+        Object value = readDialogConfig().get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            double parsed = value instanceof Number number ? number.doubleValue() : Double.parseDouble(String.valueOf(value).trim());
+            if (!Double.isFinite(parsed) || parsed < minValue || parsed > maxValue) {
+                return defaultValue;
+            }
+            return parsed;
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
     }
 
     private String readDialogConfigString(String key, String defaultValue) {
