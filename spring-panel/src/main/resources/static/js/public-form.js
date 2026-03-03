@@ -295,6 +295,15 @@
             input.type = 'checkbox';
             return input;
         }
+        if (question.type === 'file') {
+            const input = document.createElement('input');
+            input.className = 'form-control';
+            input.type = 'file';
+            if (question.placeholder) {
+                input.setAttribute('aria-label', question.placeholder);
+            }
+            return input;
+        }
         const input = document.createElement('input');
         input.className = 'form-control';
         input.type = ['email', 'phone'].includes(question.type) ? (question.type === 'phone' ? 'tel' : 'email') : 'text';
@@ -372,6 +381,16 @@
                 return;
             }
             const raw = formData.get(`answer_${question.id}`);
+            if (question.type === 'file') {
+                const files = formData.getAll(`answer_${question.id}`)
+                    .filter((item) => item instanceof File && item.name)
+                    .map((file) => file.name.trim())
+                    .filter(Boolean);
+                if (files.length) {
+                    answers[question.id] = files.join(', ');
+                }
+                return;
+            }
             const value = typeof raw === 'string' ? raw.trim() : '';
             if (value) {
                 answers[question.id] = value;
