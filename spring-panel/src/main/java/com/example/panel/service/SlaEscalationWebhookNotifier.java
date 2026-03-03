@@ -281,7 +281,9 @@ public class SlaEscalationWebhookNotifier {
             if (requireCategories && candidateCategories.isEmpty()) {
                 continue;
             }
+            String candidateClientStatus = normalizeMatchValue(candidate.get("client_status"));
             Integer candidateUnreadCount = parseOptionalNonNegativeInt(candidate.get("unread_count"));
+            Integer candidateRating = parseOptionalNonNegativeInt(candidate.get("rating"));
             Long candidateMinutesLeft = parseOptionalLong(candidate.get("minutes_left"));
             String candidateSlaState = normalizeSlaState(candidate.get("sla_state"));
             String candidateRequestNumber = trimToNull(String.valueOf(candidate.get("request_number")));
@@ -292,7 +294,9 @@ public class SlaEscalationWebhookNotifier {
                     candidateBusiness,
                     candidateLocation,
                     candidateCategories,
+                    candidateClientStatus,
                     candidateUnreadCount,
+                    candidateRating,
                     candidateMinutesLeft,
                     candidateSlaState,
                     candidateRequestNumber
@@ -350,7 +354,9 @@ public class SlaEscalationWebhookNotifier {
             row.put("business", dialog.businessLabel());
             row.put("location", dialog.location());
             row.put("categories", dialog.categories());
+            row.put("client_status", dialog.clientStatus());
             row.put("unread_count", dialog.unreadCount());
+            row.put("rating", dialog.rating());
             row.put("sla_state", minutesLeft < 0 ? "breached" : "at_risk");
             result.add(row);
         }
@@ -425,14 +431,17 @@ public class SlaEscalationWebhookNotifier {
                                                       String candidateBusiness,
                                                       String candidateLocation,
                                                       Set<String> candidateCategories,
+                                                      String candidateClientStatus,
                                                       Integer candidateUnreadCount,
+                                                      Integer candidateRating,
                                                       Long candidateMinutesLeft,
                                                       String candidateSlaState,
                                                       String candidateRequestNumber) {
         AutoAssignRule best = null;
         for (AutoAssignRule rule : rules) {
             if (!rule.matches(candidateChannel, candidateBusiness, candidateLocation, candidateCategories,
-                    candidateUnreadCount, candidateMinutesLeft, candidateSlaState, candidateRequestNumber)) {
+                    candidateClientStatus, candidateUnreadCount, candidateRating,
+                    candidateMinutesLeft, candidateSlaState, candidateRequestNumber)) {
                 continue;
             }
             if (best == null
@@ -461,21 +470,26 @@ public class SlaEscalationWebhookNotifier {
             Set<String> channels = parseRuleMatchValues(ruleMap.get("match_channel"), ruleMap.get("match_channels"));
             Set<String> businesses = parseRuleMatchValues(ruleMap.get("match_business"), ruleMap.get("match_businesses"));
             Set<String> locations = parseRuleMatchValues(ruleMap.get("match_location"), ruleMap.get("match_locations"));
+            Set<String> clientStatuses = parseRuleMatchValues(ruleMap.get("match_client_status"), ruleMap.get("match_client_statuses"));
             Set<String> categories = parseRuleCategories(ruleMap.get("match_category"), ruleMap.get("match_categories"));
             Set<String> excludedCategories = parseRuleCategories(ruleMap.get("exclude_category"), ruleMap.get("exclude_categories"));
             CategoryMatchMode categoryMatchMode = parseCategoryMatchMode(ruleMap.get("match_categories_mode"));
             Boolean matchHasCategories = parseOptionalBoolean(ruleMap.get("match_has_categories"));
             Integer unreadMin = parseOptionalNonNegativeInt(ruleMap.get("match_unread_min"));
             Integer unreadMax = parseOptionalNonNegativeInt(ruleMap.get("match_unread_max"));
+            Integer ratingMin = parseOptionalNonNegativeInt(ruleMap.get("match_rating_min"));
+            Integer ratingMax = parseOptionalNonNegativeInt(ruleMap.get("match_rating_max"));
             Long minutesLeftLte = parseOptionalLong(ruleMap.get("match_minutes_left_lte"));
             Long minutesLeftGte = parseOptionalLong(ruleMap.get("match_minutes_left_gte"));
             Set<String> slaStates = parseRuleSlaStates(ruleMap.get("match_sla_state"), ruleMap.get("match_sla_states"));
             Set<String> requestPrefixes = parseRuleRequestPrefixes(ruleMap.get("match_request_prefix"), ruleMap.get("match_request_prefixes"));
             Set<String> excludeRequestPrefixes = parseRuleRequestPrefixes(ruleMap.get("exclude_request_prefix"), ruleMap.get("exclude_request_prefixes"));
             int priority = parsePriority(ruleMap.get("priority"));
-            if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && categories.isEmpty() && excludedCategories.isEmpty()
+            if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && clientStatuses.isEmpty()
+                    && categories.isEmpty() && excludedCategories.isEmpty()
                     && matchHasCategories == null
                     && unreadMin == null && unreadMax == null
+                    && ratingMin == null && ratingMax == null
                     && minutesLeftLte == null && minutesLeftGte == null && slaStates.isEmpty()
                     && requestPrefixes.isEmpty() && excludeRequestPrefixes.isEmpty()) {
                 continue;
@@ -485,8 +499,9 @@ public class SlaEscalationWebhookNotifier {
                 route = trimToNull(String.valueOf(ruleMap.get("name")));
             }
             PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
-            rules.add(new AutoAssignRule(channels, businesses, locations, categories, excludedCategories, categoryMatchMode,
-                    matchHasCategories, unreadMin, unreadMax, minutesLeftLte, minutesLeftGte,
+            rules.add(new AutoAssignRule(channels, businesses, locations, clientStatuses,
+                    categories, excludedCategories, categoryMatchMode,
+                    matchHasCategories, unreadMin, unreadMax, ratingMin, ratingMax, minutesLeftLte, minutesLeftGte,
                     slaStates, requestPrefixes, excludeRequestPrefixes,
                     priority, assignee, assigneePool, route, poolStrategy));
         }
@@ -909,12 +924,15 @@ public class SlaEscalationWebhookNotifier {
     private record AutoAssignRule(Set<String> channels,
                                   Set<String> businesses,
                                   Set<String> locations,
+                                  Set<String> clientStatuses,
                                   Set<String> categories,
                                   Set<String> excludedCategories,
                                   CategoryMatchMode categoryMatchMode,
                                   Boolean matchHasCategories,
                                   Integer unreadMin,
                                   Integer unreadMax,
+                                  Integer ratingMin,
+                                  Integer ratingMax,
                                   Long minutesLeftLte,
                                   Long minutesLeftGte,
                                   Set<String> slaStates,
@@ -929,7 +947,9 @@ public class SlaEscalationWebhookNotifier {
                         String candidateBusiness,
                         String candidateLocation,
                         Set<String> candidateCategories,
+                        String candidateClientStatus,
                         Integer candidateUnreadCount,
+                        Integer candidateRating,
                         Long candidateMinutesLeft,
                         String candidateSlaState,
                         String candidateRequestNumber) {
@@ -940,6 +960,10 @@ public class SlaEscalationWebhookNotifier {
                 return false;
             }
             if (locations != null && !locations.isEmpty() && (candidateLocation == null || !locations.contains(candidateLocation))) {
+                return false;
+            }
+            if (clientStatuses != null && !clientStatuses.isEmpty()
+                    && (candidateClientStatus == null || !clientStatuses.contains(candidateClientStatus))) {
                 return false;
             }
             if (categories != null && !categories.isEmpty()) {
@@ -968,6 +992,12 @@ public class SlaEscalationWebhookNotifier {
                 return false;
             }
             if (unreadMax != null && (candidateUnreadCount == null || candidateUnreadCount > unreadMax)) {
+                return false;
+            }
+            if (ratingMin != null && (candidateRating == null || candidateRating < ratingMin)) {
+                return false;
+            }
+            if (ratingMax != null && (candidateRating == null || candidateRating > ratingMax)) {
                 return false;
             }
             if (minutesLeftLte != null && (candidateMinutesLeft == null || candidateMinutesLeft > minutesLeftLte)) {
@@ -1008,6 +1038,9 @@ public class SlaEscalationWebhookNotifier {
             if (locations != null && !locations.isEmpty()) {
                 score++;
             }
+            if (clientStatuses != null && !clientStatuses.isEmpty()) {
+                score++;
+            }
             if (categories != null && !categories.isEmpty()) {
                 score++;
             }
@@ -1021,6 +1054,12 @@ public class SlaEscalationWebhookNotifier {
                 score++;
             }
             if (unreadMax != null) {
+                score++;
+            }
+            if (ratingMin != null) {
+                score++;
+            }
+            if (ratingMax != null) {
                 score++;
             }
             if (minutesLeftLte != null) {
