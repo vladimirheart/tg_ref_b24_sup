@@ -244,11 +244,7 @@ public class DialogApiController {
                 .map(item -> macroVariable(item.get("key"), item.get("label"), null, "builtin"))
                 .collect(Collectors.toCollection(ArrayList::new));
         Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object configured = settings.get("macro_variable_catalog");
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (dialogConfigRaw instanceof Map<?, ?> dialogConfig && dialogConfig.get("macro_variable_catalog") instanceof List<?>) {
-            configured = dialogConfig.get("macro_variable_catalog");
-        }
+        Object configured = resolveMacroVariableCatalog(settings);
         if (configured instanceof List<?> entries) {
             for (Object entry : entries) {
                 if (!(entry instanceof Map<?, ?> map)) {
@@ -701,7 +697,7 @@ public class DialogApiController {
     private Map<String, String> resolveConfiguredMacroVariableDefaults() {
         Map<String, String> defaults = new LinkedHashMap<>();
         Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object configured = settings.get("macro_variable_catalog");
+        Object configured = resolveMacroVariableCatalog(settings);
         if (!(configured instanceof List<?> entries)) {
             defaults.putAll(resolveDialogConfigMacroVariableDefaults(settings));
             return defaults;
@@ -719,6 +715,18 @@ public class DialogApiController {
         resolveDialogConfigMacroVariableDefaults(settings)
                 .forEach(defaults::putIfAbsent);
         return defaults;
+    }
+
+    private Object resolveMacroVariableCatalog(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return null;
+        }
+        Object configured = settings.get("macro_variable_catalog");
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (dialogConfigRaw instanceof Map<?, ?> dialogConfig && dialogConfig.get("macro_variable_catalog") instanceof List<?>) {
+            configured = dialogConfig.get("macro_variable_catalog");
+        }
+        return configured;
     }
 
     private Map<String, String> resolveDialogConfigMacroVariableDefaults(Map<String, Object> settings) {
