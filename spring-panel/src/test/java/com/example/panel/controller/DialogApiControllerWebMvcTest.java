@@ -617,6 +617,32 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void macroDryRunUsesDialogConfigCatalogDefaultValues() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "dialog_config", Map.of(
+                        "macro_variable_catalog", List.of(Map.of(
+                                "key", "crm_segment",
+                                "label", "CRM segment",
+                                "default_value", "vip"
+                        ))
+                )
+        ));
+
+        mockMvc.perform(post("/api/dialogs/macro/dry-run")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "template_text": "Сегмент: {{crm_segment}}"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.rendered_text").value("Сегмент: vip"));
+    }
+
+    @Test
     void macroDryRunRejectsEmptyTemplate() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
 
