@@ -307,6 +307,7 @@
     60000,
   );
   const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
+  const WORKSPACE_FORCE_MODE = window.DIALOG_CONFIG?.workspace_force_workspace === true;
   const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX = normalizeNumberInRange(
     window.DIALOG_CONFIG?.workspace_client_extra_attributes_max,
     20,
@@ -663,6 +664,9 @@
   function resolveWorkspaceExperienceEnabled() {
     if (!WORKSPACE_V1_ENABLED) {
       return false;
+    }
+    if (WORKSPACE_FORCE_MODE) {
+      return true;
     }
     if (!WORKSPACE_AB_TEST_CONFIG.enabled) {
       return true;
