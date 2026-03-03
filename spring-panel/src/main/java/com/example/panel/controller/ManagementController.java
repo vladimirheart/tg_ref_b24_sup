@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Controller
 public class ManagementController {
@@ -164,7 +165,7 @@ public class ManagementController {
             model.addAttribute("contractUsage", Map.of());
             model.addAttribute("statusUsage", Map.of());
             model.addAttribute("canPublishDialogMacros",
-                permissionService.hasAuthority(authentication, "DIALOG_MACRO_PUBLISH"));
+                canPublishDialogMacros(authentication, settings));
             log.info("Loaded settings for user {}: {} app settings, {} system parameters", authentication.getName(), appSettings.size(), systemParameters.size());
         } catch (Exception ex) {
             log.error("Failed to load settings page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
@@ -304,6 +305,33 @@ public class ManagementController {
         model.addAttribute("networkLegalEntityOptions", toStringList(settings.get("network_legal_entity_options")));
         model.addAttribute("cities", toStringList(settings.get("cities")));
         model.addAttribute("passportPayloadJson", passportPayloadJson);
+    }
+
+    private boolean canPublishDialogMacros(Authentication authentication, Map<String, Object> settings) {
+        if (!permissionService.hasAuthority(authentication, "DIALOG_MACRO_PUBLISH")) {
+            return false;
+        }
+        Set<String> allowedRoles = resolveMacroPublishAllowedRoles(settings);
+        return permissionService.hasAnyRole(authentication, allowedRoles);
+    }
+
+    private Set<String> resolveMacroPublishAllowedRoles(Map<String, Object> settings) {
+        if (settings == null) {
+            return Set.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return Set.of();
+        }
+        Object allowedRaw = dialogConfig.get("macro_publish_allowed_roles");
+        if (!(allowedRaw instanceof List<?> roles)) {
+            return Set.of();
+        }
+        return roles.stream()
+                .map(String::valueOf)
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
     }
 
     private List<String> toStringList(Object raw) {
