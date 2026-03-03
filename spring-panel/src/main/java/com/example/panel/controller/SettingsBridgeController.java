@@ -243,7 +243,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_public_form_session_polling_enabled")
                 || payload.containsKey("dialog_public_form_session_polling_interval_seconds")
                 || payload.containsKey("dialog_public_form_session_token_rotate_on_read")
-                || payload.containsKey("dialog_public_form_default_locale")) {
+                || payload.containsKey("dialog_public_form_default_locale")
+                || payload.containsKey("dialog_macro_publish_allowed_roles")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -258,8 +259,11 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_completion_templates")) {
                     dialogConfig.put("completion_templates", payload.get("dialog_completion_templates"));
                 }
+                if (payload.containsKey("dialog_macro_publish_allowed_roles")) {
+                    dialogConfig.put("macro_publish_allowed_roles", payload.get("dialog_macro_publish_allowed_roles"));
+                }
                 if (payload.containsKey("dialog_macro_templates")) {
-                    boolean canPublishMacros = permissionService.hasAuthority(authentication, "DIALOG_MACRO_PUBLISH");
+                    boolean canPublishMacros = canPublishDialogMacros(authentication, dialogConfig);
                     Object existingTemplates = dialogConfig.get("macro_templates");
                     MacroNormalizationResult normalizationResult = normalizeMacroTemplates(
                         existingTemplates,
@@ -1003,6 +1007,32 @@ public class SettingsBridgeController {
         return false;
     }
 
+
+    private boolean canPublishDialogMacros(Authentication authentication, Map<String, Object> dialogConfig) {
+        if (!permissionService.hasAuthority(authentication, "DIALOG_MACRO_PUBLISH")) {
+            return false;
+        }
+        Set<String> allowedRoles = resolveMacroPublishAllowedRoles(dialogConfig);
+        return permissionService.hasAnyRole(authentication, allowedRoles);
+    }
+
+    private Set<String> resolveMacroPublishAllowedRoles(Map<String, Object> dialogConfig) {
+        if (dialogConfig == null) {
+            return Set.of();
+        }
+        Object raw = dialogConfig.get("macro_publish_allowed_roles");
+        if (!(raw instanceof List<?> roles)) {
+            return Set.of();
+        }
+        Set<String> normalized = new LinkedHashSet<>();
+        for (Object roleRaw : roles) {
+            String role = String.valueOf(roleRaw).trim();
+            if (!role.isBlank()) {
+                normalized.add(role);
+            }
+        }
+        return normalized;
+    }
     private MacroNormalizationResult normalizeMacroTemplates(Object existingRaw,
                                                              Object incomingRaw,
                                                              String actor,
