@@ -690,6 +690,34 @@ class SlaEscalationWebhookNotifierTest {
     }
 
     @Test
+    void resolveAutoAssignDecisionsSupportsClientStatusAndRatingRouting() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram", "client_status", "vip", "rating", 5),
+                Map.of("ticket_id", "T-2", "channel", "Telegram", "client_status", "regular", "rating", 2)
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "vip_high_rating",
+                                "match_channel", "telegram",
+                                "match_client_statuses", List.of("vip", "premium"),
+                                "match_rating_min", 4,
+                                "assign_to", "vip_queue"
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("vip_queue", decisions.get(0).assignee());
+        assertEquals("fallback_duty", decisions.get(1).assignee());
+    }
+
+    @Test
     void resolveAutoAssignDecisionsSkipsWhenFallbackAssigneeOverloadLimitReached() {
         DialogService dialogService = org.mockito.Mockito.mock(DialogService.class);
         org.mockito.Mockito.when(dialogService.loadDialogs("fallback_duty"))
