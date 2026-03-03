@@ -671,7 +671,7 @@ public class ChannelApiController {
         if (!fieldsNode.isArray()) {
             throw new IllegalArgumentException("questions_cfg.fields должен быть массивом");
         }
-        Set<String> allowedTypes = Set.of("text", "textarea", "select", "checkbox", "phone", "email");
+        Set<String> allowedTypes = Set.of("text", "textarea", "select", "checkbox", "phone", "email", "file");
         List<Map<String, Object>> fields = new ArrayList<>();
         int index = 0;
         for (JsonNode fieldNode : fieldsNode) {
