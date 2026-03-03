@@ -1882,6 +1882,13 @@
                     <button class="btn btn-sm btn-outline-success" type="button" onclick="addMacroTemplate()">+ Макрос</button>
                   </div>
                   <p class="small text-muted">Настройте библиотеку макросов для композера: текст, теги и стабильный ID. Макросы сразу доступны операторам в workspace.</p>
+                  <div class="row g-3 mb-3">
+                    <div class="col-12">
+                      <label class="form-label" for="dialogMacroPublishAllowedRoles">Роли, которым разрешена публикация макросов</label>
+                      <input type="text" class="form-control" id="dialogMacroPublishAllowedRoles" placeholder="ADMIN, SUPERVISOR">
+                      <div class="form-text">Необязательный список ролей через запятую. Если пусто — достаточно права <code>DIALOG_MACRO_PUBLISH</code>.</div>
+                    </div>
+                  </div>
                   <div id="macroTemplatesList" class="d-flex flex-column gap-3"></div>
                 </section>
               </div>
@@ -13161,6 +13168,7 @@
       winnerMinOpenImprovementPercent: document.getElementById('dialogWorkspaceWinnerMinOpenImprovementPercent'),
       macroVariableDefaults: document.getElementById('dialogMacroVariableDefaults'),
       macroVariableCatalog: document.getElementById('dialogMacroVariableCatalog'),
+      macroPublishAllowedRoles: document.getElementById('dialogMacroPublishAllowedRoles'),
       workspaceClientCrmProfileUrlTemplate: document.getElementById('dialogWorkspaceClientCrmProfileUrlTemplate'),
       workspaceClientCrmProfileLabel: document.getElementById('dialogWorkspaceClientCrmProfileLabel'),
       workspaceClientContractProfileUrlTemplate: document.getElementById('dialogWorkspaceClientContractProfileUrlTemplate'),
@@ -13530,6 +13538,15 @@
       } else {
         inputs.macroVariableDefaults.value = '{}';
       }
+    }
+    if (inputs.macroPublishAllowedRoles) {
+      const allowedRoles = Array.isArray(DIALOG_CONFIG.macro_publish_allowed_roles)
+        ? DIALOG_CONFIG.macro_publish_allowed_roles
+        : [];
+      inputs.macroPublishAllowedRoles.value = allowedRoles
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(', ');
     }
     if (inputs.macroVariableCatalog) {
       const catalog = Array.isArray(DIALOG_CONFIG.macro_variable_catalog)
@@ -14308,6 +14325,11 @@
       }
     }
 
+    const safeMacroPublishAllowedRoles = String(inputs.macroPublishAllowedRoles?.value || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value, idx, arr) => value && arr.indexOf(value) === idx);
+
     let safeMacroVariableCatalog = [];
     const macroCatalogRaw = (inputs.macroVariableCatalog?.value || '').trim();
     if (macroCatalogRaw) {
@@ -14594,6 +14616,7 @@
         dialog_workspace_rollout_winner_min_open_improvement: safeWinnerMinOpenImprovement,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
         dialog_macro_variable_catalog: safeMacroVariableCatalog,
+        dialog_macro_publish_allowed_roles: safeMacroPublishAllowedRoles,
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
         dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
         dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,
