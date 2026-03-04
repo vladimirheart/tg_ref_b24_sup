@@ -2258,6 +2258,17 @@
                   <label for="dialogMacroVariableCatalog" class="form-label">JSON-массив каталога</label>
                   <textarea class="form-control font-monospace" id="dialogMacroVariableCatalog" rows="6" placeholder='[{"key":"contract_tier","label":"Тариф клиента","default_value":"standard"}]'></textarea>
                   <div class="form-text">Формат элемента: {"key":"variable_name","label":"Название","default_value":"опционально"}.</div>
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                      <label for="dialogMacroVariableCatalogExternalUrl" class="form-label">External catalog URL</label>
+                      <input type="text" class="form-control" id="dialogMacroVariableCatalogExternalUrl" placeholder="https://catalog.company.local/dialog-macro-variables">
+                      <div class="form-text">Опционально: API каталога переменных. Поддерживается ответ в формате <code>[...]</code> или <code>{"variables":[...]}</code>.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroVariableCatalogExternalTimeoutMs" class="form-label">Timeout, мс</label>
+                      <input type="number" class="form-control" id="dialogMacroVariableCatalogExternalTimeoutMs" min="200" max="10000" step="100">
+                    </div>
+                  </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Внешние профили клиента (workspace)</h6>
                   <p class="small text-muted">Позволяет подключить CRM/contract-системы и дополнительные enterprise-ссылки без code-deploy.</p>
@@ -13180,6 +13191,8 @@
       winnerMinOpenImprovementPercent: document.getElementById('dialogWorkspaceWinnerMinOpenImprovementPercent'),
       macroVariableDefaults: document.getElementById('dialogMacroVariableDefaults'),
       macroVariableCatalog: document.getElementById('dialogMacroVariableCatalog'),
+      macroVariableCatalogExternalUrl: document.getElementById('dialogMacroVariableCatalogExternalUrl'),
+      macroVariableCatalogExternalTimeoutMs: document.getElementById('dialogMacroVariableCatalogExternalTimeoutMs'),
       macroPublishAllowedRoles: document.getElementById('dialogMacroPublishAllowedRoles'),
       workspaceClientCrmProfileUrlTemplate: document.getElementById('dialogWorkspaceClientCrmProfileUrlTemplate'),
       workspaceClientCrmProfileLabel: document.getElementById('dialogWorkspaceClientCrmProfileLabel'),
@@ -13568,6 +13581,15 @@
         ? DIALOG_CONFIG.macro_variable_catalog
         : [];
       inputs.macroVariableCatalog.value = JSON.stringify(catalog, null, 2);
+    }
+    if (inputs.macroVariableCatalogExternalUrl) {
+      inputs.macroVariableCatalogExternalUrl.value = String(DIALOG_CONFIG.macro_variable_catalog_external_url || '').trim();
+    }
+    if (inputs.macroVariableCatalogExternalTimeoutMs) {
+      const timeoutMs = Number.parseInt(DIALOG_CONFIG.macro_variable_catalog_external_timeout_ms, 10);
+      inputs.macroVariableCatalogExternalTimeoutMs.value = Number.isFinite(timeoutMs) && timeoutMs >= 200
+        ? Math.min(10000, timeoutMs)
+        : 2000;
     }
     if (inputs.workspaceClientCrmProfileUrlTemplate) {
       inputs.workspaceClientCrmProfileUrlTemplate.value = String(DIALOG_CONFIG.workspace_client_crm_profile_url_template || '').trim();
@@ -14514,6 +14536,18 @@
       }
     }
 
+    const safeMacroVariableCatalogExternalUrl = String(inputs.macroVariableCatalogExternalUrl?.value || '').trim();
+    if (safeMacroVariableCatalogExternalUrl
+      && !(safeMacroVariableCatalogExternalUrl.startsWith('https://') || safeMacroVariableCatalogExternalUrl.startsWith('http://'))) {
+      errors.push('External catalog URL должен начинаться с http:// или https://.');
+    }
+    const safeMacroVariableCatalogExternalTimeoutMs = sanitizeInt(
+      inputs.macroVariableCatalogExternalTimeoutMs?.value,
+      2000,
+      200,
+      10000,
+    );
+
     const safeCrmProfileTemplate = String(inputs.workspaceClientCrmProfileUrlTemplate?.value || '').trim();
     const safeCrmProfileLabel = String(inputs.workspaceClientCrmProfileLabel?.value || '').trim();
     const safeContractProfileTemplate = String(inputs.workspaceClientContractProfileUrlTemplate?.value || '').trim();
@@ -14767,6 +14801,8 @@
         dialog_workspace_rollout_winner_min_open_improvement: safeWinnerMinOpenImprovement,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
         dialog_macro_variable_catalog: safeMacroVariableCatalog,
+        dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,
+        dialog_macro_variable_catalog_external_timeout_ms: safeMacroVariableCatalogExternalTimeoutMs,
         dialog_macro_publish_allowed_roles: safeMacroPublishAllowedRoles,
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
         dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
