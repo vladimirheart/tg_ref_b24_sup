@@ -2319,6 +2319,15 @@
                       <label for="dialogWorkspaceClientExternalProfileCacheTtlSeconds" class="form-label">Cache TTL, сек</label>
                       <input type="number" class="form-control" id="dialogWorkspaceClientExternalProfileCacheTtlSeconds" min="0" max="3600" step="10">
                     </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientExternalProfileAuthHeader" class="form-label">Auth header</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientExternalProfileAuthHeader" placeholder="Authorization">
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientExternalProfileAuthToken" class="form-label">Auth token / value</label>
+                      <input type="password" class="form-control" id="dialogWorkspaceClientExternalProfileAuthToken" placeholder="Bearer &lt;token&gt;">
+                      <div class="form-text">Опционально: заголовок авторизации для внешнего API enrichment (например, <code>Authorization: Bearer ...</code>).</div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Enterprise-атрибуты клиента (workspace)</h6>
@@ -4179,6 +4188,8 @@
     workspace_client_extra_attributes_technical_prefixes: ["_", "internal_"],
     workspace_client_external_profile_timeout_ms: 2500,
     workspace_client_external_profile_cache_ttl_seconds: 120,
+    workspace_client_external_profile_auth_header: 'Authorization',
+    workspace_client_external_profile_auth_token: '',
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13234,6 +13245,8 @@
       workspaceClientExternalProfileUrl: document.getElementById('dialogWorkspaceClientExternalProfileUrl'),
       workspaceClientExternalProfileTimeoutMs: document.getElementById('dialogWorkspaceClientExternalProfileTimeoutMs'),
       workspaceClientExternalProfileCacheTtlSeconds: document.getElementById('dialogWorkspaceClientExternalProfileCacheTtlSeconds'),
+      workspaceClientExternalProfileAuthHeader: document.getElementById('dialogWorkspaceClientExternalProfileAuthHeader'),
+      workspaceClientExternalProfileAuthToken: document.getElementById('dialogWorkspaceClientExternalProfileAuthToken'),
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
@@ -13671,6 +13684,13 @@
       inputs.workspaceClientExternalProfileCacheTtlSeconds.value = Number.isFinite(value)
         ? String(Math.min(3600, Math.max(0, value)))
         : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_cache_ttl_seconds);
+    }
+    if (inputs.workspaceClientExternalProfileAuthHeader) {
+      const headerName = String(DIALOG_CONFIG.workspace_client_external_profile_auth_header || '').trim();
+      inputs.workspaceClientExternalProfileAuthHeader.value = headerName || DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_auth_header;
+    }
+    if (inputs.workspaceClientExternalProfileAuthToken) {
+      inputs.workspaceClientExternalProfileAuthToken.value = String(DIALOG_CONFIG.workspace_client_external_profile_auth_token || '').trim();
     }
     if (inputs.workspaceClientHiddenAttributes) {
       const hiddenAttributes = Array.isArray(DIALOG_CONFIG.workspace_client_hidden_attributes)
@@ -14681,6 +14701,14 @@
     const safeWorkspaceExternalProfileCacheTtlSeconds = Number.isFinite(workspaceExternalProfileCacheTtlRaw)
       ? Math.min(3600, Math.max(0, workspaceExternalProfileCacheTtlRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_cache_ttl_seconds;
+    const safeWorkspaceExternalProfileAuthHeaderRaw = String(inputs.workspaceClientExternalProfileAuthHeader?.value || '').trim();
+    const safeWorkspaceExternalProfileAuthHeader = safeWorkspaceExternalProfileAuthHeaderRaw
+      ? safeWorkspaceExternalProfileAuthHeaderRaw
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_auth_header;
+    if (!/^[A-Za-z0-9-]{1,64}$/.test(safeWorkspaceExternalProfileAuthHeader)) {
+      errors.push('Auth header для external profile API должен содержать только латиницу, цифры и дефис (1..64 символа).');
+    }
+    const safeWorkspaceExternalProfileAuthToken = String(inputs.workspaceClientExternalProfileAuthToken?.value || '').trim();
 
     const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
     if (hiddenAttributesRaw) {
@@ -14893,6 +14921,8 @@
         dialog_workspace_client_external_profile_url: safeWorkspaceExternalProfileUrl,
         dialog_workspace_client_external_profile_timeout_ms: safeWorkspaceExternalProfileTimeoutMs,
         dialog_workspace_client_external_profile_cache_ttl_seconds: safeWorkspaceExternalProfileCacheTtlSeconds,
+        dialog_workspace_client_external_profile_auth_header: safeWorkspaceExternalProfileAuthHeader,
+        dialog_workspace_client_external_profile_auth_token: safeWorkspaceExternalProfileAuthToken,
         dialog_workspace_client_hidden_attributes: safeWorkspaceClientHiddenAttributes,
         dialog_workspace_client_attribute_labels: safeWorkspaceClientAttributeLabels,
         dialog_workspace_client_attribute_order: safeWorkspaceClientAttributeOrder,
