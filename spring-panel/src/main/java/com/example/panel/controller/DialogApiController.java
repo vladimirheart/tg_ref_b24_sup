@@ -12,6 +12,8 @@ import com.example.panel.service.PublicFormService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -30,7 +32,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Instant;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -71,6 +78,11 @@ public class DialogApiController {
     private static final Pattern MACRO_VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([a-z0-9_]+)(?:\\s*\\|\\s*([^}]+))?\\s*}}", Pattern.CASE_INSENSITIVE);
     private static final DateTimeFormatter MACRO_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.of("Europe/Moscow"));
     private static final DateTimeFormatter MACRO_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("Europe/Moscow"));
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+    private static final int DEFAULT_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 2000;
+    private static final int MIN_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 200;
+    private static final int MAX_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 10000;
     private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
     private static final Map<String, String> WORKSPACE_TELEMETRY_EVENT_GROUPS = Map.ofEntries(
             Map.entry("workspace_open_ms", "performance"),
@@ -244,23 +256,8 @@ public class DialogApiController {
                 .map(item -> macroVariable(item.get("key"), item.get("label"), null, "builtin"))
                 .collect(Collectors.toCollection(ArrayList::new));
         Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object configured = resolveMacroVariableCatalog(settings);
-        if (configured instanceof List<?> entries) {
-            for (Object entry : entries) {
-                if (!(entry instanceof Map<?, ?> map)) {
-                    continue;
-                }
-                String key = map.get("key") != null ? String.valueOf(map.get("key")).trim().toLowerCase() : "";
-                String label = map.get("label") != null ? String.valueOf(map.get("label")).trim() : "";
-                String defaultValue = map.get("default_value") != null ? String.valueOf(map.get("default_value")).trim() : "";
-                if (!StringUtils.hasText(key) || !StringUtils.hasText(label)) {
-                    continue;
-                }
-                if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
-                    variables.add(macroVariable(key, label, defaultValue, "settings_catalog"));
-                }
-            }
-        }
+        appendMacroCatalogVariables(variables, resolveMacroVariableCatalog(settings), "settings_catalog");
+        appendMacroCatalogVariables(variables, resolveExternalMacroVariableCatalog(settings), "external_catalog");
         resolveDialogConfigMacroVariableDefaults(settings).forEach((key, defaultValue) -> {
             if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
                 variables.add(macroVariable(key, "Значение из dialog_config", defaultValue, "dialog_config_default"));
@@ -276,6 +273,79 @@ public class DialogApiController {
             }
         });
         return Map.of("success", true, "variables", variables);
+    }
+
+    private void appendMacroCatalogVariables(List<Map<String, String>> variables, Object source, String sourceName) {
+        if (!(source instanceof List<?> entries)) {
+            return;
+        }
+        for (Object entry : entries) {
+            if (!(entry instanceof Map<?, ?> map)) {
+                continue;
+            }
+            String key = map.get("key") != null ? String.valueOf(map.get("key")).trim().toLowerCase() : "";
+            String label = map.get("label") != null ? String.valueOf(map.get("label")).trim() : "";
+            String defaultValue = map.get("default_value") != null ? String.valueOf(map.get("default_value")).trim() : "";
+            if (!StringUtils.hasText(key) || !StringUtils.hasText(label)) {
+                continue;
+            }
+            if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
+                variables.add(macroVariable(key, label, defaultValue, sourceName));
+            }
+        }
+    }
+
+    private Object resolveExternalMacroVariableCatalog(Map<String, Object> settings) {
+        Object rawDialogConfig = settings != null ? settings.get("dialog_config") : null;
+        if (!(rawDialogConfig instanceof Map<?, ?> dialogConfig)) {
+            return List.of();
+        }
+        String externalUrl = dialogConfig.get("macro_variable_catalog_external_url") != null
+                ? String.valueOf(dialogConfig.get("macro_variable_catalog_external_url")).trim()
+                : "";
+        if (!StringUtils.hasText(externalUrl)) {
+            return List.of();
+        }
+        int timeoutMs = clampMacroCatalogTimeout(dialogConfig.get("macro_variable_catalog_external_timeout_ms"));
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(externalUrl))
+                    .GET()
+                    .timeout(Duration.ofMillis(timeoutMs))
+                    .build();
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("macro catalog external fetch failed: status={} url={}", response.statusCode(), externalUrl);
+                return List.of();
+            }
+            Object parsed = OBJECT_MAPPER.readValue(response.body(), new TypeReference<Object>() {});
+            if (parsed instanceof Map<?, ?> parsedMap && parsedMap.get("variables") instanceof List<?>) {
+                return parsedMap.get("variables");
+            }
+            if (parsed instanceof List<?>) {
+                return parsed;
+            }
+            log.warn("macro catalog external fetch returned unexpected payload type: url={} type={}",
+                    externalUrl,
+                    parsed != null ? parsed.getClass().getSimpleName() : "null");
+        } catch (Exception exception) {
+            log.warn("macro catalog external fetch failed: url={} detail={}", externalUrl, exception.toString());
+        }
+        return List.of();
+    }
+
+    private int clampMacroCatalogTimeout(Object value) {
+        if (value == null) {
+            return DEFAULT_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS;
+        }
+        try {
+            int timeout = Integer.parseInt(String.valueOf(value).trim());
+            if (timeout < MIN_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS) {
+                return MIN_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS;
+            }
+            return Math.min(timeout, MAX_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS);
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS;
+        }
     }
 
     private String humanizeMacroVariableLabel(String key) {

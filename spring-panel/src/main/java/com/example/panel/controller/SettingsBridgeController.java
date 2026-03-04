@@ -209,6 +209,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_winner_min_open_improvement")
                 || payload.containsKey("dialog_macro_variable_defaults")
                 || payload.containsKey("dialog_macro_variable_catalog")
+                || payload.containsKey("dialog_macro_variable_catalog_external_url")
+                || payload.containsKey("dialog_macro_variable_catalog_external_timeout_ms")
                 || payload.containsKey("dialog_workspace_client_crm_profile_url_template")
                 || payload.containsKey("dialog_workspace_client_crm_profile_label")
                 || payload.containsKey("dialog_workspace_client_contract_profile_url_template")
@@ -473,6 +475,14 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_macro_variable_catalog")) {
                     dialogConfig.put("macro_variable_catalog", payload.get("dialog_macro_variable_catalog"));
+                }
+                if (payload.containsKey("dialog_macro_variable_catalog_external_url")) {
+                    dialogConfig.put("macro_variable_catalog_external_url",
+                            payload.get("dialog_macro_variable_catalog_external_url"));
+                }
+                if (payload.containsKey("dialog_macro_variable_catalog_external_timeout_ms")) {
+                    dialogConfig.put("macro_variable_catalog_external_timeout_ms",
+                            payload.get("dialog_macro_variable_catalog_external_timeout_ms"));
                 }
                 if (payload.containsKey("dialog_workspace_client_crm_profile_url_template")) {
                     dialogConfig.put("workspace_client_crm_profile_url_template",
