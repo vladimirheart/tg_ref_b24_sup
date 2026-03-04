@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -499,8 +501,20 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void macroVariablesIncludesSourcesAndTicketContextVariables() throws Exception {
+        Path externalCatalogFile = Files.createTempFile("macro-catalog", ".json");
+        Files.writeString(externalCatalogFile, """
+                {
+                  "variables": [
+                    {"key":"erp_tier","label":"ERP Tier","default_value":"silver"}
+                  ]
+                }
+                """);
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "dialog_config", Map.of(
+                        "macro_variable_catalog_external_url", externalCatalogFile.toUri().toString(),
+                        "macro_variable_catalog_external_timeout_ms", 500
+                ),
                 "macro_variable_catalog", List.of(Map.of(
                         "key", "crm_segment",
                         "label", "CRM сегмент",
@@ -544,6 +558,7 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.variables[0].source").value("builtin"))
                 .andExpect(jsonPath("$.variables[?(@.key=='crm_segment')][0].source").value("settings_catalog"))
+                .andExpect(jsonPath("$.variables[?(@.key=='erp_tier')][0].source").value("external_catalog"))
                 .andExpect(jsonPath("$.variables[?(@.key=='client_contract_tier')][0].source").value("ticket_context"));
     }
 
