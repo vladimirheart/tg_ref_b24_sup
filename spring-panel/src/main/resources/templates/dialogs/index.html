@@ -103,9 +103,11 @@
                             <textarea class="form-control form-control-sm mb-2" id="workspaceComposerText" rows="4" placeholder="Введите ответ клиенту…"></textarea>
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">Отправить (Ctrl/Cmd/Alt+Enter)</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMediaTrigger" type="button">Прикрепить медиа</button>
                                 <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">Сохранить черновик (Ctrl/Cmd/Alt+S)</button>
                                 <span class="small text-muted" id="workspaceComposerDraftState">Черновик не сохранён</span>
                             </div>
+                            <input class="d-none" type="file" id="workspaceComposerMedia" multiple>
                         </div>
                     </div>
                     <div class="col-12 col-xl-4">
