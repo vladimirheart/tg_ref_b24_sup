@@ -92,6 +92,7 @@ public class DialogApiController {
     private static final int DEFAULT_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 120;
     private static final int MIN_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 0;
     private static final int MAX_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 3600;
+    private static final Pattern SAFE_HTTP_HEADER_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9-]{1,64}$");
     private static final Object MACRO_CATALOG_EXTERNAL_CACHE_LOCK = new Object();
     private static final Object WORKSPACE_EXTERNAL_PROFILE_CACHE_LOCK = new Object();
     private static volatile String macroCatalogExternalCacheUrl = null;
@@ -489,10 +490,11 @@ public class DialogApiController {
         }
         int timeoutMs = clampWorkspaceExternalProfileTimeout(dialogConfig.get("workspace_client_external_profile_timeout_ms"));
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(resolvedUrl))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(resolvedUrl))
                     .GET()
-                    .timeout(Duration.ofMillis(timeoutMs))
-                    .build();
+                    .timeout(Duration.ofMillis(timeoutMs));
+            applyWorkspaceExternalProfileAuthHeader(requestBuilder, dialogConfig);
+            HttpRequest request = requestBuilder.build();
             HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("workspace external profile fetch failed: status={} url={}", response.statusCode(), resolvedUrl);
@@ -515,6 +517,24 @@ public class DialogApiController {
             return resolveCachedWorkspaceExternalProfileOnFailure(resolvedUrl);
         }
         return Map.of();
+    }
+
+    private void applyWorkspaceExternalProfileAuthHeader(HttpRequest.Builder requestBuilder,
+                                                         Map<?, ?> dialogConfig) {
+        if (requestBuilder == null || dialogConfig == null) {
+            return;
+        }
+        String token = trimToNull(String.valueOf(dialogConfig.get("workspace_client_external_profile_auth_token")));
+        if (!StringUtils.hasText(token)) {
+            return;
+        }
+        String configuredHeader = trimToNull(String.valueOf(dialogConfig.get("workspace_client_external_profile_auth_header")));
+        String headerName = StringUtils.hasText(configuredHeader) ? configuredHeader : "Authorization";
+        if (!SAFE_HTTP_HEADER_NAME_PATTERN.matcher(headerName).matches()) {
+            log.warn("workspace external profile auth header ignored due to unsafe header name: {}", headerName);
+            return;
+        }
+        requestBuilder.header(headerName, token);
     }
 
     private Map<String, Object> normalizeWorkspaceExternalProfilePayload(Object payload) {
