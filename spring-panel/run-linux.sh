@@ -25,7 +25,7 @@ if [[ -z "${APP_HTTP_PORT:-}" && -n "${DEFAULT_PORT}" ]]; then
     export APP_HTTP_PORT
     echo "[INFO] Port ${DEFAULT_PORT} is already in use. Falling back to APP_HTTP_PORT=${APP_HTTP_PORT}." >&2
   fi
-elif [[ -n "${APP_HTTP_PORT:-}" && is_port_listening "${APP_HTTP_PORT}" ]]; then
+elif [[ -n "${APP_HTTP_PORT:-}" ]] && is_port_listening "${APP_HTTP_PORT}"; then
   echo "[WARN] APP_HTTP_PORT=${APP_HTTP_PORT} appears to be in use. The application may fail to start." >&2
 fi
 
