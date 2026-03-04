@@ -56,6 +56,8 @@
   const workspaceReadonlyBanner = document.getElementById('workspaceReadonlyBanner');
   const workspaceComposerText = document.getElementById('workspaceComposerText');
   const workspaceComposerSend = document.getElementById('workspaceComposerSend');
+  const workspaceComposerMediaTrigger = document.getElementById('workspaceComposerMediaTrigger');
+  const workspaceComposerMedia = document.getElementById('workspaceComposerMedia');
   const workspaceComposerSaveDraft = document.getElementById('workspaceComposerSaveDraft');
   const workspaceComposerDraftState = document.getElementById('workspaceComposerDraftState');
   const workspaceComposerMacroSection = document.getElementById('workspaceComposerMacroSection');
@@ -2691,12 +2693,7 @@
       const messages = workspacePayload?.messages || {};
       const items = Array.isArray(messages.items) ? messages.items : [];
       if (workspaceMessagesList && items.length > 0) {
-        const markup = items.map((message) => {
-          const author = message.senderName || message.senderRole || 'Участник';
-          const text = message.messageText || message.message || '—';
-          const timestamp = formatWorkspaceDateTime(message.sentAt || message.createdAt);
-          return `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div><div>${escapeHtml(text)}</div></article>`;
-        }).join('');
+        const markup = items.map(renderWorkspaceMessageItem).join('');
         workspaceMessagesList.insertAdjacentHTML('beforeend', markup);
         workspaceMessagesList.classList.remove('d-none');
       }
@@ -2733,6 +2730,7 @@
     const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
     if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
     if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
+    if (workspaceComposerMediaTrigger) workspaceComposerMediaTrigger.disabled = !canReplyInWorkspace;
     if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = !canReplyInWorkspace;
     if (workspaceComposerMacroApply) workspaceComposerMacroApply.disabled = !canReplyInWorkspace || !activeWorkspaceMacroTemplate;
     if (workspaceComposerMacroSelect) workspaceComposerMacroSelect.disabled = !canReplyInWorkspace || workspaceComposerMacroTemplates.length === 0;
@@ -2755,12 +2753,7 @@
     if (workspaceMessagesList) {
       const items = Array.isArray(messages.items) ? messages.items : [];
       workspaceMessagesList.classList.toggle('d-none', items.length === 0);
-      workspaceMessagesList.innerHTML = items.map((message) => {
-        const author = message.senderName || message.senderRole || 'Участник';
-        const text = message.messageText || message.message || '—';
-        const timestamp = formatWorkspaceDateTime(message.sentAt || message.createdAt);
-        return `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div><div>${escapeHtml(text)}</div></article>`;
-      }).join('');
+      workspaceMessagesList.innerHTML = items.map(renderWorkspaceMessageItem).join('');
     }
     workspaceMessagesNextCursor = Number.isInteger(messages.next_cursor) ? messages.next_cursor : null;
     workspaceMessagesHasMore = messages.has_more === true;
@@ -5062,10 +5055,30 @@
     });
   }
 
-  async function sendMediaFiles(files) {
+  function renderWorkspaceMessageItem(message) {
+    const author = message?.senderName || message?.senderRole || 'Участник';
+    const timestamp = formatWorkspaceDateTime(message?.sentAt || message?.createdAt);
+    const text = String(message?.messageText || message?.message || '').trim();
+    const normalizedMessage = {
+      messageType: message?.messageType || message?.type || '',
+      message: text,
+      attachment: message?.attachment || message?.attachmentUrl || null,
+      attachmentName: message?.attachmentName || message?.fileName || null,
+    };
+    const mediaMarkup = normalizedMessage.attachment ? buildMediaMarkup(normalizedMessage) : '';
+    const textMarkup = text ? `<div>${escapeHtml(text)}</div>` : '';
+    const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>—</div>';
+    return `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${textMarkup}${mediaMarkup}${fallbackMarkup}</article>`;
+  }
+
+  async function sendMediaFiles(files, options = {}) {
     if (!activeDialogTicketId || !files || files.length === 0) return;
-    const caption = detailsReplyText?.value?.trim() || '';
-    detailsReplySend.disabled = true;
+    const captionSource = typeof options.caption === 'string' ? options.caption : detailsReplyText?.value || '';
+    const caption = String(captionSource).trim();
+    const sendButton = options.sendButton || detailsReplySend;
+    const mediaInput = options.mediaInput || detailsReplyMedia;
+    const appendHistory = options.appendHistory !== false;
+    if (sendButton) sendButton.disabled = true;
     try {
       for (const file of Array.from(files)) {
         const formData = new FormData();
@@ -5082,29 +5095,35 @@
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
-        appendHistoryMessage({
-          sender: data.responsible || 'Оператор',
-          message: data.message || '',
-          timestamp: data.timestamp || new Date().toISOString(),
-          messageType: data.messageType || 'operator_media',
-          attachment: data.attachment || null,
-        });
+        if (appendHistory) {
+          appendHistoryMessage({
+            sender: data.responsible || 'Оператор',
+            message: data.message || '',
+            timestamp: data.timestamp || new Date().toISOString(),
+            messageType: data.messageType || 'operator_media',
+            attachment: data.attachment || null,
+          });
+        }
         if (activeDialogRow) {
           updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
         }
       }
-      if (detailsReplyText) detailsReplyText.value = '';
+      if (typeof options.afterSuccess === 'function') {
+        options.afterSuccess();
+      } else if (detailsReplyText) {
+        detailsReplyText.value = '';
+      }
       if (typeof showNotification === 'function') {
-        showNotification('Медиа отправлено', 'success');
+        showNotification(options.successMessage || 'Медиа отправлено', 'success');
       }
     } catch (error) {
       if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось отправить медиа', 'error');
+        showNotification(error.message || options.errorMessage || 'Не удалось отправить медиа', 'error');
       }
     } finally {
-      detailsReplySend.disabled = false;
-      if (detailsReplyMedia) {
-        detailsReplyMedia.value = '';
+      if (sendButton) sendButton.disabled = false;
+      if (mediaInput) {
+        mediaInput.value = '';
       }
     }
   }
@@ -5558,6 +5577,32 @@
   if (workspaceComposerSend) {
     workspaceComposerSend.addEventListener('click', () => {
       sendWorkspaceReply();
+    });
+  }
+
+  if (workspaceComposerMediaTrigger && workspaceComposerMedia) {
+    workspaceComposerMediaTrigger.addEventListener('click', () => {
+      workspaceComposerMedia.click();
+    });
+    workspaceComposerMedia.addEventListener('change', async () => {
+      await sendMediaFiles(workspaceComposerMedia.files, {
+        caption: workspaceComposerText?.value || '',
+        sendButton: workspaceComposerSend,
+        mediaInput: workspaceComposerMedia,
+        appendHistory: false,
+        afterSuccess: () => {
+          if (workspaceComposerText) {
+            workspaceComposerText.value = '';
+          }
+          saveWorkspaceDraft(workspaceComposerTicketId, '');
+          reloadWorkspaceSection('messages', {
+            stateElement: workspaceMessagesState,
+            errorElement: workspaceMessagesError,
+            statusText: 'Обновление ленты после отправки медиа…',
+            failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
+          });
+        },
+      });
     });
   }
 
