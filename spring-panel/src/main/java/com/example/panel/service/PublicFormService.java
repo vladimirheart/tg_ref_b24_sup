@@ -700,7 +700,7 @@ public class PublicFormService {
                 List<Map<String, Object>> fields = objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
                 });
                 return new ParsedPublicFormSettings(1, true, false, 404,
-                        null, null, fields, null, null);
+                        null, null, null, fields, null, null);
             }
             if (root.isObject()) {
                 int schemaVersion = Math.max(1, root.path("schemaVersion").asInt(1));
