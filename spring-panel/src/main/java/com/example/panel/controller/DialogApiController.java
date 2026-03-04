@@ -288,8 +288,8 @@ public class DialogApiController {
                 if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
                     variables.add(macroVariable(key, humanizeMacroVariableLabel(key), value, "ticket_context"));
                 }
-            }
-        });
+            });
+        }
         return Map.of("success", true, "variables", variables);
     }
 
