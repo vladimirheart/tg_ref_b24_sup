@@ -2305,6 +2305,21 @@
                   <label for="dialogWorkspaceClientExternalLinks" class="form-label mt-3">Дополнительные external links (JSON-массив)</label>
                   <textarea class="form-control font-monospace" id="dialogWorkspaceClientExternalLinks" rows="6" placeholder='[{"key":"billing","label":"Billing","url_template":"https://billing.company.local/{client_id}","enabled":true}]'></textarea>
                   <div class="form-text">Поддерживаемые placeholder: {ticket_id}, {client_id}, {client_name}, {phone}, {channel_id}, {channel_name}, {business}, {location}.</div>
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientExternalProfileUrl" class="form-label">External profile API URL</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientExternalProfileUrl" placeholder="https://crm.company.local/api/client-profile/{client_id}">
+                      <div class="form-text">Опционально: JSON API для enrichment профиля. Поддерживаемые форматы: <code>{...}</code> или <code>{"profile": {...}}</code>.</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogWorkspaceClientExternalProfileTimeoutMs" class="form-label">Timeout, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExternalProfileTimeoutMs" min="300" max="10000" step="100">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogWorkspaceClientExternalProfileCacheTtlSeconds" class="form-label">Cache TTL, сек</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExternalProfileCacheTtlSeconds" min="0" max="3600" step="10">
+                    </div>
+                  </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Enterprise-атрибуты клиента (workspace)</h6>
                   <p class="small text-muted">Управление enrichment-полями в правой панели: можно скрыть шумные атрибуты, задать человеко-понятные названия и порядок отображения.</p>
@@ -4162,6 +4177,8 @@
     workspace_client_extra_attributes_collapse_after: 8,
     workspace_client_extra_attributes_hide_technical: true,
     workspace_client_extra_attributes_technical_prefixes: ["_", "internal_"],
+    workspace_client_external_profile_timeout_ms: 2500,
+    workspace_client_external_profile_cache_ttl_seconds: 120,
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13214,6 +13231,9 @@
       workspaceClientContractProfileUrlTemplate: document.getElementById('dialogWorkspaceClientContractProfileUrlTemplate'),
       workspaceClientContractProfileLabel: document.getElementById('dialogWorkspaceClientContractProfileLabel'),
       workspaceClientExternalLinks: document.getElementById('dialogWorkspaceClientExternalLinks'),
+      workspaceClientExternalProfileUrl: document.getElementById('dialogWorkspaceClientExternalProfileUrl'),
+      workspaceClientExternalProfileTimeoutMs: document.getElementById('dialogWorkspaceClientExternalProfileTimeoutMs'),
+      workspaceClientExternalProfileCacheTtlSeconds: document.getElementById('dialogWorkspaceClientExternalProfileCacheTtlSeconds'),
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
@@ -13636,6 +13656,21 @@
         ? DIALOG_CONFIG.workspace_client_external_links
         : [];
       inputs.workspaceClientExternalLinks.value = JSON.stringify(links, null, 2);
+    }
+    if (inputs.workspaceClientExternalProfileUrl) {
+      inputs.workspaceClientExternalProfileUrl.value = String(DIALOG_CONFIG.workspace_client_external_profile_url || '').trim();
+    }
+    if (inputs.workspaceClientExternalProfileTimeoutMs) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_client_external_profile_timeout_ms, 10);
+      inputs.workspaceClientExternalProfileTimeoutMs.value = Number.isFinite(value)
+        ? String(Math.min(10000, Math.max(300, value)))
+        : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_timeout_ms);
+    }
+    if (inputs.workspaceClientExternalProfileCacheTtlSeconds) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_client_external_profile_cache_ttl_seconds, 10);
+      inputs.workspaceClientExternalProfileCacheTtlSeconds.value = Number.isFinite(value)
+        ? String(Math.min(3600, Math.max(0, value)))
+        : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_cache_ttl_seconds);
     }
     if (inputs.workspaceClientHiddenAttributes) {
       const hiddenAttributes = Array.isArray(DIALOG_CONFIG.workspace_client_hidden_attributes)
@@ -14637,6 +14672,16 @@
     }
 
     let safeWorkspaceClientHiddenAttributes = [];
+    const safeWorkspaceExternalProfileUrl = String(inputs.workspaceClientExternalProfileUrl?.value || '').trim();
+    const workspaceExternalProfileTimeoutRaw = Number.parseInt(inputs.workspaceClientExternalProfileTimeoutMs?.value || '', 10);
+    const safeWorkspaceExternalProfileTimeoutMs = Number.isFinite(workspaceExternalProfileTimeoutRaw)
+      ? Math.min(10000, Math.max(300, workspaceExternalProfileTimeoutRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_timeout_ms;
+    const workspaceExternalProfileCacheTtlRaw = Number.parseInt(inputs.workspaceClientExternalProfileCacheTtlSeconds?.value || '', 10);
+    const safeWorkspaceExternalProfileCacheTtlSeconds = Number.isFinite(workspaceExternalProfileCacheTtlRaw)
+      ? Math.min(3600, Math.max(0, workspaceExternalProfileCacheTtlRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_client_external_profile_cache_ttl_seconds;
+
     const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
     if (hiddenAttributesRaw) {
       try {
@@ -14845,6 +14890,9 @@
         dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,
         dialog_workspace_client_contract_profile_label: safeContractProfileLabel,
         dialog_workspace_client_external_links: safeWorkspaceExternalLinks,
+        dialog_workspace_client_external_profile_url: safeWorkspaceExternalProfileUrl,
+        dialog_workspace_client_external_profile_timeout_ms: safeWorkspaceExternalProfileTimeoutMs,
+        dialog_workspace_client_external_profile_cache_ttl_seconds: safeWorkspaceExternalProfileCacheTtlSeconds,
         dialog_workspace_client_hidden_attributes: safeWorkspaceClientHiddenAttributes,
         dialog_workspace_client_attribute_labels: safeWorkspaceClientAttributeLabels,
         dialog_workspace_client_attribute_order: safeWorkspaceClientAttributeOrder,
