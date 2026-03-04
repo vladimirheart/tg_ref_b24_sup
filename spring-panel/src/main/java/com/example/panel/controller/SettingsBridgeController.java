@@ -211,6 +211,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_macro_variable_catalog")
                 || payload.containsKey("dialog_macro_variable_catalog_external_url")
                 || payload.containsKey("dialog_macro_variable_catalog_external_timeout_ms")
+                || payload.containsKey("dialog_macro_require_independent_review")
                 || payload.containsKey("dialog_workspace_client_crm_profile_url_template")
                 || payload.containsKey("dialog_workspace_client_crm_profile_label")
                 || payload.containsKey("dialog_workspace_client_contract_profile_url_template")
@@ -265,14 +266,19 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_macro_publish_allowed_roles")) {
                     dialogConfig.put("macro_publish_allowed_roles", payload.get("dialog_macro_publish_allowed_roles"));
                 }
+                if (payload.containsKey("dialog_macro_require_independent_review")) {
+                    dialogConfig.put("macro_require_independent_review", payload.get("dialog_macro_require_independent_review"));
+                }
                 if (payload.containsKey("dialog_macro_templates")) {
                     boolean canPublishMacros = canPublishDialogMacros(authentication, dialogConfig);
+                    boolean requireIndependentReview = resolveMacroIndependentReviewRequired(dialogConfig);
                     Object existingTemplates = dialogConfig.get("macro_templates");
                     MacroNormalizationResult normalizationResult = normalizeMacroTemplates(
                         existingTemplates,
                         payload.get("dialog_macro_templates"),
                         authentication != null ? authentication.getName() : "system",
-                        canPublishMacros
+                        canPublishMacros,
+                        requireIndependentReview
                     );
                     dialogConfig.put("macro_templates", normalizationResult.templates());
                     updateWarnings.addAll(normalizationResult.warnings());
@@ -1050,7 +1056,8 @@ public class SettingsBridgeController {
     private MacroNormalizationResult normalizeMacroTemplates(Object existingRaw,
                                                              Object incomingRaw,
                                                              String actor,
-                                                             boolean canPublishMacros) {
+                                                             boolean canPublishMacros,
+                                                             boolean requireIndependentReview) {
         List<Map<String, Object>> existingTemplates = castTemplateList(existingRaw);
         Map<String, Map<String, Object>> existingById = new LinkedHashMap<>();
         for (Map<String, Object> template : existingTemplates) {
@@ -1127,7 +1134,13 @@ public class SettingsBridgeController {
             if (changedMeaningfully) {
                 approvedForPublish = false;
             }
-            boolean requiresIndependentReview = !changedMeaningfully
+            if (requireIndependentReview && changedMeaningfully) {
+                if (sourceMap.containsKey("published") || sourceMap.containsKey("approved_for_publish")) {
+                    warnings.add("Макрос «" + name + "» требует независимого ревью после изменений: публикация отклонена до подтверждения другим сотрудником.");
+                }
+                approvedForPublish = false;
+            }
+            boolean requiresIndependentReview = requireIndependentReview && !changedMeaningfully
                 && StringUtils.hasText(previousUpdatedBy)
                 && previousUpdatedBy.equalsIgnoreCase(normalizedActor);
             if (approvalRequested && requiresIndependentReview) {
@@ -1198,7 +1211,9 @@ public class SettingsBridgeController {
             normalizedTemplate.put("approved_for_publish", approvedForPublish);
             String reviewState = approvedForPublish
                 ? "approved"
-                : (requiresIndependentReview ? "pending_peer_review" : "pending_review");
+                : ((requireIndependentReview && changedMeaningfully) || requiresIndependentReview
+                    ? "pending_peer_review"
+                    : "pending_review");
             normalizedTemplate.put("review_state", reviewState);
             normalizedTemplate.put("version", Math.max(1, version));
             normalizedTemplate.put("created_at", previous != null
@@ -1229,6 +1244,13 @@ public class SettingsBridgeController {
             return asBoolean(template.get("approved_for_publish"));
         }
         return asBoolean(template.get("published"));
+    }
+
+    private boolean resolveMacroIndependentReviewRequired(Map<String, Object> dialogConfig) {
+        if (dialogConfig == null || !dialogConfig.containsKey("macro_require_independent_review")) {
+            return true;
+        }
+        return asBoolean(dialogConfig.get("macro_require_independent_review"));
     }
 
     private List<Map<String, Object>> castTemplateList(Object raw) {

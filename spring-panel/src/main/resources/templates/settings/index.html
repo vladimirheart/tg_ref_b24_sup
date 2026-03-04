@@ -1888,6 +1888,13 @@
                       <input type="text" class="form-control" id="dialogMacroPublishAllowedRoles" placeholder="ADMIN, SUPERVISOR">
                       <div class="form-text">Необязательный список ролей через запятую. Если пусто — достаточно права <code>DIALOG_MACRO_PUBLISH</code>.</div>
                     </div>
+                    <div class="col-12">
+                      <div class="form-check mt-1">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroRequireIndependentReview" checked>
+                        <label class="form-check-label" for="dialogMacroRequireIndependentReview">Требовать независимое ревью перед публикацией после изменения макроса</label>
+                      </div>
+                      <div class="form-text">Рекомендуется включённым: автор правок не может сам себя аппрувить, пока другой reviewer не подтвердит макрос.</div>
+                    </div>
                   </div>
                   <div id="macroTemplatesList" class="d-flex flex-column gap-3"></div>
                 </section>
@@ -4121,6 +4128,7 @@
     workspace_ab_primary_kpis: ['frt', 'ttr', 'sla_breach'],
     workspace_ab_secondary_kpis: ['dialogs_per_operator_shift', 'csat', 'ui_error_rate'],
     workspace_ab_operator_overrides: {},
+    macro_require_independent_review: true,
     quick_snooze_minutes: 60,
     overdue_threshold_hours: 24,
     list_poll_interval_ms: 8000,
@@ -13194,6 +13202,7 @@
       macroVariableCatalogExternalUrl: document.getElementById('dialogMacroVariableCatalogExternalUrl'),
       macroVariableCatalogExternalTimeoutMs: document.getElementById('dialogMacroVariableCatalogExternalTimeoutMs'),
       macroPublishAllowedRoles: document.getElementById('dialogMacroPublishAllowedRoles'),
+      macroRequireIndependentReview: document.getElementById('dialogMacroRequireIndependentReview'),
       workspaceClientCrmProfileUrlTemplate: document.getElementById('dialogWorkspaceClientCrmProfileUrlTemplate'),
       workspaceClientCrmProfileLabel: document.getElementById('dialogWorkspaceClientCrmProfileLabel'),
       workspaceClientContractProfileUrlTemplate: document.getElementById('dialogWorkspaceClientContractProfileUrlTemplate'),
@@ -13575,6 +13584,13 @@
         .map((value) => String(value || '').trim())
         .filter(Boolean)
         .join(', ');
+    }
+    if (inputs.macroRequireIndependentReview) {
+      if (Object.prototype.hasOwnProperty.call(DIALOG_CONFIG, 'macro_require_independent_review')) {
+        inputs.macroRequireIndependentReview.checked = Boolean(DIALOG_CONFIG.macro_require_independent_review);
+      } else {
+        inputs.macroRequireIndependentReview.checked = true;
+      }
     }
     if (inputs.macroVariableCatalog) {
       const catalog = Array.isArray(DIALOG_CONFIG.macro_variable_catalog)
@@ -14804,6 +14820,7 @@
         dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,
         dialog_macro_variable_catalog_external_timeout_ms: safeMacroVariableCatalogExternalTimeoutMs,
         dialog_macro_publish_allowed_roles: safeMacroPublishAllowedRoles,
+        dialog_macro_require_independent_review: Boolean(inputs.macroRequireIndependentReview?.checked),
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
         dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
         dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,
