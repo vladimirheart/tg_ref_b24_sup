@@ -3,24 +3,34 @@
   --page-min-width: 1820px;
   font-size: 80%;
   --page-min-height: 1000px;
-  --color-bg: #f8f9fa;
-  --color-bg-muted: #e9ecef;
+  --color-bg: #f3f5fb;
+  --color-bg-muted: #e8edf7;
   --color-surface: #ffffff;
-  --color-text: #212529;
-  --color-text-muted: #6c757d;
-  --color-border: rgba(0, 0, 0, 0.1);
-  --color-accent: #0d6efd;
+  --color-surface-soft: #f8fafe;
+  --color-text: #1f2a37;
+  --color-text-muted: #667085;
+  --color-border: #dbe3f1;
+  --color-accent: #3f6fd8;
+  --color-accent-strong: #2957c8;
+  --color-success-soft: #e9f8ef;
+  --color-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --radius-md: 12px;
+  --radius-lg: 16px;
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --color-bg: #1f2327;
-  --color-bg-muted: #2b3036;
-  --color-surface: #2f353c;
-  --color-text: #f8f9fa;
-  --color-text-muted: #adb5bd;
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-accent: #4da3ff;
+  --color-bg: #101927;
+  --color-bg-muted: #1c2738;
+  --color-surface: #162235;
+  --color-surface-soft: #1a2a41;
+  --color-text: #e5edf8;
+  --color-text-muted: #9eb0c9;
+  --color-border: #273953;
+  --color-accent: #6ea8ff;
+  --color-accent-strong: #8ab8ff;
+  --color-success-soft: #1e3b2f;
+  --color-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
   color-scheme: dark;
 }
 
@@ -40,6 +50,7 @@ body {
   min-height: var(--page-min-height);
   overflow-x: auto;
   overflow-y: auto;
+  line-height: 1.45;
 }
 
 body, html {
@@ -61,8 +72,22 @@ body, html {
   color: inherit;
 }
 
+.card,
+.modal-content,
+.dropdown-menu,
+.list-group-item,
+.accordion-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--color-shadow);
+}
+
 .table thead th {
-  background-color: var(--color-bg-muted);
+  background-color: color-mix(in srgb, var(--color-bg-muted) 82%, var(--color-surface));
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
 }
 
 .table-striped > tbody > tr:nth-of-type(odd) > * {
@@ -95,6 +120,34 @@ body, html {
   color: inherit;
 }
 
+.form-control,
+.form-select {
+  border-radius: var(--radius-md);
+  border-color: var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, #fff);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.btn {
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
+  border-color: color-mix(in srgb, var(--color-accent) 65%, #1f2a37);
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  filter: brightness(1.03);
+}
+
 .text-muted {
   color: var(--color-text-muted) !important;
 }
@@ -121,7 +174,7 @@ a:not([class]) {
 }
 
 .bg-light {
-  background-color: var(--color-bg-muted) !important;
+  background-color: color-mix(in srgb, var(--color-bg-muted) 75%, var(--color-surface)) !important;
 }
 
 [data-theme='dark'] .bg-light {
@@ -147,7 +200,13 @@ a:not([class]) {
 }
 
 .navbar-brand {
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.badge {
+  border-radius: 999px;
+  font-weight: 600;
 }
 
 .chat-bubble {
