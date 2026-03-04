@@ -82,3 +82,4 @@ trap 'cleanup; exit 130' INT TERM
 MVN_PID=$!
 wait "${MVN_PID}"
 cd "${ORIGINAL_DIR}"
+
