@@ -83,6 +83,13 @@ public class DialogApiController {
     private static final int DEFAULT_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 2000;
     private static final int MIN_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 200;
     private static final int MAX_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 10000;
+    private static final int DEFAULT_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 120;
+    private static final int MIN_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 0;
+    private static final int MAX_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 3600;
+    private static final Object MACRO_CATALOG_EXTERNAL_CACHE_LOCK = new Object();
+    private static volatile String macroCatalogExternalCacheUrl = null;
+    private static volatile List<Map<String, String>> macroCatalogExternalCacheVariables = List.of();
+    private static volatile Instant macroCatalogExternalCacheExpiresAt = Instant.EPOCH;
     private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
     private static final Map<String, String> WORKSPACE_TELEMETRY_EVENT_GROUPS = Map.ofEntries(
             Map.entry("workspace_open_ms", "performance"),
@@ -306,6 +313,11 @@ public class DialogApiController {
         if (!StringUtils.hasText(externalUrl)) {
             return List.of();
         }
+        int cacheTtlSeconds = clampMacroCatalogCacheTtlSeconds(dialogConfig.get("macro_variable_catalog_external_cache_ttl_seconds"));
+        List<Map<String, String>> cached = resolveCachedExternalMacroCatalog(externalUrl, cacheTtlSeconds);
+        if (!cached.isEmpty()) {
+            return cached;
+        }
         int timeoutMs = clampMacroCatalogTimeout(dialogConfig.get("macro_variable_catalog_external_timeout_ms"));
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(externalUrl))
@@ -315,22 +327,113 @@ public class DialogApiController {
             HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("macro catalog external fetch failed: status={} url={}", response.statusCode(), externalUrl);
-                return List.of();
+                return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
             }
             Object parsed = OBJECT_MAPPER.readValue(response.body(), new TypeReference<Object>() {});
+            List<Map<String, String>> normalized = normalizeMacroCatalogVariables(parsed);
+            if (!normalized.isEmpty()) {
+                storeExternalMacroCatalogCache(externalUrl, normalized, cacheTtlSeconds);
+                return normalized;
+            }
             if (parsed instanceof Map<?, ?> parsedMap && parsedMap.get("variables") instanceof List<?>) {
-                return parsedMap.get("variables");
+                return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
             }
             if (parsed instanceof List<?>) {
-                return parsed;
+                return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
             }
             log.warn("macro catalog external fetch returned unexpected payload type: url={} type={}",
                     externalUrl,
                     parsed != null ? parsed.getClass().getSimpleName() : "null");
         } catch (Exception exception) {
             log.warn("macro catalog external fetch failed: url={} detail={}", externalUrl, exception.toString());
+            return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
         }
         return List.of();
+    }
+
+    private List<Map<String, String>> normalizeMacroCatalogVariables(Object rawPayload) {
+        Object payload = rawPayload;
+        if (payload instanceof Map<?, ?> map && map.get("variables") instanceof List<?>) {
+            payload = map.get("variables");
+        }
+        if (!(payload instanceof List<?> entries)) {
+            return List.of();
+        }
+        List<Map<String, String>> normalized = new ArrayList<>();
+        Set<String> keys = new HashSet<>();
+        for (Object entry : entries) {
+            if (!(entry instanceof Map<?, ?> map)) {
+                continue;
+            }
+            String key = trimToNull(String.valueOf(map.get("key")));
+            String label = trimToNull(String.valueOf(map.get("label")));
+            if (!StringUtils.hasText(key) || !StringUtils.hasText(label)) {
+                continue;
+            }
+            String normalizedKey = key.trim().toLowerCase();
+            if (keys.contains(normalizedKey)) {
+                continue;
+            }
+            keys.add(normalizedKey);
+            String defaultValue = trimToNull(String.valueOf(map.get("default_value")));
+            Map<String, String> item = new LinkedHashMap<>();
+            item.put("key", normalizedKey);
+            item.put("label", label);
+            if (StringUtils.hasText(defaultValue)) {
+                item.put("default_value", defaultValue);
+            }
+            normalized.add(item);
+        }
+        return normalized;
+    }
+
+    private List<Map<String, String>> resolveCachedExternalMacroCatalog(String externalUrl, int cacheTtlSeconds) {
+        if (cacheTtlSeconds <= 0) {
+            return List.of();
+        }
+        if (!externalUrl.equals(macroCatalogExternalCacheUrl)) {
+            return List.of();
+        }
+        if (macroCatalogExternalCacheExpiresAt != null && Instant.now().isBefore(macroCatalogExternalCacheExpiresAt)) {
+            return macroCatalogExternalCacheVariables;
+        }
+        return List.of();
+    }
+
+    private List<Map<String, String>> resolveCachedExternalMacroCatalogOnFailure(String externalUrl) {
+        if (externalUrl.equals(macroCatalogExternalCacheUrl) && !macroCatalogExternalCacheVariables.isEmpty()) {
+            log.info("macro catalog external fetch fallback to stale cache: url={} entries={}",
+                    externalUrl,
+                    macroCatalogExternalCacheVariables.size());
+            return macroCatalogExternalCacheVariables;
+        }
+        return List.of();
+    }
+
+    private void storeExternalMacroCatalogCache(String externalUrl, List<Map<String, String>> variables, int cacheTtlSeconds) {
+        if (!StringUtils.hasText(externalUrl) || variables == null || variables.isEmpty() || cacheTtlSeconds <= 0) {
+            return;
+        }
+        synchronized (MACRO_CATALOG_EXTERNAL_CACHE_LOCK) {
+            macroCatalogExternalCacheUrl = externalUrl;
+            macroCatalogExternalCacheVariables = List.copyOf(variables);
+            macroCatalogExternalCacheExpiresAt = Instant.now().plusSeconds(cacheTtlSeconds);
+        }
+    }
+
+    private int clampMacroCatalogCacheTtlSeconds(Object value) {
+        if (value == null) {
+            return DEFAULT_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS;
+        }
+        try {
+            int parsed = Integer.parseInt(String.valueOf(value).trim());
+            if (parsed < MIN_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS) {
+                return MIN_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS;
+            }
+            return Math.min(parsed, MAX_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS);
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS;
+        }
     }
 
     private int clampMacroCatalogTimeout(Object value) {

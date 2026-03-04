@@ -2275,6 +2275,11 @@
                       <label for="dialogMacroVariableCatalogExternalTimeoutMs" class="form-label">Timeout, мс</label>
                       <input type="number" class="form-control" id="dialogMacroVariableCatalogExternalTimeoutMs" min="200" max="10000" step="100">
                     </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroVariableCatalogExternalCacheTtlSeconds" class="form-label">Cache TTL, сек</label>
+                      <input type="number" class="form-control" id="dialogMacroVariableCatalogExternalCacheTtlSeconds" min="0" max="3600" step="10">
+                      <div class="form-text">0 = без кэша. При недоступности внешнего каталога используется stale cache (если есть).</div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Внешние профили клиента (workspace)</h6>
@@ -13201,6 +13206,7 @@
       macroVariableCatalog: document.getElementById('dialogMacroVariableCatalog'),
       macroVariableCatalogExternalUrl: document.getElementById('dialogMacroVariableCatalogExternalUrl'),
       macroVariableCatalogExternalTimeoutMs: document.getElementById('dialogMacroVariableCatalogExternalTimeoutMs'),
+      macroVariableCatalogExternalCacheTtlSeconds: document.getElementById('dialogMacroVariableCatalogExternalCacheTtlSeconds'),
       macroPublishAllowedRoles: document.getElementById('dialogMacroPublishAllowedRoles'),
       macroRequireIndependentReview: document.getElementById('dialogMacroRequireIndependentReview'),
       workspaceClientCrmProfileUrlTemplate: document.getElementById('dialogWorkspaceClientCrmProfileUrlTemplate'),
@@ -13606,6 +13612,12 @@
       inputs.macroVariableCatalogExternalTimeoutMs.value = Number.isFinite(timeoutMs) && timeoutMs >= 200
         ? Math.min(10000, timeoutMs)
         : 2000;
+    }
+    if (inputs.macroVariableCatalogExternalCacheTtlSeconds) {
+      const cacheTtlSeconds = Number.parseInt(DIALOG_CONFIG.macro_variable_catalog_external_cache_ttl_seconds, 10);
+      inputs.macroVariableCatalogExternalCacheTtlSeconds.value = Number.isFinite(cacheTtlSeconds) && cacheTtlSeconds >= 0
+        ? Math.min(3600, cacheTtlSeconds)
+        : 120;
     }
     if (inputs.workspaceClientCrmProfileUrlTemplate) {
       inputs.workspaceClientCrmProfileUrlTemplate.value = String(DIALOG_CONFIG.workspace_client_crm_profile_url_template || '').trim();
@@ -14563,6 +14575,12 @@
       200,
       10000,
     );
+    const safeMacroVariableCatalogExternalCacheTtlSeconds = sanitizeInt(
+      inputs.macroVariableCatalogExternalCacheTtlSeconds?.value,
+      120,
+      0,
+      3600,
+    );
 
     const safeCrmProfileTemplate = String(inputs.workspaceClientCrmProfileUrlTemplate?.value || '').trim();
     const safeCrmProfileLabel = String(inputs.workspaceClientCrmProfileLabel?.value || '').trim();
@@ -14819,6 +14837,7 @@
         dialog_macro_variable_catalog: safeMacroVariableCatalog,
         dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,
         dialog_macro_variable_catalog_external_timeout_ms: safeMacroVariableCatalogExternalTimeoutMs,
+        dialog_macro_variable_catalog_external_cache_ttl_seconds: safeMacroVariableCatalogExternalCacheTtlSeconds,
         dialog_macro_publish_allowed_roles: safeMacroPublishAllowedRoles,
         dialog_macro_require_independent_review: Boolean(inputs.macroRequireIndependentReview?.checked),
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
