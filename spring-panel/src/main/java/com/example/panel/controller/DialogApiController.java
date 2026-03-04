@@ -331,10 +331,11 @@ public class DialogApiController {
         }
         int timeoutMs = clampMacroCatalogTimeout(dialogConfig.get("macro_variable_catalog_external_timeout_ms"));
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(externalUrl))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(externalUrl))
                     .GET()
-                    .timeout(Duration.ofMillis(timeoutMs))
-                    .build();
+                    .timeout(Duration.ofMillis(timeoutMs));
+            applyMacroCatalogExternalAuthHeader(requestBuilder, dialogConfig);
+            HttpRequest request = requestBuilder.build();
             HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("macro catalog external fetch failed: status={} url={}", response.statusCode(), externalUrl);
@@ -360,6 +361,24 @@ public class DialogApiController {
             return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
         }
         return List.of();
+    }
+
+    private void applyMacroCatalogExternalAuthHeader(HttpRequest.Builder requestBuilder,
+                                                    Map<?, ?> dialogConfig) {
+        if (requestBuilder == null || dialogConfig == null) {
+            return;
+        }
+        String token = trimToNull(String.valueOf(dialogConfig.get("macro_variable_catalog_external_auth_token")));
+        if (!StringUtils.hasText(token)) {
+            return;
+        }
+        String configuredHeader = trimToNull(String.valueOf(dialogConfig.get("macro_variable_catalog_external_auth_header")));
+        String headerName = StringUtils.hasText(configuredHeader) ? configuredHeader : "Authorization";
+        if (!SAFE_HTTP_HEADER_NAME_PATTERN.matcher(headerName).matches()) {
+            log.warn("macro catalog external auth header ignored due to unsafe header name: {}", headerName);
+            return;
+        }
+        requestBuilder.header(headerName, token);
     }
 
     private List<Map<String, String>> normalizeMacroCatalogVariables(Object rawPayload) {
