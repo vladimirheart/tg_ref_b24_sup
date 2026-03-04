@@ -212,6 +212,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_macro_variable_catalog_external_url")
                 || payload.containsKey("dialog_macro_variable_catalog_external_timeout_ms")
                 || payload.containsKey("dialog_macro_variable_catalog_external_cache_ttl_seconds")
+                || payload.containsKey("dialog_macro_variable_catalog_external_auth_header")
+                || payload.containsKey("dialog_macro_variable_catalog_external_auth_token")
                 || payload.containsKey("dialog_macro_require_independent_review")
                 || payload.containsKey("dialog_workspace_client_crm_profile_url_template")
                 || payload.containsKey("dialog_workspace_client_crm_profile_label")
@@ -499,6 +501,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_macro_variable_catalog_external_cache_ttl_seconds")) {
                     dialogConfig.put("macro_variable_catalog_external_cache_ttl_seconds",
                             payload.get("dialog_macro_variable_catalog_external_cache_ttl_seconds"));
+                }
+                if (payload.containsKey("dialog_macro_variable_catalog_external_auth_header")) {
+                    dialogConfig.put("macro_variable_catalog_external_auth_header",
+                            payload.get("dialog_macro_variable_catalog_external_auth_header"));
+                }
+                if (payload.containsKey("dialog_macro_variable_catalog_external_auth_token")) {
+                    dialogConfig.put("macro_variable_catalog_external_auth_token",
+                            payload.get("dialog_macro_variable_catalog_external_auth_token"));
                 }
                 if (payload.containsKey("dialog_workspace_client_crm_profile_url_template")) {
                     dialogConfig.put("workspace_client_crm_profile_url_template",
