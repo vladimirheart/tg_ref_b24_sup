@@ -1016,6 +1016,8 @@ public class DialogService {
         List<Map<String, Object>> evaluatedMetrics = metrics.entrySet().stream()
                 .filter(entry -> requiredOutcomeKpis.contains(entry.getKey()))
                 .map(Map.Entry::getValue)
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
                 .map(this::castObjectMap)
                 .toList();
         boolean ready = !evaluatedMetrics.isEmpty()

@@ -1537,6 +1537,40 @@ public class DialogApiController {
         return fallbackValue;
     }
 
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeMacroVariableKey(String rawValue) {
+        String value = trimToNull(rawValue);
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.toLowerCase()
+                .replaceAll("[^a-z0-9_]+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_+|_+$", "");
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private boolean asBoolean(Object raw) {
+        if (raw instanceof Boolean b) {
+            return b;
+        }
+        if (raw instanceof Number n) {
+            return n.intValue() != 0;
+        }
+        if (raw == null) {
+            return false;
+        }
+        String normalized = String.valueOf(raw).trim();
+        return "true".equalsIgnoreCase(normalized) || "1".equals(normalized);
+    }
+
     private Map<String, Object> resolveWorkspaceExternalProfileLinks(Map<String, Object> settings,
                                                                      DialogListItem summary,
                                                                      String ticketId,
