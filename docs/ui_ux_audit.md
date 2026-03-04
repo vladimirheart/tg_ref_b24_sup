@@ -650,3 +650,20 @@
 - [x] **NOW-1.174 (этап D1/D3, external macro variable catalog bridge):** закрыт remaining-gap по «централизованной библиотеке переменных из внешних систем»: `/api/dialogs/macro/variables` теперь умеет подтягивать внешний каталог через `dialog_config.macro_variable_catalog_external_url` (форматы ответа `[{...}]` или `{ "variables": [...] }`) с защитным timeout `macro_variable_catalog_external_timeout_ms` и мягким fallback на локальный каталог/дефолты. В «Настройки → Диалоги» добавлены runtime-поля URL и timeout, что позволяет подключать CRM/ERP каталоги переменных без code-deploy и безопасно откатываться при недоступности внешнего endpoint.
 - [x] **NOW-1.175 (этап D1/D3, secured external macro catalog access):** закрыт оставшийся operational-gap для enterprise-интеграций каталога переменных: добавлены runtime-параметры `dialog_config.macro_variable_catalog_external_auth_header` и `dialog_config.macro_variable_catalog_external_auth_token` (UI «Настройки → Диалоги → Макросы» + `SettingsBridgeController` + backend-fetch в `DialogApiController`). Внешняя загрузка каталога теперь поддерживает auth-header с валидацией безопасного имени, что позволяет подключать защищённые CRM/ERP endpoints без hard-coded секретов и без code-deploy.
 - [x] **NOW-1.176 (этап C1, external profile auth bridge):** для интеграции workspace enrichment с защищёнными CRM/contract API добавлены runtime-параметры `dialog_config.workspace_client_external_profile_auth_header` и `dialog_config.workspace_client_external_profile_auth_token` (UI «Настройки → Диалоги → Workspace» + `SettingsBridgeController` + backend-fetch в `DialogApiController`). Внешний fetch теперь может отправлять auth-header (с валидацией безопасного имени заголовка), что закрывает оставшийся practical-gap по подключению enterprise-профилей, где API недоступен без сервисной авторизации.
+
+## 11) Актуализированный список невыполненного (после NOW-1.176)
+
+По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
+
+1. **Финальный вывод legacy modal из эксплуатации**
+   - `dialogDetailsModal` по-прежнему сохранён как fallback/rollback-путь.
+   - Нужно довести функциональный parity workspace для всех edge-case сценариев и формально закрыть legacy-flow.
+
+2. **Полная SLA-first оркестрация на стороне сервера**
+   - UI/bridge/правила маршрутизации существенно усилены, но остаётся довести end-to-end auto-orchestration до уровня «без ручного triage» для критичных кейсов во всех очередях.
+
+3. **Расширенные кросс-продуктовые KPI-дашборды**
+   - В документе отдельно отмечено, что omni-channel и финансовые KPI требуют отдельного data-mart и пока не завершены.
+
+4. **Финальное закрытие P1/P2-пунктов roadmap через DoD-ревизию**
+   - Документ содержит много инкрементальных закрытий NOW-задач, но для управляемости релиза нужен единый финальный DoD-checkpoint по разделу 9 (с явным переводом оставшихся пунктов из «частично выполнено» в «выполнено» или «перенесено»).
