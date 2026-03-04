@@ -1993,9 +1993,12 @@
                       </div>
                     </div>
                     <div class="col-12">
-                      <label for="dialogSlaAutoAssignRules" class="form-label">Правила auto-assign (JSON-массив)</label>
+                      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <label for="dialogSlaAutoAssignRules" class="form-label mb-0">Правила auto-assign (JSON-массив)</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="dialogSlaAutoAssignInsertExampleBtn">Вставить пример SLA-routing</button>
+                      </div>
                       <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
-                      <div class="form-text">Поддерживаются match/exclude channel|business|location|category|request_prefix, match_categories_mode=any|all, match_has_categories=true|false, match_sla_state(s), match_unread_min/max, assign_to/assign_to_pool.</div>
+                      <div class="form-text">Поддерживаются фильтры: channel/business/location/category/request_prefix/client_status/rating/unread/minutes_left/sla_state + exclude_category/request_prefix. Для маршрутизации доступны assign_to, assign_to_pool и assign_to_pool_strategy (hash_by_ticket/round_robin/least_loaded).</div>
                     </div>
                     <div class="col-md-3">
                       <div class="form-check mt-4 pt-2">
@@ -13124,6 +13127,7 @@
       autoAssignMaxOpenPerOperator: document.getElementById('dialogSlaAutoAssignMaxOpenPerOperator'),
       autoAssignRequireCategories: document.getElementById('dialogSlaAutoAssignRequireCategories'),
       autoAssignRules: document.getElementById('dialogSlaAutoAssignRules'),
+      autoAssignInsertExampleBtn: document.getElementById('dialogSlaAutoAssignInsertExampleBtn'),
       escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
       escalationWebhookUrls: document.getElementById('dialogSlaEscalationWebhookUrls'),
       escalationWebhookCooldownMinutes: document.getElementById('dialogSlaEscalationWebhookCooldown'),
@@ -13786,6 +13790,137 @@
     }
   }
 
+  function validateSlaAutoAssignRules(rules) {
+    const errors = [];
+    const normalizedRules = [];
+    const allowedPoolStrategies = new Set(['hash_by_ticket', 'round_robin', 'least_loaded']);
+    const allowedCategoryModes = new Set(['any', 'all']);
+    const allowedSlaStates = new Set(['breached', 'at_risk', 'normal', 'closed']);
+
+    const asArray = (value) => Array.isArray(value)
+      ? value.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+
+    rules.forEach((rule, index) => {
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+        errors.push(`Правило auto-assign #${index + 1}: ожидается JSON-объект.`);
+        return;
+      }
+      const candidate = { ...rule };
+      const assignTo = String(candidate.assign_to || '').trim();
+      if (assignTo) {
+        candidate.assign_to = assignTo;
+      }
+      const assignToPool = asArray(candidate.assign_to_pool);
+      if (!assignTo && assignToPool.length === 0) {
+        errors.push(`Правило auto-assign #${index + 1}: укажите assign_to или assign_to_pool.`);
+      }
+      if (assignTo && assignToPool.length > 0) {
+        errors.push(`Правило auto-assign #${index + 1}: используйте только один тип маршрутизации (assign_to или assign_to_pool).`);
+      }
+      if (assignToPool.length > 0) {
+        candidate.assign_to_pool = Array.from(new Set(assignToPool));
+      }
+      const strategy = String(candidate.assign_to_pool_strategy || '').trim().toLowerCase();
+      if (strategy && !allowedPoolStrategies.has(strategy)) {
+        errors.push(`Правило auto-assign #${index + 1}: assign_to_pool_strategy должен быть hash_by_ticket|round_robin|least_loaded.`);
+      }
+      if (strategy) {
+        candidate.assign_to_pool_strategy = strategy;
+      }
+
+      const categoryMode = String(candidate.match_categories_mode || '').trim().toLowerCase();
+      if (categoryMode && !allowedCategoryModes.has(categoryMode)) {
+        errors.push(`Правило auto-assign #${index + 1}: match_categories_mode должен быть any|all.`);
+      }
+      if (categoryMode) {
+        candidate.match_categories_mode = categoryMode;
+      }
+
+      const parseBoundedInt = (value, min, max) => {
+        if (value === null || value === undefined || String(value).trim() === '') {
+          return null;
+        }
+        const parsed = Math.round(Number(value));
+        if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+          return null;
+        }
+        return parsed;
+      };
+
+      const ratingMin = parseBoundedInt(candidate.match_rating_min, 0, 100);
+      const ratingMax = parseBoundedInt(candidate.match_rating_max, 0, 100);
+      if (candidate.match_rating_min !== undefined && ratingMin === null) {
+        errors.push(`Правило auto-assign #${index + 1}: match_rating_min должен быть в диапазоне 0..100.`);
+      }
+      if (candidate.match_rating_max !== undefined && ratingMax === null) {
+        errors.push(`Правило auto-assign #${index + 1}: match_rating_max должен быть в диапазоне 0..100.`);
+      }
+      if (ratingMin !== null && ratingMax !== null && ratingMin > ratingMax) {
+        errors.push(`Правило auto-assign #${index + 1}: match_rating_min не может быть больше match_rating_max.`);
+      }
+
+      const unreadMin = parseBoundedInt(candidate.match_unread_min, 0, 10000);
+      const unreadMax = parseBoundedInt(candidate.match_unread_max, 0, 10000);
+      if (candidate.match_unread_min !== undefined && unreadMin === null) {
+        errors.push(`Правило auto-assign #${index + 1}: match_unread_min должен быть в диапазоне 0..10000.`);
+      }
+      if (candidate.match_unread_max !== undefined && unreadMax === null) {
+        errors.push(`Правило auto-assign #${index + 1}: match_unread_max должен быть в диапазоне 0..10000.`);
+      }
+      if (unreadMin !== null && unreadMax !== null && unreadMin > unreadMax) {
+        errors.push(`Правило auto-assign #${index + 1}: match_unread_min не может быть больше match_unread_max.`);
+      }
+
+      const rawSlaStates = [];
+      if (candidate.match_sla_state !== undefined && candidate.match_sla_state !== null) {
+        rawSlaStates.push(candidate.match_sla_state);
+      }
+      if (Array.isArray(candidate.match_sla_states)) {
+        rawSlaStates.push(...candidate.match_sla_states);
+      }
+      const slaStates = asArray(rawSlaStates).map((state) => state.toLowerCase());
+      const invalidSlaState = slaStates.find((state) => !allowedSlaStates.has(state));
+      if (invalidSlaState) {
+        errors.push(`Правило auto-assign #${index + 1}: недопустимый SLA-state «${invalidSlaState}».`);
+      }
+
+      normalizedRules.push(candidate);
+    });
+
+    return { errors, normalizedRules };
+  }
+
+  function bindAutoAssignRulesHelpers() {
+    const { autoAssignRules, autoAssignInsertExampleBtn } = getDialogSlaInputs();
+    if (!autoAssignRules || !autoAssignInsertExampleBtn) {
+      return;
+    }
+    autoAssignInsertExampleBtn.addEventListener('click', () => {
+      const example = [
+        {
+          rule_id: 'vip_escalation',
+          name: 'VIP / высокий рейтинг',
+          match_client_statuses: ['vip', 'premium'],
+          match_rating_min: 80,
+          match_sla_states: ['breached', 'at_risk'],
+          assign_to_pool: ['lead_support', 'senior_support'],
+          assign_to_pool_strategy: 'least_loaded',
+          priority: 100,
+        },
+        {
+          rule_id: 'billing_priority',
+          match_categories: ['billing'],
+          match_categories_mode: 'all',
+          match_minutes_left_lte: 20,
+          assign_to: 'billing_oncall',
+          priority: 80,
+        },
+      ];
+      autoAssignRules.value = JSON.stringify(example, null, 2);
+    });
+  }
+
   function collectDialogSlaConfig() {
     const inputs = getDialogSlaInputs();
     const errors = [];
@@ -13824,7 +13959,11 @@
         if (!Array.isArray(parsedAutoAssignRules)) {
           errors.push('Правила auto-assign должны быть JSON-массивом.');
         } else {
-          safeAutoAssignRules = parsedAutoAssignRules;
+          const validation = validateSlaAutoAssignRules(parsedAutoAssignRules);
+          safeAutoAssignRules = validation.normalizedRules;
+          if (validation.errors.length > 0) {
+            errors.push(...validation.errors);
+          }
         }
       } catch (err) {
         errors.push('Правила auto-assign: некорректный JSON.');
@@ -15030,6 +15169,7 @@
     initDialogTemplates();
     initTimeMetricsControls();
     initDialogSlaControls();
+    bindAutoAssignRulesHelpers();
     initDialogStatusBadges();
     initLocationWizard();
     buildLocationsTree();
