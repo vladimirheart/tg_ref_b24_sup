@@ -2280,6 +2280,15 @@
                       <input type="number" class="form-control" id="dialogMacroVariableCatalogExternalCacheTtlSeconds" min="0" max="3600" step="10">
                       <div class="form-text">0 = без кэша. При недоступности внешнего каталога используется stale cache (если есть).</div>
                     </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroVariableCatalogExternalAuthHeader" class="form-label">Auth header</label>
+                      <input type="text" class="form-control" id="dialogMacroVariableCatalogExternalAuthHeader" placeholder="Authorization">
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogMacroVariableCatalogExternalAuthToken" class="form-label">Auth token / value</label>
+                      <input type="password" class="form-control" id="dialogMacroVariableCatalogExternalAuthToken" placeholder="Bearer &lt;token&gt;">
+                      <div class="form-text">Опционально: заголовок авторизации для защищённого external catalog API.</div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Внешние профили клиента (workspace)</h6>
@@ -4186,6 +4195,7 @@
     workspace_client_extra_attributes_collapse_after: 8,
     workspace_client_extra_attributes_hide_technical: true,
     workspace_client_extra_attributes_technical_prefixes: ["_", "internal_"],
+    macro_variable_catalog_external_auth_header: 'Authorization',
     workspace_client_external_profile_timeout_ms: 2500,
     workspace_client_external_profile_cache_ttl_seconds: 120,
     workspace_client_external_profile_auth_header: 'Authorization',
@@ -13235,6 +13245,8 @@
       macroVariableCatalogExternalUrl: document.getElementById('dialogMacroVariableCatalogExternalUrl'),
       macroVariableCatalogExternalTimeoutMs: document.getElementById('dialogMacroVariableCatalogExternalTimeoutMs'),
       macroVariableCatalogExternalCacheTtlSeconds: document.getElementById('dialogMacroVariableCatalogExternalCacheTtlSeconds'),
+      macroVariableCatalogExternalAuthHeader: document.getElementById('dialogMacroVariableCatalogExternalAuthHeader'),
+      macroVariableCatalogExternalAuthToken: document.getElementById('dialogMacroVariableCatalogExternalAuthToken'),
       macroPublishAllowedRoles: document.getElementById('dialogMacroPublishAllowedRoles'),
       macroRequireIndependentReview: document.getElementById('dialogMacroRequireIndependentReview'),
       workspaceClientCrmProfileUrlTemplate: document.getElementById('dialogWorkspaceClientCrmProfileUrlTemplate'),
@@ -13651,6 +13663,13 @@
       inputs.macroVariableCatalogExternalCacheTtlSeconds.value = Number.isFinite(cacheTtlSeconds) && cacheTtlSeconds >= 0
         ? Math.min(3600, cacheTtlSeconds)
         : 120;
+    }
+    if (inputs.macroVariableCatalogExternalAuthHeader) {
+      const headerName = String(DIALOG_CONFIG.macro_variable_catalog_external_auth_header || '').trim();
+      inputs.macroVariableCatalogExternalAuthHeader.value = headerName || DEFAULT_DIALOG_SLA_CONFIG.macro_variable_catalog_external_auth_header;
+    }
+    if (inputs.macroVariableCatalogExternalAuthToken) {
+      inputs.macroVariableCatalogExternalAuthToken.value = String(DIALOG_CONFIG.macro_variable_catalog_external_auth_token || '').trim();
     }
     if (inputs.workspaceClientCrmProfileUrlTemplate) {
       inputs.workspaceClientCrmProfileUrlTemplate.value = String(DIALOG_CONFIG.workspace_client_crm_profile_url_template || '').trim();
@@ -14636,6 +14655,14 @@
       0,
       3600,
     );
+    const safeMacroCatalogExternalAuthHeaderRaw = String(inputs.macroVariableCatalogExternalAuthHeader?.value || '').trim();
+    const safeMacroCatalogExternalAuthHeader = safeMacroCatalogExternalAuthHeaderRaw
+      ? safeMacroCatalogExternalAuthHeaderRaw
+      : DEFAULT_DIALOG_SLA_CONFIG.macro_variable_catalog_external_auth_header;
+    if (!/^[A-Za-z0-9-]{1,64}$/.test(safeMacroCatalogExternalAuthHeader)) {
+      errors.push('Auth header для external catalog API должен содержать только латиницу, цифры и дефис (1..64 символа).');
+    }
+    const safeMacroCatalogExternalAuthToken = String(inputs.macroVariableCatalogExternalAuthToken?.value || '').trim();
 
     const safeCrmProfileTemplate = String(inputs.workspaceClientCrmProfileUrlTemplate?.value || '').trim();
     const safeCrmProfileLabel = String(inputs.workspaceClientCrmProfileLabel?.value || '').trim();
@@ -14911,6 +14938,8 @@
         dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,
         dialog_macro_variable_catalog_external_timeout_ms: safeMacroVariableCatalogExternalTimeoutMs,
         dialog_macro_variable_catalog_external_cache_ttl_seconds: safeMacroVariableCatalogExternalCacheTtlSeconds,
+        dialog_macro_variable_catalog_external_auth_header: safeMacroCatalogExternalAuthHeader,
+        dialog_macro_variable_catalog_external_auth_token: safeMacroCatalogExternalAuthToken,
         dialog_macro_publish_allowed_roles: safeMacroPublishAllowedRoles,
         dialog_macro_require_independent_review: Boolean(inputs.macroRequireIndependentReview?.checked),
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
