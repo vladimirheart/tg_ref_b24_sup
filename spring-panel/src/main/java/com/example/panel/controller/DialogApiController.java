@@ -86,10 +86,20 @@ public class DialogApiController {
     private static final int DEFAULT_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 120;
     private static final int MIN_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 0;
     private static final int MAX_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 3600;
+    private static final int DEFAULT_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS = 2500;
+    private static final int MIN_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS = 300;
+    private static final int MAX_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS = 10000;
+    private static final int DEFAULT_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 120;
+    private static final int MIN_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 0;
+    private static final int MAX_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 3600;
     private static final Object MACRO_CATALOG_EXTERNAL_CACHE_LOCK = new Object();
+    private static final Object WORKSPACE_EXTERNAL_PROFILE_CACHE_LOCK = new Object();
     private static volatile String macroCatalogExternalCacheUrl = null;
     private static volatile List<Map<String, String>> macroCatalogExternalCacheVariables = List.of();
     private static volatile Instant macroCatalogExternalCacheExpiresAt = Instant.EPOCH;
+    private static volatile String workspaceExternalProfileCacheUrl = null;
+    private static volatile Map<String, Object> workspaceExternalProfileCache = Map.of();
+    private static volatile Instant workspaceExternalProfileCacheExpiresAt = Instant.EPOCH;
     private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
     private static final Map<String, String> WORKSPACE_TELEMETRY_EVENT_GROUPS = Map.ofEntries(
             Map.entry("workspace_open_ms", "performance"),
@@ -451,6 +461,142 @@ public class DialogApiController {
         }
     }
 
+    private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
+                                                                           DialogListItem summary,
+                                                                           String ticketId,
+                                                                           Map<String, Object> profileEnrichment) {
+        Object rawDialogConfig = settings != null ? settings.get("dialog_config") : null;
+        if (!(rawDialogConfig instanceof Map<?, ?> dialogConfig) || summary == null) {
+            return Map.of();
+        }
+        String externalUrlTemplate = trimToNull(String.valueOf(dialogConfig.get("workspace_client_external_profile_url")));
+        if (!StringUtils.hasText(externalUrlTemplate)) {
+            return Map.of();
+        }
+        Map<String, String> placeholders = buildWorkspaceExternalLinkPlaceholders(summary, ticketId, profileEnrichment);
+        String resolvedUrl = externalUrlTemplate;
+        for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+            resolvedUrl = resolvedUrl.replace("{" + entry.getKey() + "}", entry.getValue());
+        }
+        resolvedUrl = trimToNull(resolvedUrl);
+        if (!StringUtils.hasText(resolvedUrl)) {
+            return Map.of();
+        }
+        int cacheTtlSeconds = clampWorkspaceExternalProfileCacheTtl(dialogConfig.get("workspace_client_external_profile_cache_ttl_seconds"));
+        Map<String, Object> cached = resolveCachedWorkspaceExternalProfile(resolvedUrl, cacheTtlSeconds);
+        if (!cached.isEmpty()) {
+            return cached;
+        }
+        int timeoutMs = clampWorkspaceExternalProfileTimeout(dialogConfig.get("workspace_client_external_profile_timeout_ms"));
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(resolvedUrl))
+                    .GET()
+                    .timeout(Duration.ofMillis(timeoutMs))
+                    .build();
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("workspace external profile fetch failed: status={} url={}", response.statusCode(), resolvedUrl);
+                return resolveCachedWorkspaceExternalProfileOnFailure(resolvedUrl);
+            }
+            Object parsed = OBJECT_MAPPER.readValue(response.body(), new TypeReference<Object>() {});
+            Map<String, Object> normalized = normalizeWorkspaceExternalProfilePayload(parsed);
+            if (!normalized.isEmpty()) {
+                storeWorkspaceExternalProfileCache(resolvedUrl, normalized, cacheTtlSeconds);
+                return normalized;
+            }
+            if (parsed instanceof Map<?, ?> || parsed instanceof List<?>) {
+                return resolveCachedWorkspaceExternalProfileOnFailure(resolvedUrl);
+            }
+            log.warn("workspace external profile fetch returned unsupported payload type: url={} type={}",
+                    resolvedUrl,
+                    parsed != null ? parsed.getClass().getSimpleName() : "null");
+        } catch (Exception exception) {
+            log.warn("workspace external profile fetch failed: url={} detail={}", resolvedUrl, exception.toString());
+            return resolveCachedWorkspaceExternalProfileOnFailure(resolvedUrl);
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> normalizeWorkspaceExternalProfilePayload(Object payload) {
+        Object candidate = payload;
+        if (candidate instanceof Map<?, ?> map && map.get("profile") != null) {
+            candidate = map.get("profile");
+        }
+        if (!(candidate instanceof Map<?, ?> profileMap)) {
+            return Map.of();
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        profileMap.forEach((keyRaw, valueRaw) -> {
+            String key = normalizeMacroVariableKey(String.valueOf(keyRaw));
+            if (!StringUtils.hasText(key) || valueRaw == null) {
+                return;
+            }
+            normalized.put(key, valueRaw);
+        });
+        return normalized;
+    }
+
+    private Map<String, Object> resolveCachedWorkspaceExternalProfile(String resolvedUrl, int cacheTtlSeconds) {
+        if (cacheTtlSeconds <= 0 || !resolvedUrl.equals(workspaceExternalProfileCacheUrl)) {
+            return Map.of();
+        }
+        if (workspaceExternalProfileCacheExpiresAt != null && Instant.now().isBefore(workspaceExternalProfileCacheExpiresAt)) {
+            return workspaceExternalProfileCache;
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> resolveCachedWorkspaceExternalProfileOnFailure(String resolvedUrl) {
+        if (resolvedUrl.equals(workspaceExternalProfileCacheUrl) && !workspaceExternalProfileCache.isEmpty()) {
+            log.info("workspace external profile fetch fallback to stale cache: url={} keys={}",
+                    resolvedUrl,
+                    workspaceExternalProfileCache.size());
+            return workspaceExternalProfileCache;
+        }
+        return Map.of();
+    }
+
+    private void storeWorkspaceExternalProfileCache(String resolvedUrl, Map<String, Object> profile, int cacheTtlSeconds) {
+        if (!StringUtils.hasText(resolvedUrl) || profile == null || profile.isEmpty() || cacheTtlSeconds <= 0) {
+            return;
+        }
+        synchronized (WORKSPACE_EXTERNAL_PROFILE_CACHE_LOCK) {
+            workspaceExternalProfileCacheUrl = resolvedUrl;
+            workspaceExternalProfileCache = Map.copyOf(profile);
+            workspaceExternalProfileCacheExpiresAt = Instant.now().plusSeconds(cacheTtlSeconds);
+        }
+    }
+
+    private int clampWorkspaceExternalProfileTimeout(Object value) {
+        if (value == null) {
+            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS;
+        }
+        try {
+            int parsed = Integer.parseInt(String.valueOf(value).trim());
+            if (parsed < MIN_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS) {
+                return MIN_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS;
+            }
+            return Math.min(parsed, MAX_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS);
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS;
+        }
+    }
+
+    private int clampWorkspaceExternalProfileCacheTtl(Object value) {
+        if (value == null) {
+            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS;
+        }
+        try {
+            int parsed = Integer.parseInt(String.valueOf(value).trim());
+            if (parsed < MIN_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS) {
+                return MIN_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS;
+            }
+            return Math.min(parsed, MAX_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS);
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS;
+        }
+    }
+
     private String humanizeMacroVariableLabel(String key) {
         if (!StringUtils.hasText(key)) {
             return "Переменная";
@@ -522,6 +668,12 @@ public class DialogApiController {
         List<Map<String, Object>> clientHistory = dialogService.loadClientDialogHistory(summary.userId(), ticketId, workspaceHistoryLimit);
         List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, workspaceRelatedEventsLimit);
         Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
+        Map<String, Object> externalProfileEnrichment = resolveWorkspaceExternalProfileEnrichment(settings, summary, ticketId, profileEnrichment);
+        if (!externalProfileEnrichment.isEmpty()) {
+            Map<String, Object> mergedEnrichment = new LinkedHashMap<>(profileEnrichment);
+            externalProfileEnrichment.forEach(mergedEnrichment::putIfAbsent);
+            profileEnrichment = mergedEnrichment;
+        }
         Set<String> hiddenProfileAttributes = resolveWorkspaceHiddenClientAttributes(settings);
         Map<String, Object> filteredProfileEnrichment = filterWorkspaceProfileEnrichment(profileEnrichment, hiddenProfileAttributes);
         Map<String, Object> workspaceClient = new LinkedHashMap<>();

@@ -218,6 +218,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_contract_profile_url_template")
                 || payload.containsKey("dialog_workspace_client_contract_profile_label")
                 || payload.containsKey("dialog_workspace_client_external_links")
+                || payload.containsKey("dialog_workspace_client_external_profile_url")
+                || payload.containsKey("dialog_workspace_client_external_profile_timeout_ms")
+                || payload.containsKey("dialog_workspace_client_external_profile_cache_ttl_seconds")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -514,6 +517,18 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_external_links")) {
                     dialogConfig.put("workspace_client_external_links",
                             payload.get("dialog_workspace_client_external_links"));
+                }
+                if (payload.containsKey("dialog_workspace_client_external_profile_url")) {
+                    dialogConfig.put("workspace_client_external_profile_url",
+                            payload.get("dialog_workspace_client_external_profile_url"));
+                }
+                if (payload.containsKey("dialog_workspace_client_external_profile_timeout_ms")) {
+                    dialogConfig.put("workspace_client_external_profile_timeout_ms",
+                            payload.get("dialog_workspace_client_external_profile_timeout_ms"));
+                }
+                if (payload.containsKey("dialog_workspace_client_external_profile_cache_ttl_seconds")) {
+                    dialogConfig.put("workspace_client_external_profile_cache_ttl_seconds",
+                            payload.get("dialog_workspace_client_external_profile_cache_ttl_seconds"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",
