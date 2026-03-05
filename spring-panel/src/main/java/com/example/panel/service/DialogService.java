@@ -45,6 +45,8 @@ public class DialogService {
     private static final double DEFAULT_WORKSPACE_WINNER_MIN_OPEN_IMPROVEMENT = 0d;
     private static final boolean DEFAULT_EXTERNAL_KPI_GATE_ENABLED = false;
     private static final long DEFAULT_EXTERNAL_KPI_REVIEW_TTL_HOURS = 168L;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_REQUIRED = false;
+    private static final long DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_TTL_HOURS = 48L;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -808,6 +810,15 @@ public class DialogService {
                 DEFAULT_EXTERNAL_KPI_REVIEW_TTL_HOURS,
                 1,
                 24 * 90L);
+        boolean dataFreshnessRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_data_freshness_required",
+                DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_REQUIRED);
+        String dataUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_data_updated_at"));
+        long dataFreshnessTtlHours = resolveLongDialogConfigValue(
+                "workspace_rollout_external_kpi_data_freshness_ttl_hours",
+                DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_TTL_HOURS,
+                1,
+                24 * 30L);
         if ("null".equalsIgnoreCase(note)) {
             note = "";
         }
@@ -820,7 +831,16 @@ public class DialogService {
             reviewFresh = reviewAgeHours <= reviewTtlHours;
         }
         boolean reviewReady = !gateEnabled || (reviewPresent && reviewFresh);
-        boolean readyForDecision = !gateEnabled || (omnichannelReady && financeReady && reviewReady);
+        OffsetDateTime dataUpdatedAt = parseReviewTimestamp(dataUpdatedAtRaw);
+        boolean dataUpdatedPresent = dataUpdatedAt != null;
+        boolean dataFresh = false;
+        long dataAgeHours = -1;
+        if (dataUpdatedAt != null) {
+            dataAgeHours = Math.max(0, java.time.Duration.between(dataUpdatedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+            dataFresh = dataAgeHours <= dataFreshnessTtlHours;
+        }
+        boolean dataFreshnessReady = !dataFreshnessRequired || (dataUpdatedPresent && dataFresh);
+        boolean readyForDecision = !gateEnabled || (omnichannelReady && financeReady && reviewReady && dataFreshnessReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
@@ -830,6 +850,12 @@ public class DialogService {
         signal.put("review_present", reviewPresent);
         signal.put("review_fresh", reviewFresh);
         signal.put("review_age_hours", reviewAgeHours);
+        signal.put("data_freshness_required", dataFreshnessRequired);
+        signal.put("data_updated_at", dataUpdatedAt != null ? dataUpdatedAt.toString() : "");
+        signal.put("data_freshness_ttl_hours", dataFreshnessTtlHours);
+        signal.put("data_updated_present", dataUpdatedPresent);
+        signal.put("data_fresh", dataFresh);
+        signal.put("data_age_hours", dataAgeHours);
         signal.put("ready_for_decision", readyForDecision);
         signal.put("note", note != null ? note.trim() : "");
         return signal;
