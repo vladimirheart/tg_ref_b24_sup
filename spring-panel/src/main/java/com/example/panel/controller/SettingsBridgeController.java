@@ -255,6 +255,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_status")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_note")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_freshness_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_updated_at")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_ttl_hours")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_blocker_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_status")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_note")
@@ -702,6 +705,18 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_note")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_health_note",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_health_note"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_freshness_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_health_freshness_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_health_freshness_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_updated_at")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_health_updated_at",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_health_updated_at"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_ttl_hours")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_health_ttl_hours",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_health_ttl_hours"));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_blocker_required")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_program_blocker_required",
