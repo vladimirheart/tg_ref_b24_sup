@@ -683,8 +683,10 @@
 - [x] **NOW-1.191 (этап E3, external program-status blocker gate):** для оставшегося пункта backlog по долгосрочному развитию data-mart добавлен runtime-gate `dialog_config.workspace_rollout_external_kpi_datamart_program_blocker_required` + статус `..._datamart_program_status` (`unknown/in_progress/blocked/ready`) и комментарий `..._datamart_program_note`. UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» позволяет управлять статусом, а `rollout_decision.external_kpi_signal` удерживает rollout в `hold`, если gate включён и программный статус external data-mart = `blocked`. Это делает зависимость от внешнего платформенного потока явной и управляемой без code-deploy.
 - [x] **NOW-1.192 (этап E3, external data-mart timeline gate):** закрыт следующий операционный риск внешней зависимости: добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_datamart_timeline_required`, `..._datamart_target_ready_at` и `..._datamart_timeline_grace_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + backend `rollout_decision`). Если timeline-gate включён, система удерживает rollout в `hold` после дедлайна data-mart (с учётом grace), пока программный статус не переведён в `ready`. Это делает задержки внешнего потока измеримыми и снижает риск «молчаливого» затягивания rollout.
 
+- [x] **NOW-1.193 (этап E3, external program freshness gate):** добавлен дополнительный runtime-gate для контроля «актуальности» статуса внешнего data-mart: `dialog_config.workspace_rollout_external_kpi_datamart_program_freshness_required`, `..._datamart_program_updated_at`, `..._datamart_program_ttl_hours`. Параметр доступен в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», попадает в bridge/backend-сигнал `rollout_decision.external_kpi_signal` и удерживает rollout в `hold`, если программный статус давно не обновлялся. Это снижает риск принятия решения на устаревшем контексте внешнего платформенного потока.
 
-## 11) Актуализированный список невыполненного (после NOW-1.192)
+
+## 11) Актуализированный список невыполненного (после NOW-1.193)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 

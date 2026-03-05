@@ -52,6 +52,8 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_OWNER_RUNBOOK_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_HEALTH_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_BLOCKER_REQUIRED = false;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_FRESHNESS_REQUIRED = false;
+    private static final long DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_TTL_HOURS = 24L * 14L;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_GRACE_HOURS = 24L;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
@@ -834,6 +836,9 @@ public class DialogService {
         boolean datamartProgramBlockerRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_program_blocker_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_BLOCKER_REQUIRED);
+        boolean datamartProgramFreshnessRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_program_freshness_required",
+                DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_FRESHNESS_REQUIRED);
         boolean datamartTimelineRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_timeline_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_REQUIRED);
@@ -843,6 +848,12 @@ public class DialogService {
         String datamartProgramStatus = normalizeDatamartProgramStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_status"))));
         String datamartProgramNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_note")));
+        String datamartProgramUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_updated_at"));
+        long datamartProgramTtlHours = resolveLongDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_program_ttl_hours",
+                DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_TTL_HOURS,
+                1,
+                24 * 90L);
         String datamartTargetReadyAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_target_ready_at"));
         long datamartTimelineGraceHours = resolveLongDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_timeline_grace_hours",
@@ -885,6 +896,15 @@ public class DialogService {
         boolean datamartHealthy = "healthy".equals(datamartHealthStatus);
         boolean datamartHealthReady = !datamartHealthRequired || datamartHealthy;
         boolean datamartProgramReady = !datamartProgramBlockerRequired || !"blocked".equals(datamartProgramStatus);
+        OffsetDateTime datamartProgramUpdatedAt = parseReviewTimestamp(datamartProgramUpdatedAtRaw);
+        boolean datamartProgramUpdatedPresent = datamartProgramUpdatedAt != null;
+        boolean datamartProgramFresh = false;
+        long datamartProgramAgeHours = -1;
+        if (datamartProgramUpdatedAt != null) {
+            datamartProgramAgeHours = Math.max(0, java.time.Duration.between(datamartProgramUpdatedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+            datamartProgramFresh = datamartProgramAgeHours <= datamartProgramTtlHours;
+        }
+        boolean datamartProgramFreshnessReady = !datamartProgramFreshnessRequired || (datamartProgramUpdatedPresent && datamartProgramFresh);
         OffsetDateTime datamartTargetReadyAt = parseReviewTimestamp(datamartTargetReadyAtRaw);
         boolean datamartTargetPresent = datamartTargetReadyAt != null;
         boolean datamartTargetOverdue = false;
@@ -906,6 +926,7 @@ public class DialogService {
                 && ownerRunbookReady
                 && datamartHealthReady
                 && datamartProgramReady
+                && datamartProgramFreshnessReady
                 && datamartTimelineReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
@@ -938,6 +959,13 @@ public class DialogService {
         signal.put("datamart_program_status", datamartProgramStatus);
         signal.put("datamart_program_note", datamartProgramNote);
         signal.put("datamart_program_ready", datamartProgramReady);
+        signal.put("datamart_program_freshness_required", datamartProgramFreshnessRequired);
+        signal.put("datamart_program_updated_at", datamartProgramUpdatedAt != null ? datamartProgramUpdatedAt.toString() : "");
+        signal.put("datamart_program_ttl_hours", datamartProgramTtlHours);
+        signal.put("datamart_program_updated_present", datamartProgramUpdatedPresent);
+        signal.put("datamart_program_fresh", datamartProgramFresh);
+        signal.put("datamart_program_age_hours", datamartProgramAgeHours);
+        signal.put("datamart_program_freshness_ready", datamartProgramFreshnessReady);
         signal.put("datamart_timeline_required", datamartTimelineRequired);
         signal.put("datamart_target_ready_at", datamartTargetReadyAt != null ? datamartTargetReadyAt.toString() : "");
         signal.put("datamart_timeline_grace_hours", datamartTimelineGraceHours);
