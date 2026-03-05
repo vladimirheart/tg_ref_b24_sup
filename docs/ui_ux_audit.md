@@ -671,8 +671,10 @@
 
 - [x] **NOW-1.186 (этап E3, external data-mart freshness gate):** закрыт практический пробел по качеству внешних KPI-данных: добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_data_freshness_required`, `..._data_updated_at`, `..._data_freshness_ttl_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды»). `rollout_decision` теперь учитывает freshness внешнего data-mart и удерживает rollout в `hold`, если данные устарели/не подтверждены в пределах TTL. В «Аналитике» freshness отображается в rationale рядом с review/omni/finance gate.
 
+- [x] **NOW-1.187 (этап E3, external data-mart ownership/runbook bridge):** для снижения операционного риска по оставшемуся external dependency добавлены runtime-поля `dialog_config.workspace_rollout_external_kpi_datamart_owner` и `..._datamart_runbook_url` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + analytics rationale). В `rollout_decision.external_kpi_signal` теперь публикуются owner/runbook, чтобы on-call видел ответственных и сценарий эскалации прямо в decision-banner без поиска по сторонним документам.
 
-## 11) Актуализированный список невыполненного (после NOW-1.183)
+
+## 11) Актуализированный список невыполненного (после NOW-1.187)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
