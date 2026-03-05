@@ -2563,6 +2563,21 @@
                     </div>
                     <div class="col-md-12">
                       <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartHealthFreshnessRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartHealthFreshnessRequired">Требовать актуальность health-статуса data-mart</label>
+                      </div>
+                      <div class="form-text">Если статус health не обновлялся дольше TTL, rollout остаётся в hold даже при состоянии healthy.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt" class="form-label">Health-статус обновлён</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthTtlHours" class="form-label">TTL health, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartProgramBlockerRequired">
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartProgramBlockerRequired">Удерживать rollout, если программный статус data-mart = blocked</label>
                       </div>
@@ -4439,6 +4454,9 @@
     workspace_rollout_external_kpi_datamart_health_required: false,
     workspace_rollout_external_kpi_datamart_health_status: 'unknown',
     workspace_rollout_external_kpi_datamart_health_note: '',
+    workspace_rollout_external_kpi_datamart_health_freshness_required: false,
+    workspace_rollout_external_kpi_datamart_health_updated_at: '',
+    workspace_rollout_external_kpi_datamart_health_ttl_hours: 48,
     workspace_rollout_external_kpi_datamart_program_blocker_required: false,
     workspace_rollout_external_kpi_datamart_program_status: 'unknown',
     workspace_rollout_external_kpi_datamart_program_note: '',
@@ -13550,6 +13568,9 @@
       workspaceExternalKpiDatamartHealthRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthRequired'),
       workspaceExternalKpiDatamartHealthStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthStatus'),
       workspaceExternalKpiDatamartHealthNote: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthNote'),
+      workspaceExternalKpiDatamartHealthFreshnessRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthFreshnessRequired'),
+      workspaceExternalKpiDatamartHealthUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthUpdatedAt'),
+      workspaceExternalKpiDatamartHealthTtlHours: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthTtlHours'),
       workspaceExternalKpiDatamartProgramBlockerRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramBlockerRequired'),
       workspaceExternalKpiDatamartProgramStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramStatus'),
       workspaceExternalKpiDatamartProgramNote: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramNote'),
@@ -14186,6 +14207,19 @@
     }
     if (inputs.workspaceExternalKpiDatamartHealthNote) {
       inputs.workspaceExternalKpiDatamartHealthNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_note || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartHealthFreshnessRequired) {
+      inputs.workspaceExternalKpiDatamartHealthFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_freshness_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartHealthUpdatedAt) {
+      const raw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_updated_at || '').trim();
+      inputs.workspaceExternalKpiDatamartHealthUpdatedAt.value = normalizeDatetimeLocalValue(raw);
+    }
+    if (inputs.workspaceExternalKpiDatamartHealthTtlHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_ttl_hours, 10);
+      inputs.workspaceExternalKpiDatamartHealthTtlHours.value = Number.isFinite(value) && value > 0
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_health_ttl_hours;
     }
     if (inputs.workspaceExternalKpiDatamartProgramBlockerRequired) {
       inputs.workspaceExternalKpiDatamartProgramBlockerRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_blocker_required);
@@ -15405,6 +15439,12 @@
       ? safeWorkspaceExternalKpiDatamartHealthStatusRaw
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_health_status;
     const safeWorkspaceExternalKpiDatamartHealthNote = String(inputs.workspaceExternalKpiDatamartHealthNote?.value || '').trim().slice(0, 300);
+    const safeWorkspaceExternalKpiDatamartHealthFreshnessRequired = Boolean(inputs.workspaceExternalKpiDatamartHealthFreshnessRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartHealthUpdatedAt = normalizeDatetimeLocalValue(inputs.workspaceExternalKpiDatamartHealthUpdatedAt?.value);
+    const safeWorkspaceExternalKpiDatamartHealthTtlHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartHealthTtlHours?.value, 10);
+    const safeWorkspaceExternalKpiDatamartHealthTtlHours = Number.isFinite(safeWorkspaceExternalKpiDatamartHealthTtlHoursRaw)
+      ? clampNumber(safeWorkspaceExternalKpiDatamartHealthTtlHoursRaw, 1, 2160)
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_health_ttl_hours;
     const safeWorkspaceExternalKpiDatamartProgramBlockerRequired = Boolean(inputs.workspaceExternalKpiDatamartProgramBlockerRequired?.checked);
     const safeWorkspaceExternalKpiDatamartProgramStatusRaw = String(inputs.workspaceExternalKpiDatamartProgramStatus?.value || '').trim().toLowerCase();
     const safeWorkspaceExternalKpiDatamartProgramStatus = ['ready', 'in_progress', 'blocked', 'unknown'].includes(safeWorkspaceExternalKpiDatamartProgramStatusRaw)
@@ -15570,6 +15610,9 @@
         dialog_workspace_rollout_external_kpi_datamart_health_required: safeWorkspaceExternalKpiDatamartHealthRequired,
         dialog_workspace_rollout_external_kpi_datamart_health_status: safeWorkspaceExternalKpiDatamartHealthStatus,
         dialog_workspace_rollout_external_kpi_datamart_health_note: safeWorkspaceExternalKpiDatamartHealthNote,
+        dialog_workspace_rollout_external_kpi_datamart_health_freshness_required: safeWorkspaceExternalKpiDatamartHealthFreshnessRequired,
+        dialog_workspace_rollout_external_kpi_datamart_health_updated_at: safeWorkspaceExternalKpiDatamartHealthUpdatedAt,
+        dialog_workspace_rollout_external_kpi_datamart_health_ttl_hours: safeWorkspaceExternalKpiDatamartHealthTtlHours,
         dialog_workspace_rollout_external_kpi_datamart_program_blocker_required: safeWorkspaceExternalKpiDatamartProgramBlockerRequired,
         dialog_workspace_rollout_external_kpi_datamart_program_status: safeWorkspaceExternalKpiDatamartProgramStatus,
         dialog_workspace_rollout_external_kpi_datamart_program_note: safeWorkspaceExternalKpiDatamartProgramNote,
