@@ -33,6 +33,27 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("T-1", candidates.get(0).get("ticket_id"));
     }
 
+
+    @Test
+    void findsCriticalAssignedDialogsWhenIncludeAssignedEnabled() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Instant now = Instant.now();
+
+        DialogListItem assignedCritical = dialog("T-5", now.minusSeconds(23 * 60 * 60).toString(), "open", "operator");
+
+        List<Map<String, Object>> candidates = notifier.findEscalationCandidates(
+                List.of(assignedCritical),
+                24 * 60,
+                60,
+                true
+        );
+
+        assertEquals(1, candidates.size());
+        assertEquals("T-5", candidates.get(0).get("ticket_id"));
+        assertEquals("operator", candidates.get(0).get("responsible"));
+        assertEquals("assigned", candidates.get(0).get("escalation_scope"));
+    }
+
     @Test
     void resolveAutoAssignTicketIdsRespectsConfigAndLimit() {
         SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
