@@ -2435,6 +2435,27 @@
                   </div>
                   <div class="form-text">Сегмент reactivation_risk активируется, если total_dialogs ≥ порога и resolved_30d ≤ max значения.</div>
                   <hr class="my-4">
+                  <h6 class="mb-2">Кросс-продуктовые KPI-дашборды (BI bridge)</h6>
+                  <p class="small text-muted">Ссылки на внешние omni-channel/финансовые доски для закрытия пробела roadmap без отдельного релиза.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductOmnichannelDashboardUrl" class="form-label">Omni-channel dashboard URL</label>
+                      <input type="url" class="form-control" id="dialogCrossProductOmnichannelDashboardUrl" placeholder="https://bi.example.com/omnichannel">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductOmnichannelDashboardLabel" class="form-label">Omni-channel dashboard label</label>
+                      <input type="text" class="form-control" id="dialogCrossProductOmnichannelDashboardLabel" placeholder="Omni-channel KPI dashboard">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductFinanceDashboardUrl" class="form-label">Финансовый dashboard URL</label>
+                      <input type="url" class="form-control" id="dialogCrossProductFinanceDashboardUrl" placeholder="https://bi.example.com/finance">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductFinanceDashboardLabel" class="form-label">Финансовый dashboard label</label>
+                      <input type="text" class="form-control" id="dialogCrossProductFinanceDashboardLabel" placeholder="Финансовый KPI dashboard">
+                    </div>
+                  </div>
+                  <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
                   <p class="small text-muted">Закрывает пункты roadmap по эксплуатационной защите форм (rate-limit, идемпотентность и лимиты payload) без доработок кода.</p>
                   <div class="row g-3 align-items-end">
@@ -4236,6 +4257,10 @@
     workspace_client_external_profile_cache_ttl_seconds: 120,
     workspace_client_external_profile_auth_header: 'Authorization',
     workspace_client_external_profile_auth_token: '',
+    cross_product_omnichannel_dashboard_url: '',
+    cross_product_omnichannel_dashboard_label: 'Omni-channel KPI dashboard',
+    cross_product_finance_dashboard_url: '',
+    cross_product_finance_dashboard_label: 'Финансовый KPI dashboard',
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13313,6 +13338,10 @@
       workspaceSegmentMultiOpenMinDialogs: document.getElementById('dialogWorkspaceSegmentMultiOpenMinDialogs'),
       workspaceSegmentReactivationMinDialogs: document.getElementById('dialogWorkspaceSegmentReactivationMinDialogs'),
       workspaceSegmentReactivationMaxResolved30d: document.getElementById('dialogWorkspaceSegmentReactivationMaxResolved30d'),
+      crossProductOmnichannelDashboardUrl: document.getElementById('dialogCrossProductOmnichannelDashboardUrl'),
+      crossProductOmnichannelDashboardLabel: document.getElementById('dialogCrossProductOmnichannelDashboardLabel'),
+      crossProductFinanceDashboardUrl: document.getElementById('dialogCrossProductFinanceDashboardUrl'),
+      crossProductFinanceDashboardLabel: document.getElementById('dialogCrossProductFinanceDashboardLabel'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -13850,6 +13879,20 @@
       inputs.workspaceSegmentReactivationMaxResolved30d.value = Number.isFinite(value) && value >= 0 && value <= 100
         ? value
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_segment_reactivation_risk_max_resolved_30d;
+    }
+    if (inputs.crossProductOmnichannelDashboardUrl) {
+      inputs.crossProductOmnichannelDashboardUrl.value = String(DIALOG_CONFIG.cross_product_omnichannel_dashboard_url || '').trim();
+    }
+    if (inputs.crossProductOmnichannelDashboardLabel) {
+      inputs.crossProductOmnichannelDashboardLabel.value = String(DIALOG_CONFIG.cross_product_omnichannel_dashboard_label || '').trim()
+        || DEFAULT_DIALOG_SLA_CONFIG.cross_product_omnichannel_dashboard_label;
+    }
+    if (inputs.crossProductFinanceDashboardUrl) {
+      inputs.crossProductFinanceDashboardUrl.value = String(DIALOG_CONFIG.cross_product_finance_dashboard_url || '').trim();
+    }
+    if (inputs.crossProductFinanceDashboardLabel) {
+      inputs.crossProductFinanceDashboardLabel.value = String(DIALOG_CONFIG.cross_product_finance_dashboard_label || '').trim()
+        || DEFAULT_DIALOG_SLA_CONFIG.cross_product_finance_dashboard_label;
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -14950,6 +14993,21 @@
       errors.push('Порог reactivation_risk (минимум диалогов) должен быть в диапазоне 1..500.');
     }
 
+    const safeCrossProductOmnichannelDashboardUrl = String(inputs.crossProductOmnichannelDashboardUrl?.value || '').trim();
+    const safeCrossProductOmnichannelDashboardLabel = String(inputs.crossProductOmnichannelDashboardLabel?.value || '').trim()
+      || DEFAULT_DIALOG_SLA_CONFIG.cross_product_omnichannel_dashboard_label;
+    const safeCrossProductFinanceDashboardUrl = String(inputs.crossProductFinanceDashboardUrl?.value || '').trim();
+    const safeCrossProductFinanceDashboardLabel = String(inputs.crossProductFinanceDashboardLabel?.value || '').trim()
+      || DEFAULT_DIALOG_SLA_CONFIG.cross_product_finance_dashboard_label;
+    const validateDashboardUrl = (value, title) => {
+      if (!value) return;
+      if (!(value.startsWith('https://') || value.startsWith('http://'))) {
+        errors.push(`${title} URL должен начинаться с http:// или https://.`);
+      }
+    };
+    validateDashboardUrl(safeCrossProductOmnichannelDashboardUrl, 'Omni-channel dashboard');
+    validateDashboardUrl(safeCrossProductFinanceDashboardUrl, 'Финансовый dashboard');
+
     const safeReactivationMaxResolvedRaw = Math.round(Number(inputs.workspaceSegmentReactivationMaxResolved30d?.value));
     const safeReactivationMaxResolved = Number.isFinite(safeReactivationMaxResolvedRaw)
       ? Math.min(100, Math.max(0, safeReactivationMaxResolvedRaw))
@@ -15059,6 +15117,10 @@
         dialog_workspace_segment_multi_open_dialogs_min_open: safeMultiOpenThreshold,
         dialog_workspace_segment_reactivation_risk_min_dialogs: safeReactivationMinDialogs,
         dialog_workspace_segment_reactivation_risk_max_resolved_30d: safeReactivationMaxResolved,
+        dialog_cross_product_omnichannel_dashboard_url: safeCrossProductOmnichannelDashboardUrl,
+        dialog_cross_product_omnichannel_dashboard_label: safeCrossProductOmnichannelDashboardLabel,
+        dialog_cross_product_finance_dashboard_url: safeCrossProductFinanceDashboardUrl,
+        dialog_cross_product_finance_dashboard_label: safeCrossProductFinanceDashboardLabel,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
