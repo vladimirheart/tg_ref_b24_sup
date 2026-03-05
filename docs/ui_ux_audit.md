@@ -655,19 +655,17 @@
 
 - [x] **NOW-1.178 (этап C3, full-queue SLA escalation toggle):** в SLA orchestration добавлен runtime-флаг `dialog_config.sla_critical_escalation_include_assigned` (UI «Настройки → Диалоги → SLA и эскалация» + `SettingsBridgeController` + `SlaEscalationWebhookNotifier`). При включении критичные кейсы с уже назначенным ответственным также попадают в webhook escalation payload (`escalation_scope=assigned`), что закрывает следующий practical-gap по end-to-end оповещению «все очереди, не только unassigned» без code-deploy.
 
-## 11) Актуализированный список невыполненного (после NOW-1.178)
+- [x] **NOW-1.179 (этап B3, full workflow cutover by default):** проект переведён на полный workspace/workflow-контур без fallback в `dialogDetailsModal` по умолчанию. Во frontend (`dialogs.js`) принудительно включён workspace-режим открытия диалогов и отключены ветки auto-fallback в legacy modal при cooldown/contract-ошибках. В «Настройки → Диалоги» дефолты runtime-конфига обновлены на `workspace_force_workspace=true`, `workspace_decommission_legacy_modal=true`, `workspace_disable_legacy_fallback=true`, rollout для A/B установлен в 100% для test-когорты. Это закрывает практический шаг roadmap по выводу legacy modal из активной эксплуатации в неиспользуемом проекте.
+
+## 11) Актуализированный список невыполненного (после NOW-1.179)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
-1. **Финальный вывод legacy modal из эксплуатации**
-   - Введён runtime-переключатель decommission (`workspace_decommission_legacy_modal`) для cutover без деплоя, но сам `dialogDetailsModal` пока сохранён в кодовой базе как технический rollback-путь.
-   - Нужно довести функциональный parity workspace для всех edge-case сценариев и формально удалить legacy-flow из кода после стабилизационного окна.
-
-2. **Полная SLA-first оркестрация на стороне сервера**
+1. **Полная SLA-first оркестрация на стороне сервера**
    - UI/bridge/правила маршрутизации существенно усилены, но остаётся довести end-to-end auto-orchestration до уровня «без ручного triage» для критичных кейсов во всех очередях.
 
-3. **Расширенные кросс-продуктовые KPI-дашборды**
+2. **Расширенные кросс-продуктовые KPI-дашборды**
    - В документе отдельно отмечено, что omni-channel и финансовые KPI требуют отдельного data-mart и пока не завершены.
 
-4. **Финальное закрытие P1/P2-пунктов roadmap через DoD-ревизию**
+3. **Финальное закрытие P1/P2-пунктов roadmap через DoD-ревизию**
    - Документ содержит много инкрементальных закрытий NOW-задач, но для управляемости релиза нужен единый финальный DoD-checkpoint по разделу 9 (с явным переводом оставшихся пунктов из «частично выполнено» в «выполнено» или «перенесено»).
