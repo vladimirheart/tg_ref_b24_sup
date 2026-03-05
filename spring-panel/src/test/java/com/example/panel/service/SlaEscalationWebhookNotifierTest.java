@@ -816,6 +816,40 @@ class SlaEscalationWebhookNotifierTest {
 
 
 
+
+    @Test
+    void resolveAutoAssignDecisionsRespectsRequiredAssigneeQueues() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "channel", "Telegram"),
+                Map.of("ticket_id", "T-2", "channel", "Telegram")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "fallback_duty",
+                "sla_critical_operator_queues", Map.of(
+                        "queue_agent", List.of("queue_enterprise"),
+                        "other_agent", List.of("queue_retail")
+                ),
+                "sla_critical_auto_assign_rules", List.of(
+                        Map.of(
+                                "rule_id", "enterprise_queue_only",
+                                "match_channel", "telegram",
+                                "assign_to_pool", List.of("other_agent", "queue_agent"),
+                                "assign_to_pool_strategy", "least_loaded",
+                                "required_assignee_queues", List.of("queue_enterprise")
+                        )
+                )
+        );
+
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
+        assertEquals(2, decisions.size());
+        assertEquals("queue_agent", decisions.get(0).assignee());
+        assertEquals("enterprise_queue_only", decisions.get(0).route());
+        assertEquals("queue_agent", decisions.get(1).assignee());
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,
