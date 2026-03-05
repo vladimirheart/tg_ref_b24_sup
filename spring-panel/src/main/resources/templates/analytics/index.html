@@ -23,11 +23,25 @@
         </form>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4" th:if="${#strings.isNotEmpty(crossProductOmnichannelDashboardUrl) or #strings.isNotEmpty(crossProductFinanceDashboardUrl)}">
+    <div class="card border-0 shadow-sm mb-4">
         <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
             <div>
                 <h2 class="h5 mb-1">Кросс-продуктовые KPI дашборды</h2>
-                <p class="text-muted mb-0">Внешние BI-доски для omni-channel и финансовых метрик, подключаемые через настройки.</p>
+                <p class="text-muted mb-2">Внешние BI-доски для omni-channel и финансовых метрик, подключаемые через настройки.</p>
+                <div class="d-flex flex-wrap gap-2 small">
+                    <span class="badge"
+                          th:classappend="${#strings.isNotEmpty(crossProductOmnichannelDashboardUrl)} ? ' text-bg-success' : (${crossProductDashboardLinksRequired} ? ' text-bg-danger' : ' text-bg-secondary')"
+                          th:text="${#strings.isNotEmpty(crossProductOmnichannelDashboardUrl)} ? 'Omni-channel: ссылка настроена' : (${crossProductDashboardLinksRequired} ? 'Omni-channel: ссылка обязательна' : 'Omni-channel: ссылка не задана')">Omni-channel status</span>
+                    <span class="badge"
+                          th:classappend="${#strings.isNotEmpty(crossProductFinanceDashboardUrl)} ? ' text-bg-success' : (${crossProductDashboardLinksRequired} ? ' text-bg-danger' : ' text-bg-secondary')"
+                          th:text="${#strings.isNotEmpty(crossProductFinanceDashboardUrl)} ? 'Финансы: ссылка настроена' : (${crossProductDashboardLinksRequired} ? 'Финансы: ссылка обязательна' : 'Финансы: ссылка не задана')">Finance status</span>
+                    <span class="badge" th:classappend="${crossProductDashboardLinksRequired} ? ' text-bg-warning' : ' text-bg-light border'"
+                          th:text="${crossProductDashboardLinksRequired} ? 'Gate links=required' : 'Gate links=optional'">Gate links</span>
+                    <span class="badge" th:classappend="${crossProductOmnichannelReady} ? ' text-bg-success' : ' text-bg-secondary'"
+                          th:text="${crossProductOmnichannelReady} ? 'Omni KPI: ready' : 'Omni KPI: pending'">Omni KPI status</span>
+                    <span class="badge" th:classappend="${crossProductFinanceReady} ? ' text-bg-success' : ' text-bg-secondary'"
+                          th:text="${crossProductFinanceReady} ? 'Finance KPI: ready' : 'Finance KPI: pending'">Finance KPI status</span>
+                </div>
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
@@ -38,6 +52,7 @@
                    th:if="${#strings.isNotEmpty(crossProductFinanceDashboardUrl)}"
                    th:href="${crossProductFinanceDashboardUrl}"
                    th:text="${#strings.isNotEmpty(crossProductFinanceDashboardLabel) ? crossProductFinanceDashboardLabel : 'Финансовый KPI dashboard'}">Финансовый KPI dashboard</a>
+                <a class="btn btn-outline-secondary" th:href="@{/settings#dialogSlaEscalationSection}">Открыть настройки BI bridge</a>
             </div>
         </div>
     </div>

@@ -58,6 +58,12 @@ public class AnalyticsController {
             model.addAttribute("crossProductOmnichannelDashboardLabel", String.valueOf(dialogConfig.getOrDefault("cross_product_omnichannel_dashboard_label", "Omni-channel KPI dashboard")).trim());
             model.addAttribute("crossProductFinanceDashboardUrl", String.valueOf(dialogConfig.getOrDefault("cross_product_finance_dashboard_url", "")).trim());
             model.addAttribute("crossProductFinanceDashboardLabel", String.valueOf(dialogConfig.getOrDefault("cross_product_finance_dashboard_label", "Финансовый KPI dashboard")).trim());
+            model.addAttribute("crossProductDashboardLinksRequired", Boolean.parseBoolean(
+                    String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_dashboard_links_required", false))));
+            model.addAttribute("crossProductOmnichannelReady", Boolean.parseBoolean(
+                    String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_omnichannel_ready", false))));
+            model.addAttribute("crossProductFinanceReady", Boolean.parseBoolean(
+                    String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_finance_ready", false))));
 
             log.info("Analytics view requested by {}: {} ticket rows, {} client rows",
                     authentication.getName(), ticketSummary.size(), clientSummary.size());
