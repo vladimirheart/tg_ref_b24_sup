@@ -320,8 +320,14 @@
     const freshnessLabel = externalSignal.data_freshness_required
       ? `${externalSignal.data_fresh ? 'fresh' : 'stale'}${externalSignal.data_updated_at ? ` @ ${externalSignal.data_updated_at}` : ''}`
       : 'off';
+    const datamartOwner = String(externalSignal.datamart_owner || '').trim();
+    const datamartRunbookUrl = String(externalSignal.datamart_runbook_url || '').trim();
+    const datamartContext = [
+      datamartOwner ? `owner=${datamartOwner}` : '',
+      datamartRunbookUrl ? `runbook=${datamartRunbookUrl}` : '',
+    ].filter(Boolean).join(', ');
     const externalGateSuffix = externalGateEnabled
-      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}).`
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}${datamartContext ? `, ${datamartContext}` : ''}).`
       : '';
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 

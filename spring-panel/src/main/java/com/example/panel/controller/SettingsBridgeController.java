@@ -616,6 +616,14 @@ public class SettingsBridgeController {
                     dialogConfig.put("workspace_rollout_external_kpi_note",
                             payload.get("dialog_workspace_rollout_external_kpi_note"));
                 }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_owner")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_owner",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_owner"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_runbook_url")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_runbook_url",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_runbook_url"));
+                }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")) {
                     dialogConfig.put("workspace_rollout_external_kpi_reviewed_by",
                             payload.get("dialog_workspace_rollout_external_kpi_reviewed_by"));

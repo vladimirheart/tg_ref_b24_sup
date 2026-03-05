@@ -2478,6 +2478,14 @@
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiNote" maxlength="500" placeholder="Ссылка на отчёт / статус data-mart / дата валидации">
                     </div>
                     <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartOwner" class="form-label">Owner data-mart</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartOwner" maxlength="120" placeholder="sre-on-call / analytics-team">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartRunbookUrl" class="form-label">Runbook URL data-mart</label>
+                      <input type="url" class="form-control" id="dialogWorkspaceExternalKpiDatamartRunbookUrl" placeholder="https://wiki.example.com/runbooks/datamart">
+                    </div>
+                    <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiReviewedBy" class="form-label">Кто подтвердил checkpoint</label>
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiReviewedBy" maxlength="120" placeholder="on-call / owner / команда">
                     </div>
@@ -4315,6 +4323,8 @@
     workspace_rollout_external_kpi_omnichannel_ready: false,
     workspace_rollout_external_kpi_finance_ready: false,
     workspace_rollout_external_kpi_note: '',
+    workspace_rollout_external_kpi_datamart_owner: '',
+    workspace_rollout_external_kpi_datamart_runbook_url: '',
     workspace_rollout_external_kpi_reviewed_by: '',
     workspace_rollout_external_kpi_reviewed_at: '',
     workspace_rollout_external_kpi_review_ttl_hours: 168,
@@ -13406,6 +13416,8 @@
       workspaceExternalKpiOmnichannelReady: document.getElementById('dialogWorkspaceExternalKpiOmnichannelReady'),
       workspaceExternalKpiFinanceReady: document.getElementById('dialogWorkspaceExternalKpiFinanceReady'),
       workspaceExternalKpiNote: document.getElementById('dialogWorkspaceExternalKpiNote'),
+      workspaceExternalKpiDatamartOwner: document.getElementById('dialogWorkspaceExternalKpiDatamartOwner'),
+      workspaceExternalKpiDatamartRunbookUrl: document.getElementById('dialogWorkspaceExternalKpiDatamartRunbookUrl'),
       workspaceExternalKpiReviewedBy: document.getElementById('dialogWorkspaceExternalKpiReviewedBy'),
       workspaceExternalKpiReviewedAt: document.getElementById('dialogWorkspaceExternalKpiReviewedAt'),
       workspaceExternalKpiReviewTtlHours: document.getElementById('dialogWorkspaceExternalKpiReviewTtlHours'),
@@ -13975,6 +13987,12 @@
     }
     if (inputs.workspaceExternalKpiNote) {
       inputs.workspaceExternalKpiNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_note || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartOwner) {
+      inputs.workspaceExternalKpiDatamartOwner.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_owner || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartRunbookUrl) {
+      inputs.workspaceExternalKpiDatamartRunbookUrl.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_runbook_url || '').trim();
     }
     if (inputs.workspaceExternalKpiReviewedBy) {
       inputs.workspaceExternalKpiReviewedBy.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_reviewed_by || '').trim();
@@ -15111,6 +15129,8 @@
     const safeWorkspaceExternalKpiOmnichannelReady = Boolean(inputs.workspaceExternalKpiOmnichannelReady?.checked);
     const safeWorkspaceExternalKpiFinanceReady = Boolean(inputs.workspaceExternalKpiFinanceReady?.checked);
     const safeWorkspaceExternalKpiNote = String(inputs.workspaceExternalKpiNote?.value || '').trim().slice(0, 500);
+    const safeWorkspaceExternalKpiDatamartOwner = String(inputs.workspaceExternalKpiDatamartOwner?.value || '').trim().slice(0, 120);
+    const safeWorkspaceExternalKpiDatamartRunbookUrl = String(inputs.workspaceExternalKpiDatamartRunbookUrl?.value || '').trim();
     const safeWorkspaceExternalKpiReviewedBy = String(inputs.workspaceExternalKpiReviewedBy?.value || '').trim().slice(0, 120);
     const safeWorkspaceExternalKpiReviewedAtRaw = String(inputs.workspaceExternalKpiReviewedAt?.value || '').trim();
     const safeWorkspaceExternalKpiReviewedAtParsed = safeWorkspaceExternalKpiReviewedAtRaw
@@ -15155,6 +15175,7 @@
     };
     validateDashboardUrl(safeCrossProductOmnichannelDashboardUrl, 'Omni-channel dashboard');
     validateDashboardUrl(safeCrossProductFinanceDashboardUrl, 'Финансовый dashboard');
+    validateDashboardUrl(safeWorkspaceExternalKpiDatamartRunbookUrl, 'Runbook data-mart');
 
     const safeReactivationMaxResolvedRaw = Math.round(Number(inputs.workspaceSegmentReactivationMaxResolved30d?.value));
     const safeReactivationMaxResolved = Number.isFinite(safeReactivationMaxResolvedRaw)
@@ -15273,6 +15294,8 @@
         dialog_workspace_rollout_external_kpi_omnichannel_ready: safeWorkspaceExternalKpiOmnichannelReady,
         dialog_workspace_rollout_external_kpi_finance_ready: safeWorkspaceExternalKpiFinanceReady,
         dialog_workspace_rollout_external_kpi_note: safeWorkspaceExternalKpiNote,
+        dialog_workspace_rollout_external_kpi_datamart_owner: safeWorkspaceExternalKpiDatamartOwner,
+        dialog_workspace_rollout_external_kpi_datamart_runbook_url: safeWorkspaceExternalKpiDatamartRunbookUrl,
         dialog_workspace_rollout_external_kpi_reviewed_by: safeWorkspaceExternalKpiReviewedBy,
         dialog_workspace_rollout_external_kpi_reviewed_at: safeWorkspaceExternalKpiReviewedAt,
         dialog_workspace_rollout_external_kpi_review_ttl_hours: safeWorkspaceExternalKpiReviewTtlHours,
