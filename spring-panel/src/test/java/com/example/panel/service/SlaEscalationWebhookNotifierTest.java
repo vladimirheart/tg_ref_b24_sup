@@ -200,6 +200,34 @@ class SlaEscalationWebhookNotifierTest {
     }
 
     @Test
+    void resolveAutoAssignDecisionsSkipsAssignedByDefaultAndAllowsReassignWhenEnabled() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1", "responsible", "agent_a"),
+                Map.of("ticket_id", "T-2")
+        );
+
+        Map<String, Object> defaultConfig = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "duty_operator"
+        );
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> defaultDecisions = notifier.resolveAutoAssignDecisions(candidates, defaultConfig);
+        assertEquals(1, defaultDecisions.size());
+        assertEquals("T-2", defaultDecisions.get(0).ticketId());
+
+        Map<String, Object> reassignConfig = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "duty_operator",
+                "sla_critical_auto_assign_include_assigned", true
+        );
+        List<SlaEscalationWebhookNotifier.AutoAssignDecision> reassignDecisions = notifier.resolveAutoAssignDecisions(candidates, reassignConfig);
+        assertEquals(2, reassignDecisions.size());
+        assertEquals("T-1", reassignDecisions.get(0).ticketId());
+        assertEquals("agent_a", reassignDecisions.get(0).previousResponsible());
+    }
+
+    @Test
     void resolveAutoAssignDecisionsUsesPriorityAsTieBreakerWhenSpecificityEqual() {
         SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
 
