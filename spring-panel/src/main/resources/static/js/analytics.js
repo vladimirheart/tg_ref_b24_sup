@@ -298,6 +298,9 @@
     const action = String(decision.action || 'hold').toLowerCase();
     const winner = decision.winner || 'insufficient_data';
     const rationale = decision.rationale || 'Решение не сформировано.';
+    const externalSignal = decision.external_kpi_signal && typeof decision.external_kpi_signal === 'object'
+      ? decision.external_kpi_signal
+      : {};
 
     let alertClass = 'alert-secondary';
     if (action === 'scale_up') {
@@ -309,7 +312,12 @@
     }
 
     rolloutDecisionBox.className = `alert ${alertClass} mb-2`;
-    rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}`;
+    const externalGateEnabled = Boolean(externalSignal.enabled);
+    const externalGateReady = Boolean(externalSignal.ready_for_decision);
+    const externalGateSuffix = externalGateEnabled
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}).`
+      : '';
+    rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 
     if (!kpiSignalState) {
       return;

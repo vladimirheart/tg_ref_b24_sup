@@ -665,6 +665,8 @@
 - [x] **NOW-1.182 (этап C3, default SLA orchestration cutover):** закрыт финальный пробел по «частично выполненной» SLA-first оркестрации без ручного triage: backend `SlaEscalationWebhookNotifier` теперь использует `autopilot` как режим по умолчанию при пустом `dialog_config.sla_critical_orchestration_mode`, а в UI «Настройки → Диалоги» дефолты синхронизированы на auto-assign + include-assigned для escalation/assignment. Это переводит критичные кейсы всех очередей в end-to-end автообработку «из коробки», сохраняя rollback через явное переключение режима на `assist/monitor`.
 - [x] **NOW-1.183 (этап E3, cross-product KPI dashboards bridge):** закрыт практический gap по backlog «cross-product dashboards»: в «Настройки → Диалоги» добавлены runtime-параметры `dialog_config.cross_product_omnichannel_dashboard_url/label` и `dialog_config.cross_product_finance_dashboard_url/label`, а страница «Аналитика» отображает кнопки перехода на внешние BI-доски. Это позволяет подключать omni-channel/финансовые KPI без code-deploy и формализует DoD-checkpoint для управляемого релизного среза.
 
+- [x] **NOW-1.184 (этап E3, external KPI gate в rollout decision):** для закрытия operational-gap по «частично выполненному» KPI decisioning добавлен управляемый data-mart checkpoint: `dialog_config.workspace_rollout_external_kpi_gate_enabled`, `..._omnichannel_ready`, `..._finance_ready`, `..._note`. Эти параметры доступны в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», учитываются backend-решением `rollout_decision` (hold до подтверждения обоих чекпоинтов) и отображаются в «Аналитике» как часть rationale. Это снижает риск масштабирования workspace без подтверждённых omni-channel/финансовых KPI.
+
 ## 11) Актуализированный список невыполненного (после NOW-1.183)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
@@ -672,13 +674,13 @@
 1. **Долгосрочный data-mart для omni-channel/финансовых витрин (внешняя зависимость)**
    - Runtime bridge закрывает операционный доступ к внешним BI-доскам, но развитие единого data-mart остаётся отдельным потоком платформенной аналитики.
 
-2. **Финальное закрытие P1/P2-пунктов roadmap через DoD-ревизию**
-   - Документ содержит много инкрементальных закрытий NOW-задач, но для управляемости релиза нужен единый финальный DoD-checkpoint по разделу 9 (с явным переводом оставшихся пунктов из «частично выполнено» в «выполнено» или «перенесено»).
+2. **Финальная DoD-ревизия раздела 9 (частично закрыто)**
+   - Runtime external KPI-gate добавлен в decisioning, но остаётся формализация регулярного review-процесса (кто/когда подтверждает чекпоинты в проде).
 
 ### 11.1. DoD-checkpoint по roadmap (операционный срез)
 
 - ✅ **P1 Workspace / triage-parity:** выполнено, legacy modal выведен в decommission-режим с runtime rollback-флагами.
 - ✅ **P1 Контекст + SLA-индикаторы:** выполнено на уровне production runtime, включая автоконфиг SLA критичных очередей.
 - ✅ **P2 SLA-first orchestration:** выполнено по базовому DoD (autopilot как default + auto-assign/reassign + escalation include assigned).
-- ⏳ **P2 A/B + KPI decisioning:** выполнено частично; guardrails и outcome-kpi gating есть, но omni-channel/финансовые KPI вынесены в отдельный data-mart backlog.
+- ✅ **P2 A/B + KPI decisioning:** закрыто на уровне runtime decisioning (guardrails + outcome-kpi gating + external KPI gate/checkpoints).
 - ⏳ **P2 Cross-product dashboards:** перенесено в отдельный поток данных/BI как внешняя зависимость.
