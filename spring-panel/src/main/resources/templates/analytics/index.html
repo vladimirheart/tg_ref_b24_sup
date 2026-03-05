@@ -23,6 +23,25 @@
         </form>
     </div>
 
+    <div class="card border-0 shadow-sm mb-4" th:if="${#strings.isNotEmpty(crossProductOmnichannelDashboardUrl) or #strings.isNotEmpty(crossProductFinanceDashboardUrl)}">
+        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <h2 class="h5 mb-1">Кросс-продуктовые KPI дашборды</h2>
+                <p class="text-muted mb-0">Внешние BI-доски для omni-channel и финансовых метрик, подключаемые через настройки.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
+                   th:if="${#strings.isNotEmpty(crossProductOmnichannelDashboardUrl)}"
+                   th:href="${crossProductOmnichannelDashboardUrl}"
+                   th:text="${#strings.isNotEmpty(crossProductOmnichannelDashboardLabel) ? crossProductOmnichannelDashboardLabel : 'Omni-channel KPI dashboard'}">Omni-channel KPI dashboard</a>
+                <a class="btn btn-outline-success" target="_blank" rel="noopener noreferrer"
+                   th:if="${#strings.isNotEmpty(crossProductFinanceDashboardUrl)}"
+                   th:href="${crossProductFinanceDashboardUrl}"
+                   th:text="${#strings.isNotEmpty(crossProductFinanceDashboardLabel) ? crossProductFinanceDashboardLabel : 'Финансовый KPI dashboard'}">Финансовый KPI dashboard</a>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
         <div class="col-12">
             <div class="card shadow-sm" id="workspaceTelemetryCard">

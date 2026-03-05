@@ -663,13 +663,14 @@
 - [x] **NOW-1.181 (этап C3, full autopilot re-assign for assigned critical queues):** закрыт оставшийся operational-gap по «full SLA-first orchestration»: `SlaEscalationWebhookNotifier` теперь поддерживает runtime-флаг `dialog_config.sla_critical_auto_assign_include_assigned` (UI «Настройки → Диалоги → SLA и эскалация» + bridge + backend), который разрешает re-assign уже назначенных критичных кейсов по SLA-routing правилам. В режиме `autopilot` флаг включается автоматически, а аудит пишет отдельное действие `sla_auto_reassign` с `previous_responsible`, что убирает ручной triage для assigned-critical очередей и повышает трассируемость.
 
 - [x] **NOW-1.182 (этап C3, default SLA orchestration cutover):** закрыт финальный пробел по «частично выполненной» SLA-first оркестрации без ручного triage: backend `SlaEscalationWebhookNotifier` теперь использует `autopilot` как режим по умолчанию при пустом `dialog_config.sla_critical_orchestration_mode`, а в UI «Настройки → Диалоги» дефолты синхронизированы на auto-assign + include-assigned для escalation/assignment. Это переводит критичные кейсы всех очередей в end-to-end автообработку «из коробки», сохраняя rollback через явное переключение режима на `assist/monitor`.
+- [x] **NOW-1.183 (этап E3, cross-product KPI dashboards bridge):** закрыт практический gap по backlog «cross-product dashboards»: в «Настройки → Диалоги» добавлены runtime-параметры `dialog_config.cross_product_omnichannel_dashboard_url/label` и `dialog_config.cross_product_finance_dashboard_url/label`, а страница «Аналитика» отображает кнопки перехода на внешние BI-доски. Это позволяет подключать omni-channel/финансовые KPI без code-deploy и формализует DoD-checkpoint для управляемого релизного среза.
 
-## 11) Актуализированный список невыполненного (после NOW-1.179)
+## 11) Актуализированный список невыполненного (после NOW-1.183)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
-1. **Расширенные кросс-продуктовые KPI-дашборды**
-   - В документе отдельно отмечено, что omni-channel и финансовые KPI требуют отдельного data-mart и пока не завершены.
+1. **Долгосрочный data-mart для omni-channel/финансовых витрин (внешняя зависимость)**
+   - Runtime bridge закрывает операционный доступ к внешним BI-доскам, но развитие единого data-mart остаётся отдельным потоком платформенной аналитики.
 
 2. **Финальное закрытие P1/P2-пунктов roadmap через DoD-ревизию**
    - Документ содержит много инкрементальных закрытий NOW-задач, но для управляемости релиза нужен единый финальный DoD-checkpoint по разделу 9 (с явным переводом оставшихся пунктов из «частично выполнено» в «выполнено» или «перенесено»).
