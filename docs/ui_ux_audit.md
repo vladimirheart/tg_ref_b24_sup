@@ -653,7 +653,9 @@
 
 - [x] **NOW-1.177 (этап B3/A3, controlled legacy decommission switch):** добавлен runtime-флаг `dialog_config.workspace_decommission_legacy_modal` (UI «Настройки → Диалоги → Workspace» + `SettingsBridgeController` + `dialogs.js`). При включении все открытия диалогов принудительно идут через workspace (вне зависимости от A/B cohort), а auto-fallback/cooldown возврат в `dialogDetailsModal` блокируется с явным операторским уведомлением. Это закрывает практический промежуточный шаг к финальному выводу legacy modal из эксплуатации и позволяет провести контролируемый cutover без code-deploy.
 
-## 11) Актуализированный список невыполненного (после NOW-1.177)
+- [x] **NOW-1.178 (этап C3, full-queue SLA escalation toggle):** в SLA orchestration добавлен runtime-флаг `dialog_config.sla_critical_escalation_include_assigned` (UI «Настройки → Диалоги → SLA и эскалация» + `SettingsBridgeController` + `SlaEscalationWebhookNotifier`). При включении критичные кейсы с уже назначенным ответственным также попадают в webhook escalation payload (`escalation_scope=assigned`), что закрывает следующий practical-gap по end-to-end оповещению «все очереди, не только unassigned» без code-deploy.
+
+## 11) Актуализированный список невыполненного (после NOW-1.178)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 

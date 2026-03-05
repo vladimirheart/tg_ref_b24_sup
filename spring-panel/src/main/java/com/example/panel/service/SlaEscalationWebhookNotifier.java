@@ -65,7 +65,8 @@ public class SlaEscalationWebhookNotifier {
         int timeoutMs = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_timeout_ms", 4000, 15000);
         int maxTicketsPerRun = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_max_tickets_per_run", 50, 500);
 
-        List<Map<String, Object>> candidates = findEscalationCandidates(dialogService.loadDialogs(null), targetMinutes, criticalMinutes);
+        boolean includeAssigned = resolveBoolean(dialogConfig, "sla_critical_escalation_include_assigned", false);
+        List<Map<String, Object>> candidates = findEscalationCandidates(dialogService.loadDialogs(null), targetMinutes, criticalMinutes, includeAssigned);
         if (candidates.isEmpty()) {
             return;
         }
@@ -221,7 +222,13 @@ public class SlaEscalationWebhookNotifier {
     }
 
     private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
-        List<AutoAssignDecision> decisions = resolveAutoAssignDecisions(candidates, dialogConfig);
+        List<Map<String, Object>> unassignedCandidates = candidates.stream()
+                .filter(candidate -> {
+                    Object responsible = candidate.get("responsible");
+                    return trimToNull(responsible != null ? String.valueOf(responsible) : null) == null;
+                })
+                .toList();
+        List<AutoAssignDecision> decisions = resolveAutoAssignDecisions(unassignedCandidates, dialogConfig);
         if (decisions.isEmpty()) {
             return;
         }
@@ -324,6 +331,13 @@ public class SlaEscalationWebhookNotifier {
     List<Map<String, Object>> findEscalationCandidates(List<DialogListItem> dialogs,
                                                         int targetMinutes,
                                                         int criticalMinutes) {
+        return findEscalationCandidates(dialogs, targetMinutes, criticalMinutes, false);
+    }
+
+    List<Map<String, Object>> findEscalationCandidates(List<DialogListItem> dialogs,
+                                                        int targetMinutes,
+                                                        int criticalMinutes,
+                                                        boolean includeAssigned) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (dialogs == null || dialogs.isEmpty()) {
             return result;
@@ -337,7 +351,8 @@ public class SlaEscalationWebhookNotifier {
             if (!"open".equals(normalizeLifecycleState(dialog.statusKey()))) {
                 continue;
             }
-            if (dialog.responsible() != null && !dialog.responsible().isBlank()) {
+            String responsible = trimToNull(dialog.responsible());
+            if (responsible != null && !includeAssigned) {
                 continue;
             }
             Long minutesLeft = resolveMinutesLeft(dialog.createdAt(), targetMinutes, nowMs);
@@ -355,9 +370,11 @@ public class SlaEscalationWebhookNotifier {
             row.put("location", dialog.location());
             row.put("categories", dialog.categories());
             row.put("client_status", dialog.clientStatus());
+            row.put("responsible", responsible);
             row.put("unread_count", dialog.unreadCount());
             row.put("rating", dialog.rating());
             row.put("sla_state", minutesLeft < 0 ? "breached" : "at_risk");
+            row.put("escalation_scope", responsible == null ? "unassigned" : "assigned");
             result.add(row);
         }
         return result;
