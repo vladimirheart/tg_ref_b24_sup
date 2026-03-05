@@ -2013,6 +2013,13 @@
                         <label class="form-check-label" for="dialogSlaEscalationWebhookEnabled">Webhook-уведомления инцидентов</label>
                       </div>
                     </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaEscalationIncludeAssigned">
+                        <label class="form-check-label" for="dialogSlaEscalationIncludeAssigned">Включать уже назначенные кейсы</label>
+                      </div>
+                      <div class="form-text">Нужно для e2e SLA-orchestration: webhook будет эскалировать critical тикеты даже при назначенном ответственном.</div>
+                    </div>
                     <div class="col-md-8">
                       <label for="dialogSlaEscalationWebhookUrls" class="form-label">Webhook URL (через запятую или новую строку)</label>
                       <textarea class="form-control" id="dialogSlaEscalationWebhookUrls" rows="2" placeholder="https://incident.example/hook"></textarea>
@@ -4165,6 +4172,7 @@
     workspace_enabled: true,
     workspace_force_workspace: false,
     workspace_decommission_legacy_modal: false,
+    sla_critical_escalation_include_assigned: false,
     workspace_inline_navigation: true,
     sla_critical_auto_sort: true,
     workspace_ab_enabled: false,
@@ -13199,6 +13207,7 @@
       autoAssignRules: document.getElementById('dialogSlaAutoAssignRules'),
       autoAssignInsertExampleBtn: document.getElementById('dialogSlaAutoAssignInsertExampleBtn'),
       escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
+      escalationIncludeAssigned: document.getElementById('dialogSlaEscalationIncludeAssigned'),
       escalationWebhookUrls: document.getElementById('dialogSlaEscalationWebhookUrls'),
       escalationWebhookCooldownMinutes: document.getElementById('dialogSlaEscalationWebhookCooldown'),
       escalationWebhookTimeoutMs: document.getElementById('dialogSlaEscalationWebhookTimeout'),
@@ -13359,6 +13368,9 @@
     }
     if (inputs.escalationWebhookEnabled instanceof HTMLInputElement) {
       inputs.escalationWebhookEnabled.checked = Boolean(DIALOG_CONFIG.sla_critical_escalation_webhook_enabled);
+    }
+    if (inputs.escalationIncludeAssigned instanceof HTMLInputElement) {
+      inputs.escalationIncludeAssigned.checked = DIALOG_CONFIG.sla_critical_escalation_include_assigned === true;
     }
     if (inputs.escalationWebhookUrls) {
       const webhookUrls = Array.isArray(DIALOG_CONFIG.sla_critical_escalation_webhook_urls)
@@ -14896,6 +14908,7 @@
         dialog_sla_critical_auto_assign_require_categories: Boolean(inputs.autoAssignRequireCategories?.checked),
         dialog_sla_critical_auto_assign_rules: safeAutoAssignRules,
         dialog_sla_critical_escalation_webhook_enabled: Boolean(inputs.escalationWebhookEnabled?.checked),
+        dialog_sla_critical_escalation_include_assigned: Boolean(inputs.escalationIncludeAssigned?.checked),
         dialog_sla_critical_escalation_webhook_urls: safeEscalationWebhookUrls,
         dialog_sla_critical_escalation_webhook_cooldown_minutes: safeEscalationWebhookCooldown,
         dialog_sla_critical_escalation_webhook_timeout_ms: safeEscalationWebhookTimeout,
