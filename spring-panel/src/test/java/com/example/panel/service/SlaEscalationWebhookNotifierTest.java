@@ -770,6 +770,24 @@ class SlaEscalationWebhookNotifierTest {
 
 
 
+    @Test
+    void resolveOrchestrationModeUsesAssistByDefault() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        assertEquals(SlaEscalationWebhookNotifier.SlaOrchestrationMode.ASSIST, notifier.resolveOrchestrationMode(null));
+        assertEquals(SlaEscalationWebhookNotifier.SlaOrchestrationMode.ASSIST, notifier.resolveOrchestrationMode("unknown"));
+    }
+
+    @Test
+    void resolveOrchestrationModeSupportsMonitorAndAutopilotAliases() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        assertEquals(SlaEscalationWebhookNotifier.SlaOrchestrationMode.MONITOR, notifier.resolveOrchestrationMode("dry_run"));
+        assertEquals(SlaEscalationWebhookNotifier.SlaOrchestrationMode.AUTOPILOT, notifier.resolveOrchestrationMode("full"));
+    }
+
+
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,

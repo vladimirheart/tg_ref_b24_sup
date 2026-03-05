@@ -41,6 +41,12 @@ public class SlaEscalationWebhookNotifier {
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
+    enum SlaOrchestrationMode {
+        MONITOR,
+        ASSIST,
+        AUTOPILOT
+    }
+
     record WebhookEndpoint(String url, Map<String, String> headers) {}
 
     public SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
@@ -64,14 +70,25 @@ public class SlaEscalationWebhookNotifier {
         int cooldownMinutes = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_cooldown_minutes", 30, 24 * 60);
         int timeoutMs = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_timeout_ms", 4000, 15000);
         int maxTicketsPerRun = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_max_tickets_per_run", 50, 500);
+        SlaOrchestrationMode orchestrationMode = resolveOrchestrationMode(dialogConfig.get("sla_critical_orchestration_mode"));
 
         boolean includeAssigned = resolveBoolean(dialogConfig, "sla_critical_escalation_include_assigned", false);
+        if (orchestrationMode == SlaOrchestrationMode.AUTOPILOT) {
+            includeAssigned = true;
+        }
         List<Map<String, Object>> candidates = findEscalationCandidates(dialogService.loadDialogs(null), targetMinutes, criticalMinutes, includeAssigned);
         if (candidates.isEmpty()) {
             return;
         }
 
-        applyAutoAssignment(candidates, dialogConfig);
+        if (orchestrationMode != SlaOrchestrationMode.MONITOR) {
+            Map<String, Object> autoAssignConfig = dialogConfig;
+            if (orchestrationMode == SlaOrchestrationMode.AUTOPILOT) {
+                autoAssignConfig = new LinkedHashMap<>(dialogConfig);
+                autoAssignConfig.put("sla_critical_auto_assign_enabled", true);
+            }
+            applyAutoAssignment(candidates, autoAssignConfig);
+        }
 
         if (!resolveBoolean(dialogConfig, "sla_critical_escalation_webhook_enabled", false)) {
             return;
@@ -116,6 +133,8 @@ public class SlaEscalationWebhookNotifier {
         payload.put("target_minutes", targetMinutes);
         payload.put("total_candidates_before_limit", candidates.size());
         payload.put("tickets_in_payload", readyToNotify.size());
+        payload.put("orchestration_mode", orchestrationMode.name().toLowerCase());
+        payload.put("include_assigned_effective", includeAssigned);
         payload.put("tickets", readyToNotify);
 
         int retryAttempts = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_retry_attempts", 1, 3);
@@ -254,6 +273,18 @@ public class SlaEscalationWebhookNotifier {
 
     List<String> resolveAutoAssignTicketIds(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
         return resolveAutoAssignDecisions(candidates, dialogConfig).stream().map(AutoAssignDecision::ticketId).toList();
+    }
+
+    SlaOrchestrationMode resolveOrchestrationMode(Object rawMode) {
+        String normalized = trimToNull(String.valueOf(rawMode));
+        if (normalized == null) {
+            return SlaOrchestrationMode.ASSIST;
+        }
+        return switch (normalized.trim().toLowerCase()) {
+            case "monitor", "observe", "dry_run" -> SlaOrchestrationMode.MONITOR;
+            case "autopilot", "full", "auto" -> SlaOrchestrationMode.AUTOPILOT;
+            default -> SlaOrchestrationMode.ASSIST;
+        };
     }
 
     List<AutoAssignDecision> resolveAutoAssignDecisions(List<Map<String, Object>> candidates,
