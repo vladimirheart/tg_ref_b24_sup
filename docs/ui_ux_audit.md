@@ -686,7 +686,11 @@
 - [x] **NOW-1.193 (этап E3, external program freshness gate):** добавлен дополнительный runtime-gate для контроля «актуальности» статуса внешнего data-mart: `dialog_config.workspace_rollout_external_kpi_datamart_program_freshness_required`, `..._datamart_program_updated_at`, `..._datamart_program_ttl_hours`. Параметр доступен в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», попадает в bridge/backend-сигнал `rollout_decision.external_kpi_signal` и удерживает rollout в `hold`, если программный статус давно не обновлялся. Это снижает риск принятия решения на устаревшем контексте внешнего платформенного потока.
 
 
-## 11) Актуализированный список невыполненного (после NOW-1.193)
+- [x] **NOW-1.194 (этап E3, BI bridge visibility in analytics):** на странице «Аналитика» добавлен постоянный блок состояния cross-product KPI bridge: отображаются статусы ссылок Omni/Finance (configured/missing), состояние gate `links=required|optional`, а также готовность KPI `omnichannel_ready/finance_ready`. Добавлена кнопка перехода в «Настройки → Диалоги» для быстрого исправления конфигурации. Это закрывает UX-пробел по наблюдаемости внешней BI-зависимости прямо в рабочем контуре аналитики без ручной проверки JSON-конфига.
+
+
+
+## 11) Актуализированный список невыполненного (после NOW-1.194)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
