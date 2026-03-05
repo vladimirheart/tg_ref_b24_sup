@@ -248,6 +248,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_data_updated_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_links_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_status_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_status")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_status_note")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_owner_runbook_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_status")
@@ -671,6 +674,18 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_links_required")) {
                     dialogConfig.put("workspace_rollout_external_kpi_dashboard_links_required",
                             payload.get("dialog_workspace_rollout_external_kpi_dashboard_links_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_status_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_dashboard_status_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_dashboard_status_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_status")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_dashboard_status",
+                            payload.get("dialog_workspace_rollout_external_kpi_dashboard_status"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_status_note")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_dashboard_status_note",
+                            payload.get("dialog_workspace_rollout_external_kpi_dashboard_status_note"));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_owner_runbook_required")) {
                     dialogConfig.put("workspace_rollout_external_kpi_owner_runbook_required",
