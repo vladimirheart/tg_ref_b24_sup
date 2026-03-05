@@ -2007,6 +2007,13 @@
                         <label class="form-check-label" for="dialogSlaAutoAssignRequireCategories">Только с заполненными категориями</label>
                       </div>
                     </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaAutoAssignIncludeAssigned">
+                        <label class="form-check-label" for="dialogSlaAutoAssignIncludeAssigned">Разрешить re-assign уже назначенных</label>
+                      </div>
+                      <div class="form-text">Используется для full autopilot: критичные assigned-кейсы можно перераспределять по SLA-routing правилам.</div>
+                    </div>
                     <div class="col-12">
                       <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
                         <label for="dialogSlaAutoAssignRules" class="form-label mb-0">Правила auto-assign (JSON-массив)</label>
@@ -4160,6 +4167,7 @@
     auto_assign_rules: [],
     auto_assign_max_open_per_operator: null,
     auto_assign_require_categories: false,
+    sla_critical_auto_assign_include_assigned: false,
     escalation_webhook_enabled: false,
     escalation_webhook_urls: '',
     escalation_webhook_cooldown_minutes: 30,
@@ -13214,6 +13222,7 @@
       autoAssignActor: document.getElementById('dialogSlaAutoAssignActor'),
       autoAssignMaxOpenPerOperator: document.getElementById('dialogSlaAutoAssignMaxOpenPerOperator'),
       autoAssignRequireCategories: document.getElementById('dialogSlaAutoAssignRequireCategories'),
+      autoAssignIncludeAssigned: document.getElementById('dialogSlaAutoAssignIncludeAssigned'),
       autoAssignRules: document.getElementById('dialogSlaAutoAssignRules'),
       autoAssignInsertExampleBtn: document.getElementById('dialogSlaAutoAssignInsertExampleBtn'),
       escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
@@ -13374,6 +13383,9 @@
     }
     if (inputs.autoAssignRequireCategories instanceof HTMLInputElement) {
       inputs.autoAssignRequireCategories.checked = Boolean(DIALOG_CONFIG.sla_critical_auto_assign_require_categories);
+    }
+    if (inputs.autoAssignIncludeAssigned instanceof HTMLInputElement) {
+      inputs.autoAssignIncludeAssigned.checked = Boolean(DIALOG_CONFIG.sla_critical_auto_assign_include_assigned);
     }
     if (inputs.autoAssignRules) {
       const rawRules = Array.isArray(DIALOG_CONFIG.sla_critical_auto_assign_rules)
@@ -14925,6 +14937,7 @@
         dialog_sla_critical_auto_assign_actor: safeAutoAssignActor,
         dialog_sla_critical_auto_assign_max_open_per_operator: safeAutoAssignMaxOpenPerOperator,
         dialog_sla_critical_auto_assign_require_categories: Boolean(inputs.autoAssignRequireCategories?.checked),
+        dialog_sla_critical_auto_assign_include_assigned: Boolean(inputs.autoAssignIncludeAssigned?.checked),
         dialog_sla_critical_auto_assign_rules: safeAutoAssignRules,
         dialog_sla_critical_escalation_webhook_enabled: Boolean(inputs.escalationWebhookEnabled?.checked),
         dialog_sla_critical_escalation_include_assigned: Boolean(inputs.escalationIncludeAssigned?.checked),

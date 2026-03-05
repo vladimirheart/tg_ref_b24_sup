@@ -659,6 +659,8 @@
 
 - [x] **NOW-1.180 (этап C3, SLA orchestration runtime mode):** закрыт следующий practical-gap по «частично выполненной» SLA-first оркестрации: добавлен runtime-параметр `dialog_config.sla_critical_orchestration_mode` (`monitor`/`assist`/`autopilot`) с настройкой в UI «Настройки → Диалоги → SLA и эскалация». В `SlaEscalationWebhookNotifier` режим `autopilot` принудительно включает обработку всех критичных очередей (включая assigned) и auto-assign pipeline, а `monitor` оставляет только сигнализацию без auto-actions. Это позволяет поэтапно перейти к end-to-end оркестрации без code-deploy и без ручного triage.
 
+- [x] **NOW-1.181 (этап C3, full autopilot re-assign for assigned critical queues):** закрыт оставшийся operational-gap по «full SLA-first orchestration»: `SlaEscalationWebhookNotifier` теперь поддерживает runtime-флаг `dialog_config.sla_critical_auto_assign_include_assigned` (UI «Настройки → Диалоги → SLA и эскалация» + bridge + backend), который разрешает re-assign уже назначенных критичных кейсов по SLA-routing правилам. В режиме `autopilot` флаг включается автоматически, а аудит пишет отдельное действие `sla_auto_reassign` с `previous_responsible`, что убирает ручной triage для assigned-critical очередей и повышает трассируемость.
+
 ## 11) Актуализированный список невыполненного (после NOW-1.179)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
