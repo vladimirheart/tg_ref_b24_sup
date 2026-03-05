@@ -2112,6 +2112,13 @@
                     </div>
                     <div class="col-md-6">
                       <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceDecommissionLegacyModal">
+                        <label class="form-check-label" for="dialogWorkspaceDecommissionLegacyModal">Decommission legacy modal: отключить legacy-flow и открывать только workspace</label>
+                      </div>
+                      <div class="form-text">Используйте только после подтверждённого функционального parity workspace. При ошибках auto-fallback в модалку недоступен.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceInlineNavigation">
                         <label class="form-check-label" for="dialogWorkspaceInlineNavigation">Inline-навигация в workspace (без legacy modal)</label>
                       </div>
@@ -4157,6 +4164,7 @@
     workspace_open_slo_ms: 2000,
     workspace_enabled: true,
     workspace_force_workspace: false,
+    workspace_decommission_legacy_modal: false,
     workspace_inline_navigation: true,
     sla_critical_auto_sort: true,
     workspace_ab_enabled: false,
@@ -13207,6 +13215,7 @@
       workspaceEnabled: document.getElementById('dialogWorkspaceEnabled'),
       slaCriticalAutoSort: document.getElementById('dialogSlaCriticalAutoSort'),
       workspaceForceWorkspace: document.getElementById('dialogWorkspaceForceWorkspace'),
+      workspaceDecommissionLegacyModal: document.getElementById('dialogWorkspaceDecommissionLegacyModal'),
       workspaceAbEnabled: document.getElementById('dialogWorkspaceAbEnabled'),
       workspaceInlineNavigation: document.getElementById('dialogWorkspaceInlineNavigation'),
       workspaceContractTimeout: document.getElementById('dialogWorkspaceContractTimeoutMs'),
@@ -13437,6 +13446,9 @@
     }
     if (inputs.workspaceForceWorkspace instanceof HTMLInputElement) {
       inputs.workspaceForceWorkspace.checked = DIALOG_CONFIG.workspace_force_workspace === true;
+    }
+    if (inputs.workspaceDecommissionLegacyModal instanceof HTMLInputElement) {
+      inputs.workspaceDecommissionLegacyModal.checked = DIALOG_CONFIG.workspace_decommission_legacy_modal === true;
     }
     if (inputs.workspaceAbEnabled instanceof HTMLInputElement) {
       inputs.workspaceAbEnabled.checked = Boolean(DIALOG_CONFIG.workspace_ab_enabled);
@@ -14913,6 +14925,7 @@
         dialog_list_poll_interval_ms: safeListPollInterval,
         dialog_history_poll_interval_ms: safeHistoryPollInterval,
         dialog_workspace_force_workspace: Boolean(inputs.workspaceForceWorkspace?.checked),
+        dialog_workspace_decommission_legacy_modal: Boolean(inputs.workspaceDecommissionLegacyModal?.checked),
         dialog_workspace_ab_enabled: Boolean(inputs.workspaceAbEnabled?.checked),
         dialog_workspace_ab_rollout_percent: safeWorkspaceAbRolloutPercent,
         dialog_workspace_ab_experiment_name: safeWorkspaceAbExperimentName,
