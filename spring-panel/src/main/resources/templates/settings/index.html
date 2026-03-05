@@ -2562,6 +2562,21 @@
                       <label for="dialogWorkspaceExternalKpiDatamartProgramNote" class="form-label">Комментарий по программному статусу</label>
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramNote" maxlength="300" placeholder="Что блокирует data-mart, ответственный поток, ETA по снятию блокера">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartTimelineRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartTimelineRequired">Удерживать rollout, если сорван целевой срок готовности data-mart</label>
+                      </div>
+                      <div class="form-text">Если статус программы не `ready`, решение rollout перейдёт в hold после дедлайна + grace-период.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartTargetReadyAt" class="form-label">Целевой срок готовности data-mart</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartTargetReadyAt">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartTimelineGraceHours" class="form-label">Grace после дедлайна, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartTimelineGraceHours" min="0" max="720" step="1">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4390,6 +4405,9 @@
     workspace_rollout_external_kpi_datamart_program_blocker_required: false,
     workspace_rollout_external_kpi_datamart_program_status: 'unknown',
     workspace_rollout_external_kpi_datamart_program_note: '',
+    workspace_rollout_external_kpi_datamart_timeline_required: false,
+    workspace_rollout_external_kpi_datamart_target_ready_at: '',
+    workspace_rollout_external_kpi_datamart_timeline_grace_hours: 24,
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13492,6 +13510,9 @@
       workspaceExternalKpiDatamartProgramBlockerRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramBlockerRequired'),
       workspaceExternalKpiDatamartProgramStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramStatus'),
       workspaceExternalKpiDatamartProgramNote: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramNote'),
+      workspaceExternalKpiDatamartTimelineRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartTimelineRequired'),
+      workspaceExternalKpiDatamartTargetReadyAt: document.getElementById('dialogWorkspaceExternalKpiDatamartTargetReadyAt'),
+      workspaceExternalKpiDatamartTimelineGraceHours: document.getElementById('dialogWorkspaceExternalKpiDatamartTimelineGraceHours'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14119,6 +14140,18 @@
     }
     if (inputs.workspaceExternalKpiDatamartProgramNote) {
       inputs.workspaceExternalKpiDatamartProgramNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_note || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartTimelineRequired) {
+      inputs.workspaceExternalKpiDatamartTimelineRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_timeline_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartTargetReadyAt) {
+      inputs.workspaceExternalKpiDatamartTargetReadyAt.value = toDateTimeLocalValue(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_target_ready_at || '');
+    }
+    if (inputs.workspaceExternalKpiDatamartTimelineGraceHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_timeline_grace_hours, 10);
+      inputs.workspaceExternalKpiDatamartTimelineGraceHours.value = Number.isFinite(value)
+        ? String(Math.max(0, Math.min(720, value)))
+        : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_timeline_grace_hours);
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15304,6 +15337,12 @@
       ? safeWorkspaceExternalKpiDatamartProgramStatusRaw
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_program_status;
     const safeWorkspaceExternalKpiDatamartProgramNote = String(inputs.workspaceExternalKpiDatamartProgramNote?.value || '').trim().slice(0, 300);
+    const safeWorkspaceExternalKpiDatamartTimelineRequired = Boolean(inputs.workspaceExternalKpiDatamartTimelineRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartTargetReadyAt = toIsoUtcString(inputs.workspaceExternalKpiDatamartTargetReadyAt?.value || '');
+    const datamartTimelineGraceHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartTimelineGraceHours?.value || '', 10);
+    const safeWorkspaceExternalKpiDatamartTimelineGraceHours = Number.isFinite(datamartTimelineGraceHoursRaw)
+      ? Math.max(0, Math.min(720, datamartTimelineGraceHoursRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_timeline_grace_hours;
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15451,6 +15490,9 @@
         dialog_workspace_rollout_external_kpi_datamart_program_blocker_required: safeWorkspaceExternalKpiDatamartProgramBlockerRequired,
         dialog_workspace_rollout_external_kpi_datamart_program_status: safeWorkspaceExternalKpiDatamartProgramStatus,
         dialog_workspace_rollout_external_kpi_datamart_program_note: safeWorkspaceExternalKpiDatamartProgramNote,
+        dialog_workspace_rollout_external_kpi_datamart_timeline_required: safeWorkspaceExternalKpiDatamartTimelineRequired,
+        dialog_workspace_rollout_external_kpi_datamart_target_ready_at: safeWorkspaceExternalKpiDatamartTargetReadyAt,
+        dialog_workspace_rollout_external_kpi_datamart_timeline_grace_hours: safeWorkspaceExternalKpiDatamartTimelineGraceHours,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
