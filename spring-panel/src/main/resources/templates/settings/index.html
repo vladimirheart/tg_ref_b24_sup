@@ -2542,6 +2542,26 @@
                       <label for="dialogWorkspaceExternalKpiDatamartHealthNote" class="form-label">Комментарий по health-статусу</label>
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthNote" maxlength="300" placeholder="Причина degraded/down, ссылка на инцидент, ETA восстановления">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartProgramBlockerRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartProgramBlockerRequired">Удерживать rollout, если программный статус data-mart = blocked</label>
+                      </div>
+                      <div class="form-text">Помогает формально учитывать внешний платформенный backlog по data-mart в rollout decisioning.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramStatus" class="form-label">Программный статус data-mart</label>
+                      <select class="form-select" id="dialogWorkspaceExternalKpiDatamartProgramStatus">
+                        <option value="unknown">unknown</option>
+                        <option value="in_progress">in_progress</option>
+                        <option value="blocked">blocked</option>
+                        <option value="ready">ready</option>
+                      </select>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramNote" class="form-label">Комментарий по программному статусу</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramNote" maxlength="300" placeholder="Что блокирует data-mart, ответственный поток, ETA по снятию блокера">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4367,6 +4387,9 @@
     workspace_rollout_external_kpi_datamart_health_required: false,
     workspace_rollout_external_kpi_datamart_health_status: 'unknown',
     workspace_rollout_external_kpi_datamart_health_note: '',
+    workspace_rollout_external_kpi_datamart_program_blocker_required: false,
+    workspace_rollout_external_kpi_datamart_program_status: 'unknown',
+    workspace_rollout_external_kpi_datamart_program_note: '',
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13466,6 +13489,9 @@
       workspaceExternalKpiDatamartHealthRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthRequired'),
       workspaceExternalKpiDatamartHealthStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthStatus'),
       workspaceExternalKpiDatamartHealthNote: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthNote'),
+      workspaceExternalKpiDatamartProgramBlockerRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramBlockerRequired'),
+      workspaceExternalKpiDatamartProgramStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramStatus'),
+      workspaceExternalKpiDatamartProgramNote: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramNote'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14083,6 +14109,16 @@
     }
     if (inputs.workspaceExternalKpiDatamartHealthNote) {
       inputs.workspaceExternalKpiDatamartHealthNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_note || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartProgramBlockerRequired) {
+      inputs.workspaceExternalKpiDatamartProgramBlockerRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_blocker_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartProgramStatus) {
+      const raw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_status || '').trim().toLowerCase();
+      inputs.workspaceExternalKpiDatamartProgramStatus.value = ['ready', 'in_progress', 'blocked', 'unknown'].includes(raw) ? raw : 'unknown';
+    }
+    if (inputs.workspaceExternalKpiDatamartProgramNote) {
+      inputs.workspaceExternalKpiDatamartProgramNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_note || '').trim();
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15262,6 +15298,12 @@
       ? safeWorkspaceExternalKpiDatamartHealthStatusRaw
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_health_status;
     const safeWorkspaceExternalKpiDatamartHealthNote = String(inputs.workspaceExternalKpiDatamartHealthNote?.value || '').trim().slice(0, 300);
+    const safeWorkspaceExternalKpiDatamartProgramBlockerRequired = Boolean(inputs.workspaceExternalKpiDatamartProgramBlockerRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartProgramStatusRaw = String(inputs.workspaceExternalKpiDatamartProgramStatus?.value || '').trim().toLowerCase();
+    const safeWorkspaceExternalKpiDatamartProgramStatus = ['ready', 'in_progress', 'blocked', 'unknown'].includes(safeWorkspaceExternalKpiDatamartProgramStatusRaw)
+      ? safeWorkspaceExternalKpiDatamartProgramStatusRaw
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_program_status;
+    const safeWorkspaceExternalKpiDatamartProgramNote = String(inputs.workspaceExternalKpiDatamartProgramNote?.value || '').trim().slice(0, 300);
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15406,6 +15448,9 @@
         dialog_workspace_rollout_external_kpi_datamart_health_required: safeWorkspaceExternalKpiDatamartHealthRequired,
         dialog_workspace_rollout_external_kpi_datamart_health_status: safeWorkspaceExternalKpiDatamartHealthStatus,
         dialog_workspace_rollout_external_kpi_datamart_health_note: safeWorkspaceExternalKpiDatamartHealthNote,
+        dialog_workspace_rollout_external_kpi_datamart_program_blocker_required: safeWorkspaceExternalKpiDatamartProgramBlockerRequired,
+        dialog_workspace_rollout_external_kpi_datamart_program_status: safeWorkspaceExternalKpiDatamartProgramStatus,
+        dialog_workspace_rollout_external_kpi_datamart_program_note: safeWorkspaceExternalKpiDatamartProgramNote,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,

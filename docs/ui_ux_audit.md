@@ -680,13 +680,16 @@
 
 - [x] **NOW-1.190 (этап E3, external data-mart health gate):** закрыт следующий операционный риск по внешней BI-зависимости: добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_datamart_health_required`, `..._datamart_health_status` (`unknown/healthy/degraded/down`) и `..._datamart_health_note` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + analytics rationale). `rollout_decision` теперь удерживается в `hold`, если health-gate обязателен и статус data-mart не `healthy`, что снижает риск масштабирования workspace во время деградации внешней витрины.
 
+- [x] **NOW-1.191 (этап E3, external program-status blocker gate):** для оставшегося пункта backlog по долгосрочному развитию data-mart добавлен runtime-gate `dialog_config.workspace_rollout_external_kpi_datamart_program_blocker_required` + статус `..._datamart_program_status` (`unknown/in_progress/blocked/ready`) и комментарий `..._datamart_program_note`. UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» позволяет управлять статусом, а `rollout_decision.external_kpi_signal` удерживает rollout в `hold`, если gate включён и программный статус external data-mart = `blocked`. Это делает зависимость от внешнего платформенного потока явной и управляемой без code-deploy.
+
 
 ## 11) Актуализированный список невыполненного (после NOW-1.190)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
 1. **Долгосрочный data-mart для omni-channel/финансовых витрин (внешняя зависимость)**
-   - Runtime bridge закрывает операционный доступ к внешним BI-доскам, но развитие единого data-mart остаётся отдельным потоком платформенной аналитики.
+   - Runtime bridge дополнен программным статусом (`in_progress/blocked/ready`) и blocker-gate в rollout decisioning.
+   - Полная реализация единого enterprise data-mart по-прежнему остаётся отдельным потоком платформенной аналитики вне текущего репозитория.
 
 2. **Финальная DoD-ревизия раздела 9 (закрыто)**
    - Регулярный review-процесс формализован через runtime-поля owner/timestamp/TTL и учтён в rollout decisioning без ручных регламентов вне системы.

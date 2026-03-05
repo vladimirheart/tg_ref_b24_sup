@@ -51,6 +51,7 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_DASHBOARD_LINKS_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_OWNER_RUNBOOK_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_HEALTH_REQUIRED = false;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_BLOCKER_REQUIRED = false;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -828,9 +829,15 @@ public class DialogService {
         boolean datamartHealthRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_health_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_HEALTH_REQUIRED);
+        boolean datamartProgramBlockerRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_program_blocker_required",
+                DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_BLOCKER_REQUIRED);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
         String datamartHealthNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_note")));
+        String datamartProgramStatus = normalizeDatamartProgramStatus(
+                normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_status"))));
+        String datamartProgramNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_note")));
         String dataUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_data_updated_at"));
         long dataFreshnessTtlHours = resolveLongDialogConfigValue(
                 "workspace_rollout_external_kpi_data_freshness_ttl_hours",
@@ -866,13 +873,15 @@ public class DialogService {
         boolean ownerRunbookReady = !ownerRunbookRequired || ownerRunbookPresent;
         boolean datamartHealthy = "healthy".equals(datamartHealthStatus);
         boolean datamartHealthReady = !datamartHealthRequired || datamartHealthy;
+        boolean datamartProgramReady = !datamartProgramBlockerRequired || !"blocked".equals(datamartProgramStatus);
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
                 && dataFreshnessReady
                 && dashboardLinksReady
                 && ownerRunbookReady
-                && datamartHealthReady);
+                && datamartHealthReady
+                && datamartProgramReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
@@ -900,9 +909,21 @@ public class DialogService {
         signal.put("datamart_health_status", datamartHealthStatus);
         signal.put("datamart_health_note", datamartHealthNote);
         signal.put("datamart_health_ready", datamartHealthReady);
+        signal.put("datamart_program_blocker_required", datamartProgramBlockerRequired);
+        signal.put("datamart_program_status", datamartProgramStatus);
+        signal.put("datamart_program_note", datamartProgramNote);
+        signal.put("datamart_program_ready", datamartProgramReady);
         signal.put("ready_for_decision", readyForDecision);
         signal.put("note", note != null ? note.trim() : "");
         return signal;
+    }
+
+    private String normalizeDatamartProgramStatus(String rawValue) {
+        String normalized = normalizeNullString(rawValue).toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "ready", "in_progress", "blocked" -> normalized;
+            default -> "unknown";
+        };
     }
 
     private String normalizeDatamartHealthStatus(String rawValue) {
