@@ -332,8 +332,12 @@
     const ownerRunbookLabel = externalSignal.owner_runbook_required
       ? (externalSignal.owner_runbook_present ? 'ready' : 'missing')
       : 'off';
+    const datamartHealthLabel = externalSignal.datamart_health_required
+      ? `${externalSignal.datamart_health_status || 'unknown'}${externalSignal.datamart_health_ready ? '' : ' (hold)'}`
+      : 'off';
+    const datamartHealthNote = String(externalSignal.datamart_health_note || '').trim();
     const externalGateSuffix = externalGateEnabled
-      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}, links=${linksLabel}, owner/runbook=${ownerRunbookLabel}${datamartContext ? `, ${datamartContext}` : ''}).`
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}, links=${linksLabel}, owner/runbook=${ownerRunbookLabel}, datamart_health=${datamartHealthLabel}${datamartContext ? `, ${datamartContext}` : ''}${datamartHealthNote ? `, health_note=${datamartHealthNote}` : ''}).`
       : '';
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 
