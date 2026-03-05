@@ -252,6 +252,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_status")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_note")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_blocker_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_status")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_note")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -678,6 +681,18 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_note")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_health_note",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_health_note"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_blocker_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_program_blocker_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_program_blocker_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_status")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_program_status",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_program_status"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_note")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_program_note",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_program_note"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",
