@@ -160,6 +160,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_auto_assign_require_categories")
                 || payload.containsKey("dialog_sla_critical_auto_assign_include_assigned")
                 || payload.containsKey("dialog_sla_critical_operator_skills")
+                || payload.containsKey("dialog_sla_critical_operator_queues")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")
                 || payload.containsKey("dialog_sla_critical_escalation_include_assigned")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_urls")
@@ -358,6 +359,9 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_operator_skills")) {
                     dialogConfig.put("sla_critical_operator_skills", payload.get("dialog_sla_critical_operator_skills"));
+                }
+                if (payload.containsKey("dialog_sla_critical_operator_queues")) {
+                    dialogConfig.put("sla_critical_operator_queues", payload.get("dialog_sla_critical_operator_queues"));
                 }
                 if (payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")) {
                     dialogConfig.put("sla_critical_escalation_webhook_enabled", payload.get("dialog_sla_critical_escalation_webhook_enabled"));
