@@ -689,9 +689,10 @@
 - [x] **NOW-1.194 (этап E3, BI bridge visibility in analytics):** на странице «Аналитика» добавлен постоянный блок состояния cross-product KPI bridge: отображаются статусы ссылок Omni/Finance (configured/missing), состояние gate `links=required|optional`, а также готовность KPI `omnichannel_ready/finance_ready`. Добавлена кнопка перехода в «Настройки → Диалоги» для быстрого исправления конфигурации. Это закрывает UX-пробел по наблюдаемости внешней BI-зависимости прямо в рабочем контуре аналитики без ручной проверки JSON-конфига.
 
 - [x] **NOW-1.195 (этап E3, dashboard health gate для внешнего BI bridge):** добавлен runtime-gate `dialog_config.workspace_rollout_external_kpi_dashboard_status_required` с полями `..._dashboard_status` (`unknown/healthy/degraded/down`) и `..._dashboard_status_note` в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды». `rollout_decision.external_kpi_signal` теперь удерживает rollout в `hold`, если gate включён и статус дашбордов не `healthy`; на странице «Аналитика» rationale дополнен признаком `dashboard_status` и комментарием `dashboard_note` для ускорения triage внешних BI-инцидентов.
+- [x] **NOW-1.196 (этап E3, data-mart health freshness gate):** добавлен runtime-gate `dialog_config.workspace_rollout_external_kpi_datamart_health_freshness_required` с полями `..._datamart_health_updated_at` и `..._datamart_health_ttl_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + backend decisioning). `rollout_decision.external_kpi_signal` теперь удерживает rollout в `hold`, если health-статус data-mart устарел, даже когда состояние `healthy`, а блок «Аналитика» показывает причину через `datamart_health_freshness`.
 
 
-## 11) Актуализированный список невыполненного (после NOW-1.195)
+## 11) Актуализированный список невыполненного (после NOW-1.196)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
