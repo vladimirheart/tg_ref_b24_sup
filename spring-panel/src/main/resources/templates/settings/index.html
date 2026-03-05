@@ -2477,6 +2477,18 @@
                       <label for="dialogWorkspaceExternalKpiNote" class="form-label">Комментарий по внешним KPI (опционально)</label>
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiNote" maxlength="500" placeholder="Ссылка на отчёт / статус data-mart / дата валидации">
                     </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiReviewedBy" class="form-label">Кто подтвердил checkpoint</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiReviewedBy" maxlength="120" placeholder="on-call / owner / команда">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiReviewedAt" class="form-label">Дата review</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiReviewedAt">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiReviewTtlHours" class="form-label">TTL review, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiReviewTtlHours" min="1" max="2160" step="1">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4288,6 +4300,9 @@
     workspace_rollout_external_kpi_omnichannel_ready: false,
     workspace_rollout_external_kpi_finance_ready: false,
     workspace_rollout_external_kpi_note: '',
+    workspace_rollout_external_kpi_reviewed_by: '',
+    workspace_rollout_external_kpi_reviewed_at: '',
+    workspace_rollout_external_kpi_review_ttl_hours: 168,
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13373,6 +13388,9 @@
       workspaceExternalKpiOmnichannelReady: document.getElementById('dialogWorkspaceExternalKpiOmnichannelReady'),
       workspaceExternalKpiFinanceReady: document.getElementById('dialogWorkspaceExternalKpiFinanceReady'),
       workspaceExternalKpiNote: document.getElementById('dialogWorkspaceExternalKpiNote'),
+      workspaceExternalKpiReviewedBy: document.getElementById('dialogWorkspaceExternalKpiReviewedBy'),
+      workspaceExternalKpiReviewedAt: document.getElementById('dialogWorkspaceExternalKpiReviewedAt'),
+      workspaceExternalKpiReviewTtlHours: document.getElementById('dialogWorkspaceExternalKpiReviewTtlHours'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -13936,6 +13954,19 @@
     }
     if (inputs.workspaceExternalKpiNote) {
       inputs.workspaceExternalKpiNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_note || '').trim();
+    }
+    if (inputs.workspaceExternalKpiReviewedBy) {
+      inputs.workspaceExternalKpiReviewedBy.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_reviewed_by || '').trim();
+    }
+    if (inputs.workspaceExternalKpiReviewedAt) {
+      const reviewedAtRaw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_reviewed_at || '').trim();
+      inputs.workspaceExternalKpiReviewedAt.value = reviewedAtRaw ? reviewedAtRaw.slice(0, 16) : '';
+    }
+    if (inputs.workspaceExternalKpiReviewTtlHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_review_ttl_hours, 10);
+      inputs.workspaceExternalKpiReviewTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 2160
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_review_ttl_hours;
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15046,6 +15077,24 @@
     const safeWorkspaceExternalKpiOmnichannelReady = Boolean(inputs.workspaceExternalKpiOmnichannelReady?.checked);
     const safeWorkspaceExternalKpiFinanceReady = Boolean(inputs.workspaceExternalKpiFinanceReady?.checked);
     const safeWorkspaceExternalKpiNote = String(inputs.workspaceExternalKpiNote?.value || '').trim().slice(0, 500);
+    const safeWorkspaceExternalKpiReviewedBy = String(inputs.workspaceExternalKpiReviewedBy?.value || '').trim().slice(0, 120);
+    const safeWorkspaceExternalKpiReviewedAtRaw = String(inputs.workspaceExternalKpiReviewedAt?.value || '').trim();
+    const safeWorkspaceExternalKpiReviewedAtParsed = safeWorkspaceExternalKpiReviewedAtRaw
+      ? Date.parse(safeWorkspaceExternalKpiReviewedAtRaw)
+      : Number.NaN;
+    if (safeWorkspaceExternalKpiReviewedAtRaw && Number.isNaN(safeWorkspaceExternalKpiReviewedAtParsed)) {
+      errors.push('Дата последнего review внешних KPI указана в некорректном формате.');
+    }
+    const safeWorkspaceExternalKpiReviewedAt = Number.isNaN(safeWorkspaceExternalKpiReviewedAtParsed)
+      ? ''
+      : new Date(safeWorkspaceExternalKpiReviewedAtParsed).toISOString();
+    const safeWorkspaceExternalKpiReviewTtlHoursRaw = Math.round(Number(inputs.workspaceExternalKpiReviewTtlHours?.value));
+    const safeWorkspaceExternalKpiReviewTtlHours = Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw)
+      ? Math.min(2160, Math.max(1, safeWorkspaceExternalKpiReviewTtlHoursRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_review_ttl_hours;
+    if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
+      errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
+    }
     const validateDashboardUrl = (value, title) => {
       if (!value) return;
       if (!(value.startsWith('https://') || value.startsWith('http://'))) {
@@ -15172,6 +15221,9 @@
         dialog_workspace_rollout_external_kpi_omnichannel_ready: safeWorkspaceExternalKpiOmnichannelReady,
         dialog_workspace_rollout_external_kpi_finance_ready: safeWorkspaceExternalKpiFinanceReady,
         dialog_workspace_rollout_external_kpi_note: safeWorkspaceExternalKpiNote,
+        dialog_workspace_rollout_external_kpi_reviewed_by: safeWorkspaceExternalKpiReviewedBy,
+        dialog_workspace_rollout_external_kpi_reviewed_at: safeWorkspaceExternalKpiReviewedAt,
+        dialog_workspace_rollout_external_kpi_review_ttl_hours: safeWorkspaceExternalKpiReviewTtlHours,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
