@@ -326,8 +326,11 @@
       datamartOwner ? `owner=${datamartOwner}` : '',
       datamartRunbookUrl ? `runbook=${datamartRunbookUrl}` : '',
     ].filter(Boolean).join(', ');
+    const linksLabel = externalSignal.dashboard_links_required
+      ? (externalSignal.dashboard_links_present ? 'ready' : 'missing')
+      : 'off';
     const externalGateSuffix = externalGateEnabled
-      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}${datamartContext ? `, ${datamartContext}` : ''}).`
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}, links=${linksLabel}${datamartContext ? `, ${datamartContext}` : ''}).`
       : '';
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 
