@@ -308,8 +308,8 @@
     3000,
     60000,
   );
-  const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
-  const WORKSPACE_FORCE_MODE = window.DIALOG_CONFIG?.workspace_force_workspace === true;
+  const WORKSPACE_V1_ENABLED = true;
+  const WORKSPACE_FORCE_MODE = true;
   const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX = normalizeNumberInRange(
     window.DIALOG_CONFIG?.workspace_client_extra_attributes_max,
     20,
@@ -331,8 +331,8 @@
     normalizeStringArray(window.DIALOG_CONFIG?.workspace_client_hidden_attributes, []).map((value) => value.toLowerCase()),
   );
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
-  const WORKSPACE_DECOMMISSION_LEGACY_MODAL = window.DIALOG_CONFIG?.workspace_decommission_legacy_modal === true;
-  const WORKSPACE_DISABLE_LEGACY_FALLBACK = window.DIALOG_CONFIG?.workspace_disable_legacy_fallback === true;
+  const WORKSPACE_DECOMMISSION_LEGACY_MODAL = true;
+  const WORKSPACE_DISABLE_LEGACY_FALLBACK = true;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
     can_snooze: true,
@@ -665,19 +665,7 @@
   }
 
   function resolveWorkspaceExperienceEnabled() {
-    if (!WORKSPACE_V1_ENABLED) {
-      return false;
-    }
-    if (WORKSPACE_DECOMMISSION_LEGACY_MODAL) {
-      return true;
-    }
-    if (WORKSPACE_FORCE_MODE) {
-      return true;
-    }
-    if (!WORKSPACE_AB_TEST_CONFIG.enabled) {
-      return true;
-    }
-    return workspaceExperimentContext.cohort === 'test';
+    return true;
   }
 
   const headerRow = table.tHead ? table.tHead.rows[0] : null;
@@ -3163,13 +3151,9 @@
     const source = options.source || 'manual_open';
     const channelId = row?.dataset?.channelId || null;
     if (isWorkspaceTemporarilyDisabled()) {
-      if (WORKSPACE_DISABLE_LEGACY_FALLBACK || WORKSPACE_DECOMMISSION_LEGACY_MODAL) {
-        if (typeof showNotification === 'function') {
-          showNotification('Legacy modal отключён: дождитесь завершения workspace cooldown или временно снимите режим decommission в настройках.', 'warning');
-        }
-        return;
+      if (typeof showNotification === 'function') {
+        showNotification('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
       }
-      await openDialogDetails(ticketId, row);
       return;
     }
     startWorkspaceOpenTimer(ticketId);
@@ -3267,13 +3251,10 @@
           workspaceMessagesError.classList.remove('d-none');
         }
       }
-      if (WORKSPACE_DISABLE_LEGACY_FALLBACK || WORKSPACE_DECOMMISSION_LEGACY_MODAL) {
-        if (typeof showNotification === 'function') {
-          showNotification('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
-        }
-        return;
+      if (typeof showNotification === 'function') {
+        showNotification('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
       }
-      await openDialogDetails(ticketId, row);
+      return;
     }
   }
 
@@ -3283,10 +3264,6 @@
       return;
     }
     setWorkspaceReadonlyMode(false);
-    if (!WORKSPACE_EXPERIENCE_ENABLED) {
-      openDialogDetails(ticketId, row);
-      return;
-    }
     openDialogWithWorkspaceFallback(ticketId, row);
   }
 
@@ -5751,11 +5728,7 @@
     if (initialRow) {
       setActiveDialogRow(initialRow, { ensureVisible: true });
     }
-    if (WORKSPACE_EXPERIENCE_ENABLED) {
-      openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
-    } else {
-      openDialogDetails(INITIAL_DIALOG_TICKET_ID, initialRow);
-    }
+    openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
   }
 
   window.addEventListener('beforeunload', () => {
