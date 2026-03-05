@@ -2512,6 +2512,13 @@
                       <label for="dialogWorkspaceExternalKpiDataFreshnessTtlHours" class="form-label">Freshness TTL, часов</label>
                       <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDataFreshnessTtlHours" min="1" max="720" step="1">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDashboardLinksRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDashboardLinksRequired">Требовать заполненные URL Omni-channel/Finance dashboard для снятия hold</label>
+                      </div>
+                      <div class="form-text">Позволяет не масштабировать rollout, пока BI-ссылки не заданы и операторы не имеют доступа к внешним витринам.</div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4331,6 +4338,7 @@
     workspace_rollout_external_kpi_data_freshness_required: false,
     workspace_rollout_external_kpi_data_updated_at: '',
     workspace_rollout_external_kpi_data_freshness_ttl_hours: 48,
+    workspace_rollout_external_kpi_dashboard_links_required: false,
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13424,6 +13432,7 @@
       workspaceExternalKpiDataFreshnessRequired: document.getElementById('dialogWorkspaceExternalKpiDataFreshnessRequired'),
       workspaceExternalKpiDataUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDataUpdatedAt'),
       workspaceExternalKpiDataFreshnessTtlHours: document.getElementById('dialogWorkspaceExternalKpiDataFreshnessTtlHours'),
+      workspaceExternalKpiDashboardLinksRequired: document.getElementById('dialogWorkspaceExternalKpiDashboardLinksRequired'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14019,6 +14028,9 @@
       inputs.workspaceExternalKpiDataFreshnessTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 720
         ? value
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours;
+    }
+    if (inputs.workspaceExternalKpiDashboardLinksRequired) {
+      inputs.workspaceExternalKpiDashboardLinksRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_dashboard_links_required);
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15164,6 +15176,7 @@
     const safeWorkspaceExternalKpiDataFreshnessTtlHours = Number.isFinite(safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw)
       ? Math.min(720, Math.max(1, safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours;
+    const safeWorkspaceExternalKpiDashboardLinksRequired = Boolean(inputs.workspaceExternalKpiDashboardLinksRequired?.checked);
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15302,6 +15315,7 @@
         dialog_workspace_rollout_external_kpi_data_freshness_required: safeWorkspaceExternalKpiDataFreshnessRequired,
         dialog_workspace_rollout_external_kpi_data_updated_at: safeWorkspaceExternalKpiDataUpdatedAt,
         dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours: safeWorkspaceExternalKpiDataFreshnessTtlHours,
+        dialog_workspace_rollout_external_kpi_dashboard_links_required: safeWorkspaceExternalKpiDashboardLinksRequired,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
