@@ -241,6 +241,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_review_ttl_hours")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_data_freshness_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_data_updated_at")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -624,6 +627,18 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_review_ttl_hours")) {
                     dialogConfig.put("workspace_rollout_external_kpi_review_ttl_hours",
                             payload.get("dialog_workspace_rollout_external_kpi_review_ttl_hours"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_data_freshness_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_data_freshness_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_data_freshness_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_data_updated_at")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_data_updated_at",
+                            payload.get("dialog_workspace_rollout_external_kpi_data_updated_at"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_data_freshness_ttl_hours",
+                            payload.get("dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",
