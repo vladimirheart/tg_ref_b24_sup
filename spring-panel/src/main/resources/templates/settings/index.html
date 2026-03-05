@@ -1965,6 +1965,14 @@
                       <label for="dialogSlaCriticalMinutes" class="form-label">Критичный SLA, мин</label>
                       <input type="number" class="form-control" id="dialogSlaCriticalMinutes" min="1" step="1">
                     </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaCriticalOrchestrationMode" class="form-label">Режим SLA-orchestration</label>
+                      <select class="form-select" id="dialogSlaCriticalOrchestrationMode">
+                        <option value="monitor">Monitor (только сигнализация)</option>
+                        <option value="assist">Assist (сигналы + управляемые auto-actions)</option>
+                        <option value="autopilot">Autopilot (эскалация всех критичных очередей)</option>
+                      </select>
+                    </div>
                     <div class="col-md-6">
                       <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogSlaEscalationEnabled">
@@ -4143,6 +4151,7 @@
     target_minutes: 24 * 60,
     warning_minutes: 4 * 60,
     critical_minutes: 30,
+    orchestration_mode: 'assist',
     escalation_enabled: true,
     auto_assign_enabled: false,
     auto_assign_to: '',
@@ -13197,6 +13206,7 @@
       target: document.getElementById('dialogSlaTargetMinutes'),
       warning: document.getElementById('dialogSlaWarningMinutes'),
       critical: document.getElementById('dialogSlaCriticalMinutes'),
+      orchestrationMode: document.getElementById('dialogSlaCriticalOrchestrationMode'),
       escalationEnabled: document.getElementById('dialogSlaEscalationEnabled'),
       autoAssignEnabled: document.getElementById('dialogSlaAutoAssignEnabled'),
       autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
@@ -13330,6 +13340,11 @@
     inputs.target.value = Number.isFinite(target) && target > 0 ? target : DEFAULT_DIALOG_SLA_CONFIG.target_minutes;
     inputs.warning.value = Number.isFinite(warning) && warning > 0 ? warning : DEFAULT_DIALOG_SLA_CONFIG.warning_minutes;
     inputs.critical.value = Number.isFinite(critical) && critical > 0 ? critical : DEFAULT_DIALOG_SLA_CONFIG.critical_minutes;
+    if (inputs.orchestrationMode) {
+      const mode = String(DIALOG_CONFIG.sla_critical_orchestration_mode || DEFAULT_DIALOG_SLA_CONFIG.orchestration_mode).trim().toLowerCase();
+      const allowedModes = new Set(['monitor', 'assist', 'autopilot']);
+      inputs.orchestrationMode.value = allowedModes.has(mode) ? mode : DEFAULT_DIALOG_SLA_CONFIG.orchestration_mode;
+    }
     if (inputs.escalationEnabled instanceof HTMLInputElement) {
       inputs.escalationEnabled.checked = DIALOG_CONFIG.sla_critical_escalation_enabled !== false;
     }
@@ -13376,8 +13391,7 @@
       const webhookUrls = Array.isArray(DIALOG_CONFIG.sla_critical_escalation_webhook_urls)
         ? DIALOG_CONFIG.sla_critical_escalation_webhook_urls
         : [];
-      inputs.escalationWebhookUrls.value = webhookUrls.map((value) => String(value || '').trim()).filter(Boolean).join('
-');
+      inputs.escalationWebhookUrls.value = webhookUrls.map((value) => String(value || '').trim()).filter(Boolean).join('\n');
     }
     if (inputs.escalationWebhookCooldownMinutes) {
       const cooldown = Number.parseInt(DIALOG_CONFIG.sla_critical_escalation_webhook_cooldown_minutes, 10);
@@ -14079,6 +14093,11 @@
     const safeTarget = Number.isFinite(target) && target > 0 ? target : DEFAULT_DIALOG_SLA_CONFIG.target_minutes;
     const safeWarning = Number.isFinite(warning) && warning > 0 ? warning : DEFAULT_DIALOG_SLA_CONFIG.warning_minutes;
     const safeCritical = Number.isFinite(critical) && critical > 0 ? critical : DEFAULT_DIALOG_SLA_CONFIG.critical_minutes;
+    const orchestrationModeRaw = String(inputs.orchestrationMode?.value || DEFAULT_DIALOG_SLA_CONFIG.orchestration_mode).trim().toLowerCase();
+    const allowedOrchestrationModes = new Set(['monitor', 'assist', 'autopilot']);
+    const safeOrchestrationMode = allowedOrchestrationModes.has(orchestrationModeRaw)
+      ? orchestrationModeRaw
+      : DEFAULT_DIALOG_SLA_CONFIG.orchestration_mode;
     const autoAssignMaxPerRunRaw = Math.round(Number(inputs.autoAssignMaxPerRun?.value));
     const safeAutoAssignMaxPerRun = Number.isFinite(autoAssignMaxPerRunRaw)
       ? Math.min(100, Math.max(1, autoAssignMaxPerRunRaw))
@@ -14119,8 +14138,7 @@
     }
 
     const escalationWebhookUrls = String(inputs.escalationWebhookUrls?.value || '')
-      .split(/[
-,;]/)
+      .split(/[\n,;]/)
       .map((value) => value.trim())
       .filter(Boolean);
     const safeEscalationWebhookUrls = Array.from(new Set(escalationWebhookUrls));
@@ -14899,6 +14917,7 @@
         dialog_sla_target_minutes: safeTarget,
         dialog_sla_warning_minutes: safeWarning,
         dialog_sla_critical_minutes: safeCritical,
+        dialog_sla_critical_orchestration_mode: safeOrchestrationMode,
         dialog_sla_critical_escalation_enabled: Boolean(inputs.escalationEnabled?.checked),
         dialog_sla_critical_auto_assign_enabled: Boolean(inputs.autoAssignEnabled?.checked),
         dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),
