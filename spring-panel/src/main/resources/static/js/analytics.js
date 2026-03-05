@@ -329,8 +329,11 @@
     const linksLabel = externalSignal.dashboard_links_required
       ? (externalSignal.dashboard_links_present ? 'ready' : 'missing')
       : 'off';
+    const ownerRunbookLabel = externalSignal.owner_runbook_required
+      ? (externalSignal.owner_runbook_present ? 'ready' : 'missing')
+      : 'off';
     const externalGateSuffix = externalGateEnabled
-      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}, links=${linksLabel}${datamartContext ? `, ${datamartContext}` : ''}).`
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}, links=${linksLabel}, owner/runbook=${ownerRunbookLabel}${datamartContext ? `, ${datamartContext}` : ''}).`
       : '';
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 
