@@ -657,6 +657,8 @@
 
 - [x] **NOW-1.179 (этап B3, full workflow cutover by default):** проект переведён на полный workspace/workflow-контур без fallback в `dialogDetailsModal` по умолчанию. Во frontend (`dialogs.js`) принудительно включён workspace-режим открытия диалогов и отключены ветки auto-fallback в legacy modal при cooldown/contract-ошибках. В «Настройки → Диалоги» дефолты runtime-конфига обновлены на `workspace_force_workspace=true`, `workspace_decommission_legacy_modal=true`, `workspace_disable_legacy_fallback=true`, rollout для A/B установлен в 100% для test-когорты. Это закрывает практический шаг roadmap по выводу legacy modal из активной эксплуатации в неиспользуемом проекте.
 
+- [x] **NOW-1.180 (этап C3, SLA orchestration runtime mode):** закрыт следующий practical-gap по «частично выполненной» SLA-first оркестрации: добавлен runtime-параметр `dialog_config.sla_critical_orchestration_mode` (`monitor`/`assist`/`autopilot`) с настройкой в UI «Настройки → Диалоги → SLA и эскалация». В `SlaEscalationWebhookNotifier` режим `autopilot` принудительно включает обработку всех критичных очередей (включая assigned) и auto-assign pipeline, а `monitor` оставляет только сигнализацию без auto-actions. Это позволяет поэтапно перейти к end-to-end оркестрации без code-deploy и без ручного triage.
+
 ## 11) Актуализированный список невыполненного (после NOW-1.179)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
