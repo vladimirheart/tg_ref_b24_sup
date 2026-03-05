@@ -277,7 +277,7 @@ public class SlaEscalationWebhookNotifier {
     SlaOrchestrationMode resolveOrchestrationMode(Object rawMode) {
         String normalized = trimToNull(String.valueOf(rawMode));
         if (normalized == null) {
-            return SlaOrchestrationMode.ASSIST;
+            return SlaOrchestrationMode.AUTOPILOT;
         }
         return switch (normalized.trim().toLowerCase()) {
             case "monitor", "observe", "dry_run" -> SlaOrchestrationMode.MONITOR;

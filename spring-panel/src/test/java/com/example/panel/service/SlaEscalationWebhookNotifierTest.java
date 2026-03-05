@@ -799,10 +799,10 @@ class SlaEscalationWebhookNotifierTest {
 
 
     @Test
-    void resolveOrchestrationModeUsesAssistByDefault() {
+    void resolveOrchestrationModeUsesAutopilotByDefault() {
         SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
 
-        assertEquals(SlaEscalationWebhookNotifier.SlaOrchestrationMode.ASSIST, notifier.resolveOrchestrationMode(null));
+        assertEquals(SlaEscalationWebhookNotifier.SlaOrchestrationMode.AUTOPILOT, notifier.resolveOrchestrationMode(null));
         assertEquals(SlaEscalationWebhookNotifier.SlaOrchestrationMode.ASSIST, notifier.resolveOrchestrationMode("unknown"));
     }
 

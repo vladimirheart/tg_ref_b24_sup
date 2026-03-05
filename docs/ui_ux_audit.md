@@ -661,15 +661,22 @@
 
 - [x] **NOW-1.181 (этап C3, full autopilot re-assign for assigned critical queues):** закрыт оставшийся operational-gap по «full SLA-first orchestration»: `SlaEscalationWebhookNotifier` теперь поддерживает runtime-флаг `dialog_config.sla_critical_auto_assign_include_assigned` (UI «Настройки → Диалоги → SLA и эскалация» + bridge + backend), который разрешает re-assign уже назначенных критичных кейсов по SLA-routing правилам. В режиме `autopilot` флаг включается автоматически, а аудит пишет отдельное действие `sla_auto_reassign` с `previous_responsible`, что убирает ручной triage для assigned-critical очередей и повышает трассируемость.
 
+- [x] **NOW-1.182 (этап C3, default SLA orchestration cutover):** закрыт финальный пробел по «частично выполненной» SLA-first оркестрации без ручного triage: backend `SlaEscalationWebhookNotifier` теперь использует `autopilot` как режим по умолчанию при пустом `dialog_config.sla_critical_orchestration_mode`, а в UI «Настройки → Диалоги» дефолты синхронизированы на auto-assign + include-assigned для escalation/assignment. Это переводит критичные кейсы всех очередей в end-to-end автообработку «из коробки», сохраняя rollback через явное переключение режима на `assist/monitor`.
+
 ## 11) Актуализированный список невыполненного (после NOW-1.179)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
-1. **Полная SLA-first оркестрация на стороне сервера**
-   - UI/bridge/правила маршрутизации существенно усилены, но остаётся довести end-to-end auto-orchestration до уровня «без ручного triage» для критичных кейсов во всех очередях.
-
-2. **Расширенные кросс-продуктовые KPI-дашборды**
+1. **Расширенные кросс-продуктовые KPI-дашборды**
    - В документе отдельно отмечено, что omni-channel и финансовые KPI требуют отдельного data-mart и пока не завершены.
 
-3. **Финальное закрытие P1/P2-пунктов roadmap через DoD-ревизию**
+2. **Финальное закрытие P1/P2-пунктов roadmap через DoD-ревизию**
    - Документ содержит много инкрементальных закрытий NOW-задач, но для управляемости релиза нужен единый финальный DoD-checkpoint по разделу 9 (с явным переводом оставшихся пунктов из «частично выполнено» в «выполнено» или «перенесено»).
+
+### 11.1. DoD-checkpoint по roadmap (операционный срез)
+
+- ✅ **P1 Workspace / triage-parity:** выполнено, legacy modal выведен в decommission-режим с runtime rollback-флагами.
+- ✅ **P1 Контекст + SLA-индикаторы:** выполнено на уровне production runtime, включая автоконфиг SLA критичных очередей.
+- ✅ **P2 SLA-first orchestration:** выполнено по базовому DoD (autopilot как default + auto-assign/reassign + escalation include assigned).
+- ⏳ **P2 A/B + KPI decisioning:** выполнено частично; guardrails и outcome-kpi gating есть, но omni-channel/финансовые KPI вынесены в отдельный data-mart backlog.
+- ⏳ **P2 Cross-product dashboards:** перенесено в отдельный поток данных/BI как внешняя зависимость.
