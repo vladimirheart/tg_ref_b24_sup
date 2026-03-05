@@ -2022,7 +2022,9 @@
                       <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
                       <label for="dialogSlaAutoAssignOperatorSkills" class="form-label mt-2">Матрица навыков операторов (JSON-объект)</label>
                       <textarea class="form-control font-monospace" id="dialogSlaAutoAssignOperatorSkills" rows="3" placeholder='{"lead_support":["billing","vip"],"senior_support":["delivery"]}'></textarea>
-                      <div class="form-text">Используется правилами с <code>required_assignee_skills</code> для маршрутизации по навыкам/очередям.</div>
+                      <label for="dialogSlaAutoAssignOperatorQueues" class="form-label mt-2">Матрица очередей операторов (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogSlaAutoAssignOperatorQueues" rows="3" placeholder='{"lead_support":["queue_enterprise","queue_billing"],"senior_support":["queue_delivery"]}'></textarea>
+                      <div class="form-text">Используется правилами с <code>required_assignee_skills</code> и <code>required_assignee_queues</code> для маршрутизации по навыкам/очередям.</div>
                       <div class="form-text">Поддерживаются фильтры: channel/business/location/category/request_prefix/client_status/rating/unread/minutes_left/sla_state + exclude_category/request_prefix. Для маршрутизации доступны assign_to, assign_to_pool и assign_to_pool_strategy (hash_by_ticket/round_robin/least_loaded).</div>
                     </div>
                     <div class="col-md-3">
@@ -4259,6 +4261,7 @@
     auto_assign_actor: 'sla_orchestrator',
     auto_assign_rules: [],
     auto_assign_max_open_per_operator: null,
+    auto_assign_operator_queues: {},
     auto_assign_require_categories: false,
     sla_critical_auto_assign_include_assigned: true,
     escalation_webhook_enabled: false,
@@ -13336,6 +13339,7 @@
       autoAssignIncludeAssigned: document.getElementById('dialogSlaAutoAssignIncludeAssigned'),
       autoAssignRules: document.getElementById('dialogSlaAutoAssignRules'),
       autoAssignOperatorSkills: document.getElementById('dialogSlaAutoAssignOperatorSkills'),
+      autoAssignOperatorQueues: document.getElementById('dialogSlaAutoAssignOperatorQueues'),
       autoAssignInsertExampleBtn: document.getElementById('dialogSlaAutoAssignInsertExampleBtn'),
       escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
       escalationIncludeAssigned: document.getElementById('dialogSlaEscalationIncludeAssigned'),
@@ -13528,6 +13532,12 @@
         ? DIALOG_CONFIG.sla_critical_operator_skills
         : {};
       inputs.autoAssignOperatorSkills.value = JSON.stringify(rawOperatorSkills, null, 2);
+    }
+    if (inputs.autoAssignOperatorQueues) {
+      const rawOperatorQueues = DIALOG_CONFIG.sla_critical_operator_queues && typeof DIALOG_CONFIG.sla_critical_operator_queues === 'object'
+        ? DIALOG_CONFIG.sla_critical_operator_queues
+        : {};
+      inputs.autoAssignOperatorQueues.value = JSON.stringify(rawOperatorQueues, null, 2);
     }
     if (inputs.escalationWebhookEnabled instanceof HTMLInputElement) {
       inputs.escalationWebhookEnabled.checked = Boolean(DIALOG_CONFIG.sla_critical_escalation_webhook_enabled);
@@ -14281,6 +14291,7 @@
           assign_to_pool: ['lead_support', 'senior_support'],
           assign_to_pool_strategy: 'least_loaded',
           required_assignee_skills: ['vip'],
+          required_assignee_queues: ['queue_enterprise'],
           priority: 100,
         },
         {
@@ -14333,6 +14344,7 @@
     }
     let safeAutoAssignRules = [];
     let safeAutoAssignOperatorSkills = {};
+    let safeAutoAssignOperatorQueues = {};
     const autoAssignRulesRaw = (inputs.autoAssignRules?.value || '').trim();
     if (autoAssignRulesRaw) {
       try {
@@ -14371,6 +14383,30 @@
         }
       } catch (err) {
         errors.push('Матрица навыков операторов: некорректный JSON.');
+      }
+    }
+
+    const autoAssignOperatorQueuesRaw = (inputs.autoAssignOperatorQueues?.value || '').trim();
+    if (autoAssignOperatorQueuesRaw) {
+      try {
+        const parsedOperatorQueues = JSON.parse(autoAssignOperatorQueuesRaw);
+        if (!parsedOperatorQueues || typeof parsedOperatorQueues !== 'object' || Array.isArray(parsedOperatorQueues)) {
+          errors.push('Матрица очередей операторов должна быть JSON-объектом.');
+        } else {
+          const normalizedQueues = {};
+          Object.entries(parsedOperatorQueues).forEach(([operator, queues]) => {
+            const key = String(operator || '').trim();
+            if (!key) return;
+            const values = Array.isArray(queues) ? queues : [queues];
+            const normalized = Array.from(new Set(values
+              .map((value) => String(value || '').trim().toLowerCase())
+              .filter(Boolean)));
+            if (normalized.length) normalizedQueues[key] = normalized;
+          });
+          safeAutoAssignOperatorQueues = normalizedQueues;
+        }
+      } catch (err) {
+        errors.push('Матрица очередей операторов: некорректный JSON.');
       }
     }
 
@@ -15225,6 +15261,7 @@
         dialog_sla_critical_auto_assign_include_assigned: Boolean(inputs.autoAssignIncludeAssigned?.checked),
         dialog_sla_critical_auto_assign_rules: safeAutoAssignRules,
         dialog_sla_critical_operator_skills: safeAutoAssignOperatorSkills,
+        dialog_sla_critical_operator_queues: safeAutoAssignOperatorQueues,
         dialog_sla_critical_escalation_webhook_enabled: Boolean(inputs.escalationWebhookEnabled?.checked),
         dialog_sla_critical_escalation_include_assigned: Boolean(inputs.escalationIncludeAssigned?.checked),
         dialog_sla_critical_escalation_webhook_urls: safeEscalationWebhookUrls,
