@@ -303,6 +303,7 @@ public class SlaEscalationWebhookNotifier {
         List<AutoAssignDecision> decisions = new ArrayList<>();
         List<String> processedTicketIds = new ArrayList<>();
         Map<String, Long> openLoadCache = new HashMap<>();
+        Map<String, Set<String>> operatorSkills = parseOperatorSkills(dialogConfig.get("sla_critical_operator_skills"));
         for (Map<String, Object> candidate : candidates) {
             if (decisions.size() >= maxPerRun) {
                 break;
@@ -344,12 +345,14 @@ public class SlaEscalationWebhookNotifier {
                     candidateRequestNumber
             );
             String assignee = matchedRule != null
-                    ? resolveRuleAssignee(matchedRule, ticketId, maxOpenPerOperator, openLoadCache)
+                    ? resolveRuleAssignee(matchedRule, ticketId, maxOpenPerOperator, openLoadCache, operatorSkills)
                     : fallbackAssignee;
-            if (!isAssigneeEligible(assignee, maxOpenPerOperator, openLoadCache)) {
+            if (!isAssigneeEligible(assignee, maxOpenPerOperator, openLoadCache, operatorSkills,
+                    matchedRule != null ? matchedRule.requiredAssigneeSkills() : Set.of())) {
                 assignee = null;
             }
-            if (assignee == null && fallbackAssignee != null && isAssigneeEligible(fallbackAssignee, maxOpenPerOperator, openLoadCache)) {
+            if (assignee == null && fallbackAssignee != null && isAssigneeEligible(fallbackAssignee, maxOpenPerOperator,
+                    openLoadCache, operatorSkills, Set.of())) {
                 assignee = fallbackAssignee;
                 matchedRule = null;
             }
@@ -539,6 +542,8 @@ public class SlaEscalationWebhookNotifier {
             Set<String> slaStates = parseRuleSlaStates(ruleMap.get("match_sla_state"), ruleMap.get("match_sla_states"));
             Set<String> requestPrefixes = parseRuleRequestPrefixes(ruleMap.get("match_request_prefix"), ruleMap.get("match_request_prefixes"));
             Set<String> excludeRequestPrefixes = parseRuleRequestPrefixes(ruleMap.get("exclude_request_prefix"), ruleMap.get("exclude_request_prefixes"));
+            Set<String> requiredAssigneeSkills = parseRuleMatchValues(ruleMap.get("required_assignee_skill"),
+                    ruleMap.get("required_assignee_skills"));
             int priority = parsePriority(ruleMap.get("priority"));
             if (channels.isEmpty() && businesses.isEmpty() && locations.isEmpty() && clientStatuses.isEmpty()
                     && categories.isEmpty() && excludedCategories.isEmpty()
@@ -558,7 +563,7 @@ public class SlaEscalationWebhookNotifier {
                     categories, excludedCategories, categoryMatchMode,
                     matchHasCategories, unreadMin, unreadMax, ratingMin, ratingMax, minutesLeftLte, minutesLeftGte,
                     slaStates, requestPrefixes, excludeRequestPrefixes,
-                    priority, assignee, assigneePool, route, poolStrategy));
+                    requiredAssigneeSkills, priority, assignee, assigneePool, route, poolStrategy));
         }
         return rules;
     }
@@ -698,13 +703,15 @@ public class SlaEscalationWebhookNotifier {
     private String resolveRuleAssignee(AutoAssignRule rule,
                                        String ticketId,
                                        Integer maxOpenPerOperator,
-                                       Map<String, Long> openLoadCache) {
+                                       Map<String, Long> openLoadCache,
+                                       Map<String, Set<String>> operatorSkills) {
         if (rule.assigneePool() == null || rule.assigneePool().isEmpty()) {
             return rule.assignee();
         }
         return switch (rule.poolAssignStrategy()) {
             case ROUND_ROBIN -> resolvePoolAssigneeRoundRobin(rule);
-            case LEAST_LOADED -> resolvePoolAssigneeLeastLoaded(rule.assigneePool(), maxOpenPerOperator, openLoadCache);
+            case LEAST_LOADED -> resolvePoolAssigneeLeastLoaded(rule.assigneePool(), maxOpenPerOperator, openLoadCache,
+                    operatorSkills, rule.requiredAssigneeSkills());
             case HASH_BY_TICKET -> resolvePoolAssigneeByHash(rule.assigneePool(), ticketId);
         };
     }
@@ -723,12 +730,14 @@ public class SlaEscalationWebhookNotifier {
 
     private String resolvePoolAssigneeLeastLoaded(List<String> assigneePool,
                                                   Integer maxOpenPerOperator,
-                                                  Map<String, Long> openLoadCache) {
+                                                  Map<String, Long> openLoadCache,
+                                                  Map<String, Set<String>> operatorSkills,
+                                                  Set<String> requiredSkills) {
         if (dialogService == null) {
             return assigneePool.get(0);
         }
         return assigneePool.stream()
-                .filter(operator -> isAssigneeEligible(operator, maxOpenPerOperator, openLoadCache))
+                .filter(operator -> isAssigneeEligible(operator, maxOpenPerOperator, openLoadCache, operatorSkills, requiredSkills))
                 .sorted(Comparator
                         .comparingLong((String operator) -> loadOpenCount(operator, openLoadCache))
                         .thenComparing(String::compareToIgnoreCase))
@@ -736,11 +745,52 @@ public class SlaEscalationWebhookNotifier {
                 .orElse(null);
     }
 
-    private boolean isAssigneeEligible(String assignee, Integer maxOpenPerOperator, Map<String, Long> openLoadCache) {
-        if (assignee == null || maxOpenPerOperator == null) {
-            return assignee != null;
+    private boolean isAssigneeEligible(String assignee,
+                                       Integer maxOpenPerOperator,
+                                       Map<String, Long> openLoadCache,
+                                       Map<String, Set<String>> operatorSkills,
+                                       Set<String> requiredSkills) {
+        if (assignee == null) {
+            return false;
+        }
+        if (!hasRequiredSkills(assignee, operatorSkills, requiredSkills)) {
+            return false;
+        }
+        if (maxOpenPerOperator == null) {
+            return true;
         }
         return loadOpenCount(assignee, openLoadCache) < maxOpenPerOperator;
+    }
+
+    private boolean hasRequiredSkills(String assignee,
+                                      Map<String, Set<String>> operatorSkills,
+                                      Set<String> requiredSkills) {
+        if (requiredSkills == null || requiredSkills.isEmpty()) {
+            return true;
+        }
+        if (operatorSkills == null || operatorSkills.isEmpty()) {
+            return false;
+        }
+        Set<String> skills = operatorSkills.get(assignee.toLowerCase());
+        return skills != null && skills.containsAll(requiredSkills);
+    }
+
+    private Map<String, Set<String>> parseOperatorSkills(Object rawValue) {
+        if (!(rawValue instanceof Map<?, ?> rawMap) || rawMap.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Set<String>> normalized = new LinkedHashMap<>();
+        rawMap.forEach((operatorKey, skillsRaw) -> {
+            String operator = trimToNull(String.valueOf(operatorKey));
+            if (operator == null) {
+                return;
+            }
+            Set<String> skills = parseRuleMatchValues(null, skillsRaw);
+            if (!skills.isEmpty()) {
+                normalized.put(operator.toLowerCase(), skills);
+            }
+        });
+        return normalized;
     }
 
     private long loadOpenCount(String operator, Map<String, Long> openLoadCache) {
@@ -993,6 +1043,7 @@ public class SlaEscalationWebhookNotifier {
                                   Set<String> slaStates,
                                   Set<String> requestPrefixes,
                                   Set<String> excludeRequestPrefixes,
+                                  Set<String> requiredAssigneeSkills,
                                   int priority,
                                   String assignee,
                                   List<String> assigneePool,

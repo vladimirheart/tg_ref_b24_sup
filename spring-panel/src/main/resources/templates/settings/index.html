@@ -2020,6 +2020,9 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="dialogSlaAutoAssignInsertExampleBtn">Вставить пример SLA-routing</button>
                       </div>
                       <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
+                      <label for="dialogSlaAutoAssignOperatorSkills" class="form-label mt-2">Матрица навыков операторов (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogSlaAutoAssignOperatorSkills" rows="3" placeholder='{"lead_support":["billing","vip"],"senior_support":["delivery"]}'></textarea>
+                      <div class="form-text">Используется правилами с <code>required_assignee_skills</code> для маршрутизации по навыкам/очередям.</div>
                       <div class="form-text">Поддерживаются фильтры: channel/business/location/category/request_prefix/client_status/rating/unread/minutes_left/sla_state + exclude_category/request_prefix. Для маршрутизации доступны assign_to, assign_to_pool и assign_to_pool_strategy (hash_by_ticket/round_robin/least_loaded).</div>
                     </div>
                     <div class="col-md-3">
@@ -13224,6 +13227,7 @@
       autoAssignRequireCategories: document.getElementById('dialogSlaAutoAssignRequireCategories'),
       autoAssignIncludeAssigned: document.getElementById('dialogSlaAutoAssignIncludeAssigned'),
       autoAssignRules: document.getElementById('dialogSlaAutoAssignRules'),
+      autoAssignOperatorSkills: document.getElementById('dialogSlaAutoAssignOperatorSkills'),
       autoAssignInsertExampleBtn: document.getElementById('dialogSlaAutoAssignInsertExampleBtn'),
       escalationWebhookEnabled: document.getElementById('dialogSlaEscalationWebhookEnabled'),
       escalationIncludeAssigned: document.getElementById('dialogSlaEscalationIncludeAssigned'),
@@ -13392,6 +13396,12 @@
         ? DIALOG_CONFIG.sla_critical_auto_assign_rules
         : DEFAULT_DIALOG_SLA_CONFIG.auto_assign_rules;
       inputs.autoAssignRules.value = JSON.stringify(rawRules, null, 2);
+    }
+    if (inputs.autoAssignOperatorSkills) {
+      const rawOperatorSkills = DIALOG_CONFIG.sla_critical_operator_skills && typeof DIALOG_CONFIG.sla_critical_operator_skills === 'object'
+        ? DIALOG_CONFIG.sla_critical_operator_skills
+        : {};
+      inputs.autoAssignOperatorSkills.value = JSON.stringify(rawOperatorSkills, null, 2);
     }
     if (inputs.escalationWebhookEnabled instanceof HTMLInputElement) {
       inputs.escalationWebhookEnabled.checked = Boolean(DIALOG_CONFIG.sla_critical_escalation_webhook_enabled);
@@ -14080,6 +14090,7 @@
           match_sla_states: ['breached', 'at_risk'],
           assign_to_pool: ['lead_support', 'senior_support'],
           assign_to_pool_strategy: 'least_loaded',
+          required_assignee_skills: ['vip'],
           priority: 100,
         },
         {
@@ -14131,6 +14142,7 @@
       errors.push('Лимит open-диалогов на оператора должен быть в диапазоне 1..5000 или пустым.');
     }
     let safeAutoAssignRules = [];
+    let safeAutoAssignOperatorSkills = {};
     const autoAssignRulesRaw = (inputs.autoAssignRules?.value || '').trim();
     if (autoAssignRulesRaw) {
       try {
@@ -14146,6 +14158,29 @@
         }
       } catch (err) {
         errors.push('Правила auto-assign: некорректный JSON.');
+      }
+    }
+    const autoAssignOperatorSkillsRaw = (inputs.autoAssignOperatorSkills?.value || '').trim();
+    if (autoAssignOperatorSkillsRaw) {
+      try {
+        const parsedOperatorSkills = JSON.parse(autoAssignOperatorSkillsRaw);
+        if (!parsedOperatorSkills || typeof parsedOperatorSkills !== 'object' || Array.isArray(parsedOperatorSkills)) {
+          errors.push('Матрица навыков операторов должна быть JSON-объектом.');
+        } else {
+          const normalizedSkills = {};
+          Object.entries(parsedOperatorSkills).forEach(([operator, skills]) => {
+            const key = String(operator || '').trim();
+            if (!key) return;
+            const values = Array.isArray(skills) ? skills : [skills];
+            const normalized = Array.from(new Set(values
+              .map((value) => String(value || '').trim().toLowerCase())
+              .filter(Boolean)));
+            if (normalized.length) normalizedSkills[key] = normalized;
+          });
+          safeAutoAssignOperatorSkills = normalizedSkills;
+        }
+      } catch (err) {
+        errors.push('Матрица навыков операторов: некорректный JSON.');
       }
     }
 
@@ -14939,6 +14974,7 @@
         dialog_sla_critical_auto_assign_require_categories: Boolean(inputs.autoAssignRequireCategories?.checked),
         dialog_sla_critical_auto_assign_include_assigned: Boolean(inputs.autoAssignIncludeAssigned?.checked),
         dialog_sla_critical_auto_assign_rules: safeAutoAssignRules,
+        dialog_sla_critical_operator_skills: safeAutoAssignOperatorSkills,
         dialog_sla_critical_escalation_webhook_enabled: Boolean(inputs.escalationWebhookEnabled?.checked),
         dialog_sla_critical_escalation_include_assigned: Boolean(inputs.escalationIncludeAssigned?.checked),
         dialog_sla_critical_escalation_webhook_urls: safeEscalationWebhookUrls,
