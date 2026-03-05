@@ -234,6 +234,10 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_cross_product_omnichannel_dashboard_label")
                 || payload.containsKey("dialog_cross_product_finance_dashboard_url")
                 || payload.containsKey("dialog_cross_product_finance_dashboard_label")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_gate_enabled")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_omnichannel_ready")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_finance_ready")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_note")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -589,6 +593,22 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_cross_product_finance_dashboard_label")) {
                     dialogConfig.put("cross_product_finance_dashboard_label",
                             payload.get("dialog_cross_product_finance_dashboard_label"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_gate_enabled")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_gate_enabled",
+                            payload.get("dialog_workspace_rollout_external_kpi_gate_enabled"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_omnichannel_ready")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_omnichannel_ready",
+                            payload.get("dialog_workspace_rollout_external_kpi_omnichannel_ready"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_finance_ready")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_finance_ready",
+                            payload.get("dialog_workspace_rollout_external_kpi_finance_ready"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_note")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_note",
+                            payload.get("dialog_workspace_rollout_external_kpi_note"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",
