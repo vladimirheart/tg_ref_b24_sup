@@ -247,6 +247,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_data_updated_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_links_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_owner_runbook_required")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -654,6 +655,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_dashboard_links_required")) {
                     dialogConfig.put("workspace_rollout_external_kpi_dashboard_links_required",
                             payload.get("dialog_workspace_rollout_external_kpi_dashboard_links_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_owner_runbook_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_owner_runbook_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_owner_runbook_required"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",

@@ -2517,6 +2517,10 @@
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDashboardLinksRequired">
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiDashboardLinksRequired">Требовать заполненные URL Omni-channel/Finance dashboard для снятия hold</label>
                       </div>
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiOwnerRunbookRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiOwnerRunbookRequired">Требовать owner + runbook data-mart для снятия hold</label>
+                      </div>
                       <div class="form-text">Позволяет не масштабировать rollout, пока BI-ссылки не заданы и операторы не имеют доступа к внешним витринам.</div>
                     </div>
                   </div>
@@ -4339,6 +4343,7 @@
     workspace_rollout_external_kpi_data_updated_at: '',
     workspace_rollout_external_kpi_data_freshness_ttl_hours: 48,
     workspace_rollout_external_kpi_dashboard_links_required: false,
+    workspace_rollout_external_kpi_owner_runbook_required: false,
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13433,6 +13438,7 @@
       workspaceExternalKpiDataUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDataUpdatedAt'),
       workspaceExternalKpiDataFreshnessTtlHours: document.getElementById('dialogWorkspaceExternalKpiDataFreshnessTtlHours'),
       workspaceExternalKpiDashboardLinksRequired: document.getElementById('dialogWorkspaceExternalKpiDashboardLinksRequired'),
+      workspaceExternalKpiOwnerRunbookRequired: document.getElementById('dialogWorkspaceExternalKpiOwnerRunbookRequired'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14031,6 +14037,9 @@
     }
     if (inputs.workspaceExternalKpiDashboardLinksRequired) {
       inputs.workspaceExternalKpiDashboardLinksRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_dashboard_links_required);
+    }
+    if (inputs.workspaceExternalKpiOwnerRunbookRequired) {
+      inputs.workspaceExternalKpiOwnerRunbookRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_owner_runbook_required);
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15177,6 +15186,7 @@
       ? Math.min(720, Math.max(1, safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours;
     const safeWorkspaceExternalKpiDashboardLinksRequired = Boolean(inputs.workspaceExternalKpiDashboardLinksRequired?.checked);
+    const safeWorkspaceExternalKpiOwnerRunbookRequired = Boolean(inputs.workspaceExternalKpiOwnerRunbookRequired?.checked);
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15316,6 +15326,7 @@
         dialog_workspace_rollout_external_kpi_data_updated_at: safeWorkspaceExternalKpiDataUpdatedAt,
         dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours: safeWorkspaceExternalKpiDataFreshnessTtlHours,
         dialog_workspace_rollout_external_kpi_dashboard_links_required: safeWorkspaceExternalKpiDashboardLinksRequired,
+        dialog_workspace_rollout_external_kpi_owner_runbook_required: safeWorkspaceExternalKpiOwnerRunbookRequired,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
