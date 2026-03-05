@@ -317,8 +317,11 @@
     const reviewLabel = externalSignal.review_present
       ? `${externalSignal.reviewed_by || 'n/a'} @ ${externalSignal.reviewed_at || 'n/a'} (${externalSignal.review_fresh ? 'fresh' : 'stale'})`
       : 'missing';
+    const freshnessLabel = externalSignal.data_freshness_required
+      ? `${externalSignal.data_fresh ? 'fresh' : 'stale'}${externalSignal.data_updated_at ? ` @ ${externalSignal.data_updated_at}` : ''}`
+      : 'off';
     const externalGateSuffix = externalGateEnabled
-      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}).`
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}).`
       : '';
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 
