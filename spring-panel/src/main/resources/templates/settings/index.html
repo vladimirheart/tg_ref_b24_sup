@@ -2489,6 +2489,21 @@
                       <label for="dialogWorkspaceExternalKpiReviewTtlHours" class="form-label">TTL review, часов</label>
                       <input type="number" class="form-control" id="dialogWorkspaceExternalKpiReviewTtlHours" min="1" max="2160" step="1">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check form-switch mt-1">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDataFreshnessRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDataFreshnessRequired">Требовать freshness внешнего data-mart перед rollout</label>
+                      </div>
+                      <div class="form-text">Если включено, rollout decision будет hold, пока не указано свежее время обновления внешних KPI.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDataUpdatedAt" class="form-label">Внешний data-mart обновлён</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDataUpdatedAt">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDataFreshnessTtlHours" class="form-label">Freshness TTL, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDataFreshnessTtlHours" min="1" max="720" step="1">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4303,6 +4318,9 @@
     workspace_rollout_external_kpi_reviewed_by: '',
     workspace_rollout_external_kpi_reviewed_at: '',
     workspace_rollout_external_kpi_review_ttl_hours: 168,
+    workspace_rollout_external_kpi_data_freshness_required: false,
+    workspace_rollout_external_kpi_data_updated_at: '',
+    workspace_rollout_external_kpi_data_freshness_ttl_hours: 48,
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13391,6 +13409,9 @@
       workspaceExternalKpiReviewedBy: document.getElementById('dialogWorkspaceExternalKpiReviewedBy'),
       workspaceExternalKpiReviewedAt: document.getElementById('dialogWorkspaceExternalKpiReviewedAt'),
       workspaceExternalKpiReviewTtlHours: document.getElementById('dialogWorkspaceExternalKpiReviewTtlHours'),
+      workspaceExternalKpiDataFreshnessRequired: document.getElementById('dialogWorkspaceExternalKpiDataFreshnessRequired'),
+      workspaceExternalKpiDataUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDataUpdatedAt'),
+      workspaceExternalKpiDataFreshnessTtlHours: document.getElementById('dialogWorkspaceExternalKpiDataFreshnessTtlHours'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -13967,6 +13988,19 @@
       inputs.workspaceExternalKpiReviewTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 2160
         ? value
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_review_ttl_hours;
+    }
+    if (inputs.workspaceExternalKpiDataFreshnessRequired) {
+      inputs.workspaceExternalKpiDataFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_data_freshness_required);
+    }
+    if (inputs.workspaceExternalKpiDataUpdatedAt) {
+      const updatedAtRaw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_data_updated_at || '').trim();
+      inputs.workspaceExternalKpiDataUpdatedAt.value = updatedAtRaw ? updatedAtRaw.slice(0, 16) : '';
+    }
+    if (inputs.workspaceExternalKpiDataFreshnessTtlHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours, 10);
+      inputs.workspaceExternalKpiDataFreshnessTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 720
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours;
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15092,6 +15126,24 @@
     const safeWorkspaceExternalKpiReviewTtlHours = Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw)
       ? Math.min(2160, Math.max(1, safeWorkspaceExternalKpiReviewTtlHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_review_ttl_hours;
+    const safeWorkspaceExternalKpiDataFreshnessRequired = Boolean(inputs.workspaceExternalKpiDataFreshnessRequired?.checked);
+    const safeWorkspaceExternalKpiDataUpdatedAtRaw = String(inputs.workspaceExternalKpiDataUpdatedAt?.value || '').trim();
+    const safeWorkspaceExternalKpiDataUpdatedAtParsed = safeWorkspaceExternalKpiDataUpdatedAtRaw
+      ? Date.parse(safeWorkspaceExternalKpiDataUpdatedAtRaw)
+      : Number.NaN;
+    if (safeWorkspaceExternalKpiDataUpdatedAtRaw && Number.isNaN(safeWorkspaceExternalKpiDataUpdatedAtParsed)) {
+      errors.push('Дата обновления внешнего data-mart указана в некорректном формате.');
+    }
+    if (safeWorkspaceExternalKpiDataFreshnessRequired && !safeWorkspaceExternalKpiDataUpdatedAtRaw) {
+      errors.push('Для контроля freshness укажите дату обновления внешнего data-mart.');
+    }
+    const safeWorkspaceExternalKpiDataUpdatedAt = Number.isNaN(safeWorkspaceExternalKpiDataUpdatedAtParsed)
+      ? ''
+      : new Date(safeWorkspaceExternalKpiDataUpdatedAtParsed).toISOString();
+    const safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw = Math.round(Number(inputs.workspaceExternalKpiDataFreshnessTtlHours?.value));
+    const safeWorkspaceExternalKpiDataFreshnessTtlHours = Number.isFinite(safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw)
+      ? Math.min(720, Math.max(1, safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours;
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15224,6 +15276,9 @@
         dialog_workspace_rollout_external_kpi_reviewed_by: safeWorkspaceExternalKpiReviewedBy,
         dialog_workspace_rollout_external_kpi_reviewed_at: safeWorkspaceExternalKpiReviewedAt,
         dialog_workspace_rollout_external_kpi_review_ttl_hours: safeWorkspaceExternalKpiReviewTtlHours,
+        dialog_workspace_rollout_external_kpi_data_freshness_required: safeWorkspaceExternalKpiDataFreshnessRequired,
+        dialog_workspace_rollout_external_kpi_data_updated_at: safeWorkspaceExternalKpiDataUpdatedAt,
+        dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours: safeWorkspaceExternalKpiDataFreshnessTtlHours,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,

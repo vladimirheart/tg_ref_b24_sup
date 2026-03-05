@@ -669,6 +669,8 @@
 
 - [x] **NOW-1.185 (этап E3, external KPI review governance):** формализован регулярный review-процесс для внешних KPI-checkpoint: добавлены runtime-поля `dialog_config.workspace_rollout_external_kpi_reviewed_by`, `..._reviewed_at`, `..._review_ttl_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды»), а `rollout_decision` теперь удерживается в `hold`, если review отсутствует или устарел. В «Аналитике» в decision-banner выводится состояние review (fresh/stale/missing), что закрывает оставшийся DoD-gap «кто/когда подтверждает checkpoint в проде».
 
+- [x] **NOW-1.186 (этап E3, external data-mart freshness gate):** закрыт практический пробел по качеству внешних KPI-данных: добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_data_freshness_required`, `..._data_updated_at`, `..._data_freshness_ttl_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды»). `rollout_decision` теперь учитывает freshness внешнего data-mart и удерживает rollout в `hold`, если данные устарели/не подтверждены в пределах TTL. В «Аналитике» freshness отображается в rationale рядом с review/omni/finance gate.
+
 
 ## 11) Актуализированный список невыполненного (после NOW-1.183)
 
