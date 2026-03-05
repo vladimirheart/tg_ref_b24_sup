@@ -803,6 +803,8 @@ public class DialogService {
                 "workspace_rollout_external_kpi_finance_ready",
                 false);
         String note = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_note"));
+        String datamartOwner = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_owner"));
+        String datamartRunbookUrl = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_runbook_url"));
         String reviewedBy = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_by"));
         String reviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_at"));
         long reviewTtlHours = resolveLongDialogConfigValue(
@@ -844,6 +846,8 @@ public class DialogService {
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
+        signal.put("datamart_owner", normalizeNullString(datamartOwner));
+        signal.put("datamart_runbook_url", normalizeNullString(datamartRunbookUrl));
         signal.put("reviewed_by", normalizeNullString(reviewedBy));
         signal.put("reviewed_at", reviewedAt != null ? reviewedAt.toString() : "");
         signal.put("review_ttl_hours", reviewTtlHours);
