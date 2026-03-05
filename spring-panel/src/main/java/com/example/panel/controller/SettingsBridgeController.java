@@ -230,6 +230,10 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_external_profile_cache_ttl_seconds")
                 || payload.containsKey("dialog_workspace_client_external_profile_auth_header")
                 || payload.containsKey("dialog_workspace_client_external_profile_auth_token")
+                || payload.containsKey("dialog_cross_product_omnichannel_dashboard_url")
+                || payload.containsKey("dialog_cross_product_omnichannel_dashboard_label")
+                || payload.containsKey("dialog_cross_product_finance_dashboard_url")
+                || payload.containsKey("dialog_cross_product_finance_dashboard_label")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -569,6 +573,22 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_external_profile_auth_token")) {
                     dialogConfig.put("workspace_client_external_profile_auth_token",
                             payload.get("dialog_workspace_client_external_profile_auth_token"));
+                }
+                if (payload.containsKey("dialog_cross_product_omnichannel_dashboard_url")) {
+                    dialogConfig.put("cross_product_omnichannel_dashboard_url",
+                            payload.get("dialog_cross_product_omnichannel_dashboard_url"));
+                }
+                if (payload.containsKey("dialog_cross_product_omnichannel_dashboard_label")) {
+                    dialogConfig.put("cross_product_omnichannel_dashboard_label",
+                            payload.get("dialog_cross_product_omnichannel_dashboard_label"));
+                }
+                if (payload.containsKey("dialog_cross_product_finance_dashboard_url")) {
+                    dialogConfig.put("cross_product_finance_dashboard_url",
+                            payload.get("dialog_cross_product_finance_dashboard_url"));
+                }
+                if (payload.containsKey("dialog_cross_product_finance_dashboard_label")) {
+                    dialogConfig.put("cross_product_finance_dashboard_label",
+                            payload.get("dialog_cross_product_finance_dashboard_label"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",
