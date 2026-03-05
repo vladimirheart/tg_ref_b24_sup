@@ -15,6 +15,9 @@ import org.springframework.util.StringUtils;
 
 import java.net.URI;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,6 +44,7 @@ public class DialogService {
     private static final double DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_RELATIVE_MULTIPLIER = 1.20d;
     private static final double DEFAULT_WORKSPACE_WINNER_MIN_OPEN_IMPROVEMENT = 0d;
     private static final boolean DEFAULT_EXTERNAL_KPI_GATE_ENABLED = false;
+    private static final long DEFAULT_EXTERNAL_KPI_REVIEW_TTL_HOURS = 168L;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -797,16 +801,83 @@ public class DialogService {
                 "workspace_rollout_external_kpi_finance_ready",
                 false);
         String note = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_note"));
+        String reviewedBy = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_by"));
+        String reviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_at"));
+        long reviewTtlHours = resolveLongDialogConfigValue(
+                "workspace_rollout_external_kpi_review_ttl_hours",
+                DEFAULT_EXTERNAL_KPI_REVIEW_TTL_HOURS,
+                1,
+                24 * 90L);
         if ("null".equalsIgnoreCase(note)) {
             note = "";
         }
-        boolean readyForDecision = !gateEnabled || (omnichannelReady && financeReady);
+        OffsetDateTime reviewedAt = parseReviewTimestamp(reviewedAtRaw);
+        boolean reviewPresent = reviewedAt != null && StringUtils.hasText(reviewedBy);
+        boolean reviewFresh = false;
+        long reviewAgeHours = -1;
+        if (reviewedAt != null) {
+            reviewAgeHours = Math.max(0, java.time.Duration.between(reviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+            reviewFresh = reviewAgeHours <= reviewTtlHours;
+        }
+        boolean reviewReady = !gateEnabled || (reviewPresent && reviewFresh);
+        boolean readyForDecision = !gateEnabled || (omnichannelReady && financeReady && reviewReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
+        signal.put("reviewed_by", normalizeNullString(reviewedBy));
+        signal.put("reviewed_at", reviewedAt != null ? reviewedAt.toString() : "");
+        signal.put("review_ttl_hours", reviewTtlHours);
+        signal.put("review_present", reviewPresent);
+        signal.put("review_fresh", reviewFresh);
+        signal.put("review_age_hours", reviewAgeHours);
         signal.put("ready_for_decision", readyForDecision);
         signal.put("note", note != null ? note.trim() : "");
         return signal;
+    }
+
+    private String normalizeNullString(String value) {
+        if (value == null || "null".equalsIgnoreCase(value)) {
+            return "";
+        }
+        return value.trim();
+    }
+
+    private OffsetDateTime parseReviewTimestamp(String rawValue) {
+        String value = normalizeNullString(rawValue);
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(value).withOffsetSameInstant(ZoneOffset.UTC);
+        } catch (Exception ignored) {
+            // fallback to legacy datetime-local without timezone
+        }
+        try {
+            return LocalDateTime.parse(value).atOffset(ZoneOffset.UTC);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private long resolveLongDialogConfigValue(String key, long fallback, long minInclusive, long maxInclusive) {
+        Object value = resolveDialogConfigValue(key);
+        if (value == null) {
+            return fallback;
+        }
+        long parsed;
+        if (value instanceof Number number) {
+            parsed = number.longValue();
+        } else {
+            try {
+                parsed = Long.parseLong(String.valueOf(value).trim());
+            } catch (Exception ignored) {
+                return fallback;
+            }
+        }
+        if (parsed < minInclusive || parsed > maxInclusive) {
+            return fallback;
+        }
+        return parsed;
     }
 
     private boolean resolveBooleanDialogConfigValue(String key, boolean fallback) {

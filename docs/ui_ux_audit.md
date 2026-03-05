@@ -667,6 +667,9 @@
 
 - [x] **NOW-1.184 (этап E3, external KPI gate в rollout decision):** для закрытия operational-gap по «частично выполненному» KPI decisioning добавлен управляемый data-mart checkpoint: `dialog_config.workspace_rollout_external_kpi_gate_enabled`, `..._omnichannel_ready`, `..._finance_ready`, `..._note`. Эти параметры доступны в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», учитываются backend-решением `rollout_decision` (hold до подтверждения обоих чекпоинтов) и отображаются в «Аналитике» как часть rationale. Это снижает риск масштабирования workspace без подтверждённых omni-channel/финансовых KPI.
 
+- [x] **NOW-1.185 (этап E3, external KPI review governance):** формализован регулярный review-процесс для внешних KPI-checkpoint: добавлены runtime-поля `dialog_config.workspace_rollout_external_kpi_reviewed_by`, `..._reviewed_at`, `..._review_ttl_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды»), а `rollout_decision` теперь удерживается в `hold`, если review отсутствует или устарел. В «Аналитике» в decision-banner выводится состояние review (fresh/stale/missing), что закрывает оставшийся DoD-gap «кто/когда подтверждает checkpoint в проде».
+
+
 ## 11) Актуализированный список невыполненного (после NOW-1.183)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
@@ -674,8 +677,8 @@
 1. **Долгосрочный data-mart для omni-channel/финансовых витрин (внешняя зависимость)**
    - Runtime bridge закрывает операционный доступ к внешним BI-доскам, но развитие единого data-mart остаётся отдельным потоком платформенной аналитики.
 
-2. **Финальная DoD-ревизия раздела 9 (частично закрыто)**
-   - Runtime external KPI-gate добавлен в decisioning, но остаётся формализация регулярного review-процесса (кто/когда подтверждает чекпоинты в проде).
+2. **Финальная DoD-ревизия раздела 9 (закрыто)**
+   - Регулярный review-процесс формализован через runtime-поля owner/timestamp/TTL и учтён в rollout decisioning без ручных регламентов вне системы.
 
 ### 11.1. DoD-checkpoint по roadmap (операционный срез)
 

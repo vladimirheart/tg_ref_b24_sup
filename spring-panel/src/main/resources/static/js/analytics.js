@@ -314,8 +314,11 @@
     rolloutDecisionBox.className = `alert ${alertClass} mb-2`;
     const externalGateEnabled = Boolean(externalSignal.enabled);
     const externalGateReady = Boolean(externalSignal.ready_for_decision);
+    const reviewLabel = externalSignal.review_present
+      ? `${externalSignal.reviewed_by || 'n/a'} @ ${externalSignal.reviewed_at || 'n/a'} (${externalSignal.review_fresh ? 'fresh' : 'stale'})`
+      : 'missing';
     const externalGateSuffix = externalGateEnabled
-      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}).`
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}).`
       : '';
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 
