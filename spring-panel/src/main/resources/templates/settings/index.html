@@ -2523,7 +2523,24 @@
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiOwnerRunbookRequired">
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiOwnerRunbookRequired">Требовать owner + runbook data-mart для снятия hold</label>
                       </div>
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartHealthRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartHealthRequired">Требовать статус health=healthy для внешнего data-mart</label>
+                      </div>
                       <div class="form-text">Позволяет не масштабировать rollout, пока BI-ссылки не заданы и операторы не имеют доступа к внешним витринам.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthStatus" class="form-label">Статус внешнего data-mart</label>
+                      <select class="form-select" id="dialogWorkspaceExternalKpiDatamartHealthStatus">
+                        <option value="unknown">unknown</option>
+                        <option value="healthy">healthy</option>
+                        <option value="degraded">degraded</option>
+                        <option value="down">down</option>
+                      </select>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthNote" class="form-label">Комментарий по health-статусу</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthNote" maxlength="300" placeholder="Причина degraded/down, ссылка на инцидент, ETA восстановления">
                     </div>
                   </div>
                   <hr class="my-4">
@@ -4347,6 +4364,9 @@
     workspace_rollout_external_kpi_data_freshness_ttl_hours: 48,
     workspace_rollout_external_kpi_dashboard_links_required: false,
     workspace_rollout_external_kpi_owner_runbook_required: false,
+    workspace_rollout_external_kpi_datamart_health_required: false,
+    workspace_rollout_external_kpi_datamart_health_status: 'unknown',
+    workspace_rollout_external_kpi_datamart_health_note: '',
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13443,6 +13463,9 @@
       workspaceExternalKpiDataFreshnessTtlHours: document.getElementById('dialogWorkspaceExternalKpiDataFreshnessTtlHours'),
       workspaceExternalKpiDashboardLinksRequired: document.getElementById('dialogWorkspaceExternalKpiDashboardLinksRequired'),
       workspaceExternalKpiOwnerRunbookRequired: document.getElementById('dialogWorkspaceExternalKpiOwnerRunbookRequired'),
+      workspaceExternalKpiDatamartHealthRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthRequired'),
+      workspaceExternalKpiDatamartHealthStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthStatus'),
+      workspaceExternalKpiDatamartHealthNote: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthNote'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14050,6 +14073,16 @@
     }
     if (inputs.workspaceExternalKpiOwnerRunbookRequired) {
       inputs.workspaceExternalKpiOwnerRunbookRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_owner_runbook_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartHealthRequired) {
+      inputs.workspaceExternalKpiDatamartHealthRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartHealthStatus) {
+      const raw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_status || '').trim().toLowerCase();
+      inputs.workspaceExternalKpiDatamartHealthStatus.value = ['healthy', 'degraded', 'down', 'unknown'].includes(raw) ? raw : 'unknown';
+    }
+    if (inputs.workspaceExternalKpiDatamartHealthNote) {
+      inputs.workspaceExternalKpiDatamartHealthNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_note || '').trim();
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15223,6 +15256,12 @@
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours;
     const safeWorkspaceExternalKpiDashboardLinksRequired = Boolean(inputs.workspaceExternalKpiDashboardLinksRequired?.checked);
     const safeWorkspaceExternalKpiOwnerRunbookRequired = Boolean(inputs.workspaceExternalKpiOwnerRunbookRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartHealthRequired = Boolean(inputs.workspaceExternalKpiDatamartHealthRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartHealthStatusRaw = String(inputs.workspaceExternalKpiDatamartHealthStatus?.value || '').trim().toLowerCase();
+    const safeWorkspaceExternalKpiDatamartHealthStatus = ['healthy', 'degraded', 'down', 'unknown'].includes(safeWorkspaceExternalKpiDatamartHealthStatusRaw)
+      ? safeWorkspaceExternalKpiDatamartHealthStatusRaw
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_health_status;
+    const safeWorkspaceExternalKpiDatamartHealthNote = String(inputs.workspaceExternalKpiDatamartHealthNote?.value || '').trim().slice(0, 300);
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15364,6 +15403,9 @@
         dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours: safeWorkspaceExternalKpiDataFreshnessTtlHours,
         dialog_workspace_rollout_external_kpi_dashboard_links_required: safeWorkspaceExternalKpiDashboardLinksRequired,
         dialog_workspace_rollout_external_kpi_owner_runbook_required: safeWorkspaceExternalKpiOwnerRunbookRequired,
+        dialog_workspace_rollout_external_kpi_datamart_health_required: safeWorkspaceExternalKpiDatamartHealthRequired,
+        dialog_workspace_rollout_external_kpi_datamart_health_status: safeWorkspaceExternalKpiDatamartHealthStatus,
+        dialog_workspace_rollout_external_kpi_datamart_health_note: safeWorkspaceExternalKpiDatamartHealthNote,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,

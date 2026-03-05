@@ -678,8 +678,10 @@
 
 - [x] **NOW-1.189 (этап E3, external ownership gate hardening):** для оставшегося риска по внешнему data-mart добавлен runtime-флаг `dialog_config.workspace_rollout_external_kpi_owner_runbook_required`. При включении `rollout_decision` удерживается в `hold`, пока не заполнены оба поля `workspace_rollout_external_kpi_datamart_owner` и `workspace_rollout_external_kpi_datamart_runbook_url`. Параметр доступен в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», а decision-banner в «Аналитике» теперь явно показывает `owner/runbook=ready/missing/off`.
 
+- [x] **NOW-1.190 (этап E3, external data-mart health gate):** закрыт следующий операционный риск по внешней BI-зависимости: добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_datamart_health_required`, `..._datamart_health_status` (`unknown/healthy/degraded/down`) и `..._datamart_health_note` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + analytics rationale). `rollout_decision` теперь удерживается в `hold`, если health-gate обязателен и статус data-mart не `healthy`, что снижает риск масштабирования workspace во время деградации внешней витрины.
 
-## 11) Актуализированный список невыполненного (после NOW-1.189)
+
+## 11) Актуализированный список невыполненного (после NOW-1.190)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
