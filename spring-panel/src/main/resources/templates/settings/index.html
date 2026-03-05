@@ -2524,6 +2524,25 @@
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiOwnerRunbookRequired">Требовать owner + runbook data-mart для снятия hold</label>
                       </div>
                       <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDashboardStatusRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDashboardStatusRequired">Требовать статус healthy для внешних KPI-дашбордов</label>
+                      </div>
+                      <div class="row g-2 mt-1">
+                        <div class="col-md-4">
+                          <label for="dialogWorkspaceExternalKpiDashboardStatus" class="form-label">Статус KPI-дашбордов</label>
+                          <select class="form-select" id="dialogWorkspaceExternalKpiDashboardStatus">
+                            <option value="unknown">unknown</option>
+                            <option value="healthy">healthy</option>
+                            <option value="degraded">degraded</option>
+                            <option value="down">down</option>
+                          </select>
+                        </div>
+                        <div class="col-md-8">
+                          <label for="dialogWorkspaceExternalKpiDashboardStatusNote" class="form-label">Комментарий по статусу дашбордов</label>
+                          <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDashboardStatusNote" maxlength="300" placeholder="Причина degraded/down, ссылка на инцидент BI, ETA">
+                        </div>
+                      </div>
+                      <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartHealthRequired">
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartHealthRequired">Требовать статус health=healthy для внешнего data-mart</label>
                       </div>
@@ -4413,6 +4432,9 @@
     workspace_rollout_external_kpi_data_updated_at: '',
     workspace_rollout_external_kpi_data_freshness_ttl_hours: 48,
     workspace_rollout_external_kpi_dashboard_links_required: false,
+    workspace_rollout_external_kpi_dashboard_status_required: false,
+    workspace_rollout_external_kpi_dashboard_status: 'unknown',
+    workspace_rollout_external_kpi_dashboard_status_note: '',
     workspace_rollout_external_kpi_owner_runbook_required: false,
     workspace_rollout_external_kpi_datamart_health_required: false,
     workspace_rollout_external_kpi_datamart_health_status: 'unknown',
@@ -13521,6 +13543,9 @@
       workspaceExternalKpiDataUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDataUpdatedAt'),
       workspaceExternalKpiDataFreshnessTtlHours: document.getElementById('dialogWorkspaceExternalKpiDataFreshnessTtlHours'),
       workspaceExternalKpiDashboardLinksRequired: document.getElementById('dialogWorkspaceExternalKpiDashboardLinksRequired'),
+      workspaceExternalKpiDashboardStatusRequired: document.getElementById('dialogWorkspaceExternalKpiDashboardStatusRequired'),
+      workspaceExternalKpiDashboardStatus: document.getElementById('dialogWorkspaceExternalKpiDashboardStatus'),
+      workspaceExternalKpiDashboardStatusNote: document.getElementById('dialogWorkspaceExternalKpiDashboardStatusNote'),
       workspaceExternalKpiOwnerRunbookRequired: document.getElementById('dialogWorkspaceExternalKpiOwnerRunbookRequired'),
       workspaceExternalKpiDatamartHealthRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthRequired'),
       workspaceExternalKpiDatamartHealthStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartHealthStatus'),
@@ -14138,6 +14163,16 @@
     }
     if (inputs.workspaceExternalKpiDashboardLinksRequired) {
       inputs.workspaceExternalKpiDashboardLinksRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_dashboard_links_required);
+    }
+    if (inputs.workspaceExternalKpiDashboardStatusRequired) {
+      inputs.workspaceExternalKpiDashboardStatusRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_dashboard_status_required);
+    }
+    if (inputs.workspaceExternalKpiDashboardStatus) {
+      const raw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_dashboard_status || '').trim().toLowerCase();
+      inputs.workspaceExternalKpiDashboardStatus.value = ['healthy', 'degraded', 'down', 'unknown'].includes(raw) ? raw : 'unknown';
+    }
+    if (inputs.workspaceExternalKpiDashboardStatusNote) {
+      inputs.workspaceExternalKpiDashboardStatusNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_dashboard_status_note || '').trim();
     }
     if (inputs.workspaceExternalKpiOwnerRunbookRequired) {
       inputs.workspaceExternalKpiOwnerRunbookRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_owner_runbook_required);
@@ -15357,6 +15392,12 @@
       ? Math.min(720, Math.max(1, safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours;
     const safeWorkspaceExternalKpiDashboardLinksRequired = Boolean(inputs.workspaceExternalKpiDashboardLinksRequired?.checked);
+    const safeWorkspaceExternalKpiDashboardStatusRequired = Boolean(inputs.workspaceExternalKpiDashboardStatusRequired?.checked);
+    const safeWorkspaceExternalKpiDashboardStatusRaw = String(inputs.workspaceExternalKpiDashboardStatus?.value || '').trim().toLowerCase();
+    const safeWorkspaceExternalKpiDashboardStatus = ['healthy', 'degraded', 'down', 'unknown'].includes(safeWorkspaceExternalKpiDashboardStatusRaw)
+      ? safeWorkspaceExternalKpiDashboardStatusRaw
+      : 'unknown';
+    const safeWorkspaceExternalKpiDashboardStatusNote = String(inputs.workspaceExternalKpiDashboardStatusNote?.value || '').trim().slice(0, 300);
     const safeWorkspaceExternalKpiOwnerRunbookRequired = Boolean(inputs.workspaceExternalKpiOwnerRunbookRequired?.checked);
     const safeWorkspaceExternalKpiDatamartHealthRequired = Boolean(inputs.workspaceExternalKpiDatamartHealthRequired?.checked);
     const safeWorkspaceExternalKpiDatamartHealthStatusRaw = String(inputs.workspaceExternalKpiDatamartHealthStatus?.value || '').trim().toLowerCase();
@@ -15522,6 +15563,9 @@
         dialog_workspace_rollout_external_kpi_data_updated_at: safeWorkspaceExternalKpiDataUpdatedAt,
         dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours: safeWorkspaceExternalKpiDataFreshnessTtlHours,
         dialog_workspace_rollout_external_kpi_dashboard_links_required: safeWorkspaceExternalKpiDashboardLinksRequired,
+        dialog_workspace_rollout_external_kpi_dashboard_status_required: safeWorkspaceExternalKpiDashboardStatusRequired,
+        dialog_workspace_rollout_external_kpi_dashboard_status: safeWorkspaceExternalKpiDashboardStatus,
+        dialog_workspace_rollout_external_kpi_dashboard_status_note: safeWorkspaceExternalKpiDashboardStatusNote,
         dialog_workspace_rollout_external_kpi_owner_runbook_required: safeWorkspaceExternalKpiOwnerRunbookRequired,
         dialog_workspace_rollout_external_kpi_datamart_health_required: safeWorkspaceExternalKpiDatamartHealthRequired,
         dialog_workspace_rollout_external_kpi_datamart_health_status: safeWorkspaceExternalKpiDatamartHealthStatus,

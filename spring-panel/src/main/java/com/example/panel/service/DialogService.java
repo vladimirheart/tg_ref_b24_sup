@@ -49,6 +49,7 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_TTL_HOURS = 48L;
     private static final boolean DEFAULT_EXTERNAL_KPI_DASHBOARD_LINKS_REQUIRED = false;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DASHBOARD_STATUS_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_OWNER_RUNBOOK_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_HEALTH_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_BLOCKER_REQUIRED = false;
@@ -827,6 +828,9 @@ public class DialogService {
         boolean dashboardLinksRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_dashboard_links_required",
                 DEFAULT_EXTERNAL_KPI_DASHBOARD_LINKS_REQUIRED);
+        boolean dashboardStatusRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_dashboard_status_required",
+                DEFAULT_EXTERNAL_KPI_DASHBOARD_STATUS_REQUIRED);
         boolean ownerRunbookRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_owner_runbook_required",
                 DEFAULT_EXTERNAL_KPI_OWNER_RUNBOOK_REQUIRED);
@@ -844,6 +848,9 @@ public class DialogService {
                 DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_REQUIRED);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
+        String dashboardStatus = normalizeDatamartHealthStatus(
+                normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_dashboard_status"))));
+        String dashboardStatusNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_dashboard_status_note")));
         String datamartHealthNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_note")));
         String datamartProgramStatus = normalizeDatamartProgramStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_status"))));
@@ -891,6 +898,7 @@ public class DialogService {
         String financeDashboardUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("cross_product_finance_dashboard_url")));
         boolean dashboardLinksPresent = StringUtils.hasText(omnichannelDashboardUrl) && StringUtils.hasText(financeDashboardUrl);
         boolean dashboardLinksReady = !dashboardLinksRequired || dashboardLinksPresent;
+        boolean dashboardStatusReady = !dashboardStatusRequired || "healthy".equals(dashboardStatus);
         boolean ownerRunbookPresent = StringUtils.hasText(datamartOwner) && StringUtils.hasText(datamartRunbookUrl);
         boolean ownerRunbookReady = !ownerRunbookRequired || ownerRunbookPresent;
         boolean datamartHealthy = "healthy".equals(datamartHealthStatus);
@@ -923,6 +931,7 @@ public class DialogService {
                 && reviewReady
                 && dataFreshnessReady
                 && dashboardLinksReady
+                && dashboardStatusReady
                 && ownerRunbookReady
                 && datamartHealthReady
                 && datamartProgramReady
@@ -948,6 +957,10 @@ public class DialogService {
         signal.put("dashboard_links_required", dashboardLinksRequired);
         signal.put("dashboard_links_present", dashboardLinksPresent);
         signal.put("dashboard_links_ready", dashboardLinksReady);
+        signal.put("dashboard_status_required", dashboardStatusRequired);
+        signal.put("dashboard_status", dashboardStatus);
+        signal.put("dashboard_status_note", dashboardStatusNote);
+        signal.put("dashboard_status_ready", dashboardStatusReady);
         signal.put("owner_runbook_required", ownerRunbookRequired);
         signal.put("owner_runbook_present", ownerRunbookPresent);
         signal.put("owner_runbook_ready", ownerRunbookReady);
