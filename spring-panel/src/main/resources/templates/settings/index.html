@@ -2454,6 +2454,29 @@
                       <label for="dialogCrossProductFinanceDashboardLabel" class="form-label">Финансовый dashboard label</label>
                       <input type="text" class="form-control" id="dialogCrossProductFinanceDashboardLabel" placeholder="Финансовый KPI dashboard">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check form-switch mt-1">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiGateEnabled">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiGateEnabled">Включить внешний KPI-gate для rollout decision</label>
+                      </div>
+                      <div class="form-text">Если включено, решение rollout будет на hold, пока оба чекпоинта внешних KPI не подтверждены.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiOmnichannelReady">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiOmnichannelReady">Omni-channel KPI checkpoint подтверждён</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiFinanceReady">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiFinanceReady">Финансовый KPI checkpoint подтверждён</label>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceExternalKpiNote" class="form-label">Комментарий по внешним KPI (опционально)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiNote" maxlength="500" placeholder="Ссылка на отчёт / статус data-mart / дата валидации">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4261,6 +4284,10 @@
     cross_product_omnichannel_dashboard_label: 'Omni-channel KPI dashboard',
     cross_product_finance_dashboard_url: '',
     cross_product_finance_dashboard_label: 'Финансовый KPI dashboard',
+    workspace_rollout_external_kpi_gate_enabled: false,
+    workspace_rollout_external_kpi_omnichannel_ready: false,
+    workspace_rollout_external_kpi_finance_ready: false,
+    workspace_rollout_external_kpi_note: '',
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13342,6 +13369,10 @@
       crossProductOmnichannelDashboardLabel: document.getElementById('dialogCrossProductOmnichannelDashboardLabel'),
       crossProductFinanceDashboardUrl: document.getElementById('dialogCrossProductFinanceDashboardUrl'),
       crossProductFinanceDashboardLabel: document.getElementById('dialogCrossProductFinanceDashboardLabel'),
+      workspaceExternalKpiGateEnabled: document.getElementById('dialogWorkspaceExternalKpiGateEnabled'),
+      workspaceExternalKpiOmnichannelReady: document.getElementById('dialogWorkspaceExternalKpiOmnichannelReady'),
+      workspaceExternalKpiFinanceReady: document.getElementById('dialogWorkspaceExternalKpiFinanceReady'),
+      workspaceExternalKpiNote: document.getElementById('dialogWorkspaceExternalKpiNote'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -13893,6 +13924,18 @@
     if (inputs.crossProductFinanceDashboardLabel) {
       inputs.crossProductFinanceDashboardLabel.value = String(DIALOG_CONFIG.cross_product_finance_dashboard_label || '').trim()
         || DEFAULT_DIALOG_SLA_CONFIG.cross_product_finance_dashboard_label;
+    }
+    if (inputs.workspaceExternalKpiGateEnabled) {
+      inputs.workspaceExternalKpiGateEnabled.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_gate_enabled);
+    }
+    if (inputs.workspaceExternalKpiOmnichannelReady) {
+      inputs.workspaceExternalKpiOmnichannelReady.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_omnichannel_ready);
+    }
+    if (inputs.workspaceExternalKpiFinanceReady) {
+      inputs.workspaceExternalKpiFinanceReady.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_finance_ready);
+    }
+    if (inputs.workspaceExternalKpiNote) {
+      inputs.workspaceExternalKpiNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_note || '').trim();
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -14999,6 +15042,10 @@
     const safeCrossProductFinanceDashboardUrl = String(inputs.crossProductFinanceDashboardUrl?.value || '').trim();
     const safeCrossProductFinanceDashboardLabel = String(inputs.crossProductFinanceDashboardLabel?.value || '').trim()
       || DEFAULT_DIALOG_SLA_CONFIG.cross_product_finance_dashboard_label;
+    const safeWorkspaceExternalKpiGateEnabled = Boolean(inputs.workspaceExternalKpiGateEnabled?.checked);
+    const safeWorkspaceExternalKpiOmnichannelReady = Boolean(inputs.workspaceExternalKpiOmnichannelReady?.checked);
+    const safeWorkspaceExternalKpiFinanceReady = Boolean(inputs.workspaceExternalKpiFinanceReady?.checked);
+    const safeWorkspaceExternalKpiNote = String(inputs.workspaceExternalKpiNote?.value || '').trim().slice(0, 500);
     const validateDashboardUrl = (value, title) => {
       if (!value) return;
       if (!(value.startsWith('https://') || value.startsWith('http://'))) {
@@ -15121,6 +15168,10 @@
         dialog_cross_product_omnichannel_dashboard_label: safeCrossProductOmnichannelDashboardLabel,
         dialog_cross_product_finance_dashboard_url: safeCrossProductFinanceDashboardUrl,
         dialog_cross_product_finance_dashboard_label: safeCrossProductFinanceDashboardLabel,
+        dialog_workspace_rollout_external_kpi_gate_enabled: safeWorkspaceExternalKpiGateEnabled,
+        dialog_workspace_rollout_external_kpi_omnichannel_ready: safeWorkspaceExternalKpiOmnichannelReady,
+        dialog_workspace_rollout_external_kpi_finance_ready: safeWorkspaceExternalKpiFinanceReady,
+        dialog_workspace_rollout_external_kpi_note: safeWorkspaceExternalKpiNote,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,

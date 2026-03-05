@@ -40,6 +40,7 @@ public class DialogService {
     private static final double DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_ABSOLUTE_DELTA = 0.02d;
     private static final double DEFAULT_KPI_OUTCOME_SLA_BREACH_MAX_RELATIVE_MULTIPLIER = 1.20d;
     private static final double DEFAULT_WORKSPACE_WINNER_MIN_OPEN_IMPROVEMENT = 0d;
+    private static final boolean DEFAULT_EXTERNAL_KPI_GATE_ENABLED = false;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -739,6 +740,8 @@ public class DialogService {
         boolean kpiSignalReady = toBoolean(kpiSignal.get("ready_for_decision"));
         boolean kpiOutcomeReady = toBoolean(kpiOutcomeSignal.get("ready_for_decision"));
         boolean kpiOutcomeRegressions = toBoolean(kpiOutcomeSignal.get("has_regression"));
+        Map<String, Object> externalKpiSignal = buildExternalKpiSignal();
+        boolean externalKpiReady = toBoolean(externalKpiSignal.get("ready_for_decision"));
         String guardrailStatus = String.valueOf(safeGuardrails.getOrDefault("status", "ok"));
         boolean hasGuardrailIssues = "attention".equalsIgnoreCase(guardrailStatus);
 
@@ -753,6 +756,9 @@ public class DialogService {
         } else if (!kpiOutcomeReady) {
             action = "hold";
             rationale = "Недостаточно измерений продуктовых KPI-результатов (FRT/TTR/SLA breach) для автоматического rollout decision.";
+        } else if (!externalKpiReady) {
+            action = "hold";
+            rationale = "Внешние omni-channel/финансовые KPI не подтверждены: rollout остаётся на hold до прохождения data-mart checkpoint.";
         } else if (kpiOutcomeRegressions) {
             action = "hold";
             rationale = "Зафиксирована деградация по FRT/TTR/SLA breach в test cohort: rollout оставлен на hold до стабилизации.";
@@ -774,8 +780,57 @@ public class DialogService {
         decision.put("kpi_signal_ready", kpiSignalReady);
         decision.put("kpi_outcome_ready", kpiOutcomeReady);
         decision.put("kpi_outcome_regressions", kpiOutcomeRegressions);
+        decision.put("external_kpi_signal", externalKpiSignal);
         decision.put("rationale", rationale);
         return decision;
+    }
+
+    private Map<String, Object> buildExternalKpiSignal() {
+        Map<String, Object> signal = new LinkedHashMap<>();
+        boolean gateEnabled = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_gate_enabled",
+                DEFAULT_EXTERNAL_KPI_GATE_ENABLED);
+        boolean omnichannelReady = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_omnichannel_ready",
+                false);
+        boolean financeReady = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_finance_ready",
+                false);
+        String note = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_note"));
+        if ("null".equalsIgnoreCase(note)) {
+            note = "";
+        }
+        boolean readyForDecision = !gateEnabled || (omnichannelReady && financeReady);
+        signal.put("enabled", gateEnabled);
+        signal.put("omnichannel_ready", omnichannelReady);
+        signal.put("finance_ready", financeReady);
+        signal.put("ready_for_decision", readyForDecision);
+        signal.put("note", note != null ? note.trim() : "");
+        return signal;
+    }
+
+    private boolean resolveBooleanDialogConfigValue(String key, boolean fallback) {
+        Object value = resolveDialogConfigValue(key);
+        if (value == null) {
+            return fallback;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String normalized = String.valueOf(value).trim().toLowerCase();
+        if (!StringUtils.hasText(normalized)) {
+            return fallback;
+        }
+        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
+            return true;
+        }
+        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
+            return false;
+        }
+        return fallback;
     }
 
     private Map<String, Object> castObjectMap(Map<?, ?> source) {
