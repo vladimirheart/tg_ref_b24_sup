@@ -651,13 +651,15 @@
 - [x] **NOW-1.175 (этап D1/D3, secured external macro catalog access):** закрыт оставшийся operational-gap для enterprise-интеграций каталога переменных: добавлены runtime-параметры `dialog_config.macro_variable_catalog_external_auth_header` и `dialog_config.macro_variable_catalog_external_auth_token` (UI «Настройки → Диалоги → Макросы» + `SettingsBridgeController` + backend-fetch в `DialogApiController`). Внешняя загрузка каталога теперь поддерживает auth-header с валидацией безопасного имени, что позволяет подключать защищённые CRM/ERP endpoints без hard-coded секретов и без code-deploy.
 - [x] **NOW-1.176 (этап C1, external profile auth bridge):** для интеграции workspace enrichment с защищёнными CRM/contract API добавлены runtime-параметры `dialog_config.workspace_client_external_profile_auth_header` и `dialog_config.workspace_client_external_profile_auth_token` (UI «Настройки → Диалоги → Workspace» + `SettingsBridgeController` + backend-fetch в `DialogApiController`). Внешний fetch теперь может отправлять auth-header (с валидацией безопасного имени заголовка), что закрывает оставшийся practical-gap по подключению enterprise-профилей, где API недоступен без сервисной авторизации.
 
-## 11) Актуализированный список невыполненного (после NOW-1.176)
+- [x] **NOW-1.177 (этап B3/A3, controlled legacy decommission switch):** добавлен runtime-флаг `dialog_config.workspace_decommission_legacy_modal` (UI «Настройки → Диалоги → Workspace» + `SettingsBridgeController` + `dialogs.js`). При включении все открытия диалогов принудительно идут через workspace (вне зависимости от A/B cohort), а auto-fallback/cooldown возврат в `dialogDetailsModal` блокируется с явным операторским уведомлением. Это закрывает практический промежуточный шаг к финальному выводу legacy modal из эксплуатации и позволяет провести контролируемый cutover без code-deploy.
+
+## 11) Актуализированный список невыполненного (после NOW-1.177)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
 1. **Финальный вывод legacy modal из эксплуатации**
-   - `dialogDetailsModal` по-прежнему сохранён как fallback/rollback-путь.
-   - Нужно довести функциональный parity workspace для всех edge-case сценариев и формально закрыть legacy-flow.
+   - Введён runtime-переключатель decommission (`workspace_decommission_legacy_modal`) для cutover без деплоя, но сам `dialogDetailsModal` пока сохранён в кодовой базе как технический rollback-путь.
+   - Нужно довести функциональный parity workspace для всех edge-case сценариев и формально удалить legacy-flow из кода после стабилизационного окна.
 
 2. **Полная SLA-first оркестрация на стороне сервера**
    - UI/bridge/правила маршрутизации существенно усилены, но остаётся довести end-to-end auto-orchestration до уровня «без ручного triage» для критичных кейсов во всех очередях.

@@ -331,6 +331,7 @@
     normalizeStringArray(window.DIALOG_CONFIG?.workspace_client_hidden_attributes, []).map((value) => value.toLowerCase()),
   );
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
+  const WORKSPACE_DECOMMISSION_LEGACY_MODAL = window.DIALOG_CONFIG?.workspace_decommission_legacy_modal === true;
   const WORKSPACE_DISABLE_LEGACY_FALLBACK = window.DIALOG_CONFIG?.workspace_disable_legacy_fallback === true;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
@@ -666,6 +667,9 @@
   function resolveWorkspaceExperienceEnabled() {
     if (!WORKSPACE_V1_ENABLED) {
       return false;
+    }
+    if (WORKSPACE_DECOMMISSION_LEGACY_MODAL) {
+      return true;
     }
     if (WORKSPACE_FORCE_MODE) {
       return true;
@@ -3159,9 +3163,9 @@
     const source = options.source || 'manual_open';
     const channelId = row?.dataset?.channelId || null;
     if (isWorkspaceTemporarilyDisabled()) {
-      if (WORKSPACE_DISABLE_LEGACY_FALLBACK) {
+      if (WORKSPACE_DISABLE_LEGACY_FALLBACK || WORKSPACE_DECOMMISSION_LEGACY_MODAL) {
         if (typeof showNotification === 'function') {
-          showNotification('Workspace в strict mode: legacy fallback отключён, дождитесь завершения cooldown или откатите настройку.', 'warning');
+          showNotification('Legacy modal отключён: дождитесь завершения workspace cooldown или временно снимите режим decommission в настройках.', 'warning');
         }
         return;
       }
@@ -3255,17 +3259,17 @@
         workspaceShell.classList.remove('d-none');
         if (workspaceMessagesState) {
           workspaceMessagesState.classList.remove('d-none');
-          workspaceMessagesState.textContent = WORKSPACE_DISABLE_LEGACY_FALLBACK
-            ? 'Workspace временно недоступен. Включён strict mode, поэтому auto-fallback в legacy отключён.'
+          workspaceMessagesState.textContent = (WORKSPACE_DISABLE_LEGACY_FALLBACK || WORKSPACE_DECOMMISSION_LEGACY_MODAL)
+            ? 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.'
             : 'Workspace временно недоступен, открыт legacy-режим.';
         }
         if (workspaceMessagesError) {
           workspaceMessagesError.classList.remove('d-none');
         }
       }
-      if (WORKSPACE_DISABLE_LEGACY_FALLBACK) {
+      if (WORKSPACE_DISABLE_LEGACY_FALLBACK || WORKSPACE_DECOMMISSION_LEGACY_MODAL) {
         if (typeof showNotification === 'function') {
-          showNotification('Workspace strict mode: auto-fallback в legacy отключён. Проверьте telemetry и исправьте ошибку контракта.', 'warning');
+          showNotification('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
         }
         return;
       }
