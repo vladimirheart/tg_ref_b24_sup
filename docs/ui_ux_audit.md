@@ -675,8 +675,10 @@
 
 - [x] **NOW-1.188 (этап E3, external dashboard readiness gate):** закрыт operational-gap по «частично выполненному» BI bridge: добавлен runtime-флаг `dialog_config.workspace_rollout_external_kpi_dashboard_links_required`, который (при включении) удерживает `rollout_decision` в `hold`, пока не заполнены обе ссылки `cross_product_omnichannel_dashboard_url` и `cross_product_finance_dashboard_url`. Параметр доступен в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», а страница «Аналитика» теперь показывает состояние `links=ready/missing/off` в rationale decision-banner.
 
+- [x] **NOW-1.189 (этап E3, external ownership gate hardening):** для оставшегося риска по внешнему data-mart добавлен runtime-флаг `dialog_config.workspace_rollout_external_kpi_owner_runbook_required`. При включении `rollout_decision` удерживается в `hold`, пока не заполнены оба поля `workspace_rollout_external_kpi_datamart_owner` и `workspace_rollout_external_kpi_datamart_runbook_url`. Параметр доступен в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», а decision-banner в «Аналитике» теперь явно показывает `owner/runbook=ready/missing/off`.
 
-## 11) Актуализированный список невыполненного (после NOW-1.188)
+
+## 11) Актуализированный список невыполненного (после NOW-1.189)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 

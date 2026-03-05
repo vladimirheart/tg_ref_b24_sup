@@ -48,6 +48,7 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_TTL_HOURS = 48L;
     private static final boolean DEFAULT_EXTERNAL_KPI_DASHBOARD_LINKS_REQUIRED = false;
+    private static final boolean DEFAULT_EXTERNAL_KPI_OWNER_RUNBOOK_REQUIRED = false;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -819,6 +820,9 @@ public class DialogService {
         boolean dashboardLinksRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_dashboard_links_required",
                 DEFAULT_EXTERNAL_KPI_DASHBOARD_LINKS_REQUIRED);
+        boolean ownerRunbookRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_owner_runbook_required",
+                DEFAULT_EXTERNAL_KPI_OWNER_RUNBOOK_REQUIRED);
         String dataUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_data_updated_at"));
         long dataFreshnessTtlHours = resolveLongDialogConfigValue(
                 "workspace_rollout_external_kpi_data_freshness_ttl_hours",
@@ -850,11 +854,14 @@ public class DialogService {
         String financeDashboardUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("cross_product_finance_dashboard_url")));
         boolean dashboardLinksPresent = StringUtils.hasText(omnichannelDashboardUrl) && StringUtils.hasText(financeDashboardUrl);
         boolean dashboardLinksReady = !dashboardLinksRequired || dashboardLinksPresent;
+        boolean ownerRunbookPresent = StringUtils.hasText(datamartOwner) && StringUtils.hasText(datamartRunbookUrl);
+        boolean ownerRunbookReady = !ownerRunbookRequired || ownerRunbookPresent;
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
                 && dataFreshnessReady
-                && dashboardLinksReady);
+                && dashboardLinksReady
+                && ownerRunbookReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
@@ -875,6 +882,9 @@ public class DialogService {
         signal.put("dashboard_links_required", dashboardLinksRequired);
         signal.put("dashboard_links_present", dashboardLinksPresent);
         signal.put("dashboard_links_ready", dashboardLinksReady);
+        signal.put("owner_runbook_required", ownerRunbookRequired);
+        signal.put("owner_runbook_present", ownerRunbookPresent);
+        signal.put("owner_runbook_ready", ownerRunbookReady);
         signal.put("ready_for_decision", readyForDecision);
         signal.put("note", note != null ? note.trim() : "");
         return signal;
