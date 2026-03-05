@@ -86,6 +86,7 @@ public class SlaEscalationWebhookNotifier {
             if (orchestrationMode == SlaOrchestrationMode.AUTOPILOT) {
                 autoAssignConfig = new LinkedHashMap<>(dialogConfig);
                 autoAssignConfig.put("sla_critical_auto_assign_enabled", true);
+                autoAssignConfig.put("sla_critical_auto_assign_include_assigned", true);
             }
             applyAutoAssignment(candidates, autoAssignConfig);
         }
@@ -241,13 +242,7 @@ public class SlaEscalationWebhookNotifier {
     }
 
     private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
-        List<Map<String, Object>> unassignedCandidates = candidates.stream()
-                .filter(candidate -> {
-                    Object responsible = candidate.get("responsible");
-                    return trimToNull(responsible != null ? String.valueOf(responsible) : null) == null;
-                })
-                .toList();
-        List<AutoAssignDecision> decisions = resolveAutoAssignDecisions(unassignedCandidates, dialogConfig);
+        List<AutoAssignDecision> decisions = resolveAutoAssignDecisions(candidates, dialogConfig);
         if (decisions.isEmpty()) {
             return;
         }
@@ -258,8 +253,12 @@ public class SlaEscalationWebhookNotifier {
         int assignedCount = 0;
         for (AutoAssignDecision decision : decisions) {
             dialogService.assignResponsibleIfMissingOrRedirected(decision.ticketId(), decision.assignee(), actor);
-            dialogService.logDialogActionAudit(decision.ticketId(), actor, "sla_auto_assign", "success",
-                    "assigned_to=" + decision.assignee() + ";source=" + decision.source() + ";route=" + decision.route());
+            String action = decision.previousResponsible() == null ? "sla_auto_assign" : "sla_auto_reassign";
+            String detail = "assigned_to=" + decision.assignee()
+                    + ";source=" + decision.source()
+                    + ";route=" + decision.route()
+                    + (decision.previousResponsible() != null ? ";previous_responsible=" + decision.previousResponsible() : "");
+            dialogService.logDialogActionAudit(decision.ticketId(), actor, action, "success", detail);
             assignedCount++;
         }
         if (assignedCount > 0) {
@@ -297,6 +296,7 @@ public class SlaEscalationWebhookNotifier {
         int maxPerRun = resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_max_per_run", 5, 100);
         Integer maxOpenPerOperator = resolveOptionalNonNegativeInt(dialogConfig.get("sla_critical_auto_assign_max_open_per_operator"));
         boolean requireCategories = resolveBoolean(dialogConfig, "sla_critical_auto_assign_require_categories", false);
+        boolean includeAssigned = resolveBoolean(dialogConfig, "sla_critical_auto_assign_include_assigned", false);
         if ((rules.isEmpty() && fallbackAssignee == null) || candidates == null || candidates.isEmpty()) {
             return List.of();
         }
@@ -312,6 +312,10 @@ public class SlaEscalationWebhookNotifier {
                 continue;
             }
             processedTicketIds.add(ticketId);
+            String currentResponsible = trimToNull(String.valueOf(candidate.get("responsible")));
+            if (!includeAssigned && currentResponsible != null) {
+                continue;
+            }
             String candidateChannel = normalizeMatchValue(candidate.get("channel"));
             String candidateBusiness = normalizeMatchValue(candidate.get("business"));
             String candidateLocation = normalizeMatchValue(candidate.get("location"));
@@ -349,12 +353,15 @@ public class SlaEscalationWebhookNotifier {
                 assignee = fallbackAssignee;
                 matchedRule = null;
             }
-            String source = matchedRule != null ? "rules" : "fallback";
-            String route = matchedRule != null ? matchedRule.route() : "fallback_default";
             if (assignee == null) {
                 continue;
             }
-            decisions.add(new AutoAssignDecision(ticketId, assignee, source, route));
+            if (currentResponsible != null && currentResponsible.equalsIgnoreCase(assignee)) {
+                continue;
+            }
+            String source = matchedRule != null ? "rules" : "fallback";
+            String route = matchedRule != null ? matchedRule.route() : "fallback_default";
+            decisions.add(new AutoAssignDecision(ticketId, assignee, source, route, currentResponsible));
         }
         return decisions;
     }
@@ -955,7 +962,7 @@ public class SlaEscalationWebhookNotifier {
         return value.substring(0, max) + "…";
     }
 
-    record AutoAssignDecision(String ticketId, String assignee, String source, String route) {
+    record AutoAssignDecision(String ticketId, String assignee, String source, String route, String previousResponsible) {
     }
 
     private enum PoolAssignStrategy {
