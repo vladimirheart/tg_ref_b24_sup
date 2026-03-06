@@ -263,6 +263,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_blocker_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_status")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_note")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_blocker_url")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_freshness_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_updated_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_ttl_hours")
@@ -739,6 +740,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_note")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_program_note",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_program_note"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_blocker_url")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_program_blocker_url",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_program_blocker_url"));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_freshness_required")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_program_freshness_required",

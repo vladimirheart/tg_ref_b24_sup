@@ -2622,6 +2622,11 @@
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramNote" maxlength="300" placeholder="Что блокирует data-mart, ответственный поток, ETA по снятию блокера">
                     </div>
                     <div class="col-md-12">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramBlockerUrl" class="form-label">Ссылка на blocker-ticket/инцидент data-mart</label>
+                      <input type="url" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramBlockerUrl" placeholder="https://jira.example.com/browse/BI-1234">
+                      <div class="form-text">Рекомендуется указывать при статусе <code>blocked</code>; при включённом blocker-gate ссылка обязательна и должна быть корректной (http/https).</div>
+                    </div>
+                    <div class="col-md-12">
                       <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartProgramFreshnessRequired">
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartProgramFreshnessRequired">Требовать актуальный update по программному статусу data-mart</label>
@@ -4490,6 +4495,7 @@
     workspace_rollout_external_kpi_datamart_program_blocker_required: false,
     workspace_rollout_external_kpi_datamart_program_status: 'unknown',
     workspace_rollout_external_kpi_datamart_program_note: '',
+    workspace_rollout_external_kpi_datamart_program_blocker_url: '',
     workspace_rollout_external_kpi_datamart_program_freshness_required: false,
     workspace_rollout_external_kpi_datamart_program_updated_at: '',
     workspace_rollout_external_kpi_datamart_program_ttl_hours: 336,
@@ -13609,6 +13615,7 @@
       workspaceExternalKpiDatamartProgramBlockerRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramBlockerRequired'),
       workspaceExternalKpiDatamartProgramStatus: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramStatus'),
       workspaceExternalKpiDatamartProgramNote: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramNote'),
+      workspaceExternalKpiDatamartProgramBlockerUrl: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramBlockerUrl'),
       workspaceExternalKpiDatamartProgramFreshnessRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramFreshnessRequired'),
       workspaceExternalKpiDatamartProgramUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramUpdatedAt'),
       workspaceExternalKpiDatamartProgramTtlHours: document.getElementById('dialogWorkspaceExternalKpiDatamartProgramTtlHours'),
@@ -14283,6 +14290,9 @@
     }
     if (inputs.workspaceExternalKpiDatamartProgramNote) {
       inputs.workspaceExternalKpiDatamartProgramNote.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_note || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartProgramBlockerUrl) {
+      inputs.workspaceExternalKpiDatamartProgramBlockerUrl.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_blocker_url || '').trim();
     }
     if (inputs.workspaceExternalKpiDatamartProgramFreshnessRequired) {
       inputs.workspaceExternalKpiDatamartProgramFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_freshness_required);
@@ -15524,6 +15534,15 @@
       ? safeWorkspaceExternalKpiDatamartProgramStatusRaw
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_program_status;
     const safeWorkspaceExternalKpiDatamartProgramNote = String(inputs.workspaceExternalKpiDatamartProgramNote?.value || '').trim().slice(0, 300);
+    const safeWorkspaceExternalKpiDatamartProgramBlockerUrl = String(inputs.workspaceExternalKpiDatamartProgramBlockerUrl?.value || '').trim();
+    if (safeWorkspaceExternalKpiDatamartProgramBlockerUrl && !isValidExternalReferenceUrl(safeWorkspaceExternalKpiDatamartProgramBlockerUrl)) {
+      errors.push('Ссылка blocker-ticket data-mart должна быть корректной http/https ссылкой.');
+    }
+    if (safeWorkspaceExternalKpiDatamartProgramBlockerRequired
+      && safeWorkspaceExternalKpiDatamartProgramStatus === 'blocked'
+      && !safeWorkspaceExternalKpiDatamartProgramBlockerUrl) {
+      errors.push('Для blocked-статуса data-mart при включённом blocker-gate укажите blocker-ticket URL.');
+    }
     const safeWorkspaceExternalKpiDatamartProgramFreshnessRequired = Boolean(inputs.workspaceExternalKpiDatamartProgramFreshnessRequired?.checked);
     const safeWorkspaceExternalKpiDatamartProgramUpdatedAt = toUtcIsoString(inputs.workspaceExternalKpiDatamartProgramUpdatedAt?.value || '');
     const safeWorkspaceExternalKpiDatamartProgramTtlHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartProgramTtlHours?.value || '', 10);
@@ -15694,6 +15713,7 @@
         dialog_workspace_rollout_external_kpi_datamart_program_blocker_required: safeWorkspaceExternalKpiDatamartProgramBlockerRequired,
         dialog_workspace_rollout_external_kpi_datamart_program_status: safeWorkspaceExternalKpiDatamartProgramStatus,
         dialog_workspace_rollout_external_kpi_datamart_program_note: safeWorkspaceExternalKpiDatamartProgramNote,
+        dialog_workspace_rollout_external_kpi_datamart_program_blocker_url: safeWorkspaceExternalKpiDatamartProgramBlockerUrl,
         dialog_workspace_rollout_external_kpi_datamart_program_freshness_required: safeWorkspaceExternalKpiDatamartProgramFreshnessRequired,
         dialog_workspace_rollout_external_kpi_datamart_program_updated_at: safeWorkspaceExternalKpiDatamartProgramUpdatedAt,
         dialog_workspace_rollout_external_kpi_datamart_program_ttl_hours: safeWorkspaceExternalKpiDatamartProgramTtlHours,

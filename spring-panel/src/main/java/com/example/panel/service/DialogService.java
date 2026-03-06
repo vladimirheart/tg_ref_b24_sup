@@ -877,6 +877,7 @@ public class DialogService {
         String datamartProgramStatus = normalizeDatamartProgramStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_status"))));
         String datamartProgramNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_note")));
+        String datamartProgramBlockerUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_blocker_url")));
         String datamartProgramUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_program_updated_at"));
         long datamartProgramTtlHours = resolveLongDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_program_ttl_hours",
@@ -939,7 +940,13 @@ public class DialogService {
             datamartHealthFresh = datamartHealthAgeHours <= datamartHealthTtlHours;
         }
         boolean datamartHealthFreshnessReady = !datamartHealthFreshnessRequired || (datamartHealthUpdatedPresent && datamartHealthFresh);
-        boolean datamartProgramReady = !datamartProgramBlockerRequired || !"blocked".equals(datamartProgramStatus);
+        boolean datamartProgramBlockerUrlPresent = StringUtils.hasText(datamartProgramBlockerUrl);
+        boolean datamartProgramBlockerUrlValid = !datamartProgramBlockerUrlPresent || isValidExternalReferenceUrl(datamartProgramBlockerUrl);
+        boolean datamartProgramBlocked = "blocked".equals(datamartProgramStatus);
+        boolean datamartProgramBlockerReady = !datamartProgramBlocked
+                || (datamartProgramBlockerUrlPresent && datamartProgramBlockerUrlValid);
+        boolean datamartProgramReady = !datamartProgramBlockerRequired
+                || (!datamartProgramBlocked && datamartProgramBlockerReady);
         OffsetDateTime datamartProgramUpdatedAt = parseReviewTimestamp(datamartProgramUpdatedAtRaw);
         boolean datamartProgramUpdatedPresent = datamartProgramUpdatedAt != null;
         boolean datamartProgramFresh = false;
@@ -1043,6 +1050,11 @@ public class DialogService {
         signal.put("datamart_program_blocker_required", datamartProgramBlockerRequired);
         signal.put("datamart_program_status", datamartProgramStatus);
         signal.put("datamart_program_note", datamartProgramNote);
+        signal.put("datamart_program_blocker_url", datamartProgramBlockerUrl);
+        signal.put("datamart_program_blocked", datamartProgramBlocked);
+        signal.put("datamart_program_blocker_url_present", datamartProgramBlockerUrlPresent);
+        signal.put("datamart_program_blocker_url_valid", datamartProgramBlockerUrlValid);
+        signal.put("datamart_program_blocker_ready", datamartProgramBlockerReady);
         signal.put("datamart_program_ready", datamartProgramReady);
         signal.put("datamart_program_freshness_required", datamartProgramFreshnessRequired);
         signal.put("datamart_program_updated_at", datamartProgramUpdatedAt != null ? datamartProgramUpdatedAt.toString() : "");
