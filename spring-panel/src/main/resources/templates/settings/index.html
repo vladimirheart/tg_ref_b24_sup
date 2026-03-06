@@ -15414,6 +15414,9 @@
     const safeWorkspaceExternalKpiDatamartRunbookUrl = String(inputs.workspaceExternalKpiDatamartRunbookUrl?.value || '').trim();
     const safeWorkspaceExternalKpiDatamartDependencyTicketRequired = Boolean(inputs.workspaceExternalKpiDatamartDependencyTicketRequired?.checked);
     const safeWorkspaceExternalKpiDatamartDependencyTicketUrl = String(inputs.workspaceExternalKpiDatamartDependencyTicketUrl?.value || '').trim();
+    if (safeWorkspaceExternalKpiDatamartDependencyTicketUrl && !isValidExternalReferenceUrl(safeWorkspaceExternalKpiDatamartDependencyTicketUrl)) {
+      errors.push('Dependency-ticket URL должен быть корректной http/https ссылкой.');
+    }
     if (safeWorkspaceExternalKpiDatamartDependencyTicketRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketUrl) {
       errors.push('Для dependency-ticket gate укажите ссылку на внешний трекер data-mart.');
     }
@@ -16257,6 +16260,19 @@
   function buildPublicFormUrl(channel) {
     if (!channel?.public_id) return '';
     return `${window.location.origin}/public/forms/${encodeURIComponent(channel.public_id)}`;
+  }
+
+  function isValidExternalReferenceUrl(rawValue) {
+    const value = String(rawValue || '').trim();
+    if (!value) {
+      return false;
+    }
+    try {
+      const parsed = new URL(value);
+      return ['http:', 'https:'].includes(parsed.protocol) && Boolean(parsed.hostname);
+    } catch (error) {
+      return false;
+    }
   }
 
   function slugifyPublicFieldId(value, fallbackIndex = 1) {
