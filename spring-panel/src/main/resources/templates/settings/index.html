@@ -2499,6 +2499,16 @@
                     </div>
                     <div class="col-md-12">
                       <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired">Требовать owner dependency-ticket для снятия hold</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwner" class="form-label">Owner dependency-ticket (команда/ответственный)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwner" maxlength="120" placeholder="BI Platform / @data-owner">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">Требовать актуальный апдейт dependency-ticket для внешнего data-mart</label>
                       </div>
@@ -4472,6 +4482,8 @@
     workspace_rollout_external_kpi_datamart_runbook_url: '',
     workspace_rollout_external_kpi_datamart_dependency_ticket_required: false,
     workspace_rollout_external_kpi_datamart_dependency_ticket_url: '',
+    workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required: false,
+    workspace_rollout_external_kpi_datamart_dependency_ticket_owner: '',
     workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required: false,
     workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at: '',
     workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours: 336,
@@ -13592,6 +13604,8 @@
       workspaceExternalKpiDatamartRunbookUrl: document.getElementById('dialogWorkspaceExternalKpiDatamartRunbookUrl'),
       workspaceExternalKpiDatamartDependencyTicketRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketRequired'),
       workspaceExternalKpiDatamartDependencyTicketUrl: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketUrl'),
+      workspaceExternalKpiDatamartDependencyTicketOwnerRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired'),
+      workspaceExternalKpiDatamartDependencyTicketOwner: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketOwner'),
       workspaceExternalKpiDatamartDependencyTicketFreshnessRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired'),
       workspaceExternalKpiDatamartDependencyTicketUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt'),
       workspaceExternalKpiDatamartDependencyTicketTtlHours: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours'),
@@ -14203,6 +14217,12 @@
     }
     if (inputs.workspaceExternalKpiDatamartDependencyTicketUrl) {
       inputs.workspaceExternalKpiDatamartDependencyTicketUrl.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_url || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartDependencyTicketOwnerRequired) {
+      inputs.workspaceExternalKpiDatamartDependencyTicketOwnerRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartDependencyTicketOwner) {
+      inputs.workspaceExternalKpiDatamartDependencyTicketOwner.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_owner || '').trim();
     }
     if (inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired) {
       inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required);
@@ -15457,6 +15477,8 @@
     const safeWorkspaceExternalKpiDatamartRunbookUrl = String(inputs.workspaceExternalKpiDatamartRunbookUrl?.value || '').trim();
     const safeWorkspaceExternalKpiDatamartDependencyTicketRequired = Boolean(inputs.workspaceExternalKpiDatamartDependencyTicketRequired?.checked);
     const safeWorkspaceExternalKpiDatamartDependencyTicketUrl = String(inputs.workspaceExternalKpiDatamartDependencyTicketUrl?.value || '').trim();
+    const safeWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired = Boolean(inputs.workspaceExternalKpiDatamartDependencyTicketOwnerRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartDependencyTicketOwner = String(inputs.workspaceExternalKpiDatamartDependencyTicketOwner?.value || '').trim().slice(0, 120);
     if (safeWorkspaceExternalKpiDatamartDependencyTicketUrl && !isValidExternalReferenceUrl(safeWorkspaceExternalKpiDatamartDependencyTicketUrl)) {
       errors.push('Dependency-ticket URL должен быть корректной http/https ссылкой.');
     }
@@ -15474,6 +15496,9 @@
     }
     if (safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt) {
       errors.push('Для freshness-gate dependency-ticket укажите дату последнего обновления тикета.');
+    }
+    if (safeWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketOwner) {
+      errors.push('Для owner-gate dependency-ticket укажите ответственного владельца.');
     }
     const safeWorkspaceExternalKpiReviewedBy = String(inputs.workspaceExternalKpiReviewedBy?.value || '').trim().slice(0, 120);
     const safeWorkspaceExternalKpiReviewedAtRaw = String(inputs.workspaceExternalKpiReviewedAt?.value || '').trim();
@@ -15690,6 +15715,8 @@
         dialog_workspace_rollout_external_kpi_datamart_runbook_url: safeWorkspaceExternalKpiDatamartRunbookUrl,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_required: safeWorkspaceExternalKpiDatamartDependencyTicketRequired,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_url: safeWorkspaceExternalKpiDatamartDependencyTicketUrl,
+        dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required: safeWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired,
+        dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner: safeWorkspaceExternalKpiDatamartDependencyTicketOwner,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required: safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at: safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours: safeWorkspaceExternalKpiDatamartDependencyTicketTtlHours,
