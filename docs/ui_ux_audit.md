@@ -696,8 +696,10 @@
 
 - [x] **NOW-1.199 (этап E3, dependency-ticket freshness gate):** закрыт следующий операционный риск внешней BI-зависимости: добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required`, `..._datamart_dependency_ticket_updated_at` и `..._datamart_dependency_ticket_ttl_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + backend decisioning). `rollout_decision.external_kpi_signal` теперь удерживает rollout в `hold`, если dependency-ticket устарел, даже при валидной ссылке. Это снижает риск масштабирования на «мертвом» статусе внешнего data-mart потока.
 
+- [x] **NOW-1.200 (этап E3, dependency-ticket observability in analytics):** на странице «Аналитика» добавлена явная индикация статуса dependency-ticket для внешнего data-mart потока (badge required/optional, признак freshness-gate, last-updated + TTL, прямая кнопка перехода к тикету). Данные прокинуты из `dialog_config` через `AnalyticsController`, что закрывает пробел видимости внешнего блокера для дежурной смены без захода в «Настройки».
 
-## 11) Актуализированный список невыполненного (после NOW-1.199)
+
+## 11) Актуализированный список невыполненного (после NOW-1.200)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
