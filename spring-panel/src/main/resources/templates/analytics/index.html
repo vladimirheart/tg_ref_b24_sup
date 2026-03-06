@@ -41,7 +41,16 @@
                           th:text="${crossProductOmnichannelReady} ? 'Omni KPI: ready' : 'Omni KPI: pending'">Omni KPI status</span>
                     <span class="badge" th:classappend="${crossProductFinanceReady} ? ' text-bg-success' : ' text-bg-secondary'"
                           th:text="${crossProductFinanceReady} ? 'Finance KPI: ready' : 'Finance KPI: pending'">Finance KPI status</span>
+                    <span class="badge"
+                          th:classappend="${#strings.isNotEmpty(crossProductDependencyTicketUrl)} ? ' text-bg-success' : (${crossProductDependencyTicketRequired} ? ' text-bg-danger' : ' text-bg-secondary')"
+                          th:text="${#strings.isNotEmpty(crossProductDependencyTicketUrl)} ? 'Dependency ticket: указан' : (${crossProductDependencyTicketRequired} ? 'Dependency ticket: обязателен' : 'Dependency ticket: optional')">Dependency ticket status</span>
+                    <span class="badge"
+                          th:classappend="${crossProductDependencyTicketFreshnessRequired} ? ' text-bg-warning' : ' text-bg-light border'"
+                          th:text="${crossProductDependencyTicketFreshnessRequired} ? 'Gate dependency freshness=required' : 'Gate dependency freshness=optional'">Dependency freshness gate</span>
                 </div>
+                <p class="small text-muted mt-2 mb-0"
+                   th:if="${crossProductDependencyTicketFreshnessRequired and #strings.isNotEmpty(crossProductDependencyTicketUpdatedAt)}"
+                   th:text="${'Dependency ticket updated: ' + crossProductDependencyTicketUpdatedAt + ' · TTL: ' + crossProductDependencyTicketTtlHours + 'h'}">Dependency ticket updated: n/a</p>
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
@@ -52,6 +61,9 @@
                    th:if="${#strings.isNotEmpty(crossProductFinanceDashboardUrl)}"
                    th:href="${crossProductFinanceDashboardUrl}"
                    th:text="${#strings.isNotEmpty(crossProductFinanceDashboardLabel) ? crossProductFinanceDashboardLabel : 'Финансовый KPI dashboard'}">Финансовый KPI dashboard</a>
+                <a class="btn btn-outline-dark" target="_blank" rel="noopener noreferrer"
+                   th:if="${#strings.isNotEmpty(crossProductDependencyTicketUrl)}"
+                   th:href="${crossProductDependencyTicketUrl}">Dependency ticket</a>
                 <a class="btn btn-outline-secondary" th:href="@{/settings#dialogSlaEscalationSection}">Открыть настройки BI bridge</a>
             </div>
         </div>
