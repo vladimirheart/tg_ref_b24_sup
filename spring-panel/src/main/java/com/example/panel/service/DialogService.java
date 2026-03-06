@@ -59,6 +59,7 @@ public class DialogService {
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_PROGRAM_TTL_HOURS = 24L * 14L;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_GRACE_HOURS = 24L;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_REQUIRED = false;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -817,6 +818,7 @@ public class DialogService {
         String note = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_note"));
         String datamartOwner = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_owner"));
         String datamartRunbookUrl = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_runbook_url"));
+        String datamartDependencyTicketUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_url")));
         String reviewedBy = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_by"));
         String reviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_at"));
         long reviewTtlHours = resolveLongDialogConfigValue(
@@ -851,6 +853,9 @@ public class DialogService {
         boolean datamartTimelineRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_timeline_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_REQUIRED);
+        boolean datamartDependencyTicketRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_required",
+                DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_REQUIRED);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
         String dashboardStatus = normalizeDatamartHealthStatus(
@@ -946,6 +951,8 @@ public class DialogService {
         boolean datamartTimelineReady = !datamartTimelineRequired
                 || "ready".equals(datamartProgramStatus)
                 || (datamartTargetPresent && !datamartTargetOverdue);
+        boolean datamartDependencyTicketPresent = StringUtils.hasText(datamartDependencyTicketUrl);
+        boolean datamartDependencyTicketReady = !datamartDependencyTicketRequired || datamartDependencyTicketPresent;
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
@@ -957,12 +964,17 @@ public class DialogService {
                 && datamartHealthFreshnessReady
                 && datamartProgramReady
                 && datamartProgramFreshnessReady
-                && datamartTimelineReady);
+                && datamartTimelineReady
+                && datamartDependencyTicketReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
         signal.put("datamart_owner", normalizeNullString(datamartOwner));
         signal.put("datamart_runbook_url", normalizeNullString(datamartRunbookUrl));
+        signal.put("datamart_dependency_ticket_required", datamartDependencyTicketRequired);
+        signal.put("datamart_dependency_ticket_url", datamartDependencyTicketUrl);
+        signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
+        signal.put("datamart_dependency_ticket_ready", datamartDependencyTicketReady);
         signal.put("reviewed_by", normalizeNullString(reviewedBy));
         signal.put("reviewed_at", reviewedAt != null ? reviewedAt.toString() : "");
         signal.put("review_ttl_hours", reviewTtlHours);
