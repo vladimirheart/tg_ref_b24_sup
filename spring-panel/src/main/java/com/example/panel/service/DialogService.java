@@ -952,7 +952,9 @@ public class DialogService {
                 || "ready".equals(datamartProgramStatus)
                 || (datamartTargetPresent && !datamartTargetOverdue);
         boolean datamartDependencyTicketPresent = StringUtils.hasText(datamartDependencyTicketUrl);
-        boolean datamartDependencyTicketReady = !datamartDependencyTicketRequired || datamartDependencyTicketPresent;
+        boolean datamartDependencyTicketValid = !datamartDependencyTicketPresent || isValidExternalReferenceUrl(datamartDependencyTicketUrl);
+        boolean datamartDependencyTicketReady = !datamartDependencyTicketRequired
+                || (datamartDependencyTicketPresent && datamartDependencyTicketValid);
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
@@ -974,6 +976,7 @@ public class DialogService {
         signal.put("datamart_dependency_ticket_required", datamartDependencyTicketRequired);
         signal.put("datamart_dependency_ticket_url", datamartDependencyTicketUrl);
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
+        signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
         signal.put("datamart_dependency_ticket_ready", datamartDependencyTicketReady);
         signal.put("reviewed_by", normalizeNullString(reviewedBy));
         signal.put("reviewed_at", reviewedAt != null ? reviewedAt.toString() : "");
@@ -1029,6 +1032,26 @@ public class DialogService {
         signal.put("ready_for_decision", readyForDecision);
         signal.put("note", note != null ? note.trim() : "");
         return signal;
+    }
+
+    private boolean isValidExternalReferenceUrl(String rawUrl) {
+        if (!StringUtils.hasText(rawUrl)) {
+            return false;
+        }
+        try {
+            URI parsed = URI.create(rawUrl.trim());
+            String scheme = parsed.getScheme();
+            if (!StringUtils.hasText(scheme)) {
+                return false;
+            }
+            String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
+            if (!"http".equals(normalizedScheme) && !"https".equals(normalizedScheme)) {
+                return false;
+            }
+            return StringUtils.hasText(parsed.getHost());
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 
     private String normalizeDatamartProgramStatus(String rawValue) {
