@@ -64,6 +64,19 @@ public class AnalyticsController {
                     String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_omnichannel_ready", false))));
             model.addAttribute("crossProductFinanceReady", Boolean.parseBoolean(
                     String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_finance_ready", false))));
+            String dependencyTicketUrl = String.valueOf(dialogConfig.getOrDefault(
+                    "workspace_rollout_external_kpi_datamart_dependency_ticket_url", "")).trim();
+            model.addAttribute("crossProductDependencyTicketUrl", dependencyTicketUrl);
+            model.addAttribute("crossProductDependencyTicketRequired", Boolean.parseBoolean(
+                    String.valueOf(dialogConfig.getOrDefault(
+                            "workspace_rollout_external_kpi_datamart_dependency_ticket_required", false))));
+            model.addAttribute("crossProductDependencyTicketFreshnessRequired", Boolean.parseBoolean(
+                    String.valueOf(dialogConfig.getOrDefault(
+                            "workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required", false))));
+            model.addAttribute("crossProductDependencyTicketUpdatedAt", String.valueOf(dialogConfig.getOrDefault(
+                    "workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at", "")).trim());
+            model.addAttribute("crossProductDependencyTicketTtlHours", String.valueOf(dialogConfig.getOrDefault(
+                    "workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours", "336")).trim());
 
             log.info("Analytics view requested by {}: {} ticket rows, {} client rows",
                     authentication.getName(), ticketSummary.size(), clientSummary.size());
