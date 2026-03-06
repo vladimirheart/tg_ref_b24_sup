@@ -694,8 +694,10 @@
 - [x] **NOW-1.197 (этап E3, external dependency ticket gate):** для оставшегося внешнего backlog-потока data-mart добавлен explicit dependency gate: `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_required` + `..._datamart_dependency_ticket_url`. Настройки доступны в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», проходят через bridge в backend decisioning и попадают в `rollout_decision.external_kpi_signal`. Если gate включён и ссылка на внешний трекер (Jira/YouTrack и т.п.) не задана, rollout остаётся в `hold`; это делает внешний долг наблюдаемым и снижает риск «невидимого» блокера.
 - [x] **NOW-1.198 (этап E3, dependency-ticket quality gate hardening):** dependency-ticket gate усилен валидацией качества ссылки: backend decisioning учитывает `datamart_dependency_ticket_valid` (допускаются только корректные `http/https` URL с host), а UI «Настройки → Диалоги» блокирует сохранение при некорректной ссылке. Это исключает ложноположительный `ready_for_decision` при `mailto`/пустых/битых URL и повышает надёжность внешнего BI-gate.
 
+- [x] **NOW-1.199 (этап E3, dependency-ticket freshness gate):** закрыт следующий операционный риск внешней BI-зависимости: добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required`, `..._datamart_dependency_ticket_updated_at` и `..._datamart_dependency_ticket_ttl_hours` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + backend decisioning). `rollout_decision.external_kpi_signal` теперь удерживает rollout в `hold`, если dependency-ticket устарел, даже при валидной ссылке. Это снижает риск масштабирования на «мертвом» статусе внешнего data-mart потока.
 
-## 11) Актуализированный список невыполненного (после NOW-1.198)
+
+## 11) Актуализированный список невыполненного (после NOW-1.199)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
