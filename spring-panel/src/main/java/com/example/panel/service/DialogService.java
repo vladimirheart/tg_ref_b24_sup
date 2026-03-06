@@ -60,6 +60,8 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_TIMELINE_GRACE_HOURS = 24L;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_REQUIRED = false;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_FRESHNESS_REQUIRED = false;
+    private static final long DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_TTL_HOURS = 24L * 14L;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -819,6 +821,7 @@ public class DialogService {
         String datamartOwner = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_owner"));
         String datamartRunbookUrl = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_runbook_url"));
         String datamartDependencyTicketUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_url")));
+        String datamartDependencyTicketUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at"));
         String reviewedBy = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_by"));
         String reviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_at"));
         long reviewTtlHours = resolveLongDialogConfigValue(
@@ -856,6 +859,9 @@ public class DialogService {
         boolean datamartDependencyTicketRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_dependency_ticket_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_REQUIRED);
+        boolean datamartDependencyTicketFreshnessRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required",
+                DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_FRESHNESS_REQUIRED);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
         String dashboardStatus = normalizeDatamartHealthStatus(
@@ -889,6 +895,11 @@ public class DialogService {
                 DEFAULT_EXTERNAL_KPI_DATA_FRESHNESS_TTL_HOURS,
                 1,
                 24 * 30L);
+        long datamartDependencyTicketTtlHours = resolveLongDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours",
+                DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_TTL_HOURS,
+                1,
+                24 * 90L);
         if ("null".equalsIgnoreCase(note)) {
             note = "";
         }
@@ -953,6 +964,16 @@ public class DialogService {
                 || (datamartTargetPresent && !datamartTargetOverdue);
         boolean datamartDependencyTicketPresent = StringUtils.hasText(datamartDependencyTicketUrl);
         boolean datamartDependencyTicketValid = !datamartDependencyTicketPresent || isValidExternalReferenceUrl(datamartDependencyTicketUrl);
+        OffsetDateTime datamartDependencyTicketUpdatedAt = parseReviewTimestamp(datamartDependencyTicketUpdatedAtRaw);
+        boolean datamartDependencyTicketUpdatedPresent = datamartDependencyTicketUpdatedAt != null;
+        boolean datamartDependencyTicketFresh = false;
+        long datamartDependencyTicketAgeHours = -1;
+        if (datamartDependencyTicketUpdatedAt != null) {
+            datamartDependencyTicketAgeHours = Math.max(0, java.time.Duration.between(datamartDependencyTicketUpdatedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+            datamartDependencyTicketFresh = datamartDependencyTicketAgeHours <= datamartDependencyTicketTtlHours;
+        }
+        boolean datamartDependencyTicketFreshnessReady = !datamartDependencyTicketFreshnessRequired
+                || (datamartDependencyTicketUpdatedPresent && datamartDependencyTicketFresh);
         boolean datamartDependencyTicketReady = !datamartDependencyTicketRequired
                 || (datamartDependencyTicketPresent && datamartDependencyTicketValid);
         boolean readyForDecision = !gateEnabled || (omnichannelReady
@@ -967,7 +988,8 @@ public class DialogService {
                 && datamartProgramReady
                 && datamartProgramFreshnessReady
                 && datamartTimelineReady
-                && datamartDependencyTicketReady);
+                && datamartDependencyTicketReady
+                && datamartDependencyTicketFreshnessReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
@@ -978,6 +1000,13 @@ public class DialogService {
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
         signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
         signal.put("datamart_dependency_ticket_ready", datamartDependencyTicketReady);
+        signal.put("datamart_dependency_ticket_freshness_required", datamartDependencyTicketFreshnessRequired);
+        signal.put("datamart_dependency_ticket_updated_at", datamartDependencyTicketUpdatedAt != null ? datamartDependencyTicketUpdatedAt.toString() : "");
+        signal.put("datamart_dependency_ticket_ttl_hours", datamartDependencyTicketTtlHours);
+        signal.put("datamart_dependency_ticket_updated_present", datamartDependencyTicketUpdatedPresent);
+        signal.put("datamart_dependency_ticket_fresh", datamartDependencyTicketFresh);
+        signal.put("datamart_dependency_ticket_age_hours", datamartDependencyTicketAgeHours);
+        signal.put("datamart_dependency_ticket_freshness_ready", datamartDependencyTicketFreshnessReady);
         signal.put("reviewed_by", normalizeNullString(reviewedBy));
         signal.put("reviewed_at", reviewedAt != null ? reviewedAt.toString() : "");
         signal.put("review_ttl_hours", reviewTtlHours);
