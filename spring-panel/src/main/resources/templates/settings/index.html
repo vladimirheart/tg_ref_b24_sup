@@ -2497,6 +2497,21 @@
                       <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketUrl" class="form-label">Dependency-ticket URL (внешний поток data-mart)</label>
                       <input type="url" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUrl" placeholder="https://jira.example.com/browse/BI-1234">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">Требовать актуальный апдейт dependency-ticket для внешнего data-mart</label>
+                      </div>
+                      <div class="form-text">Если ссылка на внешний тикет давно не обновлялась, rollout остаётся в hold до обновления статуса зависимости.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt" class="form-label">Dependency-ticket обновлён</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours" class="form-label">TTL dependency-ticket, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours" min="1" max="2160" step="1">
+                    </div>
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiReviewedBy" class="form-label">Кто подтвердил checkpoint</label>
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiReviewedBy" maxlength="120" placeholder="on-call / owner / команда">
@@ -4452,6 +4467,9 @@
     workspace_rollout_external_kpi_datamart_runbook_url: '',
     workspace_rollout_external_kpi_datamart_dependency_ticket_required: false,
     workspace_rollout_external_kpi_datamart_dependency_ticket_url: '',
+    workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required: false,
+    workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at: '',
+    workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours: 336,
     workspace_rollout_external_kpi_reviewed_by: '',
     workspace_rollout_external_kpi_reviewed_at: '',
     workspace_rollout_external_kpi_review_ttl_hours: 168,
@@ -13568,6 +13586,9 @@
       workspaceExternalKpiDatamartRunbookUrl: document.getElementById('dialogWorkspaceExternalKpiDatamartRunbookUrl'),
       workspaceExternalKpiDatamartDependencyTicketRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketRequired'),
       workspaceExternalKpiDatamartDependencyTicketUrl: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketUrl'),
+      workspaceExternalKpiDatamartDependencyTicketFreshnessRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired'),
+      workspaceExternalKpiDatamartDependencyTicketUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt'),
+      workspaceExternalKpiDatamartDependencyTicketTtlHours: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours'),
       workspaceExternalKpiReviewedBy: document.getElementById('dialogWorkspaceExternalKpiReviewedBy'),
       workspaceExternalKpiReviewedAt: document.getElementById('dialogWorkspaceExternalKpiReviewedAt'),
       workspaceExternalKpiReviewTtlHours: document.getElementById('dialogWorkspaceExternalKpiReviewTtlHours'),
@@ -14175,6 +14196,18 @@
     }
     if (inputs.workspaceExternalKpiDatamartDependencyTicketUrl) {
       inputs.workspaceExternalKpiDatamartDependencyTicketUrl.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_url || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired) {
+      inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartDependencyTicketUpdatedAt) {
+      inputs.workspaceExternalKpiDatamartDependencyTicketUpdatedAt.value = toDateTimeLocalValue(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at || '');
+    }
+    if (inputs.workspaceExternalKpiDatamartDependencyTicketTtlHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours, 10);
+      inputs.workspaceExternalKpiDatamartDependencyTicketTtlHours.value = Number.isFinite(value)
+        ? clampNumber(value, 1, 2160)
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours;
     }
     if (inputs.workspaceExternalKpiReviewedBy) {
       inputs.workspaceExternalKpiReviewedBy.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_reviewed_by || '').trim();
@@ -15420,6 +15453,18 @@
     if (safeWorkspaceExternalKpiDatamartDependencyTicketRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketUrl) {
       errors.push('Для dependency-ticket gate укажите ссылку на внешний трекер data-mart.');
     }
+    const safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired = Boolean(inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt = toUtcIsoString(inputs.workspaceExternalKpiDatamartDependencyTicketUpdatedAt?.value || '');
+    const safeWorkspaceExternalKpiDatamartDependencyTicketTtlHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartDependencyTicketTtlHours?.value, 10);
+    const safeWorkspaceExternalKpiDatamartDependencyTicketTtlHours = Number.isFinite(safeWorkspaceExternalKpiDatamartDependencyTicketTtlHoursRaw)
+      ? clampNumber(safeWorkspaceExternalKpiDatamartDependencyTicketTtlHoursRaw, 1, 2160)
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours;
+    if (safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketUrl) {
+      errors.push('Для freshness-gate dependency-ticket укажите URL внешнего тикета.');
+    }
+    if (safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt) {
+      errors.push('Для freshness-gate dependency-ticket укажите дату последнего обновления тикета.');
+    }
     const safeWorkspaceExternalKpiReviewedBy = String(inputs.workspaceExternalKpiReviewedBy?.value || '').trim().slice(0, 120);
     const safeWorkspaceExternalKpiReviewedAtRaw = String(inputs.workspaceExternalKpiReviewedAt?.value || '').trim();
     const safeWorkspaceExternalKpiReviewedAtParsed = safeWorkspaceExternalKpiReviewedAtRaw
@@ -15626,6 +15671,9 @@
         dialog_workspace_rollout_external_kpi_datamart_runbook_url: safeWorkspaceExternalKpiDatamartRunbookUrl,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_required: safeWorkspaceExternalKpiDatamartDependencyTicketRequired,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_url: safeWorkspaceExternalKpiDatamartDependencyTicketUrl,
+        dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required: safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired,
+        dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at: safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt,
+        dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours: safeWorkspaceExternalKpiDatamartDependencyTicketTtlHours,
         dialog_workspace_rollout_external_kpi_reviewed_by: safeWorkspaceExternalKpiReviewedBy,
         dialog_workspace_rollout_external_kpi_reviewed_at: safeWorkspaceExternalKpiReviewedAt,
         dialog_workspace_rollout_external_kpi_review_ttl_hours: safeWorkspaceExternalKpiReviewTtlHours,
