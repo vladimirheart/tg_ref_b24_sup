@@ -241,6 +241,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_note")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_owner")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_runbook_url")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_url")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_review_ttl_hours")
@@ -649,6 +651,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_runbook_url")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_runbook_url",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_runbook_url"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_url")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_url",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_url"));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")) {
                     dialogConfig.put("workspace_rollout_external_kpi_reviewed_by",
