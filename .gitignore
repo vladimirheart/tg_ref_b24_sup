@@ -11,3 +11,4 @@ attachments/
 /spring-panel/target/
 /logs
 logs/spring-panel.log
+*.patch
