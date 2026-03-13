@@ -698,8 +698,10 @@
 
 - [x] **NOW-1.201 (этап E3, datamart blocker URL governance):** для внешнего data-mart потока добавлен явный `blocker_url` в runtime-конфиг (`dialog_config.workspace_rollout_external_kpi_datamart_program_blocker_url`) и UI «Настройки → Диалоги». Если включён blocker-gate и программный статус `blocked`, требуется валидный http/https URL на инцидент/тикет; сигнал прокидывается в `rollout_decision.external_kpi_signal` (`datamart_program_blocker_url_*`, `datamart_program_blocker_ready`) и отображается в analytics decision-banner. Это снижает риск «немого blocked-статуса» без трассируемого owner-ticket.
 
+- [x] **NOW-1.202 (этап E3, dependency-ticket owner accountability gate):** для усиления операционной ответственности по внешнему BI-потоку добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required` и `..._datamart_dependency_ticket_owner` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + backend decisioning). `rollout_decision.external_kpi_signal` теперь проверяет наличие owner, и при включённом owner-gate удерживает rollout в `hold`, если ответственный за dependency-ticket не указан. Это делает ownership external-зависимости проверяемым прямо в runtime и снижает риск «ничейного» блокера.
 
-## 11) Актуализированный список невыполненного (после NOW-1.201)
+
+## 11) Актуализированный список невыполненного (после NOW-1.202)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
