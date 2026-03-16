@@ -182,6 +182,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_force_workspace")
                 || payload.containsKey("dialog_workspace_decommission_legacy_modal")
                 || payload.containsKey("dialog_sla_critical_auto_sort")
+                || payload.containsKey("dialog_sla_critical_pin_unassigned_only")
+                || payload.containsKey("dialog_sla_critical_view_unassigned_only")
                 || payload.containsKey("dialog_workspace_inline_navigation")
                 || payload.containsKey("dialog_workspace_ab_enabled")
                 || payload.containsKey("dialog_workspace_ab_rollout_percent")
@@ -454,6 +456,12 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_inline_navigation")) {
                     dialogConfig.put("workspace_inline_navigation", payload.get("dialog_workspace_inline_navigation"));
+                }
+                if (payload.containsKey("dialog_sla_critical_pin_unassigned_only")) {
+                    dialogConfig.put("sla_critical_pin_unassigned_only", payload.get("dialog_sla_critical_pin_unassigned_only"));
+                }
+                if (payload.containsKey("dialog_sla_critical_view_unassigned_only")) {
+                    dialogConfig.put("sla_critical_view_unassigned_only", payload.get("dialog_sla_critical_view_unassigned_only"));
                 }
                 if (payload.containsKey("dialog_workspace_ab_enabled")) {
                     dialogConfig.put("workspace_ab_enabled", payload.get("dialog_workspace_ab_enabled"));
