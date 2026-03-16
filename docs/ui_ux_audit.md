@@ -701,7 +701,10 @@
 - [x] **NOW-1.202 (этап E3, dependency-ticket owner accountability gate):** для усиления операционной ответственности по внешнему BI-потоку добавлены runtime-параметры `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required` и `..._datamart_dependency_ticket_owner` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды» + bridge + backend decisioning). `rollout_decision.external_kpi_signal` теперь проверяет наличие owner, и при включённом owner-gate удерживает rollout в `hold`, если ответственный за dependency-ticket не указан. Это делает ownership external-зависимости проверяемым прямо в runtime и снижает риск «ничейного» блокера.
 
 
-## 11) Актуализированный список невыполненного (после NOW-1.202)
+- [x] **NOW-1.203 (этап E3, dependency owner-contact gate):** добавлен runtime-gate для внешнего BI dependency-ticket: `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required` + `..._owner_contact` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», bridge и backend decisioning). Если gate включён и канал owner-контакта не указан, `rollout_decision.external_kpi_signal` удерживает rollout в `hold`. Это снижает MTTR по внешним BI-блокерам за счёт явного escalation contact в runtime-конфиге.
+
+
+## 11) Актуализированный список невыполненного (после NOW-1.203)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 

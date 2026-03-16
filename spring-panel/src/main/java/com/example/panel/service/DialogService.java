@@ -62,6 +62,7 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_FRESHNESS_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_REQUIRED = false;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_TTL_HOURS = 24L * 14L;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
@@ -823,6 +824,7 @@ public class DialogService {
         String datamartRunbookUrl = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_runbook_url"));
         String datamartDependencyTicketUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_url")));
         String datamartDependencyTicketOwner = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_owner")));
+        String datamartDependencyTicketOwnerContact = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact")));
         String datamartDependencyTicketUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at"));
         String reviewedBy = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_by"));
         String reviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_at"));
@@ -867,6 +869,9 @@ public class DialogService {
         boolean datamartDependencyTicketOwnerRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_REQUIRED);
+        boolean datamartDependencyTicketOwnerContactRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required",
+                DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_REQUIRED);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
         String dashboardStatus = normalizeDatamartHealthStatus(
@@ -990,6 +995,8 @@ public class DialogService {
                 || (datamartDependencyTicketPresent && datamartDependencyTicketValid);
         boolean datamartDependencyTicketOwnerPresent = StringUtils.hasText(datamartDependencyTicketOwner);
         boolean datamartDependencyTicketOwnerReady = !datamartDependencyTicketOwnerRequired || datamartDependencyTicketOwnerPresent;
+        boolean datamartDependencyTicketOwnerContactPresent = StringUtils.hasText(datamartDependencyTicketOwnerContact);
+        boolean datamartDependencyTicketOwnerContactReady = !datamartDependencyTicketOwnerContactRequired || datamartDependencyTicketOwnerContactPresent;
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
@@ -1004,6 +1011,7 @@ public class DialogService {
                 && datamartTimelineReady
                 && datamartDependencyTicketReady
                 && datamartDependencyTicketOwnerReady
+                && datamartDependencyTicketOwnerContactReady
                 && datamartDependencyTicketFreshnessReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
@@ -1016,6 +1024,10 @@ public class DialogService {
         signal.put("datamart_dependency_ticket_owner", datamartDependencyTicketOwner);
         signal.put("datamart_dependency_ticket_owner_present", datamartDependencyTicketOwnerPresent);
         signal.put("datamart_dependency_ticket_owner_ready", datamartDependencyTicketOwnerReady);
+        signal.put("datamart_dependency_ticket_owner_contact_required", datamartDependencyTicketOwnerContactRequired);
+        signal.put("datamart_dependency_ticket_owner_contact", datamartDependencyTicketOwnerContact);
+        signal.put("datamart_dependency_ticket_owner_contact_present", datamartDependencyTicketOwnerContactPresent);
+        signal.put("datamart_dependency_ticket_owner_contact_ready", datamartDependencyTicketOwnerContactReady);
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
         signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
         signal.put("datamart_dependency_ticket_ready", datamartDependencyTicketReady);
