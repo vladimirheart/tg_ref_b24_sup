@@ -1165,6 +1165,51 @@ class SupportPanelIntegrationTests {
         assertThat(externalSignal).containsEntry("datamart_dependency_ticket_owner_contact_actionable", true);
         assertThat(externalSignal).containsEntry("datamart_dependency_ticket_owner_contact_actionable_ready", true);
         assertThat(externalSignal).containsEntry("ready_for_decision", true);
+        assertThat(externalSignal).containsEntry("datamart_risk_level", "low");
+        assertThat((java.util.List<String>) externalSignal.get("datamart_risk_reasons")).isEmpty();
+    }
+
+    @Test
+    void workspaceRolloutDecisionMarksMediumRiskWhenSingleGateFails() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required":true,
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact":"BI owner"}
+                        """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
+
+        assertThat(rolloutDecision).containsEntry("action", "hold");
+        assertThat(externalSignal).containsEntry("datamart_risk_level", "medium");
+        assertThat((java.util.List<String>) externalSignal.get("datamart_risk_reasons"))
+                .containsExactly("dependency_ticket_owner_contact_not_actionable");
+    }
+
+    @Test
+    void workspaceRolloutDecisionMarksHighRiskWhenDatamartProgramBlocked() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
+                         "workspace_rollout_external_kpi_datamart_program_blocker_required":true,
+                         "workspace_rollout_external_kpi_datamart_program_status":"blocked"}
+                        """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
+
+        assertThat(rolloutDecision).containsEntry("action", "hold");
+        assertThat(externalSignal).containsEntry("datamart_program_blocked", true);
+        assertThat(externalSignal).containsEntry("datamart_risk_level", "high");
+        assertThat((java.util.List<String>) externalSignal.get("datamart_risk_reasons"))
+                .contains("datamart_program_blocked");
     }
 
     @Test

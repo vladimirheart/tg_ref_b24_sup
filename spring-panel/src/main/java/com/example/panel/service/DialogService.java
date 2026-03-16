@@ -1023,6 +1023,49 @@ public class DialogService {
                 && datamartDependencyTicketOwnerContactReady
                 && datamartDependencyTicketOwnerContactActionableReady
                 && datamartDependencyTicketFreshnessReady);
+
+        java.util.List<String> datamartRiskReasons = new java.util.ArrayList<>();
+        if (!ownerRunbookReady) {
+            datamartRiskReasons.add("owner_runbook_missing_or_invalid");
+        }
+        if (!datamartHealthReady) {
+            datamartRiskReasons.add("datamart_health_unhealthy");
+        }
+        if (!datamartHealthFreshnessReady) {
+            datamartRiskReasons.add("datamart_health_stale");
+        }
+        if (!datamartProgramReady) {
+            datamartRiskReasons.add("datamart_program_blocked");
+        }
+        if (!datamartProgramFreshnessReady) {
+            datamartRiskReasons.add("datamart_program_status_stale");
+        }
+        if (!datamartTimelineReady) {
+            datamartRiskReasons.add("datamart_timeline_overdue");
+        }
+        if (!datamartDependencyTicketReady) {
+            datamartRiskReasons.add("dependency_ticket_missing_or_invalid");
+        }
+        if (!datamartDependencyTicketFreshnessReady) {
+            datamartRiskReasons.add("dependency_ticket_stale");
+        }
+        if (!datamartDependencyTicketOwnerReady) {
+            datamartRiskReasons.add("dependency_ticket_owner_missing");
+        }
+        if (!datamartDependencyTicketOwnerContactReady) {
+            datamartRiskReasons.add("dependency_ticket_owner_contact_missing");
+        }
+        if (!datamartDependencyTicketOwnerContactActionableReady) {
+            datamartRiskReasons.add("dependency_ticket_owner_contact_not_actionable");
+        }
+
+        String datamartRiskLevel = "low";
+        if (!datamartRiskReasons.isEmpty()) {
+            datamartRiskLevel = datamartRiskReasons.size() >= 3 ? "high" : "medium";
+        }
+        if (datamartProgramBlocked || datamartTargetOverdue) {
+            datamartRiskLevel = "high";
+        }
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
         signal.put("finance_ready", financeReady);
@@ -1109,6 +1152,8 @@ public class DialogService {
         signal.put("datamart_target_overdue", datamartTargetOverdue);
         signal.put("datamart_timeline_hours_to_target", datamartTimelineHoursToTarget);
         signal.put("datamart_timeline_ready", datamartTimelineReady);
+        signal.put("datamart_risk_level", datamartRiskLevel);
+        signal.put("datamart_risk_reasons", datamartRiskReasons);
         signal.put("ready_for_decision", readyForDecision);
         signal.put("note", note != null ? note.trim() : "");
         return signal;
