@@ -680,6 +680,71 @@ class SupportPanelIntegrationTests {
         assertThat(externalSignal).containsEntry("ready_for_decision", false);
     }
 
+    @Test
+    void workspaceRolloutDecisionHoldsWhenOwnerRunbookGateHasInvalidRunbookUrl() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
+                         "workspace_rollout_external_kpi_owner_runbook_required":true,
+                         "workspace_rollout_external_kpi_datamart_owner":"bi-platform",
+                         "workspace_rollout_external_kpi_datamart_runbook_url":"slack://bi-runbook"}
+                        """);
+
+        for (int i = 0; i < 40; i++) {
+            String cohort = i < 20 ? "control" : "test";
+            long openMs = cohort.equals("test") ? 900L : 1000L;
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-runbook-open-" + i, "T-RUNBOOK-OPEN-" + i, openMs, cohort);
+        }
+
+        for (int i = 0; i < 12; i++) {
+            String cohort = i < 6 ? "control" : "test";
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-runbook-frt-" + i, "T-RUNBOOK-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-runbook-ttr-" + i, "T-RUNBOOK-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-runbook-sla-" + i, "T-RUNBOOK-SLA-" + i, cohort);
+        }
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
+
+        assertThat(rolloutDecision).containsEntry("action", "hold");
+        assertThat(externalSignal).containsEntry("owner_runbook_required", true);
+        assertThat(externalSignal).containsEntry("owner_runbook_present", true);
+        assertThat(externalSignal).containsEntry("datamart_runbook_url_valid", false);
+        assertThat(externalSignal).containsEntry("owner_runbook_ready", false);
+        assertThat(externalSignal).containsEntry("ready_for_decision", false);
+    }
+
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartHealthGateIsRequiredAndDegraded() {
