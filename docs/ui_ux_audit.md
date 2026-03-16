@@ -704,7 +704,10 @@
 - [x] **NOW-1.203 (этап E3, dependency owner-contact gate):** добавлен runtime-gate для внешнего BI dependency-ticket: `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required` + `..._owner_contact` (UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», bridge и backend decisioning). Если gate включён и канал owner-контакта не указан, `rollout_decision.external_kpi_signal` удерживает rollout в `hold`. Это снижает MTTR по внешним BI-блокерам за счёт явного escalation contact в runtime-конфиге.
 
 
-## 11) Актуализированный список невыполненного (после NOW-1.203)
+- [x] **NOW-1.204 (этап E3, actionable owner-contact gate):** внешний KPI-gate дополнен проверкой «action-ready» для `dependency-ticket owner contact`: новый runtime-флаг `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required` требует контакт в формате, пригодном для немедленной эскалации (`@mention`, email/`mailto:`, `slack://`, `http(s)` URL). Настройка добавлена в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», проходит через bridge в backend decisioning и отражается в `rollout_decision.external_kpi_signal` (`..._actionable`, `..._actionable_ready`). Это закрывает операционный пробел, когда формально заполненный, но нерабочий контакт снимал hold.
+
+
+## 11) Актуализированный список невыполненного (после NOW-1.204)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
