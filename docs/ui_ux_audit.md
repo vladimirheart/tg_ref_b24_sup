@@ -706,8 +706,10 @@
 
 - [x] **NOW-1.204 (этап E3, actionable owner-contact gate):** внешний KPI-gate дополнен проверкой «action-ready» для `dependency-ticket owner contact`: новый runtime-флаг `dialog_config.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required` требует контакт в формате, пригодном для немедленной эскалации (`@mention`, email/`mailto:`, `slack://`, `http(s)` URL). Настройка добавлена в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», проходит через bridge в backend decisioning и отражается в `rollout_decision.external_kpi_signal` (`..._actionable`, `..._actionable_ready`). Это закрывает операционный пробел, когда формально заполненный, но нерабочий контакт снимал hold.
 
+- [x] **NOW-1.205 (этап E3, runbook URL validity gate hardening):** усилена валидация owner/runbook-gate в backend decisioning: `workspace_rollout_external_kpi_datamart_runbook_url` теперь считается валидным только для `http/https` URL и влияет на `owner_runbook_ready` (при `workspace_rollout_external_kpi_owner_runbook_required=true`). В `rollout_decision.external_kpi_signal` добавлены явные флаги `datamart_runbook_url_present` и `datamart_runbook_url_valid`, а интеграционный тест покрывает сценарий с невалидным `slack://` runbook, чтобы исключить ложный `ready_for_decision` и снизить риск неконтролируемого scale-up при некликабельных runbook-ссылках.
 
-## 11) Актуализированный список невыполненного (после NOW-1.204)
+
+## 11) Актуализированный список невыполненного (после NOW-1.205)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 

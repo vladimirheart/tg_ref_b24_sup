@@ -941,8 +941,10 @@ public class DialogService {
         boolean dashboardLinksPresent = StringUtils.hasText(omnichannelDashboardUrl) && StringUtils.hasText(financeDashboardUrl);
         boolean dashboardLinksReady = !dashboardLinksRequired || dashboardLinksPresent;
         boolean dashboardStatusReady = !dashboardStatusRequired || "healthy".equals(dashboardStatus);
-        boolean ownerRunbookPresent = StringUtils.hasText(datamartOwner) && StringUtils.hasText(datamartRunbookUrl);
-        boolean ownerRunbookReady = !ownerRunbookRequired || ownerRunbookPresent;
+        boolean datamartRunbookUrlPresent = StringUtils.hasText(datamartRunbookUrl);
+        boolean datamartRunbookUrlValid = !datamartRunbookUrlPresent || isValidExternalReferenceUrl(datamartRunbookUrl);
+        boolean ownerRunbookPresent = StringUtils.hasText(datamartOwner) && datamartRunbookUrlPresent;
+        boolean ownerRunbookReady = !ownerRunbookRequired || (ownerRunbookPresent && datamartRunbookUrlValid);
         boolean datamartHealthy = "healthy".equals(datamartHealthStatus);
         boolean datamartHealthReady = !datamartHealthRequired || datamartHealthy;
         OffsetDateTime datamartHealthUpdatedAt = parseReviewTimestamp(datamartHealthUpdatedAtRaw);
@@ -1070,6 +1072,8 @@ public class DialogService {
         signal.put("dashboard_status_ready", dashboardStatusReady);
         signal.put("owner_runbook_required", ownerRunbookRequired);
         signal.put("owner_runbook_present", ownerRunbookPresent);
+        signal.put("datamart_runbook_url_present", datamartRunbookUrlPresent);
+        signal.put("datamart_runbook_url_valid", datamartRunbookUrlValid);
         signal.put("owner_runbook_ready", ownerRunbookReady);
         signal.put("datamart_health_required", datamartHealthRequired);
         signal.put("datamart_health_status", datamartHealthStatus);
