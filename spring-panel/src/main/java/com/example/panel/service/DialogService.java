@@ -63,6 +63,7 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_FRESHNESS_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_REQUIRED = false;
+    private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_ACTIONABLE_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_TTL_HOURS = 24L * 14L;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
@@ -872,6 +873,9 @@ public class DialogService {
         boolean datamartDependencyTicketOwnerContactRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_REQUIRED);
+        boolean datamartDependencyTicketOwnerContactActionableRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required",
+                DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_ACTIONABLE_REQUIRED);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
         String dashboardStatus = normalizeDatamartHealthStatus(
@@ -997,6 +1001,9 @@ public class DialogService {
         boolean datamartDependencyTicketOwnerReady = !datamartDependencyTicketOwnerRequired || datamartDependencyTicketOwnerPresent;
         boolean datamartDependencyTicketOwnerContactPresent = StringUtils.hasText(datamartDependencyTicketOwnerContact);
         boolean datamartDependencyTicketOwnerContactReady = !datamartDependencyTicketOwnerContactRequired || datamartDependencyTicketOwnerContactPresent;
+        boolean datamartDependencyTicketOwnerContactActionable = isValidOwnerContact(datamartDependencyTicketOwnerContact);
+        boolean datamartDependencyTicketOwnerContactActionableReady = !datamartDependencyTicketOwnerContactActionableRequired
+                || datamartDependencyTicketOwnerContactActionable;
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
@@ -1012,6 +1019,7 @@ public class DialogService {
                 && datamartDependencyTicketReady
                 && datamartDependencyTicketOwnerReady
                 && datamartDependencyTicketOwnerContactReady
+                && datamartDependencyTicketOwnerContactActionableReady
                 && datamartDependencyTicketFreshnessReady);
         signal.put("enabled", gateEnabled);
         signal.put("omnichannel_ready", omnichannelReady);
@@ -1028,6 +1036,9 @@ public class DialogService {
         signal.put("datamart_dependency_ticket_owner_contact", datamartDependencyTicketOwnerContact);
         signal.put("datamart_dependency_ticket_owner_contact_present", datamartDependencyTicketOwnerContactPresent);
         signal.put("datamart_dependency_ticket_owner_contact_ready", datamartDependencyTicketOwnerContactReady);
+        signal.put("datamart_dependency_ticket_owner_contact_actionable_required", datamartDependencyTicketOwnerContactActionableRequired);
+        signal.put("datamart_dependency_ticket_owner_contact_actionable", datamartDependencyTicketOwnerContactActionable);
+        signal.put("datamart_dependency_ticket_owner_contact_actionable_ready", datamartDependencyTicketOwnerContactActionableReady);
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
         signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
         signal.put("datamart_dependency_ticket_ready", datamartDependencyTicketReady);
@@ -1117,6 +1128,27 @@ public class DialogService {
         } catch (IllegalArgumentException ex) {
             return false;
         }
+    }
+
+    private boolean isValidOwnerContact(String rawContact) {
+        String contact = normalizeNullString(rawContact);
+        if (!StringUtils.hasText(contact)) {
+            return false;
+        }
+        if (contact.startsWith("@") && contact.length() > 1) {
+            return true;
+        }
+        if (contact.startsWith("mailto:")) {
+            return contact.length() > "mailto:".length() && contact.substring("mailto:".length()).contains("@");
+        }
+        if (contact.startsWith("slack://")) {
+            return contact.length() > "slack://".length();
+        }
+        if (isValidExternalReferenceUrl(contact)) {
+            return true;
+        }
+        int atIndex = contact.indexOf('@');
+        return atIndex > 0 && atIndex < contact.length() - 1;
     }
 
     private String normalizeDatamartProgramStatus(String rawValue) {

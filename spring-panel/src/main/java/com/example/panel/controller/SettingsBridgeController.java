@@ -247,6 +247,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_review_ttl_hours")
@@ -680,6 +681,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required"));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")) {
                     dialogConfig.put("workspace_rollout_external_kpi_reviewed_by",
