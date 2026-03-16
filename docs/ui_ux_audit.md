@@ -711,6 +711,8 @@
 - [x] **NOW-1.206 (этап E3, datamart risk grading for unresolved external dependency):** для невыполненного направления по внешнему BI/data-mart добавлен риск-скоринг в rollout decisioning: backend теперь публикует `external_kpi_signal.datamart_risk_level` (`low/medium/high`) и `...datamart_risk_reasons[]` на основе проваленных gate-проверок (owner/runbook, health, freshness, program status, timeline, dependency-ticket и owner-contact readiness). В «Аналитике» decision-banner показывает новый risk-блок (`datamart_risk=...`), а интеграционные тесты покрывают сценарии low/medium/high. Это ускоряет triage внешних блокеров без ручного сопоставления десятков флагов.
 
 
+- [x] **NOW-1.207 (этап C3, SLA escalation focus for unassigned queues):** добавлены runtime-флаги `dialog_config.sla_critical_pin_unassigned_only` и `dialog_config.sla_critical_view_unassigned_only` (UI «Настройки → Диалоги → SLA и эскалация»). При включении система ограничивает SLA pin и/или saved view `SLA критичные` только `unassigned` кейсами. Это снижает шум triage для уже назначенных обращений, ускоряет реакцию на реальные риски «без владельца» и закрывает операционный пробел C3 по явным правилам эскалации в очереди.
+
 ## 11) Актуализированный список невыполненного (после NOW-1.206)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
