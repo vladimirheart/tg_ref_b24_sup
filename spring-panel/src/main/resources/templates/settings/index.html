@@ -2509,6 +2509,17 @@
                     </div>
                     <div class="col-md-12">
                       <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired">Требовать owner-contact dependency-ticket для снятия hold</label>
+                      </div>
+                      <div class="form-text">Контакт нужен для быстрого эскалационного пинга по внешнему BI blocker без поиска владельца вручную.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContact" class="form-label">Owner contact dependency-ticket</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContact" maxlength="160" placeholder="@bi-oncall / team@example.com / slack://channel">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">
                         <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">Требовать актуальный апдейт dependency-ticket для внешнего data-mart</label>
                       </div>
@@ -4484,6 +4495,8 @@
     workspace_rollout_external_kpi_datamart_dependency_ticket_url: '',
     workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required: false,
     workspace_rollout_external_kpi_datamart_dependency_ticket_owner: '',
+    workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required: false,
+    workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact: '',
     workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required: false,
     workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at: '',
     workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours: 336,
@@ -13606,6 +13619,8 @@
       workspaceExternalKpiDatamartDependencyTicketUrl: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketUrl'),
       workspaceExternalKpiDatamartDependencyTicketOwnerRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired'),
       workspaceExternalKpiDatamartDependencyTicketOwner: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketOwner'),
+      workspaceExternalKpiDatamartDependencyTicketOwnerContactRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired'),
+      workspaceExternalKpiDatamartDependencyTicketOwnerContact: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContact'),
       workspaceExternalKpiDatamartDependencyTicketFreshnessRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired'),
       workspaceExternalKpiDatamartDependencyTicketUpdatedAt: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt'),
       workspaceExternalKpiDatamartDependencyTicketTtlHours: document.getElementById('dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours'),
@@ -14223,6 +14238,12 @@
     }
     if (inputs.workspaceExternalKpiDatamartDependencyTicketOwner) {
       inputs.workspaceExternalKpiDatamartDependencyTicketOwner.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_owner || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartDependencyTicketOwnerContactRequired) {
+      inputs.workspaceExternalKpiDatamartDependencyTicketOwnerContactRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartDependencyTicketOwnerContact) {
+      inputs.workspaceExternalKpiDatamartDependencyTicketOwnerContact.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact || '').trim();
     }
     if (inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired) {
       inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required);
@@ -15479,6 +15500,8 @@
     const safeWorkspaceExternalKpiDatamartDependencyTicketUrl = String(inputs.workspaceExternalKpiDatamartDependencyTicketUrl?.value || '').trim();
     const safeWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired = Boolean(inputs.workspaceExternalKpiDatamartDependencyTicketOwnerRequired?.checked);
     const safeWorkspaceExternalKpiDatamartDependencyTicketOwner = String(inputs.workspaceExternalKpiDatamartDependencyTicketOwner?.value || '').trim().slice(0, 120);
+    const safeWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired = Boolean(inputs.workspaceExternalKpiDatamartDependencyTicketOwnerContactRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartDependencyTicketOwnerContact = String(inputs.workspaceExternalKpiDatamartDependencyTicketOwnerContact?.value || '').trim().slice(0, 160);
     if (safeWorkspaceExternalKpiDatamartDependencyTicketUrl && !isValidExternalReferenceUrl(safeWorkspaceExternalKpiDatamartDependencyTicketUrl)) {
       errors.push('Dependency-ticket URL должен быть корректной http/https ссылкой.');
     }
@@ -15499,6 +15522,9 @@
     }
     if (safeWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketOwner) {
       errors.push('Для owner-gate dependency-ticket укажите ответственного владельца.');
+    }
+    if (safeWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired && !safeWorkspaceExternalKpiDatamartDependencyTicketOwnerContact) {
+      errors.push('Для owner-contact gate dependency-ticket укажите канал эскалации (email/slack/@owner).');
     }
     const safeWorkspaceExternalKpiReviewedBy = String(inputs.workspaceExternalKpiReviewedBy?.value || '').trim().slice(0, 120);
     const safeWorkspaceExternalKpiReviewedAtRaw = String(inputs.workspaceExternalKpiReviewedAt?.value || '').trim();
@@ -15717,6 +15743,8 @@
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_url: safeWorkspaceExternalKpiDatamartDependencyTicketUrl,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required: safeWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner: safeWorkspaceExternalKpiDatamartDependencyTicketOwner,
+        dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required: safeWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired,
+        dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact: safeWorkspaceExternalKpiDatamartDependencyTicketOwnerContact,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required: safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at: safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt,
         dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours: safeWorkspaceExternalKpiDatamartDependencyTicketTtlHours,
