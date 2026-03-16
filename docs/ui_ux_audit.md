@@ -708,8 +708,10 @@
 
 - [x] **NOW-1.205 (этап E3, runbook URL validity gate hardening):** усилена валидация owner/runbook-gate в backend decisioning: `workspace_rollout_external_kpi_datamart_runbook_url` теперь считается валидным только для `http/https` URL и влияет на `owner_runbook_ready` (при `workspace_rollout_external_kpi_owner_runbook_required=true`). В `rollout_decision.external_kpi_signal` добавлены явные флаги `datamart_runbook_url_present` и `datamart_runbook_url_valid`, а интеграционный тест покрывает сценарий с невалидным `slack://` runbook, чтобы исключить ложный `ready_for_decision` и снизить риск неконтролируемого scale-up при некликабельных runbook-ссылках.
 
+- [x] **NOW-1.206 (этап E3, datamart risk grading for unresolved external dependency):** для невыполненного направления по внешнему BI/data-mart добавлен риск-скоринг в rollout decisioning: backend теперь публикует `external_kpi_signal.datamart_risk_level` (`low/medium/high`) и `...datamart_risk_reasons[]` на основе проваленных gate-проверок (owner/runbook, health, freshness, program status, timeline, dependency-ticket и owner-contact readiness). В «Аналитике» decision-banner показывает новый risk-блок (`datamart_risk=...`), а интеграционные тесты покрывают сценарии low/medium/high. Это ускоряет triage внешних блокеров без ручного сопоставления десятков флагов.
 
-## 11) Актуализированный список невыполненного (после NOW-1.205)
+
+## 11) Актуализированный список невыполненного (после NOW-1.206)
 
 По текущему состоянию документа основная часть roadmap уже закрыта, но остаются задачи, которые явно помечены как backlog/неполное покрытие:
 
