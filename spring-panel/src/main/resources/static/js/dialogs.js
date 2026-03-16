@@ -277,6 +277,8 @@
     normalizeSlaMinutes(window.DIALOG_CONFIG?.sla_critical_minutes, 30),
     SLA_TARGET_MINUTES,
   );
+  const SLA_CRITICAL_PIN_UNASSIGNED_ONLY = window.DIALOG_CONFIG?.sla_critical_pin_unassigned_only === true;
+  const SLA_CRITICAL_VIEW_UNASSIGNED_ONLY = window.DIALOG_CONFIG?.sla_critical_view_unassigned_only === true;
   const AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW = window.DIALOG_CONFIG?.sla_critical_auto_sort !== false;
   const DIALOG_SLA_WINDOW_PRESETS = normalizeSlaWindowPresets(window.DIALOG_CONFIG?.sla_window_presets_minutes);
   const DIALOG_DEFAULT_SLA_WINDOW = (() => {
@@ -1666,11 +1668,15 @@
 
   function isCriticalSlaDialog(row) {
     if (row?.dataset?.slaServerPinned === 'true') {
-      return true;
+      return !SLA_CRITICAL_PIN_UNASSIGNED_ONLY || isUnassignedDialog(row);
     }
     const minutesLeft = resolveSlaMinutesLeft(row);
     if (!Number.isFinite(minutesLeft)) return false;
-    return minutesLeft <= SLA_CRITICAL_MINUTES;
+    if (minutesLeft > SLA_CRITICAL_MINUTES) return false;
+    if (SLA_CRITICAL_PIN_UNASSIGNED_ONLY && !isUnassignedDialog(row)) {
+      return false;
+    }
+    return true;
   }
 
   function isEscalationRequiredDialog(row) {
@@ -1713,7 +1719,8 @@
       case 'overdue':
         return isOverdueDialog(row);
       case 'sla_critical':
-        return isCriticalSlaDialog(row);
+        return isCriticalSlaDialog(row)
+          && (!SLA_CRITICAL_VIEW_UNASSIGNED_ONLY || isUnassignedDialog(row));
       case 'escalation_required':
         return isEscalationRequiredDialog(row);
       default:

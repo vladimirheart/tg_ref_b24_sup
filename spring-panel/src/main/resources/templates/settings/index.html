@@ -2127,6 +2127,18 @@
                     </div>
                     <div class="col-md-4">
                       <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaCriticalPinUnassignedOnly">
+                        <label class="form-check-label" for="dialogSlaCriticalPinUnassignedOnly">SLA pin: только unassigned кейсы</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaCriticalViewUnassignedOnly">
+                        <label class="form-check-label" for="dialogSlaCriticalViewUnassignedOnly">Saved view «SLA критичные»: только unassigned</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogWorkspaceAbEnabled">
                         <label class="form-check-label" for="dialogWorkspaceAbEnabled">A/B rollout для workspace</label>
                       </div>
@@ -4447,6 +4459,8 @@
     sla_critical_escalation_include_assigned: true,
     workspace_inline_navigation: true,
     sla_critical_auto_sort: true,
+    sla_critical_pin_unassigned_only: false,
+    sla_critical_view_unassigned_only: false,
     workspace_ab_enabled: false,
     workspace_ab_rollout_percent: 100,
     workspace_ab_experiment_name: 'workspace_v1_rollout',
@@ -13546,6 +13560,8 @@
       overdueThresholdHours: document.getElementById('dialogOverdueThresholdHours'),
       workspaceEnabled: document.getElementById('dialogWorkspaceEnabled'),
       slaCriticalAutoSort: document.getElementById('dialogSlaCriticalAutoSort'),
+      slaCriticalPinUnassignedOnly: document.getElementById('dialogSlaCriticalPinUnassignedOnly'),
+      slaCriticalViewUnassignedOnly: document.getElementById('dialogSlaCriticalViewUnassignedOnly'),
       workspaceForceWorkspace: document.getElementById('dialogWorkspaceForceWorkspace'),
       workspaceDecommissionLegacyModal: document.getElementById('dialogWorkspaceDecommissionLegacyModal'),
       workspaceAbEnabled: document.getElementById('dialogWorkspaceAbEnabled'),
@@ -13844,6 +13860,12 @@
     }
     if (inputs.slaCriticalAutoSort instanceof HTMLInputElement) {
       inputs.slaCriticalAutoSort.checked = DIALOG_CONFIG.sla_critical_auto_sort !== false;
+    }
+    if (inputs.slaCriticalPinUnassignedOnly instanceof HTMLInputElement) {
+      inputs.slaCriticalPinUnassignedOnly.checked = DIALOG_CONFIG.sla_critical_pin_unassigned_only === true;
+    }
+    if (inputs.slaCriticalViewUnassignedOnly instanceof HTMLInputElement) {
+      inputs.slaCriticalViewUnassignedOnly.checked = DIALOG_CONFIG.sla_critical_view_unassigned_only === true;
     }
     if (inputs.workspaceForceWorkspace instanceof HTMLInputElement) {
       inputs.workspaceForceWorkspace.checked = DIALOG_CONFIG.workspace_force_workspace === true;
@@ -15675,6 +15697,8 @@
         dialog_overdue_threshold_hours: safeOverdueThresholdHours,
         dialog_workspace_v1: Boolean(inputs.workspaceEnabled?.checked),
         dialog_sla_critical_auto_sort: Boolean(inputs.slaCriticalAutoSort?.checked),
+        dialog_sla_critical_pin_unassigned_only: Boolean(inputs.slaCriticalPinUnassignedOnly?.checked),
+        dialog_sla_critical_view_unassigned_only: Boolean(inputs.slaCriticalViewUnassignedOnly?.checked),
         dialog_workspace_inline_navigation: Boolean(inputs.workspaceInlineNavigation?.checked),
         dialog_workspace_contract_timeout_ms: safeWorkspaceContractTimeout,
         dialog_workspace_contract_retry_attempts: safeWorkspaceRetryAttempts,
