@@ -1193,6 +1193,9 @@ class SupportPanelIntegrationTests {
         assertThat((java.util.List<String>) externalSignal.get("datamart_contract_missing_optional_fields")).isEmpty();
         assertThat(externalSignal).containsEntry("datamart_contract_mandatory_coverage_pct", 75);
         assertThat(externalSignal).containsEntry("datamart_contract_optional_coverage_pct", 100);
+        assertThat(externalSignal).containsEntry("datamart_contract_blocking_gap_count", 1);
+        assertThat(externalSignal).containsEntry("datamart_contract_non_blocking_gap_count", 0);
+        assertThat(externalSignal).containsEntry("datamart_contract_gap_severity", "blocking");
         assertThat((java.util.List<String>) externalSignal.get("datamart_risk_reasons"))
                 .contains("datamart_contract_missing_mandatory_fields");
     }
@@ -1223,6 +1226,9 @@ class SupportPanelIntegrationTests {
                 .containsExactly("csat");
         assertThat(externalSignal).containsEntry("datamart_contract_mandatory_coverage_pct", 100);
         assertThat(externalSignal).containsEntry("datamart_contract_optional_coverage_pct", 50);
+        assertThat(externalSignal).containsEntry("datamart_contract_blocking_gap_count", 0);
+        assertThat(externalSignal).containsEntry("datamart_contract_non_blocking_gap_count", 1);
+        assertThat(externalSignal).containsEntry("datamart_contract_gap_severity", "non_blocking");
         assertThat(externalSignal).containsEntry("ready_for_decision", true);
     }
 
