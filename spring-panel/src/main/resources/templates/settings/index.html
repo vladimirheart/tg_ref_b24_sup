@@ -2727,6 +2727,17 @@
                       <label for="dialogWorkspaceExternalKpiDatamartContractAvailableFields" class="form-label">Available KPI fields</label>
                       <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractAvailableFields" maxlength="500" placeholder="frt,ttr,sla_breach,cost_per_contact">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartContractOptionalCoverageRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartContractOptionalCoverageRequired">Включить optional coverage gate для data contract</label>
+                      </div>
+                      <div class="form-text">Позволяет удерживать rollout в <code>hold</code>, если покрытие optional-полей ниже заданного порога (без смешивания с mandatory-блокерами).</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct" class="form-label">Мин. optional coverage, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct" min="0" max="100" step="1">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4587,6 +4598,8 @@
     workspace_rollout_external_kpi_datamart_contract_mandatory_fields: 'frt,ttr,sla_breach,cost_per_contact',
     workspace_rollout_external_kpi_datamart_contract_optional_fields: '',
     workspace_rollout_external_kpi_datamart_contract_available_fields: '',
+    workspace_rollout_external_kpi_datamart_contract_optional_coverage_required: false,
+    workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct: 80,
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13721,6 +13734,8 @@
       workspaceExternalKpiDatamartContractMandatoryFields: document.getElementById('dialogWorkspaceExternalKpiDatamartContractMandatoryFields'),
       workspaceExternalKpiDatamartContractOptionalFields: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalFields'),
       workspaceExternalKpiDatamartContractAvailableFields: document.getElementById('dialogWorkspaceExternalKpiDatamartContractAvailableFields'),
+      workspaceExternalKpiDatamartContractOptionalCoverageRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalCoverageRequired'),
+      workspaceExternalKpiDatamartContractOptionalMinCoveragePct: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14466,6 +14481,15 @@
     }
     if (inputs.workspaceExternalKpiDatamartContractAvailableFields) {
       inputs.workspaceExternalKpiDatamartContractAvailableFields.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_available_fields || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartContractOptionalCoverageRequired) {
+      inputs.workspaceExternalKpiDatamartContractOptionalCoverageRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_coverage_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct, 10);
+      inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct.value = Number.isFinite(value)
+        ? String(Math.max(0, Math.min(100, value)))
+        : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct);
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15722,6 +15746,16 @@
       || DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_mandatory_fields;
     const safeWorkspaceExternalKpiDatamartContractOptionalFields = String(inputs.workspaceExternalKpiDatamartContractOptionalFields?.value || '').trim().slice(0, 300);
     const safeWorkspaceExternalKpiDatamartContractAvailableFields = String(inputs.workspaceExternalKpiDatamartContractAvailableFields?.value || '').trim().slice(0, 500);
+    const safeWorkspaceExternalKpiDatamartContractOptionalCoverageRequired = Boolean(inputs.workspaceExternalKpiDatamartContractOptionalCoverageRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct?.value || '', 10);
+    const safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct = Number.isFinite(safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw)
+      ? Math.max(0, Math.min(100, safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct;
+    if (!Number.isFinite(safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw)
+      || safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw < 0
+      || safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw > 100) {
+      errors.push('Порог optional coverage для data contract должен быть в диапазоне 0..100%.');
+    }
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15917,6 +15951,8 @@
         dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields: safeWorkspaceExternalKpiDatamartContractMandatoryFields,
         dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields: safeWorkspaceExternalKpiDatamartContractOptionalFields,
         dialog_workspace_rollout_external_kpi_datamart_contract_available_fields: safeWorkspaceExternalKpiDatamartContractAvailableFields,
+        dialog_workspace_rollout_external_kpi_datamart_contract_optional_coverage_required: safeWorkspaceExternalKpiDatamartContractOptionalCoverageRequired,
+        dialog_workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct: safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
