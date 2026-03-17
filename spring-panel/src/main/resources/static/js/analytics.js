@@ -375,8 +375,13 @@
       : (datamartContractMissingOptionalFields ? datamartContractMissingOptionalFields.split('|').length : 0);
     const datamartContractGapSeverityRaw = String(externalSignal.datamart_contract_gap_severity || '').trim().toLowerCase();
     const datamartContractGapSeverity = datamartContractGapSeverityRaw || (blockingGapCount > 0 ? 'blocking' : (nonBlockingGapCount > 0 ? 'non_blocking' : 'none'));
+    const optionalCoverageGateEnabled = Boolean(externalSignal.datamart_contract_optional_coverage_required);
+    const optionalCoverageGateThreshold = Number.isFinite(Number(externalSignal.datamart_contract_optional_min_coverage_pct))
+      ? Number(externalSignal.datamart_contract_optional_min_coverage_pct)
+      : null;
+    const optionalCoverageGateReady = externalSignal.datamart_contract_optional_coverage_ready === false ? false : true;
     const datamartContractLabel = externalSignal.datamart_contract_required
-      ? `v=${externalSignal.datamart_contract_version || 'v1'}, mandatory=${datamartContractMissingMandatoryFields ? `missing:${datamartContractMissingMandatoryFields}` : 'ready'} (${mandatoryCoveragePct}%), optional=${datamartContractMissingOptionalFields ? `missing:${datamartContractMissingOptionalFields}` : 'ready'} (${optionalCoveragePct}%), gaps=blocking:${blockingGapCount}/non_blocking:${nonBlockingGapCount} (${datamartContractGapSeverity})${externalSignal.datamart_contract_ready ? '' : ' (hold)'}`
+      ? `v=${externalSignal.datamart_contract_version || 'v1'}, mandatory=${datamartContractMissingMandatoryFields ? `missing:${datamartContractMissingMandatoryFields}` : 'ready'} (${mandatoryCoveragePct}%), optional=${datamartContractMissingOptionalFields ? `missing:${datamartContractMissingOptionalFields}` : 'ready'} (${optionalCoveragePct}%), gaps=blocking:${blockingGapCount}/non_blocking:${nonBlockingGapCount} (${datamartContractGapSeverity}), optional_gate=${optionalCoverageGateEnabled ? `on${optionalCoverageGateThreshold !== null ? `@${optionalCoverageGateThreshold}%` : ''}${optionalCoverageGateReady ? '' : ' (hold)'}` : 'off'}${externalSignal.datamart_contract_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartRiskLevel = String(externalSignal.datamart_risk_level || 'low').trim().toLowerCase();
     const datamartRiskReasons = Array.isArray(externalSignal.datamart_risk_reasons)
