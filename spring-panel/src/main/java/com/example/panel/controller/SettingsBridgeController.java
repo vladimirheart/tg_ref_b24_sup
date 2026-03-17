@@ -282,6 +282,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_available_fields")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_optional_coverage_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -828,6 +830,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_available_fields")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_available_fields",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_available_fields"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_optional_coverage_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_optional_coverage_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_optional_coverage_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",
