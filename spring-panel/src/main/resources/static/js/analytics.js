@@ -358,8 +358,17 @@
     const datamartContractMissingMandatoryFields = Array.isArray(externalSignal.datamart_contract_missing_mandatory_fields)
       ? externalSignal.datamart_contract_missing_mandatory_fields.filter(Boolean).join('|')
       : '';
+    const datamartContractMissingOptionalFields = Array.isArray(externalSignal.datamart_contract_missing_optional_fields)
+      ? externalSignal.datamart_contract_missing_optional_fields.filter(Boolean).join('|')
+      : '';
+    const mandatoryCoveragePct = Number.isFinite(Number(externalSignal.datamart_contract_mandatory_coverage_pct))
+      ? Number(externalSignal.datamart_contract_mandatory_coverage_pct)
+      : 0;
+    const optionalCoveragePct = Number.isFinite(Number(externalSignal.datamart_contract_optional_coverage_pct))
+      ? Number(externalSignal.datamart_contract_optional_coverage_pct)
+      : 100;
     const datamartContractLabel = externalSignal.datamart_contract_required
-      ? `v=${externalSignal.datamart_contract_version || 'v1'}, mandatory=${datamartContractMissingMandatoryFields ? `missing:${datamartContractMissingMandatoryFields}` : 'ready'}${externalSignal.datamart_contract_ready ? '' : ' (hold)'}`
+      ? `v=${externalSignal.datamart_contract_version || 'v1'}, mandatory=${datamartContractMissingMandatoryFields ? `missing:${datamartContractMissingMandatoryFields}` : 'ready'} (${mandatoryCoveragePct}%), optional=${datamartContractMissingOptionalFields ? `missing:${datamartContractMissingOptionalFields}` : 'ready'} (${optionalCoveragePct}%)${externalSignal.datamart_contract_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartRiskLevel = String(externalSignal.datamart_risk_level || 'low').trim().toLowerCase();
     const datamartRiskReasons = Array.isArray(externalSignal.datamart_risk_reasons)
