@@ -82,6 +82,8 @@
   const bulkCount = document.getElementById('dialogBulkCount');
   const bulkTakeBtn = document.getElementById('dialogBulkTakeBtn');
   const bulkSnoozeBtn = document.getElementById('dialogBulkSnoozeBtn');
+  const hotkeySingleSnoozeLabel = document.getElementById('dialogHotkeySingleSnoozeLabel');
+  const hotkeyBulkSnoozeLabel = document.getElementById('dialogHotkeyBulkSnoozeLabel');
   const bulkCloseBtn = document.getElementById('dialogBulkCloseBtn');
   const bulkClearBtn = document.getElementById('dialogBulkClearBtn');
   const selectAllCheckbox = document.getElementById('dialogSelectAll');
@@ -269,6 +271,17 @@
     }
     return `Выбранные диалоги отложены на ${normalizedMinutes} мин`;
   }
+
+  function formatSnoozeDurationLabel(minutes) {
+    const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
+    if (normalizedMinutes % 60 === 0) {
+      const hours = normalizedMinutes / 60;
+      return hours === 1 ? '1 час' : `${hours} ч`;
+    }
+    return `${normalizedMinutes} мин`;
+  }
+
+
 
   const SLA_TARGET_MINUTES = normalizeSlaMinutes(
     window.DIALOG_CONFIG?.sla_target_minutes,
@@ -526,6 +539,17 @@
 
   function saveSnoozedDialogs(state) {
     localStorage.setItem(STORAGE_SNOOZED, JSON.stringify(state || {}));
+  }
+
+
+  if (bulkSnoozeBtn) {
+    bulkSnoozeBtn.textContent = `Отложить выбранные на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
+  }
+  if (hotkeySingleSnoozeLabel) {
+    hotkeySingleSnoozeLabel.textContent = `Отложить диалог на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)} (из списка)`;
+  }
+  if (hotkeyBulkSnoozeLabel) {
+    hotkeyBulkSnoozeLabel.textContent = `Отложить выбранные диалоги на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
   }
 
   const snoozedDialogs = loadSnoozedDialogs();
