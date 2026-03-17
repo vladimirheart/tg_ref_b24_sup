@@ -1024,6 +1024,15 @@ public class DialogService {
         Set<String> datamartContractMissingMandatoryFields = datamartContractMandatoryFields.stream()
                 .filter(field -> !datamartContractAvailableFields.contains(field))
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        Set<String> datamartContractMissingOptionalFields = datamartContractOptionalFields.stream()
+                .filter(field -> !datamartContractAvailableFields.contains(field))
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        int datamartContractMandatoryCoveragePct = calculateContractCoveragePercent(
+                datamartContractMandatoryFields,
+                datamartContractMissingMandatoryFields);
+        int datamartContractOptionalCoveragePct = calculateContractCoveragePercent(
+                datamartContractOptionalFields,
+                datamartContractMissingOptionalFields);
         boolean datamartContractReady = !datamartContractRequired || datamartContractMissingMandatoryFields.isEmpty();
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
@@ -1113,6 +1122,9 @@ public class DialogService {
         signal.put("datamart_contract_optional_fields", new ArrayList<>(datamartContractOptionalFields));
         signal.put("datamart_contract_available_fields", new ArrayList<>(datamartContractAvailableFields));
         signal.put("datamart_contract_missing_mandatory_fields", new ArrayList<>(datamartContractMissingMandatoryFields));
+        signal.put("datamart_contract_missing_optional_fields", new ArrayList<>(datamartContractMissingOptionalFields));
+        signal.put("datamart_contract_mandatory_coverage_pct", datamartContractMandatoryCoveragePct);
+        signal.put("datamart_contract_optional_coverage_pct", datamartContractOptionalCoveragePct);
         signal.put("datamart_contract_ready", datamartContractReady);
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
         signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
@@ -1187,6 +1199,15 @@ public class DialogService {
         signal.put("ready_for_decision", readyForDecision);
         signal.put("note", note != null ? note.trim() : "");
         return signal;
+    }
+
+
+    private int calculateContractCoveragePercent(Set<String> contractFields, Set<String> missingFields) {
+        if (contractFields == null || contractFields.isEmpty()) {
+            return 100;
+        }
+        int covered = Math.max(0, contractFields.size() - (missingFields == null ? 0 : missingFields.size()));
+        return (int) Math.round((covered * 100.0d) / contractFields.size());
     }
 
     private boolean isValidExternalReferenceUrl(String rawUrl) {
