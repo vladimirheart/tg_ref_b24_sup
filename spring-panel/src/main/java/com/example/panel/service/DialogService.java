@@ -65,6 +65,8 @@ public class DialogService {
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_REQUIRED = false;
     private static final boolean DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_ACTIONABLE_REQUIRED = false;
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_TTL_HOURS = 24L * 14L;
+    private static final String DEFAULT_EXTERNAL_KPI_CONTRACT_VERSION = "v1";
+    private static final Set<String> DEFAULT_EXTERNAL_KPI_CONTRACT_MANDATORY_FIELDS = Set.of("frt", "ttr", "sla_breach", "cost_per_contact");
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -876,6 +878,19 @@ public class DialogService {
         boolean datamartDependencyTicketOwnerContactActionableRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required",
                 DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_OWNER_CONTACT_ACTIONABLE_REQUIRED);
+        boolean datamartContractRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_contract_required",
+                false);
+        String datamartContractVersion = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_contract_version")));
+        Set<String> datamartContractMandatoryFields = parseExternalKpiContractFields(
+                resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_contract_mandatory_fields"),
+                DEFAULT_EXTERNAL_KPI_CONTRACT_MANDATORY_FIELDS);
+        Set<String> datamartContractOptionalFields = parseExternalKpiContractFields(
+                resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_contract_optional_fields"),
+                Set.of());
+        Set<String> datamartContractAvailableFields = parseExternalKpiContractFields(
+                resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_contract_available_fields"),
+                Set.of());
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
         String dashboardStatus = normalizeDatamartHealthStatus(
@@ -1006,6 +1021,10 @@ public class DialogService {
         boolean datamartDependencyTicketOwnerContactActionable = isValidOwnerContact(datamartDependencyTicketOwnerContact);
         boolean datamartDependencyTicketOwnerContactActionableReady = !datamartDependencyTicketOwnerContactActionableRequired
                 || datamartDependencyTicketOwnerContactActionable;
+        Set<String> datamartContractMissingMandatoryFields = datamartContractMandatoryFields.stream()
+                .filter(field -> !datamartContractAvailableFields.contains(field))
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        boolean datamartContractReady = !datamartContractRequired || datamartContractMissingMandatoryFields.isEmpty();
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
@@ -1022,7 +1041,8 @@ public class DialogService {
                 && datamartDependencyTicketOwnerReady
                 && datamartDependencyTicketOwnerContactReady
                 && datamartDependencyTicketOwnerContactActionableReady
-                && datamartDependencyTicketFreshnessReady);
+                && datamartDependencyTicketFreshnessReady
+                && datamartContractReady);
 
         java.util.List<String> datamartRiskReasons = new java.util.ArrayList<>();
         if (!ownerRunbookReady) {
@@ -1058,6 +1078,9 @@ public class DialogService {
         if (!datamartDependencyTicketOwnerContactActionableReady) {
             datamartRiskReasons.add("dependency_ticket_owner_contact_not_actionable");
         }
+        if (!datamartContractReady) {
+            datamartRiskReasons.add("datamart_contract_missing_mandatory_fields");
+        }
 
         String datamartRiskLevel = "low";
         if (!datamartRiskReasons.isEmpty()) {
@@ -1084,6 +1107,13 @@ public class DialogService {
         signal.put("datamart_dependency_ticket_owner_contact_actionable_required", datamartDependencyTicketOwnerContactActionableRequired);
         signal.put("datamart_dependency_ticket_owner_contact_actionable", datamartDependencyTicketOwnerContactActionable);
         signal.put("datamart_dependency_ticket_owner_contact_actionable_ready", datamartDependencyTicketOwnerContactActionableReady);
+        signal.put("datamart_contract_required", datamartContractRequired);
+        signal.put("datamart_contract_version", StringUtils.hasText(datamartContractVersion) ? datamartContractVersion : DEFAULT_EXTERNAL_KPI_CONTRACT_VERSION);
+        signal.put("datamart_contract_mandatory_fields", new ArrayList<>(datamartContractMandatoryFields));
+        signal.put("datamart_contract_optional_fields", new ArrayList<>(datamartContractOptionalFields));
+        signal.put("datamart_contract_available_fields", new ArrayList<>(datamartContractAvailableFields));
+        signal.put("datamart_contract_missing_mandatory_fields", new ArrayList<>(datamartContractMissingMandatoryFields));
+        signal.put("datamart_contract_ready", datamartContractReady);
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
         signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
         signal.put("datamart_dependency_ticket_ready", datamartDependencyTicketReady);
@@ -1681,6 +1711,25 @@ public class DialogService {
                 .filter(StringUtils::hasText)
                 .filter(DEFAULT_REQUIRED_KPI_OUTCOME_KEYS::contains)
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private Set<String> parseExternalKpiContractFields(Object rawValue, Set<String> fallback) {
+        if (rawValue == null) {
+            return fallback;
+        }
+        List<String> values = new ArrayList<>();
+        if (rawValue instanceof List<?> list) {
+            for (Object item : list) {
+                values.add(String.valueOf(item));
+            }
+        } else {
+            values.addAll(List.of(String.valueOf(rawValue).split(",")));
+        }
+        Set<String> normalized = values.stream()
+                .map(value -> normalizeNullString(String.valueOf(value)).toLowerCase(Locale.ROOT))
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        return normalized.isEmpty() ? fallback : normalized;
     }
 
     private double resolveWinnerMinOpenImprovementPercent() {
