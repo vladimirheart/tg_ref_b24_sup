@@ -1033,6 +1033,11 @@ public class DialogService {
         int datamartContractOptionalCoveragePct = calculateContractCoveragePercent(
                 datamartContractOptionalFields,
                 datamartContractMissingOptionalFields);
+        int datamartContractBlockingGapCount = datamartContractMissingMandatoryFields.size();
+        int datamartContractNonBlockingGapCount = datamartContractMissingOptionalFields.size();
+        String datamartContractGapSeverity = resolveDatamartContractGapSeverity(
+                datamartContractBlockingGapCount,
+                datamartContractNonBlockingGapCount);
         boolean datamartContractReady = !datamartContractRequired || datamartContractMissingMandatoryFields.isEmpty();
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
@@ -1125,6 +1130,9 @@ public class DialogService {
         signal.put("datamart_contract_missing_optional_fields", new ArrayList<>(datamartContractMissingOptionalFields));
         signal.put("datamart_contract_mandatory_coverage_pct", datamartContractMandatoryCoveragePct);
         signal.put("datamart_contract_optional_coverage_pct", datamartContractOptionalCoveragePct);
+        signal.put("datamart_contract_blocking_gap_count", datamartContractBlockingGapCount);
+        signal.put("datamart_contract_non_blocking_gap_count", datamartContractNonBlockingGapCount);
+        signal.put("datamart_contract_gap_severity", datamartContractGapSeverity);
         signal.put("datamart_contract_ready", datamartContractReady);
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
         signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
@@ -1208,6 +1216,19 @@ public class DialogService {
         }
         int covered = Math.max(0, contractFields.size() - (missingFields == null ? 0 : missingFields.size()));
         return (int) Math.round((covered * 100.0d) / contractFields.size());
+    }
+
+    private String resolveDatamartContractGapSeverity(int blockingGapCount, int nonBlockingGapCount) {
+        if (blockingGapCount > 0 && nonBlockingGapCount > 0) {
+            return "mixed";
+        }
+        if (blockingGapCount > 0) {
+            return "blocking";
+        }
+        if (nonBlockingGapCount > 0) {
+            return "non_blocking";
+        }
+        return "none";
     }
 
     private boolean isValidExternalReferenceUrl(String rawUrl) {
