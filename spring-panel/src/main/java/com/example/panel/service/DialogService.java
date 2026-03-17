@@ -891,6 +891,14 @@ public class DialogService {
         Set<String> datamartContractAvailableFields = parseExternalKpiContractFields(
                 resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_contract_available_fields"),
                 Set.of());
+        boolean datamartContractOptionalCoverageRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_contract_optional_coverage_required",
+                false);
+        int datamartContractOptionalMinCoveragePct = (int) resolveLongDialogConfigValue(
+                "workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct",
+                0,
+                0,
+                100);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
                 normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_health_status"))));
         String dashboardStatus = normalizeDatamartHealthStatus(
@@ -1038,7 +1046,10 @@ public class DialogService {
         String datamartContractGapSeverity = resolveDatamartContractGapSeverity(
                 datamartContractBlockingGapCount,
                 datamartContractNonBlockingGapCount);
-        boolean datamartContractReady = !datamartContractRequired || datamartContractMissingMandatoryFields.isEmpty();
+        boolean datamartContractOptionalCoverageReady = !datamartContractOptionalCoverageRequired
+                || datamartContractOptionalCoveragePct >= datamartContractOptionalMinCoveragePct;
+        boolean datamartContractReady = (!datamartContractRequired || datamartContractMissingMandatoryFields.isEmpty())
+                && datamartContractOptionalCoverageReady;
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
@@ -1092,8 +1103,11 @@ public class DialogService {
         if (!datamartDependencyTicketOwnerContactActionableReady) {
             datamartRiskReasons.add("dependency_ticket_owner_contact_not_actionable");
         }
-        if (!datamartContractReady) {
+        if (!datamartContractMissingMandatoryFields.isEmpty()) {
             datamartRiskReasons.add("datamart_contract_missing_mandatory_fields");
+        }
+        if (!datamartContractOptionalCoverageReady) {
+            datamartRiskReasons.add("datamart_contract_optional_coverage_below_threshold");
         }
 
         String datamartRiskLevel = "low";
@@ -1133,6 +1147,9 @@ public class DialogService {
         signal.put("datamart_contract_blocking_gap_count", datamartContractBlockingGapCount);
         signal.put("datamart_contract_non_blocking_gap_count", datamartContractNonBlockingGapCount);
         signal.put("datamart_contract_gap_severity", datamartContractGapSeverity);
+        signal.put("datamart_contract_optional_coverage_required", datamartContractOptionalCoverageRequired);
+        signal.put("datamart_contract_optional_min_coverage_pct", datamartContractOptionalMinCoveragePct);
+        signal.put("datamart_contract_optional_coverage_ready", datamartContractOptionalCoverageReady);
         signal.put("datamart_contract_ready", datamartContractReady);
         signal.put("datamart_dependency_ticket_present", datamartDependencyTicketPresent);
         signal.put("datamart_dependency_ticket_valid", datamartDependencyTicketValid);
