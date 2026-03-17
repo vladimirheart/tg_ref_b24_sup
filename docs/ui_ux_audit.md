@@ -755,6 +755,7 @@
 - [ ] **Единый enterprise data-mart (omni-channel + finance) как источник product KPI**.
   - В текущем репозитории реализован управляемый runtime-bridge с gate-механиками, owner/runbook, risk grading и контрактным контролем минимального KPI-набора (`contract_required`, `mandatory/optional/available fields`, `missing_mandatory_fields`).
   - **NOW-1.208:** для операционализации этого ограничения контрактный блок (`contract_required/version/mandatory/optional/available`) вынесен в UI «Настройки → Диалоги → Кросс-продуктовые KPI-дашборды», прокинут через `SettingsBridge` и явно отображается в decision-banner на странице «Аналитика» (`datamart_contract=...`). Это делает внешний блокер наблюдаемым и управляемым без ручного редактирования `dialog_config`.
+  - **NOW-1.209:** decisioning дополнен метриками покрытия контракта (`datamart_contract_mandatory_coverage_pct`, `datamart_contract_optional_coverage_pct`) и списком пропущенных optional-полей (`datamart_contract_missing_optional_fields`). Значения публикуются в `external_kpi_signal` и выводятся в decision-banner (`mandatory/optional coverage`), чтобы быстрее отличать блокирующие contract-gap от неблокирующих «желательных» полей и точнее планировать интеграционный backlog.
   - Полноценная витрина, SLA по данным и сквозная модель метрик остаются в зоне ответственности внешнего платформенного потока.
 
 ### 12.3. Корректировка roadmap (обновление приоритетов)
