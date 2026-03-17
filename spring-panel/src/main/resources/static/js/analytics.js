@@ -355,13 +355,19 @@
     const datamartDependencyTicketLabel = externalSignal.datamart_dependency_ticket_required
       ? (externalSignal.datamart_dependency_ticket_present ? 'ready' : 'missing (hold)')
       : 'off';
+    const datamartContractMissingMandatoryFields = Array.isArray(externalSignal.datamart_contract_missing_mandatory_fields)
+      ? externalSignal.datamart_contract_missing_mandatory_fields.filter(Boolean).join('|')
+      : '';
+    const datamartContractLabel = externalSignal.datamart_contract_required
+      ? `v=${externalSignal.datamart_contract_version || 'v1'}, mandatory=${datamartContractMissingMandatoryFields ? `missing:${datamartContractMissingMandatoryFields}` : 'ready'}${externalSignal.datamart_contract_ready ? '' : ' (hold)'}`
+      : 'off';
     const datamartRiskLevel = String(externalSignal.datamart_risk_level || 'low').trim().toLowerCase();
     const datamartRiskReasons = Array.isArray(externalSignal.datamart_risk_reasons)
       ? externalSignal.datamart_risk_reasons.filter(Boolean).join('|')
       : '';
     const datamartHealthNote = String(externalSignal.datamart_health_note || '').trim();
     const externalGateSuffix = externalGateEnabled
-      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}, links=${linksLabel}, dashboard_status=${dashboardStatusLabel}, owner/runbook=${ownerRunbookLabel}, datamart_health=${datamartHealthLabel}, datamart_health_freshness=${datamartHealthFreshnessLabel}, datamart_program_freshness=${datamartProgramFreshnessLabel}, datamart_timeline=${datamartTimelineLabel}, datamart_program=${datamartProgramLabel}, dependency_ticket=${datamartDependencyTicketLabel}, datamart_risk=${datamartRiskLevel}${datamartRiskReasons ? `:${datamartRiskReasons}` : ''}${datamartContext ? `, ${datamartContext}` : ''}${datamartHealthNote ? `, health_note=${datamartHealthNote}` : ''}${String(externalSignal.dashboard_status_note || '').trim() ? `, dashboard_note=${String(externalSignal.dashboard_status_note || '').trim()}` : ''}).`
+      ? ` External KPI gate: ${externalGateReady ? 'ready' : 'hold'} (omnichannel=${externalSignal.omnichannel_ready ? 'ok' : 'pending'}, finance=${externalSignal.finance_ready ? 'ok' : 'pending'}, review=${reviewLabel}, freshness=${freshnessLabel}, links=${linksLabel}, dashboard_status=${dashboardStatusLabel}, owner/runbook=${ownerRunbookLabel}, datamart_health=${datamartHealthLabel}, datamart_health_freshness=${datamartHealthFreshnessLabel}, datamart_program_freshness=${datamartProgramFreshnessLabel}, datamart_timeline=${datamartTimelineLabel}, datamart_program=${datamartProgramLabel}, dependency_ticket=${datamartDependencyTicketLabel}, datamart_contract=${datamartContractLabel}, datamart_risk=${datamartRiskLevel}${datamartRiskReasons ? `:${datamartRiskReasons}` : ''}${datamartContext ? `, ${datamartContext}` : ''}${datamartHealthNote ? `, health_note=${datamartHealthNote}` : ''}${String(externalSignal.dashboard_status_note || '').trim() ? `, dashboard_note=${String(externalSignal.dashboard_status_note || '').trim()}` : ''}).`
       : '';
     rolloutDecisionBox.textContent = `Rollout decision: ${action}. Winner: ${winner}. ${rationale}${externalGateSuffix}`;
 

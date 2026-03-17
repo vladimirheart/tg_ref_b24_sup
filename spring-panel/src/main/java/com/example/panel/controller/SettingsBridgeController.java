@@ -277,6 +277,11 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_timeline_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_target_ready_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_timeline_grace_hours")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_version")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_available_fields")
                 || payload.containsKey("dialog_workspace_client_hidden_attributes")
                 || payload.containsKey("dialog_workspace_client_attribute_labels")
                 || payload.containsKey("dialog_workspace_client_attribute_order")
@@ -803,6 +808,26 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_timeline_grace_hours")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_timeline_grace_hours",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_timeline_grace_hours"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_version")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_version",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_version"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_mandatory_fields",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_optional_fields",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_contract_available_fields")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_contract_available_fields",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_contract_available_fields"));
                 }
                 if (payload.containsKey("dialog_workspace_client_hidden_attributes")) {
                     dialogConfig.put("workspace_client_hidden_attributes",
