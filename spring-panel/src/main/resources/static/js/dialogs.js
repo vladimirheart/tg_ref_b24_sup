@@ -9,6 +9,7 @@
   const sortModeSelect = document.getElementById('dialogSortMode');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
   const columnsBtn = document.getElementById('dialogColumnsBtn');
+  const hotkeysBtn = document.getElementById('dialogHotkeysBtn');
   const experimentInfoMeta = document.getElementById('dialogExperimentInfoMeta');
   const experimentPrimaryKpis = document.getElementById('dialogExperimentPrimaryKpis');
   const experimentSecondaryKpis = document.getElementById('dialogExperimentSecondaryKpis');
@@ -28,6 +29,7 @@
   const filtersModalEl = document.getElementById('dialogFiltersModal');
   const columnsModalEl = document.getElementById('dialogColumnsModal');
   const detailsModalEl = document.getElementById('dialogDetailsModal');
+  const hotkeysModalEl = document.getElementById('dialogHotkeysModal');
   const workspaceShell = document.getElementById('dialogsWorkspaceShell');
   const workspaceConversationTitle = document.getElementById('workspaceConversationTitle');
   const workspaceConversationMeta = document.getElementById('workspaceConversationMeta');
@@ -150,6 +152,9 @@
     : null;
   const detailsModal = (typeof bootstrap !== 'undefined' && detailsModalEl)
     ? new bootstrap.Modal(detailsModalEl)
+    : null;
+  const hotkeysModal = (typeof bootstrap !== 'undefined' && hotkeysModalEl)
+    ? new bootstrap.Modal(hotkeysModalEl)
     : null;
   const mediaPreviewModal = (typeof bootstrap !== 'undefined' && mediaPreviewModalEl)
     ? new bootstrap.Modal(mediaPreviewModalEl)
@@ -3306,6 +3311,12 @@
       return;
     }
 
+    if ((event.key === '?' || (event.shiftKey && event.key === '/')) && hotkeysModal) {
+      event.preventDefault();
+      hotkeysModal.show();
+      return;
+    }
+
     if (!event.altKey) return;
     const key = String(event.key || '').toLowerCase();
     const viewMap = {
@@ -3333,6 +3344,24 @@
     if (Object.prototype.hasOwnProperty.call(statusShortcutMap, key)) {
       event.preventDefault();
       applyStatusFilter(statusShortcutMap[key]);
+      return;
+    }
+
+    if (key === 'l') {
+      event.preventDefault();
+      const nextSortMode = filterState.sortMode === 'sla_priority' ? 'default' : 'sla_priority';
+      filterState.sortMode = nextSortMode;
+      if (sortModeSelect) {
+        sortModeSelect.value = nextSortMode;
+      }
+      if (nextSortMode !== 'sla_priority') {
+        lastManualSortMode = nextSortMode;
+      }
+      persistDialogPreferences();
+      applyFilters();
+      if (typeof showNotification === 'function') {
+        showNotification(nextSortMode === 'sla_priority' ? 'Включена сортировка SLA-first' : 'Включена стандартная сортировка', 'info');
+      }
       return;
     }
 
@@ -5280,6 +5309,12 @@
       tab.addEventListener('click', () => {
         setViewTab(tab.dataset.dialogView || 'all');
       });
+    });
+  }
+
+  if (hotkeysBtn && hotkeysModal) {
+    hotkeysBtn.addEventListener('click', () => {
+      hotkeysModal.show();
     });
   }
 
