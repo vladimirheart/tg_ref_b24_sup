@@ -67,6 +67,7 @@ public class DialogService {
     private static final long DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_TTL_HOURS = 24L * 14L;
     private static final String DEFAULT_EXTERNAL_KPI_CONTRACT_VERSION = "v1";
     private static final Set<String> DEFAULT_EXTERNAL_KPI_CONTRACT_MANDATORY_FIELDS = Set.of("frt", "ttr", "sla_breach", "cost_per_contact");
+    private static final int DEFAULT_EXTERNAL_KPI_CONTRACT_OPTIONAL_MIN_COVERAGE_PCT = 80;
     private static final Set<String> DEFAULT_REQUIRED_KPI_OUTCOME_KEYS = Set.of("frt", "ttr", "sla_breach");
     private static final double DEFAULT_GUARDRAIL_RENDER_ERROR_RATE = 0.01d;
     private static final double DEFAULT_GUARDRAIL_FALLBACK_RATE = 0.03d;
@@ -896,7 +897,7 @@ public class DialogService {
                 false);
         int datamartContractOptionalMinCoveragePct = (int) resolveLongDialogConfigValue(
                 "workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct",
-                0,
+                DEFAULT_EXTERNAL_KPI_CONTRACT_OPTIONAL_MIN_COVERAGE_PCT,
                 0,
                 100);
         String datamartHealthStatus = normalizeDatamartHealthStatus(
