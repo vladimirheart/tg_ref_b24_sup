@@ -732,3 +732,5 @@
 - ✅ **P2 SLA-first orchestration:** выполнено по базовому DoD (autopilot как default + auto-assign/reassign + escalation include assigned).
 - ✅ **P2 A/B + KPI decisioning:** закрыто на уровне runtime decisioning (guardrails + outcome-kpi gating + external KPI gate/checkpoints).
 - ⏳ **P2 Cross-product dashboards:** перенесено в отдельный поток данных/BI как внешняя зависимость.
+- [x] **NOW-1.49 (этап C1, риск-сегментация backlog pressure):** добавлен новый workspace-сегмент `open_backlog_pressure`, который помечает клиентов с одновременно высоким числом открытых обращений и высокой долей open-case. Пороговые значения вынесены в `dialog_config` (`workspace_segment_open_backlog_min_open`, `workspace_segment_open_backlog_min_share_percent`) и доступны для настройки без code deploy.
+- [x] **NOW-1.50 (этап C1, settings parity для риск-сегментов):** страница «Настройки → Диалоги» расширена отдельными полями для управления порогами `open_backlog_pressure`; добавлена клиентская валидация диапазонов и сохранение в `dialog_config` через SettingsBridge, чтобы обеспечить полную server/UI-консистентность сегментации.

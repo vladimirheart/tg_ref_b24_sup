@@ -865,6 +865,20 @@ public class DialogApiController {
                 0,
                 100
         );
+        int openBacklogMinOpenThreshold = resolveDialogConfigRangeMinutes(
+                settings,
+                "workspace_segment_open_backlog_min_open",
+                3,
+                1,
+                100
+        );
+        int openBacklogMinSharePercent = resolveDialogConfigRangeMinutes(
+                settings,
+                "workspace_segment_open_backlog_min_share_percent",
+                50,
+                1,
+                100
+        );
 
         if (totalDialogs >= highLifetimeDialogsThreshold) {
             segments.add("high_lifetime_volume");
@@ -874,6 +888,12 @@ public class DialogApiController {
         }
         if (totalDialogs >= reactivationDialogsThreshold && resolved30d <= reactivationResolvedThreshold) {
             segments.add("reactivation_risk");
+        }
+        if (openDialogs >= openBacklogMinOpenThreshold && totalDialogs > 0) {
+            int openSharePercent = Math.round((openDialogs * 100f) / totalDialogs);
+            if (openSharePercent >= openBacklogMinSharePercent) {
+                segments.add("open_backlog_pressure");
+            }
         }
         return segments;
     }
