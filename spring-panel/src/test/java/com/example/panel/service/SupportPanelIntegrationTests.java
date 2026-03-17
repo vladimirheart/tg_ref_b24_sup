@@ -1170,6 +1170,56 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceRolloutDecisionHoldsWhenDatamartContractMandatoryFieldMissing() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
+                         "workspace_rollout_external_kpi_datamart_contract_required":true,
+                         "workspace_rollout_external_kpi_datamart_contract_mandatory_fields":"frt,ttr,sla_breach,cost_per_contact",
+                         "workspace_rollout_external_kpi_datamart_contract_available_fields":"frt,ttr,sla_breach"}
+                        """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
+
+        assertThat(rolloutDecision).containsEntry("action", "hold");
+        assertThat(externalSignal).containsEntry("datamart_contract_required", true);
+        assertThat(externalSignal).containsEntry("datamart_contract_ready", false);
+        assertThat((java.util.List<String>) externalSignal.get("datamart_contract_missing_mandatory_fields"))
+                .containsExactly("cost_per_contact");
+        assertThat((java.util.List<String>) externalSignal.get("datamart_risk_reasons"))
+                .contains("datamart_contract_missing_mandatory_fields");
+    }
+
+    @Test
+    void workspaceRolloutDecisionAllowsWhenDatamartContractMandatoryFieldsCovered() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
+                         "workspace_rollout_external_kpi_datamart_contract_required":true,
+                         "workspace_rollout_external_kpi_datamart_contract_version":"v2",
+                         "workspace_rollout_external_kpi_datamart_contract_mandatory_fields":"frt,ttr,sla_breach,cost_per_contact",
+                         "workspace_rollout_external_kpi_datamart_contract_optional_fields":"dialogs_per_shift,csat",
+                         "workspace_rollout_external_kpi_datamart_contract_available_fields":"frt,ttr,sla_breach,cost_per_contact,dialogs_per_shift"}
+                        """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
+
+        assertThat(externalSignal).containsEntry("datamart_contract_required", true);
+        assertThat(externalSignal).containsEntry("datamart_contract_ready", true);
+        assertThat(externalSignal).containsEntry("datamart_contract_version", "v2");
+        assertThat((java.util.List<String>) externalSignal.get("datamart_contract_missing_mandatory_fields")).isEmpty();
+        assertThat(externalSignal).containsEntry("ready_for_decision", true);
+    }
+
+    @Test
     void workspaceRolloutDecisionMarksMediumRiskWhenSingleGateFails() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
