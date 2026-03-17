@@ -290,6 +290,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_segment_multi_open_dialogs_min_open")
                 || payload.containsKey("dialog_workspace_segment_reactivation_risk_min_dialogs")
                 || payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")
+                || payload.containsKey("dialog_workspace_segment_open_backlog_min_open")
+                || payload.containsKey("dialog_workspace_segment_open_backlog_min_share_percent")
                 || payload.containsKey("dialog_public_form_message_max_length")
                 || payload.containsKey("dialog_public_form_answers_total_max_length")
                 || payload.containsKey("dialog_public_form_session_ttl_hours")
@@ -853,6 +855,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_segment_reactivation_risk_max_resolved_30d")) {
                     dialogConfig.put("workspace_segment_reactivation_risk_max_resolved_30d",
                             payload.get("dialog_workspace_segment_reactivation_risk_max_resolved_30d"));
+                }
+                if (payload.containsKey("dialog_workspace_segment_open_backlog_min_open")) {
+                    dialogConfig.put("workspace_segment_open_backlog_min_open",
+                            payload.get("dialog_workspace_segment_open_backlog_min_open"));
+                }
+                if (payload.containsKey("dialog_workspace_segment_open_backlog_min_share_percent")) {
+                    dialogConfig.put("workspace_segment_open_backlog_min_share_percent",
+                            payload.get("dialog_workspace_segment_open_backlog_min_share_percent"));
                 }
                 if (payload.containsKey("dialog_public_form_message_max_length")) {
                     dialogConfig.put("public_form_message_max_length",
