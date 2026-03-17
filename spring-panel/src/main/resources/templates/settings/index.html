@@ -2704,6 +2704,29 @@
                       <label for="dialogWorkspaceExternalKpiDatamartTimelineGraceHours" class="form-label">Grace после дедлайна, часов</label>
                       <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartTimelineGraceHours" min="0" max="720" step="1">
                     </div>
+                    <div class="col-md-12">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartContractRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartContractRequired">Требовать data contract внешнего enterprise data-mart</label>
+                      </div>
+                      <div class="form-text">Фиксирует минимальный KPI-контракт (mandatory/optional/available) и удерживает rollout в hold при отсутствии обязательных метрик.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractVersion" class="form-label">Версия data contract</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractVersion" maxlength="64" placeholder="v1">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractMandatoryFields" class="form-label">Mandatory KPI fields</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractMandatoryFields" maxlength="300" placeholder="frt,ttr,sla_breach,cost_per_contact">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractOptionalFields" class="form-label">Optional KPI fields</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractOptionalFields" maxlength="300" placeholder="dialogs_per_shift,csat">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractAvailableFields" class="form-label">Available KPI fields</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractAvailableFields" maxlength="500" placeholder="frt,ttr,sla_breach,cost_per_contact">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -4559,6 +4582,11 @@
     workspace_rollout_external_kpi_datamart_timeline_required: false,
     workspace_rollout_external_kpi_datamart_target_ready_at: '',
     workspace_rollout_external_kpi_datamart_timeline_grace_hours: 24,
+    workspace_rollout_external_kpi_datamart_contract_required: false,
+    workspace_rollout_external_kpi_datamart_contract_version: 'v1',
+    workspace_rollout_external_kpi_datamart_contract_mandatory_fields: 'frt,ttr,sla_breach,cost_per_contact',
+    workspace_rollout_external_kpi_datamart_contract_optional_fields: '',
+    workspace_rollout_external_kpi_datamart_contract_available_fields: '',
     public_form_message_max_length: 4000,
     public_form_answers_total_max_length: 6000,
     public_form_session_ttl_hours: 72,
@@ -13688,6 +13716,11 @@
       workspaceExternalKpiDatamartTimelineRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartTimelineRequired'),
       workspaceExternalKpiDatamartTargetReadyAt: document.getElementById('dialogWorkspaceExternalKpiDatamartTargetReadyAt'),
       workspaceExternalKpiDatamartTimelineGraceHours: document.getElementById('dialogWorkspaceExternalKpiDatamartTimelineGraceHours'),
+      workspaceExternalKpiDatamartContractRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartContractRequired'),
+      workspaceExternalKpiDatamartContractVersion: document.getElementById('dialogWorkspaceExternalKpiDatamartContractVersion'),
+      workspaceExternalKpiDatamartContractMandatoryFields: document.getElementById('dialogWorkspaceExternalKpiDatamartContractMandatoryFields'),
+      workspaceExternalKpiDatamartContractOptionalFields: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalFields'),
+      workspaceExternalKpiDatamartContractAvailableFields: document.getElementById('dialogWorkspaceExternalKpiDatamartContractAvailableFields'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14416,6 +14449,23 @@
       inputs.workspaceExternalKpiDatamartTimelineGraceHours.value = Number.isFinite(value)
         ? String(Math.max(0, Math.min(720, value)))
         : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_timeline_grace_hours);
+    }
+    if (inputs.workspaceExternalKpiDatamartContractRequired) {
+      inputs.workspaceExternalKpiDatamartContractRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_required);
+    }
+    if (inputs.workspaceExternalKpiDatamartContractVersion) {
+      inputs.workspaceExternalKpiDatamartContractVersion.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_version || '').trim()
+        || DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_version;
+    }
+    if (inputs.workspaceExternalKpiDatamartContractMandatoryFields) {
+      inputs.workspaceExternalKpiDatamartContractMandatoryFields.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_mandatory_fields || '').trim()
+        || DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_mandatory_fields;
+    }
+    if (inputs.workspaceExternalKpiDatamartContractOptionalFields) {
+      inputs.workspaceExternalKpiDatamartContractOptionalFields.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_fields || '').trim();
+    }
+    if (inputs.workspaceExternalKpiDatamartContractAvailableFields) {
+      inputs.workspaceExternalKpiDatamartContractAvailableFields.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_contract_available_fields || '').trim();
     }
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15665,6 +15715,13 @@
     const safeWorkspaceExternalKpiDatamartTimelineGraceHours = Number.isFinite(datamartTimelineGraceHoursRaw)
       ? Math.max(0, Math.min(720, datamartTimelineGraceHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_timeline_grace_hours;
+    const safeWorkspaceExternalKpiDatamartContractRequired = Boolean(inputs.workspaceExternalKpiDatamartContractRequired?.checked);
+    const safeWorkspaceExternalKpiDatamartContractVersion = String(inputs.workspaceExternalKpiDatamartContractVersion?.value || '').trim().slice(0, 64)
+      || DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_version;
+    const safeWorkspaceExternalKpiDatamartContractMandatoryFields = String(inputs.workspaceExternalKpiDatamartContractMandatoryFields?.value || '').trim().slice(0, 300)
+      || DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_mandatory_fields;
+    const safeWorkspaceExternalKpiDatamartContractOptionalFields = String(inputs.workspaceExternalKpiDatamartContractOptionalFields?.value || '').trim().slice(0, 300);
+    const safeWorkspaceExternalKpiDatamartContractAvailableFields = String(inputs.workspaceExternalKpiDatamartContractAvailableFields?.value || '').trim().slice(0, 500);
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
     }
@@ -15855,6 +15912,11 @@
         dialog_workspace_rollout_external_kpi_datamart_timeline_required: safeWorkspaceExternalKpiDatamartTimelineRequired,
         dialog_workspace_rollout_external_kpi_datamart_target_ready_at: safeWorkspaceExternalKpiDatamartTargetReadyAt,
         dialog_workspace_rollout_external_kpi_datamart_timeline_grace_hours: safeWorkspaceExternalKpiDatamartTimelineGraceHours,
+        dialog_workspace_rollout_external_kpi_datamart_contract_required: safeWorkspaceExternalKpiDatamartContractRequired,
+        dialog_workspace_rollout_external_kpi_datamart_contract_version: safeWorkspaceExternalKpiDatamartContractVersion,
+        dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields: safeWorkspaceExternalKpiDatamartContractMandatoryFields,
+        dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields: safeWorkspaceExternalKpiDatamartContractOptionalFields,
+        dialog_workspace_rollout_external_kpi_datamart_contract_available_fields: safeWorkspaceExternalKpiDatamartContractAvailableFields,
         dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
         dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
         dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
