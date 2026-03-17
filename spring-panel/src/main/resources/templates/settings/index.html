@@ -2446,8 +2446,16 @@
                       <label for="dialogWorkspaceSegmentReactivationMaxResolved30d" class="form-label">Порог reactivation_risk (max resolved_30d)</label>
                       <input type="number" class="form-control" id="dialogWorkspaceSegmentReactivationMaxResolved30d" min="0" max="100" step="1">
                     </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentOpenBacklogMinOpen" class="form-label">Порог open_backlog_pressure (open-диалогов)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentOpenBacklogMinOpen" min="1" max="100" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentOpenBacklogMinSharePercent" class="form-label">Порог open_backlog_pressure (доля open, %)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentOpenBacklogMinSharePercent" min="1" max="100" step="1">
+                    </div>
                   </div>
-                  <div class="form-text">Сегмент reactivation_risk активируется, если total_dialogs ≥ порога и resolved_30d ≤ max значения.</div>
+                  <div class="form-text">Сегмент reactivation_risk активируется, если total_dialogs ≥ порога и resolved_30d ≤ max значения. Сегмент open_backlog_pressure — если open_dialogs ≥ порога и доля open-диалогов превышает заданный процент.</div>
                   <hr class="my-4">
                   <h6 class="mb-2">Кросс-продуктовые KPI-дашборды (BI bridge)</h6>
                   <p class="small text-muted">Ссылки на внешние omni-channel/финансовые доски для закрытия пробела roadmap без отдельного релиза.</p>
@@ -4493,6 +4501,8 @@
     workspace_segment_multi_open_dialogs_min_open: 2,
     workspace_segment_reactivation_risk_min_dialogs: 3,
     workspace_segment_reactivation_risk_max_resolved_30d: 0,
+    workspace_segment_open_backlog_min_open: 3,
+    workspace_segment_open_backlog_min_share_percent: 50,
     workspace_client_extra_attributes_max: 20,
     workspace_client_extra_attributes_collapse_after: 8,
     workspace_client_extra_attributes_hide_technical: true,
@@ -13629,6 +13639,8 @@
       workspaceSegmentMultiOpenMinDialogs: document.getElementById('dialogWorkspaceSegmentMultiOpenMinDialogs'),
       workspaceSegmentReactivationMinDialogs: document.getElementById('dialogWorkspaceSegmentReactivationMinDialogs'),
       workspaceSegmentReactivationMaxResolved30d: document.getElementById('dialogWorkspaceSegmentReactivationMaxResolved30d'),
+      workspaceSegmentOpenBacklogMinOpen: document.getElementById('dialogWorkspaceSegmentOpenBacklogMinOpen'),
+      workspaceSegmentOpenBacklogMinSharePercent: document.getElementById('dialogWorkspaceSegmentOpenBacklogMinSharePercent'),
       crossProductOmnichannelDashboardUrl: document.getElementById('dialogCrossProductOmnichannelDashboardUrl'),
       crossProductOmnichannelDashboardLabel: document.getElementById('dialogCrossProductOmnichannelDashboardLabel'),
       crossProductFinanceDashboardUrl: document.getElementById('dialogCrossProductFinanceDashboardUrl'),
@@ -14225,6 +14237,18 @@
       inputs.workspaceSegmentReactivationMaxResolved30d.value = Number.isFinite(value) && value >= 0 && value <= 100
         ? value
         : DEFAULT_DIALOG_SLA_CONFIG.workspace_segment_reactivation_risk_max_resolved_30d;
+    }
+    if (inputs.workspaceSegmentOpenBacklogMinOpen) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_segment_open_backlog_min_open, 10);
+      inputs.workspaceSegmentOpenBacklogMinOpen.value = Number.isFinite(value) && value >= 1 && value <= 100
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_segment_open_backlog_min_open;
+    }
+    if (inputs.workspaceSegmentOpenBacklogMinSharePercent) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_segment_open_backlog_min_share_percent, 10);
+      inputs.workspaceSegmentOpenBacklogMinSharePercent.value = Number.isFinite(value) && value >= 1 && value <= 100
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_segment_open_backlog_min_share_percent;
     }
     if (inputs.crossProductOmnichannelDashboardUrl) {
       inputs.crossProductOmnichannelDashboardUrl.value = String(DIALOG_CONFIG.cross_product_omnichannel_dashboard_url || '').trim();
@@ -15662,6 +15686,22 @@
       errors.push('Порог reactivation_risk (max resolved_30d) должен быть в диапазоне 0..100.');
     }
 
+    const safeOpenBacklogMinOpenRaw = Math.round(Number(inputs.workspaceSegmentOpenBacklogMinOpen?.value));
+    const safeOpenBacklogMinOpen = Number.isFinite(safeOpenBacklogMinOpenRaw)
+      ? Math.min(100, Math.max(1, safeOpenBacklogMinOpenRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_segment_open_backlog_min_open;
+    if (!Number.isFinite(safeOpenBacklogMinOpenRaw) || safeOpenBacklogMinOpenRaw < 1 || safeOpenBacklogMinOpenRaw > 100) {
+      errors.push('Порог open_backlog_pressure (open-диалогов) должен быть в диапазоне 1..100.');
+    }
+
+    const safeOpenBacklogMinShareRaw = Math.round(Number(inputs.workspaceSegmentOpenBacklogMinSharePercent?.value));
+    const safeOpenBacklogMinShare = Number.isFinite(safeOpenBacklogMinShareRaw)
+      ? Math.min(100, Math.max(1, safeOpenBacklogMinShareRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_segment_open_backlog_min_share_percent;
+    if (!Number.isFinite(safeOpenBacklogMinShareRaw) || safeOpenBacklogMinShareRaw < 1 || safeOpenBacklogMinShareRaw > 100) {
+      errors.push('Порог open_backlog_pressure (доля open, %) должен быть в диапазоне 1..100.');
+    }
+
     return {
       errors,
       config: {
@@ -15766,6 +15806,8 @@
         dialog_workspace_segment_multi_open_dialogs_min_open: safeMultiOpenThreshold,
         dialog_workspace_segment_reactivation_risk_min_dialogs: safeReactivationMinDialogs,
         dialog_workspace_segment_reactivation_risk_max_resolved_30d: safeReactivationMaxResolved,
+        dialog_workspace_segment_open_backlog_min_open: safeOpenBacklogMinOpen,
+        dialog_workspace_segment_open_backlog_min_share_percent: safeOpenBacklogMinShare,
         dialog_cross_product_omnichannel_dashboard_url: safeCrossProductOmnichannelDashboardUrl,
         dialog_cross_product_omnichannel_dashboard_label: safeCrossProductOmnichannelDashboardLabel,
         dialog_cross_product_finance_dashboard_url: safeCrossProductFinanceDashboardUrl,
