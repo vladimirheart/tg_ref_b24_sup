@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.controller.SettingsBridgeController;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.model.knowledge.KnowledgeArticleCommand;
@@ -51,6 +52,12 @@ class SupportPanelIntegrationTests {
 
     @Autowired
     private DialogService dialogService;
+
+    @Autowired
+    private SettingsBridgeController settingsBridgeController;
+
+    @Autowired
+    private SharedConfigService sharedConfigService;
 
     @Autowired
     private KnowledgeBaseService knowledgeBaseService;
@@ -1358,6 +1365,43 @@ class SupportPanelIntegrationTests {
         assertThat(externalSignal).containsEntry("review_timestamp_invalid", false);
         assertThat(externalSignal).containsEntry("reviewed_at", "2099-01-01T00:00Z");
         assertThat(externalSignal).containsEntry("review_present", true);
+    }
+
+    @Test
+    void settingsBridgeNormalizesExternalKpiUtcTimestampsAndPreservesInvalidValuesForAnalytics() {
+        Map<String, Object> response = settingsBridgeController.updateSettings(Map.of(
+                "dialog_workspace_rollout_external_kpi_gate_enabled", true,
+                "dialog_workspace_rollout_external_kpi_omnichannel_ready", true,
+                "dialog_workspace_rollout_external_kpi_finance_ready", true,
+                "dialog_workspace_rollout_external_kpi_reviewed_by", "release-oncall",
+                "dialog_workspace_rollout_external_kpi_reviewed_at", "2099-01-01T00:00",
+                "dialog_workspace_rollout_external_kpi_data_updated_at", "2099-01-01T03:00:00+03:00",
+                "dialog_workspace_rollout_external_kpi_datamart_program_updated_at", "bad-value",
+                "dialog_workspace_rollout_external_kpi_datamart_target_ready_at", ""
+        ), null);
+
+        assertThat(response).containsEntry("success", true);
+        assertThat((List<String>) response.get("warnings"))
+                .anyMatch(message -> message.contains("программного статуса data-mart"));
+
+        Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");
+        assertThat(dialogConfig).containsEntry("workspace_rollout_external_kpi_reviewed_at", "2099-01-01T00:00Z");
+        assertThat(dialogConfig).containsEntry("workspace_rollout_external_kpi_data_updated_at", "2099-01-01T00:00Z");
+        assertThat(dialogConfig).containsEntry("workspace_rollout_external_kpi_datamart_program_updated_at", "bad-value");
+        assertThat(dialogConfig).containsEntry("workspace_rollout_external_kpi_datamart_target_ready_at", "");
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
+
+        assertThat(externalSignal).containsEntry("review_timestamp_invalid", false);
+        assertThat(externalSignal).containsEntry("reviewed_at", "2099-01-01T00:00Z");
+        assertThat(externalSignal).containsEntry("data_updated_timestamp_invalid", false);
+        assertThat(externalSignal).containsEntry("data_updated_at", "2099-01-01T00:00Z");
+        assertThat(externalSignal).containsEntry("datamart_program_updated_timestamp_invalid", true);
+        assertThat(externalSignal).containsEntry("datamart_target_timestamp_invalid", false);
+        assertThat((List<String>) externalSignal.get("datamart_risk_reasons"))
+                .contains("datamart_program_timestamp_invalid");
     }
 
     @Test
