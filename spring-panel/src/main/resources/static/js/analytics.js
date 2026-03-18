@@ -574,7 +574,10 @@
     const totals = payload?.totals || {};
     Object.entries(metricNodes).forEach(([metric, node]) => {
       const value = totals[metric];
-      if (metric === 'context_profile_ready_rate' || metric === 'context_profile_gap_rate') {
+      if (metric === 'context_profile_ready_rate'
+        || metric === 'context_profile_gap_rate'
+        || metric === 'context_source_ready_rate'
+        || metric === 'context_source_gap_rate') {
         node.textContent = formatRate(value);
         return;
       }

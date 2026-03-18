@@ -236,6 +236,11 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_external_profile_cache_ttl_seconds")
                 || payload.containsKey("dialog_workspace_client_external_profile_auth_header")
                 || payload.containsKey("dialog_workspace_client_external_profile_auth_token")
+                || payload.containsKey("dialog_workspace_client_context_required_sources")
+                || payload.containsKey("dialog_workspace_client_context_source_priority")
+                || payload.containsKey("dialog_workspace_client_context_source_stale_after_hours")
+                || payload.containsKey("dialog_workspace_client_context_source_labels")
+                || payload.containsKey("dialog_workspace_client_context_source_updated_at_attributes")
                 || payload.containsKey("dialog_cross_product_omnichannel_dashboard_url")
                 || payload.containsKey("dialog_cross_product_omnichannel_dashboard_label")
                 || payload.containsKey("dialog_cross_product_finance_dashboard_url")
@@ -637,6 +642,26 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_external_profile_auth_token")) {
                     dialogConfig.put("workspace_client_external_profile_auth_token",
                             payload.get("dialog_workspace_client_external_profile_auth_token"));
+                }
+                if (payload.containsKey("dialog_workspace_client_context_required_sources")) {
+                    dialogConfig.put("workspace_client_context_required_sources",
+                            payload.get("dialog_workspace_client_context_required_sources"));
+                }
+                if (payload.containsKey("dialog_workspace_client_context_source_priority")) {
+                    dialogConfig.put("workspace_client_context_source_priority",
+                            payload.get("dialog_workspace_client_context_source_priority"));
+                }
+                if (payload.containsKey("dialog_workspace_client_context_source_stale_after_hours")) {
+                    dialogConfig.put("workspace_client_context_source_stale_after_hours",
+                            payload.get("dialog_workspace_client_context_source_stale_after_hours"));
+                }
+                if (payload.containsKey("dialog_workspace_client_context_source_labels")) {
+                    dialogConfig.put("workspace_client_context_source_labels",
+                            payload.get("dialog_workspace_client_context_source_labels"));
+                }
+                if (payload.containsKey("dialog_workspace_client_context_source_updated_at_attributes")) {
+                    dialogConfig.put("workspace_client_context_source_updated_at_attributes",
+                            payload.get("dialog_workspace_client_context_source_updated_at_attributes"));
                 }
                 if (payload.containsKey("dialog_cross_product_omnichannel_dashboard_url")) {
                     dialogConfig.put("cross_product_omnichannel_dashboard_url",
