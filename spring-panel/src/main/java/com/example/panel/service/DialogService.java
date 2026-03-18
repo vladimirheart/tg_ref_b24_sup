@@ -1047,7 +1047,9 @@ public class DialogService {
         String datamartContractGapSeverity = resolveDatamartContractGapSeverity(
                 datamartContractBlockingGapCount,
                 datamartContractNonBlockingGapCount);
-        boolean datamartContractOptionalCoverageReady = !datamartContractOptionalCoverageRequired
+        boolean datamartContractOptionalCoverageGateActive = datamartContractRequired
+                && datamartContractOptionalCoverageRequired;
+        boolean datamartContractOptionalCoverageReady = !datamartContractOptionalCoverageGateActive
                 || datamartContractOptionalCoveragePct >= datamartContractOptionalMinCoveragePct;
         boolean datamartContractReady = (!datamartContractRequired || datamartContractMissingMandatoryFields.isEmpty())
                 && datamartContractOptionalCoverageReady;
@@ -1107,7 +1109,7 @@ public class DialogService {
         if (!datamartContractMissingMandatoryFields.isEmpty()) {
             datamartRiskReasons.add("datamart_contract_missing_mandatory_fields");
         }
-        if (!datamartContractOptionalCoverageReady) {
+        if (datamartContractOptionalCoverageGateActive && !datamartContractOptionalCoverageReady) {
             datamartRiskReasons.add("datamart_contract_optional_coverage_below_threshold");
         }
 
@@ -1149,6 +1151,7 @@ public class DialogService {
         signal.put("datamart_contract_non_blocking_gap_count", datamartContractNonBlockingGapCount);
         signal.put("datamart_contract_gap_severity", datamartContractGapSeverity);
         signal.put("datamart_contract_optional_coverage_required", datamartContractOptionalCoverageRequired);
+        signal.put("datamart_contract_optional_coverage_gate_active", datamartContractOptionalCoverageGateActive);
         signal.put("datamart_contract_optional_min_coverage_pct", datamartContractOptionalMinCoveragePct);
         signal.put("datamart_contract_optional_coverage_ready", datamartContractOptionalCoverageReady);
         signal.put("datamart_contract_ready", datamartContractReady);
