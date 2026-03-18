@@ -236,6 +236,97 @@
     .business-color-input .btn {
       min-width: 2.5rem;
     }
+    .datamart-contract-preview {
+      display: grid;
+      gap: 0.75rem;
+    }
+    .datamart-contract-preview__headline {
+      font-weight: 600;
+      color: #212529;
+    }
+    .datamart-contract-preview__chips,
+    .datamart-contract-preview__field-groups {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .datamart-contract-preview__chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid rgba(108, 117, 125, 0.2);
+      background: rgba(255, 255, 255, 0.7);
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .datamart-contract-preview__chip--success {
+      color: #0f5132;
+      border-color: rgba(25, 135, 84, 0.25);
+      background: rgba(25, 135, 84, 0.12);
+    }
+    .datamart-contract-preview__chip--warning {
+      color: #664d03;
+      border-color: rgba(255, 193, 7, 0.35);
+      background: rgba(255, 193, 7, 0.14);
+    }
+    .datamart-contract-preview__chip--danger {
+      color: #842029;
+      border-color: rgba(220, 53, 69, 0.25);
+      background: rgba(220, 53, 69, 0.12);
+    }
+    .datamart-contract-preview__field-group {
+      min-width: min(100%, 16rem);
+      flex: 1 1 16rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(108, 117, 125, 0.18);
+      background: rgba(255, 255, 255, 0.72);
+      padding: 0.75rem;
+    }
+    .datamart-contract-preview__field-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #495057;
+    }
+    .datamart-contract-preview__field-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .datamart-contract-preview__field-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid rgba(108, 117, 125, 0.2);
+      font-family: var(--bs-font-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+      font-size: 0.8rem;
+    }
+    .datamart-contract-preview__field-group--danger {
+      border-color: rgba(220, 53, 69, 0.28);
+      background: rgba(220, 53, 69, 0.08);
+    }
+    .datamart-contract-preview__field-group--warning {
+      border-color: rgba(255, 193, 7, 0.32);
+      background: rgba(255, 193, 7, 0.08);
+    }
+    .datamart-contract-preview__field-group--success {
+      border-color: rgba(25, 135, 84, 0.24);
+      background: rgba(25, 135, 84, 0.08);
+    }
+    .datamart-contract-preview__meta {
+      color: #6c757d;
+    }
+    .datamart-contract-preview__empty {
+      color: #6c757d;
+      font-style: italic;
+    }
 
     .auth-user-modal-dialog {
       width: auto;
@@ -2740,7 +2831,14 @@
                     </div>
                     <div class="col-12">
                       <div class="alert alert-secondary small mb-0" id="dialogWorkspaceExternalKpiDatamartContractSummary" role="status" aria-live="polite">
-                        Заполните mandatory/optional/available поля, чтобы увидеть покрытие data contract и влияние на rollout gate.
+                        <div class="datamart-contract-preview">
+                          <div class="datamart-contract-preview__headline" id="dialogWorkspaceExternalKpiDatamartContractSummaryHeadline">
+                            Заполните mandatory/optional/available поля, чтобы увидеть покрытие data contract и влияние на rollout gate.
+                          </div>
+                          <div class="datamart-contract-preview__chips" id="dialogWorkspaceExternalKpiDatamartContractSummaryChips"></div>
+                          <div class="datamart-contract-preview__field-groups" id="dialogWorkspaceExternalKpiDatamartContractSummaryFieldGroups"></div>
+                          <div class="datamart-contract-preview__meta" id="dialogWorkspaceExternalKpiDatamartContractSummaryMeta"></div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -13742,6 +13840,10 @@
       workspaceExternalKpiDatamartContractOptionalCoverageRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalCoverageRequired'),
       workspaceExternalKpiDatamartContractOptionalMinCoveragePct: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct'),
       workspaceExternalKpiDatamartContractSummary: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummary'),
+      workspaceExternalKpiDatamartContractSummaryHeadline: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummaryHeadline'),
+      workspaceExternalKpiDatamartContractSummaryChips: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummaryChips'),
+      workspaceExternalKpiDatamartContractSummaryFieldGroups: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummaryFieldGroups'),
+      workspaceExternalKpiDatamartContractSummaryMeta: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummaryMeta'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14637,11 +14739,24 @@
     return `${safeCurrent}/${safeTotal} (${pct}%)`;
   }
 
-  function syncWorkspaceExternalKpiDatamartContractState(inputs = getDialogSlaInputs()) {
-    if (!inputs) {
-      return;
-    }
-    const summary = inputs.workspaceExternalKpiDatamartContractSummary;
+  function renderDatamartContractFieldGroup(title, fields, options = {}) {
+    const tone = options.tone || 'success';
+    const subtitle = options.subtitle ? `<span class="small text-muted">${escapeHtml(options.subtitle)}</span>` : '';
+    const badgeMarkup = Array.isArray(fields) && fields.length
+      ? fields.map((field) => `<span class="datamart-contract-preview__field-badge">${escapeHtml(field)}</span>`).join('')
+      : '<span class="datamart-contract-preview__empty">—</span>';
+    return `
+      <div class="datamart-contract-preview__field-group datamart-contract-preview__field-group--${tone}">
+        <div class="datamart-contract-preview__field-group-title">
+          <span>${escapeHtml(title)}</span>
+          ${subtitle}
+        </div>
+        <div class="datamart-contract-preview__field-badges">${badgeMarkup}</div>
+      </div>
+    `;
+  }
+
+  function buildDatamartContractPreviewState(inputs = getDialogSlaInputs()) {
     const contractRequired = Boolean(inputs.workspaceExternalKpiDatamartContractRequired?.checked);
     const optionalCoverageConfigured = Boolean(inputs.workspaceExternalKpiDatamartContractOptionalCoverageRequired?.checked);
     const thresholdInput = inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct;
@@ -14649,29 +14764,106 @@
     const threshold = Number.isFinite(thresholdRaw)
       ? Math.max(0, Math.min(100, thresholdRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct;
+    const contractVersion = String(inputs.workspaceExternalKpiDatamartContractVersion?.value || '').trim()
+      || DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_version;
     const mandatoryFields = normalizeDataContractFieldList(inputs.workspaceExternalKpiDatamartContractMandatoryFields?.value);
     const optionalFields = normalizeDataContractFieldList(inputs.workspaceExternalKpiDatamartContractOptionalFields?.value);
-    const availableFields = new Set(normalizeDataContractFieldList(inputs.workspaceExternalKpiDatamartContractAvailableFields?.value));
+    const availableFieldsList = normalizeDataContractFieldList(inputs.workspaceExternalKpiDatamartContractAvailableFields?.value);
+    const availableFields = new Set(availableFieldsList);
+    const optionalFieldsSet = new Set(optionalFields);
+    const contractFieldsSet = new Set([...mandatoryFields, ...optionalFields]);
     const missingMandatory = mandatoryFields.filter((field) => !availableFields.has(field));
     const missingOptional = optionalFields.filter((field) => !availableFields.has(field));
+    const overlappingFields = mandatoryFields.filter((field) => optionalFieldsSet.has(field));
+    const extraAvailableFields = availableFieldsList.filter((field) => !contractFieldsSet.has(field));
     const blockingGapCount = missingMandatory.length;
     const nonBlockingGapCount = missingOptional.length;
+    const mandatoryCoveragePct = mandatoryFields.length > 0
+      ? Math.round(((mandatoryFields.length - missingMandatory.length) / mandatoryFields.length) * 100)
+      : 100;
+    const optionalCoveragePct = optionalFields.length > 0
+      ? Math.round(((optionalFields.length - missingOptional.length) / optionalFields.length) * 100)
+      : 100;
     const mandatoryCoverageLabel = formatCoverageLabel(mandatoryFields.length - missingMandatory.length, mandatoryFields.length);
     const optionalCoverageLabel = formatCoverageLabel(optionalFields.length - missingOptional.length, optionalFields.length);
     const optionalCoverageGateActive = contractRequired && optionalCoverageConfigured && optionalFields.length > 0;
-    const optionalCoverageReady = optionalFields.length === 0
-      ? true
-      : Math.round(((optionalFields.length - missingOptional.length) / optionalFields.length) * 100) >= threshold;
+    const optionalCoverageReady = optionalFields.length === 0 ? true : optionalCoveragePct >= threshold;
     const severity = blockingGapCount > 0 && nonBlockingGapCount > 0
       ? 'mixed'
       : (blockingGapCount > 0 ? 'blocking' : (nonBlockingGapCount > 0 ? 'non_blocking' : 'none'));
+    const hasConfigurationConflict = overlappingFields.length > 0;
+    const summaryTone = hasConfigurationConflict || blockingGapCount > 0
+      ? 'danger'
+      : ((optionalCoverageGateActive && !optionalCoverageReady) || nonBlockingGapCount > 0 ? 'warning' : 'success');
+    const rolloutState = hasConfigurationConflict
+      ? 'rollout следует удерживать в hold до устранения конфликта mandatory/optional полей'
+      : (blockingGapCount > 0
+        ? 'rollout будет удерживаться в hold из-за mandatory-gap'
+        : (optionalCoverageGateActive && !optionalCoverageReady
+          ? `rollout будет удерживаться в hold из-за optional coverage ниже ${threshold}%`
+          : 'contract не блокирует rollout'));
+
+    return {
+      contractRequired,
+      optionalCoverageConfigured,
+      threshold,
+      contractVersion,
+      mandatoryFields,
+      optionalFields,
+      availableFieldsList,
+      missingMandatory,
+      missingOptional,
+      overlappingFields,
+      extraAvailableFields,
+      blockingGapCount,
+      nonBlockingGapCount,
+      mandatoryCoverageLabel,
+      optionalCoverageLabel,
+      mandatoryCoveragePct,
+      optionalCoveragePct,
+      optionalCoverageGateActive,
+      optionalCoverageReady,
+      severity,
+      hasConfigurationConflict,
+      summaryTone,
+      rolloutState,
+    };
+  }
+
+  function syncWorkspaceExternalKpiDatamartContractState(inputs = getDialogSlaInputs()) {
+    if (!inputs) {
+      return;
+    }
+    const summary = inputs.workspaceExternalKpiDatamartContractSummary;
+    const headline = inputs.workspaceExternalKpiDatamartContractSummaryHeadline;
+    const chips = inputs.workspaceExternalKpiDatamartContractSummaryChips;
+    const fieldGroups = inputs.workspaceExternalKpiDatamartContractSummaryFieldGroups;
+    const meta = inputs.workspaceExternalKpiDatamartContractSummaryMeta;
+    const thresholdInput = inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct;
+    const previewState = buildDatamartContractPreviewState(inputs);
 
     if (thresholdInput) {
-      thresholdInput.disabled = !optionalCoverageConfigured;
+      thresholdInput.disabled = !previewState.optionalCoverageConfigured;
       thresholdInput.setAttribute('aria-disabled', thresholdInput.disabled ? 'true' : 'false');
-      thresholdInput.title = optionalCoverageConfigured
+      thresholdInput.title = previewState.optionalCoverageConfigured
         ? 'Порог optional coverage участвует в rollout gate.'
         : 'Порог не используется, пока optional coverage gate выключен.';
+    }
+
+    if (inputs.workspaceExternalKpiDatamartContractOptionalFields) {
+      inputs.workspaceExternalKpiDatamartContractOptionalFields.classList.toggle(
+        'is-invalid',
+        previewState.optionalCoverageConfigured && previewState.optionalFields.length === 0
+      );
+    }
+    if (inputs.workspaceExternalKpiDatamartContractMandatoryFields) {
+      inputs.workspaceExternalKpiDatamartContractMandatoryFields.classList.toggle('is-invalid', previewState.hasConfigurationConflict);
+    }
+    if (inputs.workspaceExternalKpiDatamartContractOptionalFields) {
+      inputs.workspaceExternalKpiDatamartContractOptionalFields.classList.toggle(
+        'is-invalid',
+        (previewState.optionalCoverageConfigured && previewState.optionalFields.length === 0) || previewState.hasConfigurationConflict
+      );
     }
 
     if (!summary) {
@@ -14679,38 +14871,74 @@
     }
 
     summary.classList.remove('alert-secondary', 'alert-success', 'alert-warning', 'alert-danger');
-    if (!contractRequired) {
+    if (!previewState.contractRequired) {
       summary.classList.add('alert-secondary');
-      summary.innerHTML = 'Data contract выключен. Mandatory/optional поля можно подготовить заранее, но rollout gate начнёт учитывать их только после включения <code>Требовать data contract</code>.';
+      if (headline) {
+        headline.innerHTML = 'Data contract выключен. Mandatory/optional поля можно подготовить заранее, но rollout gate начнёт учитывать их только после включения <code>Требовать data contract</code>.';
+      }
+      if (chips) {
+        chips.innerHTML = [
+          `<span class="datamart-contract-preview__chip">version ${escapeHtml(previewState.contractVersion)}</span>`,
+          `<span class="datamart-contract-preview__chip">mandatory ${escapeHtml(previewState.mandatoryCoverageLabel)}</span>`,
+          `<span class="datamart-contract-preview__chip">optional ${escapeHtml(previewState.optionalCoverageLabel)}</span>`
+        ].join('');
+      }
+      if (fieldGroups) {
+        fieldGroups.innerHTML = [
+          renderDatamartContractFieldGroup('Mandatory KPI', previewState.mandatoryFields, { tone: 'success', subtitle: `${previewState.mandatoryFields.length} полей` }),
+          renderDatamartContractFieldGroup('Optional KPI', previewState.optionalFields, { tone: 'warning', subtitle: `${previewState.optionalFields.length} полей` }),
+          renderDatamartContractFieldGroup('Available KPI', previewState.availableFieldsList, { tone: 'success', subtitle: `${previewState.availableFieldsList.length} полей` })
+        ].join('');
+      }
+      if (meta) {
+        meta.textContent = previewState.hasConfigurationConflict
+          ? `Обнаружен конфликт: поля ${previewState.overlappingFields.join(', ')} одновременно указаны как mandatory и optional.`
+          : 'Live-preview поможет заранее проверить покрытие и структуру KPI-контракта до сохранения настроек.';
+      }
       return;
     }
 
-    const rolloutState = blockingGapCount > 0
-      ? 'rollout будет удерживаться в hold из-за mandatory-gap'
-      : (optionalCoverageGateActive && !optionalCoverageReady
-        ? `rollout будет удерживаться в hold из-за optional coverage ниже ${threshold}%`
-        : 'contract не блокирует rollout');
-    const missingMandatoryLabel = missingMandatory.length ? `missing mandatory: <code>${missingMandatory.join(', ')}</code>` : 'mandatory coverage: ready';
-    const missingOptionalLabel = missingOptional.length ? `missing optional: <code>${missingOptional.join(', ')}</code>` : 'optional coverage: ready';
-    const optionalGateLabel = optionalCoverageConfigured
-      ? (optionalFields.length
-        ? `optional gate: ${optionalCoverageGateActive ? `active @ ${threshold}%` : 'configured'}${optionalCoverageGateActive && !optionalCoverageReady ? ' (hold)' : ''}`
-        : 'optional gate: configured, но список optional-полей пуст')
-      : 'optional gate: off';
-    if (blockingGapCount > 0) {
-      summary.classList.add('alert-danger');
-    } else if ((optionalCoverageGateActive && !optionalCoverageReady) || nonBlockingGapCount > 0) {
-      summary.classList.add('alert-warning');
-    } else {
-      summary.classList.add('alert-success');
+    summary.classList.add(`alert-${previewState.summaryTone}`);
+    if (headline) {
+      headline.textContent = `Data contract ${previewState.contractVersion}: severity ${previewState.severity}; ${previewState.rolloutState}.`;
     }
-    summary.innerHTML = [
-      `Severity: <strong>${severity}</strong>; blocking gaps: <strong>${blockingGapCount}</strong>; non-blocking gaps: <strong>${nonBlockingGapCount}</strong>.`,
-      `Mandatory coverage: <strong>${mandatoryCoverageLabel}</strong>; optional coverage: <strong>${optionalCoverageLabel}</strong>.`,
-      missingMandatoryLabel + '.',
-      missingOptionalLabel + '.',
-      `${optionalGateLabel}; итог: <strong>${rolloutState}</strong>.`,
-    ].join(' ');
+    if (chips) {
+      const chipItems = [
+        { label: `mandatory ${previewState.mandatoryCoverageLabel}`, tone: previewState.blockingGapCount > 0 ? 'danger' : 'success' },
+        { label: `optional ${previewState.optionalCoverageLabel}`, tone: (previewState.optionalCoverageGateActive && !previewState.optionalCoverageReady) || previewState.nonBlockingGapCount > 0 ? 'warning' : 'success' },
+        { label: `gaps B:${previewState.blockingGapCount} / NB:${previewState.nonBlockingGapCount}`, tone: previewState.blockingGapCount > 0 ? 'danger' : (previewState.nonBlockingGapCount > 0 ? 'warning' : 'success') },
+        { label: `optional gate ${previewState.optionalCoverageConfigured ? (previewState.optionalCoverageGateActive ? `on @ ${previewState.threshold}%` : 'configured') : 'off'}`, tone: previewState.optionalCoverageGateActive && !previewState.optionalCoverageReady ? 'warning' : 'success' },
+      ];
+      if (previewState.hasConfigurationConflict) {
+        chipItems.push({ label: 'mandatory/optional overlap', tone: 'danger' });
+      }
+      chips.innerHTML = chipItems
+        .map((item) => `<span class="datamart-contract-preview__chip datamart-contract-preview__chip--${item.tone}">${escapeHtml(item.label)}</span>`)
+        .join('');
+    }
+    if (fieldGroups) {
+      fieldGroups.innerHTML = [
+        renderDatamartContractFieldGroup('Missing mandatory', previewState.missingMandatory, { tone: previewState.missingMandatory.length ? 'danger' : 'success', subtitle: previewState.missingMandatory.length ? 'blocking gap' : 'ready' }),
+        renderDatamartContractFieldGroup('Missing optional', previewState.missingOptional, { tone: previewState.missingOptional.length ? 'warning' : 'success', subtitle: previewState.missingOptional.length ? 'non-blocking gap' : 'ready' }),
+        renderDatamartContractFieldGroup('Overlap mandatory/optional', previewState.overlappingFields, { tone: previewState.overlappingFields.length ? 'danger' : 'success', subtitle: previewState.overlappingFields.length ? 'нужно развести по спискам' : 'конфликтов нет' }),
+        renderDatamartContractFieldGroup('Available вне контракта', previewState.extraAvailableFields, { tone: previewState.extraAvailableFields.length ? 'warning' : 'success', subtitle: previewState.extraAvailableFields.length ? 'полезно сверить и классифицировать' : 'лишних полей нет' })
+      ].join('');
+    }
+    if (meta) {
+      const metaParts = [
+        `Mandatory coverage ${previewState.mandatoryCoveragePct}% (${previewState.mandatoryCoverageLabel}).`,
+        `Optional coverage ${previewState.optionalCoveragePct}% (${previewState.optionalCoverageLabel}).`,
+      ];
+      if (previewState.optionalCoverageConfigured && previewState.optionalFields.length === 0) {
+        metaParts.push('Optional coverage gate включён, но список optional KPI пуст — сохранение будет заблокировано.');
+      } else if (previewState.optionalCoverageGateActive && !previewState.optionalCoverageReady) {
+        metaParts.push(`Optional gate активен и удержит rollout в hold до достижения ${previewState.threshold}% покрытия.`);
+      }
+      if (previewState.hasConfigurationConflict) {
+        metaParts.push('Одно и то же поле не должно одновременно быть mandatory и optional, иначе контракт становится неоднозначным для decisioning.');
+      }
+      meta.textContent = metaParts.join(' ');
+    }
   }
 
   function initWorkspaceExternalKpiDatamartContractPreview() {
@@ -15882,6 +16110,12 @@
     if (safeWorkspaceExternalKpiDatamartContractOptionalCoverageRequired
       && safeWorkspaceExternalKpiDatamartContractOptionalFieldsList.length === 0) {
       errors.push('Для optional coverage gate укажите хотя бы одно optional KPI-поле в data contract.');
+    }
+    const safeWorkspaceExternalKpiDatamartContractMandatoryFieldsList = normalizeDataContractFieldList(safeWorkspaceExternalKpiDatamartContractMandatoryFields);
+    const overlappingContractFields = safeWorkspaceExternalKpiDatamartContractMandatoryFieldsList
+      .filter((field) => safeWorkspaceExternalKpiDatamartContractOptionalFieldsList.includes(field));
+    if (overlappingContractFields.length > 0) {
+      errors.push(`Поля data contract не могут одновременно быть mandatory и optional: ${overlappingContractFields.join(', ')}.`);
     }
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
