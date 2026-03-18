@@ -522,6 +522,33 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryTracksContextBlockGaps() {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-BLOCK-1', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
+                    ('op2', 'workspace_open_ms', 'performance', 'T-BLOCK-2', NULL, NULL, 'workspace.v1', 940, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
+                    ('op2', 'workspace_context_block_gap', 'workspace', 'T-BLOCK-2', 'context_sources,customer_profile', NULL, 'workspace.v1', 2, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+        Map<String, Object> scorecard = (Map<String, Object>) summary.get("rollout_scorecard");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) scorecard.get("items");
+
+        assertThat(totals).containsEntry("context_block_gap_events", 1L);
+        assertThat((double) totals.get("context_block_gap_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("context_block_ready_rate")).isEqualTo(0.5d);
+        assertThat(items).anySatisfy(item -> {
+            assertThat(item).containsEntry("key", "customer_context_blocks");
+            assertThat(item).containsEntry("status", "attention");
+        });
+    }
+
+    @Test
     void workspaceTelemetrySummaryBuildsRolloutScorecardWithUtcTimestamps() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """

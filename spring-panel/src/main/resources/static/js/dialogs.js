@@ -453,6 +453,7 @@
     workspace_draft_restored: 'workspace',
     workspace_context_profile_gap: 'workspace',
     workspace_context_source_gap: 'workspace',
+    workspace_context_block_gap: 'workspace',
     workspace_parity_gap: 'workspace',
     workspace_open_legacy_manual: 'workspace',
   });
@@ -477,6 +478,7 @@
   let workspaceDraftLastTelemetryAt = 0;
   let workspaceLastProfileGapSignature = '';
   let workspaceLastContextSourceGapSignature = '';
+  let workspaceLastContextBlockGapSignature = '';
   let workspaceLastParityGapSignature = '';
 
 
@@ -3066,6 +3068,33 @@
     });
   }
 
+  function emitWorkspaceContextBlockGapTelemetry(context, conversation) {
+    const health = context?.blocks_health;
+    if (!health || health.enabled !== true) {
+      workspaceLastContextBlockGapSignature = '';
+      return;
+    }
+    const missingBlocks = Array.isArray(health.missing_required_keys)
+      ? health.missing_required_keys.filter(Boolean).map((item) => String(item).trim())
+      : [];
+    if (health.ready === true || missingBlocks.length === 0) {
+      workspaceLastContextBlockGapSignature = '';
+      return;
+    }
+    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    const signature = `${ticketId}:${missingBlocks.join(',')}`;
+    if (!ticketId || workspaceLastContextBlockGapSignature === signature) {
+      return;
+    }
+    workspaceLastContextBlockGapSignature = signature;
+    emitWorkspaceTelemetry('workspace_context_block_gap', {
+      ticketId,
+      reason: missingBlocks.join(','),
+      durationMs: missingBlocks.length,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
   function emitWorkspaceParityGapTelemetry(parity, conversation) {
     const safeParity = parity && typeof parity === 'object' ? parity : null;
     if (!safeParity || String(safeParity?.status || '').toLowerCase() === 'ok') {
@@ -3163,7 +3192,7 @@
       if (workspaceClientError) workspaceClientError.classList.add('d-none');
       if (workspaceClientContent) {
         workspaceClientContent.classList.remove('d-none');
-        workspaceClientContent.innerHTML = renderWorkspaceClientProfile(client);
+        workspaceClientContent.innerHTML = renderWorkspaceClientProfile(client, context);
       }
     } else {
       if (workspaceClientState) workspaceClientState.classList.add('d-none');
@@ -3217,6 +3246,7 @@
     }
     emitWorkspaceProfileGapTelemetry(context, conversation);
     emitWorkspaceContextSourceGapTelemetry(context, conversation);
+    emitWorkspaceContextBlockGapTelemetry(context, conversation);
     emitWorkspaceParityGapTelemetry(parity, conversation);
 
     if (sla && sla.state && sla.state !== 'unknown') {
@@ -3238,7 +3268,7 @@
     }
   }
 
-  function renderWorkspaceClientProfile(client) {
+  function renderWorkspaceClientProfile(client, context = {}) {
     if (!client || typeof client !== 'object') {
       return '<div class="small text-muted">Профиль клиента недоступен.</div>';
     }
@@ -3295,6 +3325,57 @@
       : [];
     const healthBanner = profileHealth && profileHealth.enabled === true
       ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at))}</div></div>`
+      : '';
+
+    const contextBlocks = Array.isArray(context?.blocks)
+      ? context.blocks.filter((item) => item && typeof item === 'object')
+      : [];
+    const contextBlocksHealth = context?.blocks_health && typeof context.blocks_health === 'object'
+      ? context.blocks_health
+      : null;
+    const contextBlockBadgeClass = (status) => {
+      switch (String(status || '').toLowerCase()) {
+        case 'ready':
+          return 'text-bg-success';
+        case 'attention':
+        case 'stale':
+          return 'text-bg-warning';
+        case 'missing':
+        case 'invalid_utc':
+          return 'text-bg-danger';
+        default:
+          return 'text-bg-secondary';
+      }
+    };
+    const contextBlocksSection = contextBlocksHealth && contextBlocksHealth.enabled === true && contextBlocks.length
+      ? `<div class="alert ${contextBlocksHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">
+          <div class="fw-semibold mb-1">Приоритет customer context</div>
+          <div>${contextBlocksHealth.ready
+            ? `Все обязательные блоки готовы (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
+            : `Покрытие обязательных блоков: ${Number(contextBlocksHealth.coverage_pct || 0)}%. Не хватает: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || '—')}.`}</div>
+          <div class="d-flex flex-column gap-2 mt-2">
+            ${contextBlocks.map((block) => {
+              const meta = [];
+              if (Number.isFinite(Number(block.priority))) {
+                meta.push(`P${Number(block.priority)}`);
+              }
+              if (block.required === true) {
+                meta.push('required');
+              }
+              if (block.updated_at_utc) {
+                meta.push(`UTC ${formatWorkspaceDateTime(block.updated_at_utc)}`);
+              }
+              return `<div class="border rounded px-2 py-1 bg-white">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Блок')}</span>
+                  <span class="badge ${contextBlockBadgeClass(block.status)}">${escapeHtml(String(block.status || 'unavailable'))}</span>
+                </div>
+                ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+                ${block.summary ? `<div class="small text-muted">${escapeHtml(String(block.summary))}</div>` : ''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`
       : '';
 
     const extraAttributeLabelMap = resolveWorkspaceClientAttributeLabelMap(client.attribute_labels);
@@ -3426,7 +3507,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${contextBlocksSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
