@@ -252,6 +252,9 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.meta.rollout.mode").value("cohort_rollout"))
                 .andExpect(jsonPath("$.meta.rollout.disable_legacy_fallback").value(true))
                 .andExpect(jsonPath("$.meta.rollout.legacy_fallback_available").value(false))
+                .andExpect(jsonPath("$.meta.parity.status").value("ok"))
+                .andExpect(jsonPath("$.meta.parity.score_pct").value(100))
+                .andExpect(jsonPath("$.meta.parity.checked_at").exists())
                 .andExpect(jsonPath("$.meta.rollout.reviewed_at_utc").value("2026-01-01T07:15Z"))
                 .andExpect(jsonPath("$.meta.rollout.data_updated_at_utc").doesNotExist())
                 .andExpect(jsonPath("$.success").value(true));
@@ -534,15 +537,42 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetryAcceptsParityGapEvent() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_parity_gap",
+                                  "ticket_id": "T-77",
+                                  "reason": "operator_actions,customer_profile_minimum",
+                                  "duration_ms": 71
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void workspaceTelemetrySummaryReturnsAggregates() throws Exception {
         when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
                 "window_days", 7,
                 "rollout_scorecard", Map.of(
                         "generated_at", "2026-01-01T00:00:00Z",
-                        "items", List.of(Map.of(
-                                "key", "sample_size",
-                                "status", "ok"
-                        ))
+                        "items", List.of(
+                                Map.of(
+                                        "key", "sample_size",
+                                        "status", "ok"
+                                ),
+                                Map.of(
+                                        "key", "workspace_parity",
+                                        "status", "attention",
+                                        "label", "Workspace parity with legacy",
+                                        "category", "workspace",
+                                        "current_value", "94.0% ready, gaps=1",
+                                        "threshold", ">= 95.0% parity-ready opens",
+                                        "measured_at", "2026-01-01T00:00:00Z"
+                                ))
                 ),
                 "rows", List.of(Map.of(
                         "experiment_cohort", "test",
@@ -552,7 +582,7 @@ class DialogApiControllerWebMvcTest {
                         "render_errors", 0,
                         "avg_open_ms", 980
                 )),
-                "totals", Map.of("events", 5),
+                "totals", Map.of("events", 5, "workspace_parity_gap_events", 1),
                 "by_shift", List.of(Map.of("shift", "night", "events", 5)),
                 "by_team", List.of(Map.of("team", "support", "events", 5))
         ));
@@ -566,8 +596,11 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.by_shift[0].shift").value("night"))
                 .andExpect(jsonPath("$.by_team[0].team").value("support"))
                 .andExpect(jsonPath("$.totals.events").value(5))
+                .andExpect(jsonPath("$.totals.workspace_parity_gap_events").value(1))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].key").value("sample_size"))
-                .andExpect(jsonPath("$.rollout_scorecard.items[0].status").value("ok"));
+                .andExpect(jsonPath("$.rollout_scorecard.items[0].status").value("ok"))
+                .andExpect(jsonPath("$.rollout_scorecard.items[1].key").value("workspace_parity"))
+                .andExpect(jsonPath("$.rollout_scorecard.items[1].status").value("attention"));
     }
 
     @Test
