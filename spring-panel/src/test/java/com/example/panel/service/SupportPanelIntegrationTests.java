@@ -1290,6 +1290,35 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceRolloutDecisionHoldsWhenDatamartContractHasOverlappingFields() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
+                         "workspace_rollout_external_kpi_datamart_contract_required":true,
+                         "workspace_rollout_external_kpi_datamart_contract_mandatory_fields":"frt,ttr",
+                         "workspace_rollout_external_kpi_datamart_contract_optional_fields":"ttr,csat",
+                         "workspace_rollout_external_kpi_datamart_contract_available_fields":"frt,ttr,csat,cost_per_contact"}
+                        """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
+        Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
+
+        assertThat(rolloutDecision).containsEntry("action", "hold");
+        assertThat(externalSignal).containsEntry("datamart_contract_required", true);
+        assertThat(externalSignal).containsEntry("datamart_contract_configuration_conflict", true);
+        assertThat(externalSignal).containsEntry("datamart_contract_ready", false);
+        assertThat((java.util.List<String>) externalSignal.get("datamart_contract_overlapping_fields"))
+                .containsExactly("ttr");
+        assertThat((java.util.List<String>) externalSignal.get("datamart_contract_available_outside_fields"))
+                .containsExactly("cost_per_contact");
+        assertThat((java.util.List<String>) externalSignal.get("datamart_risk_reasons"))
+                .contains("datamart_contract_configuration_conflict");
+    }
+
+    @Test
     void workspaceRolloutDecisionDoesNotApplyOptionalCoverageGateWhenContractIsDisabled() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
