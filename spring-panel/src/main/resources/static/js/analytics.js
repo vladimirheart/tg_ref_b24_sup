@@ -23,6 +23,10 @@
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
   const riskSegmentsTable = document.getElementById('workspaceTelemetryRiskSegmentsTable');
+  const profileGapTable = document.getElementById('workspaceTelemetryProfileGapTable');
+  const sourceGapTable = document.getElementById('workspaceTelemetrySourceGapTable');
+  const blockGapTable = document.getElementById('workspaceTelemetryBlockGapTable');
+  const parityGapTable = document.getElementById('workspaceTelemetryParityGapTable');
 
   const metricNodes = {};
   let latestPayload = null;
@@ -110,6 +114,11 @@
     if (riskSegmentsTable) {
       riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     }
+    [profileGapTable, sourceGapTable, blockGapTable, parityGapTable].forEach((tableNode) => {
+      if (tableNode) {
+        tableNode.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
+      }
+    });
   }
 
   function toPercentRate(count, events) {
@@ -294,6 +303,32 @@
     `).join('');
   }
 
+  function normalizeGapRows(rows) {
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+    return rows.filter((row) => row && typeof row === 'object');
+  }
+
+  function renderGapBreakdownTable(tableNode, rows, emptyText) {
+    if (!tableNode) {
+      return;
+    }
+    const safeRows = normalizeGapRows(rows);
+    if (safeRows.length === 0) {
+      tableNode.innerHTML = `<tr><td colspan="4" class="text-muted text-center py-3">${emptyText}</td></tr>`;
+      return;
+    }
+    tableNode.innerHTML = safeRows.map((row) => `
+      <tr>
+        <td>${escapeHtml(row?.reason || 'unspecified')}</td>
+        <td class="text-end">${formatNumber(row?.events)}</td>
+        <td class="text-end">${formatNumber(row?.tickets)}</td>
+        <td class="small text-nowrap">${escapeHtml(formatTimestamp(row?.last_seen_at || ''))}</td>
+      </tr>
+    `).join('');
+  }
+
   function getFilters() {
     return {
       scope: scopeSelect?.value || 'all',
@@ -406,6 +441,20 @@
         alert?.segment || '',
         alert?.message || '',
       ]),
+      [],
+      ['gap_kind', 'reason', 'events', 'tickets', 'last_seen_at_utc'],
+      ...[
+        ['profile', payload?.gap_breakdown?.profile],
+        ['source', payload?.gap_breakdown?.source],
+        ['block', payload?.gap_breakdown?.block],
+        ['parity', payload?.gap_breakdown?.parity],
+      ].flatMap(([kind, rows]) => normalizeGapRows(rows).map((row) => [
+        kind,
+        row?.reason || '',
+        row?.events ?? '',
+        row?.tickets ?? '',
+        row?.last_seen_at || '',
+      ])),
     ];
     const csv = rows
       .map((row) => Array.isArray(row) ? row.map((cell) => escapeCsv(cell)).join(',') : '')
@@ -577,7 +626,11 @@
       if (metric === 'context_profile_ready_rate'
         || metric === 'context_profile_gap_rate'
         || metric === 'context_source_ready_rate'
-        || metric === 'context_source_gap_rate') {
+        || metric === 'context_source_gap_rate'
+        || metric === 'context_block_ready_rate'
+        || metric === 'context_block_gap_rate'
+        || metric === 'workspace_parity_ready_rate'
+        || metric === 'workspace_parity_gap_rate') {
         node.textContent = formatRate(value);
         return;
       }
@@ -597,6 +650,10 @@
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
     renderBreakdownRows(teamTable, filteredRows(payload?.by_team, 'team', filters), 'team', 'Недостаточно данных по командам.');
     renderRiskSegments(payload, filters);
+    renderGapBreakdownTable(profileGapTable, payload?.gap_breakdown?.profile, 'Profile gaps не зафиксированы.');
+    renderGapBreakdownTable(sourceGapTable, payload?.gap_breakdown?.source, 'Source gaps не зафиксированы.');
+    renderGapBreakdownTable(blockGapTable, payload?.gap_breakdown?.block, 'Block gaps не зафиксированы.');
+    renderGapBreakdownTable(parityGapTable, payload?.gap_breakdown?.parity, 'Parity gaps не зафиксированы.');
     renderScorecard(payload?.rollout_scorecard);
     renderRolloutDecision(payload?.rollout_decision, payload?.cohort_comparison);
 
@@ -647,6 +704,11 @@
       if (riskSegmentsTable) {
         riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Данные риск-сегментов недоступны.</td></tr>';
       }
+      [profileGapTable, sourceGapTable, blockGapTable, parityGapTable].forEach((tableNode) => {
+        if (tableNode) {
+          tableNode.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Детализация gap-блокеров недоступна.</td></tr>';
+        }
+      });
       Object.values(metricNodes).forEach((node) => {
         node.textContent = '—';
       });

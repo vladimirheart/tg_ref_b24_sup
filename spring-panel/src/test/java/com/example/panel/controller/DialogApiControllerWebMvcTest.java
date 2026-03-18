@@ -887,6 +887,12 @@ class DialogApiControllerWebMvcTest {
                         "avg_open_ms", 980
                 )),
                 "totals", Map.of("events", 5, "workspace_parity_gap_events", 1, "context_source_gap_events", 1, "context_source_ready_rate", 0.8d),
+                "gap_breakdown", Map.of(
+                        "profile", List.of(Map.of("reason", "last_message_at", "events", 2, "tickets", 2, "last_seen_at", "2026-01-01T02:00:00Z")),
+                        "source", List.of(Map.of("reason", "contract:invalid_utc", "events", 1, "tickets", 1, "last_seen_at", "2026-01-01T03:00:00Z")),
+                        "block", List.of(),
+                        "parity", List.of(Map.of("reason", "attachments", "events", 1, "tickets", 1, "last_seen_at", "2026-01-01T04:00:00Z"))
+                ),
                 "by_shift", List.of(Map.of("shift", "night", "events", 5)),
                 "by_team", List.of(Map.of("team", "support", "events", 5))
         ));
@@ -902,6 +908,9 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.totals.events").value(5))
                 .andExpect(jsonPath("$.totals.context_source_gap_events").value(1))
                 .andExpect(jsonPath("$.totals.workspace_parity_gap_events").value(1))
+                .andExpect(jsonPath("$.gap_breakdown.profile[0].reason").value("last_message_at"))
+                .andExpect(jsonPath("$.gap_breakdown.source[0].last_seen_at").value("2026-01-01T03:00:00Z"))
+                .andExpect(jsonPath("$.gap_breakdown.parity[0].reason").value("attachments"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].key").value("sample_size"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].status").value("ok"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[1].key").value("workspace_parity"))

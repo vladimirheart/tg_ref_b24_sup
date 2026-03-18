@@ -20,8 +20,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -745,6 +748,7 @@ public class DialogService {
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
+        payload.put("gap_breakdown", buildWorkspaceGapBreakdown(windowDays, experimentName));
         Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows, workspaceTelemetryConfig);
         payload.put("guardrails", guardrails);
         Map<String, Object> rolloutDecision = buildWorkspaceRolloutDecision(cohortComparison, guardrails);
@@ -3274,6 +3278,124 @@ public class DialogService {
             return null;
         }
         return value.trim();
+    }
+
+    private Map<String, Object> buildWorkspaceGapBreakdown(int windowDays, String experimentName) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("profile", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_profile_gap"));
+        payload.put("source", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_source_gap"));
+        payload.put("block", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_block_gap"));
+        payload.put("parity", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_parity_gap"));
+        return payload;
+    }
+
+    private List<Map<String, Object>> loadWorkspaceGapBreakdownRows(int windowDays,
+                                                                    String experimentName,
+                                                                    String eventType) {
+        String filterExperiment = StringUtils.hasText(experimentName) ? experimentName.trim() : null;
+        String sql = """
+                SELECT reason, ticket_id, created_at
+                  FROM workspace_telemetry_audit
+                 WHERE created_at >= ?
+                   AND created_at < ?
+                   AND event_type = ?
+                   AND (? IS NULL OR experiment_name = ?)
+                 ORDER BY created_at DESC
+                """;
+        try {
+            Instant windowEnd = Instant.now();
+            Instant windowStart = windowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
+            List<Map<String, Object>> rawRows = jdbcTemplate.query(sql, (rs, rowNum) -> {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("reason", rs.getString("reason"));
+                item.put("ticket_id", rs.getString("ticket_id"));
+                Timestamp createdAt = rs.getTimestamp("created_at");
+                item.put("created_at", createdAt != null ? createdAt.toInstant() : null);
+                return item;
+            }, Timestamp.from(windowStart), Timestamp.from(windowEnd), eventType, filterExperiment, filterExperiment);
+            return aggregateWorkspaceGapReasons(rawRows);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load workspace gap breakdown for {}: {}", eventType, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> aggregateWorkspaceGapReasons(List<Map<String, Object>> rawRows) {
+        if (rawRows == null || rawRows.isEmpty()) {
+            return List.of();
+        }
+        Map<String, GapBreakdownAccumulator> aggregates = new LinkedHashMap<>();
+        for (Map<String, Object> row : rawRows) {
+            List<String> reasons = normalizeWorkspaceGapReasons(row.get("reason"));
+            String ticketId = normalizeNullString(String.valueOf(row.getOrDefault("ticket_id", "")));
+            Instant createdAt = row.get("created_at") instanceof Instant value ? value : null;
+            for (String reason : reasons) {
+                aggregates.computeIfAbsent(reason, GapBreakdownAccumulator::new)
+                        .record(ticketId, createdAt);
+            }
+        }
+        return aggregates.values().stream()
+                .sorted(Comparator.comparingLong(GapBreakdownAccumulator::events).reversed()
+                        .thenComparing(GapBreakdownAccumulator::reason))
+                .limit(10)
+                .map(GapBreakdownAccumulator::toMap)
+                .toList();
+    }
+
+    private List<String> normalizeWorkspaceGapReasons(Object rawReason) {
+        if (rawReason == null) {
+            return List.of("unspecified");
+        }
+        String normalized = String.valueOf(rawReason).trim();
+        if (normalized.isBlank()) {
+            return List.of("unspecified");
+        }
+        List<String> reasons = Arrays.stream(normalized.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .limit(10)
+                .toList();
+        return reasons.isEmpty() ? List.of("unspecified") : reasons;
+    }
+
+    private static final class GapBreakdownAccumulator {
+
+        private final String reason;
+        private long events = 0L;
+        private final Set<String> ticketIds = new LinkedHashSet<>();
+        private Instant lastSeenAt;
+
+        private GapBreakdownAccumulator(String reason) {
+            this.reason = reason;
+        }
+
+        private void record(String ticketId, Instant createdAt) {
+            events++;
+            if (StringUtils.hasText(ticketId)) {
+                ticketIds.add(ticketId.trim());
+            }
+            if (createdAt != null && (lastSeenAt == null || createdAt.isAfter(lastSeenAt))) {
+                lastSeenAt = createdAt;
+            }
+        }
+
+        private long events() {
+            return events;
+        }
+
+        private String reason() {
+            return reason;
+        }
+
+        private Map<String, Object> toMap() {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("reason", reason);
+            payload.put("events", events);
+            payload.put("tickets", ticketIds.size());
+            payload.put("last_seen_at", lastSeenAt != null ? lastSeenAt.toString() : "");
+            return payload;
+        }
     }
 
     private long toLong(Object value) {

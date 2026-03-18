@@ -506,19 +506,30 @@ class SupportPanelIntegrationTests {
                     ('op1', 'workspace_open_ms', 'performance', 'T-CONTEXT-1', NULL, NULL, 'workspace.v1', 900, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
                     ('op2', 'workspace_open_ms', 'performance', 'T-CONTEXT-2', NULL, NULL, 'workspace.v1', 950, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
                     ('op2', 'workspace_context_profile_gap', 'workspace', 'T-CONTEXT-2', 'last_message_at', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_context_source_gap', 'workspace', 'T-CONTEXT-2', 'contract:invalid_utc', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    ('op2', 'workspace_context_source_gap', 'workspace', 'T-CONTEXT-2', 'contract:invalid_utc', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
+                    ('op3', 'workspace_context_profile_gap', 'workspace', 'T-CONTEXT-3', '', NULL, 'workspace.v1', 0, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-30 minute'))
                 """);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+        Map<String, Object> gapBreakdown = (Map<String, Object>) summary.get("gap_breakdown");
+        List<Map<String, Object>> profileRows = (List<Map<String, Object>>) gapBreakdown.get("profile");
+        List<Map<String, Object>> sourceRows = (List<Map<String, Object>>) gapBreakdown.get("source");
 
         assertThat(totals).containsEntry("workspace_open_events", 2L);
-        assertThat(totals).containsEntry("context_profile_gap_events", 1L);
+        assertThat(totals).containsEntry("context_profile_gap_events", 2L);
         assertThat(totals).containsEntry("context_source_gap_events", 1L);
-        assertThat((double) totals.get("context_profile_gap_rate")).isEqualTo(0.5d);
-        assertThat((double) totals.get("context_profile_ready_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("context_profile_gap_rate")).isEqualTo(1.0d);
+        assertThat((double) totals.get("context_profile_ready_rate")).isEqualTo(0.0d);
         assertThat((double) totals.get("context_source_gap_rate")).isEqualTo(0.5d);
         assertThat((double) totals.get("context_source_ready_rate")).isEqualTo(0.5d);
+        assertThat(profileRows).anySatisfy(row -> {
+            assertThat(row).containsEntry("reason", "last_message_at");
+            assertThat(row).containsEntry("events", 1L);
+            assertThat(String.valueOf(row.get("last_seen_at"))).endsWith("Z");
+        });
+        assertThat(profileRows).anySatisfy(row -> assertThat(row).containsEntry("reason", "unspecified"));
+        assertThat(sourceRows).anySatisfy(row -> assertThat(row).containsEntry("reason", "contract:invalid_utc"));
     }
 
     @Test
@@ -531,21 +542,31 @@ class SupportPanelIntegrationTests {
                 ) VALUES
                     ('op1', 'workspace_open_ms', 'performance', 'T-BLOCK-1', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
                     ('op2', 'workspace_open_ms', 'performance', 'T-BLOCK-2', NULL, NULL, 'workspace.v1', 940, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_context_block_gap', 'workspace', 'T-BLOCK-2', 'context_sources,customer_profile', NULL, 'workspace.v1', 2, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    ('op2', 'workspace_context_block_gap', 'workspace', 'T-BLOCK-2', 'context_sources,customer_profile', NULL, 'workspace.v1', 2, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
+                    ('op2', 'workspace_parity_gap', 'workspace', 'T-BLOCK-2', 'attachments', NULL, 'workspace.v1', 75, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-45 minute'))
                 """);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
         Map<String, Object> scorecard = (Map<String, Object>) summary.get("rollout_scorecard");
+        Map<String, Object> gapBreakdown = (Map<String, Object>) summary.get("gap_breakdown");
         List<Map<String, Object>> items = (List<Map<String, Object>>) scorecard.get("items");
+        List<Map<String, Object>> blockRows = (List<Map<String, Object>>) gapBreakdown.get("block");
+        List<Map<String, Object>> parityRows = (List<Map<String, Object>>) gapBreakdown.get("parity");
 
         assertThat(totals).containsEntry("context_block_gap_events", 1L);
+        assertThat(totals).containsEntry("workspace_parity_gap_events", 1L);
         assertThat((double) totals.get("context_block_gap_rate")).isEqualTo(0.5d);
         assertThat((double) totals.get("context_block_ready_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("workspace_parity_gap_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("workspace_parity_ready_rate")).isEqualTo(0.5d);
         assertThat(items).anySatisfy(item -> {
             assertThat(item).containsEntry("key", "customer_context_blocks");
             assertThat(item).containsEntry("status", "attention");
         });
+        assertThat(blockRows).anySatisfy(row -> assertThat(row).containsEntry("reason", "context_sources"));
+        assertThat(blockRows).anySatisfy(row -> assertThat(row).containsEntry("reason", "customer_profile"));
+        assertThat(parityRows).anySatisfy(row -> assertThat(row).containsEntry("reason", "attachments"));
     }
 
     @Test
