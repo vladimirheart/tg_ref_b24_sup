@@ -54,11 +54,17 @@
     if (!value) {
       return '—';
     }
-    const parsed = new Date(value);
+    const normalized = String(value).trim().replace(' ', 'T');
+    const parsed = new Date(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(normalized) ? `${normalized}Z` : normalized);
     if (Number.isNaN(parsed.getTime())) {
       return value;
     }
-    return parsed.toLocaleString('ru-RU');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const year = parsed.getUTCFullYear();
+    const hours = String(parsed.getUTCHours()).padStart(2, '0');
+    const minutes = String(parsed.getUTCMinutes()).padStart(2, '0');
+    return `${day}.${month}.${year} ${hours}:${minutes} UTC`;
   }
 
   function isTimestampInvalid(signal, canonicalKey, legacyKey) {
@@ -448,7 +454,11 @@
     const totals = payload?.totals || {};
     Object.entries(metricNodes).forEach(([metric, node]) => {
       const value = totals[metric];
-      node.textContent = metric === 'avg_open_ms' ? formatNumber(value) : formatNumber(value);
+      if (metric === 'context_profile_ready_rate' || metric === 'context_profile_gap_rate') {
+        node.textContent = formatRate(value);
+        return;
+      }
+      node.textContent = formatNumber(value);
     });
 
     const guardrails = payload?.guardrails || {};

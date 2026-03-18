@@ -66,7 +66,15 @@
                         <h2 class="h5 mb-1" id="workspaceConversationTitle">Workspace</h2>
                         <p class="small text-muted mb-0" id="workspaceConversationMeta">Загрузка карточки диалога…</p>
                     </div>
-                    <a class="btn btn-sm btn-outline-secondary" href="/dialogs">Вернуться к списку</a>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <button class="btn btn-sm btn-outline-success" id="workspaceAssignBtn" type="button">Назначить мне</button>
+                        <button class="btn btn-sm btn-outline-warning" id="workspaceSnoozeBtn" type="button">Отложить на 1ч</button>
+                        <button class="btn btn-sm btn-outline-danger" id="workspaceResolveBtn" type="button">Закрыть</button>
+                        <button class="btn btn-sm btn-outline-secondary d-none" id="workspaceReopenBtn" type="button">Переоткрыть</button>
+                        <a class="btn btn-sm btn-outline-secondary" id="workspaceCreateTaskBtn" href="/tasks">Задача</a>
+                        <button class="btn btn-sm btn-outline-dark" id="workspaceLegacyBtn" type="button">Legacy modal</button>
+                        <a class="btn btn-sm btn-outline-secondary" href="/dialogs">Вернуться к списку</a>
+                    </div>
                 </div>
                 <div id="workspaceReadonlyBanner" class="d-none alert alert-warning py-2 px-3 small" role="status" aria-live="polite">
                     Workspace открыт в режиме только чтения: действия изменения временно недоступны.
@@ -145,6 +153,17 @@
                             <div id="workspaceSlaError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
                                 SLA-контекст временно недоступен.
                                 <button class="btn btn-link btn-sm p-0" id="workspaceSlaRetry" type="button">Повторить</button>
+                            </div>
+                        </div>
+                        <div class="workspace-panel-block mt-3" id="workspaceCategoriesBlock">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                <div class="small text-muted">Категории</div>
+                                <button class="btn btn-link btn-sm p-0 text-decoration-none" id="workspaceCategoriesClear" type="button">Сбросить</button>
+                            </div>
+                            <div id="workspaceCategoriesState" class="small text-muted">Загрузка категорий…</div>
+                            <div id="workspaceCategoriesList" class="d-flex flex-wrap gap-2 d-none"></div>
+                            <div id="workspaceCategoriesError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                Не удалось сохранить категории.
                             </div>
                         </div>
                     </div>

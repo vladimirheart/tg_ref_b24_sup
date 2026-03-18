@@ -38,7 +38,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
@@ -111,6 +114,7 @@ public class DialogApiController {
             Map.entry("workspace_experiment_exposure", "experiment"),
             Map.entry("workspace_draft_saved", "workspace"),
             Map.entry("workspace_draft_restored", "workspace"),
+            Map.entry("workspace_context_profile_gap", "workspace"),
             Map.entry("kpi_frt_recorded", "kpi"),
             Map.entry("kpi_ttr_recorded", "kpi"),
             Map.entry("kpi_sla_breach_recorded", "kpi"),
@@ -744,6 +748,10 @@ public class DialogApiController {
         if (!filteredProfileEnrichment.isEmpty()) {
             workspaceClient.putAll(filteredProfileEnrichment);
         }
+        Map<String, Object> profileHealth = buildWorkspaceProfileHealth(settings, workspaceClient, attributeLabels);
+        if (!profileHealth.isEmpty()) {
+            workspaceClient.put("profile_health", profileHealth);
+        }
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("contract_version", "workspace.v1");
@@ -766,7 +774,8 @@ public class DialogApiController {
                 ? Map.of(
                 "client", workspaceClient,
                 "history", clientHistory,
-                "related_events", relatedEvents
+                "related_events", relatedEvents,
+                "profile_health", profileHealth
         )
                 : Map.of(
                 "client", Map.of(),
@@ -1793,6 +1802,118 @@ public class DialogApiController {
         return normalized;
     }
 
+    private Map<String, Object> buildWorkspaceProfileHealth(Map<String, Object> settings,
+                                                            Map<String, Object> workspaceClient,
+                                                            Map<String, String> configuredLabels) {
+        List<String> requiredFields = resolveWorkspaceRequiredClientAttributes(settings);
+        if (requiredFields.isEmpty()) {
+            return Map.of(
+                    "enabled", false,
+                    "ready", true,
+                    "coverage_pct", 100,
+                    "checked_at", Instant.now().toString(),
+                    "required_fields", List.of(),
+                    "missing_fields", List.of(),
+                    "missing_field_labels", List.of()
+            );
+        }
+        Map<String, String> labelMap = new LinkedHashMap<>();
+        if (configuredLabels != null) {
+            configuredLabels.forEach((key, value) -> {
+                String normalizedKey = normalizeMacroVariableKey(key);
+                if (StringUtils.hasText(normalizedKey) && StringUtils.hasText(value)) {
+                    labelMap.put(normalizedKey, value);
+                }
+            });
+        }
+        labelMap.putIfAbsent("id", "ID");
+        labelMap.putIfAbsent("name", "Имя");
+        labelMap.putIfAbsent("username", "Username");
+        labelMap.putIfAbsent("status", "Статус");
+        labelMap.putIfAbsent("channel", "Канал");
+        labelMap.putIfAbsent("business", "Бизнес");
+        labelMap.putIfAbsent("location", "Локация");
+        labelMap.putIfAbsent("responsible", "Ответственный");
+        labelMap.putIfAbsent("last_message_at", "Последнее сообщение");
+        labelMap.putIfAbsent("first_seen_at", "Первое обращение");
+        labelMap.putIfAbsent("last_ticket_activity_at", "Последняя активность тикета");
+
+        List<String> missingFields = new ArrayList<>();
+        List<String> missingFieldLabels = new ArrayList<>();
+        for (String field : requiredFields) {
+            Object value = workspaceClient != null ? workspaceClient.get(field) : null;
+            if (hasWorkspaceProfileValue(value)) {
+                continue;
+            }
+            missingFields.add(field);
+            missingFieldLabels.add(labelMap.getOrDefault(field, humanizeMacroVariableLabel(field)));
+        }
+
+        int totalRequired = requiredFields.size();
+        int readyCount = totalRequired - missingFields.size();
+        int coveragePct = totalRequired > 0
+                ? (int) Math.round((readyCount * 100d) / totalRequired)
+                : 100;
+        return Map.of(
+                "enabled", true,
+                "ready", missingFields.isEmpty(),
+                "coverage_pct", Math.max(0, Math.min(100, coveragePct)),
+                "checked_at", Instant.now().toString(),
+                "required_fields", requiredFields,
+                "missing_fields", missingFields,
+                "missing_field_labels", missingFieldLabels
+        );
+    }
+
+    private boolean hasWorkspaceProfileValue(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Number) {
+            return true;
+        }
+        if (value instanceof Boolean boolValue) {
+            return boolValue;
+        }
+        if (value instanceof Map<?, ?> mapValue) {
+            return !mapValue.isEmpty();
+        }
+        if (value instanceof List<?> listValue) {
+            return !listValue.isEmpty();
+        }
+        return StringUtils.hasText(String.valueOf(value));
+    }
+
+    private List<String> resolveWorkspaceRequiredClientAttributes(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return List.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return List.of();
+        }
+        Object requiredRaw = dialogConfig.get("workspace_required_client_attributes");
+        List<String> normalized = new ArrayList<>();
+        if (requiredRaw instanceof List<?> values) {
+            values.forEach(item -> {
+                String key = normalizeMacroVariableKey(String.valueOf(item));
+                if (StringUtils.hasText(key) && !normalized.contains(key)) {
+                    normalized.add(key);
+                }
+            });
+            return normalized;
+        }
+        if (requiredRaw != null) {
+            for (String part : String.valueOf(requiredRaw).split(",")) {
+                String key = normalizeMacroVariableKey(part);
+                if (StringUtils.hasText(key) && !normalized.contains(key)) {
+                    normalized.add(key);
+                }
+            }
+        }
+        return normalized;
+    }
+
     private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
         if ("closed".equals(normalizeSlaLifecycleState(statusKey))) {
             return "closed";
@@ -1856,6 +1977,17 @@ public class DialogApiController {
         }
         try {
             return Instant.parse(value).toEpochMilli();
+        } catch (DateTimeParseException ex) {
+            // try the same timestamp as explicit UTC when timezone is omitted
+        }
+        try {
+            return OffsetDateTime.parse(value).toInstant().toEpochMilli();
+        } catch (DateTimeParseException ex) {
+            // continue
+        }
+        try {
+            String normalized = value.contains(" ") ? value.replace(" ", "T") : value;
+            return LocalDateTime.parse(normalized).toInstant(ZoneOffset.UTC).toEpochMilli();
         } catch (DateTimeParseException ex) {
             return null;
         }
