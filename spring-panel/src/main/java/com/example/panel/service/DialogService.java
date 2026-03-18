@@ -1036,6 +1036,15 @@ public class DialogService {
         Set<String> datamartContractMissingOptionalFields = datamartContractOptionalFields.stream()
                 .filter(field -> !datamartContractAvailableFields.contains(field))
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        Set<String> datamartContractOverlappingFields = datamartContractMandatoryFields.stream()
+                .filter(datamartContractOptionalFields::contains)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        Set<String> datamartContractFields = new java.util.LinkedHashSet<>(datamartContractMandatoryFields);
+        datamartContractFields.addAll(datamartContractOptionalFields);
+        Set<String> datamartContractAvailableOutsideFields = datamartContractAvailableFields.stream()
+                .filter(field -> !datamartContractFields.contains(field))
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        boolean datamartContractConfigurationConflict = !datamartContractOverlappingFields.isEmpty();
         int datamartContractMandatoryCoveragePct = calculateContractCoveragePercent(
                 datamartContractMandatoryFields,
                 datamartContractMissingMandatoryFields);
@@ -1052,7 +1061,8 @@ public class DialogService {
         boolean datamartContractOptionalCoverageReady = !datamartContractOptionalCoverageGateActive
                 || datamartContractOptionalCoveragePct >= datamartContractOptionalMinCoveragePct;
         boolean datamartContractReady = (!datamartContractRequired || datamartContractMissingMandatoryFields.isEmpty())
-                && datamartContractOptionalCoverageReady;
+                && datamartContractOptionalCoverageReady
+                && !datamartContractConfigurationConflict;
         boolean readyForDecision = !gateEnabled || (omnichannelReady
                 && financeReady
                 && reviewReady
@@ -1109,6 +1119,9 @@ public class DialogService {
         if (!datamartContractMissingMandatoryFields.isEmpty()) {
             datamartRiskReasons.add("datamart_contract_missing_mandatory_fields");
         }
+        if (datamartContractConfigurationConflict) {
+            datamartRiskReasons.add("datamart_contract_configuration_conflict");
+        }
         if (datamartContractOptionalCoverageGateActive && !datamartContractOptionalCoverageReady) {
             datamartRiskReasons.add("datamart_contract_optional_coverage_below_threshold");
         }
@@ -1145,6 +1158,9 @@ public class DialogService {
         signal.put("datamart_contract_available_fields", new ArrayList<>(datamartContractAvailableFields));
         signal.put("datamart_contract_missing_mandatory_fields", new ArrayList<>(datamartContractMissingMandatoryFields));
         signal.put("datamart_contract_missing_optional_fields", new ArrayList<>(datamartContractMissingOptionalFields));
+        signal.put("datamart_contract_overlapping_fields", new ArrayList<>(datamartContractOverlappingFields));
+        signal.put("datamart_contract_available_outside_fields", new ArrayList<>(datamartContractAvailableOutsideFields));
+        signal.put("datamart_contract_configuration_conflict", datamartContractConfigurationConflict);
         signal.put("datamart_contract_mandatory_coverage_pct", datamartContractMandatoryCoveragePct);
         signal.put("datamart_contract_optional_coverage_pct", datamartContractOptionalCoveragePct);
         signal.put("datamart_contract_blocking_gap_count", datamartContractBlockingGapCount);
