@@ -9,6 +9,7 @@ import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PublicFormService;
+import com.example.panel.service.SlaEscalationWebhookNotifier;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import com.fasterxml.jackson.annotation.JsonAlias;
@@ -74,6 +75,7 @@ public class DialogApiController {
     private final SharedConfigService sharedConfigService;
     private final PermissionService permissionService;
     private final PublicFormService publicFormService;
+    private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
@@ -121,6 +123,7 @@ public class DialogApiController {
             Map.entry("workspace_context_profile_gap", "workspace"),
             Map.entry("workspace_context_source_gap", "workspace"),
             Map.entry("workspace_context_block_gap", "workspace"),
+            Map.entry("workspace_sla_policy_gap", "workspace"),
             Map.entry("workspace_parity_gap", "workspace"),
             Map.entry("workspace_inline_navigation", "workspace"),
             Map.entry("workspace_open_legacy_manual", "workspace"),
@@ -161,7 +164,8 @@ public class DialogApiController {
                                AttachmentService attachmentService,
                                SharedConfigService sharedConfigService,
                                PermissionService permissionService,
-                               PublicFormService publicFormService) {
+                               PublicFormService publicFormService,
+                               SlaEscalationWebhookNotifier slaEscalationWebhookNotifier) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
@@ -169,6 +173,7 @@ public class DialogApiController {
         this.sharedConfigService = sharedConfigService;
         this.permissionService = permissionService;
         this.publicFormService = publicFormService;
+        this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
     }
 
     @GetMapping
@@ -784,6 +789,8 @@ public class DialogApiController {
 
         Map<String, Object> workspaceRollout = resolveWorkspaceRolloutMeta(settings);
         Map<String, Object> workspaceNavigation = buildWorkspaceNavigationMeta(settings, operator, ticketId);
+        Map<String, Object> workspaceSlaPolicyRaw = slaEscalationWebhookNotifier.buildRoutingPolicySnapshot(summary, settings);
+        Map<String, Object> workspaceSlaPolicy = workspaceSlaPolicyRaw != null ? workspaceSlaPolicyRaw : Map.of();
         Map<String, Object> workspacePermissions = includeSections.contains("permissions")
                 ? resolveWorkspacePermissions(authentication)
                 : Map.of(
@@ -854,7 +861,8 @@ public class DialogApiController {
                 "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
                 "state", slaState,
                 "minutes_left", slaMinutesLeft,
-                "escalation_required", slaMinutesLeft != null && slaMinutesLeft <= slaCriticalMinutes
+                "escalation_required", slaMinutesLeft != null && slaMinutesLeft <= slaCriticalMinutes,
+                "policy", workspaceSlaPolicy
         )
                 : Map.of(
                 "target_minutes", slaTargetMinutes,
@@ -864,6 +872,7 @@ public class DialogApiController {
                 "state", "unknown",
                 "minutes_left", null,
                 "escalation_required", false,
+                "policy", workspaceSlaPolicy,
                 "unavailable", true
         ));
         payload.put("meta", Map.of(

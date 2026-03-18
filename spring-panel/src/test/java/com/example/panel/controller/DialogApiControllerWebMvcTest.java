@@ -7,6 +7,7 @@ import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.SlaEscalationWebhookNotifier;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,9 @@ class DialogApiControllerWebMvcTest {
 
     @MockBean
     private PermissionService permissionService;
+
+    @MockBean
+    private SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
 
     @Test
     void snoozeRejectsInvalidDuration() throws Exception {
@@ -264,6 +268,17 @@ class DialogApiControllerWebMvcTest {
                 "workspace_rollout_external_kpi_reviewed_at", "2026-01-01T10:15:00+03:00",
                 "workspace_rollout_external_kpi_data_updated_at", "invalid-date"
         )));
+        when(slaEscalationWebhookNotifier.buildRoutingPolicySnapshot(eq(summary), org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+                "enabled", true,
+                "status", "ready",
+                "ready", true,
+                "action", "assign",
+                "mode", "autopilot",
+                "route", "billing_rule",
+                "recommended_assignee", "billing_duty",
+                "evaluated_at_utc", "2026-01-01T10:05:00Z",
+                "summary", "Policy готовит назначение на billing_duty по маршруту billing_rule."
+        ));
 
         mockMvc.perform(get("/api/dialogs/T-1/workspace").with(user("operator")))
                 .andExpect(status().isOk())
@@ -278,6 +293,9 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.client.open_dialogs").value(2))
                 .andExpect(jsonPath("$.permissions.can_bulk").value(false))
                 .andExpect(jsonPath("$.sla.target_minutes").value(1440))
+                .andExpect(jsonPath("$.sla.policy.status").value("ready"))
+                .andExpect(jsonPath("$.sla.policy.route").value("billing_rule"))
+                .andExpect(jsonPath("$.sla.policy.recommended_assignee").value("billing_duty"))
                 .andExpect(jsonPath("$.meta.rollout.mode").value("cohort_rollout"))
                 .andExpect(jsonPath("$.meta.rollout.disable_legacy_fallback").value(true))
                 .andExpect(jsonPath("$.meta.rollout.legacy_fallback_available").value(false))

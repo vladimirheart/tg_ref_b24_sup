@@ -274,6 +274,185 @@ public class SlaEscalationWebhookNotifier {
         return resolveAutoAssignDecisions(candidates, dialogConfig).stream().map(AutoAssignDecision::ticketId).toList();
     }
 
+    public Map<String, Object> buildRoutingPolicySnapshot(DialogListItem dialog, Map<String, Object> settings) {
+        Instant evaluatedAt = Instant.now();
+        Map<String, Object> dialogConfig = settings != null ? extractMap(settings.get("dialog_config")) : Map.of();
+        int targetMinutes = resolvePositiveInt(dialogConfig, "sla_target_minutes", DEFAULT_SLA_TARGET_MINUTES, 7 * 24 * 60);
+        int criticalMinutes = resolvePositiveInt(dialogConfig, "sla_critical_minutes", 30, targetMinutes);
+        boolean orchestrationEnabled = resolveBoolean(dialogConfig, "sla_critical_escalation_enabled", true);
+        boolean autoAssignEnabled = resolveBoolean(dialogConfig, "sla_critical_auto_assign_enabled", false);
+        boolean webhookEnabled = resolveBoolean(dialogConfig, "sla_critical_escalation_webhook_enabled", false);
+        SlaOrchestrationMode orchestrationMode = resolveOrchestrationMode(dialogConfig.get("sla_critical_orchestration_mode"));
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("enabled", orchestrationEnabled);
+        payload.put("mode", orchestrationMode.name().toLowerCase());
+        payload.put("evaluated_at_utc", evaluatedAt.toString());
+        payload.put("target_minutes", targetMinutes);
+        payload.put("critical_minutes", criticalMinutes);
+        payload.put("auto_assign_enabled", autoAssignEnabled);
+        payload.put("webhook_enabled", webhookEnabled);
+
+        if (dialog == null || trimToNull(dialog.ticketId()) == null) {
+            payload.put("status", "attention");
+            payload.put("ready", false);
+            payload.put("action", "unavailable");
+            payload.put("summary", "SLA policy недоступен: не удалось определить тикет.");
+            payload.put("issues", List.of("ticket_missing"));
+            return payload;
+        }
+
+        String lifecycleState = normalizeLifecycleState(dialog.statusKey());
+        String createdAtUtc = normalizeUtcTimestamp(dialog.createdAt());
+        payload.put("ticket_id", dialog.ticketId());
+        if (createdAtUtc != null) {
+            payload.put("created_at_utc", createdAtUtc);
+        }
+
+        if (!orchestrationEnabled) {
+            payload.put("status", "disabled");
+            payload.put("ready", true);
+            payload.put("action", "disabled");
+            payload.put("summary", "SLA orchestration выключен настройкой: текущий поток не меняется.");
+            payload.put("issues", List.of());
+            return payload;
+        }
+
+        Long minutesLeft = resolveMinutesLeft(dialog.createdAt(), targetMinutes, System.currentTimeMillis());
+        payload.put("minutes_left", minutesLeft);
+        if (minutesLeft == null) {
+            payload.put("status", "invalid_utc");
+            payload.put("ready", false);
+            payload.put("action", "attention");
+            payload.put("summary", "SLA policy не может быть рассчитан: дата создания пуста или невалидна для UTC.");
+            payload.put("issues", List.of("created_at_invalid_utc"));
+            return payload;
+        }
+
+        boolean openLifecycle = "open".equals(lifecycleState);
+        boolean critical = openLifecycle && minutesLeft <= criticalMinutes;
+        boolean autoAssignIncludeAssigned = resolveBoolean(dialogConfig, "sla_critical_auto_assign_include_assigned", false);
+        boolean effectiveIncludeAssigned = orchestrationMode == SlaOrchestrationMode.AUTOPILOT || autoAssignIncludeAssigned;
+        String currentResponsible = trimToNull(dialog.responsible());
+        payload.put("current_responsible", currentResponsible);
+        payload.put("effective_include_assigned", effectiveIncludeAssigned);
+        payload.put("critical", critical);
+
+        if (!openLifecycle) {
+            payload.put("status", "ready");
+            payload.put("ready", true);
+            payload.put("action", "not_applicable");
+            payload.put("summary", "SLA policy не применяется: диалог уже не в open lifecycle.");
+            payload.put("issues", List.of());
+            return payload;
+        }
+        if (!critical) {
+            payload.put("status", "ready");
+            payload.put("ready", true);
+            payload.put("action", "monitor");
+            payload.put("summary", "Диалог под SLA-наблюдением, но ещё вне критичного окна policy.");
+            payload.put("issues", List.of());
+            return payload;
+        }
+
+        Map<String, Object> candidate = new LinkedHashMap<>();
+        candidate.put("ticket_id", dialog.ticketId());
+        candidate.put("request_number", dialog.requestNumber());
+        candidate.put("client", dialog.displayClientName());
+        candidate.put("minutes_left", minutesLeft);
+        candidate.put("status", dialog.statusLabel());
+        candidate.put("channel", dialog.channelLabel());
+        candidate.put("business", dialog.businessLabel());
+        candidate.put("location", dialog.location());
+        candidate.put("categories", dialog.categories());
+        candidate.put("client_status", dialog.clientStatus());
+        candidate.put("responsible", currentResponsible);
+        candidate.put("unread_count", dialog.unreadCount());
+        candidate.put("rating", dialog.rating());
+        candidate.put("sla_state", minutesLeft < 0 ? "breached" : "at_risk");
+        candidate.put("escalation_scope", currentResponsible == null ? "unassigned" : "assigned");
+
+        List<String> issues = new ArrayList<>();
+        if (currentResponsible != null && !effectiveIncludeAssigned) {
+            payload.put("status", "attention");
+            payload.put("ready", false);
+            payload.put("action", orchestrationMode == SlaOrchestrationMode.MONITOR ? "monitor" : "manual_review");
+            payload.put("summary", "Тикет уже назначен: текущая policy не разрешает auto-reassign для assigned кейсов.");
+            payload.put("issues", List.of("assigned_reassign_disabled"));
+            payload.put("candidate_scope", "assigned");
+            return payload;
+        }
+
+        List<AutoAssignDecision> decisions = resolveAutoAssignDecisions(List.of(candidate), dialogConfig);
+        AutoAssignDecision decision = decisions.isEmpty() ? null : decisions.get(0);
+
+        if (decision != null) {
+            payload.put("status", "ready");
+            payload.put("ready", true);
+            payload.put("recommended_assignee", decision.assignee());
+            payload.put("route", decision.route());
+            payload.put("source", decision.source());
+            payload.put("candidate_scope", candidate.get("escalation_scope"));
+            String action = orchestrationMode == SlaOrchestrationMode.MONITOR
+                    ? "monitor"
+                    : (currentResponsible == null ? "assign" : "reassign");
+            payload.put("action", action);
+            payload.put("summary", buildRoutingPolicySummary(orchestrationMode, currentResponsible, decision, webhookEnabled));
+            payload.put("issues", List.of());
+            return payload;
+        }
+
+        if (!autoAssignEnabled && webhookEnabled) {
+            payload.put("status", "ready");
+            payload.put("ready", true);
+            payload.put("action", "notify");
+            payload.put("candidate_scope", candidate.get("escalation_scope"));
+            payload.put("summary", "Критичный SLA-кейс уйдёт только в escalation webhook: auto-assign не включён.");
+            payload.put("issues", List.of());
+            return payload;
+        }
+
+        if (!autoAssignEnabled) {
+            issues.add("auto_assign_disabled");
+        }
+        String fallbackAssignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
+        if (fallbackAssignee == null) {
+            issues.add("fallback_assignee_missing");
+        }
+        payload.put("status", "attention");
+        payload.put("ready", false);
+        payload.put("action", "manual_review");
+        payload.put("candidate_scope", candidate.get("escalation_scope"));
+        payload.put("summary", "Критичный SLA-кейс не имеет production-ready routing policy: нужен manual review.");
+        payload.put("issues", issues);
+        return payload;
+    }
+
+    private String buildRoutingPolicySummary(SlaOrchestrationMode orchestrationMode,
+                                             String currentResponsible,
+                                             AutoAssignDecision decision,
+                                             boolean webhookEnabled) {
+        if (decision == null) {
+            return "Routing policy не смог подобрать маршрут.";
+        }
+        String actionLabel = currentResponsible == null ? "назначение" : "переназначение";
+        String routeLabel = decision.route() != null ? decision.route() : "fallback_default";
+        if (orchestrationMode == SlaOrchestrationMode.MONITOR) {
+            return "Monitor-only preview: policy рекомендует %s на %s по маршруту %s%s.".formatted(
+                    actionLabel,
+                    decision.assignee(),
+                    routeLabel,
+                    webhookEnabled ? " с дополнительным webhook-уведомлением" : ""
+            );
+        }
+        return "Policy готовит %s на %s по маршруту %s%s.".formatted(
+                actionLabel,
+                decision.assignee(),
+                routeLabel,
+                webhookEnabled ? " и escalation webhook" : ""
+        );
+    }
+
     SlaOrchestrationMode resolveOrchestrationMode(Object rawMode) {
         String normalized = trimToNull(String.valueOf(rawMode));
         if (normalized == null) {
@@ -936,6 +1115,11 @@ public class SlaEscalationWebhookNotifier {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private static String normalizeUtcTimestamp(String value) {
+        Instant parsed = parseInstant(value);
+        return parsed != null ? parsed.toString() : null;
     }
 
     private static String normalizeLifecycleState(String statusKey) {
