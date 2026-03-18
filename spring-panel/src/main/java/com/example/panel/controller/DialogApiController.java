@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +116,7 @@ public class DialogApiController {
             Map.entry("workspace_draft_saved", "workspace"),
             Map.entry("workspace_draft_restored", "workspace"),
             Map.entry("workspace_context_profile_gap", "workspace"),
+            Map.entry("workspace_context_source_gap", "workspace"),
             Map.entry("workspace_parity_gap", "workspace"),
             Map.entry("workspace_open_legacy_manual", "workspace"),
             Map.entry("kpi_frt_recorded", "kpi"),
@@ -754,6 +756,16 @@ public class DialogApiController {
         if (!profileHealth.isEmpty()) {
             workspaceClient.put("profile_health", profileHealth);
         }
+        List<Map<String, Object>> contextSources = buildWorkspaceContextSources(
+                settings,
+                workspaceClient,
+                filteredProfileEnrichment,
+                externalProfileEnrichment,
+                externalLinks
+        );
+        if (!contextSources.isEmpty()) {
+            workspaceClient.put("context_sources", contextSources);
+        }
 
         Map<String, Object> workspaceRollout = resolveWorkspaceRolloutMeta(settings);
         Map<String, Object> workspacePermissions = includeSections.contains("permissions")
@@ -800,12 +812,14 @@ public class DialogApiController {
                 "client", workspaceClient,
                 "history", clientHistory,
                 "related_events", relatedEvents,
-                "profile_health", profileHealth
+                "profile_health", profileHealth,
+                "context_sources", contextSources
         )
                 : Map.of(
                 "client", Map.of(),
                 "history", List.of(),
                 "related_events", List.of(),
+                "context_sources", List.of(),
                 "unavailable", true
         ));
         payload.put("permissions", workspacePermissions);
@@ -2231,6 +2245,367 @@ public class DialogApiController {
             }
         }
         return normalized;
+    }
+
+    private List<Map<String, Object>> buildWorkspaceContextSources(Map<String, Object> settings,
+                                                                   Map<String, Object> workspaceClient,
+                                                                   Map<String, Object> localProfileEnrichment,
+                                                                   Map<String, Object> externalProfileEnrichment,
+                                                                   Map<String, Object> externalLinks) {
+        if (!isWorkspaceContextSourcesEnabled(settings)) {
+            return List.of();
+        }
+        List<String> requiredSources = resolveWorkspaceRequiredContextSources(settings);
+        List<String> configuredOrder = resolveWorkspaceContextSourcePriority(settings);
+        Map<String, String> configuredLabels = resolveWorkspaceContextSourceLabels(settings);
+        Map<String, List<String>> configuredUpdatedAtAttributes = resolveWorkspaceContextSourceUpdatedAtAttributes(settings);
+        int staleAfterHours = resolveWorkspaceContextSourceStaleAfterHours(settings);
+
+        LinkedHashSet<String> sourceKeys = new LinkedHashSet<>();
+        sourceKeys.add("local");
+        configuredOrder.forEach(sourceKeys::add);
+        requiredSources.forEach(sourceKeys::add);
+        if (hasWorkspaceSourceCoverage("crm", workspaceClient, localProfileEnrichment, externalProfileEnrichment, externalLinks)) {
+            sourceKeys.add("crm");
+        }
+        if (hasWorkspaceSourceCoverage("contract", workspaceClient, localProfileEnrichment, externalProfileEnrichment, externalLinks)) {
+            sourceKeys.add("contract");
+        }
+        if (hasWorkspaceSourceCoverage("external", workspaceClient, localProfileEnrichment, externalProfileEnrichment, externalLinks)) {
+            sourceKeys.add("external");
+        }
+
+        List<Map<String, Object>> sources = new ArrayList<>();
+        Instant now = Instant.now();
+        for (String sourceKey : sourceKeys) {
+            String normalizedKey = normalizeMacroVariableKey(sourceKey);
+            if (!StringUtils.hasText(normalizedKey)) {
+                continue;
+            }
+            boolean required = requiredSources.contains(normalizedKey);
+            List<String> matchedAttributes = resolveWorkspaceContextSourceMatchedAttributes(
+                    normalizedKey,
+                    workspaceClient,
+                    localProfileEnrichment,
+                    externalProfileEnrichment
+            );
+            boolean linked = externalLinks != null && externalLinks.containsKey(normalizedKey);
+            boolean available = "local".equals(normalizedKey)
+                    || !matchedAttributes.isEmpty()
+                    || linked;
+
+            TimestampResolution timestampResolution = resolveWorkspaceContextSourceTimestamp(
+                    normalizedKey,
+                    workspaceClient,
+                    configuredUpdatedAtAttributes
+            );
+            boolean stale = available
+                    && timestampResolution.updatedAtUtc() != null
+                    && staleAfterHours > 0
+                    && timestampResolution.updatedAtUtc().toInstant().isBefore(now.minusSeconds(staleAfterHours * 3600L));
+
+            List<String> issues = new ArrayList<>();
+            String status;
+            if (!available) {
+                status = required ? "missing" : "unavailable";
+                if (required) {
+                    issues.add("missing");
+                }
+            } else if (timestampResolution.invalidUtc()) {
+                status = "invalid_utc";
+                issues.add("invalid_utc");
+            } else if (stale) {
+                status = "stale";
+                issues.add("stale");
+            } else {
+                status = "ready";
+            }
+
+            Map<String, Object> source = new LinkedHashMap<>();
+            source.put("key", normalizedKey);
+            source.put("label", configuredLabels.getOrDefault(normalizedKey, humanizeMacroVariableLabel(normalizedKey)));
+            source.put("required", required);
+            source.put("status", status);
+            source.put("ready", "ready".equals(status));
+            source.put("available", available);
+            source.put("linked", linked);
+            source.put("matched_attributes", matchedAttributes);
+            source.put("matched_attribute_count", matchedAttributes.size());
+            source.put("freshness_ttl_hours", staleAfterHours > 0 ? staleAfterHours : null);
+            source.put("issues", issues);
+            if (timestampResolution.attributeKey() != null) {
+                source.put("updated_at_attribute", timestampResolution.attributeKey());
+            }
+            if (timestampResolution.updatedAtRaw() != null) {
+                source.put("updated_at_raw", timestampResolution.updatedAtRaw());
+            }
+            if (timestampResolution.updatedAtUtc() != null) {
+                source.put("updated_at_utc", timestampResolution.updatedAtUtc().toString());
+            }
+            source.put("summary", buildWorkspaceContextSourceSummary(
+                    status,
+                    required,
+                    linked,
+                    matchedAttributes.size(),
+                    timestampResolution,
+                    staleAfterHours
+            ));
+            sources.add(source);
+        }
+        return sources;
+    }
+
+    private boolean isWorkspaceContextSourcesEnabled(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return false;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return false;
+        }
+        return dialogConfig.containsKey("workspace_client_context_required_sources")
+                || dialogConfig.containsKey("workspace_client_context_source_labels")
+                || dialogConfig.containsKey("workspace_client_context_source_priority")
+                || dialogConfig.containsKey("workspace_client_context_source_updated_at_attributes")
+                || dialogConfig.containsKey("workspace_client_context_source_stale_after_hours");
+    }
+
+    private boolean hasWorkspaceSourceCoverage(String sourceKey,
+                                               Map<String, Object> workspaceClient,
+                                               Map<String, Object> localProfileEnrichment,
+                                               Map<String, Object> externalProfileEnrichment,
+                                               Map<String, Object> externalLinks) {
+        if ("local".equals(sourceKey)) {
+            return true;
+        }
+        if (externalLinks != null && externalLinks.containsKey(sourceKey)) {
+            return true;
+        }
+        return !resolveWorkspaceContextSourceMatchedAttributes(sourceKey, workspaceClient, localProfileEnrichment, externalProfileEnrichment).isEmpty();
+    }
+
+    private List<String> resolveWorkspaceContextSourceMatchedAttributes(String sourceKey,
+                                                                       Map<String, Object> workspaceClient,
+                                                                       Map<String, Object> localProfileEnrichment,
+                                                                       Map<String, Object> externalProfileEnrichment) {
+        LinkedHashSet<String> matches = new LinkedHashSet<>();
+        if ("local".equals(sourceKey)) {
+            if (workspaceClient != null) {
+                List.of("name", "status", "last_message_at", "responsible").forEach(field -> {
+                    if (hasWorkspaceProfileValue(workspaceClient.get(field))) {
+                        matches.add(field);
+                    }
+                });
+            }
+            if (localProfileEnrichment != null) {
+                localProfileEnrichment.keySet().forEach(key -> {
+                    String normalized = normalizeMacroVariableKey(key);
+                    if (StringUtils.hasText(normalized)) {
+                        matches.add(normalized);
+                    }
+                });
+            }
+            return new ArrayList<>(matches);
+        }
+
+        String prefix = sourceKey + "_";
+        appendMatchingWorkspaceSourceKeys(matches, workspaceClient, prefix);
+        appendMatchingWorkspaceSourceKeys(matches, localProfileEnrichment, prefix);
+        appendMatchingWorkspaceSourceKeys(matches, externalProfileEnrichment, prefix);
+        return new ArrayList<>(matches);
+    }
+
+    private void appendMatchingWorkspaceSourceKeys(Set<String> matches,
+                                                   Map<String, Object> values,
+                                                   String prefix) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        values.forEach((rawKey, value) -> {
+            String normalized = normalizeMacroVariableKey(String.valueOf(rawKey));
+            if (StringUtils.hasText(normalized) && normalized.startsWith(prefix) && hasWorkspaceProfileValue(value)) {
+                matches.add(normalized);
+            }
+        });
+    }
+
+    private Map<String, String> resolveWorkspaceContextSourceLabels(Map<String, Object> settings) {
+        Map<String, String> labels = new LinkedHashMap<>();
+        labels.put("local", "Локальный профиль");
+        labels.put("crm", "CRM");
+        labels.put("contract", "Контракт");
+        labels.put("external", "Внешний источник");
+        if (settings == null || settings.isEmpty()) {
+            return labels;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return labels;
+        }
+        Object labelsRaw = dialogConfig.get("workspace_client_context_source_labels");
+        if (!(labelsRaw instanceof Map<?, ?> labelMap)) {
+            return labels;
+        }
+        labelMap.forEach((keyRaw, valueRaw) -> {
+            String key = normalizeMacroVariableKey(String.valueOf(keyRaw));
+            String value = trimToNull(String.valueOf(valueRaw));
+            if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
+                labels.put(key, value);
+            }
+        });
+        return labels;
+    }
+
+    private List<String> resolveWorkspaceRequiredContextSources(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return List.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return List.of();
+        }
+        Object requiredRaw = dialogConfig.get("workspace_client_context_required_sources");
+        List<String> required = new ArrayList<>();
+        if (requiredRaw instanceof List<?> items) {
+            items.forEach(item -> appendNormalizedContextSource(required, item));
+            return required;
+        }
+        if (requiredRaw != null) {
+            for (String part : String.valueOf(requiredRaw).split(",")) {
+                appendNormalizedContextSource(required, part);
+            }
+        }
+        return required;
+    }
+
+    private void appendNormalizedContextSource(List<String> target, Object rawValue) {
+        String normalized = normalizeMacroVariableKey(String.valueOf(rawValue));
+        if (StringUtils.hasText(normalized) && !target.contains(normalized)) {
+            target.add(normalized);
+        }
+    }
+
+    private List<String> resolveWorkspaceContextSourcePriority(Map<String, Object> settings) {
+        List<String> defaults = new ArrayList<>(List.of("local", "crm", "contract", "external"));
+        if (settings == null || settings.isEmpty()) {
+            return defaults;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return defaults;
+        }
+        Object priorityRaw = dialogConfig.get("workspace_client_context_source_priority");
+        if (!(priorityRaw instanceof List<?> priorityList)) {
+            return defaults;
+        }
+        List<String> ordered = new ArrayList<>();
+        priorityList.forEach(item -> appendNormalizedContextSource(ordered, item));
+        defaults.forEach(defaultItem -> {
+            if (!ordered.contains(defaultItem)) {
+                ordered.add(defaultItem);
+            }
+        });
+        return ordered;
+    }
+
+    private Map<String, List<String>> resolveWorkspaceContextSourceUpdatedAtAttributes(Map<String, Object> settings) {
+        Map<String, List<String>> defaults = new LinkedHashMap<>();
+        defaults.put("local", List.of("local_updated_at", "last_ticket_activity_at", "last_message_at"));
+        defaults.put("crm", List.of("crm_updated_at", "crm_profile_updated_at"));
+        defaults.put("contract", List.of("contract_updated_at", "contract_profile_updated_at"));
+        defaults.put("external", List.of("external_updated_at", "profile_updated_at", "source_updated_at"));
+        if (settings == null || settings.isEmpty()) {
+            return defaults;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return defaults;
+        }
+        Object updatedAtRaw = dialogConfig.get("workspace_client_context_source_updated_at_attributes");
+        if (!(updatedAtRaw instanceof Map<?, ?> updatedAtMap)) {
+            return defaults;
+        }
+        updatedAtMap.forEach((keyRaw, valueRaw) -> {
+            String sourceKey = normalizeMacroVariableKey(String.valueOf(keyRaw));
+            if (!StringUtils.hasText(sourceKey)) {
+                return;
+            }
+            List<String> attributes = new ArrayList<>();
+            if (valueRaw instanceof List<?> items) {
+                items.forEach(item -> appendNormalizedContextSource(attributes, item));
+            } else if (valueRaw != null) {
+                for (String part : String.valueOf(valueRaw).split(",")) {
+                    appendNormalizedContextSource(attributes, part);
+                }
+            }
+            if (!attributes.isEmpty()) {
+                defaults.put(sourceKey, attributes);
+            }
+        });
+        return defaults;
+    }
+
+    private int resolveWorkspaceContextSourceStaleAfterHours(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return 0;
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return 0;
+        }
+        return resolveIntegerDialogConfig(dialogConfig, "workspace_client_context_source_stale_after_hours", 0, 0, 24 * 365);
+    }
+
+    private TimestampResolution resolveWorkspaceContextSourceTimestamp(String sourceKey,
+                                                                      Map<String, Object> workspaceClient,
+                                                                      Map<String, List<String>> configuredUpdatedAtAttributes) {
+        List<String> candidateAttributes = configuredUpdatedAtAttributes.getOrDefault(sourceKey, List.of());
+        for (String attributeKey : candidateAttributes) {
+            Object rawValue = workspaceClient != null ? workspaceClient.get(attributeKey) : null;
+            String normalizedRawValue = trimToNull(String.valueOf(rawValue));
+            if (!StringUtils.hasText(normalizedRawValue)) {
+                continue;
+            }
+            OffsetDateTime parsed = parseUtcTimestamp(normalizedRawValue);
+            return new TimestampResolution(
+                    attributeKey,
+                    normalizedRawValue,
+                    parsed,
+                    parsed == null
+            );
+        }
+        return new TimestampResolution(null, null, null, false);
+    }
+
+    private String buildWorkspaceContextSourceSummary(String status,
+                                                      boolean required,
+                                                      boolean linked,
+                                                      int matchedAttributeCount,
+                                                      TimestampResolution timestampResolution,
+                                                      int staleAfterHours) {
+        return switch (StringUtils.hasText(status) ? status : "unavailable") {
+            case "ready" -> "Источник готов: %d атрибутов%s%s.".formatted(
+                    matchedAttributeCount,
+                    linked ? ", есть внешняя ссылка" : "",
+                    timestampResolution.updatedAtUtc() != null ? ", UTC " + timestampResolution.updatedAtUtc() : ""
+            );
+            case "stale" -> "Источник доступен, но устарел по TTL %dч.".formatted(Math.max(0, staleAfterHours));
+            case "invalid_utc" -> "Дата источника не распознана как UTC: %s.".formatted(
+                    timestampResolution.updatedAtRaw() != null ? timestampResolution.updatedAtRaw() : "пусто"
+            );
+            case "missing" -> required
+                    ? "Обязательный источник ещё не подключён или не вернул атрибуты."
+                    : "Источник пока недоступен.";
+            default -> linked
+                    ? "Источник доступен только как внешняя ссылка."
+                    : "Источник не предоставил данных.";
+        };
+    }
+
+    private record TimestampResolution(String attributeKey,
+                                       String updatedAtRaw,
+                                       OffsetDateTime updatedAtUtc,
+                                       boolean invalidUtc) {
     }
 
     private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
