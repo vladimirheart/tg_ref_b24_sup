@@ -8,6 +8,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Collections;
@@ -709,7 +712,10 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_at")) {
                     dialogConfig.put("workspace_rollout_external_kpi_reviewed_at",
-                            payload.get("dialog_workspace_rollout_external_kpi_reviewed_at"));
+                            normalizeUtcTimestampSetting(
+                                    payload.get("dialog_workspace_rollout_external_kpi_reviewed_at"),
+                                    "Дата review внешних KPI",
+                                    updateWarnings));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_review_ttl_hours")) {
                     dialogConfig.put("workspace_rollout_external_kpi_review_ttl_hours",
@@ -721,7 +727,10 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_data_updated_at")) {
                     dialogConfig.put("workspace_rollout_external_kpi_data_updated_at",
-                            payload.get("dialog_workspace_rollout_external_kpi_data_updated_at"));
+                            normalizeUtcTimestampSetting(
+                                    payload.get("dialog_workspace_rollout_external_kpi_data_updated_at"),
+                                    "Дата обновления внешнего data-mart",
+                                    updateWarnings));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_data_freshness_ttl_hours")) {
                     dialogConfig.put("workspace_rollout_external_kpi_data_freshness_ttl_hours",
@@ -765,7 +774,10 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_updated_at")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_health_updated_at",
-                            payload.get("dialog_workspace_rollout_external_kpi_datamart_health_updated_at"));
+                            normalizeUtcTimestampSetting(
+                                    payload.get("dialog_workspace_rollout_external_kpi_datamart_health_updated_at"),
+                                    "Дата обновления health-сигнала data-mart",
+                                    updateWarnings));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_health_ttl_hours")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_health_ttl_hours",
@@ -793,7 +805,10 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_updated_at")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_program_updated_at",
-                            payload.get("dialog_workspace_rollout_external_kpi_datamart_program_updated_at"));
+                            normalizeUtcTimestampSetting(
+                                    payload.get("dialog_workspace_rollout_external_kpi_datamart_program_updated_at"),
+                                    "Дата обновления программного статуса data-mart",
+                                    updateWarnings));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_program_ttl_hours")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_program_ttl_hours",
@@ -805,7 +820,10 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_target_ready_at")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_target_ready_at",
-                            payload.get("dialog_workspace_rollout_external_kpi_datamart_target_ready_at"));
+                            normalizeUtcTimestampSetting(
+                                    payload.get("dialog_workspace_rollout_external_kpi_datamart_target_ready_at"),
+                                    "Целевой срок готовности data-mart",
+                                    updateWarnings));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_timeline_grace_hours")) {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_timeline_grace_hours",
@@ -1349,6 +1367,41 @@ public class SettingsBridgeController {
 
     private String stringValue(Object raw) {
         return raw == null ? "" : raw.toString().trim();
+    }
+
+    private String normalizeUtcTimestampSetting(Object rawValue,
+                                               String label,
+                                               List<String> updateWarnings) {
+        String value = stringValue(rawValue);
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        OffsetDateTime parsed = parseUtcTimestamp(value);
+        if (parsed == null) {
+            if (updateWarnings != null && StringUtils.hasText(label)) {
+                updateWarnings.add(label + " сохранена как есть: значение не удалось нормализовать в UTC, "
+                        + "аналитика пометит timestamp как invalid.");
+            }
+            return value;
+        }
+        return parsed.withOffsetSameInstant(ZoneOffset.UTC).toString();
+    }
+
+    private OffsetDateTime parseUtcTimestamp(String rawValue) {
+        String value = stringValue(rawValue);
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(value).withOffsetSameInstant(ZoneOffset.UTC);
+        } catch (Exception ignored) {
+            // fallback to legacy datetime-local without timezone
+        }
+        try {
+            return LocalDateTime.parse(value).atOffset(ZoneOffset.UTC);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private boolean asBoolean(Object raw) {

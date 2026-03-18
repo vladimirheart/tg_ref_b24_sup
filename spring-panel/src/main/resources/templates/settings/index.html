@@ -327,6 +327,16 @@
       color: #6c757d;
       font-style: italic;
     }
+    .utc-timestamp-status {
+      font-variant-numeric: tabular-nums;
+    }
+    .utc-timestamp-status.is-invalid {
+      color: #b02a37;
+      font-weight: 500;
+    }
+    .utc-timestamp-status.is-ready {
+      color: #0f5132;
+    }
 
     .auth-user-modal-dialog {
       width: auto;
@@ -2646,6 +2656,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt" class="form-label">Dependency-ticket обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAtStatus"></div>
                       <div class="form-text">UTC. Пустое значение оставляет freshness-gate выключенным, невалидное — будет безопасно проигнорировано и удержит hold только при включённом gate.</div>
                     </div>
                     <div class="col-md-3">
@@ -2659,6 +2670,7 @@
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiReviewedAt" class="form-label">Дата review</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiReviewedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiReviewedAtStatus"></div>
                       <div class="form-text">UTC timestamp review-checkpoint.</div>
                     </div>
                     <div class="col-md-3">
@@ -2675,6 +2687,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDataUpdatedAt" class="form-label">Внешний data-mart обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDataUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDataUpdatedAtStatus"></div>
                       <div class="form-text">UTC timestamp последнего обновления внешней витрины.</div>
                     </div>
                     <div class="col-md-3">
@@ -2738,6 +2751,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt" class="form-label">Health-статус обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartHealthUpdatedAtStatus"></div>
                       <div class="form-text">UTC timestamp обновления health-сигнала.</div>
                     </div>
                     <div class="col-md-3">
@@ -2779,6 +2793,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartProgramUpdatedAt" class="form-label">Программный статус обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartProgramUpdatedAtStatus"></div>
                       <div class="form-text">UTC timestamp обновления программного статуса.</div>
                     </div>
                     <div class="col-md-3">
@@ -2795,6 +2810,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartTargetReadyAt" class="form-label">Целевой срок готовности data-mart</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartTargetReadyAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartTargetReadyAtStatus"></div>
                       <div class="form-text">UTC deadline готовности data-mart.</div>
                     </div>
                     <div class="col-md-3">
@@ -14468,9 +14484,7 @@
     if (inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired) {
       inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required);
     }
-    if (inputs.workspaceExternalKpiDatamartDependencyTicketUpdatedAt) {
-      inputs.workspaceExternalKpiDatamartDependencyTicketUpdatedAt.value = toDateTimeLocalValue(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at || '');
-    }
+    populateExternalKpiUtcTimestampField(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS[0]);
     if (inputs.workspaceExternalKpiDatamartDependencyTicketTtlHours) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours, 10);
       inputs.workspaceExternalKpiDatamartDependencyTicketTtlHours.value = Number.isFinite(value)
@@ -14480,10 +14494,7 @@
     if (inputs.workspaceExternalKpiReviewedBy) {
       inputs.workspaceExternalKpiReviewedBy.value = String(DIALOG_CONFIG.workspace_rollout_external_kpi_reviewed_by || '').trim();
     }
-    if (inputs.workspaceExternalKpiReviewedAt) {
-      const reviewedAtRaw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_reviewed_at || '').trim();
-      inputs.workspaceExternalKpiReviewedAt.value = reviewedAtRaw ? reviewedAtRaw.slice(0, 16) : '';
-    }
+    populateExternalKpiUtcTimestampField(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS[1]);
     if (inputs.workspaceExternalKpiReviewTtlHours) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_review_ttl_hours, 10);
       inputs.workspaceExternalKpiReviewTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 2160
@@ -14493,10 +14504,7 @@
     if (inputs.workspaceExternalKpiDataFreshnessRequired) {
       inputs.workspaceExternalKpiDataFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_data_freshness_required);
     }
-    if (inputs.workspaceExternalKpiDataUpdatedAt) {
-      const updatedAtRaw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_data_updated_at || '').trim();
-      inputs.workspaceExternalKpiDataUpdatedAt.value = updatedAtRaw ? updatedAtRaw.slice(0, 16) : '';
-    }
+    populateExternalKpiUtcTimestampField(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS[2]);
     if (inputs.workspaceExternalKpiDataFreshnessTtlHours) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_data_freshness_ttl_hours, 10);
       inputs.workspaceExternalKpiDataFreshnessTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 720
@@ -14532,10 +14540,7 @@
     if (inputs.workspaceExternalKpiDatamartHealthFreshnessRequired) {
       inputs.workspaceExternalKpiDatamartHealthFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_freshness_required);
     }
-    if (inputs.workspaceExternalKpiDatamartHealthUpdatedAt) {
-      const raw = String(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_updated_at || '').trim();
-      inputs.workspaceExternalKpiDatamartHealthUpdatedAt.value = normalizeDatetimeLocalValue(raw);
-    }
+    populateExternalKpiUtcTimestampField(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS[3]);
     if (inputs.workspaceExternalKpiDatamartHealthTtlHours) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_health_ttl_hours, 10);
       inputs.workspaceExternalKpiDatamartHealthTtlHours.value = Number.isFinite(value) && value > 0
@@ -14558,9 +14563,7 @@
     if (inputs.workspaceExternalKpiDatamartProgramFreshnessRequired) {
       inputs.workspaceExternalKpiDatamartProgramFreshnessRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_freshness_required);
     }
-    if (inputs.workspaceExternalKpiDatamartProgramUpdatedAt) {
-      inputs.workspaceExternalKpiDatamartProgramUpdatedAt.value = toDateTimeLocalValue(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_updated_at || '');
-    }
+    populateExternalKpiUtcTimestampField(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS[4]);
     if (inputs.workspaceExternalKpiDatamartProgramTtlHours) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_program_ttl_hours, 10);
       inputs.workspaceExternalKpiDatamartProgramTtlHours.value = Number.isFinite(value)
@@ -14570,9 +14573,7 @@
     if (inputs.workspaceExternalKpiDatamartTimelineRequired) {
       inputs.workspaceExternalKpiDatamartTimelineRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_timeline_required);
     }
-    if (inputs.workspaceExternalKpiDatamartTargetReadyAt) {
-      inputs.workspaceExternalKpiDatamartTargetReadyAt.value = toDateTimeLocalValue(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_target_ready_at || '');
-    }
+    populateExternalKpiUtcTimestampField(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS[5]);
     if (inputs.workspaceExternalKpiDatamartTimelineGraceHours) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_external_kpi_datamart_timeline_grace_hours, 10);
       inputs.workspaceExternalKpiDatamartTimelineGraceHours.value = Number.isFinite(value)
@@ -14605,6 +14606,7 @@
         ? String(Math.max(0, Math.min(100, value)))
         : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct);
     }
+    syncAllExternalKpiUtcTimestampFields();
     syncWorkspaceExternalKpiDatamartContractState(inputs);
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -16705,6 +16707,7 @@
     initDialogTemplates();
     initTimeMetricsControls();
     initDialogSlaControls();
+    initExternalKpiUtcTimestampFields();
     initWorkspaceExternalKpiDatamartContractPreview();
     bindAutoAssignRulesHelpers();
     initDialogStatusBadges();
@@ -16990,6 +16993,109 @@
 
   function normalizeDatetimeLocalValue(rawValue) {
     return toDateTimeLocalValue(rawValue);
+  }
+
+  const EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS = [
+    {
+      inputId: 'dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt',
+      statusId: 'dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAtStatus',
+      configKey: 'workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at',
+      label: 'Dependency-ticket',
+    },
+    {
+      inputId: 'dialogWorkspaceExternalKpiReviewedAt',
+      statusId: 'dialogWorkspaceExternalKpiReviewedAtStatus',
+      configKey: 'workspace_rollout_external_kpi_reviewed_at',
+      label: 'Review checkpoint',
+    },
+    {
+      inputId: 'dialogWorkspaceExternalKpiDataUpdatedAt',
+      statusId: 'dialogWorkspaceExternalKpiDataUpdatedAtStatus',
+      configKey: 'workspace_rollout_external_kpi_data_updated_at',
+      label: 'Data-mart freshness',
+    },
+    {
+      inputId: 'dialogWorkspaceExternalKpiDatamartHealthUpdatedAt',
+      statusId: 'dialogWorkspaceExternalKpiDatamartHealthUpdatedAtStatus',
+      configKey: 'workspace_rollout_external_kpi_datamart_health_updated_at',
+      label: 'Health signal',
+    },
+    {
+      inputId: 'dialogWorkspaceExternalKpiDatamartProgramUpdatedAt',
+      statusId: 'dialogWorkspaceExternalKpiDatamartProgramUpdatedAtStatus',
+      configKey: 'workspace_rollout_external_kpi_datamart_program_updated_at',
+      label: 'Program status',
+    },
+    {
+      inputId: 'dialogWorkspaceExternalKpiDatamartTargetReadyAt',
+      statusId: 'dialogWorkspaceExternalKpiDatamartTargetReadyAtStatus',
+      configKey: 'workspace_rollout_external_kpi_datamart_target_ready_at',
+      label: 'Target deadline',
+    },
+  ];
+
+  function findUtcTimestampFieldMetaByInput(input) {
+    const inputId = input instanceof HTMLElement ? input.id : '';
+    return EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.find((field) => field.inputId === inputId) || null;
+  }
+
+  function syncUtcTimestampFieldPresentation(input, rawValue, options = {}) {
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    const meta = options.meta || findUtcTimestampFieldMetaByInput(input);
+    const status = meta ? document.getElementById(meta.statusId) : null;
+    const value = String(rawValue || '').trim();
+    const parsed = parseUtcDateInput(value);
+
+    input.value = parsed ? toDateTimeLocalValue(value) : '';
+    input.classList.toggle('is-invalid', Boolean(value) && !parsed);
+
+    if (!status) {
+      return;
+    }
+
+    status.classList.remove('is-invalid', 'is-ready');
+    if (!value) {
+      status.textContent = `${meta?.label || 'Timestamp'}: пусто → сохранится как пустое значение.`;
+      return;
+    }
+    if (!parsed) {
+      status.textContent = `${meta?.label || 'Timestamp'}: сохранённое значение не распознано как UTC timestamp; analytics покажет invalid_utc до исправления.`;
+      status.classList.add('is-invalid');
+      return;
+    }
+    status.textContent = `${meta?.label || 'Timestamp'}: UTC ${parsed.toISOString()}.`;
+    status.classList.add('is-ready');
+  }
+
+  function syncAllExternalKpiUtcTimestampFields() {
+    EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.forEach((field) => {
+      const input = document.getElementById(field.inputId);
+      syncUtcTimestampFieldPresentation(input, input?.value || '', { meta: field });
+    });
+  }
+
+  function populateExternalKpiUtcTimestampField(field) {
+    const input = document.getElementById(field.inputId);
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    const raw = String(DIALOG_CONFIG[field.configKey] || '').trim();
+    syncUtcTimestampFieldPresentation(input, raw, { meta: field });
+  }
+
+  function initExternalKpiUtcTimestampFields() {
+    EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.forEach((field) => {
+      const input = document.getElementById(field.inputId);
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      const sync = () => syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
+      input.addEventListener('input', sync);
+      input.addEventListener('change', sync);
+      syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
+    });
   }
 
   function isValidExternalReferenceUrl(rawValue) {
