@@ -2738,6 +2738,11 @@
                       <label for="dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct" class="form-label">Мин. optional coverage, %</label>
                       <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct" min="0" max="100" step="1">
                     </div>
+                    <div class="col-12">
+                      <div class="alert alert-secondary small mb-0" id="dialogWorkspaceExternalKpiDatamartContractSummary" role="status" aria-live="polite">
+                        Заполните mandatory/optional/available поля, чтобы увидеть покрытие data contract и влияние на rollout gate.
+                      </div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
@@ -13736,6 +13741,7 @@
       workspaceExternalKpiDatamartContractAvailableFields: document.getElementById('dialogWorkspaceExternalKpiDatamartContractAvailableFields'),
       workspaceExternalKpiDatamartContractOptionalCoverageRequired: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalCoverageRequired'),
       workspaceExternalKpiDatamartContractOptionalMinCoveragePct: document.getElementById('dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct'),
+      workspaceExternalKpiDatamartContractSummary: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummary'),
       publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
       publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
       publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
@@ -14491,6 +14497,7 @@
         ? String(Math.max(0, Math.min(100, value)))
         : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct);
     }
+    syncWorkspaceExternalKpiDatamartContractState(inputs);
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
       inputs.publicFormMessageMaxLength.value = Number.isFinite(value) && value >= 300
@@ -14612,6 +14619,121 @@
         ? Math.min(15000, timeout)
         : DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_timeout_ms;
     }
+  }
+
+  function normalizeDataContractFieldList(value) {
+    return Array.from(new Set(
+      String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    ));
+  }
+
+  function formatCoverageLabel(current, total) {
+    const safeCurrent = Number.isFinite(current) ? current : 0;
+    const safeTotal = Number.isFinite(total) ? total : 0;
+    const pct = safeTotal > 0 ? Math.round((safeCurrent / safeTotal) * 100) : 100;
+    return `${safeCurrent}/${safeTotal} (${pct}%)`;
+  }
+
+  function syncWorkspaceExternalKpiDatamartContractState(inputs = getDialogSlaInputs()) {
+    if (!inputs) {
+      return;
+    }
+    const summary = inputs.workspaceExternalKpiDatamartContractSummary;
+    const contractRequired = Boolean(inputs.workspaceExternalKpiDatamartContractRequired?.checked);
+    const optionalCoverageConfigured = Boolean(inputs.workspaceExternalKpiDatamartContractOptionalCoverageRequired?.checked);
+    const thresholdInput = inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct;
+    const thresholdRaw = Number.parseInt(thresholdInput?.value || '', 10);
+    const threshold = Number.isFinite(thresholdRaw)
+      ? Math.max(0, Math.min(100, thresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct;
+    const mandatoryFields = normalizeDataContractFieldList(inputs.workspaceExternalKpiDatamartContractMandatoryFields?.value);
+    const optionalFields = normalizeDataContractFieldList(inputs.workspaceExternalKpiDatamartContractOptionalFields?.value);
+    const availableFields = new Set(normalizeDataContractFieldList(inputs.workspaceExternalKpiDatamartContractAvailableFields?.value));
+    const missingMandatory = mandatoryFields.filter((field) => !availableFields.has(field));
+    const missingOptional = optionalFields.filter((field) => !availableFields.has(field));
+    const blockingGapCount = missingMandatory.length;
+    const nonBlockingGapCount = missingOptional.length;
+    const mandatoryCoverageLabel = formatCoverageLabel(mandatoryFields.length - missingMandatory.length, mandatoryFields.length);
+    const optionalCoverageLabel = formatCoverageLabel(optionalFields.length - missingOptional.length, optionalFields.length);
+    const optionalCoverageGateActive = contractRequired && optionalCoverageConfigured && optionalFields.length > 0;
+    const optionalCoverageReady = optionalFields.length === 0
+      ? true
+      : Math.round(((optionalFields.length - missingOptional.length) / optionalFields.length) * 100) >= threshold;
+    const severity = blockingGapCount > 0 && nonBlockingGapCount > 0
+      ? 'mixed'
+      : (blockingGapCount > 0 ? 'blocking' : (nonBlockingGapCount > 0 ? 'non_blocking' : 'none'));
+
+    if (thresholdInput) {
+      thresholdInput.disabled = !optionalCoverageConfigured;
+      thresholdInput.setAttribute('aria-disabled', thresholdInput.disabled ? 'true' : 'false');
+      thresholdInput.title = optionalCoverageConfigured
+        ? 'Порог optional coverage участвует в rollout gate.'
+        : 'Порог не используется, пока optional coverage gate выключен.';
+    }
+
+    if (!summary) {
+      return;
+    }
+
+    summary.classList.remove('alert-secondary', 'alert-success', 'alert-warning', 'alert-danger');
+    if (!contractRequired) {
+      summary.classList.add('alert-secondary');
+      summary.innerHTML = 'Data contract выключен. Mandatory/optional поля можно подготовить заранее, но rollout gate начнёт учитывать их только после включения <code>Требовать data contract</code>.';
+      return;
+    }
+
+    const rolloutState = blockingGapCount > 0
+      ? 'rollout будет удерживаться в hold из-за mandatory-gap'
+      : (optionalCoverageGateActive && !optionalCoverageReady
+        ? `rollout будет удерживаться в hold из-за optional coverage ниже ${threshold}%`
+        : 'contract не блокирует rollout');
+    const missingMandatoryLabel = missingMandatory.length ? `missing mandatory: <code>${missingMandatory.join(', ')}</code>` : 'mandatory coverage: ready';
+    const missingOptionalLabel = missingOptional.length ? `missing optional: <code>${missingOptional.join(', ')}</code>` : 'optional coverage: ready';
+    const optionalGateLabel = optionalCoverageConfigured
+      ? (optionalFields.length
+        ? `optional gate: ${optionalCoverageGateActive ? `active @ ${threshold}%` : 'configured'}${optionalCoverageGateActive && !optionalCoverageReady ? ' (hold)' : ''}`
+        : 'optional gate: configured, но список optional-полей пуст')
+      : 'optional gate: off';
+    if (blockingGapCount > 0) {
+      summary.classList.add('alert-danger');
+    } else if ((optionalCoverageGateActive && !optionalCoverageReady) || nonBlockingGapCount > 0) {
+      summary.classList.add('alert-warning');
+    } else {
+      summary.classList.add('alert-success');
+    }
+    summary.innerHTML = [
+      `Severity: <strong>${severity}</strong>; blocking gaps: <strong>${blockingGapCount}</strong>; non-blocking gaps: <strong>${nonBlockingGapCount}</strong>.`,
+      `Mandatory coverage: <strong>${mandatoryCoverageLabel}</strong>; optional coverage: <strong>${optionalCoverageLabel}</strong>.`,
+      missingMandatoryLabel + '.',
+      missingOptionalLabel + '.',
+      `${optionalGateLabel}; итог: <strong>${rolloutState}</strong>.`,
+    ].join(' ');
+  }
+
+  function initWorkspaceExternalKpiDatamartContractPreview() {
+    const inputs = getDialogSlaInputs();
+    const controls = [
+      inputs.workspaceExternalKpiDatamartContractRequired,
+      inputs.workspaceExternalKpiDatamartContractMandatoryFields,
+      inputs.workspaceExternalKpiDatamartContractOptionalFields,
+      inputs.workspaceExternalKpiDatamartContractAvailableFields,
+      inputs.workspaceExternalKpiDatamartContractOptionalCoverageRequired,
+      inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct,
+    ].filter(Boolean);
+    if (!controls.length) {
+      return;
+    }
+    controls.forEach((control) => {
+      const eventName = control instanceof HTMLInputElement && control.type === 'checkbox' ? 'change' : 'input';
+      control.addEventListener(eventName, () => syncWorkspaceExternalKpiDatamartContractState(inputs));
+      if (!(control instanceof HTMLInputElement && control.type === 'checkbox')) {
+        control.addEventListener('change', () => syncWorkspaceExternalKpiDatamartContractState(inputs));
+      }
+    });
+    syncWorkspaceExternalKpiDatamartContractState(inputs);
   }
 
   function validateSlaAutoAssignRules(rules) {
@@ -15746,6 +15868,7 @@
       || DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_mandatory_fields;
     const safeWorkspaceExternalKpiDatamartContractOptionalFields = String(inputs.workspaceExternalKpiDatamartContractOptionalFields?.value || '').trim().slice(0, 300);
     const safeWorkspaceExternalKpiDatamartContractAvailableFields = String(inputs.workspaceExternalKpiDatamartContractAvailableFields?.value || '').trim().slice(0, 500);
+    const safeWorkspaceExternalKpiDatamartContractOptionalFieldsList = normalizeDataContractFieldList(safeWorkspaceExternalKpiDatamartContractOptionalFields);
     const safeWorkspaceExternalKpiDatamartContractOptionalCoverageRequired = Boolean(inputs.workspaceExternalKpiDatamartContractOptionalCoverageRequired?.checked);
     const safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartContractOptionalMinCoveragePct?.value || '', 10);
     const safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct = Number.isFinite(safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw)
@@ -15755,6 +15878,10 @@
       || safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw < 0
       || safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePctRaw > 100) {
       errors.push('Порог optional coverage для data contract должен быть в диапазоне 0..100%.');
+    }
+    if (safeWorkspaceExternalKpiDatamartContractOptionalCoverageRequired
+      && safeWorkspaceExternalKpiDatamartContractOptionalFieldsList.length === 0) {
+      errors.push('Для optional coverage gate укажите хотя бы одно optional KPI-поле в data contract.');
     }
     if (!Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw) || safeWorkspaceExternalKpiReviewTtlHoursRaw < 1 || safeWorkspaceExternalKpiReviewTtlHoursRaw > 2160) {
       errors.push('TTL review-подтверждения внешних KPI должен быть в диапазоне 1..2160 часов.');
@@ -16336,6 +16463,7 @@
     initDialogTemplates();
     initTimeMetricsControls();
     initDialogSlaControls();
+    initWorkspaceExternalKpiDatamartContractPreview();
     bindAutoAssignRulesHelpers();
     initDialogStatusBadges();
     initLocationWizard();
