@@ -1408,6 +1408,55 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void settingsBridgeRejectsOptionalCoverageGateWithoutOptionalFields() {
+        Map<String, Object> response = settingsBridgeController.updateSettings(Map.of(
+                "dialog_workspace_rollout_external_kpi_datamart_contract_required", true,
+                "dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields", "frt,ttr,sla_breach",
+                "dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields", "",
+                "dialog_workspace_rollout_external_kpi_datamart_contract_optional_coverage_required", true,
+                "dialog_workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct", 80
+        ), null);
+
+        assertThat(response).containsEntry("success", false);
+        assertThat(String.valueOf(response.get("error")))
+                .contains("optional coverage gate")
+                .contains("optional KPI-поле");
+        assertThat(sharedConfigService.loadSettings()).doesNotContainKey("dialog_config");
+    }
+
+    @Test
+    void settingsBridgeRejectsDatamartContractFieldOverlap() {
+        Map<String, Object> response = settingsBridgeController.updateSettings(Map.of(
+                "dialog_workspace_rollout_external_kpi_datamart_contract_required", true,
+                "dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields", "frt,ttr",
+                "dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields", "ttr,csat",
+                "dialog_workspace_rollout_external_kpi_datamart_contract_available_fields", "frt,ttr,csat"
+        ), null);
+
+        assertThat(response).containsEntry("success", false);
+        assertThat(String.valueOf(response.get("error")))
+                .contains("mandatory и optional")
+                .contains("ttr");
+        assertThat(sharedConfigService.loadSettings()).doesNotContainKey("dialog_config");
+    }
+
+    @Test
+    void settingsBridgeRejectsOptionalCoverageThresholdOutsideRange() {
+        Map<String, Object> response = settingsBridgeController.updateSettings(Map.of(
+                "dialog_workspace_rollout_external_kpi_datamart_contract_required", true,
+                "dialog_workspace_rollout_external_kpi_datamart_contract_mandatory_fields", "frt,ttr,sla_breach",
+                "dialog_workspace_rollout_external_kpi_datamart_contract_optional_fields", "csat",
+                "dialog_workspace_rollout_external_kpi_datamart_contract_optional_coverage_required", true,
+                "dialog_workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct", 120
+        ), null);
+
+        assertThat(response).containsEntry("success", false);
+        assertThat(String.valueOf(response.get("error")))
+                .contains("0..100%");
+        assertThat(sharedConfigService.loadSettings()).doesNotContainKey("dialog_config");
+    }
+
+    @Test
     void workspaceRolloutDecisionPublishesCanonicalTimestampInvalidAliases() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
