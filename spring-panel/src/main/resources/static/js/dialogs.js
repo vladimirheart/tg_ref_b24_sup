@@ -18,6 +18,8 @@
   const experimentTelemetryGuardrailAlerts = document.getElementById('dialogExperimentTelemetryGuardrailAlerts');
   const experimentRolloutDecisionState = document.getElementById('dialogExperimentRolloutDecisionState');
   const experimentRolloutDecisionChecklist = document.getElementById('dialogExperimentRolloutDecisionChecklist');
+  const experimentRolloutScorecardWrap = document.getElementById('dialogExperimentRolloutScorecardWrap');
+  const experimentRolloutScorecardRows = document.getElementById('dialogExperimentRolloutScorecardRows');
   const experimentRolloutKpiOutcomesWrap = document.getElementById('dialogExperimentRolloutKpiOutcomesWrap');
   const experimentRolloutKpiOutcomeRows = document.getElementById('dialogExperimentRolloutKpiOutcomeRows');
   const experimentTelemetrySummaryRows = document.getElementById('dialogExperimentTelemetrySummaryRows');
@@ -34,6 +36,7 @@
   const workspaceConversationTitle = document.getElementById('workspaceConversationTitle');
   const workspaceConversationMeta = document.getElementById('workspaceConversationMeta');
   const workspaceRolloutBanner = document.getElementById('workspaceRolloutBanner');
+  const workspaceParityBanner = document.getElementById('workspaceParityBanner');
   const workspaceMessagesState = document.getElementById('workspaceMessagesState');
   const workspaceMessagesList = document.getElementById('workspaceMessagesList');
   const workspaceMessagesLoadMoreWrap = document.getElementById('workspaceMessagesLoadMoreWrap');
@@ -446,6 +449,7 @@
     workspace_draft_saved: 'workspace',
     workspace_draft_restored: 'workspace',
     workspace_context_profile_gap: 'workspace',
+    workspace_parity_gap: 'workspace',
     workspace_open_legacy_manual: 'workspace',
   });
   let workspaceReadonlyMode = false;
@@ -468,6 +472,7 @@
   let workspaceDraftLastSavedValue = '';
   let workspaceDraftLastTelemetryAt = 0;
   let workspaceLastProfileGapSignature = '';
+  let workspaceLastParityGapSignature = '';
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -533,6 +538,46 @@
     workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
     workspaceRolloutBanner.classList.remove('d-none');
     workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
+  }
+
+  function resolveWorkspaceParityBannerClass(status) {
+    switch (String(status || '').toLowerCase()) {
+      case 'ok':
+        return 'alert alert-success py-2 px-3 small mb-3';
+      case 'blocked':
+        return 'alert alert-danger py-2 px-3 small mb-3';
+      default:
+        return 'alert alert-warning py-2 px-3 small mb-3';
+    }
+  }
+
+  function renderWorkspaceParityBanner(parity) {
+    if (!workspaceParityBanner) return;
+    const safeParity = parity && typeof parity === 'object' ? parity : null;
+    const summary = String(safeParity?.summary || '').trim();
+    const status = String(safeParity?.status || '').trim().toLowerCase();
+    if (!safeParity || !summary) {
+      workspaceParityBanner.classList.add('d-none');
+      workspaceParityBanner.textContent = '';
+      return;
+    }
+    const checkedAtUtc = formatTimestamp(safeParity?.checked_at, { includeTime: true, fallback: '' });
+    const missingLabels = Array.isArray(safeParity?.missing_labels)
+      ? safeParity.missing_labels.filter(Boolean).map((item) => String(item).trim())
+      : [];
+    const metaParts = [];
+    if (Number.isFinite(Number(safeParity?.score_pct))) {
+      metaParts.push(`parity score: ${Math.max(0, Math.min(100, Number(safeParity.score_pct)))}%`);
+    }
+    if (checkedAtUtc && checkedAtUtc !== '—') {
+      metaParts.push(`checked UTC: ${checkedAtUtc}`);
+    }
+    if (missingLabels.length > 0) {
+      metaParts.push(`gaps: ${missingLabels.join(', ')}`);
+    }
+    workspaceParityBanner.className = resolveWorkspaceParityBannerClass(status);
+    workspaceParityBanner.classList.remove('d-none');
+    workspaceParityBanner.textContent = [summary, metaParts.join(' · ')].filter(Boolean).join(' ');
   }
 
   function setWorkspaceReadonlyMode(isReadonly, reasonText) {
@@ -2266,6 +2311,42 @@
     return `${sign}${Math.round(safe)}мс`;
   }
 
+  function renderExperimentRolloutScorecard(scorecard) {
+    if (!experimentRolloutScorecardWrap || !experimentRolloutScorecardRows) return;
+    const items = Array.isArray(scorecard?.items) ? scorecard.items : [];
+    if (!items.length) {
+      experimentRolloutScorecardWrap.classList.add('d-none');
+      experimentRolloutScorecardRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Rollout scorecard появится после первых telemetry-сигналов.</td></tr>';
+      return;
+    }
+
+    experimentRolloutScorecardWrap.classList.remove('d-none');
+    experimentRolloutScorecardRows.innerHTML = items.map((item) => {
+      const status = String(item?.status || 'hold').trim().toLowerCase();
+      const badge = status === 'ok'
+        ? '<span class="badge text-bg-success">ok</span>'
+        : (status === 'attention'
+          ? '<span class="badge text-bg-warning">attention</span>'
+          : (status === 'off'
+            ? '<span class="badge text-bg-secondary">off</span>'
+            : '<span class="badge text-bg-danger">hold</span>'));
+      const note = String(item?.note || item?.summary || '').trim();
+      return `
+        <tr>
+          <td>
+            <div>${escapeHtml(String(item?.label || '—'))}</div>
+            ${note ? `<div class="small text-muted">${escapeHtml(note)}</div>` : ''}
+          </td>
+          <td>${escapeHtml(String(item?.category || '—'))}</td>
+          <td>${escapeHtml(String(item?.current_value || '—'))}</td>
+          <td>${escapeHtml(String(item?.threshold || '—'))}</td>
+          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: '—' }))}</td>
+          <td class="text-end">${badge}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   function renderExperimentRolloutDecision(decision, cohortComparison) {
     if (!experimentRolloutDecisionState || !experimentRolloutDecisionChecklist || !experimentRolloutKpiOutcomesWrap || !experimentRolloutKpiOutcomeRows) return;
     const safeDecision = decision && typeof decision === 'object' ? decision : null;
@@ -2417,6 +2498,7 @@
       renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, payload?.by_shift || [], 'shift');
       renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, payload?.by_team || [], 'team');
       renderExperimentTelemetryGuardrails(payload?.guardrails || {});
+      renderExperimentRolloutScorecard(payload?.rollout_scorecard || {});
       renderExperimentRolloutDecision(payload?.rollout_decision || {}, payload?.cohort_comparison || {});
       if (experimentTelemetrySummaryState) {
         const totals = payload?.totals || {};
@@ -2425,13 +2507,14 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
       renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, [], 'shift');
       renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, [], 'team');
       renderExperimentTelemetryGuardrails(null);
+      renderExperimentRolloutScorecard(null);
       renderExperimentRolloutDecision(null, null);
       if (experimentTelemetrySummaryState) {
         experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
@@ -2897,6 +2980,29 @@
     });
   }
 
+  function emitWorkspaceParityGapTelemetry(parity, conversation) {
+    const safeParity = parity && typeof parity === 'object' ? parity : null;
+    if (!safeParity || String(safeParity?.status || '').toLowerCase() === 'ok') {
+      workspaceLastParityGapSignature = '';
+      return;
+    }
+    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    const missingCapabilities = Array.isArray(safeParity?.missing_capabilities)
+      ? safeParity.missing_capabilities.filter(Boolean).map((item) => String(item).trim())
+      : [];
+    const signature = `${ticketId}:${String(safeParity?.status || '').trim()}:${missingCapabilities.join(',')}:${Number(safeParity?.score_pct || 0)}`;
+    if (!ticketId || workspaceLastParityGapSignature === signature) {
+      return;
+    }
+    workspaceLastParityGapSignature = signature;
+    emitWorkspaceTelemetry('workspace_parity_gap', {
+      ticketId,
+      reason: missingCapabilities.join(',') || String(safeParity?.status || 'parity_gap'),
+      durationMs: Number.isFinite(Number(safeParity?.score_pct)) ? Math.max(0, Math.min(100, Number(safeParity.score_pct))) : null,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
   async function refreshActiveWorkspaceContract(options = {}) {
     if (!activeWorkspaceTicketId) return;
     const payload = await preloadWorkspaceContract(activeWorkspaceTicketId, activeWorkspaceChannelId, { limit: WORKSPACE_MESSAGES_PAGE_LIMIT });
@@ -2916,6 +3022,7 @@
     const context = payload?.context || {};
     const sla = payload?.sla || {};
     const permissions = payload?.permissions;
+    const parity = payload?.meta?.parity || null;
 
     const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
     setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
@@ -2940,6 +3047,7 @@
       workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
     }
     updateWorkspaceActionButtons(conversation, permissions || {});
+    renderWorkspaceParityBanner(parity);
 
     if (workspaceMessagesState) {
       workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
@@ -3019,6 +3127,7 @@
       workspaceCategoriesError.classList.add('d-none');
     }
     emitWorkspaceProfileGapTelemetry(context, conversation);
+    emitWorkspaceParityGapTelemetry(parity, conversation);
 
     if (sla && sla.state && sla.state !== 'unknown') {
       if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
