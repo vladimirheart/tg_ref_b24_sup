@@ -115,6 +115,9 @@ public class DialogApiController {
             Map.entry("workspace_experiment_exposure", "experiment"),
             Map.entry("workspace_draft_saved", "workspace"),
             Map.entry("workspace_draft_restored", "workspace"),
+            Map.entry("workspace_reply_target_selected", "workspace"),
+            Map.entry("workspace_reply_target_cleared", "workspace"),
+            Map.entry("workspace_media_sent", "workspace"),
             Map.entry("workspace_context_profile_gap", "workspace"),
             Map.entry("workspace_context_source_gap", "workspace"),
             Map.entry("workspace_parity_gap", "workspace"),
@@ -778,6 +781,7 @@ public class DialogApiController {
                 "can_bulk", false,
                 "unavailable", true
         );
+        Map<String, Object> workspaceComposer = buildWorkspaceComposerMeta(summary, history, workspacePermissions);
         Map<String, Object> workspaceParity = buildWorkspaceParityMeta(
                 includeSections,
                 workspaceClient,
@@ -785,6 +789,7 @@ public class DialogApiController {
                 relatedEvents,
                 profileHealth,
                 workspacePermissions,
+                workspaceComposer,
                 slaState,
                 summary,
                 workspaceRollout
@@ -823,6 +828,7 @@ public class DialogApiController {
                 "unavailable", true
         ));
         payload.put("permissions", workspacePermissions);
+        payload.put("composer", workspaceComposer);
         payload.put("sla", includeSections.contains("sla")
                 ? Map.of(
                 "target_minutes", slaTargetMinutes,
@@ -860,6 +866,7 @@ public class DialogApiController {
                                                          List<Map<String, Object>> relatedEvents,
                                                          Map<String, Object> profileHealth,
                                                          Map<String, Object> permissions,
+                                                         Map<String, Object> composer,
                                                          String slaState,
                                                          DialogListItem summary,
                                                          Map<String, Object> workspaceRollout) {
@@ -934,6 +941,28 @@ public class DialogApiController {
                 checkedAt
         ));
 
+        boolean replyThreadingReady = composer != null
+                && Boolean.TRUE.equals(composer.get("reply_target_supported"))
+                && Boolean.TRUE.equals(composer.get("reply_supported"));
+        checks.add(buildWorkspaceParityCheck(
+                "reply_threading",
+                "Ответ на конкретное сообщение доступен в workspace",
+                replyThreadingReady ? "ok" : "attention",
+                replyThreadingReady ? "Оператор может отвечать на конкретное сообщение без перехода в legacy modal." : "Reply-threading в workspace недоступен или контракт композера неполный.",
+                checkedAt
+        ));
+
+        boolean mediaReplyReady = composer != null
+                && Boolean.TRUE.equals(composer.get("media_supported"))
+                && Boolean.TRUE.equals(composer.get("reply_supported"));
+        checks.add(buildWorkspaceParityCheck(
+                "media_reply",
+                "Отправка медиа доступна в workspace",
+                mediaReplyReady ? "ok" : "attention",
+                mediaReplyReady ? "Медиа-ответы доступны напрямую из workspace composer." : "Медиа-ответы в workspace недоступны по текущему контракту.",
+                checkedAt
+        ));
+
         String rolloutMode = workspaceRollout != null ? String.valueOf(workspaceRollout.getOrDefault("mode", "")) : "";
         boolean workspacePrimary = StringUtils.hasText(rolloutMode) && !"legacy_primary".equalsIgnoreCase(rolloutMode);
         checks.add(buildWorkspaceParityCheck(
@@ -983,6 +1012,22 @@ public class DialogApiController {
         payload.put("missing_capabilities", missingKeys);
         payload.put("missing_labels", missingLabels);
         payload.put("checks", checks);
+        return payload;
+    }
+
+    private Map<String, Object> buildWorkspaceComposerMeta(DialogListItem summary,
+                                                           List<ChatMessageDto> history,
+                                                           Map<String, Object> permissions) {
+        boolean canReply = permissions != null && Boolean.TRUE.equals(permissions.get("can_reply"));
+        boolean hasReplyTargets = history != null && history.stream().anyMatch(message -> message != null && message.telegramMessageId() != null);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("reply_supported", canReply);
+        payload.put("media_supported", canReply);
+        payload.put("reply_target_supported", canReply && hasReplyTargets);
+        payload.put("draft_supported", true);
+        payload.put("channel_id", summary != null ? summary.channelId() : null);
+        payload.put("channel_label", summary != null ? summary.channelLabel() : null);
+        payload.put("timezone", "UTC");
         return payload;
     }
 
