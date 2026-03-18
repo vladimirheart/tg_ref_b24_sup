@@ -575,11 +575,96 @@ class SupportPanelIntegrationTests {
 
         assertThat(scorecard.get("decision_action")).isEqualTo("scale_up");
         assertThat(items).extracting(item -> item.get("key"))
-                .contains("sample_size", "guardrails", "primary_kpi_signal", "outcome_frt", "outcome_ttr", "outcome_sla_breach", "external_kpi_gate");
+                .contains("sample_size", "guardrails", "primary_kpi_signal", "outcome_frt", "outcome_ttr", "outcome_sla_breach",
+                        "external_kpi_gate", "external_review", "external_data_freshness", "external_dashboards",
+                        "external_datamart_health", "external_datamart_program", "external_dependency_ticket",
+                        "external_datamart_contract");
         assertThat(items).anySatisfy(item -> {
             if ("external_kpi_gate".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
                 assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+            }
+            if ("external_review".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+            }
+            if ("external_data_freshness".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("off");
+            }
+        });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryExpandsExternalCheckpointScorecardItems() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,
+                         "workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,
+                         "workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00",
+                         "workspace_rollout_external_kpi_data_freshness_required":true,
+                         "workspace_rollout_external_kpi_data_updated_at":"bad-data-ts",
+                         "workspace_rollout_external_kpi_dashboard_links_required":true,
+                         "workspace_rollout_external_kpi_dashboard_status_required":true,
+                         "workspace_rollout_external_kpi_dashboard_status":"degraded",
+                         "workspace_rollout_external_kpi_datamart_health_required":true,
+                         "workspace_rollout_external_kpi_datamart_health_status":"healthy",
+                         "workspace_rollout_external_kpi_datamart_health_freshness_required":true,
+                         "workspace_rollout_external_kpi_datamart_health_updated_at":"2026-02-03T04:05:06",
+                         "workspace_rollout_external_kpi_datamart_program_blocker_required":true,
+                         "workspace_rollout_external_kpi_datamart_program_status":"blocked",
+                         "workspace_rollout_external_kpi_datamart_program_note":"blocked by vendor",
+                         "workspace_rollout_external_kpi_datamart_program_freshness_required":true,
+                         "workspace_rollout_external_kpi_datamart_program_updated_at":"bad-program-ts",
+                         "workspace_rollout_external_kpi_datamart_timeline_required":true,
+                         "workspace_rollout_external_kpi_datamart_target_ready_at":"",
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_required":true,
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_url":"https://tracker.example.com/BI-42",
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required":true,
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_owner":"bi-platform",
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required":true,
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required":true,
+                         "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact":"BI owner",
+                         "workspace_rollout_external_kpi_datamart_contract_required":true,
+                         "workspace_rollout_external_kpi_datamart_contract_mandatory_fields":"frt,ttr,sla_breach",
+                         "workspace_rollout_external_kpi_datamart_contract_available_fields":"frt,ttr",
+                         "cross_product_omnichannel_dashboard_url":"https://dash.example.com/omni",
+                         "cross_product_finance_dashboard_url":"https://dash.example.com/finance"}
+                        """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> scorecard = (Map<String, Object>) summary.get("rollout_scorecard");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) scorecard.get("items");
+
+        assertThat(items).anySatisfy(item -> {
+            if ("external_review".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("measured_at")).isEqualTo("2099-01-01T00:00Z");
+            }
+            if ("external_data_freshness".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(item.get("current_value")).isEqualTo("invalid_utc");
+            }
+            if ("external_dashboards".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(item.get("current_value")).isEqualTo("links=ready, status=degraded");
+            }
+            if ("external_datamart_health".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+            }
+            if ("external_datamart_program".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(String.valueOf(item.get("note"))).contains("blocked by vendor");
+            }
+            if ("external_dependency_ticket".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(String.valueOf(item.get("note"))).contains("url=https://tracker.example.com/BI-42");
+            }
+            if ("external_datamart_contract".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(String.valueOf(item.get("note"))).contains("missing_mandatory=sla_breach");
             }
         });
     }
