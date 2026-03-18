@@ -511,8 +511,62 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.messages.cursor").value(1))
                 .andExpect(jsonPath("$.context.unavailable").value(true))
                 .andExpect(jsonPath("$.permissions.unavailable").value(true))
+                .andExpect(jsonPath("$.composer.reply_supported").value(false))
+                .andExpect(jsonPath("$.composer.reply_target_supported").value(false))
+                .andExpect(jsonPath("$.composer.timezone").value("UTC"))
                 .andExpect(jsonPath("$.sla.unavailable").doesNotExist())
                 .andExpect(jsonPath("$.meta.limit").value(2));
+    }
+
+    @Test
+    void workspacePublishesComposerParityCapabilities() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-REPLY",
+                1L,
+                42L,
+                "user",
+                "Клиент",
+                "biz",
+                1L,
+                "telegram",
+                "city",
+                "location",
+                "problem",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "label",
+                "user",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "category"
+        );
+        List<ChatMessageDto> history = List.of(
+                new ChatMessageDto("client", "question", null, "2026-01-01T10:00:00Z", "text", null, 77L, null, null, null, null, null)
+        );
+        when(dialogService.loadDialogDetails("T-REPLY", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-REPLY", null)).thenReturn(history);
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        mockMvc.perform(get("/api/dialogs/T-REPLY/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.composer.reply_supported").value(true))
+                .andExpect(jsonPath("$.composer.reply_target_supported").value(true))
+                .andExpect(jsonPath("$.composer.media_supported").value(true))
+                .andExpect(jsonPath("$.composer.timezone").value("UTC"))
+                .andExpect(jsonPath("$.meta.parity.missing_capabilities").isEmpty());
     }
 
 
@@ -625,6 +679,35 @@ class DialogApiControllerWebMvcTest {
                                   "ticket_id": "T-88",
                                   "reason": "contract:invalid_utc",
                                   "duration_ms": 1
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceTelemetryAcceptsReplyAndMediaParityEvents() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_reply_target_selected",
+                                  "ticket_id": "T-55",
+                                  "reason": "message:77"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_media_sent",
+                                  "ticket_id": "T-55",
+                                  "reason": "photo"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -885,6 +968,26 @@ class DialogApiControllerWebMvcTest {
                         .content("{\"message\":\"test\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void replyAcceptsReplyTargetInRequest() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(dialogReplyService.sendReply("T-1", "test", 77L, "operator"))
+                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-01-01T10:00:00Z", 7001L));
+
+        mockMvc.perform(post("/api/dialogs/T-1/reply")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "test",
+                                  "replyToTelegramId": 77
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.telegramMessageId").value(7001));
     }
 
     @Test

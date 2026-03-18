@@ -71,6 +71,9 @@
   const workspaceComposerMacroSelect = document.getElementById('workspaceComposerMacroSelect');
   const workspaceComposerMacroApply = document.getElementById('workspaceComposerMacroApply');
   const workspaceComposerMacroPreview = document.getElementById('workspaceComposerMacroPreview');
+  const workspaceReplyTarget = document.getElementById('workspaceReplyTarget');
+  const workspaceReplyTargetText = document.getElementById('workspaceReplyTargetText');
+  const workspaceReplyTargetClear = document.getElementById('workspaceReplyTargetClear');
   const workspaceAssignBtn = document.getElementById('workspaceAssignBtn');
   const workspaceSnoozeBtn = document.getElementById('workspaceSnoozeBtn');
   const workspaceResolveBtn = document.getElementById('workspaceResolveBtn');
@@ -717,6 +720,7 @@
   let activeAudioSource = null;
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
+  let activeWorkspaceReplyToTelegramId = null;
   const selectedTicketIds = new Set();
   let mediaImageScale = 1;
   let categorySaveTimer = null;
@@ -1179,6 +1183,51 @@
       const safePreview = String(preview || '').trim();
       replyTargetText.textContent = safePreview || `Сообщение #${messageId}`;
     }
+  }
+
+  function resetWorkspaceReplyTarget(options = {}) {
+    const hadActiveTarget = Number.isFinite(Number(activeWorkspaceReplyToTelegramId));
+    activeWorkspaceReplyToTelegramId = null;
+    if (workspaceReplyTarget) {
+      workspaceReplyTarget.classList.add('d-none');
+    }
+    if (workspaceReplyTargetText) {
+      workspaceReplyTargetText.textContent = '';
+    }
+    if (workspaceComposerText) {
+      workspaceComposerText.placeholder = 'Введите ответ клиенту…';
+    }
+    if (hadActiveTarget && options.emitTelemetry !== false) {
+      emitWorkspaceTelemetry('workspace_reply_target_cleared', {
+        ticketId: activeWorkspaceTicketId,
+        reason: options.reason || 'manual_clear',
+        contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+      });
+    }
+  }
+
+  function setWorkspaceReplyTarget(messageId, preview) {
+    const normalizedMessageId = Number.parseInt(messageId, 10);
+    if (!Number.isFinite(normalizedMessageId)) {
+      resetWorkspaceReplyTarget({ emitTelemetry: false });
+      return;
+    }
+    activeWorkspaceReplyToTelegramId = normalizedMessageId;
+    if (workspaceComposerText) {
+      workspaceComposerText.placeholder = `Ответ на сообщение #${normalizedMessageId}`;
+    }
+    if (workspaceReplyTarget) {
+      workspaceReplyTarget.classList.remove('d-none');
+    }
+    if (workspaceReplyTargetText) {
+      const safePreview = String(preview || '').trim();
+      workspaceReplyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
+    }
+    emitWorkspaceTelemetry('workspace_reply_target_selected', {
+      ticketId: activeWorkspaceTicketId,
+      reason: `message:${normalizedMessageId}`,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
   }
 
   function resetMediaPreview() {
@@ -2639,13 +2688,10 @@
 
   function appendWorkspaceMessage(message) {
     if (!workspaceMessagesList) return;
-    const author = message.senderName || message.senderRole || 'Оператор';
-    const text = message.messageText || message.message || '—';
-    const timestamp = formatWorkspaceDateTime(message.sentAt || message.createdAt || new Date().toISOString());
     workspaceMessagesList.classList.remove('d-none');
     workspaceMessagesList.insertAdjacentHTML(
       'beforeend',
-      `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div><div>${escapeHtml(text)}</div></article>`,
+      renderWorkspaceMessageItem(message),
     );
     if (workspaceMessagesState) {
       workspaceMessagesState.classList.add('d-none');
@@ -2734,6 +2780,10 @@
   async function sendWorkspaceReply() {
     if (!workspaceComposerText || !workspaceComposerSend || !workspaceComposerTicketId) return;
     const message = workspaceComposerText.value.trim();
+    const replyToTelegramId = Number.isFinite(Number(activeWorkspaceReplyToTelegramId))
+      ? Number(activeWorkspaceReplyToTelegramId)
+      : null;
+    const replyPreview = workspaceReplyTargetText ? workspaceReplyTargetText.textContent.trim() : '';
     if (!message) return;
     if (workspaceReadonlyMode || workspaceComposerText.disabled) {
       notifyPermissionDenied('Отправка ответа');
@@ -2745,7 +2795,7 @@
       const resp = await fetch(`/api/dialogs/${encodeURIComponent(workspaceComposerTicketId)}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, replyToTelegramId }),
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
@@ -2753,10 +2803,13 @@
       }
       workspaceComposerText.value = '';
       saveWorkspaceDraft(workspaceComposerTicketId, '');
+      resetWorkspaceReplyTarget({ reason: 'message_sent' });
       appendWorkspaceMessage({
         senderName: data.responsible || 'Оператор',
         messageText: message,
         sentAt: data.timestamp || new Date().toISOString(),
+        telegramMessageId: data.telegramMessageId || null,
+        replyPreview,
       });
       if (activeDialogRow) {
         updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
@@ -2818,6 +2871,7 @@
     const merged = {
       ...basePayload,
       conversation: partialPayload.conversation || basePayload.conversation,
+      composer: partialPayload.composer || basePayload.composer,
       meta: partialPayload.meta || basePayload.meta,
       success: partialPayload.success,
     };
@@ -3054,20 +3108,23 @@
     const context = payload?.context || {};
     const sla = payload?.sla || {};
     const permissions = payload?.permissions;
+    const composer = payload?.composer || {};
     const parity = payload?.meta?.parity || null;
 
     const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
     setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
     selectedCategories = new Set(normalizeCategories(conversation.categoriesSafe || conversation.categories || activeDialogRow?.dataset?.categories || ''));
+    resetWorkspaceReplyTarget({ emitTelemetry: false });
     workspaceComposerTicketId = String(conversation.ticketId || '').trim();
     restoreWorkspaceDraft(workspaceComposerTicketId);
     const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
     if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
     if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
-    if (workspaceComposerMediaTrigger) workspaceComposerMediaTrigger.disabled = !canReplyInWorkspace;
+    if (workspaceComposerMediaTrigger) workspaceComposerMediaTrigger.disabled = !canReplyInWorkspace || composer.media_supported === false;
     if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = !canReplyInWorkspace;
     if (workspaceComposerMacroApply) workspaceComposerMacroApply.disabled = !canReplyInWorkspace || !activeWorkspaceMacroTemplate;
     if (workspaceComposerMacroSelect) workspaceComposerMacroSelect.disabled = !canReplyInWorkspace || workspaceComposerMacroTemplates.length === 0;
+    if (workspaceReplyTargetClear) workspaceReplyTargetClear.disabled = !canReplyInWorkspace || composer.reply_target_supported === false;
 
     if (workspaceConversationTitle) {
       workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
@@ -5633,6 +5690,9 @@
     const author = message?.senderName || message?.senderRole || 'Участник';
     const timestamp = formatWorkspaceDateTime(message?.sentAt || message?.createdAt);
     const text = String(message?.messageText || message?.message || '').trim();
+    const replyPreviewText = String(message?.replyPreview || message?.reply_preview || '').trim();
+    const telegramMessageId = Number.parseInt(message?.telegramMessageId ?? message?.telegram_message_id, 10);
+    const senderType = String(message?.senderRole || message?.sender || '').trim().toLowerCase();
     const normalizedMessage = {
       messageType: message?.messageType || message?.type || '',
       message: text,
@@ -5640,13 +5700,22 @@
       attachmentName: message?.attachmentName || message?.fileName || null,
     };
     const mediaMarkup = normalizedMessage.attachment ? buildMediaMarkup(normalizedMessage) : '';
-    const textMarkup = text ? `<div>${escapeHtml(text)}</div>` : '';
+    const textMarkup = text ? `<div class="workspace-message-body">${escapeHtml(text)}</div>` : '';
+    const replyPreviewMarkup = replyPreviewText
+      ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">↪ ${escapeHtml(replyPreviewText)}</div>`
+      : '';
+    const replyTargetSupported = activeWorkspacePayload?.composer?.reply_target_supported !== false;
+    const canReply = replyTargetSupported && Number.isFinite(telegramMessageId) && senderType !== 'system';
+    const actionMarkup = canReply
+      ? `<div class="mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-workspace-action="reply" data-message-id="${telegramMessageId}">Ответить</button></div>`
+      : '';
     const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>—</div>';
-    return `<article class="workspace-message-item"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${textMarkup}${mediaMarkup}${fallbackMarkup}</article>`;
+    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</article>`;
   }
 
   async function sendMediaFiles(files, options = {}) {
-    if (!activeDialogTicketId || !files || files.length === 0) return;
+    const ticketId = String(options.ticketId || activeDialogTicketId || activeWorkspaceTicketId || '').trim();
+    if (!ticketId || !files || files.length === 0) return;
     const captionSource = typeof options.caption === 'string' ? options.caption : detailsReplyText?.value || '';
     const caption = String(captionSource).trim();
     const sendButton = options.sendButton || detailsReplySend;
@@ -5660,7 +5729,7 @@
         if (caption) {
           formData.append('message', caption);
         }
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/media`, {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/media`, {
           method: 'POST',
           body: formData,
         });
@@ -5680,6 +5749,13 @@
         }
         if (activeDialogRow) {
           updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+        }
+        if (ticketId === activeWorkspaceTicketId) {
+          emitWorkspaceTelemetry('workspace_media_sent', {
+            ticketId,
+            reason: data.messageType || file.type || 'attachment',
+            contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+          });
         }
       }
       if (typeof options.afterSuccess === 'function') {
@@ -6139,6 +6215,61 @@
     });
   }
 
+  if (workspaceMessagesList) {
+    workspaceMessagesList.addEventListener('click', (event) => {
+      const replyButton = event.target.closest('button[data-workspace-action="reply"]');
+      if (replyButton) {
+        const messageId = Number.parseInt(replyButton.dataset.messageId, 10);
+        if (!Number.isFinite(messageId)) return;
+        const messageNode = replyButton.closest('.workspace-message-item');
+        const previewText = messageNode?.querySelector('.workspace-message-reply-source')?.textContent
+          || messageNode?.querySelector('.workspace-message-body')?.textContent
+          || '';
+        setWorkspaceReplyTarget(messageId, previewText);
+        if (workspaceComposerText) {
+          workspaceComposerText.focus();
+        }
+        return;
+      }
+      const playButton = event.target.closest('.chat-audio-play');
+      if (playButton) {
+        const src = playButton.dataset.audioSrc;
+        if (!src) return;
+        if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
+          activeAudioPlayer.pause();
+          playButton.textContent = 'Воспроизвести';
+          return;
+        }
+        if (activeAudioPlayer) {
+          activeAudioPlayer.pause();
+        }
+        activeAudioPlayer = new Audio(src);
+        activeAudioSource = src;
+        playButton.textContent = 'Пауза';
+        activeAudioPlayer.addEventListener('ended', () => {
+          playButton.textContent = 'Воспроизвести';
+        });
+        activeAudioPlayer.play().catch(() => {
+          playButton.textContent = 'Воспроизвести';
+        });
+        return;
+      }
+      const imagePreview = event.target.closest('[data-image-src]');
+      if (imagePreview) {
+        const src = imagePreview.dataset.imageSrc;
+        if (!src) return;
+        showImagePreview(src, imagePreview.dataset.mediaName || 'image');
+        return;
+      }
+      const videoPreview = event.target.closest('[data-video-src]');
+      if (videoPreview) {
+        const src = videoPreview.dataset.videoSrc;
+        if (!src) return;
+        showVideoPreview(src);
+      }
+    });
+  }
+
   if (workspaceClientRetry) {
     workspaceClientRetry.addEventListener('click', () => {
       reloadWorkspaceSection('context', {
@@ -6195,6 +6326,7 @@
     });
     workspaceComposerMedia.addEventListener('change', async () => {
       await sendMediaFiles(workspaceComposerMedia.files, {
+        ticketId: activeWorkspaceTicketId,
         caption: workspaceComposerText?.value || '',
         sendButton: workspaceComposerSend,
         mediaInput: workspaceComposerMedia,
@@ -6233,6 +6365,15 @@
       if (((event.ctrlKey || event.metaKey || event.altKey) && String(event.key).toLowerCase() === 's')) {
         event.preventDefault();
         saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'manual' });
+      }
+    });
+  }
+
+  if (workspaceReplyTargetClear) {
+    workspaceReplyTargetClear.addEventListener('click', () => {
+      resetWorkspaceReplyTarget({ reason: 'manual_clear' });
+      if (workspaceComposerText) {
+        workspaceComposerText.focus();
       }
     });
   }
