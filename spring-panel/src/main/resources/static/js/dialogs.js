@@ -67,6 +67,16 @@
   const workspaceComposerMacroSelect = document.getElementById('workspaceComposerMacroSelect');
   const workspaceComposerMacroApply = document.getElementById('workspaceComposerMacroApply');
   const workspaceComposerMacroPreview = document.getElementById('workspaceComposerMacroPreview');
+  const workspaceAssignBtn = document.getElementById('workspaceAssignBtn');
+  const workspaceSnoozeBtn = document.getElementById('workspaceSnoozeBtn');
+  const workspaceResolveBtn = document.getElementById('workspaceResolveBtn');
+  const workspaceReopenBtn = document.getElementById('workspaceReopenBtn');
+  const workspaceCreateTaskBtn = document.getElementById('workspaceCreateTaskBtn');
+  const workspaceLegacyBtn = document.getElementById('workspaceLegacyBtn');
+  const workspaceCategoriesState = document.getElementById('workspaceCategoriesState');
+  const workspaceCategoriesList = document.getElementById('workspaceCategoriesList');
+  const workspaceCategoriesError = document.getElementById('workspaceCategoriesError');
+  const workspaceCategoriesClear = document.getElementById('workspaceCategoriesClear');
 
   const filtersForm = document.getElementById('dialogFiltersForm');
   const filtersApply = document.getElementById('dialogFiltersApply');
@@ -432,6 +442,7 @@
     macro_apply: 'macro',
     workspace_draft_saved: 'workspace',
     workspace_draft_restored: 'workspace',
+    workspace_context_profile_gap: 'workspace',
   });
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
@@ -452,6 +463,7 @@
   let workspaceDraftAutosaveTimer = null;
   let workspaceDraftLastSavedValue = '';
   let workspaceDraftLastTelemetryAt = 0;
+  let workspaceLastProfileGapSignature = '';
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -899,9 +911,10 @@
   }
 
   async function persistDialogCategories(categories) {
-    if (!activeDialogTicketId) return;
+    const ticketId = activeDialogTicketId || activeWorkspaceTicketId;
+    if (!ticketId) return;
     const payload = { categories };
-    const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/categories`, {
+    const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -913,7 +926,7 @@
   }
 
   function scheduleCategorySave() {
-    if (!activeDialogTicketId) return;
+    if (!activeDialogTicketId && !activeWorkspaceTicketId) return;
     if (categorySaveTimer) {
       clearTimeout(categorySaveTimer);
     }
@@ -922,7 +935,14 @@
         const categories = Array.from(selectedCategories);
         await persistDialogCategories(categories);
         updateSummaryCategories(formatCategoriesLabel(categories));
+        renderWorkspaceCategories();
+        if (workspaceCategoriesError) {
+          workspaceCategoriesError.classList.add('d-none');
+        }
       } catch (error) {
+        if (workspaceCategoriesError) {
+          workspaceCategoriesError.classList.remove('d-none');
+        }
         if (typeof showNotification === 'function') {
           showNotification(error.message || 'Не удалось сохранить категории', 'error');
         }
@@ -1211,14 +1231,14 @@
       return { label: 'Закрыт', className: 'dialog-sla-closed', title: 'SLA не применяется к закрытому обращению' };
     }
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
-    const createdAt = new Date(createdAtRaw);
-    if (!createdAtRaw || Number.isNaN(createdAt.getTime())) {
+    const createdAt = parseUtcDateValue(createdAtRaw);
+    if (!createdAtRaw || !createdAt) {
       return { label: 'Нет даты', className: 'dialog-sla-closed', title: 'Не удалось определить время создания обращения' };
     }
     const ageMinutes = (Date.now() - createdAt.getTime()) / 60000;
     const minutesLeft = SLA_TARGET_MINUTES - ageMinutes;
     const deadline = new Date(createdAt.getTime() + SLA_TARGET_MINUTES * 60000);
-    const deadlineLabel = deadline.toLocaleString('ru-RU');
+    const deadlineLabel = formatUtcDate(deadline, { includeTime: true });
     if (minutesLeft <= 0) {
       return {
         label: `Просрочен ${formatDurationMinutes(Math.abs(minutesLeft))}`,
@@ -1404,7 +1424,7 @@
       const ticketId = row.dataset.ticketId;
       const until = getSnoozeUntil(ticketId);
       snoozeBtn.textContent = until
-        ? `Отложен до ${new Date(until).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+        ? `Отложен до ${formatUtcDate(new Date(until), { includeTime: true })}`
         : formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
     }
   }
@@ -1660,8 +1680,8 @@
     if (leftPriority.minutesLeft !== rightPriority.minutesLeft) {
       return leftPriority.minutesLeft - rightPriority.minutesLeft;
     }
-    const leftCreated = new Date(String(left?.dataset?.createdAt || '')).getTime();
-    const rightCreated = new Date(String(right?.dataset?.createdAt || '')).getTime();
+    const leftCreated = parseUtcDateValue(String(left?.dataset?.createdAt || ''))?.getTime() ?? 0;
+    const rightCreated = parseUtcDateValue(String(right?.dataset?.createdAt || ''))?.getTime() ?? 0;
     if (Number.isFinite(leftCreated) && Number.isFinite(rightCreated) && leftCreated !== rightCreated) {
       return leftCreated - rightCreated;
     }
@@ -1684,8 +1704,8 @@
     if (isResolved(row)) return false;
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
     if (!createdAtRaw) return false;
-    const createdAt = new Date(createdAtRaw);
-    if (Number.isNaN(createdAt.getTime())) return false;
+    const createdAt = parseUtcDateValue(createdAtRaw);
+    if (!createdAt) return false;
     const overdueThresholdMs = OVERDUE_THRESHOLD_HOURS * 60 * 60 * 1000;
     return Date.now() - createdAt.getTime() > overdueThresholdMs;
   }
@@ -1720,8 +1740,8 @@
     }
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
     if (!createdAtRaw) return null;
-    const createdAt = new Date(createdAtRaw);
-    if (Number.isNaN(createdAt.getTime())) return null;
+    const createdAt = parseUtcDateValue(createdAtRaw);
+    if (!createdAt) return null;
     return SLA_TARGET_MINUTES - ((Date.now() - createdAt.getTime()) / 60000);
   }
 
@@ -2379,10 +2399,7 @@
   }
 
   function formatWorkspaceDateTime(value) {
-    if (!value) return '—';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleString('ru-RU');
+    return formatTimestamp(value, { includeTime: true, fallback: '—' });
   }
 
   function renderWorkspaceSimpleList(items, formatter) {
@@ -2750,6 +2767,102 @@
     }
   }
 
+  function renderWorkspaceCategories() {
+    if (!workspaceCategoriesList || !workspaceCategoriesState) return;
+    const templateCategories = DIALOG_TEMPLATES.categoryTemplates
+      .flatMap((template) => Array.isArray(template?.categories) ? template.categories : [])
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+    const ordered = Array.from(new Set([...templateCategories, ...Array.from(selectedCategories)]));
+    if (ordered.length === 0) {
+      workspaceCategoriesState.classList.remove('d-none');
+      workspaceCategoriesState.textContent = 'Категории не настроены.';
+      workspaceCategoriesList.classList.add('d-none');
+      workspaceCategoriesList.innerHTML = '';
+      return;
+    }
+    workspaceCategoriesState.classList.remove('d-none');
+    workspaceCategoriesState.textContent = selectedCategories.size > 0
+      ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
+      : 'Выберите хотя бы одну категорию для закрытия диалога.';
+    workspaceCategoriesList.classList.remove('d-none');
+    workspaceCategoriesList.innerHTML = ordered.map((category) => {
+      const selected = selectedCategories.has(category);
+      return `<button class="badge rounded-pill text-bg-light border dialog-category-badge ${selected ? 'is-selected' : ''}" type="button" data-category-value="${escapeHtml(category)}">${escapeHtml(category)}</button>`;
+    }).join('');
+  }
+
+  function updateWorkspaceActionButtons(conversation, permissions) {
+    const statusRaw = conversation?.status || '';
+    const statusKey = conversation?.statusKey || '';
+    const statusLabel = conversation?.statusLabel || '';
+    const resolved = isResolvedStatus(statusRaw, statusKey, statusLabel);
+    const hasResponsible = Boolean(String(conversation?.responsible || '').trim());
+    const canAssign = permissions?.can_assign === true && !workspaceReadonlyMode;
+    const canClose = permissions?.can_close === true && !workspaceReadonlyMode;
+    const canSnooze = permissions?.can_snooze === true && !workspaceReadonlyMode;
+
+    if (workspaceAssignBtn) {
+      workspaceAssignBtn.disabled = !canAssign || hasResponsible;
+      workspaceAssignBtn.classList.toggle('d-none', !canAssign || hasResponsible);
+    }
+    if (workspaceSnoozeBtn) {
+      workspaceSnoozeBtn.disabled = !canSnooze || resolved;
+      workspaceSnoozeBtn.classList.toggle('d-none', !canSnooze || resolved);
+      workspaceSnoozeBtn.textContent = formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
+    }
+    if (workspaceResolveBtn) {
+      workspaceResolveBtn.disabled = !canClose || resolved;
+      workspaceResolveBtn.classList.toggle('d-none', !canClose || resolved);
+    }
+    if (workspaceReopenBtn) {
+      workspaceReopenBtn.disabled = !canClose || !resolved;
+      workspaceReopenBtn.classList.toggle('d-none', !resolved);
+    }
+    if (workspaceLegacyBtn) {
+      workspaceLegacyBtn.disabled = WORKSPACE_DISABLE_LEGACY_FALLBACK;
+      workspaceLegacyBtn.classList.toggle('d-none', WORKSPACE_DISABLE_LEGACY_FALLBACK);
+    }
+    if (workspaceCreateTaskBtn) {
+      workspaceCreateTaskBtn.classList.remove('disabled');
+    }
+  }
+
+  function emitWorkspaceProfileGapTelemetry(context, conversation) {
+    const profileHealth = context?.profile_health;
+    if (!profileHealth || profileHealth.enabled !== true) {
+      workspaceLastProfileGapSignature = '';
+      return;
+    }
+    const missingFields = Array.isArray(profileHealth.missing_fields) ? profileHealth.missing_fields.filter(Boolean) : [];
+    if (profileHealth.ready === true || missingFields.length === 0) {
+      workspaceLastProfileGapSignature = '';
+      return;
+    }
+    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    const signature = `${ticketId}:${missingFields.join(',')}`;
+    if (!ticketId || workspaceLastProfileGapSignature === signature) {
+      return;
+    }
+    workspaceLastProfileGapSignature = signature;
+    emitWorkspaceTelemetry('workspace_context_profile_gap', {
+      ticketId,
+      reason: missingFields.join(','),
+      durationMs: missingFields.length,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
+  async function refreshActiveWorkspaceContract(options = {}) {
+    if (!activeWorkspaceTicketId) return;
+    const payload = await preloadWorkspaceContract(activeWorkspaceTicketId, activeWorkspaceChannelId, { limit: WORKSPACE_MESSAGES_PAGE_LIMIT });
+    activeWorkspacePayload = payload;
+    renderWorkspaceShell(payload);
+    if (!options.silent && typeof showNotification === 'function' && options.successMessage) {
+      showNotification(options.successMessage, 'success');
+    }
+  }
+
   function renderWorkspaceShell(payload) {
     if (!workspaceShell) return;
     workspaceShell.classList.remove('d-none');
@@ -2762,6 +2875,7 @@
 
     const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
     setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
+    selectedCategories = new Set(normalizeCategories(conversation.categoriesSafe || conversation.categories || activeDialogRow?.dataset?.categories || ''));
     workspaceComposerTicketId = String(conversation.ticketId || '').trim();
     restoreWorkspaceDraft(workspaceComposerTicketId);
     const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
@@ -2778,8 +2892,10 @@
     if (workspaceConversationMeta) {
       const status = conversation.statusLabel || conversation.status || '—';
       const assignee = conversation.responsible || 'без ответственного';
-      workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee}`;
+      const createdAt = formatWorkspaceDateTime(conversation.createdAt || conversation.created_at);
+      workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
     }
+    updateWorkspaceActionButtons(conversation, permissions || {});
 
     if (workspaceMessagesState) {
       workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
@@ -2854,6 +2970,12 @@
       if (workspaceRelatedEventsError) workspaceRelatedEventsError.classList.remove('d-none');
     }
 
+    renderWorkspaceCategories();
+    if (workspaceCategoriesError) {
+      workspaceCategoriesError.classList.add('d-none');
+    }
+    emitWorkspaceProfileGapTelemetry(context, conversation);
+
     if (sla && sla.state && sla.state !== 'unknown') {
       if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
       if (workspaceSlaError) workspaceSlaError.classList.add('d-none');
@@ -2922,6 +3044,14 @@
       .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
       .map(([label, value]) => `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(String(value))}</span></div>`)
       .join('');
+
+    const profileHealth = client.profile_health && typeof client.profile_health === 'object' ? client.profile_health : null;
+    const missingFields = Array.isArray(profileHealth?.missing_field_labels)
+      ? profileHealth.missing_field_labels.filter(Boolean)
+      : [];
+    const healthBanner = profileHealth && profileHealth.enabled === true
+      ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at))}</div></div>`
+      : '';
 
     const extraAttributeLabelMap = resolveWorkspaceClientAttributeLabelMap(client.attribute_labels);
     const extraAttributeOrder = resolveWorkspaceClientAttributeOrder(client.attribute_order);
@@ -2993,7 +3123,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
@@ -4329,30 +4459,55 @@
     return context?.clientName || message?.sender || 'Клиент';
   }
 
-  function formatTimestamp(value, options = {}) {
-    if (!value) return '';
+  function parseUtcDateValue(value) {
+    if (value === null || value === undefined || value === '') return null;
     const rawValue = typeof value === 'string' ? value.trim() : value;
+    if (rawValue === '') return null;
     let normalized = rawValue;
     if (typeof rawValue === 'string' && /^\d+(\.\d+)?$/.test(rawValue)) {
       normalized = Number(rawValue);
     }
-    if (typeof normalized === 'number' && normalized < 1000000000000) {
-      normalized *= 1000;
+    if (typeof normalized === 'number') {
+      const epochMs = normalized < 1000000000000 ? normalized * 1000 : normalized;
+      const parsedFromEpoch = new Date(epochMs);
+      return Number.isNaN(parsedFromEpoch.getTime()) ? null : parsedFromEpoch;
+    }
+    if (typeof normalized === 'string') {
+      let candidate = normalized.replace(' ', 'T');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
+        candidate = `${candidate}T00:00:00Z`;
+      } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(candidate)) {
+        candidate = `${candidate}Z`;
+      }
+      const parsedFromString = new Date(candidate);
+      if (!Number.isNaN(parsedFromString.getTime())) {
+        return parsedFromString;
+      }
     }
     const parsed = new Date(normalized);
-    if (!Number.isNaN(parsed.getTime())) {
-      const day = String(parsed.getDate()).padStart(2, '0');
-      const month = String(parsed.getMonth() + 1).padStart(2, '0');
-      const year = parsed.getFullYear();
-      const base = `${day}.${month}.${year}`;
-      if (options.includeTime) {
-        const hours = String(parsed.getHours()).padStart(2, '0');
-        const minutes = String(parsed.getMinutes()).padStart(2, '0');
-        return `${base} ${hours}:${minutes}`;
-      }
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function formatUtcDate(date, options = {}) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+      return options.fallback || '—';
+    }
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const base = `${day}.${month}.${year}`;
+    if (!options.includeTime) {
       return base;
     }
-    return value;
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    return `${base} ${hours}:${minutes} UTC`;
+  }
+
+  function formatTimestamp(value, options = {}) {
+    const parsed = parseUtcDateValue(value);
+    if (!parsed) return options.fallback || String(value || '');
+    return formatUtcDate(parsed, { includeTime: options.includeTime, fallback: options.fallback || '—' });
   }
 
   function resolveAttachmentKind(messageType, attachment) {
@@ -4999,6 +5154,109 @@
     });
   }
 
+  if (workspaceCreateTaskBtn) {
+    workspaceCreateTaskBtn.addEventListener('click', () => {
+      if (activeWorkspaceTicketId) {
+        setTaskDraft({ ticketId: activeWorkspaceTicketId });
+      }
+    });
+  }
+
+  if (workspaceAssignBtn) {
+    workspaceAssignBtn.addEventListener('click', async () => {
+      if (!activeWorkspaceTicketId || !activeDialogRow) return;
+      try {
+        await takeDialog(activeWorkspaceTicketId, activeDialogRow, workspaceAssignBtn);
+        await refreshActiveWorkspaceContract({ successMessage: 'Диалог назначен на вас.' });
+      } catch (_error) {
+        // notification is already shown inside takeDialog
+      }
+    });
+  }
+
+  if (workspaceSnoozeBtn) {
+    workspaceSnoozeBtn.addEventListener('click', async () => {
+      if (!activeWorkspaceTicketId) return;
+      try {
+        await snoozeDialog(activeWorkspaceTicketId, QUICK_SNOOZE_MINUTES, workspaceSnoozeBtn);
+        setSnooze(activeWorkspaceTicketId, QUICK_SNOOZE_MINUTES);
+        if (activeDialogRow) {
+          updateRowQuickActions(activeDialogRow);
+        }
+        if (typeof showNotification === 'function') {
+          showNotification(`Диалог отложен на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}.`, 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось отложить диалог', 'error');
+        }
+      }
+    });
+  }
+
+  if (workspaceResolveBtn) {
+    workspaceResolveBtn.addEventListener('click', async () => {
+      if (!activeWorkspaceTicketId) return;
+      workspaceResolveBtn.disabled = true;
+      try {
+        const categories = Array.from(selectedCategories);
+        if (!categories.length) {
+          renderWorkspaceCategories();
+          throw new Error('Выберите хотя бы одну категорию перед закрытием диалога.');
+        }
+        const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceTicketId)}/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || `Ошибка ${response.status}`);
+        }
+        await refreshActiveWorkspaceContract({ successMessage: 'Диалог закрыт.' });
+      } catch (error) {
+        workspaceResolveBtn.disabled = false;
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+        }
+      }
+    });
+  }
+
+  if (workspaceReopenBtn) {
+    workspaceReopenBtn.addEventListener('click', async () => {
+      if (!activeWorkspaceTicketId) return;
+      if (!window.confirm('Переоткрыть закрытое обращение?')) {
+        return;
+      }
+      workspaceReopenBtn.disabled = true;
+      try {
+        const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceTicketId)}/reopen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || `Ошибка ${response.status}`);
+        }
+        await refreshActiveWorkspaceContract({ successMessage: 'Диалог переоткрыт.' });
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
+        }
+      } finally {
+        workspaceReopenBtn.disabled = false;
+      }
+    });
+  }
+
+  if (workspaceLegacyBtn) {
+    workspaceLegacyBtn.addEventListener('click', () => {
+      if (!activeWorkspaceTicketId || !activeDialogRow || WORKSPACE_DISABLE_LEGACY_FALLBACK) return;
+      openDialogDetails(activeWorkspaceTicketId, activeDialogRow);
+    });
+  }
+
   if (detailsResolve) {
     detailsResolve.addEventListener('click', async () => {
       if (!activeDialogTicketId) return;
@@ -5407,7 +5665,36 @@
         selectedCategories.add(value);
       }
       syncCategorySelections();
+      renderWorkspaceCategories();
       updateSummaryCategories(formatCategoriesLabel(Array.from(selectedCategories)));
+      scheduleCategorySave();
+    });
+  }
+
+  if (workspaceCategoriesList) {
+    workspaceCategoriesList.addEventListener('click', (event) => {
+      const badge = event.target.closest('[data-category-value]');
+      if (!badge) return;
+      const value = badge.dataset.categoryValue || '';
+      if (!value) return;
+      if (selectedCategories.has(value)) {
+        selectedCategories.delete(value);
+      } else {
+        selectedCategories.add(value);
+      }
+      syncCategorySelections();
+      renderWorkspaceCategories();
+      updateSummaryCategories(formatCategoriesLabel(Array.from(selectedCategories)));
+      scheduleCategorySave();
+    });
+  }
+
+  if (workspaceCategoriesClear) {
+    workspaceCategoriesClear.addEventListener('click', () => {
+      selectedCategories = new Set();
+      syncCategorySelections();
+      renderWorkspaceCategories();
+      updateSummaryCategories('—');
       scheduleCategorySave();
     });
   }
