@@ -2217,6 +2217,7 @@ public class DialogService {
         long contextSourceGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_source_gap_events"))).sum();
         long contextBlockGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_block_gap_events"))).sum();
         long workspaceParityGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_parity_gap_events"))).sum();
+        long workspaceInlineNavigationEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_inline_navigation_events"))).sum();
         long manualLegacyOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("manual_legacy_open_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
@@ -2262,6 +2263,7 @@ public class DialogService {
         totals.put("context_source_gap_events", contextSourceGapEvents);
         totals.put("context_block_gap_events", contextBlockGapEvents);
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
+        totals.put("workspace_inline_navigation_events", workspaceInlineNavigationEvents);
         totals.put("manual_legacy_open_events", manualLegacyOpenEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
@@ -3190,6 +3192,7 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_context_source_gap' THEN 1 ELSE 0 END) AS context_source_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_context_block_gap' THEN 1 ELSE 0 END) AS context_block_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_parity_gap' THEN 1 ELSE 0 END) AS workspace_parity_gap_events,
+                       SUM(CASE WHEN event_type = 'workspace_inline_navigation' THEN 1 ELSE 0 END) AS workspace_inline_navigation_events,
                        SUM(CASE WHEN event_type = 'workspace_open_legacy_manual' THEN 1 ELSE 0 END) AS manual_legacy_open_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
@@ -3230,6 +3233,7 @@ public class DialogService {
                 item.put("context_source_gap_events", rs.getLong("context_source_gap_events"));
                 item.put("context_block_gap_events", rs.getLong("context_block_gap_events"));
                 item.put("workspace_parity_gap_events", rs.getLong("workspace_parity_gap_events"));
+                item.put("workspace_inline_navigation_events", rs.getLong("workspace_inline_navigation_events"));
                 item.put("manual_legacy_open_events", rs.getLong("manual_legacy_open_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));

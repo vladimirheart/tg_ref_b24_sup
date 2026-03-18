@@ -122,6 +122,7 @@ public class DialogApiController {
             Map.entry("workspace_context_source_gap", "workspace"),
             Map.entry("workspace_context_block_gap", "workspace"),
             Map.entry("workspace_parity_gap", "workspace"),
+            Map.entry("workspace_inline_navigation", "workspace"),
             Map.entry("workspace_open_legacy_manual", "workspace"),
             Map.entry("kpi_frt_recorded", "kpi"),
             Map.entry("kpi_ttr_recorded", "kpi"),
@@ -782,6 +783,7 @@ public class DialogApiController {
         Map<String, Object> contextBlocksHealth = buildWorkspaceContextBlocksHealth(contextBlocks);
 
         Map<String, Object> workspaceRollout = resolveWorkspaceRolloutMeta(settings);
+        Map<String, Object> workspaceNavigation = buildWorkspaceNavigationMeta(settings, operator, ticketId);
         Map<String, Object> workspacePermissions = includeSections.contains("permissions")
                 ? resolveWorkspacePermissions(authentication)
                 : Map.of(
@@ -869,10 +871,86 @@ public class DialogApiController {
                 "limit", resolvedLimit,
                 "cursor", safeCursor,
                 "rollout", workspaceRollout,
+                "navigation", workspaceNavigation,
                 "parity", workspaceParity
         ));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+    private Map<String, Object> buildWorkspaceNavigationMeta(Map<String, Object> settings,
+                                                             String operator,
+                                                             String currentTicketId) {
+        boolean enabled = true;
+        if (settings != null && settings.get("dialog_config") instanceof Map<?, ?> dialogConfig) {
+            enabled = resolveBooleanDialogConfig(dialogConfig, "workspace_inline_navigation", true);
+        }
+        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        List<DialogListItem> navigationItems = dialogs == null
+                ? List.of()
+                : dialogs.stream()
+                .filter(item -> item != null && StringUtils.hasText(item.ticketId()))
+                .toList();
+        int currentIndex = -1;
+        for (int i = 0; i < navigationItems.size(); i++) {
+            if (String.valueOf(navigationItems.get(i).ticketId()).equals(currentTicketId)) {
+                currentIndex = i;
+                break;
+            }
+        }
+        DialogListItem previous = currentIndex > 0 ? navigationItems.get(currentIndex - 1) : null;
+        DialogListItem next = currentIndex >= 0 && currentIndex + 1 < navigationItems.size()
+                ? navigationItems.get(currentIndex + 1)
+                : null;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("enabled", enabled);
+        payload.put("current_ticket_id", currentTicketId);
+        payload.put("found_in_queue", currentIndex >= 0);
+        payload.put("position", currentIndex >= 0 ? currentIndex + 1 : null);
+        payload.put("total", navigationItems.size());
+        payload.put("has_previous", previous != null);
+        payload.put("has_next", next != null);
+        payload.put("previous", buildWorkspaceNavigationItem(previous));
+        payload.put("next", buildWorkspaceNavigationItem(next));
+        payload.put("queue_generated_at_utc", Instant.now().toString());
+        payload.put("summary", buildWorkspaceNavigationSummary(enabled, currentIndex, navigationItems.size(), previous, next));
+        return payload;
+    }
+
+    private Map<String, Object> buildWorkspaceNavigationItem(DialogListItem item) {
+        if (item == null || !StringUtils.hasText(item.ticketId())) {
+            return Map.of();
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("ticket_id", item.ticketId());
+        payload.put("channel_id", item.channelId());
+        payload.put("client_name", item.displayClientName());
+        payload.put("status", item.statusLabel());
+        payload.put("last_message_at_utc", normalizeUtcTimestamp(item.lastMessageTimestamp()));
+        return payload;
+    }
+
+    private String buildWorkspaceNavigationSummary(boolean enabled,
+                                                   int currentIndex,
+                                                   int total,
+                                                   DialogListItem previous,
+                                                   DialogListItem next) {
+        if (!enabled) {
+            return "Inline navigation отключена текущей настройкой rollout.";
+        }
+        if (currentIndex < 0 || total <= 0) {
+            return "Текущий диалог открыт вне активной очереди — inline navigation недоступна.";
+        }
+        if (previous == null && next == null) {
+            return "В очереди только текущий диалог.";
+        }
+        return "Позиция %d из %d. %s%s".formatted(
+                currentIndex + 1,
+                total,
+                previous != null ? "Есть предыдущий диалог. " : "",
+                next != null ? "Есть следующий диалог." : ""
+        ).trim();
     }
 
     private Map<String, Object> buildWorkspaceParityMeta(Set<String> includeSections,
