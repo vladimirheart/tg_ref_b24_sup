@@ -35,6 +35,9 @@
   const workspaceShell = document.getElementById('dialogsWorkspaceShell');
   const workspaceConversationTitle = document.getElementById('workspaceConversationTitle');
   const workspaceConversationMeta = document.getElementById('workspaceConversationMeta');
+  const workspaceNavPrevBtn = document.getElementById('workspaceNavPrevBtn');
+  const workspaceNavNextBtn = document.getElementById('workspaceNavNextBtn');
+  const workspaceNavState = document.getElementById('workspaceNavState');
   const workspaceRolloutBanner = document.getElementById('workspaceRolloutBanner');
   const workspaceParityBanner = document.getElementById('workspaceParityBanner');
   const workspaceMessagesState = document.getElementById('workspaceMessagesState');
@@ -455,6 +458,7 @@
     workspace_context_source_gap: 'workspace',
     workspace_context_block_gap: 'workspace',
     workspace_parity_gap: 'workspace',
+    workspace_inline_navigation: 'workspace',
     workspace_open_legacy_manual: 'workspace',
   });
   let workspaceReadonlyMode = false;
@@ -2560,7 +2564,7 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -3118,6 +3122,86 @@
     });
   }
 
+  function buildWorkspaceNavigationStateText(navigation) {
+    const safeNavigation = navigation && typeof navigation === 'object' ? navigation : null;
+    if (!safeNavigation) {
+      return 'Очередь не определена';
+    }
+    if (typeof safeNavigation.summary === 'string' && safeNavigation.summary.trim()) {
+      return safeNavigation.summary.trim();
+    }
+    const position = Number(safeNavigation.position || 0);
+    const total = Number(safeNavigation.total || 0);
+    if (position > 0 && total > 0) {
+      return `Позиция ${position} из ${total}.`;
+    }
+    return safeNavigation.enabled === false
+      ? 'Inline navigation отключена.'
+      : 'Текущий диалог открыт вне активной очереди.';
+  }
+
+  function getWorkspaceNavigationTarget(direction, navigation) {
+    const key = direction === 'previous' ? 'previous' : 'next';
+    const candidate = navigation && typeof navigation === 'object' ? navigation[key] : null;
+    const ticketId = String(candidate?.ticket_id || '').trim();
+    if (!ticketId) {
+      return null;
+    }
+    return {
+      ticketId,
+      channelId: candidate?.channel_id ?? null,
+      clientName: String(candidate?.client_name || '').trim(),
+      status: String(candidate?.status || '').trim(),
+    };
+  }
+
+  function renderWorkspaceNavigation(navigation) {
+    const previous = getWorkspaceNavigationTarget('previous', navigation);
+    const next = getWorkspaceNavigationTarget('next', navigation);
+    const navigationEnabled = WORKSPACE_INLINE_NAVIGATION && navigation?.enabled !== false;
+
+    if (workspaceNavPrevBtn) {
+      workspaceNavPrevBtn.disabled = !navigationEnabled || !previous;
+      workspaceNavPrevBtn.title = previous
+        ? `${previous.ticketId}${previous.clientName ? ` · ${previous.clientName}` : ''}${previous.status ? ` · ${previous.status}` : ''}`
+        : 'Предыдущий диалог недоступен';
+    }
+    if (workspaceNavNextBtn) {
+      workspaceNavNextBtn.disabled = !navigationEnabled || !next;
+      workspaceNavNextBtn.title = next
+        ? `${next.ticketId}${next.clientName ? ` · ${next.clientName}` : ''}${next.status ? ` · ${next.status}` : ''}`
+        : 'Следующий диалог недоступен';
+    }
+    if (workspaceNavState) {
+      workspaceNavState.textContent = buildWorkspaceNavigationStateText(navigation);
+    }
+  }
+
+  async function navigateWorkspaceInline(direction) {
+    if (!WORKSPACE_INLINE_NAVIGATION) {
+      return;
+    }
+    const safeDirection = direction === 'previous' ? 'previous' : 'next';
+    const navigation = activeWorkspacePayload?.meta?.navigation || null;
+    const target = getWorkspaceNavigationTarget(safeDirection, navigation);
+    if (!target?.ticketId) {
+      openVisibleDialogByOffset(safeDirection === 'previous' ? -1 : 1);
+      return;
+    }
+    const row = rowsList().find((item) => String(item.dataset.ticketId || '') === target.ticketId) || null;
+    setActiveDialogRow(row, { ensureVisible: true });
+    await emitWorkspaceTelemetry('workspace_inline_navigation', {
+      ticketId: target.ticketId,
+      reason: safeDirection,
+      durationMs: Number.isFinite(Number(navigation?.position)) ? Number(navigation.position) : null,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+    await openDialogWithWorkspaceFallback(target.ticketId, row, {
+      source: `inline_navigation_${safeDirection}`,
+      channelId: target.channelId,
+    });
+  }
+
   async function refreshActiveWorkspaceContract(options = {}) {
     if (!activeWorkspaceTicketId) return;
     const payload = await preloadWorkspaceContract(activeWorkspaceTicketId, activeWorkspaceChannelId, { limit: WORKSPACE_MESSAGES_PAGE_LIMIT });
@@ -3139,6 +3223,7 @@
     const permissions = payload?.permissions;
     const composer = payload?.composer || {};
     const parity = payload?.meta?.parity || null;
+    const navigation = payload?.meta?.navigation || null;
 
     const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
     setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
@@ -3164,6 +3249,7 @@
       const createdAt = formatWorkspaceDateTime(conversation.createdAt || conversation.created_at);
       workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
     }
+    renderWorkspaceNavigation(navigation);
     updateWorkspaceActionButtons(conversation, permissions || {});
     renderWorkspaceParityBanner(parity);
 
@@ -3708,7 +3794,7 @@
   async function openDialogWithWorkspaceFallback(ticketId, row, options = {}) {
     activeWorkspacePayload = null;
     const source = options.source || 'manual_open';
-    const channelId = row?.dataset?.channelId || null;
+    const channelId = options.channelId ?? row?.dataset?.channelId ?? null;
     if (isWorkspaceTemporarilyDisabled()) {
       if (!WORKSPACE_DISABLE_LEGACY_FALLBACK) {
         if (typeof showNotification === 'function') {
@@ -5554,6 +5640,20 @@
       if (activeWorkspaceTicketId) {
         setTaskDraft({ ticketId: activeWorkspaceTicketId });
       }
+    });
+  }
+
+  if (workspaceNavPrevBtn) {
+    workspaceNavPrevBtn.addEventListener('click', async () => {
+      if (workspaceNavPrevBtn.disabled) return;
+      await navigateWorkspaceInline('previous');
+    });
+  }
+
+  if (workspaceNavNextBtn) {
+    workspaceNavNextBtn.addEventListener('click', async () => {
+      if (workspaceNavNextBtn.disabled) return;
+      await navigateWorkspaceInline('next');
     });
   }
 
