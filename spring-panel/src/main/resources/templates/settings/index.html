@@ -2653,6 +2653,11 @@
                       </div>
                       <div class="form-text">Если ссылка на внешний тикет давно не обновлялась, rollout остаётся в hold до обновления статуса зависимости.</div>
                     </div>
+                    <div class="col-12">
+                      <div class="alert alert-secondary py-2 px-3 mb-1" id="dialogWorkspaceExternalKpiUtcSummary" role="status">
+                        Проверка UTC timestamps…
+                      </div>
+                    </div>
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt" class="form-label">Dependency-ticket обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt">
@@ -17069,11 +17074,49 @@
     status.classList.add('is-ready');
   }
 
+  function syncExternalKpiUtcSummary() {
+    const summaryNode = document.getElementById('dialogWorkspaceExternalKpiUtcSummary');
+    if (!summaryNode) {
+      return;
+    }
+    const states = EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.map((field) => {
+      const input = document.getElementById(field.inputId);
+      const value = String(input?.value || '').trim();
+      const parsed = parseUtcDateInput(value);
+      return {
+        label: field.label,
+        empty: !value,
+        invalid: Boolean(value) && !parsed,
+        valid: Boolean(parsed),
+      };
+    });
+    const invalid = states.filter((state) => state.invalid);
+    const empty = states.filter((state) => state.empty);
+    const valid = states.filter((state) => state.valid);
+    const invalidLabels = invalid.map((state) => state.label).join(', ');
+    const emptyLabels = empty.map((state) => state.label).join(', ');
+
+    summaryNode.className = 'alert py-2 px-3 mb-1';
+    if (invalid.length > 0) {
+      summaryNode.classList.add('alert-warning');
+      summaryNode.textContent = `UTC timestamps: ${valid.length}/${states.length} валидны, ${invalid.length} invalid (${invalidLabels}), ${empty.length} пусто${emptyLabels ? `: ${emptyLabels}` : ''}. Невалидные значения сохраняются как есть для аналитики и дают invalid_utc.`;
+      return;
+    }
+    if (empty.length > 0) {
+      summaryNode.classList.add('alert-secondary');
+      summaryNode.textContent = `UTC timestamps: ${valid.length}/${states.length} валидны, ${empty.length} пусто${emptyLabels ? `: ${emptyLabels}` : ''}. Пустые значения не меняют поведение, пока соответствующий gate выключен.`;
+      return;
+    }
+    summaryNode.classList.add('alert-success');
+    summaryNode.textContent = `UTC timestamps: все ${states.length} значения валидны и будут сохранены в ISO UTC без timezone-дрейфа.`;
+  }
+
   function syncAllExternalKpiUtcTimestampFields() {
     EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.forEach((field) => {
       const input = document.getElementById(field.inputId);
       syncUtcTimestampFieldPresentation(input, input?.value || '', { meta: field });
     });
+    syncExternalKpiUtcSummary();
   }
 
   function populateExternalKpiUtcTimestampField(field) {
@@ -17091,10 +17134,13 @@
       if (!(input instanceof HTMLInputElement)) {
         return;
       }
-      const sync = () => syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
+      const sync = () => {
+        syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
+        syncExternalKpiUtcSummary();
+      };
       input.addEventListener('input', sync);
       input.addEventListener('change', sync);
-      syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
+      sync();
     });
   }
 

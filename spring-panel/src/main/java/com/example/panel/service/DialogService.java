@@ -1207,6 +1207,7 @@ public class DialogService {
         signal.put("datamart_dependency_ticket_ttl_hours", datamartDependencyTicketTtlHours);
         signal.put("datamart_dependency_ticket_updated_present", datamartDependencyTicketUpdatedPresent);
         signal.put("datamart_dependency_ticket_updated_timestamp_invalid", datamartDependencyTicketUpdatedInvalid);
+        signal.put("dependency_ticket_timestamp_invalid", datamartDependencyTicketUpdatedInvalid);
         signal.put("datamart_dependency_ticket_fresh", datamartDependencyTicketFresh);
         signal.put("datamart_dependency_ticket_age_hours", datamartDependencyTicketAgeHours);
         signal.put("datamart_dependency_ticket_freshness_ready", datamartDependencyTicketFreshnessReady);
@@ -1245,6 +1246,7 @@ public class DialogService {
         signal.put("datamart_health_ttl_hours", datamartHealthTtlHours);
         signal.put("datamart_health_updated_present", datamartHealthUpdatedPresent);
         signal.put("datamart_health_updated_timestamp_invalid", datamartHealthUpdatedInvalid);
+        signal.put("datamart_health_timestamp_invalid", datamartHealthUpdatedInvalid);
         signal.put("datamart_health_fresh", datamartHealthFresh);
         signal.put("datamart_health_age_hours", datamartHealthAgeHours);
         signal.put("datamart_health_freshness_ready", datamartHealthFreshnessReady);
@@ -1262,6 +1264,7 @@ public class DialogService {
         signal.put("datamart_program_ttl_hours", datamartProgramTtlHours);
         signal.put("datamart_program_updated_present", datamartProgramUpdatedPresent);
         signal.put("datamart_program_updated_timestamp_invalid", datamartProgramUpdatedInvalid);
+        signal.put("datamart_program_timestamp_invalid", datamartProgramUpdatedInvalid);
         signal.put("datamart_program_fresh", datamartProgramFresh);
         signal.put("datamart_program_age_hours", datamartProgramAgeHours);
         signal.put("datamart_program_freshness_ready", datamartProgramFreshnessReady);
