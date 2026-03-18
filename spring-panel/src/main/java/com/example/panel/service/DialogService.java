@@ -866,6 +866,7 @@ public class DialogService {
                 externalMeasuredAt,
                 String.valueOf(externalSignal.getOrDefault("note", "")).trim()
         ));
+        appendExternalCheckpointScorecardItems(items, externalSignal, externalEnabled);
 
         return Map.of(
                 "generated_at", Instant.now().toString(),
@@ -913,6 +914,363 @@ public class DialogService {
                 null,
                 null
         ));
+    }
+
+    private void appendExternalCheckpointScorecardItems(List<Map<String, Object>> items,
+                                                        Map<String, Object> externalSignal,
+                                                        boolean externalEnabled) {
+        if (items == null || externalSignal == null) {
+            return;
+        }
+
+        appendBinaryExternalCheckpointScorecardItem(
+                items,
+                "external_review",
+                "External review freshness",
+                externalEnabled,
+                true,
+                toBoolean(externalSignal.get("review_present")),
+                toBoolean(externalSignal.get("review_fresh")),
+                toBoolean(externalSignal.get("review_timestamp_invalid")),
+                normalizeUtcTimestamp(externalSignal.get("reviewed_at")),
+                "reviewed_by=%s".formatted(String.valueOf(externalSignal.getOrDefault("reviewed_by", "")).trim()),
+                "review present & <= %s h".formatted(formatNullableLong(externalSignal.get("review_ttl_hours"))),
+                "Ручной review перед rollout должен быть подтверждён и оставаться свежим."
+        );
+
+        appendBinaryExternalCheckpointScorecardItem(
+                items,
+                "external_data_freshness",
+                "External KPI data freshness",
+                externalEnabled,
+                toBoolean(externalSignal.get("data_freshness_required")),
+                toBoolean(externalSignal.get("data_updated_present")),
+                toBoolean(externalSignal.get("data_fresh")),
+                toBoolean(externalSignal.get("data_updated_timestamp_invalid")),
+                normalizeUtcTimestamp(externalSignal.get("data_updated_at")),
+                externalDataFreshnessCurrentValue(externalSignal),
+                "fresh <= %s h".formatted(formatNullableLong(externalSignal.get("data_freshness_ttl_hours"))),
+                "Omni-channel / finance KPI должны опираться на свежий UTC-срез данных."
+        );
+
+        appendExternalCompositeCheckpointScorecardItem(
+                items,
+                "external_dashboards",
+                "External dashboards readiness",
+                externalEnabled,
+                toBoolean(externalSignal.get("dashboard_links_required")) || toBoolean(externalSignal.get("dashboard_status_required")),
+                toBoolean(externalSignal.get("dashboard_links_ready")) && toBoolean(externalSignal.get("dashboard_status_ready")),
+                "links=%s, status=%s".formatted(
+                        toBoolean(externalSignal.get("dashboard_links_present")) ? "ready" : "missing",
+                        String.valueOf(externalSignal.getOrDefault("dashboard_status", "off")).trim()),
+                buildExternalDashboardThresholdLabel(externalSignal),
+                null,
+                String.valueOf(externalSignal.getOrDefault("dashboard_status_note", "")).trim(),
+                "Ссылки на дашборды и статус витрин должны быть валидны до расширения rollout."
+        );
+
+        appendBinaryExternalCheckpointScorecardItem(
+                items,
+                "external_datamart_health",
+                "Data-mart health",
+                externalEnabled,
+                toBoolean(externalSignal.get("datamart_health_required")) || toBoolean(externalSignal.get("datamart_health_freshness_required")),
+                toBoolean(externalSignal.get("datamart_health_ready")),
+                toBoolean(externalSignal.get("datamart_health_freshness_ready")),
+                toBoolean(externalSignal.get("datamart_health_timestamp_invalid"))
+                        || toBoolean(externalSignal.get("datamart_health_updated_timestamp_invalid")),
+                normalizeUtcTimestamp(externalSignal.get("datamart_health_updated_at")),
+                "status=%s, freshness=%s".formatted(
+                        String.valueOf(externalSignal.getOrDefault("datamart_health_status", "unknown")).trim(),
+                        toBoolean(externalSignal.get("datamart_health_fresh")) ? "fresh" : "stale"),
+                buildDatamartHealthThresholdLabel(externalSignal),
+                "Data-mart health и свежесть его статуса не должны блокировать продуктовый rollout."
+        );
+
+        appendExternalCompositeCheckpointScorecardItem(
+                items,
+                "external_datamart_program",
+                "Data-mart delivery program",
+                externalEnabled,
+                toBoolean(externalSignal.get("datamart_program_blocker_required"))
+                        || toBoolean(externalSignal.get("datamart_program_freshness_required"))
+                        || toBoolean(externalSignal.get("datamart_timeline_required")),
+                toBoolean(externalSignal.get("datamart_program_ready"))
+                        && toBoolean(externalSignal.get("datamart_program_freshness_ready"))
+                        && toBoolean(externalSignal.get("datamart_timeline_ready")),
+                buildDatamartProgramCurrentValue(externalSignal),
+                buildDatamartProgramThresholdLabel(externalSignal),
+                firstNonBlank(
+                        normalizeUtcTimestamp(externalSignal.get("datamart_program_updated_at")),
+                        normalizeUtcTimestamp(externalSignal.get("datamart_target_ready_at"))
+                ),
+                buildDatamartProgramNote(externalSignal),
+                "Программа data-mart должна быть без blockers, со свежим статусом и в пределах timeline."
+        );
+
+        appendExternalCompositeCheckpointScorecardItem(
+                items,
+                "external_dependency_ticket",
+                "Dependency ticket readiness",
+                externalEnabled,
+                toBoolean(externalSignal.get("datamart_dependency_ticket_required"))
+                        || toBoolean(externalSignal.get("datamart_dependency_ticket_freshness_required"))
+                        || toBoolean(externalSignal.get("datamart_dependency_ticket_owner_required"))
+                        || toBoolean(externalSignal.get("datamart_dependency_ticket_owner_contact_required"))
+                        || toBoolean(externalSignal.get("datamart_dependency_ticket_owner_contact_actionable_required")),
+                toBoolean(externalSignal.get("datamart_dependency_ticket_ready"))
+                        && toBoolean(externalSignal.get("datamart_dependency_ticket_freshness_ready"))
+                        && toBoolean(externalSignal.get("datamart_dependency_ticket_owner_ready"))
+                        && toBoolean(externalSignal.get("datamart_dependency_ticket_owner_contact_ready"))
+                        && toBoolean(externalSignal.get("datamart_dependency_ticket_owner_contact_actionable_ready")),
+                buildDependencyTicketCurrentValue(externalSignal),
+                buildDependencyTicketThresholdLabel(externalSignal),
+                normalizeUtcTimestamp(externalSignal.get("datamart_dependency_ticket_updated_at")),
+                buildDependencyTicketNote(externalSignal),
+                "Критические внешние зависимости должны иметь ticket, owner и actionable contact."
+        );
+
+        appendExternalCompositeCheckpointScorecardItem(
+                items,
+                "external_datamart_contract",
+                "Data-mart contract coverage",
+                externalEnabled,
+                toBoolean(externalSignal.get("datamart_contract_required"))
+                        || toBoolean(externalSignal.get("datamart_contract_optional_coverage_required")),
+                toBoolean(externalSignal.get("datamart_contract_ready")),
+                buildDatamartContractCurrentValue(externalSignal),
+                buildDatamartContractThresholdLabel(externalSignal),
+                null,
+                buildDatamartContractNote(externalSignal),
+                "Контракт внешних KPI должен покрывать обязательные поля и не иметь конфликтов."
+        );
+    }
+
+    private void appendBinaryExternalCheckpointScorecardItem(List<Map<String, Object>> items,
+                                                             String key,
+                                                             String label,
+                                                             boolean externalEnabled,
+                                                             boolean required,
+                                                             boolean present,
+                                                             boolean ready,
+                                                             boolean invalidTimestamp,
+                                                             String measuredAtUtc,
+                                                             String currentValue,
+                                                             String threshold,
+                                                             String summary) {
+        if (!externalEnabled) {
+            items.add(buildScorecardItem(key, "external_dependencies", label, "off", false, summary, "gate disabled", "off", null, null));
+            return;
+        }
+        if (!required) {
+            items.add(buildScorecardItem(key, "external_dependencies", label, "off", false, summary, "off", "not required", null, null));
+            return;
+        }
+        String normalizedCurrentValue = StringUtils.hasText(currentValue) ? currentValue : (present ? "present" : "missing");
+        if (invalidTimestamp) {
+            normalizedCurrentValue = "invalid_utc";
+        } else if (!ready && !present) {
+            normalizedCurrentValue = "missing";
+        } else if (ready) {
+            normalizedCurrentValue = normalizedCurrentValue + " (ready)";
+        }
+        items.add(buildScorecardItem(
+                key,
+                "external_dependencies",
+                label,
+                invalidTimestamp ? "hold" : (ready ? "ok" : "hold"),
+                true,
+                summary,
+                normalizedCurrentValue,
+                threshold,
+                invalidTimestamp ? null : measuredAtUtc,
+                invalidTimestamp ? "Ожидается корректная UTC timestamp." : null
+        ));
+    }
+
+    private void appendExternalCompositeCheckpointScorecardItem(List<Map<String, Object>> items,
+                                                                String key,
+                                                                String label,
+                                                                boolean externalEnabled,
+                                                                boolean required,
+                                                                boolean ready,
+                                                                String currentValue,
+                                                                String threshold,
+                                                                String measuredAtUtc,
+                                                                String note,
+                                                                String summary) {
+        if (!externalEnabled) {
+            items.add(buildScorecardItem(key, "external_dependencies", label, "off", false, summary, "gate disabled", "off", null, null));
+            return;
+        }
+        if (!required) {
+            items.add(buildScorecardItem(key, "external_dependencies", label, "off", false, summary, "off", "not required", null, null));
+            return;
+        }
+        items.add(buildScorecardItem(
+                key,
+                "external_dependencies",
+                label,
+                ready ? "ok" : "hold",
+                true,
+                summary,
+                StringUtils.hasText(currentValue) ? currentValue : "pending",
+                StringUtils.hasText(threshold) ? threshold : "ready",
+                measuredAtUtc,
+                StringUtils.hasText(note) ? note : null
+        ));
+    }
+
+    private String externalDataFreshnessCurrentValue(Map<String, Object> externalSignal) {
+        return "updated=%s, freshness=%s".formatted(
+                toBoolean(externalSignal.get("data_updated_present")) ? "present" : "missing",
+                toBoolean(externalSignal.get("data_fresh")) ? "fresh" : "stale");
+    }
+
+    private String buildExternalDashboardThresholdLabel(Map<String, Object> externalSignal) {
+        List<String> requirements = new ArrayList<>();
+        if (toBoolean(externalSignal.get("dashboard_links_required"))) {
+            requirements.add("links=ready");
+        }
+        if (toBoolean(externalSignal.get("dashboard_status_required"))) {
+            requirements.add("status=healthy");
+        }
+        return requirements.isEmpty() ? "not required" : String.join(", ", requirements);
+    }
+
+    private String buildDatamartHealthThresholdLabel(Map<String, Object> externalSignal) {
+        List<String> requirements = new ArrayList<>();
+        if (toBoolean(externalSignal.get("datamart_health_required"))) {
+            requirements.add("status=healthy");
+        }
+        if (toBoolean(externalSignal.get("datamart_health_freshness_required"))) {
+            requirements.add("fresh <= %s h".formatted(formatNullableLong(externalSignal.get("datamart_health_ttl_hours"))));
+        }
+        return requirements.isEmpty() ? "not required" : String.join(", ", requirements);
+    }
+
+    private String buildDatamartProgramCurrentValue(Map<String, Object> externalSignal) {
+        return "status=%s, freshness=%s, timeline=%s".formatted(
+                String.valueOf(externalSignal.getOrDefault("datamart_program_status", "unknown")).trim(),
+                toBoolean(externalSignal.get("datamart_program_fresh")) ? "fresh" : "stale",
+                toBoolean(externalSignal.get("datamart_timeline_ready")) ? "ready" : "hold");
+    }
+
+    private String buildDatamartProgramThresholdLabel(Map<String, Object> externalSignal) {
+        List<String> requirements = new ArrayList<>();
+        if (toBoolean(externalSignal.get("datamart_program_blocker_required"))) {
+            requirements.add("status!=blocked");
+        }
+        if (toBoolean(externalSignal.get("datamart_program_freshness_required"))) {
+            requirements.add("fresh <= %s h".formatted(formatNullableLong(externalSignal.get("datamart_program_ttl_hours"))));
+        }
+        if (toBoolean(externalSignal.get("datamart_timeline_required"))) {
+            requirements.add("target within grace");
+        }
+        return requirements.isEmpty() ? "not required" : String.join(", ", requirements);
+    }
+
+    private String buildDatamartProgramNote(Map<String, Object> externalSignal) {
+        List<String> notes = new ArrayList<>();
+        String programNote = String.valueOf(externalSignal.getOrDefault("datamart_program_note", "")).trim();
+        if (StringUtils.hasText(programNote)) {
+            notes.add(programNote);
+        }
+        String blockerUrl = String.valueOf(externalSignal.getOrDefault("datamart_program_blocker_url", "")).trim();
+        if (StringUtils.hasText(blockerUrl)) {
+            notes.add("blocker=" + blockerUrl);
+        }
+        List<String> riskReasons = safeStringList(externalSignal.get("datamart_risk_reasons"));
+        if (!riskReasons.isEmpty()) {
+            notes.add("risk=" + String.join("|", riskReasons));
+        }
+        return notes.isEmpty() ? null : String.join(", ", notes);
+    }
+
+    private String buildDependencyTicketCurrentValue(Map<String, Object> externalSignal) {
+        return "ticket=%s, freshness=%s, owner=%s, contact=%s".formatted(
+                toBoolean(externalSignal.get("datamart_dependency_ticket_present")) ? "ready" : "missing",
+                toBoolean(externalSignal.get("datamart_dependency_ticket_fresh")) ? "fresh" : "stale",
+                toBoolean(externalSignal.get("datamart_dependency_ticket_owner_present")) ? "ready" : "missing",
+                toBoolean(externalSignal.get("datamart_dependency_ticket_owner_contact_actionable")) ? "actionable" : "not_actionable");
+    }
+
+    private String buildDependencyTicketThresholdLabel(Map<String, Object> externalSignal) {
+        List<String> requirements = new ArrayList<>();
+        if (toBoolean(externalSignal.get("datamart_dependency_ticket_required"))) {
+            requirements.add("ticket=ready");
+        }
+        if (toBoolean(externalSignal.get("datamart_dependency_ticket_freshness_required"))) {
+            requirements.add("fresh <= %s h".formatted(formatNullableLong(externalSignal.get("datamart_dependency_ticket_ttl_hours"))));
+        }
+        if (toBoolean(externalSignal.get("datamart_dependency_ticket_owner_required"))) {
+            requirements.add("owner=ready");
+        }
+        if (toBoolean(externalSignal.get("datamart_dependency_ticket_owner_contact_required"))) {
+            requirements.add("contact=ready");
+        }
+        if (toBoolean(externalSignal.get("datamart_dependency_ticket_owner_contact_actionable_required"))) {
+            requirements.add("contact=actionable");
+        }
+        return requirements.isEmpty() ? "not required" : String.join(", ", requirements);
+    }
+
+    private String buildDependencyTicketNote(Map<String, Object> externalSignal) {
+        List<String> notes = new ArrayList<>();
+        String url = String.valueOf(externalSignal.getOrDefault("datamart_dependency_ticket_url", "")).trim();
+        if (StringUtils.hasText(url)) {
+            notes.add("url=" + url);
+        }
+        String owner = String.valueOf(externalSignal.getOrDefault("datamart_dependency_ticket_owner", "")).trim();
+        if (StringUtils.hasText(owner)) {
+            notes.add("owner=" + owner);
+        }
+        String contact = String.valueOf(externalSignal.getOrDefault("datamart_dependency_ticket_owner_contact", "")).trim();
+        if (StringUtils.hasText(contact)) {
+            notes.add("contact=" + contact);
+        }
+        return notes.isEmpty() ? null : String.join(", ", notes);
+    }
+
+    private String buildDatamartContractCurrentValue(Map<String, Object> externalSignal) {
+        return "mandatory=%s%%, optional=%s%%, blocking_gaps=%s, non_blocking_gaps=%s".formatted(
+                formatNullableLong(externalSignal.get("datamart_contract_mandatory_coverage_pct")),
+                formatNullableLong(externalSignal.get("datamart_contract_optional_coverage_pct")),
+                formatNullableLong(externalSignal.get("datamart_contract_blocking_gap_count")),
+                formatNullableLong(externalSignal.get("datamart_contract_non_blocking_gap_count")));
+    }
+
+    private String buildDatamartContractThresholdLabel(Map<String, Object> externalSignal) {
+        List<String> requirements = new ArrayList<>();
+        if (toBoolean(externalSignal.get("datamart_contract_required"))) {
+            requirements.add("mandatory coverage=100%");
+        }
+        if (toBoolean(externalSignal.get("datamart_contract_optional_coverage_required"))
+                && toBoolean(externalSignal.get("datamart_contract_optional_coverage_gate_active"))) {
+            requirements.add("optional >= %s%%".formatted(formatNullableLong(externalSignal.get("datamart_contract_optional_min_coverage_pct"))));
+        }
+        requirements.add("no configuration conflict");
+        return String.join(", ", requirements);
+    }
+
+    private String buildDatamartContractNote(Map<String, Object> externalSignal) {
+        List<String> notes = new ArrayList<>();
+        List<String> missingMandatory = safeStringList(externalSignal.get("datamart_contract_missing_mandatory_fields"));
+        if (!missingMandatory.isEmpty()) {
+            notes.add("missing_mandatory=" + String.join("|", missingMandatory));
+        }
+        List<String> missingOptional = safeStringList(externalSignal.get("datamart_contract_missing_optional_fields"));
+        if (!missingOptional.isEmpty()) {
+            notes.add("missing_optional=" + String.join("|", missingOptional));
+        }
+        List<String> overlaps = safeStringList(externalSignal.get("datamart_contract_overlapping_fields"));
+        if (!overlaps.isEmpty()) {
+            notes.add("overlap=" + String.join("|", overlaps));
+        }
+        if (toBoolean(externalSignal.get("datamart_contract_configuration_conflict"))) {
+            notes.add("configuration_conflict");
+        }
+        return notes.isEmpty() ? null : String.join(", ", notes);
     }
 
     private Map<String, Object> buildScorecardItem(String key,

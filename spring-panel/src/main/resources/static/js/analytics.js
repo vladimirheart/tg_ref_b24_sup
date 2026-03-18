@@ -183,6 +183,25 @@
     }
   }
 
+  function scorecardCategoryLabel(category) {
+    switch (String(category || '').toLowerCase()) {
+      case 'experiment':
+        return 'Experiment';
+      case 'guardrails':
+        return 'Guardrails';
+      case 'product_kpi':
+        return 'Primary KPI';
+      case 'product_outcome':
+        return 'Outcome KPI';
+      case 'workspace':
+        return 'Workspace';
+      case 'external_dependencies':
+        return 'External gate';
+      default:
+        return 'Scorecard';
+    }
+  }
+
   function renderScorecard(scorecard) {
     if (!scorecardTable) {
       return;
@@ -199,6 +218,7 @@
     }
     scorecardTable.innerHTML = items.map((item) => {
       const label = escapeHtml(item?.label || '—');
+      const categoryLabel = escapeHtml(scorecardCategoryLabel(item?.category));
       const summary = escapeHtml(item?.summary || '');
       const note = escapeHtml(item?.note || '');
       const currentValue = escapeHtml(item?.current_value || '—');
@@ -211,6 +231,7 @@
         <tr>
           <td>
             <div class="fw-semibold">${label}</div>
+            <div class="small text-muted"><span class="badge text-bg-light border">${categoryLabel}</span></div>
             ${summary ? `<div class="small text-muted">${summary}</div>` : ''}
             ${note ? `<div class="small text-muted">Note: ${note}</div>` : ''}
           </td>
@@ -435,12 +456,12 @@
     const reviewLabel = isTimestampInvalid(externalSignal, 'review_timestamp_invalid')
       ? 'invalid_utc'
       : (externalSignal.review_present
-        ? `${externalSignal.reviewed_by || 'n/a'} @ ${externalSignal.reviewed_at || 'n/a'} (${externalSignal.review_fresh ? 'fresh' : 'stale'})`
+        ? `${externalSignal.reviewed_by || 'n/a'} @ ${formatTimestamp(externalSignal.reviewed_at || '')} (${externalSignal.review_fresh ? 'fresh' : 'stale'})`
         : 'missing');
     const freshnessLabel = externalSignal.data_freshness_required
       ? (isTimestampInvalid(externalSignal, 'data_updated_timestamp_invalid')
         ? 'invalid_utc (hold)'
-        : `${externalSignal.data_fresh ? 'fresh' : 'stale'}${externalSignal.data_updated_at ? ` @ ${externalSignal.data_updated_at}` : ''}`)
+        : `${externalSignal.data_fresh ? 'fresh' : 'stale'}${externalSignal.data_updated_at ? ` @ ${formatTimestamp(externalSignal.data_updated_at)}` : ''}`)
       : 'off';
     const datamartOwner = String(externalSignal.datamart_owner || '').trim();
     const datamartRunbookUrl = String(externalSignal.datamart_runbook_url || '').trim();
@@ -463,16 +484,16 @@
       ? `${externalSignal.datamart_health_status || 'unknown'}${externalSignal.datamart_health_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartHealthFreshnessLabel = externalSignal.datamart_health_freshness_required
-      ? `${isTimestampInvalid(externalSignal, 'datamart_health_timestamp_invalid', 'datamart_health_updated_timestamp_invalid') ? 'invalid_utc' : (externalSignal.datamart_health_fresh ? 'fresh' : 'stale')}${externalSignal.datamart_health_updated_at ? ` @ ${externalSignal.datamart_health_updated_at}` : ''}${externalSignal.datamart_health_freshness_ready ? '' : ' (hold)'}`
+      ? `${isTimestampInvalid(externalSignal, 'datamart_health_timestamp_invalid', 'datamart_health_updated_timestamp_invalid') ? 'invalid_utc' : (externalSignal.datamart_health_fresh ? 'fresh' : 'stale')}${externalSignal.datamart_health_updated_at ? ` @ ${formatTimestamp(externalSignal.datamart_health_updated_at)}` : ''}${externalSignal.datamart_health_freshness_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartTimelineLabel = externalSignal.datamart_timeline_required
-      ? `${isTimestampInvalid(externalSignal, 'datamart_target_timestamp_invalid') ? 'invalid_utc' : (externalSignal.datamart_target_ready_at || 'missing')}${externalSignal.datamart_timeline_ready ? '' : ' (hold)'}`
+      ? `${isTimestampInvalid(externalSignal, 'datamart_target_timestamp_invalid') ? 'invalid_utc' : (externalSignal.datamart_target_ready_at ? formatTimestamp(externalSignal.datamart_target_ready_at) : 'missing')}${externalSignal.datamart_timeline_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartProgramLabel = externalSignal.datamart_program_blocker_required
       ? `${externalSignal.datamart_program_status || 'unknown'}${externalSignal.datamart_program_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartProgramFreshnessLabel = externalSignal.datamart_program_freshness_required
-      ? `${isTimestampInvalid(externalSignal, 'datamart_program_timestamp_invalid', 'datamart_program_updated_timestamp_invalid') ? 'invalid_utc' : (externalSignal.datamart_program_fresh ? 'fresh' : 'stale')}${externalSignal.datamart_program_updated_at ? ` @ ${externalSignal.datamart_program_updated_at}` : ''}${externalSignal.datamart_program_freshness_ready ? '' : ' (hold)'}`
+      ? `${isTimestampInvalid(externalSignal, 'datamart_program_timestamp_invalid', 'datamart_program_updated_timestamp_invalid') ? 'invalid_utc' : (externalSignal.datamart_program_fresh ? 'fresh' : 'stale')}${externalSignal.datamart_program_updated_at ? ` @ ${formatTimestamp(externalSignal.datamart_program_updated_at)}` : ''}${externalSignal.datamart_program_freshness_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartDependencyTicketLabel = externalSignal.datamart_dependency_ticket_required
       ? (isTimestampInvalid(externalSignal, 'dependency_ticket_timestamp_invalid', 'datamart_dependency_ticket_updated_timestamp_invalid')
