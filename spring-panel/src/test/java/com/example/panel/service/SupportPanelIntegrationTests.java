@@ -496,6 +496,28 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryIncludesCustomerContextGapRates() {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-CONTEXT-1', NULL, NULL, 'workspace.v1', 900, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
+                    ('op2', 'workspace_open_ms', 'performance', 'T-CONTEXT-2', NULL, NULL, 'workspace.v1', 950, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
+                    ('op2', 'workspace_context_profile_gap', 'workspace', 'T-CONTEXT-2', 'last_message_at', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+
+        assertThat(totals).containsEntry("workspace_open_events", 2L);
+        assertThat(totals).containsEntry("context_profile_gap_events", 1L);
+        assertThat((double) totals.get("context_profile_gap_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("context_profile_ready_rate")).isEqualTo(0.5d);
+    }
+
+    @Test
     void workspaceRolloutDecisionHoldsWhenKpiCoverageIsTooLow() {
         for (int i = 0; i < 300; i++) {
             String cohort = i < 150 ? "control" : "test";

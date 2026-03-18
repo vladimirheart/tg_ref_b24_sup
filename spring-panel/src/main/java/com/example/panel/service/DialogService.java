@@ -1555,6 +1555,8 @@ public class DialogService {
         long slaBreachKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_events"))).sum();
         long dialogsPerShiftKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_dialogs_per_shift_events"))).sum();
         long csatKpiEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_csat_events"))).sum();
+        long workspaceOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_open_events"))).sum();
+        long contextProfileGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_profile_gap_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -1594,6 +1596,12 @@ public class DialogService {
         totals.put("kpi_sla_breach_events", slaBreachKpiEvents);
         totals.put("kpi_dialogs_per_shift_events", dialogsPerShiftKpiEvents);
         totals.put("kpi_csat_events", csatKpiEvents);
+        totals.put("workspace_open_events", workspaceOpenEvents);
+        totals.put("context_profile_gap_events", contextProfileGapEvents);
+        totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
+        totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
+                ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
+                : 1d);
         totals.put("kpi_frt_recorded_events", frtRecordedEvents);
         totals.put("kpi_ttr_recorded_events", ttrRecordedEvents);
         totals.put("kpi_sla_breach_recorded_events", slaBreachRecordedEvents);
@@ -2500,6 +2508,8 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_render_error' THEN 1 ELSE 0 END) AS render_errors,
                        SUM(CASE WHEN event_type = 'workspace_fallback_to_legacy' THEN 1 ELSE 0 END) AS fallbacks,
                        SUM(CASE WHEN event_type = 'workspace_abandon' THEN 1 ELSE 0 END) AS abandons,
+                       SUM(CASE WHEN event_type = 'workspace_open_ms' THEN 1 ELSE 0 END) AS workspace_open_events,
+                       SUM(CASE WHEN event_type = 'workspace_context_profile_gap' THEN 1 ELSE 0 END) AS context_profile_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
@@ -2534,6 +2544,8 @@ public class DialogService {
                 item.put("render_errors", rs.getLong("render_errors"));
                 item.put("fallbacks", rs.getLong("fallbacks"));
                 item.put("abandons", rs.getLong("abandons"));
+                item.put("workspace_open_events", rs.getLong("workspace_open_events"));
+                item.put("context_profile_gap_events", rs.getLong("context_profile_gap_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
