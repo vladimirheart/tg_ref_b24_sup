@@ -294,6 +294,58 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspacePublishesCustomerContextProfileHealth() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-PROFILE",
+                17L,
+                99L,
+                "client99",
+                "Клиент 99",
+                "enterprise",
+                5L,
+                "telegram",
+                "Москва",
+                "HQ",
+                "need help",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "VIP",
+                "client",
+                null,
+                1,
+                5,
+                "billing"
+        );
+        when(dialogService.loadDialogDetails("T-PROFILE", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-PROFILE", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of("crm_tier", "gold"));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "workspace_required_client_attributes", List.of("name", "status", "crm_tier", "last_message_at"),
+                "workspace_client_attribute_labels", Map.of("crm_tier", "CRM tier")
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-PROFILE/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.profile_health.enabled").value(true))
+                .andExpect(jsonPath("$.context.profile_health.ready").value(false))
+                .andExpect(jsonPath("$.context.profile_health.coverage_pct").value(75))
+                .andExpect(jsonPath("$.context.profile_health.missing_fields[0]").value("last_message_at"))
+                .andExpect(jsonPath("$.context.profile_health.missing_field_labels[0]").value("Последнее сообщение"))
+                .andExpect(jsonPath("$.context.client.profile_health.ready").value(false));
+    }
+
+    @Test
     void workspaceTelemetrySummaryIncludesGuardrails() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         Map<String, Object> guardrails = Map.of(
