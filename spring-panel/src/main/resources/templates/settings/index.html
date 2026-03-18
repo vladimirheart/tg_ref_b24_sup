@@ -2646,6 +2646,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt" class="form-label">Dependency-ticket обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt">
+                      <div class="form-text">UTC. Пустое значение оставляет freshness-gate выключенным, невалидное — будет безопасно проигнорировано и удержит hold только при включённом gate.</div>
                     </div>
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours" class="form-label">TTL dependency-ticket, часов</label>
@@ -2658,6 +2659,7 @@
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiReviewedAt" class="form-label">Дата review</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiReviewedAt">
+                      <div class="form-text">UTC timestamp review-checkpoint.</div>
                     </div>
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiReviewTtlHours" class="form-label">TTL review, часов</label>
@@ -2673,6 +2675,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDataUpdatedAt" class="form-label">Внешний data-mart обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDataUpdatedAt">
+                      <div class="form-text">UTC timestamp последнего обновления внешней витрины.</div>
                     </div>
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiDataFreshnessTtlHours" class="form-label">Freshness TTL, часов</label>
@@ -2735,6 +2738,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt" class="form-label">Health-статус обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt">
+                      <div class="form-text">UTC timestamp обновления health-сигнала.</div>
                     </div>
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiDatamartHealthTtlHours" class="form-label">TTL health, часов</label>
@@ -2775,6 +2779,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartProgramUpdatedAt" class="form-label">Программный статус обновлён</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramUpdatedAt">
+                      <div class="form-text">UTC timestamp обновления программного статуса.</div>
                     </div>
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiDatamartProgramTtlHours" class="form-label">TTL статуса, часов</label>
@@ -2790,6 +2795,7 @@
                     <div class="col-md-6">
                       <label for="dialogWorkspaceExternalKpiDatamartTargetReadyAt" class="form-label">Целевой срок готовности data-mart</label>
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartTargetReadyAt">
+                      <div class="form-text">UTC deadline готовности data-mart.</div>
                     </div>
                     <div class="col-md-3">
                       <label for="dialogWorkspaceExternalKpiDatamartTimelineGraceHours" class="form-label">Grace после дедлайна, часов</label>
@@ -15993,6 +15999,9 @@
     }
     const safeWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired = Boolean(inputs.workspaceExternalKpiDatamartDependencyTicketFreshnessRequired?.checked);
     const safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt = toUtcIsoString(inputs.workspaceExternalKpiDatamartDependencyTicketUpdatedAt?.value || '');
+    if (String(inputs.workspaceExternalKpiDatamartDependencyTicketUpdatedAt?.value || '').trim() && !safeWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt) {
+      errors.push('Дата обновления dependency-ticket указана в некорректном формате UTC.');
+    }
     const safeWorkspaceExternalKpiDatamartDependencyTicketTtlHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartDependencyTicketTtlHours?.value, 10);
     const safeWorkspaceExternalKpiDatamartDependencyTicketTtlHours = Number.isFinite(safeWorkspaceExternalKpiDatamartDependencyTicketTtlHoursRaw)
       ? clampNumber(safeWorkspaceExternalKpiDatamartDependencyTicketTtlHoursRaw, 1, 2160)
@@ -16011,33 +16020,23 @@
     }
     const safeWorkspaceExternalKpiReviewedBy = String(inputs.workspaceExternalKpiReviewedBy?.value || '').trim().slice(0, 120);
     const safeWorkspaceExternalKpiReviewedAtRaw = String(inputs.workspaceExternalKpiReviewedAt?.value || '').trim();
-    const safeWorkspaceExternalKpiReviewedAtParsed = safeWorkspaceExternalKpiReviewedAtRaw
-      ? Date.parse(safeWorkspaceExternalKpiReviewedAtRaw)
-      : Number.NaN;
-    if (safeWorkspaceExternalKpiReviewedAtRaw && Number.isNaN(safeWorkspaceExternalKpiReviewedAtParsed)) {
-      errors.push('Дата последнего review внешних KPI указана в некорректном формате.');
+    const safeWorkspaceExternalKpiReviewedAt = toUtcIsoString(safeWorkspaceExternalKpiReviewedAtRaw);
+    if (safeWorkspaceExternalKpiReviewedAtRaw && !safeWorkspaceExternalKpiReviewedAt) {
+      errors.push('Дата последнего review внешних KPI указана в некорректном формате UTC.');
     }
-    const safeWorkspaceExternalKpiReviewedAt = Number.isNaN(safeWorkspaceExternalKpiReviewedAtParsed)
-      ? ''
-      : new Date(safeWorkspaceExternalKpiReviewedAtParsed).toISOString();
     const safeWorkspaceExternalKpiReviewTtlHoursRaw = Math.round(Number(inputs.workspaceExternalKpiReviewTtlHours?.value));
     const safeWorkspaceExternalKpiReviewTtlHours = Number.isFinite(safeWorkspaceExternalKpiReviewTtlHoursRaw)
       ? Math.min(2160, Math.max(1, safeWorkspaceExternalKpiReviewTtlHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_review_ttl_hours;
     const safeWorkspaceExternalKpiDataFreshnessRequired = Boolean(inputs.workspaceExternalKpiDataFreshnessRequired?.checked);
     const safeWorkspaceExternalKpiDataUpdatedAtRaw = String(inputs.workspaceExternalKpiDataUpdatedAt?.value || '').trim();
-    const safeWorkspaceExternalKpiDataUpdatedAtParsed = safeWorkspaceExternalKpiDataUpdatedAtRaw
-      ? Date.parse(safeWorkspaceExternalKpiDataUpdatedAtRaw)
-      : Number.NaN;
-    if (safeWorkspaceExternalKpiDataUpdatedAtRaw && Number.isNaN(safeWorkspaceExternalKpiDataUpdatedAtParsed)) {
-      errors.push('Дата обновления внешнего data-mart указана в некорректном формате.');
+    const safeWorkspaceExternalKpiDataUpdatedAt = toUtcIsoString(safeWorkspaceExternalKpiDataUpdatedAtRaw);
+    if (safeWorkspaceExternalKpiDataUpdatedAtRaw && !safeWorkspaceExternalKpiDataUpdatedAt) {
+      errors.push('Дата обновления внешнего data-mart указана в некорректном формате UTC.');
     }
     if (safeWorkspaceExternalKpiDataFreshnessRequired && !safeWorkspaceExternalKpiDataUpdatedAtRaw) {
       errors.push('Для контроля freshness укажите дату обновления внешнего data-mart.');
     }
-    const safeWorkspaceExternalKpiDataUpdatedAt = Number.isNaN(safeWorkspaceExternalKpiDataUpdatedAtParsed)
-      ? ''
-      : new Date(safeWorkspaceExternalKpiDataUpdatedAtParsed).toISOString();
     const safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw = Math.round(Number(inputs.workspaceExternalKpiDataFreshnessTtlHours?.value));
     const safeWorkspaceExternalKpiDataFreshnessTtlHours = Number.isFinite(safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw)
       ? Math.min(720, Math.max(1, safeWorkspaceExternalKpiDataFreshnessTtlHoursRaw))
@@ -16057,7 +16056,10 @@
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_health_status;
     const safeWorkspaceExternalKpiDatamartHealthNote = String(inputs.workspaceExternalKpiDatamartHealthNote?.value || '').trim().slice(0, 300);
     const safeWorkspaceExternalKpiDatamartHealthFreshnessRequired = Boolean(inputs.workspaceExternalKpiDatamartHealthFreshnessRequired?.checked);
-    const safeWorkspaceExternalKpiDatamartHealthUpdatedAt = normalizeDatetimeLocalValue(inputs.workspaceExternalKpiDatamartHealthUpdatedAt?.value);
+    const safeWorkspaceExternalKpiDatamartHealthUpdatedAt = toUtcIsoString(inputs.workspaceExternalKpiDatamartHealthUpdatedAt?.value || '');
+    if (String(inputs.workspaceExternalKpiDatamartHealthUpdatedAt?.value || '').trim() && !safeWorkspaceExternalKpiDatamartHealthUpdatedAt) {
+      errors.push('Дата обновления health-статуса data-mart указана в некорректном формате UTC.');
+    }
     const safeWorkspaceExternalKpiDatamartHealthTtlHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartHealthTtlHours?.value, 10);
     const safeWorkspaceExternalKpiDatamartHealthTtlHours = Number.isFinite(safeWorkspaceExternalKpiDatamartHealthTtlHoursRaw)
       ? clampNumber(safeWorkspaceExternalKpiDatamartHealthTtlHoursRaw, 1, 2160)
@@ -16079,12 +16081,18 @@
     }
     const safeWorkspaceExternalKpiDatamartProgramFreshnessRequired = Boolean(inputs.workspaceExternalKpiDatamartProgramFreshnessRequired?.checked);
     const safeWorkspaceExternalKpiDatamartProgramUpdatedAt = toUtcIsoString(inputs.workspaceExternalKpiDatamartProgramUpdatedAt?.value || '');
+    if (String(inputs.workspaceExternalKpiDatamartProgramUpdatedAt?.value || '').trim() && !safeWorkspaceExternalKpiDatamartProgramUpdatedAt) {
+      errors.push('Дата обновления программного статуса data-mart указана в некорректном формате UTC.');
+    }
     const safeWorkspaceExternalKpiDatamartProgramTtlHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartProgramTtlHours?.value || '', 10);
     const safeWorkspaceExternalKpiDatamartProgramTtlHours = Number.isFinite(safeWorkspaceExternalKpiDatamartProgramTtlHoursRaw)
       ? Math.max(1, Math.min(2160, safeWorkspaceExternalKpiDatamartProgramTtlHoursRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_program_ttl_hours;
     const safeWorkspaceExternalKpiDatamartTimelineRequired = Boolean(inputs.workspaceExternalKpiDatamartTimelineRequired?.checked);
     const safeWorkspaceExternalKpiDatamartTargetReadyAt = toIsoUtcString(inputs.workspaceExternalKpiDatamartTargetReadyAt?.value || '');
+    if (String(inputs.workspaceExternalKpiDatamartTargetReadyAt?.value || '').trim() && !safeWorkspaceExternalKpiDatamartTargetReadyAt) {
+      errors.push('Целевой срок готовности data-mart указан в некорректном формате UTC.');
+    }
     const datamartTimelineGraceHoursRaw = Number.parseInt(inputs.workspaceExternalKpiDatamartTimelineGraceHours?.value || '', 10);
     const safeWorkspaceExternalKpiDatamartTimelineGraceHours = Number.isFinite(datamartTimelineGraceHoursRaw)
       ? Math.max(0, Math.min(720, datamartTimelineGraceHoursRaw))
@@ -16923,6 +16931,65 @@
   function buildPublicFormUrl(channel) {
     if (!channel?.public_id) return '';
     return `${window.location.origin}/public/forms/${encodeURIComponent(channel.public_id)}`;
+  }
+
+
+  function clampNumber(value, min, max) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return min;
+    }
+    return Math.min(max, Math.max(min, numeric));
+  }
+
+  function parseUtcDateInput(rawValue) {
+    const value = String(rawValue || '').trim();
+    if (!value) {
+      return null;
+    }
+    const utcLocalMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/);
+    if (utcLocalMatch) {
+      const [, year, month, day, hour, minute, second = '00', fraction = ''] = utcLocalMatch;
+      const milliseconds = Number((fraction + '000').slice(0, 3));
+      const utcDate = new Date(Date.UTC(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second),
+        milliseconds,
+      ));
+      return Number.isNaN(utcDate.getTime()) ? null : utcDate;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function toUtcIsoString(rawValue) {
+    const parsed = parseUtcDateInput(rawValue);
+    return parsed ? parsed.toISOString() : '';
+  }
+
+  function toIsoUtcString(rawValue) {
+    return toUtcIsoString(rawValue);
+  }
+
+  function toDateTimeLocalValue(rawValue) {
+    const parsed = parseUtcDateInput(rawValue);
+    if (!parsed) {
+      return '';
+    }
+    const year = String(parsed.getUTCFullYear()).padStart(4, '0');
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
+    const hours = String(parsed.getUTCHours()).padStart(2, '0');
+    const minutes = String(parsed.getUTCMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function normalizeDatetimeLocalValue(rawValue) {
+    return toDateTimeLocalValue(rawValue);
   }
 
   function isValidExternalReferenceUrl(rawValue) {
