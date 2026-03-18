@@ -505,7 +505,8 @@ class SupportPanelIntegrationTests {
                 ) VALUES
                     ('op1', 'workspace_open_ms', 'performance', 'T-CONTEXT-1', NULL, NULL, 'workspace.v1', 900, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
                     ('op2', 'workspace_open_ms', 'performance', 'T-CONTEXT-2', NULL, NULL, 'workspace.v1', 950, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_context_profile_gap', 'workspace', 'T-CONTEXT-2', 'last_message_at', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    ('op2', 'workspace_context_profile_gap', 'workspace', 'T-CONTEXT-2', 'last_message_at', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
+                    ('op2', 'workspace_context_source_gap', 'workspace', 'T-CONTEXT-2', 'contract:invalid_utc', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
                 """);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
@@ -513,8 +514,11 @@ class SupportPanelIntegrationTests {
 
         assertThat(totals).containsEntry("workspace_open_events", 2L);
         assertThat(totals).containsEntry("context_profile_gap_events", 1L);
+        assertThat(totals).containsEntry("context_source_gap_events", 1L);
         assertThat((double) totals.get("context_profile_gap_rate")).isEqualTo(0.5d);
         assertThat((double) totals.get("context_profile_ready_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("context_source_gap_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("context_source_ready_rate")).isEqualTo(0.5d);
     }
 
     @Test

@@ -449,6 +449,7 @@
     workspace_draft_saved: 'workspace',
     workspace_draft_restored: 'workspace',
     workspace_context_profile_gap: 'workspace',
+    workspace_context_source_gap: 'workspace',
     workspace_parity_gap: 'workspace',
     workspace_open_legacy_manual: 'workspace',
   });
@@ -472,6 +473,7 @@
   let workspaceDraftLastSavedValue = '';
   let workspaceDraftLastTelemetryAt = 0;
   let workspaceLastProfileGapSignature = '';
+  let workspaceLastContextSourceGapSignature = '';
   let workspaceLastParityGapSignature = '';
 
 
@@ -2980,6 +2982,36 @@
     });
   }
 
+  function emitWorkspaceContextSourceGapTelemetry(context, conversation) {
+    const contextSources = Array.isArray(context?.context_sources)
+      ? context.context_sources
+      : (Array.isArray(context?.client?.context_sources) ? context.client.context_sources : []);
+    if (!contextSources.length) {
+      workspaceLastContextSourceGapSignature = '';
+      return;
+    }
+    const blockingSources = contextSources
+      .filter((source) => source && source.required === true && source.ready !== true)
+      .map((source) => `${String(source.key || '').trim()}:${String(source.status || 'unknown').trim()}`)
+      .filter(Boolean);
+    if (!blockingSources.length) {
+      workspaceLastContextSourceGapSignature = '';
+      return;
+    }
+    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    const signature = `${ticketId}:${blockingSources.join(',')}`;
+    if (!ticketId || workspaceLastContextSourceGapSignature === signature) {
+      return;
+    }
+    workspaceLastContextSourceGapSignature = signature;
+    emitWorkspaceTelemetry('workspace_context_source_gap', {
+      ticketId,
+      reason: blockingSources.join(','),
+      durationMs: blockingSources.length,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
   function emitWorkspaceParityGapTelemetry(parity, conversation) {
     const safeParity = parity && typeof parity === 'object' ? parity : null;
     if (!safeParity || String(safeParity?.status || '').toLowerCase() === 'ok') {
@@ -3127,6 +3159,7 @@
       workspaceCategoriesError.classList.add('d-none');
     }
     emitWorkspaceProfileGapTelemetry(context, conversation);
+    emitWorkspaceContextSourceGapTelemetry(context, conversation);
     emitWorkspaceParityGapTelemetry(parity, conversation);
 
     if (sla && sla.state && sla.state !== 'unknown') {
@@ -3189,6 +3222,7 @@
       'last_ticket_activity_at',
       'language',
       'segments',
+      'context_sources',
       'external_links',
       'attribute_labels',
       'attribute_order',
@@ -3252,6 +3286,65 @@
       ? `<div class="d-flex flex-wrap gap-1 mt-2">${segments.map((segment) => `<span class="badge text-bg-light border">${escapeHtml(segment)}</span>`).join('')}</div>`
       : '';
 
+    const contextSources = Array.isArray(client.context_sources)
+      ? client.context_sources.filter((item) => item && typeof item === 'object')
+      : [];
+    const sourceBadgeClass = (status) => {
+      switch (String(status || '').toLowerCase()) {
+        case 'ready':
+          return 'text-bg-success';
+        case 'stale':
+          return 'text-bg-warning';
+        case 'invalid_utc':
+        case 'missing':
+          return 'text-bg-danger';
+        default:
+          return 'text-bg-secondary';
+      }
+    };
+    const sourceStatusLabel = (status) => {
+      switch (String(status || '').toLowerCase()) {
+        case 'ready':
+          return 'ready';
+        case 'stale':
+          return 'stale';
+        case 'invalid_utc':
+          return 'invalid UTC';
+        case 'missing':
+          return 'missing';
+        default:
+          return 'optional';
+      }
+    };
+    const contextSourcesSection = contextSources.length
+      ? `<div class="small fw-semibold mt-2">Источники контекста</div>
+        <div class="d-flex flex-column gap-2 mt-1">
+          ${contextSources.map((source) => {
+            const meta = [];
+            if (Number.isFinite(Number(source.matched_attribute_count)) && Number(source.matched_attribute_count) > 0) {
+              meta.push(`${Number(source.matched_attribute_count)} атр.`);
+            }
+            if (source.updated_at_utc) {
+              meta.push(`UTC ${formatWorkspaceDateTime(source.updated_at_utc)}`);
+            } else if (source.updated_at_raw && String(source.status || '').toLowerCase() === 'invalid_utc') {
+              meta.push(`invalid: ${String(source.updated_at_raw).trim()}`);
+            }
+            if (source.linked === true) {
+              meta.push('есть ссылка');
+            }
+            return `<div class="border rounded px-2 py-1">
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-semibold">${escapeHtml(source.label || source.key || 'Источник')}</span>
+                <span class="badge ${sourceBadgeClass(source.status)}">${escapeHtml(sourceStatusLabel(source.status))}</span>
+                ${source.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
+              </div>
+              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+              ${source.summary ? `<div class="small text-muted">${escapeHtml(String(source.summary))}</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`
+      : '';
+
     const extraSection = expandedRows || collapsedRows
       ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>
         <div>${expandedRows}</div>
@@ -3276,7 +3369,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
