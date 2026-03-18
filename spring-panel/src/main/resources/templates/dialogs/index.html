@@ -77,6 +77,7 @@
                     </div>
                 </div>
                 <div id="workspaceRolloutBanner" class="d-none alert alert-info py-2 px-3 small mb-3" role="status" aria-live="polite"></div>
+                <div id="workspaceParityBanner" class="d-none alert py-2 px-3 small mb-3" role="status" aria-live="polite"></div>
                 <div id="workspaceReadonlyBanner" class="d-none alert alert-warning py-2 px-3 small" role="status" aria-live="polite">
                     Workspace открыт в режиме только чтения: действия изменения временно недоступны.
                 </div>
@@ -628,6 +629,23 @@
                 <ul class="small mb-2 ps-3 d-none" id="dialogExperimentTelemetryGuardrailAlerts"></ul>
                 <div class="alert py-2 px-3 small d-none" id="dialogExperimentRolloutDecisionState" role="status"></div>
                 <ul class="small mb-2 ps-3 d-none" id="dialogExperimentRolloutDecisionChecklist"></ul>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutScorecardWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Чекпоинт</th>
+                            <th scope="col">Категория</th>
+                            <th scope="col">Текущее состояние</th>
+                            <th scope="col">Порог</th>
+                            <th scope="col">UTC</th>
+                            <th scope="col" class="text-end">Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentRolloutScorecardRows">
+                        <tr><td colspan="6" class="small text-muted">Rollout scorecard появится после первых telemetry-сигналов.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
                 <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutKpiOutcomesWrap">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
