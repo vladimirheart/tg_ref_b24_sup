@@ -33,6 +33,7 @@
   const workspaceShell = document.getElementById('dialogsWorkspaceShell');
   const workspaceConversationTitle = document.getElementById('workspaceConversationTitle');
   const workspaceConversationMeta = document.getElementById('workspaceConversationMeta');
+  const workspaceRolloutBanner = document.getElementById('workspaceRolloutBanner');
   const workspaceMessagesState = document.getElementById('workspaceMessagesState');
   const workspaceMessagesList = document.getElementById('workspaceMessagesList');
   const workspaceMessagesLoadMoreWrap = document.getElementById('workspaceMessagesLoadMoreWrap');
@@ -362,7 +363,9 @@
   );
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
   const WORKSPACE_DECOMMISSION_LEGACY_MODAL = window.DIALOG_CONFIG?.workspace_decommission_legacy_modal === true;
-  const WORKSPACE_DISABLE_LEGACY_FALLBACK = WORKSPACE_FORCE_MODE || WORKSPACE_DECOMMISSION_LEGACY_MODAL;
+  const WORKSPACE_DISABLE_LEGACY_FALLBACK = window.DIALOG_CONFIG?.workspace_disable_legacy_fallback === true
+    || WORKSPACE_FORCE_MODE
+    || WORKSPACE_DECOMMISSION_LEGACY_MODAL;
   const DEFAULT_OPERATOR_PERMISSIONS = Object.freeze({
     can_assign: true,
     can_snooze: true,
@@ -443,6 +446,7 @@
     workspace_draft_saved: 'workspace',
     workspace_draft_restored: 'workspace',
     workspace_context_profile_gap: 'workspace',
+    workspace_open_legacy_manual: 'workspace',
   });
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
@@ -492,6 +496,43 @@
       return false;
     }
     return OPERATOR_PERMISSIONS[permissionKey] !== false;
+  }
+
+
+  function resolveWorkspaceRolloutBannerClass(tone) {
+    switch (String(tone || '').toLowerCase()) {
+      case 'success':
+        return 'alert alert-success py-2 px-3 small mb-3';
+      case 'warning':
+        return 'alert alert-warning py-2 px-3 small mb-3';
+      case 'danger':
+        return 'alert alert-danger py-2 px-3 small mb-3';
+      default:
+        return 'alert alert-info py-2 px-3 small mb-3';
+    }
+  }
+
+  function renderWorkspaceRolloutBanner(rollout) {
+    if (!workspaceRolloutBanner) return;
+    const summary = String(rollout?.summary || '').trim();
+    const reviewedAt = formatTimestamp(rollout?.reviewed_at_utc || '', { includeTime: true, fallback: '' });
+    const dataUpdatedAt = formatTimestamp(rollout?.data_updated_at_utc || '', { includeTime: true, fallback: '' });
+    const metaParts = [];
+    if (String(rollout?.mode || '').trim()) {
+      metaParts.push(`mode: ${String(rollout.mode).trim()}`);
+    }
+    if (Number.isFinite(Number(rollout?.rollout_percent)) && Number(rollout?.rollout_percent) > 0) {
+      metaParts.push(`rollout: ${Math.max(0, Math.min(100, Number(rollout.rollout_percent)))}%`);
+    }
+    if (reviewedAt && reviewedAt !== '—') {
+      metaParts.push(`reviewed UTC: ${reviewedAt}`);
+    }
+    if (dataUpdatedAt && dataUpdatedAt !== '—') {
+      metaParts.push(`data updated UTC: ${dataUpdatedAt}`);
+    }
+    workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
+    workspaceRolloutBanner.classList.remove('d-none');
+    workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
   }
 
   function setWorkspaceReadonlyMode(isReadonly, reasonText) {
@@ -2384,7 +2425,7 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -2819,9 +2860,12 @@
       workspaceReopenBtn.disabled = !canClose || !resolved;
       workspaceReopenBtn.classList.toggle('d-none', !resolved);
     }
+    const rollout = payload?.meta?.rollout || {};
+    renderWorkspaceRolloutBanner(rollout);
     if (workspaceLegacyBtn) {
-      workspaceLegacyBtn.disabled = WORKSPACE_DISABLE_LEGACY_FALLBACK;
-      workspaceLegacyBtn.classList.toggle('d-none', WORKSPACE_DISABLE_LEGACY_FALLBACK);
+      const fallbackAvailable = rollout?.legacy_fallback_available === true || (!payload?.meta?.rollout && !WORKSPACE_DISABLE_LEGACY_FALLBACK);
+      workspaceLegacyBtn.disabled = !fallbackAvailable;
+      workspaceLegacyBtn.classList.toggle('d-none', !fallbackAvailable);
     }
     if (workspaceCreateTaskBtn) {
       workspaceCreateTaskBtn.classList.remove('disabled');
@@ -3326,7 +3370,12 @@
     const source = options.source || 'manual_open';
     const channelId = row?.dataset?.channelId || null;
     if (isWorkspaceTemporarilyDisabled()) {
-      if (typeof showNotification === 'function') {
+      if (!WORKSPACE_DISABLE_LEGACY_FALLBACK) {
+        if (typeof showNotification === 'function') {
+          showNotification('Workspace временно в cooldown — открыт legacy modal как rollback.', 'warning');
+        }
+        openDialogDetails(ticketId, row || activeDialogRow);
+      } else if (typeof showNotification === 'function') {
         showNotification('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
       }
       return;
@@ -3414,13 +3463,19 @@
           showNotification('Workspace временно переведён в cooldown из-за серии ошибок. Используется legacy-режим.', 'warning');
         }
       }
+      const fallbackAllowed = !WORKSPACE_DISABLE_LEGACY_FALLBACK;
+      if (fallbackAllowed) {
+        if (typeof showNotification === 'function') {
+          showNotification('Workspace временно недоступен — выполнен rollback в legacy modal.', 'warning');
+        }
+        openDialogDetails(ticketId, row || activeDialogRow);
+        return;
+      }
       if (source === 'initial_route' && workspaceShell) {
         workspaceShell.classList.remove('d-none');
         if (workspaceMessagesState) {
           workspaceMessagesState.classList.remove('d-none');
-          workspaceMessagesState.textContent = (WORKSPACE_DISABLE_LEGACY_FALLBACK || WORKSPACE_DECOMMISSION_LEGACY_MODAL)
-            ? 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.'
-            : 'Workspace временно недоступен, открыт legacy-режим.';
+          workspaceMessagesState.textContent = 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.';
         }
         if (workspaceMessagesError) {
           workspaceMessagesError.classList.remove('d-none');
@@ -5251,8 +5306,13 @@
   }
 
   if (workspaceLegacyBtn) {
-    workspaceLegacyBtn.addEventListener('click', () => {
-      if (!activeWorkspaceTicketId || !activeDialogRow || WORKSPACE_DISABLE_LEGACY_FALLBACK) return;
+    workspaceLegacyBtn.addEventListener('click', async () => {
+      if (!activeWorkspaceTicketId || !activeDialogRow || workspaceLegacyBtn.disabled) return;
+      await emitWorkspaceTelemetry('workspace_open_legacy_manual', {
+        ticketId: activeWorkspaceTicketId,
+        reason: 'manual_rollback',
+        contractVersion: activeWorkspacePayload?.contract_version || null,
+      });
       openDialogDetails(activeWorkspaceTicketId, activeDialogRow);
     });
   }

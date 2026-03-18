@@ -227,7 +227,13 @@ class DialogApiControllerWebMvcTest {
         ));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
                 "sla_target_minutes", 1440,
-                "sla_warning_minutes", 240
+                "sla_warning_minutes", 240,
+                "workspace_ab_enabled", true,
+                "workspace_ab_rollout_percent", 35,
+                "workspace_ab_experiment_name", "workspace_v1_rollout",
+                "workspace_disable_legacy_fallback", true,
+                "workspace_rollout_external_kpi_reviewed_at", "2026-01-01T10:15:00+03:00",
+                "workspace_rollout_external_kpi_data_updated_at", "invalid-date"
         )));
 
         mockMvc.perform(get("/api/dialogs/T-1/workspace").with(user("operator")))
@@ -243,6 +249,23 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.client.open_dialogs").value(2))
                 .andExpect(jsonPath("$.permissions.can_bulk").value(false))
                 .andExpect(jsonPath("$.sla.target_minutes").value(1440))
+                .andExpect(jsonPath("$.meta.rollout.mode").value("cohort_rollout"))
+                .andExpect(jsonPath("$.meta.rollout.disable_legacy_fallback").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_fallback_available").value(false))
+                .andExpect(jsonPath("$.meta.rollout.reviewed_at_utc").value("2026-01-01T07:15Z"))
+                .andExpect(jsonPath("$.meta.rollout.data_updated_at_utc").doesNotExist())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceTelemetryAcceptsManualLegacyRollbackEvent() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"event_type\":\"workspace_open_legacy_manual\",\"ticket_id\":\"T-1\",\"reason\":\"manual_rollback\"}"))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
 
