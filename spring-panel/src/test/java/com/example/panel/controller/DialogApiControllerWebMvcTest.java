@@ -372,6 +372,67 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspacePublishesContextSourcesWithUtcStatuses() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-SOURCES",
+                18L,
+                101L,
+                "client101",
+                "Клиент 101",
+                "enterprise",
+                5L,
+                "telegram",
+                "Москва",
+                "HQ",
+                "need help",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "VIP",
+                "client",
+                "2026-01-01T10:30:00Z",
+                1,
+                5,
+                "billing"
+        );
+        when(dialogService.loadDialogDetails("T-SOURCES", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-SOURCES", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of(
+                "crm_tier", "gold",
+                "crm_updated_at", "2026-01-01T10:15:00+03:00",
+                "contract_plan", "enterprise_plus",
+                "contract_updated_at", "invalid-date"
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "workspace_client_context_required_sources", List.of("crm", "contract"),
+                "workspace_client_context_source_stale_after_hours", 24,
+                "workspace_client_context_source_labels", Map.of("crm", "CRM profile", "contract", "Contract profile"),
+                "workspace_client_contract_profile_url_template", "https://contracts.example/{ticket_id}"
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-SOURCES/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.context_sources.length()").value(3))
+                .andExpect(jsonPath("$.context.context_sources[1].key").value("crm"))
+                .andExpect(jsonPath("$.context.context_sources[1].status").value("ready"))
+                .andExpect(jsonPath("$.context.context_sources[1].updated_at_utc").value("2026-01-01T07:15Z"))
+                .andExpect(jsonPath("$.context.context_sources[2].key").value("contract"))
+                .andExpect(jsonPath("$.context.context_sources[2].status").value("invalid_utc"))
+                .andExpect(jsonPath("$.context.context_sources[2].required").value(true))
+                .andExpect(jsonPath("$.context.client.context_sources[2].linked").value(true));
+    }
+
+    @Test
     void workspaceTelemetrySummaryIncludesGuardrails() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         Map<String, Object> guardrails = Map.of(
@@ -554,6 +615,23 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetryAcceptsContextSourceGapEvent() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_context_source_gap",
+                                  "ticket_id": "T-88",
+                                  "reason": "contract:invalid_utc",
+                                  "duration_ms": 1
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void workspaceTelemetrySummaryReturnsAggregates() throws Exception {
         when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
                 "window_days", 7,
@@ -578,11 +656,12 @@ class DialogApiControllerWebMvcTest {
                         "experiment_cohort", "test",
                         "operator_segment", "night_shift",
                         "events", 5,
+                        "context_source_gap_events", 1,
                         "fallbacks", 1,
                         "render_errors", 0,
                         "avg_open_ms", 980
                 )),
-                "totals", Map.of("events", 5, "workspace_parity_gap_events", 1),
+                "totals", Map.of("events", 5, "workspace_parity_gap_events", 1, "context_source_gap_events", 1, "context_source_ready_rate", 0.8d),
                 "by_shift", List.of(Map.of("shift", "night", "events", 5)),
                 "by_team", List.of(Map.of("team", "support", "events", 5))
         ));
@@ -596,6 +675,7 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.by_shift[0].shift").value("night"))
                 .andExpect(jsonPath("$.by_team[0].team").value("support"))
                 .andExpect(jsonPath("$.totals.events").value(5))
+                .andExpect(jsonPath("$.totals.context_source_gap_events").value(1))
                 .andExpect(jsonPath("$.totals.workspace_parity_gap_events").value(1))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].key").value("sample_size"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].status").value("ok"))
