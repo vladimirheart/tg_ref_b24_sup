@@ -433,6 +433,78 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspacePublishesPrioritizedContextBlocks() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-BLOCKS",
+                19L,
+                111L,
+                "client111",
+                "Клиент 111",
+                "enterprise",
+                5L,
+                "telegram",
+                "Москва",
+                "HQ",
+                "need help",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "VIP",
+                "client",
+                null,
+                1,
+                5,
+                "billing"
+        );
+        when(dialogService.loadDialogDetails("T-BLOCKS", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-BLOCKS", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of(Map.of(
+                "ticket_id", "T-OLD",
+                "status", "resolved",
+                "created_at", "2026-01-01T08:00:00Z",
+                "problem", "resolved issue"
+        )));
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of(
+                "crm_tier", "gold",
+                "crm_updated_at", "2026-01-01T10:15:00+03:00",
+                "contract_plan", "enterprise_plus",
+                "contract_updated_at", "invalid-date"
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "workspace_required_client_attributes", List.of("name", "status", "crm_tier", "last_message_at"),
+                "workspace_client_context_required_sources", List.of("crm", "contract"),
+                "workspace_client_context_source_stale_after_hours", 24,
+                "workspace_context_block_priority", List.of("context_sources", "customer_profile", "history", "sla"),
+                "workspace_context_block_required", List.of("context_sources", "customer_profile", "sla")
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-BLOCKS/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.blocks.length()").value(6))
+                .andExpect(jsonPath("$.context.blocks[0].key").value("context_sources"))
+                .andExpect(jsonPath("$.context.blocks[0].status").value("invalid_utc"))
+                .andExpect(jsonPath("$.context.blocks[0].updated_at_utc").value("2026-01-01T07:15Z"))
+                .andExpect(jsonPath("$.context.blocks[1].key").value("customer_profile"))
+                .andExpect(jsonPath("$.context.blocks[1].status").value("attention"))
+                .andExpect(jsonPath("$.context.blocks[1].required").value(true))
+                .andExpect(jsonPath("$.context.blocks_health.enabled").value(true))
+                .andExpect(jsonPath("$.context.blocks_health.ready").value(false))
+                .andExpect(jsonPath("$.context.blocks_health.coverage_pct").value(33))
+                .andExpect(jsonPath("$.context.blocks_health.missing_required_keys[0]").value("context_sources"))
+                .andExpect(jsonPath("$.context.blocks_health.missing_required_keys[1]").value("customer_profile"))
+                .andExpect(jsonPath("$.meta.parity.missing_capabilities").value(org.hamcrest.Matchers.hasItem("customer_context_blocks")));
+    }
+
+    @Test
     void workspaceTelemetrySummaryIncludesGuardrails() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         Map<String, Object> guardrails = Map.of(
@@ -679,6 +751,23 @@ class DialogApiControllerWebMvcTest {
                                   "ticket_id": "T-88",
                                   "reason": "contract:invalid_utc",
                                   "duration_ms": 1
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceTelemetryAcceptsContextBlockGapEvent() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_context_block_gap",
+                                  "ticket_id": "T-CTX",
+                                  "reason": "context_sources,customer_profile",
+                                  "duration_ms": 2
                                 }
                                 """))
                 .andExpect(status().isOk())
