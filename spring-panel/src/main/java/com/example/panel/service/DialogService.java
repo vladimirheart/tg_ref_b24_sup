@@ -943,6 +943,7 @@ public class DialogService {
             note = "";
         }
         OffsetDateTime reviewedAt = parseReviewTimestamp(reviewedAtRaw);
+        boolean reviewTimestampInvalid = StringUtils.hasText(normalizeNullString(reviewedAtRaw)) && reviewedAt == null;
         boolean reviewPresent = reviewedAt != null && StringUtils.hasText(reviewedBy);
         boolean reviewFresh = false;
         long reviewAgeHours = -1;
@@ -952,6 +953,7 @@ public class DialogService {
         }
         boolean reviewReady = !gateEnabled || (reviewPresent && reviewFresh);
         OffsetDateTime dataUpdatedAt = parseReviewTimestamp(dataUpdatedAtRaw);
+        boolean dataUpdatedInvalid = StringUtils.hasText(normalizeNullString(dataUpdatedAtRaw)) && dataUpdatedAt == null;
         boolean dataUpdatedPresent = dataUpdatedAt != null;
         boolean dataFresh = false;
         long dataAgeHours = -1;
@@ -972,6 +974,8 @@ public class DialogService {
         boolean datamartHealthy = "healthy".equals(datamartHealthStatus);
         boolean datamartHealthReady = !datamartHealthRequired || datamartHealthy;
         OffsetDateTime datamartHealthUpdatedAt = parseReviewTimestamp(datamartHealthUpdatedAtRaw);
+        boolean datamartHealthUpdatedInvalid = StringUtils.hasText(normalizeNullString(datamartHealthUpdatedAtRaw))
+                && datamartHealthUpdatedAt == null;
         boolean datamartHealthUpdatedPresent = datamartHealthUpdatedAt != null;
         boolean datamartHealthFresh = false;
         long datamartHealthAgeHours = -1;
@@ -988,6 +992,8 @@ public class DialogService {
         boolean datamartProgramReady = !datamartProgramBlockerRequired
                 || (!datamartProgramBlocked && datamartProgramBlockerReady);
         OffsetDateTime datamartProgramUpdatedAt = parseReviewTimestamp(datamartProgramUpdatedAtRaw);
+        boolean datamartProgramUpdatedInvalid = StringUtils.hasText(normalizeNullString(datamartProgramUpdatedAtRaw))
+                && datamartProgramUpdatedAt == null;
         boolean datamartProgramUpdatedPresent = datamartProgramUpdatedAt != null;
         boolean datamartProgramFresh = false;
         long datamartProgramAgeHours = -1;
@@ -997,6 +1003,8 @@ public class DialogService {
         }
         boolean datamartProgramFreshnessReady = !datamartProgramFreshnessRequired || (datamartProgramUpdatedPresent && datamartProgramFresh);
         OffsetDateTime datamartTargetReadyAt = parseReviewTimestamp(datamartTargetReadyAtRaw);
+        boolean datamartTargetReadyInvalid = StringUtils.hasText(normalizeNullString(datamartTargetReadyAtRaw))
+                && datamartTargetReadyAt == null;
         boolean datamartTargetPresent = datamartTargetReadyAt != null;
         boolean datamartTargetOverdue = false;
         long datamartTimelineHoursToTarget = Long.MIN_VALUE;
@@ -1012,6 +1020,8 @@ public class DialogService {
         boolean datamartDependencyTicketPresent = StringUtils.hasText(datamartDependencyTicketUrl);
         boolean datamartDependencyTicketValid = !datamartDependencyTicketPresent || isValidExternalReferenceUrl(datamartDependencyTicketUrl);
         OffsetDateTime datamartDependencyTicketUpdatedAt = parseReviewTimestamp(datamartDependencyTicketUpdatedAtRaw);
+        boolean datamartDependencyTicketUpdatedInvalid = StringUtils.hasText(normalizeNullString(datamartDependencyTicketUpdatedAtRaw))
+                && datamartDependencyTicketUpdatedAt == null;
         boolean datamartDependencyTicketUpdatedPresent = datamartDependencyTicketUpdatedAt != null;
         boolean datamartDependencyTicketFresh = false;
         long datamartDependencyTicketAgeHours = -1;
@@ -1107,6 +1117,24 @@ public class DialogService {
         if (!datamartDependencyTicketFreshnessReady) {
             datamartRiskReasons.add("dependency_ticket_stale");
         }
+        if (reviewTimestampInvalid) {
+            datamartRiskReasons.add("review_timestamp_invalid");
+        }
+        if (dataUpdatedInvalid) {
+            datamartRiskReasons.add("data_updated_timestamp_invalid");
+        }
+        if (datamartHealthUpdatedInvalid) {
+            datamartRiskReasons.add("datamart_health_timestamp_invalid");
+        }
+        if (datamartProgramUpdatedInvalid) {
+            datamartRiskReasons.add("datamart_program_timestamp_invalid");
+        }
+        if (datamartTargetReadyInvalid) {
+            datamartRiskReasons.add("datamart_target_timestamp_invalid");
+        }
+        if (datamartDependencyTicketUpdatedInvalid) {
+            datamartRiskReasons.add("dependency_ticket_timestamp_invalid");
+        }
         if (!datamartDependencyTicketOwnerReady) {
             datamartRiskReasons.add("dependency_ticket_owner_missing");
         }
@@ -1178,6 +1206,7 @@ public class DialogService {
         signal.put("datamart_dependency_ticket_updated_at", datamartDependencyTicketUpdatedAt != null ? datamartDependencyTicketUpdatedAt.toString() : "");
         signal.put("datamart_dependency_ticket_ttl_hours", datamartDependencyTicketTtlHours);
         signal.put("datamart_dependency_ticket_updated_present", datamartDependencyTicketUpdatedPresent);
+        signal.put("datamart_dependency_ticket_updated_timestamp_invalid", datamartDependencyTicketUpdatedInvalid);
         signal.put("datamart_dependency_ticket_fresh", datamartDependencyTicketFresh);
         signal.put("datamart_dependency_ticket_age_hours", datamartDependencyTicketAgeHours);
         signal.put("datamart_dependency_ticket_freshness_ready", datamartDependencyTicketFreshnessReady);
@@ -1185,12 +1214,14 @@ public class DialogService {
         signal.put("reviewed_at", reviewedAt != null ? reviewedAt.toString() : "");
         signal.put("review_ttl_hours", reviewTtlHours);
         signal.put("review_present", reviewPresent);
+        signal.put("review_timestamp_invalid", reviewTimestampInvalid);
         signal.put("review_fresh", reviewFresh);
         signal.put("review_age_hours", reviewAgeHours);
         signal.put("data_freshness_required", dataFreshnessRequired);
         signal.put("data_updated_at", dataUpdatedAt != null ? dataUpdatedAt.toString() : "");
         signal.put("data_freshness_ttl_hours", dataFreshnessTtlHours);
         signal.put("data_updated_present", dataUpdatedPresent);
+        signal.put("data_updated_timestamp_invalid", dataUpdatedInvalid);
         signal.put("data_fresh", dataFresh);
         signal.put("data_age_hours", dataAgeHours);
         signal.put("dashboard_links_required", dashboardLinksRequired);
@@ -1213,6 +1244,7 @@ public class DialogService {
         signal.put("datamart_health_updated_at", datamartHealthUpdatedAt != null ? datamartHealthUpdatedAt.toString() : "");
         signal.put("datamart_health_ttl_hours", datamartHealthTtlHours);
         signal.put("datamart_health_updated_present", datamartHealthUpdatedPresent);
+        signal.put("datamart_health_updated_timestamp_invalid", datamartHealthUpdatedInvalid);
         signal.put("datamart_health_fresh", datamartHealthFresh);
         signal.put("datamart_health_age_hours", datamartHealthAgeHours);
         signal.put("datamart_health_freshness_ready", datamartHealthFreshnessReady);
@@ -1229,6 +1261,7 @@ public class DialogService {
         signal.put("datamart_program_updated_at", datamartProgramUpdatedAt != null ? datamartProgramUpdatedAt.toString() : "");
         signal.put("datamart_program_ttl_hours", datamartProgramTtlHours);
         signal.put("datamart_program_updated_present", datamartProgramUpdatedPresent);
+        signal.put("datamart_program_updated_timestamp_invalid", datamartProgramUpdatedInvalid);
         signal.put("datamart_program_fresh", datamartProgramFresh);
         signal.put("datamart_program_age_hours", datamartProgramAgeHours);
         signal.put("datamart_program_freshness_ready", datamartProgramFreshnessReady);
@@ -1236,6 +1269,7 @@ public class DialogService {
         signal.put("datamart_target_ready_at", datamartTargetReadyAt != null ? datamartTargetReadyAt.toString() : "");
         signal.put("datamart_timeline_grace_hours", datamartTimelineGraceHours);
         signal.put("datamart_target_present", datamartTargetPresent);
+        signal.put("datamart_target_timestamp_invalid", datamartTargetReadyInvalid);
         signal.put("datamart_target_overdue", datamartTargetOverdue);
         signal.put("datamart_timeline_hours_to_target", datamartTimelineHoursToTarget);
         signal.put("datamart_timeline_ready", datamartTimelineReady);
