@@ -115,6 +115,7 @@ public class DialogApiController {
             Map.entry("workspace_draft_saved", "workspace"),
             Map.entry("workspace_draft_restored", "workspace"),
             Map.entry("workspace_context_profile_gap", "workspace"),
+            Map.entry("workspace_open_legacy_manual", "workspace"),
             Map.entry("kpi_frt_recorded", "kpi"),
             Map.entry("kpi_ttr_recorded", "kpi"),
             Map.entry("kpi_sla_breach_recorded", "kpi"),
@@ -753,6 +754,8 @@ public class DialogApiController {
             workspaceClient.put("profile_health", profileHealth);
         }
 
+        Map<String, Object> workspaceRollout = resolveWorkspaceRolloutMeta(settings);
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("contract_version", "workspace.v1");
         payload.put("conversation", summary);
@@ -816,10 +819,141 @@ public class DialogApiController {
         payload.put("meta", Map.of(
                 "include", includeSections,
                 "limit", resolvedLimit,
-                "cursor", safeCursor
+                "cursor", safeCursor,
+                "rollout", workspaceRollout
         ));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+
+    private Map<String, Object> resolveWorkspaceRolloutMeta(Map<String, Object> settings) {
+        Object dialogConfigRaw = settings != null ? settings.get("dialog_config") : null;
+        Map<?, ?> dialogConfig = dialogConfigRaw instanceof Map<?, ?> map ? map : Map.of();
+
+        boolean workspaceEnabled = resolveBooleanDialogConfig(dialogConfig, "workspace_v1", true);
+        boolean forceWorkspace = resolveBooleanDialogConfig(dialogConfig, "workspace_force_workspace", false);
+        boolean decommissionLegacyModal = resolveBooleanDialogConfig(dialogConfig, "workspace_decommission_legacy_modal", false);
+        boolean disableLegacyFallback = resolveBooleanDialogConfig(dialogConfig, "workspace_disable_legacy_fallback", false)
+                || forceWorkspace
+                || decommissionLegacyModal;
+        boolean abEnabled = resolveBooleanDialogConfig(dialogConfig, "workspace_ab_enabled", false);
+        int rolloutPercent = resolveIntegerDialogConfig(dialogConfig, "workspace_ab_rollout_percent", 0, 0, 100);
+        String experimentName = trimToNull(String.valueOf(dialogConfig.get("workspace_ab_experiment_name")));
+        String operatorSegment = trimToNull(String.valueOf(dialogConfig.get("workspace_ab_operator_segment")));
+        OffsetDateTime reviewedAtUtc = parseUtcTimestamp(trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_external_kpi_reviewed_at"))));
+        OffsetDateTime dataUpdatedAtUtc = parseUtcTimestamp(trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_external_kpi_data_updated_at"))));
+
+        String mode;
+        String bannerTone;
+        if (!workspaceEnabled) {
+            mode = "legacy_primary";
+            bannerTone = "warning";
+        } else if (forceWorkspace || decommissionLegacyModal || !abEnabled) {
+            mode = "workspace_primary";
+            bannerTone = disableLegacyFallback ? "success" : "info";
+        } else {
+            mode = "cohort_rollout";
+            bannerTone = disableLegacyFallback ? "warning" : "info";
+        }
+
+        String summary;
+        if (!workspaceEnabled) {
+            summary = "Workspace выключен: используется legacy modal.";
+        } else if (disableLegacyFallback) {
+            summary = "Workspace — основной режим. Auto-fallback в legacy отключён текущим rollout-режимом.";
+        } else if (abEnabled) {
+            summary = "Workspace включён в cohort-rollout; legacy modal остаётся fallback-механизмом.";
+        } else {
+            summary = "Workspace — основной режим. Legacy modal оставлен как rollback-механизм.";
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("workspace_enabled", workspaceEnabled);
+        payload.put("mode", mode);
+        payload.put("banner_tone", bannerTone);
+        payload.put("summary", summary);
+        payload.put("force_workspace", forceWorkspace);
+        payload.put("decommission_legacy_modal", decommissionLegacyModal);
+        payload.put("legacy_fallback_available", workspaceEnabled && !disableLegacyFallback);
+        payload.put("disable_legacy_fallback", disableLegacyFallback);
+        payload.put("ab_enabled", abEnabled);
+        payload.put("rollout_percent", rolloutPercent);
+        payload.put("experiment_name", experimentName != null ? experimentName : "");
+        payload.put("operator_segment", operatorSegment != null ? operatorSegment : "");
+        if (reviewedAtUtc != null) {
+            payload.put("reviewed_at_utc", reviewedAtUtc.toString());
+        }
+        if (dataUpdatedAtUtc != null) {
+            payload.put("data_updated_at_utc", dataUpdatedAtUtc.toString());
+        }
+        return payload;
+    }
+
+    private boolean resolveBooleanDialogConfig(Map<?, ?> dialogConfig, String key, boolean fallbackValue) {
+        if (dialogConfig == null || key == null) {
+            return fallbackValue;
+        }
+        Object value = dialogConfig.get(key);
+        if (value == null) {
+            return fallbackValue;
+        }
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        String normalized = String.valueOf(value).trim().toLowerCase();
+        if (!StringUtils.hasText(normalized)) {
+            return fallbackValue;
+        }
+        return switch (normalized) {
+            case "1", "true", "yes", "on" -> true;
+            case "0", "false", "no", "off" -> false;
+            default -> fallbackValue;
+        };
+    }
+
+    private int resolveIntegerDialogConfig(Map<?, ?> dialogConfig,
+                                           String key,
+                                           int fallbackValue,
+                                           int minValue,
+                                           int maxValue) {
+        if (dialogConfig == null || key == null) {
+            return fallbackValue;
+        }
+        Object value = dialogConfig.get(key);
+        if (value == null) {
+            return fallbackValue;
+        }
+        int parsed;
+        if (value instanceof Number number) {
+            parsed = number.intValue();
+        } else {
+            try {
+                parsed = Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException ex) {
+                return fallbackValue;
+            }
+        }
+        if (parsed < minValue || parsed > maxValue) {
+            return fallbackValue;
+        }
+        return parsed;
+    }
+
+    private OffsetDateTime parseUtcTimestamp(String rawValue) {
+        if (!StringUtils.hasText(rawValue)) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(rawValue).withOffsetSameInstant(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            // fallback to legacy datetime-local without explicit offset
+        }
+        try {
+            return LocalDateTime.parse(rawValue).atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     private List<String> buildWorkspaceClientSegments(DialogListItem summary,
