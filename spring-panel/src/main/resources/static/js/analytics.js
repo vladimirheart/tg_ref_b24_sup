@@ -361,6 +361,13 @@
     const datamartContractMissingOptionalFields = Array.isArray(externalSignal.datamart_contract_missing_optional_fields)
       ? externalSignal.datamart_contract_missing_optional_fields.filter(Boolean).join('|')
       : '';
+    const datamartContractOverlappingFields = Array.isArray(externalSignal.datamart_contract_overlapping_fields)
+      ? externalSignal.datamart_contract_overlapping_fields.filter(Boolean).join('|')
+      : '';
+    const datamartContractAvailableOutsideFields = Array.isArray(externalSignal.datamart_contract_available_outside_fields)
+      ? externalSignal.datamart_contract_available_outside_fields.filter(Boolean).join('|')
+      : '';
+    const datamartContractConfigurationConflict = externalSignal.datamart_contract_configuration_conflict === true;
     const mandatoryCoveragePct = Number.isFinite(Number(externalSignal.datamart_contract_mandatory_coverage_pct))
       ? Number(externalSignal.datamart_contract_mandatory_coverage_pct)
       : 0;
@@ -384,7 +391,7 @@
       : null;
     const optionalCoverageGateReady = externalSignal.datamart_contract_optional_coverage_ready === false ? false : true;
     const datamartContractLabel = externalSignal.datamart_contract_required
-      ? `v=${externalSignal.datamart_contract_version || 'v1'}, mandatory=${datamartContractMissingMandatoryFields ? `missing:${datamartContractMissingMandatoryFields}` : 'ready'} (${mandatoryCoveragePct}%), optional=${datamartContractMissingOptionalFields ? `missing:${datamartContractMissingOptionalFields}` : 'ready'} (${optionalCoveragePct}%), gaps=blocking:${blockingGapCount}/non_blocking:${nonBlockingGapCount} (${datamartContractGapSeverity}), optional_gate=${optionalCoverageGateEnabled ? `on${optionalCoverageGateThreshold !== null ? `@${optionalCoverageGateThreshold}%` : ''}${optionalCoverageGateReady ? '' : ' (hold)'}` : (optionalCoverageGateConfigured ? 'configured_but_contract_off' : 'off')}${externalSignal.datamart_contract_ready ? '' : ' (hold)'}`
+      ? `v=${externalSignal.datamart_contract_version || 'v1'}, mandatory=${datamartContractMissingMandatoryFields ? `missing:${datamartContractMissingMandatoryFields}` : 'ready'} (${mandatoryCoveragePct}%), optional=${datamartContractMissingOptionalFields ? `missing:${datamartContractMissingOptionalFields}` : 'ready'} (${optionalCoveragePct}%), gaps=blocking:${blockingGapCount}/non_blocking:${nonBlockingGapCount} (${datamartContractGapSeverity}), overlap=${datamartContractOverlappingFields || 'none'}${datamartContractConfigurationConflict ? ' (conflict)' : ''}, outside_contract=${datamartContractAvailableOutsideFields || 'none'}, optional_gate=${optionalCoverageGateEnabled ? `on${optionalCoverageGateThreshold !== null ? `@${optionalCoverageGateThreshold}%` : ''}${optionalCoverageGateReady ? '' : ' (hold)'}` : (optionalCoverageGateConfigured ? 'configured_but_contract_off' : 'off')}${externalSignal.datamart_contract_ready ? '' : ' (hold)'}`
       : 'off';
     const datamartRiskLevel = String(externalSignal.datamart_risk_level || 'low').trim().toLowerCase();
     const datamartRiskReasons = Array.isArray(externalSignal.datamart_risk_reasons)
