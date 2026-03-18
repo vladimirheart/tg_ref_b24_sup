@@ -775,6 +775,29 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryAggregatesInlineNavigationSignals() {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op-nav-1', 'workspace_open_ms', 'performance', 'T-NAV-1', NULL, NULL, 'workspace.v1', 810,
+                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
+                    ('op-nav-2', 'workspace_inline_navigation', 'workspace', 'T-NAV-2', 'next', NULL, 'workspace.v1', 2,
+                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-50 minute')),
+                    ('op-nav-3', 'workspace_inline_navigation', 'workspace', 'T-NAV-3', 'previous', NULL, 'workspace.v1', 3,
+                     'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-40 minute'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+
+        assertThat(totals).containsEntry("workspace_open_events", 1L);
+        assertThat(totals).containsEntry("workspace_inline_navigation_events", 2L);
+    }
+
+    @Test
     void workspaceRolloutDecisionHoldsWhenExternalKpiReviewIsStale() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", "{\"workspace_rollout_external_kpi_gate_enabled\":true,\"workspace_rollout_external_kpi_omnichannel_ready\":true,\"workspace_rollout_external_kpi_finance_ready\":true,\"workspace_rollout_external_kpi_reviewed_by\":\"release-oncall\",\"workspace_rollout_external_kpi_reviewed_at\":\"2024-01-01T00:00:00Z\",\"workspace_rollout_external_kpi_review_ttl_hours\":24}");

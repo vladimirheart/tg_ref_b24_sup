@@ -67,6 +67,11 @@
                         <p class="small text-muted mb-0" id="workspaceConversationMeta">Загрузка карточки диалога…</p>
                     </div>
                     <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="btn-group" role="group" aria-label="Навигация по очереди workspace">
+                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavPrevBtn" type="button">← Предыдущий</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavNextBtn" type="button">Следующий →</button>
+                        </div>
+                        <span class="small text-muted" id="workspaceNavState">Очередь не определена</span>
                         <button class="btn btn-sm btn-outline-success" id="workspaceAssignBtn" type="button">Назначить мне</button>
                         <button class="btn btn-sm btn-outline-warning" id="workspaceSnoozeBtn" type="button">Отложить на 1ч</button>
                         <button class="btn btn-sm btn-outline-danger" id="workspaceResolveBtn" type="button">Закрыть</button>
