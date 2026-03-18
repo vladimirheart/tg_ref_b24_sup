@@ -518,6 +518,73 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryBuildsRolloutScorecardWithUtcTimestamps() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_external_kpi_gate_enabled":true,
+                         "workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,
+                         "workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2026-02-03T04:05:06",
+                         "workspace_rollout_external_kpi_review_ttl_hours":999}
+                        """);
+
+        for (int i = 0; i < 70; i++) {
+            String cohort = i < 35 ? "control" : "test";
+            long openMs = cohort.equals("test") ? 900L : 1000L;
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-score-open-" + i, "T-SCORE-OPEN-" + i, openMs, cohort);
+        }
+        for (int i = 0; i < 16; i++) {
+            String cohort = i < 8 ? "control" : "test";
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-score-frt-" + i, "T-SCORE-FRT-" + i, cohort.equals("test") ? 900L : 1000L, cohort);
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-score-ttr-" + i, "T-SCORE-TTR-" + i, cohort.equals("test") ? 1900L : 2000L, cohort);
+            jdbcTemplate.update("""
+                    INSERT INTO workspace_telemetry_audit (
+                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                        primary_kpis, secondary_kpis, template_id, template_name, created_at
+                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
+                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
+                    """, "op-score-sla-" + i, "T-SCORE-SLA-" + i, cohort);
+        }
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> scorecard = (Map<String, Object>) summary.get("rollout_scorecard");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) scorecard.get("items");
+
+        assertThat(scorecard.get("decision_action")).isEqualTo("scale_up");
+        assertThat(items).extracting(item -> item.get("key"))
+                .contains("sample_size", "guardrails", "primary_kpi_signal", "outcome_frt", "outcome_ttr", "outcome_sla_breach", "external_kpi_gate");
+        assertThat(items).anySatisfy(item -> {
+            if ("external_kpi_gate".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+            }
+        });
+    }
+
+    @Test
     void workspaceRolloutDecisionHoldsWhenKpiCoverageIsTooLow() {
         for (int i = 0; i < 300; i++) {
             String cohort = i < 150 ? "control" : "test";

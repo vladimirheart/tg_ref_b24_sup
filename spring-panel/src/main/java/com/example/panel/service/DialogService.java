@@ -747,8 +747,261 @@ public class DialogService {
         payload.put("by_team", teamRows);
         Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows, workspaceTelemetryConfig);
         payload.put("guardrails", guardrails);
-        payload.put("rollout_decision", buildWorkspaceRolloutDecision(cohortComparison, guardrails));
+        Map<String, Object> rolloutDecision = buildWorkspaceRolloutDecision(cohortComparison, guardrails);
+        payload.put("rollout_decision", rolloutDecision);
+        payload.put("rollout_scorecard", buildWorkspaceRolloutScorecard(totals, cohortComparison, guardrails, rolloutDecision));
         return payload;
+    }
+
+    private Map<String, Object> buildWorkspaceRolloutScorecard(Map<String, Object> totals,
+                                                               Map<String, Object> cohortComparison,
+                                                               Map<String, Object> guardrails,
+                                                               Map<String, Object> rolloutDecision) {
+        Map<String, Object> safeTotals = totals == null ? Map.of() : totals;
+        Map<String, Object> safeCohortComparison = cohortComparison == null ? Map.of() : cohortComparison;
+        Map<String, Object> safeGuardrails = guardrails == null ? Map.of() : guardrails;
+        Map<String, Object> safeRolloutDecision = rolloutDecision == null ? Map.of() : rolloutDecision;
+        Map<String, Object> kpiSignal = safeCohortComparison.get("kpi_signal") instanceof Map<?, ?> value
+                ? castObjectMap(value)
+                : Map.of();
+        Map<String, Object> outcomeSignal = safeCohortComparison.get("kpi_outcome_signal") instanceof Map<?, ?> value
+                ? castObjectMap(value)
+                : Map.of();
+        Map<String, Object> externalSignal = safeRolloutDecision.get("external_kpi_signal") instanceof Map<?, ?> value
+                ? castObjectMap(value)
+                : Map.of();
+
+        List<Map<String, Object>> items = new ArrayList<>();
+        long sampleMin = toLong(safeCohortComparison.get("sample_size_min_events"));
+        items.add(buildScorecardItem(
+                "sample_size",
+                "experiment",
+                "Control/Test sample size",
+                toBoolean(safeCohortComparison.get("sample_size_ok")) ? "ok" : "hold",
+                true,
+                "Нужно достаточно событий в обеих когортах до принятия rollout decision.",
+                "control=%d, test=%d".formatted(
+                        toLong(safeCohortComparison.get("control_events")),
+                        toLong(safeCohortComparison.get("test_events"))),
+                sampleMin > 0 ? ">= %d событий на когорту".formatted(sampleMin) : "Дефолтный порог",
+                null,
+                null
+        ));
+
+        String guardrailStatus = "attention".equalsIgnoreCase(String.valueOf(safeGuardrails.get("status")))
+                ? "attention"
+                : "ok";
+        items.add(buildScorecardItem(
+                "guardrails",
+                "guardrails",
+                "Technical guardrails",
+                guardrailStatus,
+                "attention".equals(guardrailStatus),
+                "Render error / fallback / abandon / slow open не должны уходить в attention.",
+                "alerts=%d".formatted(safeListOfMaps(safeGuardrails.get("alerts")).size()),
+                "status=ok",
+                null,
+                null
+        ));
+
+        long minKpiEvents = toLong(kpiSignal.get("min_events_per_cohort"));
+        double minCoverage = kpiSignal.get("min_coverage_rate_per_cohort") instanceof Number number
+                ? number.doubleValue()
+                : 0d;
+        items.add(buildScorecardItem(
+                "primary_kpi_signal",
+                "product_kpi",
+                "Primary KPI coverage",
+                toBoolean(kpiSignal.get("ready_for_decision")) ? "ok" : "hold",
+                true,
+                "FRT / TTR / SLA breach должны иметь достаточно покрытия и событий в control/test.",
+                "required=%s".formatted(String.join(", ", safeStringList(kpiSignal.get("required_kpis")))),
+                "events>=%d, coverage>=%.1f%%".formatted(minKpiEvents, minCoverage * 100d),
+                null,
+                null
+        ));
+
+        Map<String, Object> outcomeMetrics = outcomeSignal.get("metrics") instanceof Map<?, ?> value
+                ? castObjectMap(value)
+                : Map.of();
+        appendOutcomeMetricScorecardItem(items, outcomeMetrics, "frt", "Outcome KPI: FRT");
+        appendOutcomeMetricScorecardItem(items, outcomeMetrics, "ttr", "Outcome KPI: TTR");
+        appendOutcomeMetricScorecardItem(items, outcomeMetrics, "sla_breach", "Outcome KPI: SLA breach");
+
+        double contextReadyRate = safeDouble(safeTotals.get("context_profile_ready_rate"));
+        items.add(buildScorecardItem(
+                "customer_context",
+                "workspace",
+                "Customer context readiness",
+                contextReadyRate >= 0.95d ? "ok" : "hold",
+                false,
+                "Контекст клиента должен быть готов без постоянного fallback в сторонние экраны.",
+                "%.1f%% ready".formatted(contextReadyRate * 100d),
+                ">= 95.0%",
+                null,
+                null
+        ));
+
+        String externalMeasuredAt = firstNonBlank(
+                normalizeUtcTimestamp(externalSignal.get("reviewed_at")),
+                normalizeUtcTimestamp(externalSignal.get("data_updated_at")),
+                normalizeUtcTimestamp(externalSignal.get("datamart_health_updated_at")),
+                normalizeUtcTimestamp(externalSignal.get("datamart_program_updated_at")),
+                normalizeUtcTimestamp(externalSignal.get("datamart_dependency_ticket_updated_at")),
+                normalizeUtcTimestamp(externalSignal.get("datamart_target_ready_at"))
+        );
+        boolean externalEnabled = toBoolean(externalSignal.get("enabled"));
+        boolean externalReady = toBoolean(externalSignal.get("ready_for_decision"));
+        items.add(buildScorecardItem(
+                "external_kpi_gate",
+                "external_dependencies",
+                "External KPI checkpoint",
+                externalEnabled ? (externalReady ? "ok" : "hold") : "off",
+                externalEnabled && !externalReady,
+                "Omni-channel / finance / data-mart зависимости не должны блокировать rollout.",
+                "omni=%s, finance=%s".formatted(
+                        toBoolean(externalSignal.get("omnichannel_ready")) ? "ready" : "pending",
+                        toBoolean(externalSignal.get("finance_ready")) ? "ready" : "pending"),
+                externalEnabled ? "ready_for_decision=true" : "gate disabled",
+                externalMeasuredAt,
+                String.valueOf(externalSignal.getOrDefault("note", "")).trim()
+        ));
+
+        return Map.of(
+                "generated_at", Instant.now().toString(),
+                "decision_action", String.valueOf(safeRolloutDecision.getOrDefault("action", "hold")),
+                "items", items
+        );
+    }
+
+    private void appendOutcomeMetricScorecardItem(List<Map<String, Object>> items,
+                                                  Map<String, Object> outcomeMetrics,
+                                                  String metricKey,
+                                                  String label) {
+        Map<String, Object> metric = outcomeMetrics.get(metricKey) instanceof Map<?, ?> value
+                ? castObjectMap(value)
+                : Map.of();
+        if (metric.isEmpty()) {
+            return;
+        }
+        boolean ready = toBoolean(metric.get("ready"));
+        boolean regression = toBoolean(metric.get("regression"));
+        String status = !ready ? "hold" : (regression ? "attention" : "ok");
+        boolean blocking = !ready || regression;
+        String currentValue;
+        String threshold;
+        if ("latency_ms".equals(String.valueOf(metric.get("type")))) {
+            currentValue = "control=%s ms, test=%s ms".formatted(
+                    formatNullableLong(metric.get("control_value")),
+                    formatNullableLong(metric.get("test_value")));
+            threshold = "Δ <= %.1f%%".formatted(safeDouble(metric.get("max_relative_regression")) * 100d);
+        } else {
+            currentValue = "control=%s, test=%s".formatted(
+                    formatNullableLong(metric.get("control_value")),
+                    formatNullableLong(metric.get("test_value")));
+            threshold = "multiplier <= %.2f".formatted(safeDouble(metric.get("max_relative_multiplier")));
+        }
+        items.add(buildScorecardItem(
+                "outcome_" + metricKey,
+                "product_outcome",
+                label,
+                status,
+                blocking,
+                "Проверка outcome-метрик после включения workspace в cohort.",
+                currentValue,
+                threshold,
+                null,
+                null
+        ));
+    }
+
+    private Map<String, Object> buildScorecardItem(String key,
+                                                   String category,
+                                                   String label,
+                                                   String status,
+                                                   boolean blocking,
+                                                   String summary,
+                                                   String currentValue,
+                                                   String threshold,
+                                                   String measuredAtUtc,
+                                                   String note) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("key", key);
+        item.put("category", category);
+        item.put("label", label);
+        item.put("status", normalizeScorecardStatus(status));
+        item.put("blocking", blocking);
+        item.put("summary", normalizeNullString(summary));
+        item.put("current_value", normalizeNullString(currentValue));
+        item.put("threshold", normalizeNullString(threshold));
+        item.put("measured_at", normalizeUtcTimestamp(measuredAtUtc));
+        item.put("note", normalizeNullString(note));
+        return item;
+    }
+
+    private String normalizeScorecardStatus(String value) {
+        String normalized = normalizeNullString(value).toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "ok", "attention", "hold", "off" -> normalized;
+            default -> "hold";
+        };
+    }
+
+    private List<Map<String, Object>> safeListOfMaps(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                result.add(castObjectMap(map));
+            }
+        }
+        return result;
+    }
+
+    private List<String> safeStringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(String::valueOf)
+                .map(this::normalizeNullString)
+                .filter(StringUtils::hasText)
+                .toList();
+    }
+
+    private double safeDouble(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (Exception ignored) {
+            return 0d;
+        }
+    }
+
+    private String formatNullableLong(Object value) {
+        Long number = extractNullableLong(value);
+        return number != null ? String.valueOf(number) : "—";
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String normalizeUtcTimestamp(Object rawValue) {
+        OffsetDateTime parsed = parseReviewTimestamp(rawValue == null ? null : String.valueOf(rawValue));
+        return parsed != null ? parsed.withOffsetSameInstant(ZoneOffset.UTC).toString() : "";
     }
 
     private Map<String, Object> buildWorkspaceRolloutDecision(Map<String, Object> cohortComparison,
