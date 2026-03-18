@@ -225,6 +225,35 @@ class DialogApiControllerWebMvcTest {
                 "open_dialogs", 2,
                 "resolved_30d", 3
         ));
+        when(dialogService.loadDialogs("operator")).thenReturn(List.of(
+                summary,
+                new DialogListItem(
+                        "T-2",
+                        2L,
+                        43L,
+                        "next-user",
+                        "Следующий клиент",
+                        "biz",
+                        1L,
+                        "demo",
+                        "city",
+                        "location",
+                        "problem 2",
+                        "2026-01-01T11:00:00Z",
+                        "pending",
+                        null,
+                        null,
+                        "",
+                        "2026-01-01",
+                        "11:00",
+                        "label",
+                        "user",
+                        "2026-01-01T11:00:00Z",
+                        0,
+                        null,
+                        "category"
+                )
+        ));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
                 "sla_target_minutes", 1440,
                 "sla_warning_minutes", 240,
@@ -255,6 +284,13 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.meta.parity.status").value("ok"))
                 .andExpect(jsonPath("$.meta.parity.score_pct").value(100))
                 .andExpect(jsonPath("$.meta.parity.checked_at").exists())
+                .andExpect(jsonPath("$.meta.navigation.enabled").value(true))
+                .andExpect(jsonPath("$.meta.navigation.position").value(1))
+                .andExpect(jsonPath("$.meta.navigation.total").value(2))
+                .andExpect(jsonPath("$.meta.navigation.has_previous").value(false))
+                .andExpect(jsonPath("$.meta.navigation.has_next").value(true))
+                .andExpect(jsonPath("$.meta.navigation.next.ticket_id").value("T-2"))
+                .andExpect(jsonPath("$.meta.navigation.next.last_message_at_utc").value("2026-01-01T11:00Z"))
                 .andExpect(jsonPath("$.meta.rollout.reviewed_at_utc").value("2026-01-01T07:15Z"))
                 .andExpect(jsonPath("$.meta.rollout.data_updated_at_utc").doesNotExist())
                 .andExpect(jsonPath("$.success").value(true));
@@ -692,6 +728,23 @@ class DialogApiControllerWebMvcTest {
                                   "event_type": "kpi_csat_recorded",
                                   "ticket_id": "T-3",
                                   "secondary_kpis": ["CSAT", "DIALOGS_PER_SHIFT"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceTelemetryAcceptsInlineNavigationEventType() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_inline_navigation",
+                                  "ticket_id": "T-4",
+                                  "reason": "next",
+                                  "duration_ms": 4
                                 }
                                 """))
                 .andExpect(status().isOk())
