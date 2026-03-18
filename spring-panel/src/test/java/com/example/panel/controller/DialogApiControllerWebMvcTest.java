@@ -514,6 +514,13 @@ class DialogApiControllerWebMvcTest {
     void workspaceTelemetrySummaryReturnsAggregates() throws Exception {
         when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
                 "window_days", 7,
+                "rollout_scorecard", Map.of(
+                        "generated_at", "2026-01-01T00:00:00Z",
+                        "items", List.of(Map.of(
+                                "key", "sample_size",
+                                "status", "ok"
+                        ))
+                ),
                 "rows", List.of(Map.of(
                         "experiment_cohort", "test",
                         "operator_segment", "night_shift",
@@ -535,7 +542,9 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.rows[0].operator_segment").value("night_shift"))
                 .andExpect(jsonPath("$.by_shift[0].shift").value("night"))
                 .andExpect(jsonPath("$.by_team[0].team").value("support"))
-                .andExpect(jsonPath("$.totals.events").value(5));
+                .andExpect(jsonPath("$.totals.events").value(5))
+                .andExpect(jsonPath("$.rollout_scorecard.items[0].key").value("sample_size"))
+                .andExpect(jsonPath("$.rollout_scorecard.items[0].status").value("ok"));
     }
 
     @Test

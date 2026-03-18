@@ -120,6 +120,35 @@
                     </div>
                     <div class="alert d-none mb-2" id="workspaceTelemetryRolloutDecision" role="status"></div>
                     <div class="small text-muted mb-3" id="workspaceTelemetryKpiSignalState"></div>
+                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryScorecardCard">
+                        <div class="card-body">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                                <div>
+                                    <h3 class="h6 mb-1">Rollout scorecard</h3>
+                                    <p class="small text-muted mb-0">Формальное решение по rollout: sample size → guardrails → product outcome → external checkpoints.</p>
+                                </div>
+                                <small class="text-muted" id="workspaceTelemetryScorecardUpdatedAt"></small>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Проверка</th>
+                                        <th>Статус</th>
+                                        <th>Текущее значение</th>
+                                        <th>Порог / условие</th>
+                                        <th>UTC</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryScorecardTable">
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-center py-3">Загрузка scorecard...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                     <div class="small text-muted mb-2" id="workspaceTelemetryFilterState"></div>
                     <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryAlertBox"></div>
                     <div class="table-responsive">
