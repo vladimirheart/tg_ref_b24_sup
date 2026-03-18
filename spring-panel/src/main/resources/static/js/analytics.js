@@ -17,6 +17,8 @@
   const alertBox = document.getElementById('workspaceTelemetryAlertBox');
   const rolloutDecisionBox = document.getElementById('workspaceTelemetryRolloutDecision');
   const kpiSignalState = document.getElementById('workspaceTelemetryKpiSignalState');
+  const scorecardUpdatedAt = document.getElementById('workspaceTelemetryScorecardUpdatedAt');
+  const scorecardTable = document.getElementById('workspaceTelemetryScorecardTable');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -96,6 +98,12 @@
     if (kpiSignalState) {
       kpiSignalState.textContent = '';
     }
+    if (scorecardUpdatedAt) {
+      scorecardUpdatedAt.textContent = '';
+    }
+    if (scorecardTable) {
+      scorecardTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка scorecard...</td></tr>';
+    }
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     teamTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
@@ -133,6 +141,83 @@
           <td class="text-end">${formatRate(renderErrorRate)}</td>
           <td class="text-end">${formatRate(fallbackRate)}</td>
           <td class="text-end">${formatRate(abandonRate)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function statusBadgeClass(status) {
+    switch (String(status || '').toLowerCase()) {
+      case 'ok':
+        return 'text-bg-success';
+      case 'attention':
+        return 'text-bg-warning';
+      case 'off':
+        return 'text-bg-secondary';
+      case 'hold':
+      default:
+        return 'text-bg-danger';
+    }
+  }
+
+  function statusLabel(status) {
+    switch (String(status || '').toLowerCase()) {
+      case 'ok':
+        return 'OK';
+      case 'attention':
+        return 'Attention';
+      case 'off':
+        return 'Off';
+      case 'hold':
+      default:
+        return 'Hold';
+    }
+  }
+
+  function renderScorecard(scorecard) {
+    if (!scorecardTable) {
+      return;
+    }
+    const items = Array.isArray(scorecard?.items) ? scorecard.items : [];
+    if (scorecardUpdatedAt) {
+      scorecardUpdatedAt.textContent = scorecard?.generated_at
+        ? `Сформировано: ${formatTimestamp(scorecard.generated_at)}`
+        : '';
+    }
+    if (!items.length) {
+      scorecardTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Scorecard пока недоступен.</td></tr>';
+      return;
+    }
+    scorecardTable.innerHTML = items.map((item) => {
+      const label = escapeHtml(item?.label || '—');
+      const summary = escapeHtml(item?.summary || '');
+      const note = escapeHtml(item?.note || '');
+      const currentValue = escapeHtml(item?.current_value || '—');
+      const threshold = escapeHtml(item?.threshold || '—');
+      const measuredAt = escapeHtml(formatTimestamp(item?.measured_at || ''));
+      const badgeClass = statusBadgeClass(item?.status);
+      const badgeLabel = statusLabel(item?.status);
+      const blocking = item?.blocking ? '<div class="small text-danger">Blocking gate</div>' : '<div class="small text-muted">Non-blocking</div>';
+      return `
+        <tr>
+          <td>
+            <div class="fw-semibold">${label}</div>
+            ${summary ? `<div class="small text-muted">${summary}</div>` : ''}
+            ${note ? `<div class="small text-muted">Note: ${note}</div>` : ''}
+          </td>
+          <td><span class="badge ${badgeClass}">${badgeLabel}</span>${blocking}</td>
+          <td class="small">${currentValue}</td>
+          <td class="small">${threshold}</td>
+          <td class="small text-nowrap">${measuredAt}</td>
         </tr>
       `;
     }).join('');
@@ -271,11 +356,25 @@
     const alerts = Array.isArray(payload?.guardrails?.alerts)
       ? payload.guardrails.alerts.filter((alert) => isAlertVisible(alert, filters))
       : [];
+    const scorecardItems = Array.isArray(payload?.rollout_scorecard?.items)
+      ? payload.rollout_scorecard.items
+      : [];
     const rows = [
       ['generated_at', payload?.generated_at || ''],
       ['window_days', payload?.window_days || ''],
       ['scope_filter', filters.scope],
       ['segment_filter', filters.segment || ''],
+      [],
+      ['scorecard_key', 'scorecard_status', 'blocking', 'current_value', 'threshold', 'measured_at_utc', 'note'],
+      ...scorecardItems.map((item) => [
+        item?.key || '',
+        item?.status || '',
+        item?.blocking === true ? 'true' : 'false',
+        item?.current_value || '',
+        item?.threshold || '',
+        item?.measured_at || '',
+        item?.note || '',
+      ]),
       [],
       ['metric', 'actual_rate', 'threshold_rate', 'scope', 'segment', 'message'],
       ...alerts.map((alert) => [
@@ -474,6 +573,7 @@
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
     renderBreakdownRows(teamTable, filteredRows(payload?.by_team, 'team', filters), 'team', 'Недостаточно данных по командам.');
     renderRiskSegments(payload, filters);
+    renderScorecard(payload?.rollout_scorecard);
     renderRolloutDecision(payload?.rollout_decision, payload?.cohort_comparison);
 
     if (status === 'attention') {
@@ -513,6 +613,12 @@
       }
       if (kpiSignalState) {
         kpiSignalState.textContent = '';
+      }
+      if (scorecardUpdatedAt) {
+        scorecardUpdatedAt.textContent = '';
+      }
+      if (scorecardTable) {
+        scorecardTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Scorecard недоступен.</td></tr>';
       }
       if (riskSegmentsTable) {
         riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Данные риск-сегментов недоступны.</td></tr>';
