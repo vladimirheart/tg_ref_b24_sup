@@ -3030,15 +3030,21 @@
       workspaceLastProfileGapSignature = '';
       return;
     }
+    const activeSegments = Array.isArray(profileHealth.active_segments)
+      ? profileHealth.active_segments.filter(Boolean).map((item) => String(item).trim())
+      : [];
     const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    const signature = `${ticketId}:${missingFields.join(',')}`;
+    const signature = `${ticketId}:${activeSegments.join('|')}:${missingFields.join(',')}`;
     if (!ticketId || workspaceLastProfileGapSignature === signature) {
       return;
     }
     workspaceLastProfileGapSignature = signature;
     emitWorkspaceTelemetry('workspace_context_profile_gap', {
       ticketId,
-      reason: missingFields.join(','),
+      reason: [
+        ...activeSegments.map((segment) => `segment:${segment}`),
+        ...missingFields.map((field) => `field:${field}`),
+      ].join(','),
       durationMs: missingFields.length,
       contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
     });
@@ -3471,8 +3477,21 @@
     const missingFields = Array.isArray(profileHealth?.missing_field_labels)
       ? profileHealth.missing_field_labels.filter(Boolean)
       : [];
+    const activeProfileSegments = Array.isArray(profileHealth?.active_segments)
+      ? profileHealth.active_segments.filter(Boolean)
+      : [];
+    const totalRequiredProfileFields = Array.isArray(profileHealth?.required_fields)
+      ? profileHealth.required_fields.filter(Boolean).length
+      : 0;
+    const profileRuleSummary = [];
+    if (totalRequiredProfileFields > 0) {
+      profileRuleSummary.push(`Обязательных полей: ${totalRequiredProfileFields}`);
+    }
+    if (activeProfileSegments.length) {
+      profileRuleSummary.push(`Сегменты: ${activeProfileSegments.join(', ')}`);
+    }
     const healthBanner = profileHealth && profileHealth.enabled === true
-      ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at))}</div></div>`
+      ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' · '))}</div>` : ''}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
       : '';
 
     const contextBlocks = Array.isArray(context?.blocks)

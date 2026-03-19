@@ -236,11 +236,14 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_client_external_profile_cache_ttl_seconds")
                 || payload.containsKey("dialog_workspace_client_external_profile_auth_header")
                 || payload.containsKey("dialog_workspace_client_external_profile_auth_token")
+                || payload.containsKey("dialog_workspace_required_client_attributes")
+                || payload.containsKey("dialog_workspace_required_client_attributes_by_segment")
                 || payload.containsKey("dialog_workspace_client_context_required_sources")
                 || payload.containsKey("dialog_workspace_client_context_source_priority")
                 || payload.containsKey("dialog_workspace_client_context_source_stale_after_hours")
                 || payload.containsKey("dialog_workspace_client_context_source_labels")
                 || payload.containsKey("dialog_workspace_client_context_source_updated_at_attributes")
+                || payload.containsKey("dialog_workspace_client_context_source_stale_after_hours_by_source")
                 || payload.containsKey("dialog_cross_product_omnichannel_dashboard_url")
                 || payload.containsKey("dialog_cross_product_omnichannel_dashboard_label")
                 || payload.containsKey("dialog_cross_product_finance_dashboard_url")
@@ -643,6 +646,14 @@ public class SettingsBridgeController {
                     dialogConfig.put("workspace_client_external_profile_auth_token",
                             payload.get("dialog_workspace_client_external_profile_auth_token"));
                 }
+                if (payload.containsKey("dialog_workspace_required_client_attributes")) {
+                    dialogConfig.put("workspace_required_client_attributes",
+                            payload.get("dialog_workspace_required_client_attributes"));
+                }
+                if (payload.containsKey("dialog_workspace_required_client_attributes_by_segment")) {
+                    dialogConfig.put("workspace_required_client_attributes_by_segment",
+                            payload.get("dialog_workspace_required_client_attributes_by_segment"));
+                }
                 if (payload.containsKey("dialog_workspace_client_context_required_sources")) {
                     dialogConfig.put("workspace_client_context_required_sources",
                             payload.get("dialog_workspace_client_context_required_sources"));
@@ -662,6 +673,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_client_context_source_updated_at_attributes")) {
                     dialogConfig.put("workspace_client_context_source_updated_at_attributes",
                             payload.get("dialog_workspace_client_context_source_updated_at_attributes"));
+                }
+                if (payload.containsKey("dialog_workspace_client_context_source_stale_after_hours_by_source")) {
+                    dialogConfig.put("workspace_client_context_source_stale_after_hours_by_source",
+                            payload.get("dialog_workspace_client_context_source_stale_after_hours_by_source"));
                 }
                 if (payload.containsKey("dialog_cross_product_omnichannel_dashboard_url")) {
                     dialogConfig.put("cross_product_omnichannel_dashboard_url",
