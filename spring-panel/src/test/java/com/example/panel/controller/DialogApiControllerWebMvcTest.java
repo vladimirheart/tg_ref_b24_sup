@@ -895,6 +895,32 @@ class DialogApiControllerWebMvcTest {
                                         "measured_at", "2026-01-01T00:00:00Z"
                                 ))
                 ),
+                "rollout_packet", Map.of(
+                        "generated_at", "2026-01-01T00:00:00Z",
+                        "status", "hold",
+                        "packet_ready", false,
+                        "missing_items", List.of("owner_signoff"),
+                        "items", List.of(
+                                Map.of(
+                                        "key", "scorecard_snapshot",
+                                        "status", "ok"
+                                ),
+                                Map.of(
+                                        "key", "owner_signoff",
+                                        "status", "hold",
+                                        "current_value", "missing",
+                                        "threshold", "present & <= 168 h",
+                                        "measured_at", ""
+                                )),
+                        "owner_signoff", Map.of(
+                                "required", true,
+                                "ready", false,
+                                "signed_by", "",
+                                "signed_at", "",
+                                "ttl_hours", 168,
+                                "timestamp_invalid", false
+                        )
+                ),
                 "rows", List.of(Map.of(
                         "experiment_cohort", "test",
                         "operator_segment", "night_shift",
@@ -932,7 +958,11 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].key").value("sample_size"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].status").value("ok"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[1].key").value("workspace_parity"))
-                .andExpect(jsonPath("$.rollout_scorecard.items[1].status").value("attention"));
+                .andExpect(jsonPath("$.rollout_scorecard.items[1].status").value("attention"))
+                .andExpect(jsonPath("$.rollout_packet.status").value("hold"))
+                .andExpect(jsonPath("$.rollout_packet.packet_ready").value(false))
+                .andExpect(jsonPath("$.rollout_packet.items[1].key").value("owner_signoff"))
+                .andExpect(jsonPath("$.rollout_packet.items[1].status").value("hold"));
     }
 
     @Test

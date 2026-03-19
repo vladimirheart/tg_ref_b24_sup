@@ -157,6 +157,62 @@
                             </div>
                         </div>
                     </div>
+                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryPacketCard">
+                        <div class="card-body">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                                <div>
+                                    <h3 class="h6 mb-1">Rollout governance packet</h3>
+                                    <p class="small text-muted mb-0">Обязательный пакет для decision-loop: scorecard, parity snapshot, external gate, incident history и owner sign-off.</p>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge text-bg-secondary" id="workspaceTelemetryPacketStatus">Packet: —</span>
+                                    <small class="text-muted" id="workspaceTelemetryPacketUpdatedAt"></small>
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Owner sign-off</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketOwnerState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketOwnerMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Parity snapshot</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketParityState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketParityMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Incident history</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketIncidentState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketIncidentMeta"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryPacketSummary"></div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Компонент</th>
+                                        <th>Статус</th>
+                                        <th>Текущее значение</th>
+                                        <th>Требование</th>
+                                        <th>UTC</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryPacketTable">
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-center py-3">Загрузка governance packet...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                     <div class="small text-muted mb-2" id="workspaceTelemetryFilterState"></div>
                     <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryAlertBox"></div>
                     <div class="table-responsive">
