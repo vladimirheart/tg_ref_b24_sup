@@ -16086,8 +16086,7 @@
 
     const safeWorkspaceRequiredClientAttributes = Array.from(new Set(
       String(inputs.workspaceRequiredClientAttributes?.value || '')
-        .split(/[
-,;]/)
+        .split(/[\n,;]/)
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean),
     ));
