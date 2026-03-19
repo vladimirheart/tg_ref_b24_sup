@@ -1,0 +1,10 @@
+com\example\supportbot\telegram\TelegramLongPollingLifecycle.class
+com\example\supportbot\config\BotProperties.class
+com\example\supportbot\telegram\TelegramBotApplication.class
+com\example\supportbot\telegram\TelegramOutboundMessenger.class
+com\example\supportbot\telegram\SupportBot$HistoryEvent.class
+com\example\supportbot\telegram\SupportBot$1.class
+com\example\supportbot\telegram\SupportBot$ConversationSession.class
+com\example\supportbot\telegram\SupportBot.class
+com\example\supportbot\telegram\SupportBot$TicketReference.class
+com\example\supportbot\config\VkBotProperties.class

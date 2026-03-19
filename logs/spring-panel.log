@@ -2571,3 +2571,296 @@ ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
 2026-03-19 15:23:47.776+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
 2026-03-19 15:24:00.251+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
 2026-03-19 15:24:00.258+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-19 15:39:46.929+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-03-19 15:39:47.040+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-03-19 15:39:47.050+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-03-19 15:39:47.053+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-03-19 15:39:47.061+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 992 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel)
+2026-03-19 15:39:47.064+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-19 15:39:49.154+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-19 15:39:49.534+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 341 ms. Found 31 JPA repository interfaces.
+2026-03-19 15:39:51.254+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-19 15:39:51.273+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-03-19 15:39:51.279+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-19 15:39:51.280+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-03-19 15:39:51.426+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-19 15:39:51.431+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 4247 ms
+2026-03-19 15:39:51.684+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-03-19 15:39:52.277+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-03-19 15:39:52.390+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 19 migrations (execution time 00:00.071s)
+2026-03-19 15:39:52.404+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 16
+2026-03-19 15:39:52.405+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-03-19 15:39:52.415+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-03-19 15:39:52.568+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-03-19 15:39:52.710+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-03-19 15:39:52.792+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-03-19 15:39:53.340+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-19 15:39:56.497+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-19 15:39:56.506+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-19 15:39:56.784+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-03-19 15:39:58.114+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\config\shared
+2026-03-19 15:39:58.922+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-19 15:40:00.458+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-03-19 15:40:00.848+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db
+2026-03-19 15:40:00.913+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-19 15:40:01.830+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@d4fe4d, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@27e4ca66, org.springframework.security.web.context.SecurityContextHolderFilter@41c77559, org.springframework.security.web.header.HeaderWriterFilter@1f5d72f, org.springframework.web.filter.CorsFilter@36c6509c, org.springframework.security.web.csrf.CsrfFilter@63cb06df, com.example.panel.security.SecurityHeadersFilter@291a4791, org.springframework.security.web.authentication.logout.LogoutFilter@4b969bd9, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@421a752b, org.springframework.security.web.session.ConcurrentSessionFilter@4a536b4e, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@31e5f3f0, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@47c62b8e, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@5c8b6b4d, org.springframework.security.web.session.SessionManagementFilter@72cdb111, org.springframework.security.web.access.ExceptionTranslationFilter@43f50bfe, org.springframework.security.web.access.intercept.AuthorizationFilter@5a8fb312]
+2026-03-19 15:40:02.923+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-03-19 15:40:02.951+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-03-19 15:40:02.985+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 17.288 seconds (process running for 18.245)
+2026-03-19 15:40:03.005+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases
+2026-03-19 15:40:03.007+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot
+2026-03-19 15:40:03.077+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:40:03.147+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-03-19 15:40:03.148+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-03-19 15:40:03.164+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\clients.db
+2026-03-19 15:40:03.170+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-03-19 15:40:03.177+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\objects.db
+2026-03-19 15:40:12.606+03:00 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-19 15:40:12.618+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-19 15:40:12.634+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 5 ms
+2026-03-19 15:40:12.870+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:40:13.013+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:40:14.529+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ManagementController - Loaded settings for user admin: 0 app settings, 0 system parameters
+2026-03-19 15:40:15.805+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:40:16.299+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:40:30.720+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:40:31.200+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:40:45.729+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:40:46.198+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:00.717+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:01.195+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:15.744+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:16.207+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:30.725+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:31.207+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:45.723+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:41:46.200+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:00.713+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:01.199+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:03.090+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:42:15.741+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:16.211+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:30.723+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:31.196+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:45.723+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:42:46.215+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:00.715+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:01.198+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:15.725+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:16.210+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:30.725+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:31.201+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:45.721+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:43:46.202+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:00.717+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:01.197+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:03.101+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:44:15.724+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:16.201+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:30.713+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:31.201+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:45.720+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:44:46.203+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:00.714+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:01.202+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:15.723+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:16.202+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:30.720+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:31.199+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:45.729+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:45:46.207+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:00.714+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:01.202+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:03.112+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:46:15.719+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:16.210+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:30.720+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:31.203+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:45.726+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:46:46.198+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:47:00.716+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:47:01.200+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:47:15.717+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:47:16.206+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:47:30.724+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:47:30.896+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-03-19 15:47:30.907+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-19 15:54:09.902+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-03-19 15:54:10.031+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-03-19 15:54:10.040+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-03-19 15:54:10.043+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-03-19 15:54:10.051+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 8080 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel)
+2026-03-19 15:54:10.053+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-19 15:54:12.018+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-19 15:54:12.343+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 283 ms. Found 31 JPA repository interfaces.
+2026-03-19 15:54:14.105+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-03-19 15:54:14.125+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-03-19 15:54:14.132+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-19 15:54:14.133+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-03-19 15:54:14.298+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-19 15:54:14.301+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 4143 ms
+2026-03-19 15:54:14.636+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-03-19 15:54:15.177+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-03-19 15:54:15.303+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 19 migrations (execution time 00:00.077s)
+2026-03-19 15:54:15.319+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 16
+2026-03-19 15:54:15.321+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-03-19 15:54:15.331+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-03-19 15:54:15.502+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-03-19 15:54:15.651+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-03-19 15:54:15.740+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-03-19 15:54:16.305+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-19 15:54:19.157+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-19 15:54:19.166+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-19 15:54:19.446+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-03-19 15:54:20.641+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\config\shared
+2026-03-19 15:54:21.380+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-19 15:54:22.848+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-03-19 15:54:23.265+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db
+2026-03-19 15:54:23.350+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-19 15:54:24.248+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@27e4ca66, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@36c6509c, org.springframework.security.web.context.SecurityContextHolderFilter@196d7c9e, org.springframework.security.web.header.HeaderWriterFilter@198cf325, org.springframework.web.filter.CorsFilter@5c8b6b4d, org.springframework.security.web.csrf.CsrfFilter@6de06606, com.example.panel.security.SecurityHeadersFilter@5b1e88f, org.springframework.security.web.authentication.logout.LogoutFilter@caf0e10, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@76339283, org.springframework.security.web.session.ConcurrentSessionFilter@70bdc9df, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@47c62b8e, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@3dd1f392, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@7b0ad007, org.springframework.security.web.session.SessionManagementFilter@eba3009, org.springframework.security.web.access.ExceptionTranslationFilter@35e92c45, org.springframework.security.web.access.intercept.AuthorizationFilter@421a752b]
+2026-03-19 15:54:25.428+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-03-19 15:54:25.452+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-03-19 15:54:25.482+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 16.769 seconds (process running for 17.623)
+2026-03-19 15:54:25.501+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases
+2026-03-19 15:54:25.503+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot
+2026-03-19 15:54:25.589+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:54:25.674+03:00 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-19 15:54:25.675+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-19 15:54:25.677+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-03-19 15:54:25.682+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-03-19 15:54:25.683+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-03-19 15:54:25.711+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\clients.db
+2026-03-19 15:54:25.716+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-03-19 15:54:25.724+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\objects.db
+2026-03-19 15:54:26.009+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:54:26.077+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:54:30.719+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:54:31.203+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:54:34.360+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ManagementController - Loaded settings for user admin: 0 app settings, 0 system parameters
+2026-03-19 15:54:35.910+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:54:36.252+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:54:36.399+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 0 channels
+2026-03-19 15:54:50.621+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:54:51.124+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:00.854+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 1 channels
+2026-03-19 15:55:05.608+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:06.123+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:06.976+03:00 WARN  [http-nio-8080-exec-1] c.e.panel.service.BotProcessService - PID file not found for channel 1
+2026-03-19 15:55:06.978+03:00 INFO  [http-nio-8080-exec-1] c.e.panel.service.BotProcessService - Stopped bot process for channel 1
+2026-03-19 15:55:07.085+03:00 INFO  [http-nio-8080-exec-1] c.e.panel.service.BotProcessService - Started bot process for channel 1 at 2026-03-19T15:55:07.082865200+03:00
+2026-03-19 15:55:20.605+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:21.120+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:35.653+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:36.124+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:50.611+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:55:51.130+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:05.607+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:06.131+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:21.470+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:21.519+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:25.607+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:56:36.454+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:36.630+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:51.458+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:56:51.512+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:05.630+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:06.136+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:08.936+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ManagementController - Loaded 0 tasks for user admin
+2026-03-19 15:57:09.268+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:09.356+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.TaskApiController - Tasks list requested: page=1, size=20, sort=last_activity_at desc, returned 0 items of 0
+2026-03-19 15:57:09.364+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:09.902+03:00 WARN  [http-nio-8080-exec-2] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:09.907+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:57:10.232+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:10.309+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:57:18.212+03:00 WARN  [http-nio-8080-exec-3] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:18.224+03:00 INFO  [http-nio-8080-exec-3] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:57:19.154+03:00 WARN  [http-nio-8080-exec-2] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:19.157+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:57:19.433+03:00 INFO  [http-nio-8080-exec-6] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:57:19.436+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:27.398+03:00 WARN  [http-nio-8080-exec-3] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:27.403+03:00 INFO  [http-nio-8080-exec-3] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:57:34.340+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:35.396+03:00 WARN  [http-nio-8080-exec-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:35.401+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:57:43.400+03:00 WARN  [http-nio-8080-exec-8] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:43.405+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:57:49.334+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:57:51.403+03:00 WARN  [http-nio-8080-exec-9] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:51.409+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:57:59.401+03:00 WARN  [http-nio-8080-exec-5] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:57:59.406+03:00 INFO  [http-nio-8080-exec-5] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:58:04.469+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:19.459+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:25.631+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:34.462+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:36.568+03:00 WARN  [http-nio-8080-exec-9] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:36.571+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:36.832+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:36.839+03:00 INFO  [http-nio-8080-exec-7] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:37.761+03:00 WARN  [http-nio-8080-exec-10] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:37.764+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:38.024+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:38.039+03:00 INFO  [http-nio-8080-exec-7] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:39.306+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ManagementController - Loaded 0 tasks for user admin
+2026-03-19 15:58:39.505+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:39.587+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.TaskApiController - Tasks list requested: page=1, size=20, sort=last_activity_at desc, returned 0 items of 0
+2026-03-19 15:58:39.588+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:40.623+03:00 WARN  [http-nio-8080-exec-2] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:40.624+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:40.872+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:40.922+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:41.845+03:00 WARN  [http-nio-8080-exec-2] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:41.848+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:42.086+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:42.094+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:42.666+03:00 WARN  [http-nio-8080-exec-2] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:42.668+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:42.905+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:42.934+03:00 WARN  [http-nio-8080-exec-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:42.937+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:43.033+03:00 INFO  [http-nio-8080-exec-3] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:43.279+03:00 WARN  [http-nio-8080-exec-4] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:43.331+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:43.340+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:43.383+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:43.614+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:43.633+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:43.682+03:00 WARN  [http-nio-8080-exec-8] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:43.683+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:43.942+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:43.983+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:44.180+03:00 WARN  [http-nio-8080-exec-9] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:44.182+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:44.449+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:44.462+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:44.498+03:00 WARN  [http-nio-8080-exec-5] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:44.501+03:00 INFO  [http-nio-8080-exec-5] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:58:44.851+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:58:44.856+03:00 INFO  [http-nio-8080-exec-6] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:58:52.774+03:00 WARN  [http-nio-8080-exec-5] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:58:52.779+03:00 INFO  [http-nio-8080-exec-5] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:58:59.699+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:59:00.776+03:00 WARN  [http-nio-8080-exec-4] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:59:00.781+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:59:04.723+03:00 WARN  [http-nio-8080-exec-10] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:59:04.725+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:59:05.076+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:59:05.247+03:00 INFO  [http-nio-8080-exec-3] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:59:07.612+03:00 WARN  [http-nio-8080-exec-10] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:59:07.614+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:59:08.043+03:00 INFO  [http-nio-8080-exec-6] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:59:08.131+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:59:11.267+03:00 WARN  [http-nio-8080-exec-3] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:59:11.269+03:00 INFO  [http-nio-8080-exec-3] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:59:11.688+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:59:11.777+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:59:16.902+03:00 WARN  [http-nio-8080-exec-10] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:59:16.904+03:00 INFO  [http-nio-8080-exec-10] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-03-19 15:59:17.162+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:59:17.165+03:00 INFO  [http-nio-8080-exec-5] c.e.p.controller.DialogApiController - Workspace telemetry: actor='admin', event='workspace_experiment_exposure', group='experiment', ticket='null', reason='experiment_disabled', error='null', contract='null', durationMs=null, experiment='workspace_v1_rollout', cohort='disabled', segment='all_operators', primaryKpis='[FRT, TTR, SLA breach %]', secondaryKpis='[Dialogs per operator / shift, CSAT, UI error-rate]', templateId='null', templateName='null'
+2026-03-19 15:59:25.145+03:00 WARN  [http-nio-8080-exec-4] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 15:59:25.150+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 15:59:32.100+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 15:59:33.133+03:00 WARN  [http-nio-8080-exec-9] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
