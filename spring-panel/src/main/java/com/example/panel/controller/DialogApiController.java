@@ -2335,19 +2335,19 @@ public class DialogApiController {
         List<String> requiredFields = mergeWorkspaceRequiredClientAttributes(globalRequiredFields, segmentRequiredFields, activeSegments);
         Instant checkedAt = Instant.now();
         if (requiredFields.isEmpty()) {
-            return Map.of(
-                    "enabled", false,
-                    "ready", true,
-                    "coverage_pct", 100,
-                    "checked_at", checkedAt.toString(),
-                    "checked_at_utc", checkedAt.toString(),
-                    "required_fields", List.of(),
-                    "global_required_fields", List.of(),
-                    "segment_required_fields", Map.of(),
-                    "active_segments", activeSegments,
-                    "missing_fields", List.of(),
-                    "missing_field_labels", List.of()
-            );
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("enabled", false);
+            payload.put("ready", true);
+            payload.put("coverage_pct", 100);
+            payload.put("checked_at", checkedAt.toString());
+            payload.put("checked_at_utc", checkedAt.toString());
+            payload.put("required_fields", List.of());
+            payload.put("global_required_fields", List.of());
+            payload.put("segment_required_fields", Map.of());
+            payload.put("active_segments", activeSegments);
+            payload.put("missing_fields", List.of());
+            payload.put("missing_field_labels", List.of());
+            return payload;
         }
         Map<String, String> labelMap = new LinkedHashMap<>();
         if (configuredLabels != null) {
