@@ -183,12 +183,12 @@ public class DialogService {
                            ELSE 0
                        END AS unread_count
                   FROM tickets t
-                  LEFT JOIN messages m ON m.id = (
-                      SELECT m2.id
+                  LEFT JOIN messages m ON m.group_msg_id = (
+                      SELECT m2.group_msg_id
                         FROM messages m2
                        WHERE m2.ticket_id = t.ticket_id
                        ORDER BY substr(m2.created_at, 1, 19) DESC,
-                                m2.id DESC
+                                m2.group_msg_id DESC
                        LIMIT 1
                   )
                   LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
@@ -308,12 +308,12 @@ public class DialogService {
                                ELSE 0
                            END AS unread_count
                       FROM tickets t
-                      LEFT JOIN messages m ON m.id = (
-                          SELECT m2.id
+                      LEFT JOIN messages m ON m.group_msg_id = (
+                          SELECT m2.group_msg_id
                             FROM messages m2
                            WHERE m2.ticket_id = t.ticket_id
                            ORDER BY substr(m2.created_at, 1, 19) DESC,
-                                    m2.id DESC
+                                    m2.group_msg_id DESC
                            LIMIT 1
                       )
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
