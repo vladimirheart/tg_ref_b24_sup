@@ -1779,6 +1779,11 @@ public class DialogApiController {
                                                        @RequestParam(name = "experiment_name", required = false) String experimentName) {
         int safeDays = days != null ? days : 7;
         Map<String, Object> payload = new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(safeDays, experimentName));
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Map<String, Object> slaPolicyAudit = slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(
+                dialogService.loadDialogs(null),
+                settings);
+        payload.put("sla_policy_audit", slaPolicyAudit != null ? slaPolicyAudit : Map.of());
         payload.put("success", true);
         return ResponseEntity.ok(payload);
     }
