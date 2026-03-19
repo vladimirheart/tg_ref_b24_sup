@@ -54,6 +54,7 @@ import java.util.Map;
         }
 
         Path normalized = properties.getNormalizedPath();
+        String url = properties.buildJdbcUrl();
         log.info("Using SQLite database at {}", normalized);
 
         SQLiteConfig config = new SQLiteConfig();
@@ -62,7 +63,7 @@ import java.util.Map;
         config.setDateStringFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
         SQLiteDataSource dataSource = new SQLiteDataSource(config);
-        dataSource.setUrl("jdbc:sqlite:" + normalized);
+        dataSource.setUrl(url);
         registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
         registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
         return dataSource;
