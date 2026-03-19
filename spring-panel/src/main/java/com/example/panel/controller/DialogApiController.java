@@ -2105,6 +2105,18 @@ public class DialogApiController {
         return normalized.isEmpty() ? null : normalized;
     }
 
+    private int resolveIntegerDialogConfigValue(Object rawValue, int fallbackValue, int min, int max) {
+        if (rawValue == null) {
+            return fallbackValue;
+        }
+        try {
+            int parsed = Integer.parseInt(String.valueOf(rawValue).trim());
+            return Math.max(min, Math.min(max, parsed));
+        } catch (NumberFormatException ex) {
+            return fallbackValue;
+        }
+    }
+
     private String normalizeMacroVariableKey(String rawValue) {
         String value = trimToNull(rawValue);
         if (value == null) {
@@ -2317,14 +2329,22 @@ public class DialogApiController {
     private Map<String, Object> buildWorkspaceProfileHealth(Map<String, Object> settings,
                                                             Map<String, Object> workspaceClient,
                                                             Map<String, String> configuredLabels) {
-        List<String> requiredFields = resolveWorkspaceRequiredClientAttributes(settings);
+        List<String> globalRequiredFields = resolveWorkspaceRequiredClientAttributes(settings);
+        Map<String, List<String>> segmentRequiredFields = resolveWorkspaceRequiredClientAttributesBySegment(settings);
+        List<String> activeSegments = resolveWorkspaceClientSegments(workspaceClient);
+        List<String> requiredFields = mergeWorkspaceRequiredClientAttributes(globalRequiredFields, segmentRequiredFields, activeSegments);
+        Instant checkedAt = Instant.now();
         if (requiredFields.isEmpty()) {
             return Map.of(
                     "enabled", false,
                     "ready", true,
                     "coverage_pct", 100,
-                    "checked_at", Instant.now().toString(),
+                    "checked_at", checkedAt.toString(),
+                    "checked_at_utc", checkedAt.toString(),
                     "required_fields", List.of(),
+                    "global_required_fields", List.of(),
+                    "segment_required_fields", Map.of(),
+                    "active_segments", activeSegments,
                     "missing_fields", List.of(),
                     "missing_field_labels", List.of()
             );
@@ -2366,15 +2386,85 @@ public class DialogApiController {
         int coveragePct = totalRequired > 0
                 ? (int) Math.round((readyCount * 100d) / totalRequired)
                 : 100;
-        return Map.of(
-                "enabled", true,
-                "ready", missingFields.isEmpty(),
-                "coverage_pct", Math.max(0, Math.min(100, coveragePct)),
-                "checked_at", Instant.now().toString(),
-                "required_fields", requiredFields,
-                "missing_fields", missingFields,
-                "missing_field_labels", missingFieldLabels
-        );
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("enabled", true);
+        payload.put("ready", missingFields.isEmpty());
+        payload.put("coverage_pct", Math.max(0, Math.min(100, coveragePct)));
+        payload.put("checked_at", checkedAt.toString());
+        payload.put("checked_at_utc", checkedAt.toString());
+        payload.put("required_fields", requiredFields);
+        payload.put("global_required_fields", globalRequiredFields);
+        payload.put("segment_required_fields", segmentRequiredFields);
+        payload.put("active_segments", activeSegments);
+        payload.put("missing_fields", missingFields);
+        payload.put("missing_field_labels", missingFieldLabels);
+        return payload;
+    }
+
+    private List<String> resolveWorkspaceClientSegments(Map<String, Object> workspaceClient) {
+        if (workspaceClient == null || workspaceClient.isEmpty()) {
+            return List.of();
+        }
+        Object segmentsRaw = workspaceClient.get("segments");
+        if (!(segmentsRaw instanceof List<?> segments)) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>();
+        segments.forEach(item -> appendNormalizedContextSource(normalized, item));
+        return normalized;
+    }
+
+    private Map<String, List<String>> resolveWorkspaceRequiredClientAttributesBySegment(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return Map.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return Map.of();
+        }
+        Object rawValue = dialogConfig.get("workspace_required_client_attributes_by_segment");
+        if (!(rawValue instanceof Map<?, ?> rawMap)) {
+            return Map.of();
+        }
+        Map<String, List<String>> normalized = new LinkedHashMap<>();
+        rawMap.forEach((segmentRaw, attributesRaw) -> {
+            String segmentKey = normalizeMacroVariableKey(String.valueOf(segmentRaw));
+            if (!StringUtils.hasText(segmentKey)) {
+                return;
+            }
+            List<String> attributes = normalizeWorkspaceClientAttributeList(attributesRaw);
+            if (!attributes.isEmpty()) {
+                normalized.put(segmentKey, attributes);
+            }
+        });
+        return normalized;
+    }
+
+    private List<String> mergeWorkspaceRequiredClientAttributes(List<String> globalRequiredFields,
+                                                                Map<String, List<String>> segmentRequiredFields,
+                                                                List<String> activeSegments) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        if (globalRequiredFields != null) {
+            merged.addAll(globalRequiredFields);
+        }
+        if (segmentRequiredFields != null && !segmentRequiredFields.isEmpty() && activeSegments != null) {
+            activeSegments.forEach(segment -> merged.addAll(segmentRequiredFields.getOrDefault(segment, List.of())));
+        }
+        return new ArrayList<>(merged);
+    }
+
+    private List<String> normalizeWorkspaceClientAttributeList(Object rawValue) {
+        List<String> normalized = new ArrayList<>();
+        if (rawValue instanceof List<?> values) {
+            values.forEach(item -> appendNormalizedContextSource(normalized, item));
+            return normalized;
+        }
+        if (rawValue != null) {
+            for (String part : String.valueOf(rawValue).split(",")) {
+                appendNormalizedContextSource(normalized, part);
+            }
+        }
+        return normalized;
     }
 
     private boolean hasWorkspaceProfileValue(Object value) {
@@ -2438,7 +2528,8 @@ public class DialogApiController {
         List<String> configuredOrder = resolveWorkspaceContextSourcePriority(settings);
         Map<String, String> configuredLabels = resolveWorkspaceContextSourceLabels(settings);
         Map<String, List<String>> configuredUpdatedAtAttributes = resolveWorkspaceContextSourceUpdatedAtAttributes(settings);
-        int staleAfterHours = resolveWorkspaceContextSourceStaleAfterHours(settings);
+        int defaultStaleAfterHours = resolveWorkspaceContextSourceStaleAfterHours(settings);
+        Map<String, Integer> sourceSpecificStaleAfterHours = resolveWorkspaceContextSourceStaleAfterHoursBySource(settings, defaultStaleAfterHours);
 
         LinkedHashSet<String> sourceKeys = new LinkedHashSet<>();
         sourceKeys.add("local");
@@ -2472,6 +2563,7 @@ public class DialogApiController {
             boolean available = "local".equals(normalizedKey)
                     || !matchedAttributes.isEmpty()
                     || linked;
+            int staleAfterHours = sourceSpecificStaleAfterHours.getOrDefault(normalizedKey, defaultStaleAfterHours);
 
             TimestampResolution timestampResolution = resolveWorkspaceContextSourceTimestamp(
                     normalizedKey,
@@ -2511,6 +2603,7 @@ public class DialogApiController {
             source.put("matched_attributes", matchedAttributes);
             source.put("matched_attribute_count", matchedAttributes.size());
             source.put("freshness_ttl_hours", staleAfterHours > 0 ? staleAfterHours : null);
+            source.put("freshness_policy_scope", sourceSpecificStaleAfterHours.containsKey(normalizedKey) ? "source" : "global");
             source.put("issues", issues);
             if (timestampResolution.attributeKey() != null) {
                 source.put("updated_at_attribute", timestampResolution.attributeKey());
@@ -2546,7 +2639,8 @@ public class DialogApiController {
                 || dialogConfig.containsKey("workspace_client_context_source_labels")
                 || dialogConfig.containsKey("workspace_client_context_source_priority")
                 || dialogConfig.containsKey("workspace_client_context_source_updated_at_attributes")
-                || dialogConfig.containsKey("workspace_client_context_source_stale_after_hours");
+                || dialogConfig.containsKey("workspace_client_context_source_stale_after_hours")
+                || dialogConfig.containsKey("workspace_client_context_source_stale_after_hours_by_source");
     }
 
     private List<Map<String, Object>> buildWorkspaceContextBlocks(Map<String, Object> settings,
@@ -3022,6 +3116,30 @@ public class DialogApiController {
             return 0;
         }
         return resolveIntegerDialogConfig(dialogConfig, "workspace_client_context_source_stale_after_hours", 0, 0, 24 * 365);
+    }
+
+    private Map<String, Integer> resolveWorkspaceContextSourceStaleAfterHoursBySource(Map<String, Object> settings,
+                                                                                       int fallbackValue) {
+        if (settings == null || settings.isEmpty()) {
+            return Map.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return Map.of();
+        }
+        Object rawValue = dialogConfig.get("workspace_client_context_source_stale_after_hours_by_source");
+        if (!(rawValue instanceof Map<?, ?> rawMap)) {
+            return Map.of();
+        }
+        Map<String, Integer> normalized = new LinkedHashMap<>();
+        rawMap.forEach((sourceRaw, ttlRaw) -> {
+            String sourceKey = normalizeMacroVariableKey(String.valueOf(sourceRaw));
+            if (!StringUtils.hasText(sourceKey)) {
+                return;
+            }
+            normalized.put(sourceKey, resolveIntegerDialogConfigValue(ttlRaw, fallbackValue, 0, 24 * 365));
+        });
+        return normalized;
     }
 
     private TimestampResolution resolveWorkspaceContextSourceTimestamp(String sourceKey,
