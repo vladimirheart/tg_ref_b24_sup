@@ -102,7 +102,7 @@ public class DialogService {
             );
             return new DialogSummary(total, resolved, pending, channelStats);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialog summary, returning empty view: {}", ex.getMessage());
+            log.warn("Unable to load dialog summary, returning empty view: {}", summarizeDataAccessException(ex));
             return new DialogSummary(0, 0, 0, List.of());
         }
     }
@@ -227,7 +227,7 @@ public class DialogService {
                     rs.getString("categories")
             ), currentOperator);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialogs, returning empty list: {}", ex.getMessage());
+            log.warn("Unable to load dialogs, returning empty list: {}", summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -354,7 +354,7 @@ public class DialogService {
             ), operator, ticketId);
             return items.isEmpty() ? Optional.empty() : Optional.of(items.get(0));
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialog {} details: {}", ticketId, ex.getMessage());
+            log.warn("Unable to load dialog {} details: {}", ticketId, summarizeDataAccessException(ex));
             return Optional.empty();
         }
     }
@@ -371,7 +371,7 @@ public class DialogService {
                     ticketId, username, username, ticketId
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
         }
     }
 
@@ -393,7 +393,7 @@ public class DialogService {
                     operator
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, ex.getMessage());
+            log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, summarizeDataAccessException(ex));
         }
     }
 
@@ -416,7 +416,7 @@ public class DialogService {
                 );
             }
         } catch (DataAccessException ex) {
-            log.warn("Unable to update responsible for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to update responsible for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
         }
     }
 
@@ -496,7 +496,7 @@ public class DialogService {
             }
             return history;
         } catch (DataAccessException ex) {
-            log.warn("Unable to load chat history for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to load chat history for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -529,7 +529,7 @@ public class DialogService {
                 return historyItem;
             }, userId, currentTicketId, currentTicketId, limit);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load client dialog history for user {}: {}", userId, ex.getMessage());
+            log.warn("Unable to load client dialog history for user {}: {}", userId, summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -568,7 +568,7 @@ public class DialogService {
                 return enrichment;
             }, userId);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load client profile enrichment for user {}: {}", userId, ex.getMessage());
+            log.warn("Unable to load client profile enrichment for user {}: {}", userId, summarizeDataAccessException(ex));
             return Map.of();
         }
     }
@@ -621,7 +621,7 @@ public class DialogService {
                     """;
             return mapRelatedEvents(sqlWithAudit, ticketId, ticketId, ticketId, limit);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load related events with audit trail for ticket {}: {}. Fallback to legacy events.", ticketId, ex.getMessage());
+            log.warn("Unable to load related events with audit trail for ticket {}: {}. Fallback to legacy events.", ticketId, summarizeDataAccessException(ex));
             try {
             String sql = """
                     SELECT actor, event_at, event_type, action, result, detail
@@ -656,7 +656,7 @@ public class DialogService {
                     """;
                 return mapRelatedEvents(sql, ticketId, ticketId, limit);
             } catch (DataAccessException fallbackEx) {
-                log.warn("Unable to load related events for ticket {}: {}", ticketId, fallbackEx.getMessage());
+                log.warn("Unable to load related events for ticket {}: {}", ticketId, summarizeDataAccessException(fallbackEx));
                 return List.of();
             }
         }
@@ -677,7 +677,7 @@ public class DialogService {
                     StringUtils.hasText(result) ? result.trim() : "unknown",
                     StringUtils.hasText(detail) ? detail.trim() : null);
         } catch (DataAccessException ex) {
-            log.warn("Unable to persist dialog action audit for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to persist dialog action audit for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
         }
     }
 
@@ -723,7 +723,7 @@ public class DialogService {
                     trimOrNull(templateId),
                     trimOrNull(templateName));
         } catch (DataAccessException ex) {
-            log.warn("Unable to persist workspace telemetry event '{}': {}", eventType, ex.getMessage());
+            log.warn("Unable to persist workspace telemetry event '{}': {}", eventType, summarizeDataAccessException(ex));
         }
     }
 
@@ -3479,7 +3479,7 @@ public class DialogService {
                 return item;
             }, cutoffStart, cutoffEnd, filterExperiment, filterExperiment);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace telemetry summary: {}", ex.getMessage());
+            log.warn("Unable to load workspace telemetry summary: {}", summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -3539,7 +3539,7 @@ public class DialogService {
             }, Timestamp.from(windowStart), Timestamp.from(windowEnd), eventType, filterExperiment, filterExperiment);
             return aggregateWorkspaceGapReasons(rawRows);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace gap breakdown for {}: {}", eventType, ex.getMessage());
+            log.warn("Unable to load workspace gap breakdown for {}: {}", eventType, summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -3656,6 +3656,26 @@ public class DialogService {
         return safeAction + ": " + safeResult + " (" + detail.trim() + ")";
     }
 
+    static String summarizeDataAccessException(DataAccessException ex) {
+        Throwable mostSpecificCause = ex.getMostSpecificCause();
+        if (mostSpecificCause != null && StringUtils.hasText(mostSpecificCause.getMessage())) {
+            return singleLine(mostSpecificCause.getMessage());
+        }
+        String message = ex.getMessage();
+        if (!StringUtils.hasText(message)) {
+            return ex.getClass().getSimpleName();
+        }
+        int sqlIndex = message.indexOf(" for SQL [");
+        if (sqlIndex >= 0) {
+            message = message.substring(0, sqlIndex);
+        }
+        return singleLine(message);
+    }
+
+    private static String singleLine(String value) {
+        return value.replaceAll("\\s+", " ").trim();
+    }
+
     private Set<String> loadTableColumns(String tableName) {
         try {
             return jdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
@@ -3677,7 +3697,7 @@ public class DialogService {
                 return columns;
             });
         } catch (DataAccessException ex) {
-            log.warn("Unable to inspect {} columns: {}", tableName, ex.getMessage());
+            log.warn("Unable to inspect {} columns: {}", tableName, summarizeDataAccessException(ex));
             return Set.of();
         }
     }
@@ -3693,7 +3713,7 @@ public class DialogService {
                     ticketId
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to load categories for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to load categories for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -3713,7 +3733,7 @@ public class DialogService {
                 );
             }
         } catch (DataAccessException ex) {
-            log.warn("Unable to set categories for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to set categories for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
         }
     }
 
@@ -3748,7 +3768,7 @@ public class DialogService {
             }
             return new ResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
-            log.warn("Unable to resolve ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to resolve ticket {}: {}", ticketId, summarizeDataAccessException(ex));
             return new ResolveResult(false, false, null);
         }
     }
@@ -3792,7 +3812,7 @@ public class DialogService {
                     source
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to ensure pending feedback request for ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to ensure pending feedback request for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
         }
     }
 
@@ -3824,7 +3844,7 @@ public class DialogService {
             }
             return new ResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
-            log.warn("Unable to reopen ticket {}: {}", ticketId, ex.getMessage());
+            log.warn("Unable to reopen ticket {}: {}", ticketId, summarizeDataAccessException(ex));
             return new ResolveResult(false, false, null);
         }
     }
