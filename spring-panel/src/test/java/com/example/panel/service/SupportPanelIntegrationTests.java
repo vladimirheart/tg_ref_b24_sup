@@ -95,8 +95,8 @@ class SupportPanelIntegrationTests {
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 1001L, "T-1", "pending", 1);
         jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, business, city, location_name, problem, created_at, username, ticket_id, created_date, created_time, client_name, client_status, updated_at, updated_by, channel_id) " +
-                        "VALUES (NULL, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, 'tester', ?)",
-                1001L, "Food", "Москва", "Пиццерия", "Не работает терминал", "ivan", "T-1", "Иван", "VIP", 1);
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'tester', ?)",
+                7001L, 1001L, "Food", "Москва", "Пиццерия", "Не работает терминал", "2026-03-19T13:40:00", "ivan", "T-1", "2026-03-19", "13:40:00", "Иван", "VIP", 1);
         jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
                 1001L, "user", "Добрый день", OffsetDateTime.now().toString(), "T-1", "text", 1);
 
@@ -104,6 +104,18 @@ class SupportPanelIntegrationTests {
         assertThat(summary.totalTickets()).isEqualTo(1);
         assertThat(summary.pendingTickets()).isEqualTo(1);
         assertThat(summary.channelStats()).extracting("name").contains("Demo");
+
+        assertThat(dialogService.loadDialogs(null))
+                .singleElement()
+                .satisfies(dialog -> {
+                    assertThat(dialog.ticketId()).isEqualTo("T-1");
+                    assertThat(dialog.requestNumber()).isEqualTo(7001L);
+                    assertThat(dialog.clientName()).isEqualTo("Иван");
+                });
+
+        assertThat(dialogService.findDialog("T-1", null))
+                .get()
+                .satisfies(dialog -> assertThat(dialog.requestNumber()).isEqualTo(7001L));
 
         DialogDetails details = dialogService.loadDialogDetails("T-1", 1L, null).orElseThrow();
         assertThat(details.summary().clientName()).isEqualTo("Иван");
