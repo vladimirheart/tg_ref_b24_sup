@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class SlaEscalationWebhookNotifierTest {
 
@@ -197,6 +198,49 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("urgent_hot_queue", decisions.get(0).route());
         assertEquals("fallback_duty", decisions.get(1).assignee());
         assertEquals("fallback_default", decisions.get(1).route());
+    }
+
+    @Test
+    void buildRoutingPolicySnapshotUsesRulePreviewInMonitorMode() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Instant now = Instant.now();
+
+        DialogListItem dialog = dialog("T-POLICY", now.minusSeconds(23 * 60 * 60 + 50 * 60).toString(), "open", null);
+        Map<String, Object> settings = Map.of(
+                "dialog_config", Map.of(
+                        "sla_target_minutes", 1440,
+                        "sla_critical_minutes", 30,
+                        "sla_critical_orchestration_mode", "monitor",
+                        "sla_critical_auto_assign_enabled", true,
+                        "sla_critical_auto_assign_to", "fallback_duty",
+                        "sla_critical_auto_assign_rules", List.of(
+                                Map.of("rule_id", "tg_hot", "match_channel", "telegram", "assign_to", "tg_duty")
+                        )
+                )
+        );
+
+        Map<String, Object> payload = notifier.buildRoutingPolicySnapshot(dialog, settings);
+        assertEquals("ready", payload.get("status"));
+        assertEquals("monitor", payload.get("action"));
+        assertEquals("tg_hot", payload.get("route"));
+        assertEquals("tg_duty", payload.get("recommended_assignee"));
+    }
+
+    @Test
+    void buildRoutingPolicySnapshotReturnsInvalidUtcWhenCreatedAtBroken() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        DialogListItem dialog = dialog("T-BROKEN", "not-a-date", "open", null);
+        Map<String, Object> payload = notifier.buildRoutingPolicySnapshot(dialog, Map.of(
+                "dialog_config", Map.of(
+                        "sla_target_minutes", 1440,
+                        "sla_critical_minutes", 30
+                )
+        ));
+
+        assertEquals("invalid_utc", payload.get("status"));
+        assertEquals("attention", payload.get("action"));
+        assertFalse((Boolean) payload.get("ready"));
     }
 
     @Test
