@@ -2864,3 +2864,15 @@ ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
 2026-03-19 15:59:25.150+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
 2026-03-19 15:59:32.100+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
 2026-03-19 15:59:33.133+03:00 WARN  [http-nio-8080-exec-9] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 16:00:07.446+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 16:00:22.443+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 16:00:25.644+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load dialogs, returning empty list: [SQLITE_ERROR] SQL error or missing database (no such column: t.created_at)
+2026-03-19 16:00:37.446+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 16:00:52.448+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 16:01:52.223+03:00 INFO  [http-nio-8080-exec-9] c.e.p.controller.DialogApiController - Loaded dialogs API payload: 0 dialogs, summary stats loaded
+2026-03-19 16:01:52.239+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 16:01:52.256+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 16:02:12.463+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-03-19 16:02:14.484+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-03-19 16:02:14.486+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 1 via shutdown
+2026-03-19 16:02:14.522+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
