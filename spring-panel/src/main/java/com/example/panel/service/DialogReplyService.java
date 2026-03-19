@@ -304,11 +304,11 @@ public class DialogReplyService {
     }
 
     public record DialogReplyResult(boolean success, String error, String timestamp, Long telegramMessageId) {
-        static DialogReplyResult error(String error) {
+        public static DialogReplyResult error(String error) {
             return new DialogReplyResult(false, error, null, null);
         }
 
-        static DialogReplyResult success(String timestamp, Long telegramMessageId) {
+        public static DialogReplyResult success(String timestamp, Long telegramMessageId) {
             return new DialogReplyResult(true, null, timestamp, telegramMessageId);
         }
     }
