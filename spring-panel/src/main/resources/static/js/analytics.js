@@ -443,6 +443,20 @@
     return rows.filter((row) => row && typeof row === 'object');
   }
 
+  function formatGapReason(reason) {
+    const normalized = String(reason || '').trim();
+    if (!normalized) {
+      return 'unspecified';
+    }
+    if (normalized.startsWith('field:')) {
+      return `Field: ${normalized.slice('field:'.length)}`;
+    }
+    if (normalized.startsWith('segment:')) {
+      return `Segment: ${normalized.slice('segment:'.length)}`;
+    }
+    return normalized;
+  }
+
   function renderGapBreakdownTable(tableNode, rows, emptyText) {
     if (!tableNode) {
       return;
@@ -454,7 +468,7 @@
     }
     tableNode.innerHTML = safeRows.map((row) => `
       <tr>
-        <td>${escapeHtml(row?.reason || 'unspecified')}</td>
+        <td>${escapeHtml(formatGapReason(row?.reason))}</td>
         <td class="text-end">${formatNumber(row?.events)}</td>
         <td class="text-end">${formatNumber(row?.tickets)}</td>
         <td class="small text-nowrap">${escapeHtml(formatTimestamp(row?.last_seen_at || ''))}</td>
