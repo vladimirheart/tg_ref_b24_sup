@@ -29,6 +29,17 @@
   const packetParityMeta = document.getElementById('workspaceTelemetryPacketParityMeta');
   const packetIncidentState = document.getElementById('workspaceTelemetryPacketIncidentState');
   const packetIncidentMeta = document.getElementById('workspaceTelemetryPacketIncidentMeta');
+  const slaPolicyAuditStatus = document.getElementById('workspaceTelemetrySlaPolicyAuditStatus');
+  const slaPolicyAuditUpdatedAt = document.getElementById('workspaceTelemetrySlaPolicyAuditUpdatedAt');
+  const slaPolicyAuditSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditSummary');
+  const slaPolicyAuditMeta = document.getElementById('workspaceTelemetrySlaPolicyAuditMeta');
+  const slaPolicyAuditLayers = document.getElementById('workspaceTelemetrySlaPolicyAuditLayers');
+  const slaPolicyAuditLayersMeta = document.getElementById('workspaceTelemetrySlaPolicyAuditLayersMeta');
+  const slaPolicyAuditPreview = document.getElementById('workspaceTelemetrySlaPolicyAuditPreview');
+  const slaPolicyAuditPreviewMeta = document.getElementById('workspaceTelemetrySlaPolicyAuditPreviewMeta');
+  const slaPolicyAuditIssueSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditIssueSummary');
+  const slaPolicyAuditIssuesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditIssuesTable');
+  const slaPolicyAuditRulesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditRulesTable');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -149,6 +160,41 @@
     }
     if (packetIncidentMeta) {
       packetIncidentMeta.textContent = '';
+    }
+    if (slaPolicyAuditStatus) {
+      slaPolicyAuditStatus.className = 'badge text-bg-secondary';
+      slaPolicyAuditStatus.textContent = 'Audit: —';
+    }
+    if (slaPolicyAuditUpdatedAt) {
+      slaPolicyAuditUpdatedAt.textContent = '';
+    }
+    if (slaPolicyAuditSummary) {
+      slaPolicyAuditSummary.textContent = '—';
+    }
+    if (slaPolicyAuditMeta) {
+      slaPolicyAuditMeta.textContent = '';
+    }
+    if (slaPolicyAuditLayers) {
+      slaPolicyAuditLayers.textContent = '—';
+    }
+    if (slaPolicyAuditLayersMeta) {
+      slaPolicyAuditLayersMeta.textContent = '';
+    }
+    if (slaPolicyAuditPreview) {
+      slaPolicyAuditPreview.textContent = '—';
+    }
+    if (slaPolicyAuditPreviewMeta) {
+      slaPolicyAuditPreviewMeta.textContent = '';
+    }
+    if (slaPolicyAuditIssueSummary) {
+      slaPolicyAuditIssueSummary.textContent = '';
+      slaPolicyAuditIssueSummary.classList.add('d-none');
+    }
+    if (slaPolicyAuditIssuesTable) {
+      slaPolicyAuditIssuesTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
+    }
+    if (slaPolicyAuditRulesTable) {
+      slaPolicyAuditRulesTable.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
     }
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
@@ -386,6 +432,141 @@
     }
   }
 
+  function formatIssueClassification(value) {
+    switch (String(value || '').toLowerCase()) {
+      case 'rollout_blocker':
+        return 'Rollout blocker';
+      case 'immediate_incident':
+        return 'Immediate incident';
+      case 'backlog_candidate':
+      default:
+        return 'Backlog candidate';
+    }
+  }
+
+  function renderSlaPolicyAudit(audit) {
+    const status = String(audit?.status || 'off').toLowerCase();
+    if (slaPolicyAuditStatus) {
+      slaPolicyAuditStatus.className = `badge ${statusBadgeClass(status)}`;
+      slaPolicyAuditStatus.textContent = `Audit: ${statusLabel(status)}`;
+    }
+    if (slaPolicyAuditUpdatedAt) {
+      slaPolicyAuditUpdatedAt.textContent = audit?.generated_at
+        ? `Сформировано: ${formatTimestamp(audit.generated_at)}`
+        : '';
+    }
+    if (slaPolicyAuditSummary) {
+      slaPolicyAuditSummary.textContent = audit?.summary || 'SLA policy audit недоступен.';
+    }
+    if (slaPolicyAuditMeta) {
+      slaPolicyAuditMeta.textContent = `rules=${formatNumber(audit?.rules_total || 0)} · critical candidates=${formatNumber(audit?.critical_candidates || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · mode=${escapeHtml(audit?.orchestration_mode || '—')}`;
+    }
+    const layerCounts = audit?.layer_counts && typeof audit.layer_counts === 'object' ? audit.layer_counts : {};
+    const layerEntries = Object.entries(layerCounts);
+    if (slaPolicyAuditLayers) {
+      slaPolicyAuditLayers.textContent = layerEntries.length
+        ? layerEntries.map(([layer, count]) => `${layer}:${formatNumber(count)}`).join(' · ')
+        : 'Layers не заданы';
+    }
+    if (slaPolicyAuditLayersMeta) {
+      const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
+      slaPolicyAuditLayersMeta.textContent = `require_layers=${requirements.require_layers === true ? 'on' : 'off'} · require_owner=${requirements.require_owner === true ? 'on' : 'off'} · require_review=${requirements.require_review === true ? `on (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'off'}`;
+    }
+    const preview = audit?.decision_preview && typeof audit.decision_preview === 'object' ? audit.decision_preview : {};
+    const selectedByLayer = preview.selected_by_layer && typeof preview.selected_by_layer === 'object' ? preview.selected_by_layer : {};
+    const selectedByRoute = preview.selected_by_route && typeof preview.selected_by_route === 'object' ? preview.selected_by_route : {};
+    if (slaPolicyAuditPreview) {
+      const previewEntries = Object.entries(selectedByLayer);
+      slaPolicyAuditPreview.textContent = previewEntries.length
+        ? previewEntries.map(([layer, count]) => `${layer}:${formatNumber(count)}`).join(' · ')
+        : 'Preview routing недоступен';
+    }
+    if (slaPolicyAuditPreviewMeta) {
+      const topRoutes = Object.entries(selectedByRoute)
+        .sort((left, right) => Number(right[1] || 0) - Number(left[1] || 0))
+        .slice(0, 3)
+        .map(([route, count]) => `${route}:${formatNumber(count)}`);
+      slaPolicyAuditPreviewMeta.textContent = topRoutes.length
+        ? `top routes: ${topRoutes.join(', ')}`
+        : 'Выбранные маршруты пока не определились.';
+    }
+
+    const issues = Array.isArray(audit?.issues) ? audit.issues : [];
+    if (slaPolicyAuditIssueSummary) {
+      const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
+      const parts = [];
+      if (audit?.summary) {
+        parts.push(String(audit.summary));
+      }
+      if (issues.length) {
+        parts.push(`Issues: ${issues.length}`);
+      }
+      parts.push(`conflicts_block=${requirements.block_on_conflicts === true ? 'on' : 'off'}`);
+      slaPolicyAuditIssueSummary.textContent = parts.join(' · ');
+      slaPolicyAuditIssueSummary.className = `alert ${status === 'hold' ? 'alert-danger' : (status === 'attention' ? 'alert-warning' : 'alert-secondary')} mb-3${parts.length ? '' : ' d-none'}`;
+      slaPolicyAuditIssueSummary.classList.toggle('d-none', parts.length === 0);
+    }
+    if (slaPolicyAuditIssuesTable) {
+      if (!issues.length) {
+        slaPolicyAuditIssuesTable.innerHTML = '<tr><td colspan="4" class="text-success text-center py-3">Governance-gap по SLA policy не найдено.</td></tr>';
+      } else {
+        slaPolicyAuditIssuesTable.innerHTML = issues.map((issue) => {
+          const ticketList = Array.isArray(issue?.tickets) && issue.tickets.length
+            ? ` · tickets: ${issue.tickets.join(', ')}`
+            : '';
+          const related = Array.isArray(issue?.related) && issue.related.length
+            ? `<div class="small text-muted">related: ${escapeHtml(issue.related.join(', '))}</div>`
+            : '';
+          return `
+            <tr>
+              <td>
+                <div class="fw-semibold">${escapeHtml(issue?.summary || issue?.type || '—')}</div>
+                <div class="small text-muted">${escapeHtml(issue?.type || '')}${ticketList ? escapeHtml(ticketList) : ''}</div>
+                ${related}
+              </td>
+              <td class="small">${escapeHtml(issue?.rule_id || '—')}</td>
+              <td><span class="badge ${statusBadgeClass(issue?.status)}">${escapeHtml(formatIssueClassification(issue?.classification))}</span></td>
+              <td class="small">${escapeHtml(issue?.detail || '—')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+    const rules = Array.isArray(audit?.rules) ? audit.rules : [];
+    if (slaPolicyAuditRulesTable) {
+      if (!rules.length) {
+        slaPolicyAuditRulesTable.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">Routing rules для audit не заданы.</td></tr>';
+      } else {
+        slaPolicyAuditRulesTable.innerHTML = rules.map((rule) => {
+          const issuesList = Array.isArray(rule?.issues) && rule.issues.length
+            ? `<div class="small text-muted">${escapeHtml(rule.issues.join(', '))}</div>`
+            : '';
+          const owner = String(rule?.owner || '').trim();
+          const reviewedAt = String(rule?.reviewed_at_utc || '').trim();
+          const reviewMeta = [];
+          if (owner) reviewMeta.push(`owner=${owner}`);
+          if (reviewedAt) reviewMeta.push(`UTC ${formatTimestamp(reviewedAt)}`);
+          if (rule?.reviewed_at_invalid_utc === true) reviewMeta.push('invalid_utc');
+          return `
+            <tr>
+              <td>
+                <div class="fw-semibold">${escapeHtml(rule?.rule_id || '—')}</div>
+                <div class="small text-muted">${escapeHtml(rule?.route || '')}</div>
+                ${issuesList}
+              </td>
+              <td class="small">${escapeHtml(rule?.layer || 'legacy')}</td>
+              <td><span class="badge ${statusBadgeClass(rule?.status)}">${statusLabel(rule?.status)}</span></td>
+              <td class="text-end">${formatNumber(rule?.matched_candidates)}</td>
+              <td class="text-end">${formatNumber(rule?.selected_candidates)}</td>
+              <td class="text-end">${formatRate(rule?.coverage_rate)}</td>
+              <td class="small">${escapeHtml(reviewMeta.join(' · ') || 'owner/review не заданы')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  }
+
   function buildRiskRows(payload, filters) {
     const rows = [];
     filteredRows(payload?.by_shift, 'shift', filters).forEach((row) => {
@@ -588,6 +769,30 @@
         item?.threshold || '',
         item?.measured_at || '',
         item?.note || '',
+      ]),
+      [],
+      ['sla_rule_id', 'layer', 'status', 'matched_candidates', 'selected_candidates', 'coverage_rate', 'owner', 'reviewed_at_utc', 'issues'],
+      ...(Array.isArray(payload?.sla_policy_audit?.rules) ? payload.sla_policy_audit.rules : []).map((rule) => [
+        rule?.rule_id || '',
+        rule?.layer || '',
+        rule?.status || '',
+        rule?.matched_candidates ?? '',
+        rule?.selected_candidates ?? '',
+        rule?.coverage_rate ?? '',
+        rule?.owner || '',
+        rule?.reviewed_at_utc || '',
+        Array.isArray(rule?.issues) ? rule.issues.join('|') : '',
+      ]),
+      [],
+      ['sla_issue_type', 'rule_id', 'classification', 'status', 'detail', 'tickets', 'related'],
+      ...(Array.isArray(payload?.sla_policy_audit?.issues) ? payload.sla_policy_audit.issues : []).map((issue) => [
+        issue?.type || '',
+        issue?.rule_id || '',
+        issue?.classification || '',
+        issue?.status || '',
+        issue?.detail || '',
+        Array.isArray(issue?.tickets) ? issue.tickets.join('|') : '',
+        Array.isArray(issue?.related) ? issue.related.join('|') : '',
       ]),
       [],
       ['metric', 'actual_rate', 'threshold_rate', 'scope', 'segment', 'message'],
@@ -814,6 +1019,7 @@
     renderGapBreakdownTable(parityGapTable, payload?.gap_breakdown?.parity, 'Parity gaps не зафиксированы.');
     renderScorecard(payload?.rollout_scorecard);
     renderPacket(payload?.rollout_packet);
+    renderSlaPolicyAudit(payload?.sla_policy_audit);
     renderRolloutDecision(payload?.rollout_decision, payload?.cohort_comparison);
 
     if (status === 'attention') {

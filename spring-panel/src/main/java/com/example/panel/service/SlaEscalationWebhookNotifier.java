@@ -16,6 +16,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class SlaEscalationWebhookNotifier {
@@ -428,6 +432,275 @@ public class SlaEscalationWebhookNotifier {
         return payload;
     }
 
+    public Map<String, Object> buildRoutingGovernanceAudit(List<DialogListItem> dialogs, Map<String, Object> settings) {
+        Instant generatedAt = Instant.now();
+        Map<String, Object> dialogConfig = settings != null ? extractMap(settings.get("dialog_config")) : Map.of();
+        boolean orchestrationEnabled = resolveBoolean(dialogConfig, "sla_critical_escalation_enabled", true);
+        boolean autoAssignEnabled = resolveBoolean(dialogConfig, "sla_critical_auto_assign_enabled", false);
+        SlaOrchestrationMode orchestrationMode = resolveOrchestrationMode(dialogConfig.get("sla_critical_orchestration_mode"));
+        int targetMinutes = resolvePositiveInt(dialogConfig, "sla_target_minutes", DEFAULT_SLA_TARGET_MINUTES, 7 * 24 * 60);
+        int criticalMinutes = resolvePositiveInt(dialogConfig, "sla_critical_minutes", 30, targetMinutes);
+        boolean includeAssigned = orchestrationMode == SlaOrchestrationMode.AUTOPILOT
+                || resolveBoolean(dialogConfig, "sla_critical_auto_assign_include_assigned", false);
+        int broadCoveragePct = resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_audit_broad_rule_coverage_pct", 60, 100);
+        boolean requireLayers = resolveBoolean(dialogConfig, "sla_critical_auto_assign_audit_require_layers", false);
+        boolean requireOwner = resolveBoolean(dialogConfig, "sla_critical_auto_assign_audit_require_owner", false);
+        boolean requireReview = resolveBoolean(dialogConfig, "sla_critical_auto_assign_audit_require_review", false);
+        boolean blockOnConflict = resolveBoolean(dialogConfig, "sla_critical_auto_assign_audit_block_on_conflicts", false);
+        long reviewTtlHours = Math.max(1L, resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_audit_review_ttl_hours", 168, 24 * 90));
+
+        List<DialogListItem> safeDialogs = dialogs == null ? List.of() : dialogs.stream().filter(dialog -> dialog != null).toList();
+        List<Map<String, Object>> criticalCandidates = findEscalationCandidates(safeDialogs, targetMinutes, criticalMinutes, includeAssigned);
+        List<AutoAssignRuleDefinition> definitions = parseAutoAssignRuleDefinitions(dialogConfig.get("sla_critical_auto_assign_rules"));
+        List<AutoAssignRuleDefinition> activeDefinitions = definitions.stream()
+                .filter(definition -> definition.rule() != null)
+                .toList();
+
+        List<Map<String, Object>> issues = new ArrayList<>();
+        List<Map<String, Object>> rules = new ArrayList<>();
+        Map<String, RuleUsageStats> usageStatsByRoute = new LinkedHashMap<>();
+        Map<String, Set<String>> conflictTicketsByRoute = new LinkedHashMap<>();
+        Map<String, Set<String>> tiedRoutesByRoute = new LinkedHashMap<>();
+        Map<String, List<String>> winnerRoutesByTicket = new LinkedHashMap<>();
+        Map<String, Integer> layerCounts = new LinkedHashMap<>();
+
+        for (AutoAssignRuleDefinition definition : definitions) {
+            layerCounts.merge(definition.layer(), 1, Integer::sum);
+            usageStatsByRoute.put(definition.ruleId(), new RuleUsageStats());
+        }
+
+        for (Map<String, Object> candidate : criticalCandidates) {
+            List<AutoAssignRuleDefinition> matchedDefinitions = activeDefinitions.stream()
+                    .filter(definition -> matchesDefinition(definition, candidate))
+                    .toList();
+            matchedDefinitions.forEach(definition -> usageStatsByRoute.get(definition.ruleId()).matchedTickets().add(ticketId(candidate)));
+            List<AutoAssignRuleDefinition> winners = resolveWinningDefinitions(matchedDefinitions);
+            if (!winners.isEmpty()) {
+                winnerRoutesByTicket.put(ticketId(candidate), winners.stream().map(AutoAssignRuleDefinition::ruleId).toList());
+                winners.forEach(definition -> usageStatsByRoute.get(definition.ruleId()).selectedTickets().add(ticketId(candidate)));
+            }
+            if (winners.size() > 1) {
+                Set<String> winnerRouteIds = winners.stream().map(AutoAssignRuleDefinition::ruleId).collect(Collectors.toCollection(LinkedHashSet::new));
+                for (AutoAssignRuleDefinition winner : winners) {
+                    conflictTicketsByRoute.computeIfAbsent(winner.ruleId(), key -> new LinkedHashSet<>()).add(ticketId(candidate));
+                    tiedRoutesByRoute.computeIfAbsent(winner.ruleId(), key -> new LinkedHashSet<>()).addAll(
+                            winnerRouteIds.stream().filter(routeId -> !winner.ruleId().equals(routeId)).toList());
+                }
+            }
+        }
+
+        for (AutoAssignRuleDefinition definition : definitions) {
+            RuleUsageStats usageStats = usageStatsByRoute.getOrDefault(definition.ruleId(), new RuleUsageStats());
+            int matchedCount = usageStats.matchedTickets().size();
+            int selectedCount = usageStats.selectedTickets().size();
+            double coverageRate = criticalCandidates.isEmpty() ? 0d : (double) matchedCount / criticalCandidates.size();
+            boolean broadRule = !criticalCandidates.isEmpty()
+                    && coverageRate >= (broadCoveragePct / 100d)
+                    && definition.rule().specificityScore() <= 2;
+            boolean unusedRule = matchedCount == 0;
+            boolean missingLayer = "legacy".equals(definition.layer());
+            boolean ownerMissing = trimToNull(definition.owner()) == null;
+            boolean reviewMissing = definition.reviewedAtUtc() == null;
+            boolean reviewStale = definition.reviewedAtUtc() != null
+                    && definition.reviewedAtUtc().plus(Duration.ofHours(reviewTtlHours)).isBefore(generatedAt);
+            boolean hasConflict = conflictTicketsByRoute.containsKey(definition.ruleId());
+
+            List<String> ruleIssues = new ArrayList<>();
+            if (hasConflict) {
+                ruleIssues.add("ambiguous_overlap");
+                issues.add(buildGovernanceIssue(
+                        "rollout_blocker",
+                        blockOnConflict ? "hold" : "attention",
+                        "rule_conflict",
+                        definition.ruleId(),
+                        "Обнаружен конфликт SLA-routing правил с одинаковым приоритетом/specificity.",
+                        "tickets=%d".formatted(conflictTicketsByRoute.getOrDefault(definition.ruleId(), Set.of()).size()),
+                        conflictTicketsByRoute.getOrDefault(definition.ruleId(), Set.of()).stream().limit(3).toList(),
+                        tiedRoutesByRoute.getOrDefault(definition.ruleId(), Set.of()).stream().limit(3).toList()
+                ));
+            }
+            if (broadRule) {
+                ruleIssues.add("too_broad");
+                issues.add(buildGovernanceIssue(
+                        "backlog_candidate",
+                        "attention",
+                        "broad_rule",
+                        definition.ruleId(),
+                        "Правило покрывает слишком большой процент критичных кейсов и рискует стать catch-all.",
+                        "coverage=%.1f%%".formatted(coverageRate * 100d),
+                        usageStats.matchedTickets().stream().limit(3).toList(),
+                        List.of(definition.layer())
+                ));
+            }
+            if (unusedRule) {
+                ruleIssues.add("unused");
+                issues.add(buildGovernanceIssue(
+                        "backlog_candidate",
+                        "attention",
+                        "unused_rule",
+                        definition.ruleId(),
+                        "Правило не матчится ни на один критичный кейс и выглядит как конфигурационный долг.",
+                        "matched=0",
+                        List.of(),
+                        List.of(definition.layer())
+                ));
+            }
+            if (requireLayers && missingLayer) {
+                ruleIssues.add("layer_missing");
+                issues.add(buildGovernanceIssue(
+                        "backlog_candidate",
+                        "attention",
+                        "layer_missing",
+                        definition.ruleId(),
+                        "Для production governance правило должно быть отнесено к layer: global/domain/emergency_override.",
+                        "layer=legacy",
+                        List.of(),
+                        List.of()
+                ));
+            }
+            if (requireOwner && ownerMissing) {
+                ruleIssues.add("owner_missing");
+                issues.add(buildGovernanceIssue(
+                        "backlog_candidate",
+                        "attention",
+                        "owner_missing",
+                        definition.ruleId(),
+                        "У SLA-routing правила должен быть назначен owner для ревизии и cleanup.",
+                        "owner=missing",
+                        List.of(),
+                        List.of()
+                ));
+            }
+            if (definition.reviewedAtInvalid()) {
+                ruleIssues.add("reviewed_at_invalid_utc");
+                issues.add(buildGovernanceIssue(
+                        "rollout_blocker",
+                        requireReview ? "hold" : "attention",
+                        "review_invalid_utc",
+                        definition.ruleId(),
+                        "Поле reviewed_at у SLA-routing правила невалидно и должно быть задано в UTC.",
+                        "reviewed_at=invalid",
+                        List.of(),
+                        List.of()
+                ));
+            } else if (requireReview && reviewMissing) {
+                ruleIssues.add("review_missing");
+                issues.add(buildGovernanceIssue(
+                        "rollout_blocker",
+                        "hold",
+                        "review_missing",
+                        definition.ruleId(),
+                        "Для routing governance нужен review timestamp в UTC.",
+                        "reviewed_at=missing",
+                        List.of(),
+                        List.of()
+                ));
+            } else if (requireReview && reviewStale) {
+                ruleIssues.add("review_stale");
+                issues.add(buildGovernanceIssue(
+                        "rollout_blocker",
+                        "hold",
+                        "review_stale",
+                        definition.ruleId(),
+                        "Review SLA-routing правила устарел и должен быть обновлён.",
+                        "ttl_hours=%d".formatted(reviewTtlHours),
+                        List.of(),
+                        List.of()
+                ));
+            }
+
+            String status = "ok";
+            if (ruleIssues.contains("review_missing") || ruleIssues.contains("review_stale")
+                    || ruleIssues.contains("reviewed_at_invalid_utc")
+                    || (blockOnConflict && hasConflict)) {
+                status = "hold";
+            } else if (!ruleIssues.isEmpty()) {
+                status = "attention";
+            }
+            rules.add(Map.of(
+                    "rule_id", definition.ruleId(),
+                    "layer", definition.layer(),
+                    "owner", definition.owner() == null ? "" : definition.owner(),
+                    "reviewed_at_utc", definition.reviewedAtUtc() != null ? definition.reviewedAtUtc().toString() : "",
+                    "reviewed_at_invalid_utc", definition.reviewedAtInvalid(),
+                    "priority", definition.rule().priority(),
+                    "specificity_score", definition.rule().specificityScore(),
+                    "matched_candidates", matchedCount,
+                    "selected_candidates", selectedCount,
+                    "coverage_rate", coverageRate,
+                    "route", definition.rule().route(),
+                    "assignee_target", formatRuleAssigneeTarget(definition.rule()),
+                    "issues", ruleIssues,
+                    "status", status
+            ));
+        }
+
+        Map<String, Long> decisionsByLayer = rules.stream().collect(Collectors.groupingBy(
+                row -> String.valueOf(row.get("layer")),
+                LinkedHashMap::new,
+                Collectors.summingLong(row -> toLong(row.get("selected_candidates")))
+        ));
+        Map<String, Long> decisionsByRoute = rules.stream().collect(Collectors.groupingBy(
+                row -> String.valueOf(row.get("route")),
+                LinkedHashMap::new,
+                Collectors.summingLong(row -> toLong(row.get("selected_candidates")))
+        ));
+
+        boolean hasHoldIssues = issues.stream().anyMatch(issue -> "hold".equals(String.valueOf(issue.get("status"))));
+        boolean hasAttentionIssues = issues.stream().anyMatch(issue -> "attention".equals(String.valueOf(issue.get("status"))));
+        String status;
+        if (!orchestrationEnabled || !autoAssignEnabled) {
+            status = definitions.isEmpty() ? "off" : "attention";
+        } else if (hasHoldIssues) {
+            status = "hold";
+        } else if (hasAttentionIssues) {
+            status = "attention";
+        } else {
+            status = definitions.isEmpty() ? "off" : "ok";
+        }
+
+        String summary;
+        if (definitions.isEmpty()) {
+            summary = autoAssignEnabled
+                    ? "SLA auto-assign включён без явных routing rules: audit остаётся в informational режиме."
+                    : "SLA routing audit неактивен: auto-assign rules не заданы.";
+        } else if ("ok".equals(status)) {
+            summary = "SLA routing rules проходят audit без блокирующих сигналов.";
+        } else if ("hold".equals(status)) {
+            summary = "SLA routing audit нашёл блокирующие governance-gap сигналы.";
+        } else {
+            summary = "SLA routing audit нашёл non-blocking сигналы, которые стоит убрать до роста конфигурационного долга.";
+        }
+
+        return Map.of(
+                "generated_at", generatedAt.toString(),
+                "status", status,
+                "summary", summary,
+                "enabled", orchestrationEnabled,
+                "auto_assign_enabled", autoAssignEnabled,
+                "orchestration_mode", orchestrationMode.name().toLowerCase(),
+                "include_assigned", includeAssigned,
+                "critical_candidates", criticalCandidates.size(),
+                "rules_total", definitions.size(),
+                "issues_total", issues.size(),
+                "layer_counts", layerCounts,
+                "decision_preview", Map.of(
+                        "selected_by_layer", decisionsByLayer,
+                        "selected_by_route", decisionsByRoute
+                ),
+                "requirements", Map.of(
+                        "require_layers", requireLayers,
+                        "require_owner", requireOwner,
+                        "require_review", requireReview,
+                        "review_ttl_hours", reviewTtlHours,
+                        "block_on_conflicts", blockOnConflict,
+                        "broad_rule_coverage_pct", broadCoveragePct
+                ),
+                "issues", issues,
+                "rules", rules
+        );
+    }
+
     private String buildRoutingPolicySummary(SlaOrchestrationMode orchestrationMode,
                                              String currentResponsible,
                                              AutoAssignDecision decision,
@@ -692,12 +965,39 @@ public class SlaEscalationWebhookNotifier {
         return best;
     }
 
+    private List<AutoAssignRuleDefinition> resolveWinningDefinitions(List<AutoAssignRuleDefinition> matchedDefinitions) {
+        if (matchedDefinitions == null || matchedDefinitions.isEmpty()) {
+            return List.of();
+        }
+        int bestSpecificity = matchedDefinitions.stream()
+                .map(definition -> definition.rule().specificityScore())
+                .max(Integer::compareTo)
+                .orElse(Integer.MIN_VALUE);
+        int bestPriority = matchedDefinitions.stream()
+                .filter(definition -> definition.rule().specificityScore() == bestSpecificity)
+                .map(definition -> definition.rule().priority())
+                .max(Integer::compareTo)
+                .orElse(Integer.MIN_VALUE);
+        return matchedDefinitions.stream()
+                .filter(definition -> definition.rule().specificityScore() == bestSpecificity)
+                .filter(definition -> definition.rule().priority() == bestPriority)
+                .toList();
+    }
+
     private List<AutoAssignRule> parseAutoAssignRules(Object rawRules) {
+        return parseAutoAssignRuleDefinitions(rawRules).stream()
+                .map(AutoAssignRuleDefinition::rule)
+                .toList();
+    }
+
+    private List<AutoAssignRuleDefinition> parseAutoAssignRuleDefinitions(Object rawRules) {
         if (!(rawRules instanceof List<?> list) || list.isEmpty()) {
             return List.of();
         }
-        List<AutoAssignRule> rules = new ArrayList<>();
+        List<AutoAssignRuleDefinition> rules = new ArrayList<>();
+        int ruleIndex = 0;
         for (Object item : list) {
+            ruleIndex++;
             if (!(item instanceof Map<?, ?> ruleMap)) {
                 continue;
             }
@@ -742,13 +1042,105 @@ public class SlaEscalationWebhookNotifier {
                 route = trimToNull(String.valueOf(ruleMap.get("name")));
             }
             PoolAssignStrategy poolStrategy = parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"));
-            rules.add(new AutoAssignRule(channels, businesses, locations, clientStatuses,
+            AutoAssignRule rule = new AutoAssignRule(channels, businesses, locations, clientStatuses,
                     categories, excludedCategories, categoryMatchMode,
                     matchHasCategories, unreadMin, unreadMax, ratingMin, ratingMax, minutesLeftLte, minutesLeftGte,
                     slaStates, requestPrefixes, excludeRequestPrefixes,
-                    requiredAssigneeSkills, requiredAssigneeQueues, priority, assignee, assigneePool, route, poolStrategy));
+                    requiredAssigneeSkills, requiredAssigneeQueues, priority, assignee, assigneePool, route, poolStrategy);
+            String ruleId = route != null ? route : "rule_" + ruleIndex;
+            String layer = normalizeRuleLayer(ruleMap.get("layer"));
+            String owner = trimToNull(String.valueOf(ruleMap.get("owner")));
+            String reviewedAtRaw = trimToNull(String.valueOf(ruleMap.get("reviewed_at")));
+            Instant reviewedAt = parseUtcInstant(reviewedAtRaw);
+            boolean reviewedAtInvalid = reviewedAtRaw != null && reviewedAt == null;
+            rules.add(new AutoAssignRuleDefinition(ruleIndex - 1, rule, ruleId, layer, owner, reviewedAt, reviewedAtInvalid));
         }
         return rules;
+    }
+
+    private boolean matchesDefinition(AutoAssignRuleDefinition definition, Map<String, Object> candidate) {
+        return definition != null
+                && definition.rule() != null
+                && definition.rule().matches(
+                        normalizeMatchValue(candidate == null ? null : candidate.get("channel")),
+                        normalizeMatchValue(candidate == null ? null : candidate.get("business")),
+                        normalizeMatchValue(candidate == null ? null : candidate.get("location")),
+                        parseCandidateCategories(candidate == null ? null : candidate.get("categories")),
+                        normalizeMatchValue(candidate == null ? null : candidate.get("client_status")),
+                        parseOptionalNonNegativeInt(candidate == null ? null : candidate.get("unread_count")),
+                        parseOptionalNonNegativeInt(candidate == null ? null : candidate.get("rating")),
+                        parseOptionalLong(candidate == null ? null : candidate.get("minutes_left")),
+                        normalizeSlaState(candidate == null ? null : candidate.get("sla_state")),
+                        trimToNull(String.valueOf(candidate == null ? null : candidate.get("request_number")))
+                );
+    }
+
+    private String formatRuleAssigneeTarget(AutoAssignRule rule) {
+        if (rule == null) {
+            return "";
+        }
+        if (rule.assignee() != null) {
+            return rule.assignee();
+        }
+        if (rule.assigneePool() != null && !rule.assigneePool().isEmpty()) {
+            return String.join(", ", rule.assigneePool());
+        }
+        return "";
+    }
+
+    private String ticketId(Map<String, Object> candidate) {
+        String ticketId = trimToNull(String.valueOf(candidate == null ? null : candidate.get("ticket_id")));
+        return ticketId != null ? ticketId : "unknown";
+    }
+
+    private Map<String, Object> buildGovernanceIssue(String classification,
+                                                     String status,
+                                                     String type,
+                                                     String ruleId,
+                                                     String summary,
+                                                     String detail,
+                                                     List<String> ticketIds,
+                                                     List<String> relatedRulesOrMeta) {
+        return Map.of(
+                "classification", classification,
+                "status", status,
+                "type", type,
+                "rule_id", ruleId,
+                "summary", summary,
+                "detail", detail == null ? "" : detail,
+                "tickets", ticketIds == null ? List.of() : ticketIds,
+                "related", relatedRulesOrMeta == null ? List.of() : relatedRulesOrMeta
+        );
+    }
+
+    private String normalizeRuleLayer(Object rawValue) {
+        String normalized = trimToNull(String.valueOf(rawValue));
+        if (normalized == null) {
+            return "legacy";
+        }
+        return switch (normalized.toLowerCase()) {
+            case "global", "base" -> "global";
+            case "domain", "team", "queue" -> "domain";
+            case "emergency", "emergency_override", "override" -> "emergency_override";
+            default -> "legacy";
+        };
+    }
+
+    private Instant parseUtcInstant(String rawValue) {
+        String normalized = trimToNull(rawValue);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(normalized);
+        } catch (DateTimeParseException ignored) {
+            // continue
+        }
+        try {
+            return OffsetDateTime.parse(normalized).withOffsetSameInstant(ZoneOffset.UTC).toInstant();
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     private Boolean parseOptionalBoolean(Object rawValue) {
@@ -1198,6 +1590,21 @@ public class SlaEscalationWebhookNotifier {
         return Math.min(parsed, maxValue);
     }
 
+    private long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        String raw = trimToNull(String.valueOf(value));
+        if (raw == null) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
+    }
+
     private String truncate(String value, int max) {
         if (value == null || value.length() <= max) {
             return value;
@@ -1206,6 +1613,21 @@ public class SlaEscalationWebhookNotifier {
     }
 
     record AutoAssignDecision(String ticketId, String assignee, String source, String route, String previousResponsible) {
+    }
+
+    private record AutoAssignRuleDefinition(int index,
+                                            AutoAssignRule rule,
+                                            String ruleId,
+                                            String layer,
+                                            String owner,
+                                            Instant reviewedAtUtc,
+                                            boolean reviewedAtInvalid) {
+    }
+
+    private record RuleUsageStats(Set<String> matchedTickets, Set<String> selectedTickets) {
+        private RuleUsageStats() {
+            this(new LinkedHashSet<>(), new LinkedHashSet<>());
+        }
     }
 
     private enum PoolAssignStrategy {
