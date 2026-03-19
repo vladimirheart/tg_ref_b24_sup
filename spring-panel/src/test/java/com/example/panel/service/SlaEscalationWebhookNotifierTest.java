@@ -11,6 +11,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SlaEscalationWebhookNotifierTest {
 
@@ -892,6 +893,67 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("queue_agent", decisions.get(0).assignee());
         assertEquals("enterprise_queue_only", decisions.get(0).route());
         assertEquals("queue_agent", decisions.get(1).assignee());
+    }
+
+    @Test
+    void buildRoutingGovernanceAuditFlagsAmbiguousAndBroadRules() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Instant now = Instant.now();
+
+        Map<String, Object> audit = notifier.buildRoutingGovernanceAudit(
+                List.of(
+                        dialog("T-AUDIT-1", now.minusSeconds(23 * 60 * 60 + 50 * 60).toString(), "open", null),
+                        dialog("T-AUDIT-2", now.minusSeconds(23 * 60 * 60 + 40 * 60).toString(), "open", null)
+                ),
+                Map.of(
+                        "dialog_config", Map.of(
+                                "sla_target_minutes", 1440,
+                                "sla_critical_minutes", 30,
+                                "sla_critical_auto_assign_enabled", true,
+                                "sla_critical_auto_assign_audit_broad_rule_coverage_pct", 50,
+                                "sla_critical_auto_assign_rules", List.of(
+                                        Map.of("rule_id", "rule_alpha", "match_channel", "telegram", "assign_to", "alpha"),
+                                        Map.of("rule_id", "rule_beta", "match_channel", "telegram", "assign_to", "beta")
+                                )
+                        )
+                )
+        );
+
+        assertEquals("attention", audit.get("status"));
+        List<Map<String, Object>> issues = (List<Map<String, Object>>) audit.get("issues");
+        assertTrue(issues.stream().anyMatch(issue -> "rule_conflict".equals(issue.get("type"))));
+        assertTrue(issues.stream().anyMatch(issue -> "broad_rule".equals(issue.get("type"))));
+    }
+
+    @Test
+    void buildRoutingGovernanceAuditRequiresUtcReviewWhenConfigured() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Instant now = Instant.now();
+
+        Map<String, Object> audit = notifier.buildRoutingGovernanceAudit(
+                List.of(dialog("T-AUDIT-UTC", now.minusSeconds(23 * 60 * 60 + 50 * 60).toString(), "open", null)),
+                Map.of(
+                        "dialog_config", Map.of(
+                                "sla_target_minutes", 1440,
+                                "sla_critical_minutes", 30,
+                                "sla_critical_auto_assign_enabled", true,
+                                "sla_critical_auto_assign_audit_require_review", true,
+                                "sla_critical_auto_assign_rules", List.of(
+                                        Map.of(
+                                                "rule_id", "review_rule",
+                                                "match_channel", "telegram",
+                                                "assign_to", "duty",
+                                                "reviewed_at", "2026-03-10 12:00:00"
+                                        )
+                                )
+                        )
+                )
+        );
+
+        assertEquals("hold", audit.get("status"));
+        List<Map<String, Object>> rules = (List<Map<String, Object>>) audit.get("rules");
+        assertTrue(rules.stream().anyMatch(rule -> "review_rule".equals(rule.get("rule_id"))
+                && Boolean.TRUE.equals(rule.get("reviewed_at_invalid_utc"))));
     }
 
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
