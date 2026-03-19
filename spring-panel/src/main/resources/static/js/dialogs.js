@@ -457,6 +457,7 @@
     workspace_context_profile_gap: 'workspace',
     workspace_context_source_gap: 'workspace',
     workspace_context_block_gap: 'workspace',
+    workspace_sla_policy_gap: 'workspace',
     workspace_parity_gap: 'workspace',
     workspace_inline_navigation: 'workspace',
     workspace_open_legacy_manual: 'workspace',
@@ -483,6 +484,7 @@
   let workspaceLastProfileGapSignature = '';
   let workspaceLastContextSourceGapSignature = '';
   let workspaceLastContextBlockGapSignature = '';
+  let workspaceLastSlaPolicyGapSignature = '';
   let workspaceLastParityGapSignature = '';
 
 
@@ -2564,7 +2566,7 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -3099,6 +3101,33 @@
     });
   }
 
+  function emitWorkspaceSlaPolicyGapTelemetry(sla, conversation) {
+    const policy = sla?.policy;
+    if (!policy || typeof policy !== 'object') {
+      workspaceLastSlaPolicyGapSignature = '';
+      return;
+    }
+    const status = String(policy.status || '').trim().toLowerCase();
+    const issues = Array.isArray(policy.issues) ? policy.issues.filter(Boolean) : [];
+    if (!['attention', 'invalid_utc'].includes(status)) {
+      workspaceLastSlaPolicyGapSignature = '';
+      return;
+    }
+    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    const reason = issues.join(',') || status || 'sla_policy_gap';
+    const signature = `${ticketId}:${reason}`;
+    if (!ticketId || workspaceLastSlaPolicyGapSignature === signature) {
+      return;
+    }
+    workspaceLastSlaPolicyGapSignature = signature;
+    emitWorkspaceTelemetry('workspace_sla_policy_gap', {
+      ticketId,
+      reason,
+      durationMs: Number.isFinite(Number(sla?.minutes_left)) ? Number(sla.minutes_left) : 0,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
   function emitWorkspaceParityGapTelemetry(parity, conversation) {
     const safeParity = parity && typeof parity === 'object' ? parity : null;
     if (!safeParity || String(safeParity?.status || '').toLowerCase() === 'ok') {
@@ -3333,6 +3362,7 @@
     emitWorkspaceProfileGapTelemetry(context, conversation);
     emitWorkspaceContextSourceGapTelemetry(context, conversation);
     emitWorkspaceContextBlockGapTelemetry(context, conversation);
+    emitWorkspaceSlaPolicyGapTelemetry(sla, conversation);
     emitWorkspaceParityGapTelemetry(parity, conversation);
 
     if (sla && sla.state && sla.state !== 'unknown') {
@@ -3341,11 +3371,43 @@
       if (workspaceSlaContent) {
         const badgeClass = resolveWorkspaceSlaBadgeClass(sla.state);
         const remaining = formatWorkspaceSlaRemaining(sla.minutes_left);
+        const policy = sla.policy && typeof sla.policy === 'object' ? sla.policy : null;
+        const policyIssues = Array.isArray(policy?.issues) ? policy.issues.filter(Boolean) : [];
+        const policyBadgeClass = (() => {
+          switch (String(policy?.status || '').toLowerCase()) {
+            case 'ready':
+              return 'text-bg-success';
+            case 'disabled':
+              return 'text-bg-secondary';
+            case 'invalid_utc':
+            case 'attention':
+              return 'text-bg-warning';
+            default:
+              return 'text-bg-light border';
+          }
+        })();
+        const policyMeta = [];
+        if (policy?.mode) policyMeta.push(`mode: ${String(policy.mode).toLowerCase()}`);
+        if (policy?.route) policyMeta.push(`route: ${String(policy.route)}`);
+        if (policy?.recommended_assignee) policyMeta.push(`owner: ${String(policy.recommended_assignee)}`);
+        if (policy?.evaluated_at_utc) policyMeta.push(`UTC ${formatWorkspaceDateTime(policy.evaluated_at_utc)}`);
+        const policyMarkup = policy
+          ? `<div class="border rounded px-2 py-2 mt-2 bg-light-subtle">
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-semibold small">SLA policy</span>
+                <span class="badge ${policyBadgeClass}">${escapeHtml(String(policy.status || 'unknown'))}</span>
+                ${policy.action ? `<span class="badge text-bg-light border">${escapeHtml(String(policy.action))}</span>` : ''}
+              </div>
+              ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' · '))}</div>` : ''}
+              ${policy.summary ? `<div class="small text-muted mt-1">${escapeHtml(String(policy.summary))}</div>` : ''}
+              ${policyIssues.length ? `<div class="small text-warning mt-1">Issues: ${escapeHtml(policyIssues.join(', '))}</div>` : ''}
+            </div>`
+          : '';
         const escalationHint = sla.escalation_required === true
           ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
           : '';
         workspaceSlaContent.classList.remove('d-none');
-        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">До дедлайна: ${escapeHtml(remaining)}</div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}`;
+        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">До дедлайна: ${escapeHtml(remaining)}</div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
       }
     } else {
       if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
