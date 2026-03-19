@@ -4276,6 +4276,7 @@
               <li>Для VK — ID сообщества, код подтверждения Callback API и при необходимости секретный ключ.</li>
             </ul>
           </div>
+          <div id="addChannelValidationAlert" class="alert alert-warning d-none small" role="alert" aria-live="polite"></div>
           <div class="row g-3 align-items-end">
             <div class="col-12 col-md-4 col-xl-3" id="token_field_container">
               <label class="form-label" for="new_token">Токен бота</label>
@@ -16085,8 +16086,7 @@
 
     const safeWorkspaceRequiredClientAttributes = Array.from(new Set(
       String(inputs.workspaceRequiredClientAttributes?.value || '')
-        .split(/[
-,;]/)
+        .split(/[\n,;]/)
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean),
     ));
@@ -18217,7 +18217,28 @@
     }
   }
 
+  function updateAddChannelValidationAlert(message = '', type = 'warning') {
+    const alertEl = document.getElementById('addChannelValidationAlert');
+    if (!alertEl) return;
+    const normalized = type === 'error'
+      ? 'alert-danger'
+      : type === 'success'
+        ? 'alert-success'
+        : type === 'info'
+          ? 'alert-info'
+          : 'alert-warning';
+    alertEl.classList.remove('d-none', 'alert-danger', 'alert-success', 'alert-info', 'alert-warning');
+    if (!message) {
+      alertEl.textContent = '';
+      alertEl.classList.add('d-none', normalized);
+      return;
+    }
+    alertEl.classList.add(normalized);
+    alertEl.textContent = message;
+  }
+
   function notifyChannelStatus(message, type = 'info') {
+    updateAddChannelValidationAlert(message, type === 'error' ? 'error' : type);
     if (typeof showNotification === 'function') {
       showNotification(message, type);
       return;
@@ -18273,12 +18294,27 @@
     const token = tokenInput?.value?.trim() || '';
     const channelName = nameInput?.value?.trim() || '';
 
-    if (!channelName) {
+    updateAddChannelValidationAlert('');
+
+    if (platform !== 'vk') {
+      if (!token && !channelName) {
+        notifyChannelStatus('Для Telegram заполните токен бота и название канала в панели.', 'warning');
+        tokenInput?.focus();
+        return;
+      }
+      if (!token) {
+        notifyChannelStatus('Для Telegram необходим токен бота из @BotFather.', 'warning');
+        tokenInput?.focus();
+        return;
+      }
+      if (!channelName) {
+        notifyChannelStatus('Кроме токена, для Telegram нужно указать название канала в панели.', 'warning');
+        nameInput?.focus();
+        return;
+      }
+    } else if (!channelName) {
       notifyChannelStatus('Укажите название канала.', 'warning');
-      return;
-    }
-    if (platform !== 'vk' && !token) {
-      notifyChannelStatus('Для Telegram необходим токен бота.', 'warning');
+      nameInput?.focus();
       return;
     }
 
@@ -18327,6 +18363,7 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
       resetAddChannelForm();
+      updateAddChannelValidationAlert('');
       const addChannelModalEl = document.getElementById('addChannelModal');
       if (addChannelModalEl && typeof bootstrap !== 'undefined') {
         const modal = bootstrap.Modal.getInstance(addChannelModalEl);
@@ -18508,8 +18545,17 @@
     vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
     addChannelModalEl?.addEventListener('show.bs.modal', () => {
       resetAddChannelForm();
+      updateAddChannelValidationAlert('');
       populateAddChannelTemplateSelects();
       togglePlatformFields();
+    });
+    addChannelModalEl?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      const target = event.target;
+      if (target instanceof HTMLTextAreaElement) return;
+      if (target instanceof HTMLButtonElement) return;
+      event.preventDefault();
+      addChannel();
     });
   }
 
