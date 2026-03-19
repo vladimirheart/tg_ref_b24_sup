@@ -11,11 +11,16 @@ import java.sql.Statement;
 
 public class V17__ensure_tickets_created_at extends BaseJavaMigration {
 
+    private static final String TABLE_NAME = "tickets";
+    private static final String COLUMN_NAME = "created_at";
+    private static final String INSERT_TRIGGER_NAME = "trg_tickets_created_at_insert";
+
     @Override
     public void migrate(Context context) throws Exception {
         Connection connection = context.getConnection();
-        ensureColumn(connection, "tickets", "created_at", "TEXT DEFAULT CURRENT_TIMESTAMP");
+        ensureColumn(connection, TABLE_NAME, COLUMN_NAME, "TEXT");
         backfillCreatedAt(connection);
+        ensureInsertTrigger(connection);
     }
 
     private void ensureColumn(Connection connection, String tableName, String columnName, String ddlType) throws SQLException {
@@ -63,6 +68,24 @@ public class V17__ensure_tickets_created_at extends BaseJavaMigration {
                 """;
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
+        }
+    }
+
+    private void ensureInsertTrigger(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("DROP TRIGGER IF EXISTS " + INSERT_TRIGGER_NAME);
+            statement.execute("""
+                    CREATE TRIGGER %s
+                    AFTER INSERT ON tickets
+                    FOR EACH ROW
+                    WHEN NEW.created_at IS NULL OR TRIM(NEW.created_at) = ''
+                    BEGIN
+                        UPDATE tickets
+                           SET created_at = CURRENT_TIMESTAMP
+                         WHERE user_id = NEW.user_id
+                           AND ticket_id = NEW.ticket_id;
+                    END
+                    """.formatted(INSERT_TRIGGER_NAME));
         }
     }
 }
