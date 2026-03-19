@@ -19,6 +19,16 @@
   const kpiSignalState = document.getElementById('workspaceTelemetryKpiSignalState');
   const scorecardUpdatedAt = document.getElementById('workspaceTelemetryScorecardUpdatedAt');
   const scorecardTable = document.getElementById('workspaceTelemetryScorecardTable');
+  const packetStatus = document.getElementById('workspaceTelemetryPacketStatus');
+  const packetUpdatedAt = document.getElementById('workspaceTelemetryPacketUpdatedAt');
+  const packetSummary = document.getElementById('workspaceTelemetryPacketSummary');
+  const packetTable = document.getElementById('workspaceTelemetryPacketTable');
+  const packetOwnerState = document.getElementById('workspaceTelemetryPacketOwnerState');
+  const packetOwnerMeta = document.getElementById('workspaceTelemetryPacketOwnerMeta');
+  const packetParityState = document.getElementById('workspaceTelemetryPacketParityState');
+  const packetParityMeta = document.getElementById('workspaceTelemetryPacketParityMeta');
+  const packetIncidentState = document.getElementById('workspaceTelemetryPacketIncidentState');
+  const packetIncidentMeta = document.getElementById('workspaceTelemetryPacketIncidentMeta');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -107,6 +117,38 @@
     }
     if (scorecardTable) {
       scorecardTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка scorecard...</td></tr>';
+    }
+    if (packetStatus) {
+      packetStatus.className = 'badge text-bg-secondary';
+      packetStatus.textContent = 'Packet: —';
+    }
+    if (packetUpdatedAt) {
+      packetUpdatedAt.textContent = '';
+    }
+    if (packetSummary) {
+      packetSummary.textContent = '';
+      packetSummary.classList.add('d-none');
+    }
+    if (packetTable) {
+      packetTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка governance packet...</td></tr>';
+    }
+    if (packetOwnerState) {
+      packetOwnerState.textContent = '—';
+    }
+    if (packetOwnerMeta) {
+      packetOwnerMeta.textContent = '';
+    }
+    if (packetParityState) {
+      packetParityState.textContent = '—';
+    }
+    if (packetParityMeta) {
+      packetParityMeta.textContent = '';
+    }
+    if (packetIncidentState) {
+      packetIncidentState.textContent = '—';
+    }
+    if (packetIncidentMeta) {
+      packetIncidentMeta.textContent = '';
     }
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
@@ -251,6 +293,97 @@
         </tr>
       `;
     }).join('');
+  }
+
+  function renderPacket(packet) {
+    const items = Array.isArray(packet?.items) ? packet.items : [];
+    const status = String(packet?.status || 'off').toLowerCase();
+    if (packetStatus) {
+      packetStatus.className = `badge ${statusBadgeClass(status)}`;
+      packetStatus.textContent = `Packet: ${statusLabel(status)}`;
+    }
+    if (packetUpdatedAt) {
+      packetUpdatedAt.textContent = packet?.generated_at
+        ? `Сформировано: ${formatTimestamp(packet.generated_at)}`
+        : '';
+    }
+    if (packetSummary) {
+      const missingItems = Array.isArray(packet?.missing_items) ? packet.missing_items : [];
+      const summaryParts = [];
+      if (packet?.summary) {
+        summaryParts.push(String(packet.summary));
+      }
+      if (missingItems.length) {
+        summaryParts.push(`Pending: ${missingItems.join(', ')}`);
+      }
+      packetSummary.textContent = summaryParts.join(' · ');
+      packetSummary.classList.toggle('d-none', summaryParts.length === 0);
+      packetSummary.className = `alert ${status === 'ok' || status === 'off' ? 'alert-secondary' : 'alert-warning'} mb-3${summaryParts.length === 0 ? ' d-none' : ''}`;
+    }
+    if (packetTable) {
+      if (!items.length) {
+        packetTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Governance packet пока недоступен.</td></tr>';
+      } else {
+        packetTable.innerHTML = items.map((item) => {
+          const label = escapeHtml(item?.label || item?.key || '—');
+          const summary = escapeHtml(item?.summary || '');
+          const note = escapeHtml(item?.note || '');
+          const currentValue = escapeHtml(item?.current_value || '—');
+          const threshold = escapeHtml(item?.threshold || '—');
+          const measuredAt = escapeHtml(formatTimestamp(item?.measured_at || ''));
+          return `
+            <tr>
+              <td>
+                <div class="fw-semibold">${label}</div>
+                ${summary ? `<div class="small text-muted">${summary}</div>` : ''}
+                ${note ? `<div class="small text-muted">Note: ${note}</div>` : ''}
+              </td>
+              <td><span class="badge ${statusBadgeClass(item?.status)}">${statusLabel(item?.status)}</span></td>
+              <td class="small">${currentValue}</td>
+              <td class="small">${threshold}</td>
+              <td class="small text-nowrap">${measuredAt}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+    const ownerSignoff = packet?.owner_signoff || {};
+    if (packetOwnerState) {
+      if (ownerSignoff?.required !== true) {
+        packetOwnerState.textContent = 'Не требуется';
+      } else if (ownerSignoff?.timestamp_invalid === true) {
+        packetOwnerState.textContent = 'Невалидная UTC-дата';
+      } else if (ownerSignoff?.ready === true) {
+        packetOwnerState.textContent = ownerSignoff?.signed_by ? `Подписал: ${ownerSignoff.signed_by}` : 'Подписано';
+      } else {
+        packetOwnerState.textContent = 'Ожидает sign-off';
+      }
+    }
+    if (packetOwnerMeta) {
+      const signedAt = ownerSignoff?.signed_at ? formatTimestamp(ownerSignoff.signed_at) : '—';
+      const ttl = ownerSignoff?.ttl_hours ?? '—';
+      const age = ownerSignoff?.age_hours ?? '—';
+      packetOwnerMeta.textContent = `UTC: ${signedAt} · TTL: ${ttl}h · age: ${age}h`;
+    }
+    const paritySnapshot = packet?.parity_snapshot || {};
+    if (packetParityState) {
+      packetParityState.textContent = paritySnapshot?.ready === true
+        ? `${formatRate(paritySnapshot.parity_ready_rate)} ready`
+        : 'Snapshot недоступен';
+    }
+    if (packetParityMeta) {
+      const topReasons = Array.isArray(paritySnapshot?.top_reasons)
+        ? paritySnapshot.top_reasons.map((row) => `${row?.reason || 'unspecified'}(${row?.events || 0})`).join(', ')
+        : '';
+      packetParityMeta.textContent = `opens=${formatNumber(paritySnapshot.workspace_open_events)} · gaps=${formatNumber(paritySnapshot.parity_gap_events)}${topReasons ? ` · ${topReasons}` : ''}`;
+    }
+    const incidentHistory = packet?.incident_history || {};
+    if (packetIncidentState) {
+      packetIncidentState.textContent = `alerts=${formatNumber(incidentHistory.alert_count || 0)} · status=${String(incidentHistory.guardrail_status || 'ok')}`;
+    }
+    if (packetIncidentMeta) {
+      packetIncidentMeta.textContent = `window=${formatNumber(incidentHistory.window_days || 0)}d UTC · render=${formatNumber(incidentHistory.render_error_alerts || 0)} · fallback=${formatNumber(incidentHistory.fallback_alerts || 0)} · abandon=${formatNumber(incidentHistory.abandon_alerts || 0)} · slow=${formatNumber(incidentHistory.slow_open_alerts || 0)}`;
+    }
   }
 
   function buildRiskRows(payload, filters) {
@@ -423,6 +556,17 @@
       [],
       ['scorecard_key', 'scorecard_status', 'blocking', 'current_value', 'threshold', 'measured_at_utc', 'note'],
       ...scorecardItems.map((item) => [
+        item?.key || '',
+        item?.status || '',
+        item?.blocking === true ? 'true' : 'false',
+        item?.current_value || '',
+        item?.threshold || '',
+        item?.measured_at || '',
+        item?.note || '',
+      ]),
+      [],
+      ['packet_key', 'packet_status', 'blocking', 'current_value', 'threshold', 'measured_at_utc', 'note'],
+      ...(Array.isArray(payload?.rollout_packet?.items) ? payload.rollout_packet.items : []).map((item) => [
         item?.key || '',
         item?.status || '',
         item?.blocking === true ? 'true' : 'false',
@@ -655,6 +799,7 @@
     renderGapBreakdownTable(blockGapTable, payload?.gap_breakdown?.block, 'Block gaps не зафиксированы.');
     renderGapBreakdownTable(parityGapTable, payload?.gap_breakdown?.parity, 'Parity gaps не зафиксированы.');
     renderScorecard(payload?.rollout_scorecard);
+    renderPacket(payload?.rollout_packet);
     renderRolloutDecision(payload?.rollout_decision, payload?.cohort_comparison);
 
     if (status === 'attention') {
@@ -700,6 +845,21 @@
       }
       if (scorecardTable) {
         scorecardTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Scorecard недоступен.</td></tr>';
+      }
+      if (packetStatus) {
+        packetStatus.className = 'badge text-bg-danger';
+        packetStatus.textContent = 'Packet: Hold';
+      }
+      if (packetUpdatedAt) {
+        packetUpdatedAt.textContent = '';
+      }
+      if (packetSummary) {
+        packetSummary.className = 'alert alert-danger mb-3';
+        packetSummary.textContent = 'Governance packet недоступен из-за ошибки загрузки telemetry.';
+        packetSummary.classList.remove('d-none');
+      }
+      if (packetTable) {
+        packetTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Governance packet недоступен.</td></tr>';
       }
       if (riskSegmentsTable) {
         riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Данные риск-сегментов недоступны.</td></tr>';
