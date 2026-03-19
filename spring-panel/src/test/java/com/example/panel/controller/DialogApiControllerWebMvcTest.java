@@ -426,6 +426,59 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceAppliesSegmentSpecificMandatoryProfileRules() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-SEGMENT-PROFILE",
+                17L,
+                88L,
+                "client88",
+                "Клиент 88",
+                "enterprise",
+                5L,
+                "telegram",
+                "Москва",
+                "HQ",
+                "need help",
+                "2026-01-01T10:00:00Z",
+                "new",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "VIP",
+                "client",
+                "2026-01-01T10:30:00Z",
+                1,
+                5,
+                "billing"
+        );
+        when(dialogService.loadDialogDetails("T-SEGMENT-PROFILE", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-SEGMENT-PROFILE", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of("crm_tier", "gold"));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "workspace_required_client_attributes", List.of("name"),
+                "workspace_required_client_attributes_by_segment", Map.of("new_dialog", List.of("first_seen_at"))
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-SEGMENT-PROFILE/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.profile_health.enabled").value(true))
+                .andExpect(jsonPath("$.context.profile_health.active_segments[0]").value("needs_reply"))
+                .andExpect(jsonPath("$.context.profile_health.active_segments[1]").value("new_dialog"))
+                .andExpect(jsonPath("$.context.profile_health.required_fields", org.hamcrest.Matchers.hasItems("name", "first_seen_at")))
+                .andExpect(jsonPath("$.context.profile_health.segment_required_fields.new_dialog[0]").value("first_seen_at"))
+                .andExpect(jsonPath("$.context.profile_health.missing_fields[0]").value("first_seen_at"))
+                .andExpect(jsonPath("$.context.profile_health.coverage_pct").value(50));
+    }
+
+    @Test
     void workspacePublishesContextSourcesWithUtcStatuses() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
@@ -484,6 +537,61 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.context_sources[2].status").value("invalid_utc"))
                 .andExpect(jsonPath("$.context.context_sources[2].required").value(true))
                 .andExpect(jsonPath("$.context.client.context_sources[2].linked").value(true));
+    }
+
+    @Test
+    void workspaceAppliesSourceSpecificFreshnessTtl() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-SOURCE-TTL",
+                21L,
+                202L,
+                "client202",
+                "Клиент 202",
+                "enterprise",
+                5L,
+                "telegram",
+                "Москва",
+                "HQ",
+                "need help",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "VIP",
+                "client",
+                "2026-01-01T10:30:00Z",
+                1,
+                5,
+                "billing"
+        );
+        String crmUpdatedAt = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MINUTES).toString();
+        when(dialogService.loadDialogDetails("T-SOURCE-TTL", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-SOURCE-TTL", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of(
+                "crm_tier", "gold",
+                "crm_updated_at", crmUpdatedAt
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "workspace_client_context_required_sources", List.of("crm"),
+                "workspace_client_context_source_stale_after_hours", 0,
+                "workspace_client_context_source_stale_after_hours_by_source", Map.of("crm", 1)
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-SOURCE-TTL/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.context_sources[1].key").value("crm"))
+                .andExpect(jsonPath("$.context.context_sources[1].status").value("stale"))
+                .andExpect(jsonPath("$.context.context_sources[1].freshness_policy_scope").value("source"))
+                .andExpect(jsonPath("$.context.context_sources[1].freshness_ttl_hours").value(1));
     }
 
     @Test

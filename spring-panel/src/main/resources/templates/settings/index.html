@@ -2509,6 +2509,26 @@
                       <textarea class="form-control font-monospace" id="dialogWorkspaceClientContextSourceUpdatedAtAttributes" rows="4" placeholder='{"crm":["crm_updated_at"],"contract":["contract_updated_at"]}'></textarea>
                       <div class="form-text">Задаёт порядок поиска timestamp-полей. Невалидные значения безопасно попадают в <code>invalid_utc</code>.</div>
                     </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceClientContextSourceStaleAfterHoursBySource" class="form-label">TTL freshness по источникам (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceClientContextSourceStaleAfterHoursBySource" rows="4" placeholder='{"crm":24,"contract":72}'></textarea>
+                      <div class="form-text">Опционально переопределяет общий TTL по конкретным источникам. Значения — часы в UTC, диапазон 0..8760.</div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Mandatory customer profile (workspace)</h6>
+                  <p class="small text-muted">Позволяет формализовать минимальный профиль клиента: общий baseline и дополнительные обязательные поля для конкретных сегментов кейсов. Если настройки пустые — поведение workspace не меняется.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRequiredClientAttributes" class="form-label">Обязательные атрибуты профиля (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceRequiredClientAttributes" placeholder="name,status,last_message_at">
+                      <div class="form-text">Применяются ко всем кейсам. Ключи нормализуются в lowercase, дубликаты игнорируются.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRequiredClientAttributesBySegment" class="form-label">Обязательные атрибуты по сегментам (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceRequiredClientAttributesBySegment" rows="4" placeholder='{"reactivation_risk":["contract_tier","crm_owner"],"new_dialog":["first_seen_at"]}'></textarea>
+                      <div class="form-text">Ключ — сегмент из workspace, значение — список обязательных атрибутов для этого сценария.</div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Enterprise-атрибуты клиента (workspace)</h6>
@@ -4686,11 +4706,14 @@
     escalation_webhook_max_tickets_per_run: 50,
     workspace_context_history_limit: 5,
     workspace_context_related_events_limit: 5,
+    workspace_required_client_attributes: [],
+    workspace_required_client_attributes_by_segment: {},
     workspace_client_context_required_sources: [],
     workspace_client_context_source_labels: {},
     workspace_client_context_source_priority: ['local', 'crm', 'contract', 'external'],
     workspace_client_context_source_updated_at_attributes: {},
     workspace_client_context_source_stale_after_hours: 0,
+    workspace_client_context_source_stale_after_hours_by_source: {},
     workspace_segment_high_lifetime_volume_min_dialogs: 5,
     workspace_segment_multi_open_dialogs_min_open: 2,
     workspace_segment_reactivation_risk_min_dialogs: 3,
@@ -13832,6 +13855,9 @@
       workspaceClientContextSourceStaleAfterHours: document.getElementById('dialogWorkspaceClientContextSourceStaleAfterHours'),
       workspaceClientContextSourceLabels: document.getElementById('dialogWorkspaceClientContextSourceLabels'),
       workspaceClientContextSourceUpdatedAtAttributes: document.getElementById('dialogWorkspaceClientContextSourceUpdatedAtAttributes'),
+      workspaceClientContextSourceStaleAfterHoursBySource: document.getElementById('dialogWorkspaceClientContextSourceStaleAfterHoursBySource'),
+      workspaceRequiredClientAttributes: document.getElementById('dialogWorkspaceRequiredClientAttributes'),
+      workspaceRequiredClientAttributesBySegment: document.getElementById('dialogWorkspaceRequiredClientAttributesBySegment'),
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
@@ -14414,6 +14440,31 @@
         inputs.workspaceClientContextSourceUpdatedAtAttributes.value = JSON.stringify(attributes, null, 2);
       } else {
         inputs.workspaceClientContextSourceUpdatedAtAttributes.value = '{}';
+      }
+    }
+    if (inputs.workspaceClientContextSourceStaleAfterHoursBySource) {
+      const values = DIALOG_CONFIG.workspace_client_context_source_stale_after_hours_by_source;
+      if (values && typeof values === 'object' && !Array.isArray(values)) {
+        inputs.workspaceClientContextSourceStaleAfterHoursBySource.value = JSON.stringify(values, null, 2);
+      } else {
+        inputs.workspaceClientContextSourceStaleAfterHoursBySource.value = '{}';
+      }
+    }
+    if (inputs.workspaceRequiredClientAttributes) {
+      const requiredAttributes = Array.isArray(DIALOG_CONFIG.workspace_required_client_attributes)
+        ? DIALOG_CONFIG.workspace_required_client_attributes
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_required_client_attributes;
+      inputs.workspaceRequiredClientAttributes.value = requiredAttributes
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean)
+        .join(', ');
+    }
+    if (inputs.workspaceRequiredClientAttributesBySegment) {
+      const values = DIALOG_CONFIG.workspace_required_client_attributes_by_segment;
+      if (values && typeof values === 'object' && !Array.isArray(values)) {
+        inputs.workspaceRequiredClientAttributesBySegment.value = JSON.stringify(values, null, 2);
+      } else {
+        inputs.workspaceRequiredClientAttributesBySegment.value = '{}';
       }
     }
     if (inputs.workspaceClientHiddenAttributes) {
@@ -16008,6 +16059,67 @@
       }
     }
 
+    let safeWorkspaceClientContextSourceStaleAfterHoursBySource = {};
+    const contextSourceStaleBySourceRaw = (inputs.workspaceClientContextSourceStaleAfterHoursBySource?.value || '').trim();
+    if (contextSourceStaleBySourceRaw) {
+      try {
+        const parsed = JSON.parse(contextSourceStaleBySourceRaw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          errors.push('TTL freshness по источникам должен быть JSON-объектом.');
+        } else {
+          const normalized = {};
+          Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+            const key = String(keyRaw || '').trim().toLowerCase();
+            const ttl = Math.round(Number(valueRaw));
+            if (!allowedContextSources.has(key) || !Number.isFinite(ttl) || ttl < 0 || ttl > 8760) {
+              return;
+            }
+            normalized[key] = ttl;
+          });
+          safeWorkspaceClientContextSourceStaleAfterHoursBySource = normalized;
+        }
+      } catch (err) {
+        errors.push('TTL freshness по источникам: некорректный JSON.');
+      }
+    }
+
+    const safeWorkspaceRequiredClientAttributes = Array.from(new Set(
+      String(inputs.workspaceRequiredClientAttributes?.value || '')
+        .split(/[
+,;]/)
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean),
+    ));
+
+    let safeWorkspaceRequiredClientAttributesBySegment = {};
+    const requiredClientAttributesBySegmentRaw = (inputs.workspaceRequiredClientAttributesBySegment?.value || '').trim();
+    if (requiredClientAttributesBySegmentRaw) {
+      try {
+        const parsed = JSON.parse(requiredClientAttributesBySegmentRaw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          errors.push('Обязательные атрибуты профиля по сегментам должны быть JSON-объектом.');
+        } else {
+          const normalized = {};
+          Object.entries(parsed).forEach(([segmentRaw, attributesRaw]) => {
+            const segmentKey = String(segmentRaw || '').trim().toLowerCase();
+            if (!segmentKey) {
+              return;
+            }
+            const values = Array.isArray(attributesRaw) ? attributesRaw : [attributesRaw];
+            const attributes = Array.from(new Set(values
+              .map((item) => String(item || '').trim().toLowerCase())
+              .filter(Boolean)));
+            if (attributes.length) {
+              normalized[segmentKey] = attributes;
+            }
+          });
+          safeWorkspaceRequiredClientAttributesBySegment = normalized;
+        }
+      } catch (err) {
+        errors.push('Обязательные атрибуты профиля по сегментам: некорректный JSON.');
+      }
+    }
+
     const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
     if (hiddenAttributesRaw) {
       try {
@@ -16413,11 +16525,14 @@
         dialog_workspace_client_external_profile_cache_ttl_seconds: safeWorkspaceExternalProfileCacheTtlSeconds,
         dialog_workspace_client_external_profile_auth_header: safeWorkspaceExternalProfileAuthHeader,
         dialog_workspace_client_external_profile_auth_token: safeWorkspaceExternalProfileAuthToken,
+        dialog_workspace_required_client_attributes: safeWorkspaceRequiredClientAttributes,
+        dialog_workspace_required_client_attributes_by_segment: safeWorkspaceRequiredClientAttributesBySegment,
         dialog_workspace_client_context_required_sources: safeWorkspaceClientContextRequiredSources,
         dialog_workspace_client_context_source_priority: safeWorkspaceClientContextSourcePriority,
         dialog_workspace_client_context_source_stale_after_hours: safeWorkspaceClientContextSourceStaleAfterHours,
         dialog_workspace_client_context_source_labels: safeWorkspaceClientContextSourceLabels,
         dialog_workspace_client_context_source_updated_at_attributes: safeWorkspaceClientContextSourceUpdatedAtAttributes,
+        dialog_workspace_client_context_source_stale_after_hours_by_source: safeWorkspaceClientContextSourceStaleAfterHoursBySource,
         dialog_workspace_client_hidden_attributes: safeWorkspaceClientHiddenAttributes,
         dialog_workspace_client_attribute_labels: safeWorkspaceClientAttributeLabels,
         dialog_workspace_client_attribute_order: safeWorkspaceClientAttributeOrder,
