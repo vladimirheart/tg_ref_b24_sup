@@ -9,6 +9,5 @@ attachments/
 /java-bot/target/
 
 /spring-panel/target/
-logs/spring-panel.log
 *.patch
 logs/spring-panel.log
