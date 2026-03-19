@@ -675,6 +675,89 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryBuildsGovernancePacketWithOwnerSignoffInUtc() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_governance_owner_signoff_required":true,
+                         "workspace_rollout_governance_owner_signoff_by":"ops-director",
+                         "workspace_rollout_governance_owner_signoff_at":"2026-02-03T04:05:06",
+                         "workspace_rollout_governance_owner_signoff_ttl_hours":999}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-1', NULL, NULL, 'workspace.v1', 880, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
+                    ('op1', 'workspace_parity_gap', 'workspace', 'T-PACKET-1', 'attachments', NULL, 'workspace.v1', 20, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+        Map<String, Object> ownerSignoff = (Map<String, Object>) packet.get("owner_signoff");
+        Map<String, Object> paritySnapshot = (Map<String, Object>) packet.get("parity_snapshot");
+
+        assertThat(packet.get("required")).isEqualTo(true);
+        assertThat(packet.get("packet_ready")).isEqualTo(true);
+        assertThat(packet.get("status")).isEqualTo("ok");
+        assertThat(items).anySatisfy(item -> {
+            if ("owner_signoff".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+                assertThat(item.get("current_value")).isEqualTo("signed_by=ops-director");
+            }
+        });
+        assertThat(ownerSignoff).containsEntry("required", true);
+        assertThat(ownerSignoff).containsEntry("ready", true);
+        assertThat(ownerSignoff).containsEntry("signed_by", "ops-director");
+        assertThat(ownerSignoff).containsEntry("signed_at", "2026-02-03T04:05:06Z");
+        assertThat(paritySnapshot).containsEntry("ready", true);
+        assertThat(paritySnapshot).containsEntry("workspace_open_events", 1L);
+        assertThat(paritySnapshot).containsEntry("parity_gap_events", 1L);
+    }
+
+    @Test
+    void workspaceTelemetrySummaryFlagsGovernancePacketInvalidOwnerSignoffDate() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_governance_owner_signoff_required":true,
+                         "workspace_rollout_governance_owner_signoff_by":"ops-director",
+                         "workspace_rollout_governance_owner_signoff_at":"bad-owner-ts"}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-INVALID', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+        Map<String, Object> ownerSignoff = (Map<String, Object>) packet.get("owner_signoff");
+
+        assertThat(packet.get("packet_ready")).isEqualTo(false);
+        assertThat(packet.get("status")).isEqualTo("hold");
+        assertThat((List<String>) packet.get("missing_items")).contains("owner_signoff");
+        assertThat(items).anySatisfy(item -> {
+            if ("owner_signoff".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(item.get("current_value")).isEqualTo("invalid_utc");
+            }
+        });
+        assertThat(ownerSignoff).containsEntry("timestamp_invalid", true);
+        assertThat(ownerSignoff).containsEntry("signed_at", "");
+    }
+
+    @Test
     void workspaceTelemetrySummaryExpandsExternalCheckpointScorecardItems() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
