@@ -753,7 +753,10 @@ public class DialogService {
         payload.put("guardrails", guardrails);
         Map<String, Object> rolloutDecision = buildWorkspaceRolloutDecision(cohortComparison, guardrails);
         payload.put("rollout_decision", rolloutDecision);
-        payload.put("rollout_scorecard", buildWorkspaceRolloutScorecard(totals, cohortComparison, guardrails, rolloutDecision));
+        Map<String, Object> rolloutScorecard = buildWorkspaceRolloutScorecard(totals, cohortComparison, guardrails, rolloutDecision);
+        payload.put("rollout_scorecard", rolloutScorecard);
+        payload.put("rollout_packet", buildWorkspaceRolloutPacket(totals, guardrails, rolloutDecision, rolloutScorecard,
+                payload.get("gap_breakdown"), windowDays));
         return payload;
     }
 
@@ -923,6 +926,218 @@ public class DialogService {
                 "decision_action", String.valueOf(safeRolloutDecision.getOrDefault("action", "hold")),
                 "items", items
         );
+    }
+
+    private Map<String, Object> buildWorkspaceRolloutPacket(Map<String, Object> totals,
+                                                            Map<String, Object> guardrails,
+                                                            Map<String, Object> rolloutDecision,
+                                                            Map<String, Object> rolloutScorecard,
+                                                            Object gapBreakdownRaw,
+                                                            int windowDays) {
+        Map<String, Object> safeTotals = totals == null ? Map.of() : totals;
+        Map<String, Object> safeGuardrails = guardrails == null ? Map.of() : guardrails;
+        Map<String, Object> safeRolloutDecision = rolloutDecision == null ? Map.of() : rolloutDecision;
+        Map<String, Object> safeRolloutScorecard = rolloutScorecard == null ? Map.of() : rolloutScorecard;
+        Map<String, Object> gapBreakdown = gapBreakdownRaw instanceof Map<?, ?> map ? castObjectMap(map) : Map.of();
+        Map<String, Object> externalSignal = safeRolloutDecision.get("external_kpi_signal") instanceof Map<?, ?> map
+                ? castObjectMap(map)
+                : Map.of();
+
+        boolean packetRequired = resolveBooleanDialogConfigValue("workspace_rollout_governance_packet_required", false);
+        boolean ownerSignoffRequired = resolveBooleanDialogConfigValue("workspace_rollout_governance_owner_signoff_required", false);
+        String ownerSignoffBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_owner_signoff_by")));
+        String ownerSignoffAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_owner_signoff_at"));
+        long ownerSignoffTtlHours = resolveLongDialogConfigValue(
+                "workspace_rollout_governance_owner_signoff_ttl_hours", 168, 1, 24 * 90L);
+
+        OffsetDateTime ownerSignoffAt = parseReviewTimestamp(ownerSignoffAtRaw);
+        boolean ownerSignoffTimestampInvalid = StringUtils.hasText(normalizeNullString(ownerSignoffAtRaw)) && ownerSignoffAt == null;
+        boolean ownerSignoffPresent = ownerSignoffAt != null && StringUtils.hasText(ownerSignoffBy);
+        boolean ownerSignoffFresh = false;
+        long ownerSignoffAgeHours = -1L;
+        if (ownerSignoffAt != null) {
+            ownerSignoffAgeHours = Math.max(0, java.time.Duration.between(ownerSignoffAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+            ownerSignoffFresh = ownerSignoffAgeHours <= ownerSignoffTtlHours;
+        }
+        boolean ownerSignoffReady = !ownerSignoffRequired || (ownerSignoffPresent && ownerSignoffFresh && !ownerSignoffTimestampInvalid);
+
+        List<Map<String, Object>> scorecardItems = safeListOfMaps(safeRolloutScorecard.get("items"));
+        boolean scorecardSnapshotReady = !scorecardItems.isEmpty();
+        long workspaceOpenEvents = toLong(safeTotals.get("workspace_open_events"));
+        double parityReadyRate = safeDouble(safeTotals.get("workspace_parity_ready_rate"));
+        long parityGapEvents = toLong(safeTotals.get("workspace_parity_gap_events"));
+        List<Map<String, Object>> parityRows = safeListOfMaps(gapBreakdown.get("parity"));
+        boolean paritySnapshotReady = workspaceOpenEvents > 0 || !parityRows.isEmpty();
+        String topParityReasons = parityRows.stream()
+                .limit(3)
+                .map(row -> {
+                    String reason = normalizeNullString(String.valueOf(row.getOrDefault("reason", "unspecified")));
+                    long events = toLong(row.get("events"));
+                    return StringUtils.hasText(reason) ? "%s(%d)".formatted(reason, events) : "unspecified(%d)".formatted(events);
+                })
+                .filter(StringUtils::hasText)
+                .collect(Collectors.joining(", "));
+
+        List<Map<String, Object>> alerts = safeListOfMaps(safeGuardrails.get("alerts"));
+        long renderErrorAlerts = alerts.stream().filter(alert -> "render_error_rate".equals(String.valueOf(alert.get("metric")))).count();
+        long fallbackAlerts = alerts.stream().filter(alert -> "fallback_rate".equals(String.valueOf(alert.get("metric")))).count();
+        long abandonAlerts = alerts.stream().filter(alert -> "abandon_rate".equals(String.valueOf(alert.get("metric")))).count();
+        long slowOpenAlerts = alerts.stream().filter(alert -> "slow_open_rate".equals(String.valueOf(alert.get("metric")))).count();
+        boolean incidentHistoryReady = true;
+        boolean externalGateSnapshotReady = !externalSignal.isEmpty();
+
+        List<Map<String, Object>> packetItems = new ArrayList<>();
+        packetItems.add(buildScorecardItem(
+                "scorecard_snapshot",
+                "workspace",
+                "Rollout scorecard snapshot",
+                scorecardSnapshotReady ? "ok" : (packetRequired ? "hold" : "attention"),
+                packetRequired && !scorecardSnapshotReady,
+                "Пакет rollout должен включать актуальный scorecard для формального решения.",
+                scorecardSnapshotReady
+                        ? "items=%d, action=%s".formatted(scorecardItems.size(), String.valueOf(safeRolloutScorecard.getOrDefault("decision_action", safeRolloutDecision.getOrDefault("action", "hold"))))
+                        : "missing",
+                "scorecard available",
+                normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
+                null
+        ));
+        packetItems.add(buildScorecardItem(
+                "parity_snapshot",
+                "workspace",
+                "Workspace parity snapshot",
+                paritySnapshotReady ? "ok" : (packetRequired ? "hold" : "attention"),
+                packetRequired && !paritySnapshotReady,
+                "Пакет rollout должен фиксировать parity-gap snapshot по workspace vs legacy.",
+                paritySnapshotReady
+                        ? "opens=%d, ready=%.1f%%, gaps=%d".formatted(workspaceOpenEvents, parityReadyRate * 100d, parityGapEvents)
+                        : "missing",
+                "workspace_open_events > 0",
+                normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
+                StringUtils.hasText(topParityReasons) ? "top_reasons=" + topParityReasons : ""
+        ));
+        packetItems.add(buildScorecardItem(
+                "external_gate_snapshot",
+                "external_dependencies",
+                "External KPI gate snapshot",
+                externalGateSnapshotReady ? "ok" : (packetRequired ? "hold" : "attention"),
+                packetRequired && !externalGateSnapshotReady,
+                "Пакет rollout должен содержать статус external KPI gate и его риск-сигналы.",
+                externalGateSnapshotReady
+                        ? "enabled=%s, ready=%s, risk=%s".formatted(
+                                toBoolean(externalSignal.get("enabled")),
+                                toBoolean(externalSignal.get("ready_for_decision")),
+                                String.valueOf(externalSignal.getOrDefault("datamart_risk_level", "low")))
+                        : "missing",
+                "external gate status present",
+                firstNonBlank(
+                        normalizeUtcTimestamp(externalSignal.get("reviewed_at")),
+                        normalizeUtcTimestamp(externalSignal.get("data_updated_at")),
+                        normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at"))),
+                String.valueOf(externalSignal.getOrDefault("note", "")).trim()
+        ));
+        packetItems.add(buildScorecardItem(
+                "incident_history",
+                "guardrails",
+                "Incident history snapshot",
+                incidentHistoryReady ? "ok" : (packetRequired ? "hold" : "attention"),
+                packetRequired && !incidentHistoryReady,
+                "Пакет rollout должен содержать сводку guardrails/incident history за текущее UTC-окно.",
+                "alerts=%d, render=%d, fallback=%d, abandon=%d, slow_open=%d".formatted(
+                        alerts.size(), renderErrorAlerts, fallbackAlerts, abandonAlerts, slowOpenAlerts),
+                "window=%d days UTC".formatted(Math.max(1, windowDays)),
+                normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
+                String.valueOf(safeGuardrails.getOrDefault("status", "ok"))
+        ));
+        packetItems.add(buildScorecardItem(
+                "owner_signoff",
+                "workspace",
+                "Owner sign-off",
+                !ownerSignoffRequired ? "off" : (ownerSignoffReady ? "ok" : "hold"),
+                ownerSignoffRequired && !ownerSignoffReady,
+                "Owner sign-off закрепляет единый decision loop для go / hold / rollback.",
+                !ownerSignoffRequired
+                        ? "not required"
+                        : ownerSignoffTimestampInvalid
+                                ? "invalid_utc"
+                                : ownerSignoffPresent
+                                        ? "signed_by=%s".formatted(ownerSignoffBy)
+                                        : "missing",
+                ownerSignoffRequired ? "present & <= %d h".formatted(ownerSignoffTtlHours) : "optional",
+                ownerSignoffAt != null ? ownerSignoffAt.toString() : "",
+                ownerSignoffPresent
+                        ? "age_hours=%d".formatted(ownerSignoffAgeHours)
+                        : ""
+        ));
+
+        List<String> missingItems = packetItems.stream()
+                .filter(item -> {
+                    String status = String.valueOf(item.getOrDefault("status", "hold"));
+                    return !"ok".equals(status) && !"off".equals(status);
+                })
+                .map(item -> String.valueOf(item.get("key")))
+                .toList();
+        boolean packetReady = packetItems.stream().allMatch(item -> {
+            String status = String.valueOf(item.getOrDefault("status", "hold"));
+            return "ok".equals(status) || "off".equals(status);
+        });
+        String packetStatus;
+        if (packetReady) {
+            packetStatus = "ok";
+        } else if (packetRequired) {
+            packetStatus = "hold";
+        } else if (!scorecardSnapshotReady && workspaceOpenEvents <= 0 && alerts.isEmpty() && !ownerSignoffRequired) {
+            packetStatus = "off";
+        } else {
+            packetStatus = "attention";
+        }
+
+        Map<String, Object> ownerSignoff = new LinkedHashMap<>();
+        ownerSignoff.put("required", ownerSignoffRequired);
+        ownerSignoff.put("ready", ownerSignoffReady);
+        ownerSignoff.put("signed_by", ownerSignoffBy);
+        ownerSignoff.put("signed_at", ownerSignoffAt != null ? ownerSignoffAt.toString() : "");
+        ownerSignoff.put("ttl_hours", ownerSignoffTtlHours);
+        ownerSignoff.put("age_hours", ownerSignoffAgeHours);
+        ownerSignoff.put("timestamp_invalid", ownerSignoffTimestampInvalid);
+
+        Map<String, Object> paritySnapshot = new LinkedHashMap<>();
+        paritySnapshot.put("ready", paritySnapshotReady);
+        paritySnapshot.put("workspace_open_events", workspaceOpenEvents);
+        paritySnapshot.put("parity_gap_events", parityGapEvents);
+        paritySnapshot.put("parity_ready_rate", parityReadyRate);
+        paritySnapshot.put("top_reasons", parityRows.stream().limit(3).toList());
+
+        Map<String, Object> incidentHistory = new LinkedHashMap<>();
+        incidentHistory.put("ready", incidentHistoryReady);
+        incidentHistory.put("window_days", Math.max(1, windowDays));
+        incidentHistory.put("guardrail_status", String.valueOf(safeGuardrails.getOrDefault("status", "ok")));
+        incidentHistory.put("alert_count", alerts.size());
+        incidentHistory.put("render_error_alerts", renderErrorAlerts);
+        incidentHistory.put("fallback_alerts", fallbackAlerts);
+        incidentHistory.put("abandon_alerts", abandonAlerts);
+        incidentHistory.put("slow_open_alerts", slowOpenAlerts);
+
+        Map<String, Object> packet = new LinkedHashMap<>();
+        packet.put("generated_at", Instant.now().toString());
+        packet.put("required", packetRequired);
+        packet.put("packet_ready", packetReady);
+        packet.put("status", packetStatus);
+        packet.put("summary", packetReady
+                ? "Governance packet complete."
+                : (packetRequired ? "Governance packet has blocking gaps." : "Governance packet is informative and has pending items."));
+        packet.put("missing_items", missingItems);
+        packet.put("items", packetItems);
+        packet.put("owner_signoff", ownerSignoff);
+        packet.put("parity_snapshot", paritySnapshot);
+        packet.put("incident_history", incidentHistory);
+        packet.put("external_gate", Map.of(
+                "ready", externalGateSnapshotReady,
+                "enabled", toBoolean(externalSignal.get("enabled")),
+                "decision_ready", toBoolean(externalSignal.get("ready_for_decision")),
+                "risk_level", String.valueOf(externalSignal.getOrDefault("datamart_risk_level", "low")),
+                "reviewed_at", normalizeUtcTimestamp(externalSignal.get("reviewed_at"))
+        ));
+        return packet;
     }
 
     private void appendOutcomeMetricScorecardItem(List<Map<String, Object>> items,
