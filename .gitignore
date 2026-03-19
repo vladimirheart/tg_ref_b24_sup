@@ -12,3 +12,4 @@ attachments/
 /logs
 logs/spring-panel.log
 *.patch
+logs/spring-panel.log
