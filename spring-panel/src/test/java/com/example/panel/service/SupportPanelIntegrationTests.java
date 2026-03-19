@@ -570,6 +570,34 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryTracksSlaPolicyGaps() {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-SLA-1', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
+                    ('op2', 'workspace_open_ms', 'performance', 'T-SLA-2', NULL, NULL, 'workspace.v1', 940, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
+                    ('op2', 'workspace_sla_policy_gap', 'workspace', 'T-SLA-2', 'fallback_assignee_missing', NULL, 'workspace.v1', 5, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+        Map<String, Object> gapBreakdown = (Map<String, Object>) summary.get("gap_breakdown");
+        List<Map<String, Object>> policyRows = (List<Map<String, Object>>) gapBreakdown.get("sla_policy");
+
+        assertThat(totals).containsEntry("workspace_sla_policy_gap_events", 1L);
+        assertThat((double) totals.get("workspace_sla_policy_gap_rate")).isEqualTo(0.5d);
+        assertThat((double) totals.get("workspace_sla_policy_ready_rate")).isEqualTo(0.5d);
+        assertThat(policyRows).anySatisfy(row -> {
+            assertThat(row).containsEntry("reason", "fallback_assignee_missing");
+            assertThat(row).containsEntry("events", 1L);
+            assertThat(String.valueOf(row.get("last_seen_at"))).endsWith("Z");
+        });
+    }
+
+    @Test
     void workspaceTelemetrySummaryBuildsRolloutScorecardWithUtcTimestamps() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
