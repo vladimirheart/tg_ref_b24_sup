@@ -230,6 +230,8 @@ public class ChannelApiController {
         }
         Map<String, Object> data = payload != null ? payload : Collections.emptyMap();
         boolean updated = false;
+        boolean tokenChanged = false;
+        boolean platformChanged = false;
 
         if (data.containsKey("channel_name") || data.containsKey("name")) {
             String name = stringValue(firstValue(data, "channel_name", "name"));
@@ -249,6 +251,7 @@ public class ChannelApiController {
             if (!platform.isEmpty()) {
                 channel.setPlatform(platform);
                 updated = true;
+                platformChanged = true;
             }
         }
 
@@ -325,6 +328,7 @@ public class ChannelApiController {
             if (!token.isEmpty()) {
                 channel.setToken(token);
                 updated = true;
+                tokenChanged = true;
             }
         }
 
@@ -333,8 +337,8 @@ public class ChannelApiController {
         }
 
         channel.setUpdatedAt(OffsetDateTime.now());
-        if (data.containsKey("token") || data.containsKey("platform")) {
-            updateTelegramBotInfo(channel, false);
+        if (tokenChanged || platformChanged) {
+            updateTelegramBotInfo(channel, true);
         }
         channel.setUpdatedAt(OffsetDateTime.now());
         channelRepository.save(channel);
