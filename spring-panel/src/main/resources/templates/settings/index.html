@@ -4374,6 +4374,7 @@
               <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" id="channelEditorCopyPublicLinkBtn">Скопировать ссылку</button>
             </div>
             <div class="text-muted small" data-channel-editor-public-link>—</div>
+            <div class="text-muted small" data-channel-editor-meta></div>
             <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
               <span>Токен: <span class="font-monospace" data-channel-editor-token>—</span></span>
               <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorToggleTokenBtn">Показать</button>
@@ -4535,6 +4536,18 @@
               <button type="button" class="btn btn-success" id="channelEditorBotStartBtn">Запустить бота</button>
               <button type="button" class="btn btn-outline-danger" id="channelEditorBotStopBtn">Остановить</button>
               <div class="small text-muted" data-channel-editor-bot-status>Статус: —</div>
+            </div>
+            <div class="mt-3">
+              <div class="form-label small mb-1">Токен бота</div>
+              <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
+                <span class="font-monospace" data-channel-editor-token>—</span>
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorToggleTokenBtn">Показать</button>
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyTokenBtn">Скопировать</button>
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить информацию о боте</button>
+              <div class="form-text small mt-1">Принудительно обновляет имя и username через Telegram API. После смены токена можно сразу синхронизировать карточку бота.</div>
             </div>
             <div class="form-text small">Бот запускается в отдельном Java-процессе и использует собственную SQLite-базу.</div>
           </div>
