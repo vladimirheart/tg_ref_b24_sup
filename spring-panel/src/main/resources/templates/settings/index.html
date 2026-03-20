@@ -4374,12 +4374,7 @@
               <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" id="channelEditorCopyPublicLinkBtn">Скопировать ссылку</button>
             </div>
             <div class="text-muted small" data-channel-editor-public-link>—</div>
-            <div class="text-muted small">Токен: <span class="font-monospace" data-channel-editor-token>—</span></div>
             <div class="text-muted small" data-channel-editor-meta></div>
-            <div class="mt-2">
-              <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить имя бота</button>
-              <div class="form-text small mt-1">Принудительно обновляет имя и username через Telegram API.</div>
-            </div>
           </div>
           <div class="mb-3">
             <label class="form-label" for="channelEditorNewToken">Новый токен</label>
@@ -4531,6 +4526,18 @@
               <button type="button" class="btn btn-success" id="channelEditorBotStartBtn">Запустить бота</button>
               <button type="button" class="btn btn-outline-danger" id="channelEditorBotStopBtn">Остановить</button>
               <div class="small text-muted" data-channel-editor-bot-status>Статус: —</div>
+            </div>
+            <div class="mt-3">
+              <div class="form-label small mb-1">Токен бота</div>
+              <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
+                <span class="font-monospace" data-channel-editor-token>—</span>
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorToggleTokenBtn">Показать</button>
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyTokenBtn">Скопировать</button>
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить информацию о боте</button>
+              <div class="form-text small mt-1">Принудительно обновляет имя и username через Telegram API. После смены токена можно сразу синхронизировать карточку бота.</div>
             </div>
             <div class="form-text small">Бот запускается в отдельном Java-процессе и использует собственную SQLite-базу.</div>
           </div>
@@ -17076,6 +17083,8 @@
   const channelEditorPlatformEl = document.querySelector('[data-channel-editor-platform]');
   const channelEditorBotEl = document.querySelector('[data-channel-editor-bot]');
   const channelEditorTokenEl = document.querySelector('[data-channel-editor-token]');
+  const channelEditorToggleTokenBtn = document.getElementById('channelEditorToggleTokenBtn');
+  const channelEditorCopyTokenBtn = document.getElementById('channelEditorCopyTokenBtn');
   const channelEditorPublicIdEl = document.querySelector('[data-channel-editor-public-id]');
   const channelEditorRegeneratePublicIdBtn = document.getElementById('channelEditorRegeneratePublicIdBtn');
   const channelEditorCopyPublicLinkBtn = document.getElementById('channelEditorCopyPublicLinkBtn');
@@ -17120,6 +17129,7 @@
   const channelEditorState = {
     channelId: null,
     publicFormFields: [],
+    tokenVisible: false,
   };
 
   const PUBLIC_FORM_FIELD_TYPES = [
@@ -17132,7 +17142,7 @@
     { value: 'file', label: 'Файл (имя вложения)' },
   ];
 
-  const channelEditorBotRefreshDefaultLabel = channelEditorBotRefreshBtn?.textContent?.trim() || 'Обновить имя бота';
+  const channelEditorBotRefreshDefaultLabel = channelEditorBotRefreshBtn?.textContent?.trim() || 'Обновить информацию о боте';
 
   let channelsInitialized = false;
 
@@ -17239,6 +17249,41 @@
     channelEditorBotRefreshBtn.disabled = !isTelegram || isLoading;
     channelEditorBotRefreshBtn.textContent = isLoading ? 'Обновляем…' : channelEditorBotRefreshDefaultLabel;
     channelEditorBotRefreshBtn.title = isTelegram ? '' : 'Обновление доступно только для Telegram';
+  }
+
+  function getChannelEditorTokenValue() {
+    if (channelEditorState.channelId === null) {
+      return '';
+    }
+    const channel = CHANNELS_REGISTRY.get(String(channelEditorState.channelId));
+    return String(channel?.token || '').trim();
+  }
+
+  function updateChannelEditorToken() {
+    if (!channelEditorTokenEl) return;
+    const token = getChannelEditorTokenValue();
+    channelEditorTokenEl.textContent = channelEditorState.tokenVisible ? (token || '—') : maskToken(token);
+    if (channelEditorToggleTokenBtn) {
+      channelEditorToggleTokenBtn.textContent = channelEditorState.tokenVisible ? 'Скрыть' : 'Показать';
+      channelEditorToggleTokenBtn.disabled = !token;
+    }
+    if (channelEditorCopyTokenBtn) {
+      channelEditorCopyTokenBtn.disabled = !token;
+    }
+  }
+
+  async function copyChannelToken() {
+    const token = getChannelEditorTokenValue();
+    if (!token) {
+      showPopup('Токен канала отсутствует.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(token);
+      showPopup('Токен скопирован.');
+    } catch (error) {
+      showPopup('Не удалось скопировать токен: ' + error.message);
+    }
   }
 
   async function refreshBotStatus(channelId) {
@@ -17708,9 +17753,8 @@
       channelEditorBotEl.textContent = formatBotLabel(channel);
     }
     updateBotRefreshControl(channel.platform === 'telegram');
-    if (channelEditorTokenEl) {
-      channelEditorTokenEl.textContent = maskToken(channel.token);
-    }
+    channelEditorState.tokenVisible = false;
+    updateChannelEditorToken();
     if (channelEditorNewTokenInput) {
       channelEditorNewTokenInput.value = '';
     }
@@ -17946,9 +17990,9 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
       await loadChannels();
-      notifyChannelStatus('Имя бота обновлено.', 'success');
+      notifyChannelStatus('Информация о боте обновлена.', 'success');
     } catch (error) {
-      notifyChannelStatus(`Не удалось обновить имя бота: ${error.message}`, 'error');
+      notifyChannelStatus(`Не удалось обновить информацию о боте: ${error.message}`, 'error');
     } finally {
       const updated = CHANNELS_REGISTRY.get(String(channelId));
       updateBotRefreshControl(updated ? updated.platform === 'telegram' : true);
@@ -18787,6 +18831,13 @@
         refreshChannelBotInfo(channelEditorState.channelId);
       }
     });
+    channelEditorToggleTokenBtn?.addEventListener('click', () => {
+      channelEditorState.tokenVisible = !channelEditorState.tokenVisible;
+      updateChannelEditorToken();
+    });
+    channelEditorCopyTokenBtn?.addEventListener('click', () => {
+      copyChannelToken();
+    });
     channelEditorSaveBtn?.addEventListener('click', () => {
       if (channelEditorState.channelId !== null) {
         saveChannel(channelEditorState.channelId);
@@ -18799,6 +18850,7 @@
     });
     channelEditorModalEl?.addEventListener('hidden.bs.modal', () => {
       channelEditorState.channelId = null;
+      channelEditorState.tokenVisible = false;
     });
   }
 
