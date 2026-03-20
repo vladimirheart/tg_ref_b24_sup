@@ -43,18 +43,20 @@ import java.util.UUID;
 public class ChannelApiController {
 
     private static final Logger log = LoggerFactory.getLogger(ChannelApiController.class);
-    private static final HttpClient TELEGRAM_HTTP_CLIENT = HttpClient.newHttpClient();
 
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
+    private final com.example.panel.service.IntegrationNetworkService integrationNetworkService;
 
     public ChannelApiController(ChannelRepository channelRepository,
                                 ObjectMapper objectMapper,
-                                SharedConfigService sharedConfigService) {
+                                SharedConfigService sharedConfigService,
+                                com.example.panel.service.IntegrationNetworkService integrationNetworkService) {
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
+        this.integrationNetworkService = integrationNetworkService;
     }
 
     @GetMapping("/channels")
@@ -190,7 +192,7 @@ public class ChannelApiController {
         List<String> failedRecipients = new ArrayList<>();
         List<String> sentRecipients = new ArrayList<>();
         for (String target : uniqueRecipients) {
-            if (sendTelegramMessage(channel.getToken(), target, message)) {
+            if (sendTelegramMessage(channel, channel.getToken(), target, message)) {
                 sentRecipients.add(target);
             } else {
                 failedRecipients.add(target);
@@ -272,6 +274,14 @@ public class ChannelApiController {
             Object raw = firstValue(data, "delivery_settings", "deliverySettings");
             String encoded = serializeIfNeeded(raw);
             channel.setDeliverySettings(encoded);
+            updated = true;
+        }
+
+        if (data.containsKey("network_route") || data.containsKey("networkRoute")) {
+            Map<String, Object> deliverySettings = parseJsonMap(channel.getDeliverySettings());
+            Object raw = firstValue(data, "network_route", "networkRoute");
+            deliverySettings.put("network_route", raw == null ? Map.of() : raw);
+            channel.setDeliverySettings(serializeIfNeeded(deliverySettings));
             updated = true;
         }
 
@@ -515,6 +525,7 @@ public class ChannelApiController {
         response.put("delivery_settings", parseJsonMap(channel.getDeliverySettings()));
         response.put("public_id", channel.getPublicId());
         response.put("questions_cfg", parseJsonValue(channel.getQuestionsCfg()));
+        response.put("network_route", parseNetworkRoute(channel));
         if (channel.getCredentialId() != null) {
             response.put("credential", credentials.get(channel.getCredentialId()));
         }
@@ -554,7 +565,18 @@ public class ChannelApiController {
         return new LinkedHashMap<>();
     }
 
-    private boolean sendTelegramMessage(String token, String recipient, String message) {
+    private Map<String, Object> parseNetworkRoute(Channel channel) {
+        Map<String, Object> deliverySettings = parseJsonMap(channel.getDeliverySettings());
+        Object route = deliverySettings.get("network_route");
+        if (route instanceof Map<?, ?> map) {
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            map.forEach((key, value) -> normalized.put(Objects.toString(key, ""), value));
+            return normalized;
+        }
+        return Map.of();
+    }
+
+    private boolean sendTelegramMessage(Channel channel, String token, String recipient, String message) {
         try {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", recipient);
@@ -566,7 +588,8 @@ public class ChannelApiController {
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .build();
-            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, Duration.ofSeconds(10));
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {
                 log.warn("Telegram sendMessage failed for {}: HTTP {}", recipient, response.statusCode());
                 return false;
@@ -783,7 +806,7 @@ public class ChannelApiController {
         if (!forceRefresh && !isBlank(channel.getBotName()) && !isBlank(channel.getBotUsername())) {
             return false;
         }
-        Optional<TelegramBotInfo> info = fetchTelegramBotInfo(channel.getToken());
+        Optional<TelegramBotInfo> info = fetchTelegramBotInfo(channel);
         if (info.isEmpty()) {
             return false;
         }
@@ -797,7 +820,8 @@ public class ChannelApiController {
         return true;
     }
 
-    private Optional<TelegramBotInfo> fetchTelegramBotInfo(String token) {
+    private Optional<TelegramBotInfo> fetchTelegramBotInfo(Channel channel) {
+        String token = channel != null ? channel.getToken() : null;
         if (isBlank(token)) {
             return Optional.empty();
         }
@@ -808,7 +832,8 @@ public class ChannelApiController {
             .GET()
             .build();
         try {
-            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, Duration.ofSeconds(10));
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
                 log.warn("Telegram getMe failed with status {}", response.statusCode());
                 return Optional.empty();

@@ -27,14 +27,17 @@ public class BotProcessService {
 
     private final SharedConfigService sharedConfigService;
     private final SqliteDataSourceProperties ticketsDbProperties;
+    private final IntegrationNetworkService integrationNetworkService;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
     private final Map<Long, OffsetDateTime> startedAt = new ConcurrentHashMap<>();
     private static final Pattern PID_FILE_PATTERN = Pattern.compile("bot-(\\d+)\\.pid");
 
     public BotProcessService(SharedConfigService sharedConfigService,
-                             SqliteDataSourceProperties ticketsDbProperties) {
+                             SqliteDataSourceProperties ticketsDbProperties,
+                             IntegrationNetworkService integrationNetworkService) {
         this.sharedConfigService = sharedConfigService;
         this.ticketsDbProperties = ticketsDbProperties;
+        this.integrationNetworkService = integrationNetworkService;
     }
 
     public BotProcessStatus start(Channel channel) {
@@ -79,6 +82,7 @@ public class BotProcessService {
             }
             env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
             env.put("APP_BOT_LOG_PATH", logFile.toString());
+            env.putAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)));
             Process process = builder.start();
             processes.put(channelId, process);
             OffsetDateTime now = OffsetDateTime.now();
