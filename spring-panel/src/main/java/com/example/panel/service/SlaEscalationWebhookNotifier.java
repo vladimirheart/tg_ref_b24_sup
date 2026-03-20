@@ -617,22 +617,22 @@ public class SlaEscalationWebhookNotifier {
             } else if (!ruleIssues.isEmpty()) {
                 status = "attention";
             }
-            rules.add(Map.of(
-                    "rule_id", definition.ruleId(),
-                    "layer", definition.layer(),
-                    "owner", definition.owner() == null ? "" : definition.owner(),
-                    "reviewed_at_utc", definition.reviewedAtUtc() != null ? definition.reviewedAtUtc().toString() : "",
-                    "reviewed_at_invalid_utc", definition.reviewedAtInvalid(),
-                    "priority", definition.rule().priority(),
-                    "specificity_score", definition.rule().specificityScore(),
-                    "matched_candidates", matchedCount,
-                    "selected_candidates", selectedCount,
-                    "coverage_rate", coverageRate,
-                    "route", definition.rule().route(),
-                    "assignee_target", formatRuleAssigneeTarget(definition.rule()),
-                    "issues", ruleIssues,
-                    "status", status
-            ));
+            Map<String, Object> rulePayload = new LinkedHashMap<>();
+            rulePayload.put("rule_id", definition.ruleId());
+            rulePayload.put("layer", definition.layer());
+            rulePayload.put("owner", definition.owner() == null ? "" : definition.owner());
+            rulePayload.put("reviewed_at_utc", definition.reviewedAtUtc() != null ? definition.reviewedAtUtc().toString() : "");
+            rulePayload.put("reviewed_at_invalid_utc", definition.reviewedAtInvalid());
+            rulePayload.put("priority", definition.rule().priority());
+            rulePayload.put("specificity_score", definition.rule().specificityScore());
+            rulePayload.put("matched_candidates", matchedCount);
+            rulePayload.put("selected_candidates", selectedCount);
+            rulePayload.put("coverage_rate", coverageRate);
+            rulePayload.put("route", definition.rule().route());
+            rulePayload.put("assignee_target", formatRuleAssigneeTarget(definition.rule()));
+            rulePayload.put("issues", ruleIssues);
+            rulePayload.put("status", status);
+            rules.add(rulePayload);
         }
 
         Map<String, Long> decisionsByLayer = rules.stream().collect(Collectors.groupingBy(
@@ -672,33 +672,33 @@ public class SlaEscalationWebhookNotifier {
             summary = "SLA routing audit нашёл non-blocking сигналы, которые стоит убрать до роста конфигурационного долга.";
         }
 
-        return Map.of(
-                "generated_at", generatedAt.toString(),
-                "status", status,
-                "summary", summary,
-                "enabled", orchestrationEnabled,
-                "auto_assign_enabled", autoAssignEnabled,
-                "orchestration_mode", orchestrationMode.name().toLowerCase(),
-                "include_assigned", includeAssigned,
-                "critical_candidates", criticalCandidates.size(),
-                "rules_total", definitions.size(),
-                "issues_total", issues.size(),
-                "layer_counts", layerCounts,
-                "decision_preview", Map.of(
-                        "selected_by_layer", decisionsByLayer,
-                        "selected_by_route", decisionsByRoute
-                ),
-                "requirements", Map.of(
-                        "require_layers", requireLayers,
-                        "require_owner", requireOwner,
-                        "require_review", requireReview,
-                        "review_ttl_hours", reviewTtlHours,
-                        "block_on_conflicts", blockOnConflict,
-                        "broad_rule_coverage_pct", broadCoveragePct
-                ),
-                "issues", issues,
-                "rules", rules
-        );
+        Map<String, Object> auditPayload = new LinkedHashMap<>();
+        auditPayload.put("generated_at", generatedAt.toString());
+        auditPayload.put("status", status);
+        auditPayload.put("summary", summary);
+        auditPayload.put("enabled", orchestrationEnabled);
+        auditPayload.put("auto_assign_enabled", autoAssignEnabled);
+        auditPayload.put("orchestration_mode", orchestrationMode.name().toLowerCase());
+        auditPayload.put("include_assigned", includeAssigned);
+        auditPayload.put("critical_candidates", criticalCandidates.size());
+        auditPayload.put("rules_total", definitions.size());
+        auditPayload.put("issues_total", issues.size());
+        auditPayload.put("layer_counts", layerCounts);
+        auditPayload.put("decision_preview", Map.of(
+                "selected_by_layer", decisionsByLayer,
+                "selected_by_route", decisionsByRoute
+        ));
+        auditPayload.put("requirements", Map.of(
+                "require_layers", requireLayers,
+                "require_owner", requireOwner,
+                "require_review", requireReview,
+                "review_ttl_hours", reviewTtlHours,
+                "block_on_conflicts", blockOnConflict,
+                "broad_rule_coverage_pct", broadCoveragePct
+        ));
+        auditPayload.put("issues", issues);
+        auditPayload.put("rules", rules);
+        return auditPayload;
     }
 
     private String buildRoutingPolicySummary(SlaOrchestrationMode orchestrationMode,
