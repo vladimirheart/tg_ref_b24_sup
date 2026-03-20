@@ -1784,6 +1784,7 @@ public class DialogApiController {
                 dialogService.loadDialogs(null),
                 settings);
         payload.put("sla_policy_audit", slaPolicyAudit != null ? slaPolicyAudit : Map.of());
+        payload.put("macro_governance_audit", dialogService.buildMacroGovernanceAudit(settings));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
     }

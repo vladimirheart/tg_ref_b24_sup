@@ -1829,6 +1829,130 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void settingsBridgeStoresMacroOwnershipNamespaceAndDeprecationFields() {
+        Map<String, Object> response = settingsBridgeController.updateSettings(Map.of(
+                "dialog_macro_templates", List.of(
+                        Map.of(
+                                "id", "macro_refund_status",
+                                "name", "Статус возврата",
+                                "message", "Проверяем возврат по заявке {{ticket_id}}",
+                                "owner", "billing-ops",
+                                "namespace", "Billing Refund",
+                                "approved_for_publish", true,
+                                "published", true
+                        ),
+                        Map.of(
+                                "id", "macro_old_refund",
+                                "name", "Старый возврат",
+                                "message", "Устаревший макрос",
+                                "owner", "billing-ops",
+                                "namespace", "billing.legacy",
+                                "deprecated", true,
+                                "deprecation_reason", "merged_into_macro_refund_status"
+                        )
+                )
+        ), null);
+
+        assertThat(response).containsEntry("success", true);
+        Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");
+        List<Map<String, Object>> templates = (List<Map<String, Object>>) dialogConfig.get("macro_templates");
+
+        assertThat(templates).anySatisfy(template -> {
+            if ("macro_refund_status".equals(template.get("id"))) {
+                assertThat(template).containsEntry("owner", "billing-ops");
+                assertThat(template).containsEntry("namespace", "billing-refund");
+                assertThat(template).containsEntry("deprecated", false);
+            }
+        });
+        assertThat(templates).anySatisfy(template -> {
+            if ("macro_old_refund".equals(template.get("id"))) {
+                assertThat(template).containsEntry("deprecated", true);
+                assertThat(template).containsEntry("deprecation_reason", "merged_into_macro_refund_status");
+                assertThat(String.valueOf(template.get("deprecated_at"))).isNotBlank();
+            }
+        });
+    }
+
+    @Test
+    void macroGovernanceAuditHighlightsOwnershipReviewAndUsageGaps() {
+        settingsBridgeController.updateSettings(Map.of(
+                "dialog_macro_templates", List.of(
+                        Map.of(
+                                "id", "macro_active_missing_owner",
+                                "name", "Активный без owner",
+                                "message", "Текст 1",
+                                "approved_for_publish", true,
+                                "published", true
+                        ),
+                        Map.of(
+                                "id", "macro_review_stale",
+                                "name", "Ревью просрочено",
+                                "message", "Текст 2",
+                                "owner", "ops-core",
+                                "namespace", "ops.core",
+                                "approved_for_publish", true,
+                                "published", true
+                        ),
+                        Map.of(
+                                "id", "macro_deprecated",
+                                "name", "Deprecated макрос",
+                                "message", "Текст 3",
+                                "owner", "ops-core",
+                                "namespace", "ops.legacy",
+                                "deprecated", true
+                        )
+                ),
+                "dialog_macro_governance_require_owner", true,
+                "dialog_macro_governance_require_namespace", true,
+                "dialog_macro_governance_require_review", true,
+                "dialog_macro_governance_review_ttl_hours", 24,
+                "dialog_macro_governance_deprecation_requires_reason", true,
+                "dialog_macro_governance_unused_days", 30
+        ), null);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'macro_apply', 'macro', 'T-MACRO-1', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, 'macro_review_stale', 'Ревью просрочено', datetime('now', '-40 day'))
+                """);
+
+        Map<String, Object> audit = dialogService.buildMacroGovernanceAudit(sharedConfigService.loadSettings());
+        List<Map<String, Object>> issues = (List<Map<String, Object>>) audit.get("issues");
+        List<Map<String, Object>> templates = (List<Map<String, Object>>) audit.get("templates");
+
+        assertThat(audit).containsEntry("status", "hold");
+        assertThat(audit).containsEntry("missing_owner_total", 1);
+        assertThat(audit).containsEntry("stale_review_total", 2);
+        assertThat(audit).containsEntry("unused_published_total", 2);
+        assertThat(audit).containsEntry("deprecation_gap_total", 1);
+        assertThat(issues).anySatisfy(issue -> {
+            if ("owner_missing".equals(issue.get("type"))) {
+                assertThat(issue.get("status")).isEqualTo("hold");
+            }
+        });
+        assertThat(issues).anySatisfy(issue -> {
+            if ("deprecation_reason_missing".equals(issue.get("type"))) {
+                assertThat(issue.get("status")).isEqualTo("attention");
+            }
+        });
+        assertThat(templates).anySatisfy(template -> {
+            if ("macro_active_missing_owner".equals(template.get("template_id"))) {
+                assertThat(template.get("status")).isEqualTo("hold");
+                assertThat(template.get("usage_count")).isEqualTo(0L);
+            }
+        });
+        assertThat(templates).anySatisfy(template -> {
+            if ("macro_deprecated".equals(template.get("template_id"))) {
+                assertThat(template.get("status")).isEqualTo("off");
+                assertThat(template.get("deprecated")).isEqualTo(true);
+            }
+        });
+    }
+
+    @Test
     void workspaceRolloutDecisionPublishesCanonicalTimestampInvalidAliases() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
