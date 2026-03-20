@@ -64,7 +64,7 @@ public class BlacklistHistoryService {
 
 
     public boolean historyTableExists() {
-        return Boolean.TRUE.equals(jdbcTemplate.execute(connection -> {
+        return Boolean.TRUE.equals(jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
             try (var tables = connection.getMetaData().getTables(null, null, "client_blacklist_history", null)) {
                 return tables.next();
             }
