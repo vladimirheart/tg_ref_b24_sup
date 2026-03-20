@@ -152,8 +152,30 @@ public class SupportBot extends TelegramLongPollingBot {
                         properties.getUsername(), me.getUserName());
             }
         } catch (TelegramApiException e) {
-            log.error("Telegram bot credentials verification failed; check token/username and network connectivity", e);
+            Throwable rootCause = rootCauseOf(e);
+            if (isConnectivityFailure(rootCause)) {
+                log.error("Telegram API connectivity check failed while calling getMe. " +
+                                "The configured token may still be valid, but the application could not establish a stable HTTPS connection to api.telegram.org:443. " +
+                                "Verify outbound network access, firewall/proxy rules, TLS interception, and antivirus filtering.",
+                        e);
+                return;
+            }
+            log.error("Telegram bot credentials verification failed. Check the configured token/username and Telegram API availability.", e);
         }
+    }
+
+    private Throwable rootCauseOf(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private boolean isConnectivityFailure(Throwable throwable) {
+        return throwable instanceof IOException
+                || throwable instanceof java.net.SocketException
+                || throwable instanceof java.net.SocketTimeoutException;
     }
 
     public void deleteWebhookIfAny() {
