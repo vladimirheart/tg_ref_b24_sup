@@ -78,6 +78,8 @@ public class DialogService {
     private static final double DEFAULT_GUARDRAIL_SLOW_OPEN_RATE = 0.05d;
     private static final int DEFAULT_DIMENSION_MIN_EVENTS = 20;
     private static final int DEFAULT_COHORT_MIN_EVENTS = 30;
+    private static final int DEFAULT_MACRO_GOVERNANCE_UNUSED_DAYS = 30;
+    private static final long DEFAULT_MACRO_GOVERNANCE_REVIEW_TTL_HOURS = 24L * 90L;
 
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
@@ -758,6 +760,204 @@ public class DialogService {
         payload.put("rollout_packet", buildWorkspaceRolloutPacket(totals, guardrails, rolloutDecision, rolloutScorecard,
                 payload.get("gap_breakdown"), windowDays));
         return payload;
+    }
+
+    public Map<String, Object> buildMacroGovernanceAudit(Map<String, Object> settings) {
+        Map<String, Object> safeSettings = settings == null ? Map.of() : settings;
+        Object rawDialogConfig = safeSettings.get("dialog_config");
+        Map<String, Object> dialogConfig = rawDialogConfig instanceof Map<?, ?> map ? castObjectMap(map) : Map.of();
+        List<Map<String, Object>> templates = safeListOfMaps(dialogConfig.get("macro_templates"));
+        boolean requireOwner = resolveBooleanConfig(dialogConfig, "macro_governance_require_owner", false);
+        boolean requireNamespace = resolveBooleanConfig(dialogConfig, "macro_governance_require_namespace", false);
+        boolean requireReview = resolveBooleanConfig(dialogConfig, "macro_governance_require_review", false);
+        boolean deprecationRequiresReason = resolveBooleanConfig(dialogConfig, "macro_governance_deprecation_requires_reason", false);
+        long reviewTtlHours = resolveLongConfig(dialogConfig,
+                "macro_governance_review_ttl_hours",
+                DEFAULT_MACRO_GOVERNANCE_REVIEW_TTL_HOURS,
+                1,
+                24L * 365L);
+        int usageWindowDays = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_unused_days",
+                DEFAULT_MACRO_GOVERNANCE_UNUSED_DAYS,
+                1,
+                365);
+
+        List<Map<String, Object>> auditedTemplates = new ArrayList<>();
+        List<Map<String, Object>> issues = new ArrayList<>();
+        int publishedActiveTotal = 0;
+        int deprecatedTotal = 0;
+        int missingOwnerTotal = 0;
+        int missingNamespaceTotal = 0;
+        int staleReviewTotal = 0;
+        int invalidReviewTotal = 0;
+        int unusedPublishedTotal = 0;
+        int deprecationGapTotal = 0;
+
+        for (Map<String, Object> template : templates) {
+            String templateId = normalizeNullString(String.valueOf(template.get("id")));
+            String templateName = normalizeNullString(String.valueOf(template.get("name")));
+            boolean published = toBoolean(template.get("published"));
+            boolean deprecated = toBoolean(template.get("deprecated"));
+            boolean activePublished = published && !deprecated;
+            String owner = normalizeNullString(String.valueOf(template.get("owner")));
+            String namespace = normalizeNullString(String.valueOf(template.get("namespace")));
+            String reviewedAtRaw = normalizeNullString(String.valueOf(template.get("reviewed_at")));
+            OffsetDateTime reviewedAt = parseReviewTimestamp(reviewedAtRaw);
+            boolean reviewedAtInvalid = StringUtils.hasText(reviewedAtRaw) && reviewedAt == null;
+            long reviewAgeHours = reviewedAt != null
+                    ? Math.max(0L, java.time.Duration.between(reviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours())
+                    : -1L;
+            boolean reviewFresh = reviewedAt != null && reviewAgeHours <= reviewTtlHours;
+            String deprecationReason = normalizeNullString(String.valueOf(template.get("deprecation_reason")));
+            Map<String, Object> usage = loadMacroTemplateUsage(templateId, templateName, usageWindowDays);
+            long usageCount = toLong(usage.get("usage_count"));
+            String lastUsedAt = normalizeUtcTimestamp(usage.get("last_used_at"));
+
+            if (activePublished) {
+                publishedActiveTotal += 1;
+            }
+            if (deprecated) {
+                deprecatedTotal += 1;
+            }
+
+            List<String> templateIssues = new ArrayList<>();
+            boolean hasBlockingIssue = false;
+            if (activePublished && !StringUtils.hasText(owner)) {
+                missingOwnerTotal += 1;
+                templateIssues.add("owner_missing");
+                hasBlockingIssue = hasBlockingIssue || requireOwner;
+                issues.add(buildMacroGovernanceIssue(
+                        "owner_missing",
+                        templateId,
+                        templateName,
+                        requireOwner ? "hold" : "attention",
+                        requireOwner ? "rollout_blocker" : "backlog_candidate",
+                        "У опубликованного макроса отсутствует owner.",
+                        "owner=missing"));
+            }
+            if (activePublished && !StringUtils.hasText(namespace)) {
+                missingNamespaceTotal += 1;
+                templateIssues.add("namespace_missing");
+                hasBlockingIssue = hasBlockingIssue || requireNamespace;
+                issues.add(buildMacroGovernanceIssue(
+                        "namespace_missing",
+                        templateId,
+                        templateName,
+                        requireNamespace ? "hold" : "attention",
+                        requireNamespace ? "rollout_blocker" : "backlog_candidate",
+                        "У опубликованного макроса отсутствует namespace.",
+                        "namespace=missing"));
+            }
+            if (activePublished && reviewedAtInvalid) {
+                invalidReviewTotal += 1;
+                templateIssues.add("review_invalid_utc");
+                hasBlockingIssue = hasBlockingIssue || requireReview;
+                issues.add(buildMacroGovernanceIssue(
+                        "review_invalid_utc",
+                        templateId,
+                        templateName,
+                        requireReview ? "hold" : "attention",
+                        requireReview ? "rollout_blocker" : "backlog_candidate",
+                        "Дата review макроса невалидна и не может быть интерпретирована как UTC.",
+                        "reviewed_at=invalid"));
+            }
+            if (activePublished && requireReview && (!reviewFresh || reviewedAt == null || reviewedAtInvalid)) {
+                staleReviewTotal += 1;
+                templateIssues.add(reviewedAt == null ? "review_missing" : "review_stale");
+                hasBlockingIssue = true;
+                issues.add(buildMacroGovernanceIssue(
+                        reviewedAt == null ? "review_missing" : "review_stale",
+                        templateId,
+                        templateName,
+                        "hold",
+                        "rollout_blocker",
+                        reviewedAt == null
+                                ? "У опубликованного макроса нет review-signoff."
+                                : "Review макроса устарел и требует повторной проверки.",
+                        reviewedAt == null
+                                ? "reviewed_at=missing"
+                                : "review_age_hours=%d > ttl=%d".formatted(reviewAgeHours, reviewTtlHours)));
+            }
+            if (activePublished && usageCount <= 0) {
+                unusedPublishedTotal += 1;
+                templateIssues.add("unused_recently");
+                issues.add(buildMacroGovernanceIssue(
+                        "unused_recently",
+                        templateId,
+                        templateName,
+                        "attention",
+                        "backlog_candidate",
+                        "Опубликованный макрос не использовался в telemetry окне и требует cleanup-review.",
+                        "window_days=%d".formatted(usageWindowDays)));
+            }
+            if (deprecated && deprecationRequiresReason && !StringUtils.hasText(deprecationReason)) {
+                deprecationGapTotal += 1;
+                templateIssues.add("deprecation_reason_missing");
+                issues.add(buildMacroGovernanceIssue(
+                        "deprecation_reason_missing",
+                        templateId,
+                        templateName,
+                        "attention",
+                        "backlog_candidate",
+                        "Для deprecated макроса не указана причина вывода из эксплуатации.",
+                        "deprecation_reason=missing"));
+            }
+
+            Map<String, Object> auditTemplate = new LinkedHashMap<>();
+            auditTemplate.put("template_id", templateId);
+            auditTemplate.put("template_name", templateName);
+            auditTemplate.put("status", deprecated ? "off" : (hasBlockingIssue ? "hold" : (templateIssues.isEmpty() ? "ok" : "attention")));
+            auditTemplate.put("published", published);
+            auditTemplate.put("deprecated", deprecated);
+            auditTemplate.put("owner", owner);
+            auditTemplate.put("namespace", namespace);
+            auditTemplate.put("reviewed_at_utc", reviewedAt != null ? reviewedAt.toString() : "");
+            auditTemplate.put("reviewed_at_invalid_utc", reviewedAtInvalid);
+            auditTemplate.put("review_age_hours", reviewAgeHours);
+            auditTemplate.put("usage_count", usageCount);
+            auditTemplate.put("last_used_at_utc", lastUsedAt);
+            auditTemplate.put("deprecation_reason", deprecationReason);
+            auditTemplate.put("issues", templateIssues);
+            auditedTemplates.add(auditTemplate);
+        }
+
+        String status;
+        if (templates.isEmpty()) {
+            status = "off";
+        } else if (issues.stream().anyMatch(item -> "hold".equalsIgnoreCase(String.valueOf(item.get("status"))))) {
+            status = "hold";
+        } else if (!issues.isEmpty()) {
+            status = "attention";
+        } else {
+            status = "ok";
+        }
+
+        Map<String, Object> audit = new LinkedHashMap<>();
+        audit.put("generated_at", Instant.now().toString());
+        audit.put("status", status);
+        audit.put("summary", templates.isEmpty()
+                ? "Macro governance audit недоступен: макросы не настроены."
+                : "Published active=%d, deprecated=%d, issues=%d.".formatted(publishedActiveTotal, deprecatedTotal, issues.size()));
+        audit.put("templates_total", templates.size());
+        audit.put("published_active_total", publishedActiveTotal);
+        audit.put("deprecated_total", deprecatedTotal);
+        audit.put("issues_total", issues.size());
+        audit.put("missing_owner_total", missingOwnerTotal);
+        audit.put("missing_namespace_total", missingNamespaceTotal);
+        audit.put("stale_review_total", staleReviewTotal);
+        audit.put("invalid_review_total", invalidReviewTotal);
+        audit.put("unused_published_total", unusedPublishedTotal);
+        audit.put("deprecation_gap_total", deprecationGapTotal);
+        audit.put("requirements", Map.of(
+                "require_owner", requireOwner,
+                "require_namespace", requireNamespace,
+                "require_review", requireReview,
+                "review_ttl_hours", reviewTtlHours,
+                "deprecation_requires_reason", deprecationRequiresReason,
+                "unused_days", usageWindowDays));
+        audit.put("issues", issues);
+        audit.put("templates", auditedTemplates);
+        return audit;
     }
 
     private Map<String, Object> buildWorkspaceRolloutScorecard(Map<String, Object> totals,
@@ -2260,6 +2460,61 @@ public class DialogService {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private Map<String, Object> loadMacroTemplateUsage(String templateId, String templateName, int usageWindowDays) {
+        if (!StringUtils.hasText(templateId) && !StringUtils.hasText(templateName)) {
+            return Map.of("usage_count", 0L, "last_used_at", "");
+        }
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*) AS usage_count, MAX(created_at) AS last_used_at
+                  FROM workspace_telemetry_audit
+                 WHERE event_type = 'macro_apply'
+                   AND created_at >= ?
+                """);
+        args.add(Timestamp.from(Instant.now().minusSeconds(Math.max(1, usageWindowDays) * 24L * 3600L)));
+        if (StringUtils.hasText(templateId) && StringUtils.hasText(templateName)) {
+            sql.append(" AND (template_id = ? OR template_name = ?)");
+            args.add(templateId);
+            args.add(templateName);
+        } else if (StringUtils.hasText(templateId)) {
+            sql.append(" AND template_id = ?");
+            args.add(templateId);
+        } else {
+            sql.append(" AND template_name = ?");
+            args.add(templateName);
+        }
+        try {
+            return jdbcTemplate.queryForObject(sql.toString(), (rs, rowNum) -> {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("usage_count", rs.getLong("usage_count"));
+                Object lastUsed = rs.getObject("last_used_at");
+                row.put("last_used_at", lastUsed != null ? String.valueOf(lastUsed) : "");
+                return row;
+            }, args.toArray());
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load macro usage audit for template {}: {}", templateId, summarizeDataAccessException(ex));
+            return Map.of("usage_count", 0L, "last_used_at", "");
+        }
+    }
+
+    private Map<String, Object> buildMacroGovernanceIssue(String type,
+                                                          String templateId,
+                                                          String templateName,
+                                                          String status,
+                                                          String classification,
+                                                          String summary,
+                                                          String detail) {
+        Map<String, Object> issue = new LinkedHashMap<>();
+        issue.put("type", type);
+        issue.put("template_id", templateId);
+        issue.put("template_name", templateName);
+        issue.put("status", normalizeScorecardStatus(status));
+        issue.put("classification", classification);
+        issue.put("summary", summary);
+        issue.put("detail", detail);
+        return issue;
     }
 
     private long resolveLongDialogConfigValue(String key, long fallback, long minInclusive, long maxInclusive) {
