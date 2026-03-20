@@ -4375,23 +4375,6 @@
             </div>
             <div class="text-muted small" data-channel-editor-public-link>—</div>
             <div class="text-muted small" data-channel-editor-meta></div>
-            <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
-              <span>Токен: <span class="font-monospace" data-channel-editor-token>—</span></span>
-              <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorToggleTokenBtn">Показать</button>
-              <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyTokenBtn">Скопировать</button>
-            </div>
-            <div class="text-muted small" data-channel-editor-meta></div>
-            <div class="mt-2">
-              <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить информацию о боте</button>
-              <div class="form-text small mt-1">Принудительно обновляет имя и username через Telegram API. После смены токена можно сразу синхронизировать карточку бота.</div>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="channelEditorNewToken">Новый токен</label>
-            <input class="form-control" id="channelEditorNewToken" placeholder="Оставьте пустым, если менять токен не нужно" />
-            <div class="form-text">
-              Текущий токен указан выше. Введите новый, чтобы заменить учётные данные этого канала.
-            </div>
           </div>
           <div class="mb-3">
             <label class="form-label" for="channelEditorName">Название для панели</label>
@@ -4544,6 +4527,11 @@
                 <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorToggleTokenBtn">Показать</button>
                 <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyTokenBtn">Скопировать</button>
               </div>
+            </div>
+            <div class="mt-3">
+              <label class="form-label small" for="channelEditorNewToken">Новый токен</label>
+              <input class="form-control" id="channelEditorNewToken" placeholder="Оставьте пустым, если менять токен не нужно" />
+              <div class="form-text">Текущий токен указан выше. Введите новый, чтобы заменить учётные данные этого канала.</div>
             </div>
             <div class="mt-3">
               <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить информацию о боте</button>
