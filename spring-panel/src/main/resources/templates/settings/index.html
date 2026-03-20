@@ -4141,6 +4141,138 @@
                   </div>
                 </div>
 
+                <div class="card mb-4 shadow-sm border-info-subtle">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                      <div>
+                        <h5 class="card-title mb-1">Сетевые маршруты интеграций</h5>
+                        <p class="text-muted mb-0">Задайте отдельные прокси/VPN для всего проекта и отдельно для подсистемы ботов.</p>
+                      </div>
+                      <button type="button" class="btn btn-outline-primary btn-sm" id="integrationNetworkSaveBtn">Сохранить сеть</button>
+                    </div>
+                    <div class="row g-4">
+                      <div class="col-12 col-xl-6">
+                        <div class="border rounded-3 p-3 h-100">
+                          <div class="fw-semibold mb-2">Весь проект</div>
+                          <div class="mb-3">
+                            <label class="form-label" for="projectNetworkMode">Режим</label>
+                            <select class="form-select" id="projectNetworkMode" data-network-route-mode="project">
+                              <option value="direct">Без маршрутизации</option>
+                              <option value="proxy">Через прокси</option>
+                              <option value="vpn">Через VPN</option>
+                            </select>
+                          </div>
+                          <div class="row g-2 d-none" data-network-route-proxy="project">
+                            <div class="col-12 col-md-4">
+                              <label class="form-label" for="projectProxyScheme">Схема прокси</label>
+                              <select class="form-select" id="projectProxyScheme">
+                                <option value="http">HTTP</option>
+                                <option value="https">HTTPS</option>
+                                <option value="socks5">SOCKS5</option>
+                                <option value="socks4">SOCKS4</option>
+                              </select>
+                            </div>
+                            <div class="col-12 col-md-5">
+                              <label class="form-label" for="projectProxyHost">Хост</label>
+                              <input class="form-control" id="projectProxyHost" placeholder="proxy.example.local">
+                            </div>
+                            <div class="col-12 col-md-3">
+                              <label class="form-label" for="projectProxyPort">Порт</label>
+                              <input class="form-control" id="projectProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080">
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="projectProxyUsername">Логин</label>
+                              <input class="form-control" id="projectProxyUsername" placeholder="Опционально">
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="projectProxyPassword">Пароль</label>
+                              <input class="form-control" id="projectProxyPassword" type="password" placeholder="Опционально">
+                            </div>
+                          </div>
+                          <div class="row g-2 d-none" data-network-route-vpn="project">
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="projectVpnName">Название VPN</label>
+                              <input class="form-control" id="projectVpnName" placeholder="Например: corp-main">
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="projectVpnEndpoint">Endpoint / шлюз</label>
+                              <input class="form-control" id="projectVpnEndpoint" placeholder="vpn.example.local">
+                            </div>
+                            <div class="col-12">
+                              <label class="form-label" for="projectVpnConfigPath">Путь к конфигу / профилю</label>
+                              <input class="form-control" id="projectVpnConfigPath" placeholder="/etc/openvpn/project.conf">
+                            </div>
+                            <div class="col-12">
+                              <label class="form-label" for="projectVpnNotes">Примечание</label>
+                              <textarea class="form-control" id="projectVpnNotes" rows="2" placeholder="Что нужно поднять на сервере или в окружении"></textarea>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-xl-6">
+                        <div class="border rounded-3 p-3 h-100">
+                          <div class="fw-semibold mb-2">Подсистема ботов</div>
+                          <div class="mb-3">
+                            <label class="form-label" for="botsNetworkMode">Режим</label>
+                            <select class="form-select" id="botsNetworkMode" data-network-route-mode="bots">
+                              <option value="inherit">Наследовать проект</option>
+                              <option value="direct">Без маршрутизации</option>
+                              <option value="proxy">Через отдельный прокси</option>
+                              <option value="vpn">Через отдельный VPN</option>
+                            </select>
+                          </div>
+                          <div class="row g-2 d-none" data-network-route-proxy="bots">
+                            <div class="col-12 col-md-4">
+                              <label class="form-label" for="botsProxyScheme">Схема прокси</label>
+                              <select class="form-select" id="botsProxyScheme">
+                                <option value="http">HTTP</option>
+                                <option value="https">HTTPS</option>
+                                <option value="socks5">SOCKS5</option>
+                                <option value="socks4">SOCKS4</option>
+                              </select>
+                            </div>
+                            <div class="col-12 col-md-5">
+                              <label class="form-label" for="botsProxyHost">Хост</label>
+                              <input class="form-control" id="botsProxyHost" placeholder="proxy-bots.example.local">
+                            </div>
+                            <div class="col-12 col-md-3">
+                              <label class="form-label" for="botsProxyPort">Порт</label>
+                              <input class="form-control" id="botsProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080">
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="botsProxyUsername">Логин</label>
+                              <input class="form-control" id="botsProxyUsername" placeholder="Опционально">
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="botsProxyPassword">Пароль</label>
+                              <input class="form-control" id="botsProxyPassword" type="password" placeholder="Опционально">
+                            </div>
+                          </div>
+                          <div class="row g-2 d-none" data-network-route-vpn="bots">
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="botsVpnName">Название VPN</label>
+                              <input class="form-control" id="botsVpnName" placeholder="Например: tg-bots-vpn">
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label" for="botsVpnEndpoint">Endpoint / шлюз</label>
+                              <input class="form-control" id="botsVpnEndpoint" placeholder="vpn-bots.example.local">
+                            </div>
+                            <div class="col-12">
+                              <label class="form-label" for="botsVpnConfigPath">Путь к конфигу / профилю</label>
+                              <input class="form-control" id="botsVpnConfigPath" placeholder="/etc/openvpn/bots.conf">
+                            </div>
+                            <div class="col-12">
+                              <label class="form-label" for="botsVpnNotes">Примечание</label>
+                              <textarea class="form-control" id="botsVpnNotes" rows="2" placeholder="Опишите, как эта подсистема должна подключаться"></textarea>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="form-text mt-3" id="integrationNetworkStatus">Прокси применяются к запросам панели и автоматически передаются отдельным процессам ботов. VPN сохраняется как конфигурация маршрута для окружения и конкретных ботов.</div>
+                  </div>
+                </div>
+
                 <div class="table-responsive shadow-sm">
                   <table class="table align-middle mb-0">
                     <thead class="table-light">
@@ -4539,6 +4671,66 @@
             </div>
             <div class="form-text small">Бот запускается в отдельном Java-процессе и использует собственную SQLite-базу.</div>
           </div>
+          <div class="mt-4 border rounded-3 p-3">
+            <div class="fw-semibold mb-2">Сетевой маршрут для этого бота</div>
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="channelEditorNetworkMode">Режим</label>
+                <select class="form-select" id="channelEditorNetworkMode" data-network-route-mode="channel">
+                  <option value="inherit">Наследовать настройки ботов</option>
+                  <option value="direct">Без маршрутизации</option>
+                  <option value="proxy">Использовать отдельный прокси</option>
+                  <option value="vpn">Использовать отдельный VPN</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-3 mt-1 d-none" data-network-route-proxy="channel">
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="channelEditorProxyScheme">Схема</label>
+                <select class="form-select" id="channelEditorProxyScheme">
+                  <option value="http">HTTP</option>
+                  <option value="https">HTTPS</option>
+                  <option value="socks5">SOCKS5</option>
+                  <option value="socks4">SOCKS4</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-5">
+                <label class="form-label" for="channelEditorProxyHost">Хост</label>
+                <input class="form-control" id="channelEditorProxyHost" placeholder="proxy.example.local" />
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="channelEditorProxyPort">Порт</label>
+                <input class="form-control" id="channelEditorProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="channelEditorProxyUsername">Логин</label>
+                <input class="form-control" id="channelEditorProxyUsername" placeholder="Опционально" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="channelEditorProxyPassword">Пароль</label>
+                <input class="form-control" id="channelEditorProxyPassword" type="password" placeholder="Опционально" />
+              </div>
+            </div>
+            <div class="row g-3 mt-1 d-none" data-network-route-vpn="channel">
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="channelEditorVpnName">Название VPN</label>
+                <input class="form-control" id="channelEditorVpnName" placeholder="Например: tg-private" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="channelEditorVpnEndpoint">Endpoint / шлюз</label>
+                <input class="form-control" id="channelEditorVpnEndpoint" placeholder="vpn.example.local" />
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="channelEditorVpnConfigPath">Путь к конфигу / профилю</label>
+                <input class="form-control" id="channelEditorVpnConfigPath" placeholder="/etc/openvpn/channel.conf" />
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="channelEditorVpnNotes">Примечание</label>
+                <textarea class="form-control" id="channelEditorVpnNotes" rows="2" placeholder="Любые инструкции для инфраструктуры"></textarea>
+              </div>
+            </div>
+            <div class="form-text mt-2">Настройки применяются только к выбранному боту и имеют приоритет над общими параметрами подсистемы.</div>
+          </div>
           <div class="mt-4 d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
             <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
             <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
@@ -4905,6 +5097,7 @@
   }
 
   const BOT_SETTINGS_INITIAL = /*[[${settingsPayload['bot_settings']}]]*/ {};
+  const INTEGRATION_NETWORK_INITIAL = /*[[${settingsPayload['integration_network']}]]*/ {};
   const BOT_PRESET_DEFINITIONS = /*[[${botQuestionPresets}]]*/ {};
 
   const PARAMETER_TITLES = /*[[${parameterTypes}]]*/ {};
@@ -17109,6 +17302,38 @@
   const channelEditorBotRefreshBtn = document.getElementById('channelEditorBotRefreshBtn');
   const channelEditorSaveBtn = document.getElementById('channelEditorSaveBtn');
   const channelEditorDeleteBtn = document.getElementById('channelEditorDeleteBtn');
+  const integrationNetworkSaveBtn = document.getElementById('integrationNetworkSaveBtn');
+  const integrationNetworkStatusEl = document.getElementById('integrationNetworkStatus');
+  const projectNetworkModeInput = document.getElementById('projectNetworkMode');
+  const projectProxySchemeInput = document.getElementById('projectProxyScheme');
+  const projectProxyHostInput = document.getElementById('projectProxyHost');
+  const projectProxyPortInput = document.getElementById('projectProxyPort');
+  const projectProxyUsernameInput = document.getElementById('projectProxyUsername');
+  const projectProxyPasswordInput = document.getElementById('projectProxyPassword');
+  const projectVpnNameInput = document.getElementById('projectVpnName');
+  const projectVpnEndpointInput = document.getElementById('projectVpnEndpoint');
+  const projectVpnConfigPathInput = document.getElementById('projectVpnConfigPath');
+  const projectVpnNotesInput = document.getElementById('projectVpnNotes');
+  const botsNetworkModeInput = document.getElementById('botsNetworkMode');
+  const botsProxySchemeInput = document.getElementById('botsProxyScheme');
+  const botsProxyHostInput = document.getElementById('botsProxyHost');
+  const botsProxyPortInput = document.getElementById('botsProxyPort');
+  const botsProxyUsernameInput = document.getElementById('botsProxyUsername');
+  const botsProxyPasswordInput = document.getElementById('botsProxyPassword');
+  const botsVpnNameInput = document.getElementById('botsVpnName');
+  const botsVpnEndpointInput = document.getElementById('botsVpnEndpoint');
+  const botsVpnConfigPathInput = document.getElementById('botsVpnConfigPath');
+  const botsVpnNotesInput = document.getElementById('botsVpnNotes');
+  const channelEditorNetworkModeInput = document.getElementById('channelEditorNetworkMode');
+  const channelEditorProxySchemeInput = document.getElementById('channelEditorProxyScheme');
+  const channelEditorProxyHostInput = document.getElementById('channelEditorProxyHost');
+  const channelEditorProxyPortInput = document.getElementById('channelEditorProxyPort');
+  const channelEditorProxyUsernameInput = document.getElementById('channelEditorProxyUsername');
+  const channelEditorProxyPasswordInput = document.getElementById('channelEditorProxyPassword');
+  const channelEditorVpnNameInput = document.getElementById('channelEditorVpnName');
+  const channelEditorVpnEndpointInput = document.getElementById('channelEditorVpnEndpoint');
+  const channelEditorVpnConfigPathInput = document.getElementById('channelEditorVpnConfigPath');
+  const channelEditorVpnNotesInput = document.getElementById('channelEditorVpnNotes');
 
   const vkWebhookState = {
     channelId: null,
@@ -17129,6 +17354,8 @@
     publicFormFields: [],
     tokenVisible: false,
   };
+
+  const integrationNetworkState = normalizeIntegrationNetworkConfig(INTEGRATION_NETWORK_INITIAL);
 
   const PUBLIC_FORM_FIELD_TYPES = [
     { value: 'text', label: 'Короткий текст' },
@@ -17203,6 +17430,204 @@
       return Object.assign({}, raw);
     }
     return {};
+  }
+
+  function normalizeNetworkProxyConfig(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const port = Number.parseInt(source.port, 10);
+    return {
+      scheme: ['http', 'https', 'socks5', 'socks4'].includes(String(source.scheme || '').toLowerCase())
+        ? String(source.scheme).toLowerCase()
+        : 'http',
+      host: String(source.host || '').trim(),
+      port: Number.isFinite(port) && port > 0 && port <= 65535 ? port : 8080,
+      username: String(source.username || '').trim(),
+      password: String(source.password || '').trim(),
+    };
+  }
+
+  function normalizeNetworkVpnConfig(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    return {
+      name: String(source.name || '').trim(),
+      endpoint: String(source.endpoint || '').trim(),
+      config_path: String(source.config_path || source.configPath || '').trim(),
+      notes: String(source.notes || '').trim(),
+      env: source.env && typeof source.env === 'object' ? source.env : {},
+    };
+  }
+
+  function normalizeNetworkRoute(raw, allowInherit = false) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const allowed = allowInherit ? ['inherit', 'direct', 'proxy', 'vpn'] : ['direct', 'proxy', 'vpn'];
+    const mode = allowed.includes(String(source.mode || '').toLowerCase())
+      ? String(source.mode).toLowerCase()
+      : (allowInherit ? 'inherit' : 'direct');
+    return {
+      mode,
+      proxy: normalizeNetworkProxyConfig(source.proxy),
+      vpn: normalizeNetworkVpnConfig(source.vpn),
+    };
+  }
+
+  function normalizeIntegrationNetworkConfig(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    return {
+      project: normalizeNetworkRoute(source.project, false),
+      bots: normalizeNetworkRoute(source.bots, true),
+    };
+  }
+
+  function applyRouteToInputs(scope, route) {
+    const normalized = normalizeNetworkRoute(route, scope !== 'project');
+    if (scope === 'project') {
+      if (projectNetworkModeInput) projectNetworkModeInput.value = normalized.mode;
+      if (projectProxySchemeInput) projectProxySchemeInput.value = normalized.proxy.scheme;
+      if (projectProxyHostInput) projectProxyHostInput.value = normalized.proxy.host;
+      if (projectProxyPortInput) projectProxyPortInput.value = String(normalized.proxy.port || 8080);
+      if (projectProxyUsernameInput) projectProxyUsernameInput.value = normalized.proxy.username;
+      if (projectProxyPasswordInput) projectProxyPasswordInput.value = normalized.proxy.password;
+      if (projectVpnNameInput) projectVpnNameInput.value = normalized.vpn.name;
+      if (projectVpnEndpointInput) projectVpnEndpointInput.value = normalized.vpn.endpoint;
+      if (projectVpnConfigPathInput) projectVpnConfigPathInput.value = normalized.vpn.config_path;
+      if (projectVpnNotesInput) projectVpnNotesInput.value = normalized.vpn.notes;
+    } else if (scope === 'bots') {
+      if (botsNetworkModeInput) botsNetworkModeInput.value = normalized.mode;
+      if (botsProxySchemeInput) botsProxySchemeInput.value = normalized.proxy.scheme;
+      if (botsProxyHostInput) botsProxyHostInput.value = normalized.proxy.host;
+      if (botsProxyPortInput) botsProxyPortInput.value = String(normalized.proxy.port || 8080);
+      if (botsProxyUsernameInput) botsProxyUsernameInput.value = normalized.proxy.username;
+      if (botsProxyPasswordInput) botsProxyPasswordInput.value = normalized.proxy.password;
+      if (botsVpnNameInput) botsVpnNameInput.value = normalized.vpn.name;
+      if (botsVpnEndpointInput) botsVpnEndpointInput.value = normalized.vpn.endpoint;
+      if (botsVpnConfigPathInput) botsVpnConfigPathInput.value = normalized.vpn.config_path;
+      if (botsVpnNotesInput) botsVpnNotesInput.value = normalized.vpn.notes;
+    } else if (scope === 'channel') {
+      if (channelEditorNetworkModeInput) channelEditorNetworkModeInput.value = normalized.mode;
+      if (channelEditorProxySchemeInput) channelEditorProxySchemeInput.value = normalized.proxy.scheme;
+      if (channelEditorProxyHostInput) channelEditorProxyHostInput.value = normalized.proxy.host;
+      if (channelEditorProxyPortInput) channelEditorProxyPortInput.value = String(normalized.proxy.port || 8080);
+      if (channelEditorProxyUsernameInput) channelEditorProxyUsernameInput.value = normalized.proxy.username;
+      if (channelEditorProxyPasswordInput) channelEditorProxyPasswordInput.value = normalized.proxy.password;
+      if (channelEditorVpnNameInput) channelEditorVpnNameInput.value = normalized.vpn.name;
+      if (channelEditorVpnEndpointInput) channelEditorVpnEndpointInput.value = normalized.vpn.endpoint;
+      if (channelEditorVpnConfigPathInput) channelEditorVpnConfigPathInput.value = normalized.vpn.config_path;
+      if (channelEditorVpnNotesInput) channelEditorVpnNotesInput.value = normalized.vpn.notes;
+    }
+    toggleNetworkRouteFields(scope);
+  }
+
+  function collectRouteFromInputs(scope) {
+    if (scope === 'project') {
+      return normalizeNetworkRoute({
+        mode: projectNetworkModeInput?.value || 'direct',
+        proxy: {
+          scheme: projectProxySchemeInput?.value || 'http',
+          host: projectProxyHostInput?.value || '',
+          port: projectProxyPortInput?.value || 8080,
+          username: projectProxyUsernameInput?.value || '',
+          password: projectProxyPasswordInput?.value || '',
+        },
+        vpn: {
+          name: projectVpnNameInput?.value || '',
+          endpoint: projectVpnEndpointInput?.value || '',
+          config_path: projectVpnConfigPathInput?.value || '',
+          notes: projectVpnNotesInput?.value || '',
+        },
+      }, false);
+    }
+    if (scope === 'bots') {
+      return normalizeNetworkRoute({
+        mode: botsNetworkModeInput?.value || 'inherit',
+        proxy: {
+          scheme: botsProxySchemeInput?.value || 'http',
+          host: botsProxyHostInput?.value || '',
+          port: botsProxyPortInput?.value || 8080,
+          username: botsProxyUsernameInput?.value || '',
+          password: botsProxyPasswordInput?.value || '',
+        },
+        vpn: {
+          name: botsVpnNameInput?.value || '',
+          endpoint: botsVpnEndpointInput?.value || '',
+          config_path: botsVpnConfigPathInput?.value || '',
+          notes: botsVpnNotesInput?.value || '',
+        },
+      }, true);
+    }
+    return normalizeNetworkRoute({
+      mode: channelEditorNetworkModeInput?.value || 'inherit',
+      proxy: {
+        scheme: channelEditorProxySchemeInput?.value || 'http',
+        host: channelEditorProxyHostInput?.value || '',
+        port: channelEditorProxyPortInput?.value || 8080,
+        username: channelEditorProxyUsernameInput?.value || '',
+        password: channelEditorProxyPasswordInput?.value || '',
+      },
+      vpn: {
+        name: channelEditorVpnNameInput?.value || '',
+        endpoint: channelEditorVpnEndpointInput?.value || '',
+        config_path: channelEditorVpnConfigPathInput?.value || '',
+        notes: channelEditorVpnNotesInput?.value || '',
+      },
+    }, true);
+  }
+
+  function toggleNetworkRouteFields(scope) {
+    const modeInput = document.querySelector(`[data-network-route-mode="${scope}"]`);
+    const mode = modeInput?.value || (scope === 'project' ? 'direct' : 'inherit');
+    document.querySelectorAll(`[data-network-route-proxy="${scope}"]`).forEach((el) => {
+      el.classList.toggle('d-none', mode !== 'proxy');
+    });
+    document.querySelectorAll(`[data-network-route-vpn="${scope}"]`).forEach((el) => {
+      el.classList.toggle('d-none', mode !== 'vpn');
+    });
+  }
+
+  function renderIntegrationNetworkSettings() {
+    applyRouteToInputs('project', integrationNetworkState.project);
+    applyRouteToInputs('bots', integrationNetworkState.bots);
+    if (integrationNetworkStatusEl) {
+      integrationNetworkStatusEl.textContent = 'Прокси применяются к запросам панели и автоматически передаются отдельным процессам ботов. VPN сохраняется как конфигурация маршрута для окружения и конкретных ботов.';
+    }
+  }
+
+  async function saveIntegrationNetworkSettings() {
+    const payload = {
+      integration_network: {
+        project: collectRouteFromInputs('project'),
+        bots: collectRouteFromInputs('bots'),
+      },
+    };
+    try {
+      if (integrationNetworkSaveBtn) {
+        integrationNetworkSaveBtn.disabled = true;
+      }
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + response.status));
+      }
+      integrationNetworkState.project = payload.integration_network.project;
+      integrationNetworkState.bots = payload.integration_network.bots;
+      renderIntegrationNetworkSettings();
+      if (integrationNetworkStatusEl) {
+        integrationNetworkStatusEl.textContent = 'Сетевые маршруты сохранены. Новые запуски ботов получат обновлённые параметры автоматически.';
+      }
+      showPopup('Сетевые маршруты сохранены.');
+    } catch (error) {
+      if (integrationNetworkStatusEl) {
+        integrationNetworkStatusEl.textContent = 'Не удалось сохранить сетевые маршруты: ' + error.message;
+      }
+      showPopup('Не удалось сохранить сетевые маршруты: ' + error.message);
+    } finally {
+      if (integrationNetworkSaveBtn) {
+        integrationNetworkSaveBtn.disabled = false;
+      }
+    }
   }
 
   function updateTestRecipientState() {
@@ -17822,6 +18247,7 @@
     if (channelEditorScheduleSimultaneousInput) {
       channelEditorScheduleSimultaneousInput.checked = Boolean(deliverySettings.schedule_simultaneous);
     }
+    applyRouteToInputs('channel', channel.network_route);
     updateSupportChatHint(supportChatValue);
     if (channelEditorTestMessageInput) {
       channelEditorTestMessageInput.value = 'Проверка отправки из панели';
@@ -18248,6 +18674,7 @@
         vk_group_id: vkGroupId,
         support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
         delivery_settings: deliverySettings,
+        network_route: normalizeNetworkRoute(row.network_route ?? deliverySettings.network_route, true),
         questions_cfg: parseQuestionsCfg(row.questions_cfg ?? row.questionsCfg),
       };
 
@@ -18264,6 +18691,13 @@
       const supportChatInfo = hasSupportChat
         ? `<div class="small text-muted mt-1">ID группы: ${escapeHtml(String(supportChatRaw))}</div>`
         : '<div class="small text-muted mt-1">ID группы пока не привязан</div>';
+      const routeLabel = prepared.network_route?.mode === 'proxy'
+        ? 'Маршрут: proxy'
+        : prepared.network_route?.mode === 'vpn'
+          ? 'Маршрут: VPN'
+          : prepared.network_route?.mode === 'direct'
+            ? 'Маршрут: direct'
+            : 'Маршрут: общий';
 
       tr.innerHTML = `
         <td>
@@ -18274,6 +18708,7 @@
           <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
           ${prepared.vk_group_id ? `<div class="small text-muted mt-1">group_id: ${escapeHtml(String(prepared.vk_group_id))}</div>` : ''}
           ${supportChatInfo}
+          <div class="small text-muted mt-1">${escapeHtml(routeLabel)}</div>
         </td>
         <td class="text-center">
           <div>${statusBadge}</div>
@@ -18492,6 +18927,7 @@
       schedule_to_group: channelEditorScheduleToGroupInput?.checked ?? true,
       schedule_to_channel: channelEditorScheduleToChannelInput?.checked ?? false,
       schedule_simultaneous: channelEditorScheduleSimultaneousInput?.checked ?? false,
+      network_route: collectRouteFromInputs('channel'),
     };
 
     const currentChannel = CHANNELS_REGISTRY.get(String(id));
@@ -18623,6 +19059,7 @@
     channelsInitialized = true;
     populateAddChannelTemplateSelects();
     togglePlatformFields();
+    renderIntegrationNetworkSettings();
     initChannelEditorControls();
     loadChannels();
 
@@ -18630,6 +19067,10 @@
     const vkSaveBtn = document.getElementById('vkWebhookSaveBtn');
     const addChannelModalEl = document.getElementById('addChannelModal');
     platformSelect?.addEventListener('change', togglePlatformFields);
+    projectNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('project'));
+    botsNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('bots'));
+    channelEditorNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('channel'));
+    integrationNetworkSaveBtn?.addEventListener('click', saveIntegrationNetworkSettings);
     vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
     addChannelModalEl?.addEventListener('show.bs.modal', () => {
       resetAddChannelForm();
