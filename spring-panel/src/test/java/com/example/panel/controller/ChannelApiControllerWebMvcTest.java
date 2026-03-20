@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
+import com.example.panel.service.IntegrationNetworkService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class ChannelApiControllerWebMvcTest {
 
     @MockBean
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private IntegrationNetworkService integrationNetworkService;
 
     @Test
     void regeneratePublicIdSupportsChannelsRouteAlias() throws Exception {
