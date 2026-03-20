@@ -3342,6 +3342,22 @@ public class DialogService {
         return fallback;
     }
 
+    private boolean resolveBooleanConfig(Map<String, Object> source,
+                                         String key,
+                                         boolean fallback) {
+        if (source == null || source.isEmpty() || !source.containsKey(key)) {
+            return fallback;
+        }
+        Object raw = source.get(key);
+        if (raw == null) {
+            return fallback;
+        }
+        if (raw instanceof String stringValue && !StringUtils.hasText(stringValue)) {
+            return fallback;
+        }
+        return toBoolean(raw);
+    }
+
     private void appendRegressionGuardrailAlerts(List<Map<String, Object>> alerts,
                                                  Map<String, Object> currentTotals,
                                                  Map<String, Object> previousTotals) {
