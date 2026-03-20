@@ -385,6 +385,9 @@ public class ClientsService {
     }
 
     private List<ClientBlacklistHistoryEntry> loadBlacklistHistory(long userId) {
+        if (!blacklistHistoryService.historyTableExists()) {
+            return List.of();
+        }
         return jdbcTemplate.query(
                 """
                     SELECT action, reason, actor, created_at
