@@ -328,7 +328,13 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_public_form_session_polling_interval_seconds")
                 || payload.containsKey("dialog_public_form_session_token_rotate_on_read")
                 || payload.containsKey("dialog_public_form_default_locale")
-                || payload.containsKey("dialog_macro_publish_allowed_roles")) {
+                || payload.containsKey("dialog_macro_publish_allowed_roles")
+                || payload.containsKey("dialog_macro_governance_require_owner")
+                || payload.containsKey("dialog_macro_governance_require_namespace")
+                || payload.containsKey("dialog_macro_governance_require_review")
+                || payload.containsKey("dialog_macro_governance_review_ttl_hours")
+                || payload.containsKey("dialog_macro_governance_deprecation_requires_reason")
+                || payload.containsKey("dialog_macro_governance_unused_days")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -348,6 +354,24 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_macro_require_independent_review")) {
                     dialogConfig.put("macro_require_independent_review", payload.get("dialog_macro_require_independent_review"));
+                }
+                if (payload.containsKey("dialog_macro_governance_require_owner")) {
+                    dialogConfig.put("macro_governance_require_owner", payload.get("dialog_macro_governance_require_owner"));
+                }
+                if (payload.containsKey("dialog_macro_governance_require_namespace")) {
+                    dialogConfig.put("macro_governance_require_namespace", payload.get("dialog_macro_governance_require_namespace"));
+                }
+                if (payload.containsKey("dialog_macro_governance_require_review")) {
+                    dialogConfig.put("macro_governance_require_review", payload.get("dialog_macro_governance_require_review"));
+                }
+                if (payload.containsKey("dialog_macro_governance_review_ttl_hours")) {
+                    dialogConfig.put("macro_governance_review_ttl_hours", payload.get("dialog_macro_governance_review_ttl_hours"));
+                }
+                if (payload.containsKey("dialog_macro_governance_deprecation_requires_reason")) {
+                    dialogConfig.put("macro_governance_deprecation_requires_reason", payload.get("dialog_macro_governance_deprecation_requires_reason"));
+                }
+                if (payload.containsKey("dialog_macro_governance_unused_days")) {
+                    dialogConfig.put("macro_governance_unused_days", payload.get("dialog_macro_governance_unused_days"));
                 }
                 if (payload.containsKey("dialog_macro_templates")) {
                     boolean canPublishMacros = canPublishDialogMacros(authentication, dialogConfig);
@@ -1595,6 +1619,12 @@ public class SettingsBridgeController {
 
             List<String> tags = normalizeTemplateTags(sourceMap.get("tags"));
             Map<String, Object> workflow = normalizeMacroWorkflow(sourceMap.get("workflow"), sourceMap);
+            String owner = normalizeMacroTemplateOwner(sourceMap.containsKey("owner")
+                ? sourceMap.get("owner")
+                : (previous != null ? previous.get("owner") : null));
+            String namespace = normalizeMacroTemplateNamespace(sourceMap.containsKey("namespace")
+                ? sourceMap.get("namespace")
+                : (previous != null ? previous.get("namespace") : null));
             int version = resolveTemplateVersion(previous);
             boolean changedMeaningfully = templateMeaningfullyChanged(previous, name, message, tags)
                 || !Objects.equals(normalizeWorkflowForComparison(previous != null ? previous.get("workflow") : null), workflow);
@@ -1694,12 +1724,32 @@ public class SettingsBridgeController {
                 reviewedBy = "";
             }
 
+            boolean deprecated = sourceMap.containsKey("deprecated")
+                ? asBoolean(sourceMap.get("deprecated"))
+                : (previous != null && asBoolean(previous.get("deprecated")));
+            String deprecationReason = deprecated
+                ? normalizeMacroDeprecationReason(sourceMap.containsKey("deprecation_reason")
+                    ? sourceMap.get("deprecation_reason")
+                    : (previous != null ? previous.get("deprecation_reason") : null))
+                : "";
+            boolean wasDeprecated = previous != null && asBoolean(previous.get("deprecated"));
+            String previousDeprecatedAt = previous != null ? stringValue(previous.get("deprecated_at")) : "";
+            String previousDeprecatedBy = previous != null ? stringValue(previous.get("deprecated_by")) : "";
+            String deprecatedAt = deprecated
+                ? (wasDeprecated && StringUtils.hasText(previousDeprecatedAt) ? previousDeprecatedAt : now)
+                : "";
+            String deprecatedBy = deprecated
+                ? (wasDeprecated && StringUtils.hasText(previousDeprecatedBy) ? previousDeprecatedBy : normalizedActor)
+                : "";
+
             Map<String, Object> normalizedTemplate = new LinkedHashMap<>();
             normalizedTemplate.put("id", id);
             normalizedTemplate.put("name", name);
             normalizedTemplate.put("message", message);
             normalizedTemplate.put("text", message);
             normalizedTemplate.put("tags", tags);
+            normalizedTemplate.put("owner", StringUtils.hasText(owner) ? owner : null);
+            normalizedTemplate.put("namespace", StringUtils.hasText(namespace) ? namespace : null);
             normalizedTemplate.put("workflow", workflow);
             normalizedTemplate.put("assign_to_me", asBoolean(workflow.get("assign_to_me")));
             Object snoozeMinutes = workflow.get("snooze_minutes");
@@ -1723,6 +1773,10 @@ public class SettingsBridgeController {
             normalizedTemplate.put("reviewed_by", StringUtils.hasText(reviewedBy) ? reviewedBy : null);
             normalizedTemplate.put("published_at", StringUtils.hasText(publishedAt) ? publishedAt : null);
             normalizedTemplate.put("published_by", StringUtils.hasText(publishedBy) ? publishedBy : null);
+            normalizedTemplate.put("deprecated", deprecated);
+            normalizedTemplate.put("deprecation_reason", StringUtils.hasText(deprecationReason) ? deprecationReason : null);
+            normalizedTemplate.put("deprecated_at", StringUtils.hasText(deprecatedAt) ? deprecatedAt : null);
+            normalizedTemplate.put("deprecated_by", StringUtils.hasText(deprecatedBy) ? deprecatedBy : null);
 
             normalized.add(normalizedTemplate);
         }
@@ -1778,6 +1832,25 @@ public class SettingsBridgeController {
             }
         }
         return tags;
+    }
+
+    private String normalizeMacroTemplateOwner(Object rawOwner) {
+        String owner = stringValue(rawOwner);
+        return StringUtils.hasText(owner) ? owner : "";
+    }
+
+    private String normalizeMacroTemplateNamespace(Object rawNamespace) {
+        String namespace = stringValue(rawNamespace)
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9._-]+", "-")
+            .replaceAll("[-]{2,}", "-")
+            .replaceAll("^[.-]+|[.-]+$", "");
+        return StringUtils.hasText(namespace) ? namespace : "";
+    }
+
+    private String normalizeMacroDeprecationReason(Object rawReason) {
+        String reason = stringValue(rawReason);
+        return StringUtils.hasText(reason) ? reason : "";
     }
 
     private Map<String, Object> normalizeWorkflowForComparison(Object rawWorkflow) {

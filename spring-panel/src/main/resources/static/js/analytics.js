@@ -40,6 +40,17 @@
   const slaPolicyAuditIssueSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditIssueSummary');
   const slaPolicyAuditIssuesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditIssuesTable');
   const slaPolicyAuditRulesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditRulesTable');
+  const macroGovernanceStatus = document.getElementById('workspaceTelemetryMacroGovernanceStatus');
+  const macroGovernanceUpdatedAt = document.getElementById('workspaceTelemetryMacroGovernanceUpdatedAt');
+  const macroGovernanceSummary = document.getElementById('workspaceTelemetryMacroGovernanceSummary');
+  const macroGovernanceMeta = document.getElementById('workspaceTelemetryMacroGovernanceMeta');
+  const macroGovernanceRequirements = document.getElementById('workspaceTelemetryMacroGovernanceRequirements');
+  const macroGovernanceRequirementsMeta = document.getElementById('workspaceTelemetryMacroGovernanceRequirementsMeta');
+  const macroGovernanceCleanup = document.getElementById('workspaceTelemetryMacroGovernanceCleanup');
+  const macroGovernanceCleanupMeta = document.getElementById('workspaceTelemetryMacroGovernanceCleanupMeta');
+  const macroGovernanceIssueSummary = document.getElementById('workspaceTelemetryMacroGovernanceIssueSummary');
+  const macroGovernanceIssuesTable = document.getElementById('workspaceTelemetryMacroGovernanceIssuesTable');
+  const macroGovernanceTemplatesTable = document.getElementById('workspaceTelemetryMacroGovernanceTemplatesTable');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -195,6 +206,41 @@
     }
     if (slaPolicyAuditRulesTable) {
       slaPolicyAuditRulesTable.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
+    }
+    if (macroGovernanceStatus) {
+      macroGovernanceStatus.className = 'badge text-bg-secondary';
+      macroGovernanceStatus.textContent = 'Audit: —';
+    }
+    if (macroGovernanceUpdatedAt) {
+      macroGovernanceUpdatedAt.textContent = '';
+    }
+    if (macroGovernanceSummary) {
+      macroGovernanceSummary.textContent = '—';
+    }
+    if (macroGovernanceMeta) {
+      macroGovernanceMeta.textContent = '';
+    }
+    if (macroGovernanceRequirements) {
+      macroGovernanceRequirements.textContent = '—';
+    }
+    if (macroGovernanceRequirementsMeta) {
+      macroGovernanceRequirementsMeta.textContent = '';
+    }
+    if (macroGovernanceCleanup) {
+      macroGovernanceCleanup.textContent = '—';
+    }
+    if (macroGovernanceCleanupMeta) {
+      macroGovernanceCleanupMeta.textContent = '';
+    }
+    if (macroGovernanceIssueSummary) {
+      macroGovernanceIssueSummary.textContent = '';
+      macroGovernanceIssueSummary.classList.add('d-none');
+    }
+    if (macroGovernanceIssuesTable) {
+      macroGovernanceIssuesTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
+    }
+    if (macroGovernanceTemplatesTable) {
+      macroGovernanceTemplatesTable.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
     }
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
@@ -567,6 +613,100 @@
     }
   }
 
+  function renderMacroGovernanceAudit(audit) {
+    const status = String(audit?.status || 'off').toLowerCase();
+    if (macroGovernanceStatus) {
+      macroGovernanceStatus.className = `badge ${statusBadgeClass(status)}`;
+      macroGovernanceStatus.textContent = `Audit: ${statusLabel(status)}`;
+    }
+    if (macroGovernanceUpdatedAt) {
+      macroGovernanceUpdatedAt.textContent = audit?.generated_at
+        ? `Сформировано: ${formatTimestamp(audit.generated_at)}`
+        : '';
+    }
+    if (macroGovernanceSummary) {
+      macroGovernanceSummary.textContent = audit?.summary || 'Macro governance audit недоступен.';
+    }
+    if (macroGovernanceMeta) {
+      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)}`;
+    }
+    const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
+    if (macroGovernanceRequirements) {
+      macroGovernanceRequirements.textContent = `owner=${requirements.require_owner === true ? 'required' : 'optional'} · namespace=${requirements.require_namespace === true ? 'required' : 'optional'}`;
+    }
+    if (macroGovernanceRequirementsMeta) {
+      macroGovernanceRequirementsMeta.textContent = `review=${requirements.require_review === true ? `required (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'optional'} · deprecation_reason=${requirements.deprecation_requires_reason === true ? 'required' : 'optional'}`;
+    }
+    if (macroGovernanceCleanup) {
+      macroGovernanceCleanup.textContent = `unused=${formatNumber(audit?.unused_published_total || 0)} · stale_review=${formatNumber(audit?.stale_review_total || 0)}`;
+    }
+    if (macroGovernanceCleanupMeta) {
+      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)}`;
+    }
+    const issues = Array.isArray(audit?.issues) ? audit.issues : [];
+    if (macroGovernanceIssueSummary) {
+      const parts = [];
+      if (audit?.summary) {
+        parts.push(String(audit.summary));
+      }
+      if (issues.length) {
+        parts.push(`Issues: ${issues.length}`);
+      }
+      macroGovernanceIssueSummary.textContent = parts.join(' · ');
+      macroGovernanceIssueSummary.className = `alert ${status === 'hold' ? 'alert-danger' : (status === 'attention' ? 'alert-warning' : 'alert-secondary')} mb-3${parts.length ? '' : ' d-none'}`;
+      macroGovernanceIssueSummary.classList.toggle('d-none', parts.length === 0);
+    }
+    if (macroGovernanceIssuesTable) {
+      if (!issues.length) {
+        macroGovernanceIssuesTable.innerHTML = '<tr><td colspan="4" class="text-success text-center py-3">Governance-gap по macro templates не найдено.</td></tr>';
+      } else {
+        macroGovernanceIssuesTable.innerHTML = issues.map((issue) => `
+          <tr>
+            <td>
+              <div class="fw-semibold">${escapeHtml(issue?.summary || issue?.type || '—')}</div>
+              <div class="small text-muted">${escapeHtml(issue?.type || '')}</div>
+            </td>
+            <td class="small">${escapeHtml(issue?.template_name || issue?.template_id || '—')}</td>
+            <td><span class="badge ${statusBadgeClass(issue?.status)}">${escapeHtml(formatIssueClassification(issue?.classification))}</span></td>
+            <td class="small">${escapeHtml(issue?.detail || '—')}</td>
+          </tr>
+        `).join('');
+      }
+    }
+    const templates = Array.isArray(audit?.templates) ? audit.templates : [];
+    if (macroGovernanceTemplatesTable) {
+      if (!templates.length) {
+        macroGovernanceTemplatesTable.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-3">Macro templates для audit не заданы.</td></tr>';
+      } else {
+        macroGovernanceTemplatesTable.innerHTML = templates.map((template) => {
+          const reviewMeta = [];
+          if (template?.reviewed_at_invalid_utc === true) reviewMeta.push('invalid_utc');
+          if (Number(template?.review_age_hours) >= 0) reviewMeta.push(`age=${formatNumber(template.review_age_hours)}h`);
+          const cleanupMeta = [];
+          if (template?.deprecated === true) cleanupMeta.push('deprecated');
+          if (template?.deprecation_reason) cleanupMeta.push(`reason=${String(template.deprecation_reason)}`);
+          const issueList = Array.isArray(template?.issues) && template.issues.length
+            ? `<div class="small text-muted">${escapeHtml(template.issues.join(', '))}</div>`
+            : '';
+          return `
+            <tr>
+              <td>
+                <div class="fw-semibold">${escapeHtml(template?.template_name || template?.template_id || '—')}</div>
+                <div class="small text-muted">${escapeHtml(template?.template_id || '')}</div>
+                ${issueList}
+              </td>
+              <td><span class="badge ${statusBadgeClass(template?.status)}">${statusLabel(template?.status)}</span></td>
+              <td class="small">${escapeHtml([template?.owner ? `owner=${template.owner}` : '', template?.namespace ? `ns=${template.namespace}` : ''].filter(Boolean).join(' · ') || 'owner/namespace не заданы')}</td>
+              <td class="small">${escapeHtml(template?.reviewed_at_utc ? formatTimestamp(template.reviewed_at_utc) : '—')}${reviewMeta.length ? `<div class="small text-muted">${escapeHtml(reviewMeta.join(' · '))}</div>` : ''}</td>
+              <td class="text-end">${formatNumber(template?.usage_count || 0)}${template?.last_used_at_utc ? `<div class="small text-muted text-start">${escapeHtml(formatTimestamp(template.last_used_at_utc))}</div>` : ''}</td>
+              <td class="small">${escapeHtml(cleanupMeta.join(' · ') || 'active')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  }
+
   function buildRiskRows(payload, filters) {
     const rows = [];
     filteredRows(payload?.by_shift, 'shift', filters).forEach((row) => {
@@ -795,6 +935,31 @@
         Array.isArray(issue?.related) ? issue.related.join('|') : '',
       ]),
       [],
+      ['macro_template_id', 'macro_template_name', 'status', 'published', 'deprecated', 'owner', 'namespace', 'reviewed_at_utc', 'usage_count', 'last_used_at_utc', 'issues'],
+      ...(Array.isArray(payload?.macro_governance_audit?.templates) ? payload.macro_governance_audit.templates : []).map((template) => [
+        template?.template_id || '',
+        template?.template_name || '',
+        template?.status || '',
+        template?.published === true ? 'true' : 'false',
+        template?.deprecated === true ? 'true' : 'false',
+        template?.owner || '',
+        template?.namespace || '',
+        template?.reviewed_at_utc || '',
+        template?.usage_count ?? '',
+        template?.last_used_at_utc || '',
+        Array.isArray(template?.issues) ? template.issues.join('|') : '',
+      ]),
+      [],
+      ['macro_issue_type', 'template_id', 'template_name', 'classification', 'status', 'detail'],
+      ...(Array.isArray(payload?.macro_governance_audit?.issues) ? payload.macro_governance_audit.issues : []).map((issue) => [
+        issue?.type || '',
+        issue?.template_id || '',
+        issue?.template_name || '',
+        issue?.classification || '',
+        issue?.status || '',
+        issue?.detail || '',
+      ]),
+      [],
       ['metric', 'actual_rate', 'threshold_rate', 'scope', 'segment', 'message'],
       ...alerts.map((alert) => [
         alert?.metric || '',
@@ -1020,6 +1185,7 @@
     renderScorecard(payload?.rollout_scorecard);
     renderPacket(payload?.rollout_packet);
     renderSlaPolicyAudit(payload?.sla_policy_audit);
+    renderMacroGovernanceAudit(payload?.macro_governance_audit);
     renderRolloutDecision(payload?.rollout_decision, payload?.cohort_comparison);
 
     if (status === 'attention') {
@@ -1080,6 +1246,18 @@
       }
       if (packetTable) {
         packetTable.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Governance packet недоступен.</td></tr>';
+      }
+      if (macroGovernanceStatus) {
+        macroGovernanceStatus.className = 'badge text-bg-danger';
+        macroGovernanceStatus.textContent = 'Audit: Hold';
+      }
+      if (macroGovernanceIssueSummary) {
+        macroGovernanceIssueSummary.className = 'alert alert-danger mb-3';
+        macroGovernanceIssueSummary.textContent = 'Macro governance audit недоступен из-за ошибки загрузки telemetry.';
+        macroGovernanceIssueSummary.classList.remove('d-none');
+      }
+      if (macroGovernanceTemplatesTable) {
+        macroGovernanceTemplatesTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Macro governance audit недоступен.</td></tr>';
       }
       if (riskSegmentsTable) {
         riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-3">Данные риск-сегментов недоступны.</td></tr>';

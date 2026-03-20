@@ -12872,8 +12872,10 @@
     const reviewStateEl = card.querySelector('[data-macro-review-state]');
     const approvedInput = card.querySelector('.macro-template-approved');
     const publishedInput = card.querySelector('.macro-template-published');
+    const deprecatedInput = card.querySelector('.macro-template-deprecated');
     const name = (nameInput?.value || '').trim();
     const isApproved = Boolean(approvedInput?.checked);
+    const isDeprecated = Boolean(deprecatedInput?.checked);
     if (titleEl) {
       titleEl.textContent = name || 'Макрос';
     }
@@ -12900,15 +12902,22 @@
         .map((input) => (input.value || '').trim())
         .filter((value) => value);
       const message = (card.querySelector('.macro-template-message')?.value || '').trim();
+      const owner = (card.querySelector('.macro-template-owner')?.value || '').trim();
+      const namespace = (card.querySelector('.macro-template-namespace')?.value || '').trim();
+      const deprecationReason = (card.querySelector('.macro-template-deprecation-reason')?.value || '').trim();
       if (!message && !tags.length) {
         summaryEl.textContent = 'Нет текста. Добавьте сообщение для быстрого ответа.';
       } else {
         const tagsText = tags.length
           ? `${tags.length} ${pluralizeRussian(tags.length, ['тег', 'тега', 'тегов'])}`
           : 'без тегов';
-        summaryEl.textContent = message
+        const meta = [owner ? `owner: ${owner}` : '', namespace ? `ns: ${namespace}` : '', isDeprecated ? 'deprecated' : '', isDeprecated && deprecationReason ? `reason: ${deprecationReason}` : '']
+          .filter(Boolean)
+          .join(' · ');
+        const baseSummary = message
           ? `${message.slice(0, 80)}${message.length > 80 ? '…' : ''} · ${tagsText}`
           : tagsText;
+        summaryEl.textContent = meta ? `${baseSummary} · ${meta}` : baseSummary;
       }
     }
   }
@@ -13273,6 +13282,10 @@
       ? data.message
       : (typeof data.text === 'string' ? data.text : '');
     const tags = Array.isArray(data.tags) ? data.tags : [];
+    const owner = typeof data.owner === 'string' ? data.owner : '';
+    const namespace = typeof data.namespace === 'string' ? data.namespace : '';
+    const deprecated = data.deprecated === true;
+    const deprecationReason = typeof data.deprecation_reason === 'string' ? data.deprecation_reason : '';
     const published = data.published !== false;
     const approvedForPublish = data.approved_for_publish === true || data.review_state === 'approved';
     const reviewStateLabel = CAN_PUBLISH_DIALOG_MACROS
@@ -13307,6 +13320,16 @@
             <label class="form-label" for="macro-template-message-${templateId}">Текст ответа</label>
             <textarea class="form-control form-control-sm macro-template-message" id="macro-template-message-${templateId}" rows="3" placeholder="Текст, который будет вставлен в composer"></textarea>
           </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label" for="macro-template-owner-${templateId}">Owner</label>
+              <input type="text" class="form-control form-control-sm macro-template-owner" id="macro-template-owner-${templateId}" placeholder="Например, billing-ops" value="${escapeHtml(owner)}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="macro-template-namespace-${templateId}">Namespace</label>
+              <input type="text" class="form-control form-control-sm macro-template-namespace" id="macro-template-namespace-${templateId}" placeholder="Например, billing.refund" value="${escapeHtml(namespace)}">
+            </div>
+          </div>
           <div class="form-check form-switch mb-3">
             <input class="form-check-input macro-template-published" type="checkbox" id="macro-template-published-${templateId}" ${published ? 'checked' : ''} ${CAN_PUBLISH_DIALOG_MACROS ? '' : 'disabled'}>
             <label class="form-check-label" for="macro-template-published-${templateId}">Опубликован для операторов</label>
@@ -13314,6 +13337,14 @@
           <div class="form-check form-switch mb-2">
             <input class="form-check-input macro-template-approved" type="checkbox" id="macro-template-approved-${templateId}" ${approvedForPublish ? 'checked' : ''} ${CAN_PUBLISH_DIALOG_MACROS ? '' : 'disabled'}>
             <label class="form-check-label" for="macro-template-approved-${templateId}">Одобрен к публикации (review/admin)</label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input macro-template-deprecated" type="checkbox" id="macro-template-deprecated-${templateId}" ${deprecated ? 'checked' : ''}>
+            <label class="form-check-label" for="macro-template-deprecated-${templateId}">Deprecated: скрыть из операторского UI</label>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" for="macro-template-deprecation-reason-${templateId}">Причина deprecation</label>
+            <input type="text" class="form-control form-control-sm macro-template-deprecation-reason" id="macro-template-deprecation-reason-${templateId}" placeholder="Почему макрос выводится из эксплуатации" value="${escapeHtml(deprecationReason)}">
           </div>
           <div class="small text-muted mb-3" data-macro-review-state>${reviewStateLabel}</div>
           <div class="d-flex flex-column gap-2" data-macro-tags></div>
@@ -13337,6 +13368,13 @@
     if (approvedInput) {
       approvedInput.addEventListener('change', () => updateMacroTemplateSummary(card));
     }
+    ['.macro-template-owner', '.macro-template-namespace', '.macro-template-deprecation-reason', '.macro-template-deprecated'].forEach((selector) => {
+      const input = card.querySelector(selector);
+      if (input) {
+        input.addEventListener('input', () => updateMacroTemplateSummary(card));
+        input.addEventListener('change', () => updateMacroTemplateSummary(card));
+      }
+    });
     const tagsContainer = card.querySelector('[data-macro-tags]');
     if (tagsContainer) {
       if (tags.length) {
@@ -16919,17 +16957,25 @@
         card.dataset.templateId = templateId;
         const name = (card.querySelector('.macro-template-name')?.value || '').trim();
         const message = (card.querySelector('.macro-template-message')?.value || '').trim();
+        const owner = (card.querySelector('.macro-template-owner')?.value || '').trim();
+        const namespace = (card.querySelector('.macro-template-namespace')?.value || '').trim();
+        const deprecated = Boolean(card.querySelector('.macro-template-deprecated')?.checked);
+        const deprecationReason = (card.querySelector('.macro-template-deprecation-reason')?.value || '').trim();
         const approvedForPublish = Boolean(card.querySelector('.macro-template-approved')?.checked);
         const tags = Array.from(card.querySelectorAll('.macro-tag-input'))
           .map((input) => (input.value || '').trim())
           .filter((value, tagIndex, values) => value && values.indexOf(value) === tagIndex);
-        if (!name && !message && !tags.length) {
+        if (!name && !message && !tags.length && !owner && !namespace && !deprecated && !deprecationReason) {
           return null;
         }
         return {
           id: templateId,
           name: name || `Макрос ${index + 1}`,
           message,
+          owner,
+          namespace,
+          deprecated,
+          deprecation_reason: deprecationReason,
           approved_for_publish: approvedForPublish,
           published: Boolean(card.querySelector('.macro-template-published')?.checked),
           tags,
