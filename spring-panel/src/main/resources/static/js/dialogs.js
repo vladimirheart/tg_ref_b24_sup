@@ -74,6 +74,7 @@
   const workspaceComposerMacroSelect = document.getElementById('workspaceComposerMacroSelect');
   const workspaceComposerMacroApply = document.getElementById('workspaceComposerMacroApply');
   const workspaceComposerMacroPreview = document.getElementById('workspaceComposerMacroPreview');
+  const workspaceComposerMacroMeta = document.getElementById('workspaceComposerMacroMeta');
   const workspaceReplyTarget = document.getElementById('workspaceReplyTarget');
   const workspaceReplyTargetText = document.getElementById('workspaceReplyTargetText');
   const workspaceReplyTargetClear = document.getElementById('workspaceReplyTargetClear');
@@ -690,6 +691,11 @@
     return template.published === true || template.published === 'true' || template.published === 1 || template.published === '1';
   }
 
+  function isMacroTemplateDeprecated(template) {
+    if (!template || typeof template !== 'object') return false;
+    return template.deprecated === true || template.deprecated === 'true' || template.deprecated === 1 || template.deprecated === '1';
+  }
+
   const DIALOG_TEMPLATES = {
     categoryTemplates: Array.isArray(window.DIALOG_CONFIG?.category_templates)
       ? window.DIALOG_CONFIG.category_templates
@@ -698,7 +704,7 @@
       ? window.DIALOG_CONFIG.question_templates
       : [],
     macroTemplates: Array.isArray(window.DIALOG_CONFIG?.macro_templates)
-      ? window.DIALOG_CONFIG.macro_templates.filter((template) => isMacroTemplatePublished(template))
+      ? window.DIALOG_CONFIG.macro_templates.filter((template) => isMacroTemplatePublished(template) && !isMacroTemplateDeprecated(template))
       : [],
     completionTemplates: Array.isArray(window.DIALOG_CONFIG?.completion_templates)
       ? window.DIALOG_CONFIG.completion_templates
@@ -2707,11 +2713,26 @@
     }
   }
 
+  function buildMacroGovernanceMeta(template) {
+    if (!template || typeof template !== 'object') return '';
+    const parts = [];
+    const namespace = String(template?.namespace || '').trim();
+    const owner = String(template?.owner || '').trim();
+    const reviewedAt = String(template?.reviewed_at || template?.reviewed_at_utc || '').trim();
+    if (namespace) parts.push(`namespace=${namespace}`);
+    if (owner) parts.push(`owner=${owner}`);
+    if (reviewedAt) parts.push(`review UTC ${reviewedAt.replace('T', ' ').replace('Z', ' UTC')}`);
+    return parts.join(' · ');
+  }
+
   function renderWorkspaceMacroPreview(template) {
     activeWorkspaceMacroTemplate = template || null;
     if (!workspaceComposerMacroPreview) return;
     const text = resolveMacroText(template);
     workspaceComposerMacroPreview.textContent = text || 'Выберите макрос для предпросмотра.';
+    if (workspaceComposerMacroMeta) {
+      workspaceComposerMacroMeta.textContent = buildMacroGovernanceMeta(template);
+    }
     if (workspaceComposerMacroApply) {
       workspaceComposerMacroApply.disabled = !text;
     }
@@ -4719,6 +4740,20 @@
       const badge = document.createElement('span');
       badge.className = 'badge text-bg-warning-subtle border';
       badge.textContent = 'Workflow: закрыть тикет';
+      macroTemplateMeta.appendChild(badge);
+    }
+    const namespace = String(template?.namespace || '').trim();
+    if (namespace) {
+      const badge = document.createElement('span');
+      badge.className = 'badge text-bg-light border';
+      badge.textContent = `Namespace: ${namespace}`;
+      macroTemplateMeta.appendChild(badge);
+    }
+    const owner = String(template?.owner || '').trim();
+    if (owner) {
+      const badge = document.createElement('span');
+      badge.className = 'badge text-bg-light border';
+      badge.textContent = `Owner: ${owner}`;
       macroTemplateMeta.appendChild(badge);
     }
     const hasActions = workflow.assignToMe || workflow.snoozeMinutes > 0 || workflow.closeTicket;

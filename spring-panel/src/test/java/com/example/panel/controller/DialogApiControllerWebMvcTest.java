@@ -984,6 +984,29 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void workspaceTelemetrySummaryReturnsAggregates() throws Exception {
+        when(dialogService.buildMacroGovernanceAudit(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
+                "generated_at", "2026-01-01T00:00:00Z",
+                "status", "attention",
+                "templates_total", 2,
+                "issues_total", 1,
+                "templates", List.of(
+                        Map.of(
+                                "template_id", "macro_refund",
+                                "template_name", "Возврат",
+                                "status", "ok"
+                        ),
+                        Map.of(
+                                "template_id", "macro_legacy",
+                                "template_name", "Legacy возврат",
+                                "status", "attention"
+                        )),
+                "issues", List.of(
+                        Map.of(
+                                "type", "unused_recently",
+                                "template_id", "macro_legacy",
+                                "status", "attention"
+                        ))
+        ));
         when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
                 "window_days", 7,
                 "rollout_scorecard", Map.of(
@@ -1070,7 +1093,10 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.rollout_packet.status").value("hold"))
                 .andExpect(jsonPath("$.rollout_packet.packet_ready").value(false))
                 .andExpect(jsonPath("$.rollout_packet.items[1].key").value("owner_signoff"))
-                .andExpect(jsonPath("$.rollout_packet.items[1].status").value("hold"));
+                .andExpect(jsonPath("$.rollout_packet.items[1].status").value("hold"))
+                .andExpect(jsonPath("$.macro_governance_audit.status").value("attention"))
+                .andExpect(jsonPath("$.macro_governance_audit.templates[1].template_id").value("macro_legacy"))
+                .andExpect(jsonPath("$.macro_governance_audit.issues[0].type").value("unused_recently"));
     }
 
     @Test
