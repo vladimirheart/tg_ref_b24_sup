@@ -17,7 +17,7 @@ public class BlacklistHistoryService {
     }
 
     public void recordEvent(String userId, String action, String reason, String actor, OffsetDateTime at) {
-        if (!StringUtils.hasText(userId) || !StringUtils.hasText(action)) {
+        if (!StringUtils.hasText(userId) || !StringUtils.hasText(action) || !historyTableExists()) {
             return;
         }
         OffsetDateTime timestamp = at != null ? at : OffsetDateTime.now();
@@ -35,7 +35,7 @@ public class BlacklistHistoryService {
     }
 
     public Optional<Duration> calculateDurationFromLastBlock(String userId, OffsetDateTime fallbackEnd) {
-        if (!StringUtils.hasText(userId)) {
+        if (!StringUtils.hasText(userId) || !historyTableExists()) {
             return Optional.empty();
         }
         OffsetDateTime blockedAt = loadLastBlockedAt(userId).orElseGet(() -> loadFallbackBlockedAt(userId).orElse(null));
@@ -60,6 +60,15 @@ public class BlacklistHistoryService {
         long hours = (totalMinutes % (60 * 24)) / 60;
         long minutes = totalMinutes % 60;
         return String.format("%d дн. %d ч. %d мин.", days, hours, minutes);
+    }
+
+
+    public boolean historyTableExists() {
+        return Boolean.TRUE.equals(jdbcTemplate.execute(connection -> {
+            try (var tables = connection.getMetaData().getTables(null, null, "client_blacklist_history", null)) {
+                return tables.next();
+            }
+        }));
     }
 
     private Optional<OffsetDateTime> loadLastBlockedAt(String userId) {
