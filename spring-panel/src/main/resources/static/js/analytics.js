@@ -63,6 +63,7 @@
   const riskSegmentsTable = document.getElementById('workspaceTelemetryRiskSegmentsTable');
   const profileGapTable = document.getElementById('workspaceTelemetryProfileGapTable');
   const sourceGapTable = document.getElementById('workspaceTelemetrySourceGapTable');
+  const attributePolicyGapTable = document.getElementById('workspaceTelemetryAttributePolicyGapTable');
   const blockGapTable = document.getElementById('workspaceTelemetryBlockGapTable');
   const parityGapTable = document.getElementById('workspaceTelemetryParityGapTable');
 
@@ -272,7 +273,7 @@
     if (riskSegmentsTable) {
       riskSegmentsTable.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     }
-    [profileGapTable, sourceGapTable, blockGapTable, parityGapTable].forEach((tableNode) => {
+    [profileGapTable, sourceGapTable, attributePolicyGapTable, blockGapTable, parityGapTable].forEach((tableNode) => {
       if (tableNode) {
         tableNode.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
       }
@@ -840,7 +841,9 @@
       return 'unspecified';
     }
     if (normalized.startsWith('field:')) {
-      return `Field: ${normalized.slice('field:'.length)}`;
+      const payload = normalized.slice('field:'.length);
+      const [field, status] = payload.split(':');
+      return status ? `Field: ${field} (${status})` : `Field: ${field}`;
     }
     if (normalized.startsWith('segment:')) {
       return `Segment: ${normalized.slice('segment:'.length)}`;
@@ -1225,6 +1228,8 @@
         || metric === 'context_profile_gap_rate'
         || metric === 'context_source_ready_rate'
         || metric === 'context_source_gap_rate'
+        || metric === 'context_attribute_policy_ready_rate'
+        || metric === 'context_attribute_policy_gap_rate'
         || metric === 'context_block_ready_rate'
         || metric === 'context_block_gap_rate'
         || metric === 'workspace_parity_ready_rate'
@@ -1250,6 +1255,7 @@
     renderRiskSegments(payload, filters);
     renderGapBreakdownTable(profileGapTable, payload?.gap_breakdown?.profile, 'Profile gaps не зафиксированы.');
     renderGapBreakdownTable(sourceGapTable, payload?.gap_breakdown?.source, 'Source gaps не зафиксированы.');
+    renderGapBreakdownTable(attributePolicyGapTable, payload?.gap_breakdown?.attribute_policy, 'Attribute policy gaps не зафиксированы.');
     renderGapBreakdownTable(blockGapTable, payload?.gap_breakdown?.block, 'Block gaps не зафиксированы.');
     renderGapBreakdownTable(parityGapTable, payload?.gap_breakdown?.parity, 'Parity gaps не зафиксированы.');
     renderScorecard(payload?.rollout_scorecard);

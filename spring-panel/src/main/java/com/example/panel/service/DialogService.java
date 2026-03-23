@@ -1063,6 +1063,20 @@ public class DialogService {
                 null
         ));
 
+        double contextAttributePolicyReadyRate = safeDouble(safeTotals.get("context_attribute_policy_ready_rate"));
+        items.add(buildScorecardItem(
+                "customer_context_attribute_policy",
+                "workspace",
+                "Customer profile source/freshness policy",
+                contextAttributePolicyReadyRate >= 0.95d ? "ok" : "attention",
+                false,
+                "Mandatory customer profile должен иметь формализованный source-of-truth и валидную UTC freshness policy.",
+                "%.1f%% ready".formatted(contextAttributePolicyReadyRate * 100d),
+                ">= 95.0%",
+                null,
+                null
+        ));
+
         double contextBlockReadyRate = safeDouble(safeTotals.get("context_block_ready_rate"));
         items.add(buildScorecardItem(
                 "customer_context_blocks",
@@ -2925,6 +2939,7 @@ public class DialogService {
         long workspaceOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_open_events"))).sum();
         long contextProfileGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_profile_gap_events"))).sum();
         long contextSourceGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_source_gap_events"))).sum();
+        long contextAttributePolicyGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_attribute_policy_gap_events"))).sum();
         long contextBlockGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_block_gap_events"))).sum();
         long workspaceSlaPolicyGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_gap_events"))).sum();
         long workspaceParityGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_parity_gap_events"))).sum();
@@ -2973,6 +2988,7 @@ public class DialogService {
         totals.put("workspace_open_events", workspaceOpenEvents);
         totals.put("context_profile_gap_events", contextProfileGapEvents);
         totals.put("context_source_gap_events", contextSourceGapEvents);
+        totals.put("context_attribute_policy_gap_events", contextAttributePolicyGapEvents);
         totals.put("context_block_gap_events", contextBlockGapEvents);
         totals.put("workspace_sla_policy_gap_events", workspaceSlaPolicyGapEvents);
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
@@ -2986,6 +3002,10 @@ public class DialogService {
         totals.put("context_source_gap_rate", workspaceOpenEvents > 0 ? (double) contextSourceGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_source_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextSourceGapEvents / workspaceOpenEvents))
+                : 1d);
+        totals.put("context_attribute_policy_gap_rate", workspaceOpenEvents > 0 ? (double) contextAttributePolicyGapEvents / workspaceOpenEvents : 0d);
+        totals.put("context_attribute_policy_ready_rate", workspaceOpenEvents > 0
+                ? Math.max(0d, 1d - ((double) contextAttributePolicyGapEvents / workspaceOpenEvents))
                 : 1d);
         totals.put("context_block_gap_rate", workspaceOpenEvents > 0 ? (double) contextBlockGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_block_ready_rate", workspaceOpenEvents > 0
@@ -3924,6 +3944,7 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_open_ms' THEN 1 ELSE 0 END) AS workspace_open_events,
                        SUM(CASE WHEN event_type = 'workspace_context_profile_gap' THEN 1 ELSE 0 END) AS context_profile_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_context_source_gap' THEN 1 ELSE 0 END) AS context_source_gap_events,
+                       SUM(CASE WHEN event_type = 'workspace_context_attribute_policy_gap' THEN 1 ELSE 0 END) AS context_attribute_policy_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_context_block_gap' THEN 1 ELSE 0 END) AS context_block_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_sla_policy_gap' THEN 1 ELSE 0 END) AS workspace_sla_policy_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_parity_gap' THEN 1 ELSE 0 END) AS workspace_parity_gap_events,
@@ -3967,6 +3988,7 @@ public class DialogService {
                 item.put("workspace_open_events", rs.getLong("workspace_open_events"));
                 item.put("context_profile_gap_events", rs.getLong("context_profile_gap_events"));
                 item.put("context_source_gap_events", rs.getLong("context_source_gap_events"));
+                item.put("context_attribute_policy_gap_events", rs.getLong("context_attribute_policy_gap_events"));
                 item.put("context_block_gap_events", rs.getLong("context_block_gap_events"));
                 item.put("workspace_sla_policy_gap_events", rs.getLong("workspace_sla_policy_gap_events"));
                 item.put("workspace_parity_gap_events", rs.getLong("workspace_parity_gap_events"));
@@ -4018,6 +4040,7 @@ public class DialogService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("profile", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_profile_gap"));
         payload.put("source", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_source_gap"));
+        payload.put("attribute_policy", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_attribute_policy_gap"));
         payload.put("block", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_block_gap"));
         payload.put("sla_policy", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_sla_policy_gap"));
         payload.put("parity", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_parity_gap"));

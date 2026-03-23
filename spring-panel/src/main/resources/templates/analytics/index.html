@@ -114,10 +114,12 @@
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Manual legacy opens</div><div class="h5 mb-0" data-metric="manual_legacy_open_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Context gaps</div><div class="h5 mb-0" data-metric="context_profile_gap_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Source gaps</div><div class="h5 mb-0" data-metric="context_source_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Policy gaps</div><div class="h5 mb-0" data-metric="context_attribute_policy_gap_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Block gaps</div><div class="h5 mb-0" data-metric="context_block_gap_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Parity gaps</div><div class="h5 mb-0" data-metric="workspace_parity_gap_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Context ready %</div><div class="h5 mb-0" data-metric="context_profile_ready_rate">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Sources ready %</div><div class="h5 mb-0" data-metric="context_source_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Policy ready %</div><div class="h5 mb-0" data-metric="context_attribute_policy_ready_rate">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Blocks ready %</div><div class="h5 mb-0" data-metric="context_block_ready_rate">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Parity ready %</div><div class="h5 mb-0" data-metric="workspace_parity_ready_rate">—</div></div></div>
                     </div>
@@ -524,6 +526,30 @@
                                                     </tr>
                                                     </thead>
                                                     <tbody id="workspaceTelemetrySourceGapTable">
+                                                    <tr>
+                                                        <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-xl-6">
+                                    <div class="card border-0 bg-light-subtle h-100">
+                                        <div class="card-body">
+                                            <h4 class="h6 mb-2">Source / freshness policy gaps</h4>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Причина</th>
+                                                        <th class="text-end">Events</th>
+                                                        <th class="text-end">Tickets</th>
+                                                        <th class="text-nowrap">Last seen UTC</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="workspaceTelemetryAttributePolicyGapTable">
                                                     <tr>
                                                         <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
                                                     </tr>
