@@ -4218,6 +4218,7 @@
                       <div class="col-12 col-xl-6">
                         <div class="border rounded-3 p-3 h-100">
                           <div class="fw-semibold mb-2">Весь проект</div>
+                          <div class="small text-muted mb-3">Базовый маршрут для панели и интеграций. Если ниже для ботов выбран режим «Наследовать проект», будет использован именно этот блок.</div>
                           <div class="mb-3">
                             <label class="form-label" for="projectNetworkMode">Режим</label>
                             <select class="form-select" id="projectNetworkMode" data-network-route-mode="project">
@@ -4271,11 +4272,13 @@
                               <textarea class="form-control" id="projectVpnNotes" rows="2" placeholder="Что нужно поднять на сервере или в окружении"></textarea>
                             </div>
                           </div>
+                          <div class="form-text mt-3" data-network-route-summary="project">Сначала выберите режим. Для отдельного прокси заполните host/port, для VPN — название, endpoint и путь к конфигу.</div>
                         </div>
                       </div>
                       <div class="col-12 col-xl-6">
                         <div class="border rounded-3 p-3 h-100">
                           <div class="fw-semibold mb-2">Подсистема ботов</div>
+                          <div class="small text-muted mb-3">Отдельный маршрут только для Java/VK-процессов ботов. Удобно, если панель должна работать напрямую, а боты — через выделенный прокси или VPN.</div>
                           <div class="mb-3">
                             <label class="form-label" for="botsNetworkMode">Режим</label>
                             <select class="form-select" id="botsNetworkMode" data-network-route-mode="bots">
@@ -4330,6 +4333,7 @@
                               <textarea class="form-control" id="botsVpnNotes" rows="2" placeholder="Опишите, как эта подсистема должна подключаться"></textarea>
                             </div>
                           </div>
+                          <div class="form-text mt-3" data-network-route-summary="bots">Если выбрать «Наследовать проект», боты будут использовать маршрут из левого блока без дублирования настроек.</div>
                         </div>
                       </div>
                     </div>
@@ -4793,7 +4797,8 @@
                 <textarea class="form-control" id="channelEditorVpnNotes" rows="2" placeholder="Любые инструкции для инфраструктуры"></textarea>
               </div>
             </div>
-            <div class="form-text mt-2">Настройки применяются только к выбранному боту и имеют приоритет над общими параметрами подсистемы.</div>
+            <div class="form-text mt-2" data-network-route-summary="channel">Если оставить «Наследовать настройки ботов», конкретный бот возьмёт маршрут из блока «Подсистема ботов».</div>
+            <div class="form-text mt-1">Настройки применяются только к выбранному боту и имеют приоритет над общими параметрами подсистемы.</div>
           </div>
           <div class="mt-4 d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
             <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
@@ -17793,6 +17798,55 @@
     }, true);
   }
 
+  function describeRouteSummary(scope) {
+    const route = collectRouteFromInputs(scope);
+    if (scope === 'project') {
+      if (route.mode === 'proxy') {
+        const host = route.proxy.host || 'host не указан';
+        return `Весь проект пойдёт через прокси ${host}:${route.proxy.port || 8080}. Эти настройки станут базовыми и для ботов, если ниже оставить наследование.`;
+      }
+      if (route.mode === 'vpn') {
+        const name = route.vpn.name || 'VPN без названия';
+        const endpoint = route.vpn.endpoint || 'endpoint не указан';
+        return `Весь проект пойдёт через VPN «${name}» (${endpoint}). Укажите endpoint и путь к конфигу, чтобы инфраструктуре было понятно, какой туннель нужен.`;
+      }
+      return 'Проект работает напрямую без прокси/VPN. Чтобы вынести только ботов в отдельный маршрут, оставьте здесь «Без маршрутизации», а справа настройте отдельный прокси или VPN.';
+    }
+    if (scope === 'bots') {
+      if (route.mode === 'inherit') {
+        return 'Боты наследуют маршрут проекта. Это удобно, когда панели и ботам нужен один и тот же прокси/VPN.';
+      }
+      if (route.mode === 'proxy') {
+        const host = route.proxy.host || 'host не указан';
+        return `Боты будут запускаться через отдельный прокси ${host}:${route.proxy.port || 8080}, а остальная панель сохранит маршрут из блока «Весь проект».`;
+      }
+      if (route.mode === 'vpn') {
+        const name = route.vpn.name || 'VPN без названия';
+        return `Боты будут запускаться через отдельный VPN «${name}». Это полезно, если только ботам нужен отдельный туннель.`;
+      }
+      return 'Боты будут работать напрямую, независимо от настроек проекта.';
+    }
+    if (route.mode === 'inherit') {
+      return 'Этот бот наследует маршрут подсистемы ботов. Если там тоже стоит наследование, в итоге будет использован маршрут проекта.';
+    }
+    if (route.mode === 'proxy') {
+      const host = route.proxy.host || 'host не указан';
+      return `Только этот бот будет ходить через отдельный прокси ${host}:${route.proxy.port || 8080}. Это перекрывает общие настройки ботов.`;
+    }
+    if (route.mode === 'vpn') {
+      const name = route.vpn.name || 'VPN без названия';
+      return `Только этот бот будет работать через VPN «${name}». Это перекрывает общие настройки ботов.`;
+    }
+    return 'Этот бот будет работать напрямую и не использовать унаследованный прокси/VPN.';
+  }
+
+  function updateNetworkRouteSummary(scope) {
+    const summaryEl = document.querySelector(`[data-network-route-summary="${scope}"]`);
+    if (summaryEl) {
+      summaryEl.textContent = describeRouteSummary(scope);
+    }
+  }
+
   function toggleNetworkRouteFields(scope) {
     const modeInput = document.querySelector(`[data-network-route-mode="${scope}"]`);
     const mode = modeInput?.value || (scope === 'project' ? 'direct' : 'inherit');
@@ -17802,6 +17856,7 @@
     document.querySelectorAll(`[data-network-route-vpn="${scope}"]`).forEach((el) => {
       el.classList.toggle('d-none', mode !== 'vpn');
     });
+    updateNetworkRouteSummary(scope);
   }
 
   function renderIntegrationNetworkSettings() {
@@ -18438,11 +18493,16 @@
     const parts = [];
     const botName = channel.bot_name || channel.botName;
     const botUsername = channel.bot_username || channel.botUsername;
+    const credentialName = channel.credential?.name ? String(channel.credential.name).trim() : '';
     if (botName) {
       parts.push(botName);
+    } else if (credentialName) {
+      parts.push(credentialName);
     }
     if (botUsername) {
       parts.push(`@${botUsername}`);
+    } else if (credentialName) {
+      parts.push('учётные данные привязаны');
     }
     return parts.length ? parts.join(' • ') : '—';
   }
@@ -18954,12 +19014,13 @@
         question_template_id: questionTemplateId,
         rating_template_id: ratingTemplateId,
         auto_action_template_id: autoTemplateId,
-        bot_name: row.bot_name || row.botName || row.name || '',
+        bot_name: row.bot_name || row.botName || '',
         bot_username: row.bot_username || row.botUsername || '',
         token: row.token || '',
         public_id: row.public_id || row.publicId || '',
         vk_group_id: vkGroupId,
         support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
+        credential: row.credential && typeof row.credential === 'object' ? row.credential : null,
         delivery_settings: deliverySettings,
         network_route: normalizeNetworkRoute(row.network_route ?? deliverySettings.network_route, true),
         questions_cfg: parseQuestionsCfg(row.questions_cfg ?? row.questionsCfg),
@@ -18985,11 +19046,12 @@
           : prepared.network_route?.mode === 'direct'
             ? 'Маршрут: direct'
             : 'Маршрут: общий';
+      const botLabel = formatBotLabel(prepared);
 
       tr.innerHTML = `
         <td>
           <div class="fw-medium">${escapeHtml(prepared.channel_name || '—')}</div>
-          <div class="text-muted small">Бот: ${escapeHtml(prepared.bot_name || '—')}${prepared.bot_username ? ` (@${escapeHtml(prepared.bot_username)})` : ''}</div>
+          <div class="text-muted small">Бот: ${escapeHtml(botLabel)}</div>
         </td>
         <td>
           <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
