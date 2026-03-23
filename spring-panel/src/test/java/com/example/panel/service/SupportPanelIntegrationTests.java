@@ -770,6 +770,103 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryBuildsGovernanceCadenceAndParityExitInUtc() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_governance_review_cadence_days":7,
+                         "workspace_rollout_governance_reviewed_by":"ops-oncall",
+                         "workspace_rollout_governance_reviewed_at":"2026-02-04T10:11:12",
+                         "workspace_rollout_governance_parity_exit_days":3,
+                         "workspace_rollout_governance_parity_critical_reasons":["reply_threading","permissions"],
+                         "workspace_rollout_governance_legacy_only_scenarios":[]}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
+                    ('op1', 'workspace_parity_gap', 'workspace', 'T-PACKET-GOV-1', 'attachments', NULL, 'workspace.v1', 10, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+        Map<String, Object> reviewCadence = (Map<String, Object>) packet.get("review_cadence");
+        Map<String, Object> parityExitCriteria = (Map<String, Object>) packet.get("parity_exit_criteria");
+
+        assertThat(packet.get("status")).isEqualTo("ok");
+        assertThat(reviewCadence).containsEntry("enabled", true);
+        assertThat(reviewCadence).containsEntry("ready", true);
+        assertThat(reviewCadence).containsEntry("reviewed_by", "ops-oncall");
+        assertThat(reviewCadence).containsEntry("reviewed_at", "2026-02-04T10:11:12Z");
+        assertThat(parityExitCriteria).containsEntry("enabled", true);
+        assertThat(parityExitCriteria).containsEntry("ready", true);
+        assertThat(parityExitCriteria).containsEntry("critical_gap_events", 0L);
+        assertThat((List<String>) parityExitCriteria.get("critical_reasons")).containsExactly("reply_threading", "permissions");
+        assertThat((List<String>) packet.get("legacy_only_scenarios")).isEmpty();
+        assertThat(items).anySatisfy(item -> {
+            if ("weekly_review".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("measured_at")).isEqualTo("2026-02-04T10:11:12Z");
+            }
+            if ("parity_exit_criteria".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("current_value")).isEqualTo("critical_gaps=0");
+            }
+            if ("legacy_only_inventory".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("current_value")).isEqualTo("none");
+            }
+        });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryBlocksGovernancePacketForStaleReviewAndLegacyInventory() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_governance_review_cadence_days":7,
+                         "workspace_rollout_governance_reviewed_by":"ops-oncall",
+                         "workspace_rollout_governance_reviewed_at":"bad-review-ts",
+                         "workspace_rollout_governance_legacy_only_scenarios":["attachments_edit","inline_reopen"]}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-2', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+        Map<String, Object> reviewCadence = (Map<String, Object>) packet.get("review_cadence");
+
+        assertThat(packet.get("packet_ready")).isEqualTo(false);
+        assertThat(packet.get("status")).isEqualTo("hold");
+        assertThat((List<String>) packet.get("missing_items")).contains("weekly_review", "legacy_only_inventory");
+        assertThat(reviewCadence).containsEntry("timestamp_invalid", true);
+        assertThat((List<String>) packet.get("legacy_only_scenarios")).containsExactly("attachments_edit", "inline_reopen");
+        assertThat(items).anySatisfy(item -> {
+            if ("weekly_review".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(item.get("current_value")).isEqualTo("invalid_utc");
+            }
+            if ("legacy_only_inventory".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("attention");
+                assertThat(item.get("current_value")).isEqualTo("open=2");
+            }
+        });
+    }
+
+    @Test
     void workspaceTelemetrySummaryExpandsExternalCheckpointScorecardItems() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
