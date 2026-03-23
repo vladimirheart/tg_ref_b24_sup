@@ -29,6 +29,12 @@
   const packetParityMeta = document.getElementById('workspaceTelemetryPacketParityMeta');
   const packetIncidentState = document.getElementById('workspaceTelemetryPacketIncidentState');
   const packetIncidentMeta = document.getElementById('workspaceTelemetryPacketIncidentMeta');
+  const packetReviewState = document.getElementById('workspaceTelemetryPacketReviewState');
+  const packetReviewMeta = document.getElementById('workspaceTelemetryPacketReviewMeta');
+  const packetExitState = document.getElementById('workspaceTelemetryPacketExitState');
+  const packetExitMeta = document.getElementById('workspaceTelemetryPacketExitMeta');
+  const packetLegacyState = document.getElementById('workspaceTelemetryPacketLegacyState');
+  const packetLegacyMeta = document.getElementById('workspaceTelemetryPacketLegacyMeta');
   const slaPolicyAuditStatus = document.getElementById('workspaceTelemetrySlaPolicyAuditStatus');
   const slaPolicyAuditUpdatedAt = document.getElementById('workspaceTelemetrySlaPolicyAuditUpdatedAt');
   const slaPolicyAuditSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditSummary');
@@ -171,6 +177,24 @@
     }
     if (packetIncidentMeta) {
       packetIncidentMeta.textContent = '';
+    }
+    if (packetReviewState) {
+      packetReviewState.textContent = '—';
+    }
+    if (packetReviewMeta) {
+      packetReviewMeta.textContent = '';
+    }
+    if (packetExitState) {
+      packetExitState.textContent = '—';
+    }
+    if (packetExitMeta) {
+      packetExitMeta.textContent = '';
+    }
+    if (packetLegacyState) {
+      packetLegacyState.textContent = '—';
+    }
+    if (packetLegacyMeta) {
+      packetLegacyMeta.textContent = '';
     }
     if (slaPolicyAuditStatus) {
       slaPolicyAuditStatus.className = 'badge text-bg-secondary';
@@ -475,6 +499,52 @@
     }
     if (packetIncidentMeta) {
       packetIncidentMeta.textContent = `window=${formatNumber(incidentHistory.window_days || 0)}d UTC · render=${formatNumber(incidentHistory.render_error_alerts || 0)} · fallback=${formatNumber(incidentHistory.fallback_alerts || 0)} · abandon=${formatNumber(incidentHistory.abandon_alerts || 0)} · slow=${formatNumber(incidentHistory.slow_open_alerts || 0)}`;
+    }
+    const reviewCadence = packet?.review_cadence || {};
+    if (packetReviewState) {
+      if (reviewCadence?.enabled !== true) {
+        packetReviewState.textContent = 'Не требуется';
+      } else if (reviewCadence?.timestamp_invalid === true) {
+        packetReviewState.textContent = 'Невалидная UTC-дата';
+      } else if (reviewCadence?.ready === true) {
+        packetReviewState.textContent = reviewCadence?.reviewed_by ? `Reviewed by: ${reviewCadence.reviewed_by}` : 'Review подтверждён';
+      } else {
+        packetReviewState.textContent = 'Review просрочен';
+      }
+    }
+    if (packetReviewMeta) {
+      const reviewedAt = reviewCadence?.reviewed_at ? formatTimestamp(reviewCadence.reviewed_at) : '—';
+      const cadenceDays = reviewCadence?.cadence_days ?? '—';
+      const ageDays = reviewCadence?.age_days ?? '—';
+      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d`;
+    }
+    const parityExit = packet?.parity_exit_criteria || {};
+    if (packetExitState) {
+      if (parityExit?.enabled !== true) {
+        packetExitState.textContent = 'Не требуется';
+      } else if (parityExit?.ready === true) {
+        packetExitState.textContent = 'Exit criteria выполнен';
+      } else {
+        packetExitState.textContent = `Critical gaps: ${formatNumber(parityExit?.critical_gap_events || 0)}`;
+      }
+    }
+    if (packetExitMeta) {
+      const lastSeenAt = parityExit?.last_seen_at ? formatTimestamp(parityExit.last_seen_at) : '—';
+      const topReasons = Array.isArray(parityExit?.top_reasons)
+        ? parityExit.top_reasons.map((row) => `${row?.reason || 'unspecified'}(${row?.events || 0})`).join(', ')
+        : '';
+      packetExitMeta.textContent = `window=${formatNumber(parityExit?.window_days || 0)}d UTC · last=${lastSeenAt}${topReasons ? ` · ${topReasons}` : ''}`;
+    }
+    const legacyOnlyScenarios = Array.isArray(packet?.legacy_only_scenarios) ? packet.legacy_only_scenarios : [];
+    if (packetLegacyState) {
+      packetLegacyState.textContent = legacyOnlyScenarios.length
+        ? `${legacyOnlyScenarios.length} open`
+        : 'Legacy-only gaps не заявлены';
+    }
+    if (packetLegacyMeta) {
+      packetLegacyMeta.textContent = legacyOnlyScenarios.length
+        ? legacyOnlyScenarios.join(', ')
+        : 'Инвентарь пуст — legacy modal можно удерживать только как rollback.';
     }
   }
 

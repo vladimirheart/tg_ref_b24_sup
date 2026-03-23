@@ -224,6 +224,17 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier")
                 || payload.containsKey("dialog_workspace_rollout_required_outcome_kpis")
                 || payload.containsKey("dialog_workspace_rollout_winner_min_open_improvement")
+                || payload.containsKey("dialog_workspace_rollout_governance_packet_required")
+                || payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_required")
+                || payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_by")
+                || payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_at")
+                || payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_ttl_hours")
+                || payload.containsKey("dialog_workspace_rollout_governance_review_cadence_days")
+                || payload.containsKey("dialog_workspace_rollout_governance_reviewed_by")
+                || payload.containsKey("dialog_workspace_rollout_governance_reviewed_at")
+                || payload.containsKey("dialog_workspace_rollout_governance_parity_exit_days")
+                || payload.containsKey("dialog_workspace_rollout_governance_parity_critical_reasons")
+                || payload.containsKey("dialog_workspace_rollout_governance_legacy_only_scenarios")
                 || payload.containsKey("dialog_macro_variable_defaults")
                 || payload.containsKey("dialog_macro_variable_catalog")
                 || payload.containsKey("dialog_macro_variable_catalog_external_url")
@@ -609,6 +620,50 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_winner_min_open_improvement")) {
                     dialogConfig.put("workspace_rollout_winner_min_open_improvement",
                             payload.get("dialog_workspace_rollout_winner_min_open_improvement"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_packet_required")) {
+                    dialogConfig.put("workspace_rollout_governance_packet_required",
+                            payload.get("dialog_workspace_rollout_governance_packet_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_required")) {
+                    dialogConfig.put("workspace_rollout_governance_owner_signoff_required",
+                            payload.get("dialog_workspace_rollout_governance_owner_signoff_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_by")) {
+                    dialogConfig.put("workspace_rollout_governance_owner_signoff_by",
+                            payload.get("dialog_workspace_rollout_governance_owner_signoff_by"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_at")) {
+                    dialogConfig.put("workspace_rollout_governance_owner_signoff_at",
+                            payload.get("dialog_workspace_rollout_governance_owner_signoff_at"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_owner_signoff_ttl_hours")) {
+                    dialogConfig.put("workspace_rollout_governance_owner_signoff_ttl_hours",
+                            payload.get("dialog_workspace_rollout_governance_owner_signoff_ttl_hours"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_review_cadence_days")) {
+                    dialogConfig.put("workspace_rollout_governance_review_cadence_days",
+                            payload.get("dialog_workspace_rollout_governance_review_cadence_days"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_reviewed_by")) {
+                    dialogConfig.put("workspace_rollout_governance_reviewed_by",
+                            payload.get("dialog_workspace_rollout_governance_reviewed_by"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_reviewed_at")) {
+                    dialogConfig.put("workspace_rollout_governance_reviewed_at",
+                            payload.get("dialog_workspace_rollout_governance_reviewed_at"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_parity_exit_days")) {
+                    dialogConfig.put("workspace_rollout_governance_parity_exit_days",
+                            payload.get("dialog_workspace_rollout_governance_parity_exit_days"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_parity_critical_reasons")) {
+                    dialogConfig.put("workspace_rollout_governance_parity_critical_reasons",
+                            payload.get("dialog_workspace_rollout_governance_parity_critical_reasons"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_legacy_only_scenarios")) {
+                    dialogConfig.put("workspace_rollout_governance_legacy_only_scenarios",
+                            payload.get("dialog_workspace_rollout_governance_legacy_only_scenarios"));
                 }
                 if (payload.containsKey("dialog_macro_variable_defaults")) {
                     dialogConfig.put("macro_variable_defaults", payload.get("dialog_macro_variable_defaults"));
