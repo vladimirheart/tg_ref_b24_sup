@@ -644,6 +644,25 @@
                 <ul class="small mb-2 ps-3 d-none" id="dialogExperimentTelemetryGuardrailAlerts"></ul>
                 <div class="alert py-2 px-3 small d-none" id="dialogExperimentRolloutDecisionState" role="status"></div>
                 <ul class="small mb-2 ps-3 d-none" id="dialogExperimentRolloutDecisionChecklist"></ul>
+                <div class="alert py-2 px-3 small d-none" id="dialogExperimentRolloutPacketState" role="status"></div>
+                <ul class="small mb-2 ps-3 d-none" id="dialogExperimentRolloutPacketChecklist"></ul>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutPacketWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Элемент пакета</th>
+                            <th scope="col">Категория</th>
+                            <th scope="col">Текущее состояние</th>
+                            <th scope="col">Порог</th>
+                            <th scope="col">UTC</th>
+                            <th scope="col" class="text-end">Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentRolloutPacketRows">
+                        <tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
                 <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutScorecardWrap">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
@@ -674,6 +693,22 @@
                         </thead>
                         <tbody id="dialogExperimentRolloutKpiOutcomeRows">
                         <tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentGapBreakdownWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Gap category</th>
+                            <th scope="col">Reason</th>
+                            <th scope="col" class="text-end">Events</th>
+                            <th scope="col" class="text-end">Tickets</th>
+                            <th scope="col">Last seen UTC</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentGapBreakdownRows">
+                        <tr><td colspan="5" class="small text-muted">Gap breakdown появится после первых parity/context-gap событий.</td></tr>
                         </tbody>
                     </table>
                 </div>

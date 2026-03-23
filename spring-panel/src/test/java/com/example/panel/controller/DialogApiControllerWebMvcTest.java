@@ -861,6 +861,22 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetryAcceptsRolloutPacketViewedEventType() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_rollout_packet_viewed",
+                                  "ticket_id": "T-5",
+                                  "reason": "experiment_modal"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void workspaceTelemetryAcceptsInlineNavigationEventType() throws Exception {
         mockMvc.perform(post("/api/dialogs/workspace-telemetry")
                         .with(user("operator"))
@@ -1030,6 +1046,10 @@ class DialogApiControllerWebMvcTest {
                         "generated_at", "2026-01-01T00:00:00Z",
                         "status", "hold",
                         "packet_ready", false,
+                        "decision_action", "hold",
+                        "blocking_count", 1,
+                        "attention_count", 0,
+                        "invalid_utc_items", List.of(),
                         "missing_items", List.of("owner_signoff"),
                         "items", List.of(
                                 Map.of(
@@ -1061,7 +1081,7 @@ class DialogApiControllerWebMvcTest {
                         "render_errors", 0,
                         "avg_open_ms", 980
                 )),
-                "totals", Map.of("events", 5, "workspace_parity_gap_events", 1, "context_source_gap_events", 1, "context_source_ready_rate", 0.8d),
+                "totals", Map.of("events", 5, "workspace_parity_gap_events", 1, "context_source_gap_events", 1, "context_source_ready_rate", 0.8d, "workspace_rollout_packet_viewed_events", 2),
                 "gap_breakdown", Map.of(
                         "profile", List.of(Map.of("reason", "last_message_at", "events", 2, "tickets", 2, "last_seen_at", "2026-01-01T02:00:00Z")),
                         "source", List.of(Map.of("reason", "contract:invalid_utc", "events", 1, "tickets", 1, "last_seen_at", "2026-01-01T03:00:00Z")),
@@ -1083,6 +1103,7 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.totals.events").value(5))
                 .andExpect(jsonPath("$.totals.context_source_gap_events").value(1))
                 .andExpect(jsonPath("$.totals.workspace_parity_gap_events").value(1))
+                .andExpect(jsonPath("$.totals.workspace_rollout_packet_viewed_events").value(2))
                 .andExpect(jsonPath("$.gap_breakdown.profile[0].reason").value("last_message_at"))
                 .andExpect(jsonPath("$.gap_breakdown.source[0].last_seen_at").value("2026-01-01T03:00:00Z"))
                 .andExpect(jsonPath("$.gap_breakdown.parity[0].reason").value("attachments"))
@@ -1092,6 +1113,8 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.rollout_scorecard.items[1].status").value("attention"))
                 .andExpect(jsonPath("$.rollout_packet.status").value("hold"))
                 .andExpect(jsonPath("$.rollout_packet.packet_ready").value(false))
+                .andExpect(jsonPath("$.rollout_packet.decision_action").value("hold"))
+                .andExpect(jsonPath("$.rollout_packet.blocking_count").value(1))
                 .andExpect(jsonPath("$.rollout_packet.items[1].key").value("owner_signoff"))
                 .andExpect(jsonPath("$.rollout_packet.items[1].status").value("hold"))
                 .andExpect(jsonPath("$.macro_governance_audit.status").value("attention"))
