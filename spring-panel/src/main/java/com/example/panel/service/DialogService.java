@@ -758,7 +758,7 @@ public class DialogService {
         Map<String, Object> rolloutScorecard = buildWorkspaceRolloutScorecard(totals, cohortComparison, guardrails, rolloutDecision);
         payload.put("rollout_scorecard", rolloutScorecard);
         payload.put("rollout_packet", buildWorkspaceRolloutPacket(totals, guardrails, rolloutDecision, rolloutScorecard,
-                payload.get("gap_breakdown"), windowDays));
+                payload.get("gap_breakdown"), windowDays, experimentName));
         return payload;
     }
 
@@ -1133,7 +1133,8 @@ public class DialogService {
                                                             Map<String, Object> rolloutDecision,
                                                             Map<String, Object> rolloutScorecard,
                                                             Object gapBreakdownRaw,
-                                                            int windowDays) {
+                                                            int windowDays,
+                                                            String experimentName) {
         Map<String, Object> safeTotals = totals == null ? Map.of() : totals;
         Map<String, Object> safeGuardrails = guardrails == null ? Map.of() : guardrails;
         Map<String, Object> safeRolloutDecision = rolloutDecision == null ? Map.of() : rolloutDecision;
@@ -1149,6 +1150,16 @@ public class DialogService {
         String ownerSignoffAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_owner_signoff_at"));
         long ownerSignoffTtlHours = resolveLongDialogConfigValue(
                 "workspace_rollout_governance_owner_signoff_ttl_hours", 168, 1, 24 * 90L);
+        long reviewCadenceDays = resolveLongDialogConfigValue(
+                "workspace_rollout_governance_review_cadence_days", 0, 0, 90);
+        String reviewCadenceBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_reviewed_by")));
+        String reviewCadenceAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_reviewed_at"));
+        long parityExitDays = resolveLongDialogConfigValue(
+                "workspace_rollout_governance_parity_exit_days", 0, 0, 90);
+        List<String> parityCriticalReasons = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_governance_parity_critical_reasons"));
+        List<String> legacyOnlyScenarios = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_governance_legacy_only_scenarios"));
 
         OffsetDateTime ownerSignoffAt = parseReviewTimestamp(ownerSignoffAtRaw);
         boolean ownerSignoffTimestampInvalid = StringUtils.hasText(normalizeNullString(ownerSignoffAtRaw)) && ownerSignoffAt == null;
@@ -1160,6 +1171,18 @@ public class DialogService {
             ownerSignoffFresh = ownerSignoffAgeHours <= ownerSignoffTtlHours;
         }
         boolean ownerSignoffReady = !ownerSignoffRequired || (ownerSignoffPresent && ownerSignoffFresh && !ownerSignoffTimestampInvalid);
+        OffsetDateTime reviewCadenceAt = parseReviewTimestamp(reviewCadenceAtRaw);
+        boolean reviewCadenceTimestampInvalid = StringUtils.hasText(normalizeNullString(reviewCadenceAtRaw)) && reviewCadenceAt == null;
+        boolean reviewCadenceEnabled = reviewCadenceDays > 0;
+        boolean reviewCadencePresent = reviewCadenceAt != null && StringUtils.hasText(reviewCadenceBy);
+        boolean reviewCadenceFresh = false;
+        long reviewCadenceAgeDays = -1L;
+        if (reviewCadenceAt != null) {
+            reviewCadenceAgeDays = Math.max(0, java.time.Duration.between(reviewCadenceAt, OffsetDateTime.now(ZoneOffset.UTC)).toDays());
+            reviewCadenceFresh = reviewCadenceAgeDays <= reviewCadenceDays;
+        }
+        boolean reviewCadenceReady = !reviewCadenceEnabled
+                || (reviewCadencePresent && reviewCadenceFresh && !reviewCadenceTimestampInvalid);
 
         List<Map<String, Object>> scorecardItems = safeListOfMaps(safeRolloutScorecard.get("items"));
         boolean scorecardSnapshotReady = !scorecardItems.isEmpty();
@@ -1185,6 +1208,14 @@ public class DialogService {
         long slowOpenAlerts = alerts.stream().filter(alert -> "slow_open_rate".equals(String.valueOf(alert.get("metric")))).count();
         boolean incidentHistoryReady = true;
         boolean externalGateSnapshotReady = !externalSignal.isEmpty();
+        Map<String, Object> parityExitCriteria = buildWorkspaceParityExitCriteria(
+                parityExitDays,
+                experimentName,
+                parityCriticalReasons);
+        boolean parityExitCriteriaEnabled = toBoolean(parityExitCriteria.get("enabled"));
+        boolean parityExitCriteriaReady = toBoolean(parityExitCriteria.get("ready"));
+        boolean legacyInventoryEnabled = packetRequired || !legacyOnlyScenarios.isEmpty();
+        boolean legacyInventoryReady = legacyOnlyScenarios.isEmpty();
 
         List<Map<String, Object>> packetItems = new ArrayList<>();
         packetItems.add(buildScorecardItem(
@@ -1268,6 +1299,62 @@ public class DialogService {
                         ? "age_hours=%d".formatted(ownerSignoffAgeHours)
                         : ""
         ));
+        packetItems.add(buildScorecardItem(
+                "weekly_review",
+                "workspace",
+                "Weekly parity review cadence",
+                !reviewCadenceEnabled ? "off" : (reviewCadenceReady ? "ok" : "hold"),
+                reviewCadenceEnabled && !reviewCadenceReady,
+                "Parity-gap breakdown должен регулярно подтверждаться review в UTC, чтобы dual-run не оставался без владельца.",
+                !reviewCadenceEnabled
+                        ? "not required"
+                        : reviewCadenceTimestampInvalid
+                                ? "invalid_utc"
+                                : reviewCadencePresent
+                                        ? "reviewed_by=%s".formatted(reviewCadenceBy)
+                                        : "missing",
+                reviewCadenceEnabled ? "present & <= %d days".formatted(reviewCadenceDays) : "optional",
+                reviewCadenceAt != null ? reviewCadenceAt.toString() : "",
+                reviewCadencePresent
+                        ? "age_days=%d".formatted(reviewCadenceAgeDays)
+                        : ""
+        ));
+        packetItems.add(buildScorecardItem(
+                "parity_exit_criteria",
+                "workspace",
+                "Parity exit criteria",
+                !parityExitCriteriaEnabled ? "off" : (parityExitCriteriaReady ? "ok" : "hold"),
+                parityExitCriteriaEnabled && !parityExitCriteriaReady,
+                "Legacy modal перестаёт считаться штатным UX только после окна без критичных parity-gap в UTC.",
+                !parityExitCriteriaEnabled
+                        ? "not required"
+                        : "critical_gaps=%d".formatted(toLong(parityExitCriteria.get("critical_gap_events"))),
+                parityExitCriteriaEnabled
+                        ? "0 critical gaps in last %d days UTC".formatted(toLong(parityExitCriteria.get("window_days")))
+                        : "optional",
+                String.valueOf(parityExitCriteria.getOrDefault("last_seen_at", "")),
+                StringUtils.hasText(String.valueOf(parityExitCriteria.getOrDefault("top_reasons_summary", "")))
+                        ? "top_reasons=" + parityExitCriteria.get("top_reasons_summary")
+                        : StringUtils.hasText(String.valueOf(parityExitCriteria.getOrDefault("critical_reasons_summary", "")))
+                                ? "critical=" + parityExitCriteria.get("critical_reasons_summary")
+                                : null
+        ));
+        packetItems.add(buildScorecardItem(
+                "legacy_only_inventory",
+                "workspace",
+                "Legacy-only scenario inventory",
+                !legacyInventoryEnabled ? "off" : (legacyInventoryReady ? "ok" : "attention"),
+                packetRequired && !legacyInventoryReady,
+                "Явный список legacy-only сценариев нужен, чтобы контролируемо завершить dual-run и не потерять edge-cases.",
+                !legacyInventoryEnabled
+                        ? "not required"
+                        : legacyInventoryReady
+                                ? "none"
+                                : "open=%d".formatted(legacyOnlyScenarios.size()),
+                legacyInventoryEnabled ? "inventory empty before decommission" : "optional",
+                normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
+                legacyInventoryReady ? null : String.join(", ", legacyOnlyScenarios)
+        ));
 
         List<String> missingItems = packetItems.stream()
                 .filter(item -> {
@@ -1285,7 +1372,8 @@ public class DialogService {
             packetStatus = "ok";
         } else if (packetRequired) {
             packetStatus = "hold";
-        } else if (!scorecardSnapshotReady && workspaceOpenEvents <= 0 && alerts.isEmpty() && !ownerSignoffRequired) {
+        } else if (!scorecardSnapshotReady && workspaceOpenEvents <= 0 && alerts.isEmpty()
+                && !ownerSignoffRequired && !reviewCadenceEnabled && !parityExitCriteriaEnabled && legacyOnlyScenarios.isEmpty()) {
             packetStatus = "off";
         } else {
             packetStatus = "attention";
@@ -1299,6 +1387,15 @@ public class DialogService {
         ownerSignoff.put("ttl_hours", ownerSignoffTtlHours);
         ownerSignoff.put("age_hours", ownerSignoffAgeHours);
         ownerSignoff.put("timestamp_invalid", ownerSignoffTimestampInvalid);
+
+        Map<String, Object> reviewCadence = new LinkedHashMap<>();
+        reviewCadence.put("enabled", reviewCadenceEnabled);
+        reviewCadence.put("ready", reviewCadenceReady);
+        reviewCadence.put("reviewed_by", reviewCadenceBy);
+        reviewCadence.put("reviewed_at", reviewCadenceAt != null ? reviewCadenceAt.toString() : "");
+        reviewCadence.put("cadence_days", reviewCadenceDays);
+        reviewCadence.put("age_days", reviewCadenceAgeDays);
+        reviewCadence.put("timestamp_invalid", reviewCadenceTimestampInvalid);
 
         Map<String, Object> paritySnapshot = new LinkedHashMap<>();
         paritySnapshot.put("ready", paritySnapshotReady);
@@ -1328,7 +1425,10 @@ public class DialogService {
         packet.put("missing_items", missingItems);
         packet.put("items", packetItems);
         packet.put("owner_signoff", ownerSignoff);
+        packet.put("review_cadence", reviewCadence);
         packet.put("parity_snapshot", paritySnapshot);
+        packet.put("parity_exit_criteria", parityExitCriteria);
+        packet.put("legacy_only_scenarios", legacyOnlyScenarios);
         packet.put("incident_history", incidentHistory);
         packet.put("external_gate", Map.of(
                 "ready", externalGateSnapshotReady,
@@ -1338,6 +1438,95 @@ public class DialogService {
                 "reviewed_at", normalizeUtcTimestamp(externalSignal.get("reviewed_at"))
         ));
         return packet;
+    }
+
+    private Map<String, Object> buildWorkspaceParityExitCriteria(long parityExitDays,
+                                                                 String experimentName,
+                                                                 List<String> criticalReasons) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        boolean enabled = parityExitDays > 0;
+        List<String> normalizedCriticalReasons = criticalReasons == null ? List.of() : criticalReasons.stream()
+                .map(this::normalizeNullString)
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        snapshot.put("enabled", enabled);
+        snapshot.put("window_days", parityExitDays);
+        snapshot.put("critical_reasons", normalizedCriticalReasons);
+        if (!enabled) {
+            snapshot.put("ready", true);
+            snapshot.put("critical_gap_events", 0L);
+            snapshot.put("last_seen_at", "");
+            snapshot.put("top_reasons", List.of());
+            snapshot.put("critical_reasons_summary", "");
+            snapshot.put("top_reasons_summary", "");
+            return snapshot;
+        }
+
+        String filterExperiment = StringUtils.hasText(experimentName) ? experimentName.trim() : null;
+        String sql = """
+                SELECT reason, ticket_id, created_at
+                  FROM workspace_telemetry_audit
+                 WHERE created_at >= ?
+                   AND created_at < ?
+                   AND event_type = 'workspace_parity_gap'
+                   AND (? IS NULL OR experiment_name = ?)
+                 ORDER BY created_at DESC
+                """;
+        try {
+            Instant windowEnd = Instant.now();
+            Instant windowStart = windowEnd.minusSeconds(parityExitDays * 24L * 60L * 60L);
+            List<Map<String, Object>> rawRows = jdbcTemplate.query(sql, (rs, rowNum) -> {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("reason", rs.getString("reason"));
+                row.put("ticket_id", rs.getString("ticket_id"));
+                Timestamp createdAt = rs.getTimestamp("created_at");
+                row.put("created_at", createdAt != null ? createdAt.toInstant() : null);
+                return row;
+            }, Timestamp.from(windowStart), Timestamp.from(windowEnd), filterExperiment, filterExperiment);
+
+            List<Map<String, Object>> filteredRows;
+            if (normalizedCriticalReasons.isEmpty()) {
+                filteredRows = rawRows;
+            } else {
+                Set<String> criticalReasonSet = new LinkedHashSet<>(normalizedCriticalReasons);
+                filteredRows = rawRows.stream()
+                        .filter(row -> normalizeWorkspaceGapReasons(row.get("reason")).stream()
+                                .map(value -> value.toLowerCase(Locale.ROOT))
+                                .anyMatch(criticalReasonSet::contains))
+                        .toList();
+            }
+
+            List<Map<String, Object>> topReasons = aggregateWorkspaceGapReasons(filteredRows);
+            Instant lastSeenAt = filteredRows.stream()
+                    .map(row -> row.get("created_at") instanceof Instant instant ? instant : null)
+                    .filter(Objects::nonNull)
+                    .max(Instant::compareTo)
+                    .orElse(null);
+            snapshot.put("ready", filteredRows.isEmpty());
+            snapshot.put("critical_gap_events", (long) filteredRows.size());
+            snapshot.put("last_seen_at", lastSeenAt != null ? lastSeenAt.toString() : "");
+            snapshot.put("top_reasons", topReasons);
+            snapshot.put("critical_reasons_summary", String.join(", ", normalizedCriticalReasons));
+            snapshot.put("top_reasons_summary", topReasons.stream()
+                    .limit(3)
+                    .map(row -> "%s(%d)".formatted(
+                            String.valueOf(row.getOrDefault("reason", "unspecified")),
+                            toLong(row.get("events"))))
+                    .collect(Collectors.joining(", ")));
+            return snapshot;
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load parity exit criteria snapshot: {}", summarizeDataAccessException(ex));
+            snapshot.put("ready", false);
+            snapshot.put("critical_gap_events", 0L);
+            snapshot.put("last_seen_at", "");
+            snapshot.put("top_reasons", List.of());
+            snapshot.put("critical_reasons_summary", String.join(", ", normalizedCriticalReasons));
+            snapshot.put("top_reasons_summary", "");
+            snapshot.put("error", "telemetry_unavailable");
+            return snapshot;
+        }
     }
 
     private void appendOutcomeMetricScorecardItem(List<Map<String, Object>> items,
@@ -1791,6 +1980,28 @@ public class DialogService {
                 .map(String::valueOf)
                 .map(this::normalizeNullString)
                 .filter(StringUtils::hasText)
+                .toList();
+    }
+
+    private List<String> resolveDialogConfigStringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                    .map(String::valueOf)
+                    .map(this::normalizeNullString)
+                    .map(item -> item.toLowerCase(Locale.ROOT))
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .toList();
+        }
+        String normalized = normalizeNullString(value == null ? null : String.valueOf(value));
+        if (!StringUtils.hasText(normalized)) {
+            return List.of();
+        }
+        return Arrays.stream(normalized.split("[,;\n]"))
+                .map(String::trim)
+                .map(item -> item.toLowerCase(Locale.ROOT))
+                .filter(StringUtils::hasText)
+                .distinct()
                 .toList();
     }
 

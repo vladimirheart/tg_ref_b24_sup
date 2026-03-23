@@ -2401,6 +2401,70 @@
                     </div>
                   </div>
                   <hr class="my-4">
+                  <h6 class="mb-2">Workspace rollout governance</h6>
+                  <p class="small text-muted">Формализует decision-loop для миграции с legacy modal: обязательный governance packet, owner sign-off, weekly parity review и exit criteria. Если настройки пустые — текущее поведение rollout не меняется.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernancePacketRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernancePacketRequired">Governance packet обязателен для rollout decision</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceOwnerSignoffRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceOwnerSignoffRequired">Требовать owner sign-off перед scale-up / decommission legacy</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceOwnerSignoffBy" class="form-label">Owner sign-off by</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceOwnerSignoffBy" maxlength="120" placeholder="ops-director / release-manager">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceOwnerSignoffAt" class="form-label">Owner sign-off at</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceGovernanceOwnerSignoffAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceGovernanceOwnerSignoffAtStatus"></div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceOwnerSignoffTtlHours" class="form-label">TTL sign-off, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceOwnerSignoffTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceReviewCadenceDays" class="form-label">Review cadence, дней</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceReviewCadenceDays" min="0" max="90" step="1">
+                      <div class="form-text">0 = weekly review cadence выключен.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceReviewedBy" class="form-label">Последний reviewer</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceReviewedBy" maxlength="120" placeholder="ops-oncall / product-owner">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceReviewedAt" class="form-label">Последний review at</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceGovernanceReviewedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceGovernanceReviewedAtStatus"></div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceParityExitDays" class="form-label">Parity exit window, дней</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceParityExitDays" min="0" max="90" step="1">
+                      <div class="form-text">0 = exit criteria по parity-gap выключен.</div>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceGovernanceParityCriticalReasons" class="form-label">Critical parity-gap reasons (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceParityCriticalReasons" placeholder="attachments,reply_threading,macros,permissions">
+                      <div class="form-text">Если список пустой, при включённом окне exit criteria критичными считаются все parity-gap события.</div>
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceGovernanceLegacyOnlyScenarios" class="form-label">Legacy-only scenarios inventory (JSON-массив или CSV)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceGovernanceLegacyOnlyScenarios" rows="4" placeholder='["attachments_edit", "inline_reopen"]'></textarea>
+                      <div class="form-text">Пустой список = legacy-only сценариев больше нет. Список попадает в analytics packet и помогает контролируемо завершить dual-run.</div>
+                    </div>
+                    <div class="col-12">
+                      <div class="alert alert-secondary py-2 px-3 mb-1" id="dialogWorkspaceGovernanceUtcSummary" role="status">
+                        Проверка UTC timestamps governance…
+                      </div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
                   <h6 class="mb-2">Default переменные макросов</h6>
                   <p class="small text-muted">Резервные значения для переменных {{name}} в macro dry-run и при реальном применении.</p>
                   <label for="dialogMacroVariableDefaults" class="form-label">JSON-объект defaults</label>
@@ -4901,6 +4965,17 @@
     workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: 1.20,
     workspace_rollout_required_outcome_kpis: ['frt', 'ttr', 'sla_breach'],
     workspace_rollout_winner_min_open_improvement: 0.00,
+    workspace_rollout_governance_packet_required: false,
+    workspace_rollout_governance_owner_signoff_required: false,
+    workspace_rollout_governance_owner_signoff_by: '',
+    workspace_rollout_governance_owner_signoff_at: '',
+    workspace_rollout_governance_owner_signoff_ttl_hours: 168,
+    workspace_rollout_governance_review_cadence_days: 0,
+    workspace_rollout_governance_reviewed_by: '',
+    workspace_rollout_governance_reviewed_at: '',
+    workspace_rollout_governance_parity_exit_days: 0,
+    workspace_rollout_governance_parity_critical_reasons: [],
+    workspace_rollout_governance_legacy_only_scenarios: [],
     escalation_webhook_max_tickets_per_run: 50,
     workspace_context_history_limit: 5,
     workspace_context_related_events_limit: 5,
@@ -14095,6 +14170,17 @@
       workspaceClientContextSourceStaleAfterHoursBySource: document.getElementById('dialogWorkspaceClientContextSourceStaleAfterHoursBySource'),
       workspaceRequiredClientAttributes: document.getElementById('dialogWorkspaceRequiredClientAttributes'),
       workspaceRequiredClientAttributesBySegment: document.getElementById('dialogWorkspaceRequiredClientAttributesBySegment'),
+      workspaceGovernancePacketRequired: document.getElementById('dialogWorkspaceGovernancePacketRequired'),
+      workspaceGovernanceOwnerSignoffRequired: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffRequired'),
+      workspaceGovernanceOwnerSignoffBy: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffBy'),
+      workspaceGovernanceOwnerSignoffAt: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffAt'),
+      workspaceGovernanceOwnerSignoffTtlHours: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffTtlHours'),
+      workspaceGovernanceReviewCadenceDays: document.getElementById('dialogWorkspaceGovernanceReviewCadenceDays'),
+      workspaceGovernanceReviewedBy: document.getElementById('dialogWorkspaceGovernanceReviewedBy'),
+      workspaceGovernanceReviewedAt: document.getElementById('dialogWorkspaceGovernanceReviewedAt'),
+      workspaceGovernanceParityExitDays: document.getElementById('dialogWorkspaceGovernanceParityExitDays'),
+      workspaceGovernanceParityCriticalReasons: document.getElementById('dialogWorkspaceGovernanceParityCriticalReasons'),
+      workspaceGovernanceLegacyOnlyScenarios: document.getElementById('dialogWorkspaceGovernanceLegacyOnlyScenarios'),
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
@@ -14704,6 +14790,58 @@
         inputs.workspaceRequiredClientAttributesBySegment.value = '{}';
       }
     }
+    if (inputs.workspaceGovernancePacketRequired) {
+      inputs.workspaceGovernancePacketRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_packet_required);
+    }
+    if (inputs.workspaceGovernanceOwnerSignoffRequired) {
+      inputs.workspaceGovernanceOwnerSignoffRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_owner_signoff_required);
+    }
+    if (inputs.workspaceGovernanceOwnerSignoffBy) {
+      inputs.workspaceGovernanceOwnerSignoffBy.value = String(DIALOG_CONFIG.workspace_rollout_governance_owner_signoff_by || '').trim();
+    }
+    populateWorkspaceGovernanceUtcTimestampField(WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS[0]);
+    if (inputs.workspaceGovernanceOwnerSignoffTtlHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_owner_signoff_ttl_hours, 10);
+      inputs.workspaceGovernanceOwnerSignoffTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 2160
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_owner_signoff_ttl_hours;
+    }
+    if (inputs.workspaceGovernanceReviewCadenceDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_review_cadence_days, 10);
+      inputs.workspaceGovernanceReviewCadenceDays.value = Number.isFinite(value) && value >= 0 && value <= 90
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_review_cadence_days;
+    }
+    if (inputs.workspaceGovernanceReviewedBy) {
+      inputs.workspaceGovernanceReviewedBy.value = String(DIALOG_CONFIG.workspace_rollout_governance_reviewed_by || '').trim();
+    }
+    populateWorkspaceGovernanceUtcTimestampField(WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS[1]);
+    if (inputs.workspaceGovernanceParityExitDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_parity_exit_days, 10);
+      inputs.workspaceGovernanceParityExitDays.value = Number.isFinite(value) && value >= 0 && value <= 90
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_parity_exit_days;
+    }
+    if (inputs.workspaceGovernanceParityCriticalReasons) {
+      const values = Array.isArray(DIALOG_CONFIG.workspace_rollout_governance_parity_critical_reasons)
+        ? DIALOG_CONFIG.workspace_rollout_governance_parity_critical_reasons
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_parity_critical_reasons;
+      inputs.workspaceGovernanceParityCriticalReasons.value = values
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean)
+        .join(', ');
+    }
+    if (inputs.workspaceGovernanceLegacyOnlyScenarios) {
+      const values = DIALOG_CONFIG.workspace_rollout_governance_legacy_only_scenarios;
+      if (Array.isArray(values)) {
+        inputs.workspaceGovernanceLegacyOnlyScenarios.value = JSON.stringify(values, null, 2);
+      } else if (typeof values === 'string' && values.trim()) {
+        inputs.workspaceGovernanceLegacyOnlyScenarios.value = values.trim();
+      } else {
+        inputs.workspaceGovernanceLegacyOnlyScenarios.value = '[]';
+      }
+    }
+    syncAllWorkspaceGovernanceUtcTimestampFields();
     if (inputs.workspaceClientHiddenAttributes) {
       const hiddenAttributes = Array.isArray(DIALOG_CONFIG.workspace_client_hidden_attributes)
         ? DIALOG_CONFIG.workspace_client_hidden_attributes
@@ -14974,6 +15112,7 @@
         ? String(Math.max(0, Math.min(100, value)))
         : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct);
     }
+    syncAllWorkspaceGovernanceUtcTimestampFields();
     syncAllExternalKpiUtcTimestampFields();
     syncWorkspaceExternalKpiDatamartContractState(inputs);
     if (inputs.publicFormMessageMaxLength) {
@@ -16356,6 +16495,76 @@
       }
     }
 
+    const safeWorkspaceGovernancePacketRequired = Boolean(inputs.workspaceGovernancePacketRequired?.checked);
+    const safeWorkspaceGovernanceOwnerSignoffRequired = Boolean(inputs.workspaceGovernanceOwnerSignoffRequired?.checked);
+    const safeWorkspaceGovernanceOwnerSignoffBy = String(inputs.workspaceGovernanceOwnerSignoffBy?.value || '').trim().slice(0, 120);
+    const safeWorkspaceGovernanceOwnerSignoffAtRaw = String(inputs.workspaceGovernanceOwnerSignoffAt?.value || '').trim();
+    const safeWorkspaceGovernanceOwnerSignoffAt = toUtcIsoString(safeWorkspaceGovernanceOwnerSignoffAtRaw);
+    if (safeWorkspaceGovernanceOwnerSignoffAtRaw && !safeWorkspaceGovernanceOwnerSignoffAt) {
+      errors.push('Дата owner sign-off указана в некорректном формате UTC.');
+    }
+    const safeWorkspaceGovernanceOwnerSignoffTtlHoursRaw = Number.parseInt(inputs.workspaceGovernanceOwnerSignoffTtlHours?.value || '', 10);
+    const safeWorkspaceGovernanceOwnerSignoffTtlHours = Number.isFinite(safeWorkspaceGovernanceOwnerSignoffTtlHoursRaw)
+      ? Math.max(1, Math.min(2160, safeWorkspaceGovernanceOwnerSignoffTtlHoursRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_owner_signoff_ttl_hours;
+    if (safeWorkspaceGovernanceOwnerSignoffRequired && !safeWorkspaceGovernanceOwnerSignoffBy) {
+      errors.push('Для owner sign-off укажите ответственного владельца решения.');
+    }
+    if (safeWorkspaceGovernanceOwnerSignoffRequired && !safeWorkspaceGovernanceOwnerSignoffAt) {
+      errors.push('Для owner sign-off укажите валидную UTC-дату подтверждения.');
+    }
+    const safeWorkspaceGovernanceReviewCadenceDaysRaw = Number.parseInt(inputs.workspaceGovernanceReviewCadenceDays?.value || '', 10);
+    const safeWorkspaceGovernanceReviewCadenceDays = Number.isFinite(safeWorkspaceGovernanceReviewCadenceDaysRaw)
+      ? Math.max(0, Math.min(90, safeWorkspaceGovernanceReviewCadenceDaysRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_review_cadence_days;
+    const safeWorkspaceGovernanceReviewedBy = String(inputs.workspaceGovernanceReviewedBy?.value || '').trim().slice(0, 120);
+    const safeWorkspaceGovernanceReviewedAtRaw = String(inputs.workspaceGovernanceReviewedAt?.value || '').trim();
+    const safeWorkspaceGovernanceReviewedAt = toUtcIsoString(safeWorkspaceGovernanceReviewedAtRaw);
+    if (safeWorkspaceGovernanceReviewedAtRaw && !safeWorkspaceGovernanceReviewedAt) {
+      errors.push('Дата governance review указана в некорректном формате UTC.');
+    }
+    if (safeWorkspaceGovernanceReviewCadenceDays > 0 && !safeWorkspaceGovernanceReviewedBy) {
+      errors.push('Для review cadence укажите последнего reviewer.');
+    }
+    if (safeWorkspaceGovernanceReviewCadenceDays > 0 && !safeWorkspaceGovernanceReviewedAt) {
+      errors.push('Для review cadence укажите валидную UTC-дату последнего review.');
+    }
+    const safeWorkspaceGovernanceParityExitDaysRaw = Number.parseInt(inputs.workspaceGovernanceParityExitDays?.value || '', 10);
+    const safeWorkspaceGovernanceParityExitDays = Number.isFinite(safeWorkspaceGovernanceParityExitDaysRaw)
+      ? Math.max(0, Math.min(90, safeWorkspaceGovernanceParityExitDaysRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_parity_exit_days;
+    const safeWorkspaceGovernanceParityCriticalReasons = Array.from(new Set(
+      String(inputs.workspaceGovernanceParityCriticalReasons?.value || '')
+        .split(/[
+,;]/)
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean),
+    ));
+    let safeWorkspaceGovernanceLegacyOnlyScenarios = [];
+    const legacyOnlyScenariosRaw = String(inputs.workspaceGovernanceLegacyOnlyScenarios?.value || '').trim();
+    if (legacyOnlyScenariosRaw) {
+      if (legacyOnlyScenariosRaw.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(legacyOnlyScenariosRaw);
+          if (!Array.isArray(parsed)) {
+            errors.push('Legacy-only scenarios должны быть JSON-массивом или CSV-строкой.');
+          } else {
+            safeWorkspaceGovernanceLegacyOnlyScenarios = Array.from(new Set(parsed
+              .map((value) => String(value || '').trim())
+              .filter(Boolean)));
+          }
+        } catch (err) {
+          errors.push('Legacy-only scenarios: некорректный JSON.');
+        }
+      } else {
+        safeWorkspaceGovernanceLegacyOnlyScenarios = Array.from(new Set(legacyOnlyScenariosRaw
+          .split(/[
+,;]/)
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)));
+      }
+    }
+
     const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
     if (hiddenAttributesRaw) {
       try {
@@ -16742,6 +16951,17 @@
         dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: safeSlaRelativeMultiplier,
         dialog_workspace_rollout_required_outcome_kpis: safeRequiredOutcomeKpis,
         dialog_workspace_rollout_winner_min_open_improvement: safeWinnerMinOpenImprovement,
+        dialog_workspace_rollout_governance_packet_required: safeWorkspaceGovernancePacketRequired,
+        dialog_workspace_rollout_governance_owner_signoff_required: safeWorkspaceGovernanceOwnerSignoffRequired,
+        dialog_workspace_rollout_governance_owner_signoff_by: safeWorkspaceGovernanceOwnerSignoffBy,
+        dialog_workspace_rollout_governance_owner_signoff_at: safeWorkspaceGovernanceOwnerSignoffAt,
+        dialog_workspace_rollout_governance_owner_signoff_ttl_hours: safeWorkspaceGovernanceOwnerSignoffTtlHours,
+        dialog_workspace_rollout_governance_review_cadence_days: safeWorkspaceGovernanceReviewCadenceDays,
+        dialog_workspace_rollout_governance_reviewed_by: safeWorkspaceGovernanceReviewedBy,
+        dialog_workspace_rollout_governance_reviewed_at: safeWorkspaceGovernanceReviewedAt,
+        dialog_workspace_rollout_governance_parity_exit_days: safeWorkspaceGovernanceParityExitDays,
+        dialog_workspace_rollout_governance_parity_critical_reasons: safeWorkspaceGovernanceParityCriticalReasons,
+        dialog_workspace_rollout_governance_legacy_only_scenarios: safeWorkspaceGovernanceLegacyOnlyScenarios,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
         dialog_macro_variable_catalog: safeMacroVariableCatalog,
         dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,
@@ -17229,6 +17449,7 @@
     initDialogTemplates();
     initTimeMetricsControls();
     initDialogSlaControls();
+    initWorkspaceGovernanceUtcTimestampFields();
     initExternalKpiUtcTimestampFields();
     initWorkspaceExternalKpiDatamartContractPreview();
     bindAutoAssignRulesHelpers();
@@ -17787,48 +18008,73 @@
     return toDateTimeLocalValue(rawValue);
   }
 
+  const WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS = [
+    {
+      inputId: 'dialogWorkspaceGovernanceOwnerSignoffAt',
+      statusId: 'dialogWorkspaceGovernanceOwnerSignoffAtStatus',
+      configKey: 'workspace_rollout_governance_owner_signoff_at',
+      label: 'Owner sign-off',
+      summaryId: 'dialogWorkspaceGovernanceUtcSummary',
+    },
+    {
+      inputId: 'dialogWorkspaceGovernanceReviewedAt',
+      statusId: 'dialogWorkspaceGovernanceReviewedAtStatus',
+      configKey: 'workspace_rollout_governance_reviewed_at',
+      label: 'Governance review',
+      summaryId: 'dialogWorkspaceGovernanceUtcSummary',
+    },
+  ];
+
   const EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS = [
     {
       inputId: 'dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt',
       statusId: 'dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAtStatus',
       configKey: 'workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at',
       label: 'Dependency-ticket',
+      summaryId: 'dialogWorkspaceExternalKpiUtcSummary',
     },
     {
       inputId: 'dialogWorkspaceExternalKpiReviewedAt',
       statusId: 'dialogWorkspaceExternalKpiReviewedAtStatus',
       configKey: 'workspace_rollout_external_kpi_reviewed_at',
       label: 'Review checkpoint',
+      summaryId: 'dialogWorkspaceExternalKpiUtcSummary',
     },
     {
       inputId: 'dialogWorkspaceExternalKpiDataUpdatedAt',
       statusId: 'dialogWorkspaceExternalKpiDataUpdatedAtStatus',
       configKey: 'workspace_rollout_external_kpi_data_updated_at',
       label: 'Data-mart freshness',
+      summaryId: 'dialogWorkspaceExternalKpiUtcSummary',
     },
     {
       inputId: 'dialogWorkspaceExternalKpiDatamartHealthUpdatedAt',
       statusId: 'dialogWorkspaceExternalKpiDatamartHealthUpdatedAtStatus',
       configKey: 'workspace_rollout_external_kpi_datamart_health_updated_at',
       label: 'Health signal',
+      summaryId: 'dialogWorkspaceExternalKpiUtcSummary',
     },
     {
       inputId: 'dialogWorkspaceExternalKpiDatamartProgramUpdatedAt',
       statusId: 'dialogWorkspaceExternalKpiDatamartProgramUpdatedAtStatus',
       configKey: 'workspace_rollout_external_kpi_datamart_program_updated_at',
       label: 'Program status',
+      summaryId: 'dialogWorkspaceExternalKpiUtcSummary',
     },
     {
       inputId: 'dialogWorkspaceExternalKpiDatamartTargetReadyAt',
       statusId: 'dialogWorkspaceExternalKpiDatamartTargetReadyAtStatus',
       configKey: 'workspace_rollout_external_kpi_datamart_target_ready_at',
       label: 'Target deadline',
+      summaryId: 'dialogWorkspaceExternalKpiUtcSummary',
     },
   ];
 
+  const UTC_TIMESTAMP_FIELDS = [...WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS, ...EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS];
+
   function findUtcTimestampFieldMetaByInput(input) {
     const inputId = input instanceof HTMLElement ? input.id : '';
-    return EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.find((field) => field.inputId === inputId) || null;
+    return UTC_TIMESTAMP_FIELDS.find((field) => field.inputId === inputId) || null;
   }
 
   function syncUtcTimestampFieldPresentation(input, rawValue, options = {}) {
@@ -17861,12 +18107,12 @@
     status.classList.add('is-ready');
   }
 
-  function syncExternalKpiUtcSummary() {
-    const summaryNode = document.getElementById('dialogWorkspaceExternalKpiUtcSummary');
-    if (!summaryNode) {
+  function syncUtcTimestampSummary(fields, summaryId) {
+    const summaryNode = document.getElementById(summaryId);
+    if (!summaryNode || !Array.isArray(fields) || !fields.length) {
       return;
     }
-    const states = EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.map((field) => {
+    const states = fields.map((field) => {
       const input = document.getElementById(field.inputId);
       const value = String(input?.value || '').trim();
       const parsed = parseUtcDateInput(value);
@@ -17898,6 +18144,14 @@
     summaryNode.textContent = `UTC timestamps: все ${states.length} значения валидны и будут сохранены в ISO UTC без timezone-дрейфа.`;
   }
 
+  function syncExternalKpiUtcSummary() {
+    syncUtcTimestampSummary(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS, 'dialogWorkspaceExternalKpiUtcSummary');
+  }
+
+  function syncWorkspaceGovernanceUtcSummary() {
+    syncUtcTimestampSummary(WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS, 'dialogWorkspaceGovernanceUtcSummary');
+  }
+
   function syncAllExternalKpiUtcTimestampFields() {
     EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.forEach((field) => {
       const input = document.getElementById(field.inputId);
@@ -17906,7 +18160,24 @@
     syncExternalKpiUtcSummary();
   }
 
+  function syncAllWorkspaceGovernanceUtcTimestampFields() {
+    WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS.forEach((field) => {
+      const input = document.getElementById(field.inputId);
+      syncUtcTimestampFieldPresentation(input, input?.value || '', { meta: field });
+    });
+    syncWorkspaceGovernanceUtcSummary();
+  }
+
   function populateExternalKpiUtcTimestampField(field) {
+    const input = document.getElementById(field.inputId);
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    const raw = String(DIALOG_CONFIG[field.configKey] || '').trim();
+    syncUtcTimestampFieldPresentation(input, raw, { meta: field });
+  }
+
+  function populateWorkspaceGovernanceUtcTimestampField(field) {
     const input = document.getElementById(field.inputId);
     if (!(input instanceof HTMLInputElement)) {
       return;
@@ -17924,6 +18195,22 @@
       const sync = () => {
         syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
         syncExternalKpiUtcSummary();
+      };
+      input.addEventListener('input', sync);
+      input.addEventListener('change', sync);
+      sync();
+    });
+  }
+
+  function initWorkspaceGovernanceUtcTimestampFields() {
+    WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS.forEach((field) => {
+      const input = document.getElementById(field.inputId);
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      const sync = () => {
+        syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
+        syncWorkspaceGovernanceUtcSummary();
       };
       input.addEventListener('input', sync);
       input.addEventListener('change', sync);
