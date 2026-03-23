@@ -3772,6 +3772,88 @@
       </div>
     </div>
 
+    <div class="modal fade" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <form data-integration-network-profile-form>
+            <div class="modal-header">
+              <h5 class="modal-title" data-integration-network-profile-title>Профиль сетевого маршрута</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-12 col-md-8">
+                  <label class="form-label" for="integrationNetworkProfileNameInput">Название профиля</label>
+                  <input type="text" class="form-control" id="integrationNetworkProfileNameInput" data-integration-network-profile-name placeholder="Например: Боты через VPN DC-1" required>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="integrationNetworkProfileModeInput">Тип</label>
+                  <select class="form-select" id="integrationNetworkProfileModeInput" data-integration-network-profile-mode>
+                    <option value="proxy">Прокси</option>
+                    <option value="vpn">VPN</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mt-3 d-none" data-integration-network-profile-proxy-fields>
+                <div class="row g-3">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label" for="integrationNetworkProfileProxySchemeInput">Схема</label>
+                    <select class="form-select" id="integrationNetworkProfileProxySchemeInput" data-integration-network-profile-proxy-scheme>
+                      <option value="http">HTTP</option>
+                      <option value="https">HTTPS</option>
+                      <option value="socks5">SOCKS5</option>
+                      <option value="socks4">SOCKS4</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-5">
+                    <label class="form-label" for="integrationNetworkProfileProxyHostInput">Хост</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileProxyHostInput" data-integration-network-profile-proxy-host placeholder="proxy.example.local">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label" for="integrationNetworkProfileProxyPortInput">Порт</label>
+                    <input type="number" class="form-control" id="integrationNetworkProfileProxyPortInput" data-integration-network-profile-proxy-port min="1" max="65535" step="1" placeholder="3128">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="integrationNetworkProfileProxyUsernameInput">Логин</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileProxyUsernameInput" data-integration-network-profile-proxy-username placeholder="Опционально">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="integrationNetworkProfileProxyPasswordInput">Пароль</label>
+                    <input type="password" class="form-control" id="integrationNetworkProfileProxyPasswordInput" data-integration-network-profile-proxy-password placeholder="Опционально">
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 d-none" data-integration-network-profile-vpn-fields>
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="integrationNetworkProfileVpnNameInput">Название VPN</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileVpnNameInput" data-integration-network-profile-vpn-name placeholder="Например: tg-private-vpn">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="integrationNetworkProfileVpnEndpointInput">Endpoint / шлюз</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileVpnEndpointInput" data-integration-network-profile-vpn-endpoint placeholder="vpn.example.local">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="integrationNetworkProfileVpnConfigPathInput">Путь к конфигу / профилю</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileVpnConfigPathInput" data-integration-network-profile-vpn-config-path placeholder="/etc/openvpn/bots.conf">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="integrationNetworkProfileVpnNotesInput">Примечание</label>
+                    <textarea class="form-control" id="integrationNetworkProfileVpnNotesInput" data-integration-network-profile-vpn-notes rows="2" placeholder="Что должен сделать DevOps / infra"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-danger d-none" data-integration-network-profile-delete>Удалить профиль</button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+              <button type="submit" class="btn btn-primary">Сохранить профиль</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -4209,8 +4291,37 @@
                   <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                       <div>
+                        <h5 class="card-title mb-1">Профили прокси и VPN</h5>
+                        <p class="text-muted mb-0">Создайте именованные профили маршрутизации, чтобы потом выбирать их для проекта, подсистемы ботов и отдельных интеграций.</p>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add>+ Добавить профиль</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profiles-save>Сохранить профили</button>
+                      </div>
+                    </div>
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle mb-0" id="integrationNetworkProfilesTable">
+                        <thead>
+                          <tr>
+                            <th style="width: 24%">Профиль</th>
+                            <th style="width: 14%">Тип</th>
+                            <th style="width: 38%">Маршрут</th>
+                            <th style="width: 24%" class="text-end">Действия</th>
+                          </tr>
+                        </thead>
+                        <tbody id="integrationNetworkProfilesBody"></tbody>
+                      </table>
+                    </div>
+                    <div class="form-text mt-3" id="integrationNetworkProfilesStatus">Профили нужны, чтобы не копировать одинаковые прокси/VPN вручную для каждого маршрута.</div>
+                  </div>
+                </div>
+
+                <div class="card mb-4 shadow-sm border-info-subtle">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                      <div>
                         <h5 class="card-title mb-1">Сетевые маршруты интеграций</h5>
-                        <p class="text-muted mb-0">Задайте отдельные прокси/VPN для всего проекта и отдельно для подсистемы ботов.</p>
+                        <p class="text-muted mb-0">Задайте отдельные прокси/VPN для всего проекта и отдельно для подсистемы ботов. Можно использовать как ручные настройки, так и готовые профили.</p>
                       </div>
                       <button type="button" class="btn btn-outline-primary btn-sm" id="integrationNetworkSaveBtn">Сохранить сеть</button>
                     </div>
@@ -4223,9 +4334,17 @@
                             <label class="form-label" for="projectNetworkMode">Режим</label>
                             <select class="form-select" id="projectNetworkMode" data-network-route-mode="project">
                               <option value="direct">Без маршрутизации</option>
+                              <option value="profile">Выбрать профиль</option>
                               <option value="proxy">Через прокси</option>
                               <option value="vpn">Через VPN</option>
                             </select>
+                          </div>
+                          <div class="mb-3 d-none" data-network-route-profile="project">
+                            <label class="form-label" for="projectNetworkProfileId">Профиль</label>
+                            <select class="form-select" id="projectNetworkProfileId">
+                              <option value="">Выберите профиль…</option>
+                            </select>
+                            <div class="form-text">Профиль подставит готовый прокси/VPN и будет использоваться как ссылка, а не как разовая копия настроек.</div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-proxy="project">
                             <div class="col-12 col-md-4">
@@ -4284,9 +4403,17 @@
                             <select class="form-select" id="botsNetworkMode" data-network-route-mode="bots">
                               <option value="inherit">Наследовать проект</option>
                               <option value="direct">Без маршрутизации</option>
+                              <option value="profile">Выбрать профиль</option>
                               <option value="proxy">Через отдельный прокси</option>
                               <option value="vpn">Через отдельный VPN</option>
                             </select>
+                          </div>
+                          <div class="mb-3 d-none" data-network-route-profile="bots">
+                            <label class="form-label" for="botsNetworkProfileId">Профиль</label>
+                            <select class="form-select" id="botsNetworkProfileId">
+                              <option value="">Выберите профиль…</option>
+                            </select>
+                            <div class="form-text">Можно выбрать отдельный профиль только для процессов ботов.</div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-proxy="bots">
                             <div class="col-12 col-md-4">
@@ -4747,10 +4874,18 @@
                 <select class="form-select" id="channelEditorNetworkMode" data-network-route-mode="channel">
                   <option value="inherit">Наследовать настройки ботов</option>
                   <option value="direct">Без маршрутизации</option>
+                  <option value="profile">Выбрать профиль</option>
                   <option value="proxy">Использовать отдельный прокси</option>
                   <option value="vpn">Использовать отдельный VPN</option>
                 </select>
               </div>
+            </div>
+            <div class="mt-3 d-none" data-network-route-profile="channel">
+              <label class="form-label" for="channelEditorNetworkProfileId">Профиль</label>
+              <select class="form-select" id="channelEditorNetworkProfileId">
+                <option value="">Выберите профиль…</option>
+              </select>
+              <div class="form-text">Профиль можно переиспользовать для нескольких ботов, не дублируя логины, хосты и VPN endpoint.</div>
             </div>
             <div class="row g-3 mt-1 d-none" data-network-route-proxy="channel">
               <div class="col-12 col-md-3">
@@ -5178,6 +5313,7 @@
 
   const BOT_SETTINGS_INITIAL = /*[[${settingsPayload['bot_settings']}]]*/ {};
   const INTEGRATION_NETWORK_INITIAL = /*[[${settingsPayload['integration_network']}]]*/ {};
+  const INTEGRATION_NETWORK_PROFILES_INITIAL = /*[[${settingsPayload['integration_network_profiles']}]]*/ [];
   const BOT_PRESET_DEFINITIONS = /*[[${botQuestionPresets}]]*/ {};
 
   const PARAMETER_TITLES = /*[[${parameterTypes}]]*/ {};
@@ -16540,8 +16676,7 @@
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_parity_exit_days;
     const safeWorkspaceGovernanceParityCriticalReasons = Array.from(new Set(
       String(inputs.workspaceGovernanceParityCriticalReasons?.value || '')
-        .split(/[
-,;]/)
+        .split(/[\n,;]/)
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean),
     ));
@@ -16563,8 +16698,7 @@
         }
       } else {
         safeWorkspaceGovernanceLegacyOnlyScenarios = Array.from(new Set(legacyOnlyScenariosRaw
-          .split(/[
-,;]/)
+          .split(/[\n,;]/)
           .map((value) => String(value || '').trim())
           .filter(Boolean)));
       }
@@ -17550,6 +17684,8 @@
   const botsVpnEndpointInput = document.getElementById('botsVpnEndpoint');
   const botsVpnConfigPathInput = document.getElementById('botsVpnConfigPath');
   const botsVpnNotesInput = document.getElementById('botsVpnNotes');
+  const projectNetworkProfileIdInput = document.getElementById('projectNetworkProfileId');
+  const botsNetworkProfileIdInput = document.getElementById('botsNetworkProfileId');
   const channelEditorNetworkModeInput = document.getElementById('channelEditorNetworkMode');
   const channelEditorProxySchemeInput = document.getElementById('channelEditorProxyScheme');
   const channelEditorProxyHostInput = document.getElementById('channelEditorProxyHost');
@@ -17560,6 +17696,29 @@
   const channelEditorVpnEndpointInput = document.getElementById('channelEditorVpnEndpoint');
   const channelEditorVpnConfigPathInput = document.getElementById('channelEditorVpnConfigPath');
   const channelEditorVpnNotesInput = document.getElementById('channelEditorVpnNotes');
+  const channelEditorNetworkProfileIdInput = document.getElementById('channelEditorNetworkProfileId');
+  const integrationNetworkProfilesBody = document.getElementById('integrationNetworkProfilesBody');
+  const integrationNetworkProfilesSaveBtn = document.querySelector('[data-integration-network-profiles-save]');
+  const integrationNetworkProfilesAddBtn = document.querySelector('[data-integration-network-profile-add]');
+  const integrationNetworkProfilesStatusEl = document.getElementById('integrationNetworkProfilesStatus');
+  const integrationNetworkProfileEditorModalEl = document.getElementById('integrationNetworkProfileEditorModal');
+  const integrationNetworkProfileEditorModal = integrationNetworkProfileEditorModalEl ? new bootstrap.Modal(integrationNetworkProfileEditorModalEl) : null;
+  const integrationNetworkProfileForm = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-form]') : null;
+  const integrationNetworkProfileTitleEl = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-title]') : null;
+  const integrationNetworkProfileDeleteBtn = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-delete]') : null;
+  const integrationNetworkProfileNameInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-name]') : null;
+  const integrationNetworkProfileModeInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-mode]') : null;
+  const integrationNetworkProfileProxyFields = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-fields]') : null;
+  const integrationNetworkProfileVpnFields = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-fields]') : null;
+  const integrationNetworkProfileProxySchemeInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-scheme]') : null;
+  const integrationNetworkProfileProxyHostInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-host]') : null;
+  const integrationNetworkProfileProxyPortInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-port]') : null;
+  const integrationNetworkProfileProxyUsernameInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-username]') : null;
+  const integrationNetworkProfileProxyPasswordInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-password]') : null;
+  const integrationNetworkProfileVpnNameInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-name]') : null;
+  const integrationNetworkProfileVpnEndpointInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-endpoint]') : null;
+  const integrationNetworkProfileVpnConfigPathInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-config-path]') : null;
+  const integrationNetworkProfileVpnNotesInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-notes]') : null;
 
   const vkWebhookState = {
     channelId: null,
@@ -17582,6 +17741,10 @@
   };
 
   const integrationNetworkState = normalizeIntegrationNetworkConfig(INTEGRATION_NETWORK_INITIAL);
+  let integrationNetworkProfilesData = Array.isArray(INTEGRATION_NETWORK_PROFILES_INITIAL)
+    ? INTEGRATION_NETWORK_PROFILES_INITIAL.map((item) => normalizeIntegrationNetworkProfile(item))
+    : [];
+  let integrationNetworkProfileEditingIndex = null;
 
   const PUBLIC_FORM_FIELD_TYPES = [
     { value: 'text', label: 'Короткий текст' },
@@ -17658,6 +17821,15 @@
     return {};
   }
 
+  function slugifyIntegrationNetworkProfileName(value) {
+    const slug = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9а-яё]+/gi, '-')
+      .replace(/^-+|-+$/g, '');
+    return slug || `network-profile-${Date.now()}`;
+  }
+
   function normalizeNetworkProxyConfig(raw) {
     const source = raw && typeof raw === 'object' ? raw : {};
     const port = Number.parseInt(source.port, 10);
@@ -17683,14 +17855,39 @@
     };
   }
 
+  function normalizeIntegrationNetworkProfile(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const mode = String(source.mode || '').toLowerCase() === 'vpn' ? 'vpn' : 'proxy';
+    const name = String(source.name || '').trim();
+    const id = String(source.id || '').trim() || slugifyIntegrationNetworkProfileName(name);
+    return {
+      id,
+      name,
+      mode,
+      proxy: normalizeNetworkProxyConfig(source.proxy),
+      vpn: normalizeNetworkVpnConfig(source.vpn),
+    };
+  }
+
+  function getIntegrationNetworkProfileOptions() {
+    return integrationNetworkProfilesData.map((item) => normalizeIntegrationNetworkProfile(item));
+  }
+
+  function findIntegrationNetworkProfile(profileId) {
+    const normalizedId = String(profileId || '').trim();
+    if (!normalizedId) return null;
+    return getIntegrationNetworkProfileOptions().find((item) => item.id === normalizedId) || null;
+  }
+
   function normalizeNetworkRoute(raw, allowInherit = false) {
     const source = raw && typeof raw === 'object' ? raw : {};
-    const allowed = allowInherit ? ['inherit', 'direct', 'proxy', 'vpn'] : ['direct', 'proxy', 'vpn'];
+    const allowed = allowInherit ? ['inherit', 'direct', 'profile', 'proxy', 'vpn'] : ['direct', 'profile', 'proxy', 'vpn'];
     const mode = allowed.includes(String(source.mode || '').toLowerCase())
       ? String(source.mode).toLowerCase()
       : (allowInherit ? 'inherit' : 'direct');
     return {
       mode,
+      profile_id: String(source.profile_id || source.profileId || '').trim(),
       proxy: normalizeNetworkProxyConfig(source.proxy),
       vpn: normalizeNetworkVpnConfig(source.vpn),
     };
@@ -17708,6 +17905,7 @@
     const normalized = normalizeNetworkRoute(route, scope !== 'project');
     if (scope === 'project') {
       if (projectNetworkModeInput) projectNetworkModeInput.value = normalized.mode;
+      if (projectNetworkProfileIdInput) projectNetworkProfileIdInput.value = normalized.profile_id;
       if (projectProxySchemeInput) projectProxySchemeInput.value = normalized.proxy.scheme;
       if (projectProxyHostInput) projectProxyHostInput.value = normalized.proxy.host;
       if (projectProxyPortInput) projectProxyPortInput.value = String(normalized.proxy.port || 8080);
@@ -17719,6 +17917,7 @@
       if (projectVpnNotesInput) projectVpnNotesInput.value = normalized.vpn.notes;
     } else if (scope === 'bots') {
       if (botsNetworkModeInput) botsNetworkModeInput.value = normalized.mode;
+      if (botsNetworkProfileIdInput) botsNetworkProfileIdInput.value = normalized.profile_id;
       if (botsProxySchemeInput) botsProxySchemeInput.value = normalized.proxy.scheme;
       if (botsProxyHostInput) botsProxyHostInput.value = normalized.proxy.host;
       if (botsProxyPortInput) botsProxyPortInput.value = String(normalized.proxy.port || 8080);
@@ -17730,6 +17929,7 @@
       if (botsVpnNotesInput) botsVpnNotesInput.value = normalized.vpn.notes;
     } else if (scope === 'channel') {
       if (channelEditorNetworkModeInput) channelEditorNetworkModeInput.value = normalized.mode;
+      if (channelEditorNetworkProfileIdInput) channelEditorNetworkProfileIdInput.value = normalized.profile_id;
       if (channelEditorProxySchemeInput) channelEditorProxySchemeInput.value = normalized.proxy.scheme;
       if (channelEditorProxyHostInput) channelEditorProxyHostInput.value = normalized.proxy.host;
       if (channelEditorProxyPortInput) channelEditorProxyPortInput.value = String(normalized.proxy.port || 8080);
@@ -17747,6 +17947,7 @@
     if (scope === 'project') {
       return normalizeNetworkRoute({
         mode: projectNetworkModeInput?.value || 'direct',
+        profile_id: projectNetworkProfileIdInput?.value || '',
         proxy: {
           scheme: projectProxySchemeInput?.value || 'http',
           host: projectProxyHostInput?.value || '',
@@ -17765,6 +17966,7 @@
     if (scope === 'bots') {
       return normalizeNetworkRoute({
         mode: botsNetworkModeInput?.value || 'inherit',
+        profile_id: botsNetworkProfileIdInput?.value || '',
         proxy: {
           scheme: botsProxySchemeInput?.value || 'http',
           host: botsProxyHostInput?.value || '',
@@ -17782,6 +17984,7 @@
     }
     return normalizeNetworkRoute({
       mode: channelEditorNetworkModeInput?.value || 'inherit',
+      profile_id: channelEditorNetworkProfileIdInput?.value || '',
       proxy: {
         scheme: channelEditorProxySchemeInput?.value || 'http',
         host: channelEditorProxyHostInput?.value || '',
@@ -17800,7 +18003,14 @@
 
   function describeRouteSummary(scope) {
     const route = collectRouteFromInputs(scope);
+    const profile = route.mode === 'profile' ? findIntegrationNetworkProfile(route.profile_id) : null;
     if (scope === 'project') {
+      if (route.mode === 'profile') {
+        if (!profile) {
+          return 'Для проекта выбран режим «Профиль», но сам профиль ещё не указан или был удалён.';
+        }
+        return `Весь проект использует профиль «${profile.name || profile.id}» (${profile.mode === 'vpn' ? 'VPN' : 'прокси'}). При изменении профиля маршрут обновится без ручного копирования настроек.`;
+      }
       if (route.mode === 'proxy') {
         const host = route.proxy.host || 'host не указан';
         return `Весь проект пойдёт через прокси ${host}:${route.proxy.port || 8080}. Эти настройки станут базовыми и для ботов, если ниже оставить наследование.`;
@@ -17816,6 +18026,12 @@
       if (route.mode === 'inherit') {
         return 'Боты наследуют маршрут проекта. Это удобно, когда панели и ботам нужен один и тот же прокси/VPN.';
       }
+      if (route.mode === 'profile') {
+        if (!profile) {
+          return 'Для подсистемы ботов выбран режим «Профиль», но профиль не найден.';
+        }
+        return `Боты используют профиль «${profile.name || profile.id}». Панель при этом может остаться на своём маршруте.`;
+      }
       if (route.mode === 'proxy') {
         const host = route.proxy.host || 'host не указан';
         return `Боты будут запускаться через отдельный прокси ${host}:${route.proxy.port || 8080}, а остальная панель сохранит маршрут из блока «Весь проект».`;
@@ -17828,6 +18044,12 @@
     }
     if (route.mode === 'inherit') {
       return 'Этот бот наследует маршрут подсистемы ботов. Если там тоже стоит наследование, в итоге будет использован маршрут проекта.';
+    }
+    if (route.mode === 'profile') {
+      if (!profile) {
+        return 'Для этого бота выбран профиль, но сам профиль ещё не назначен.';
+      }
+      return `Этот бот использует профиль «${profile.name || profile.id}» и не зависит от ручных настроек прокси/VPN в других блоках.`;
     }
     if (route.mode === 'proxy') {
       const host = route.proxy.host || 'host не указан';
@@ -17850,6 +18072,9 @@
   function toggleNetworkRouteFields(scope) {
     const modeInput = document.querySelector(`[data-network-route-mode="${scope}"]`);
     const mode = modeInput?.value || (scope === 'project' ? 'direct' : 'inherit');
+    document.querySelectorAll(`[data-network-route-profile="${scope}"]`).forEach((el) => {
+      el.classList.toggle('d-none', mode !== 'profile');
+    });
     document.querySelectorAll(`[data-network-route-proxy="${scope}"]`).forEach((el) => {
       el.classList.toggle('d-none', mode !== 'proxy');
     });
@@ -17860,6 +18085,7 @@
   }
 
   function renderIntegrationNetworkSettings() {
+    renderIntegrationNetworkProfileSelectors();
     applyRouteToInputs('project', integrationNetworkState.project);
     applyRouteToInputs('bots', integrationNetworkState.bots);
     if (integrationNetworkStatusEl) {
@@ -17902,6 +18128,169 @@
     } finally {
       if (integrationNetworkSaveBtn) {
         integrationNetworkSaveBtn.disabled = false;
+      }
+    }
+  }
+
+  function renderIntegrationNetworkProfileSelectors() {
+    const options = getIntegrationNetworkProfileOptions();
+    [
+      projectNetworkProfileIdInput,
+      botsNetworkProfileIdInput,
+      channelEditorNetworkProfileIdInput,
+    ].forEach((selectEl) => {
+      if (!selectEl) return;
+      const currentValue = selectEl.value;
+      selectEl.innerHTML = '<option value="">Выберите профиль…</option>';
+      options.forEach((profile) => {
+        const option = document.createElement('option');
+        option.value = profile.id;
+        option.textContent = `${profile.name || profile.id} · ${profile.mode === 'vpn' ? 'VPN' : 'Прокси'}`;
+        selectEl.appendChild(option);
+      });
+      if (options.some((profile) => profile.id === currentValue)) {
+        selectEl.value = currentValue;
+      }
+    });
+  }
+
+  function describeIntegrationNetworkProfile(profile) {
+    const normalized = normalizeIntegrationNetworkProfile(profile);
+    if (normalized.mode === 'vpn') {
+      const endpoint = normalized.vpn.endpoint || 'endpoint не указан';
+      const configPath = normalized.vpn.config_path || 'конфиг не указан';
+      return `VPN · ${normalized.vpn.name || normalized.name || normalized.id} · ${endpoint} · ${configPath}`;
+    }
+    const host = normalized.proxy.host || 'host не указан';
+    return `Прокси · ${normalized.proxy.scheme.toUpperCase()} · ${host}:${normalized.proxy.port || 8080}`;
+  }
+
+  function renderIntegrationNetworkProfilesTable() {
+    if (!integrationNetworkProfilesBody) return;
+    integrationNetworkProfilesBody.innerHTML = '';
+    if (!integrationNetworkProfilesData.length) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = '<td colspan="4" class="text-center text-muted py-3">Пока нет ни одного профиля маршрутизации.</td>';
+      integrationNetworkProfilesBody.appendChild(emptyRow);
+      renderIntegrationNetworkProfileSelectors();
+      return;
+    }
+    getIntegrationNetworkProfileOptions().forEach((profile, index) => {
+      const row = document.createElement('tr');
+      row.dataset.index = String(index);
+      row.innerHTML = `
+        <td>
+          <div class="fw-semibold">${escapeHtml(profile.name || profile.id)}</div>
+          <div class="small text-muted font-monospace">${escapeHtml(profile.id)}</div>
+        </td>
+        <td>${profile.mode === 'vpn' ? 'VPN' : 'Прокси'}</td>
+        <td>${escapeHtml(describeIntegrationNetworkProfile(profile))}</td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile">Открыть</button>
+            <button type="button" class="btn btn-outline-danger" data-action="remove-integration-network-profile">Удалить</button>
+          </div>
+        </td>
+      `;
+      integrationNetworkProfilesBody.appendChild(row);
+    });
+    renderIntegrationNetworkProfileSelectors();
+  }
+
+  function fillIntegrationNetworkProfileForm(profile) {
+    const normalized = normalizeIntegrationNetworkProfile(profile);
+    if (integrationNetworkProfileNameInput) integrationNetworkProfileNameInput.value = normalized.name;
+    if (integrationNetworkProfileModeInput) integrationNetworkProfileModeInput.value = normalized.mode;
+    if (integrationNetworkProfileProxySchemeInput) integrationNetworkProfileProxySchemeInput.value = normalized.proxy.scheme;
+    if (integrationNetworkProfileProxyHostInput) integrationNetworkProfileProxyHostInput.value = normalized.proxy.host;
+    if (integrationNetworkProfileProxyPortInput) integrationNetworkProfileProxyPortInput.value = String(normalized.proxy.port || 8080);
+    if (integrationNetworkProfileProxyUsernameInput) integrationNetworkProfileProxyUsernameInput.value = normalized.proxy.username;
+    if (integrationNetworkProfileProxyPasswordInput) integrationNetworkProfileProxyPasswordInput.value = normalized.proxy.password;
+    if (integrationNetworkProfileVpnNameInput) integrationNetworkProfileVpnNameInput.value = normalized.vpn.name;
+    if (integrationNetworkProfileVpnEndpointInput) integrationNetworkProfileVpnEndpointInput.value = normalized.vpn.endpoint;
+    if (integrationNetworkProfileVpnConfigPathInput) integrationNetworkProfileVpnConfigPathInput.value = normalized.vpn.config_path;
+    if (integrationNetworkProfileVpnNotesInput) integrationNetworkProfileVpnNotesInput.value = normalized.vpn.notes;
+    toggleIntegrationNetworkProfileModeFields();
+  }
+
+  function openIntegrationNetworkProfileEditor(index) {
+    const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
+    const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < integrationNetworkProfilesData.length;
+    integrationNetworkProfileEditingIndex = isEdit ? numericIndex : null;
+    fillIntegrationNetworkProfileForm(isEdit ? integrationNetworkProfilesData[numericIndex] : normalizeIntegrationNetworkProfile({}));
+    if (integrationNetworkProfileTitleEl) {
+      integrationNetworkProfileTitleEl.textContent = isEdit ? 'Редактирование профиля маршрута' : 'Новый профиль маршрута';
+    }
+    if (integrationNetworkProfileDeleteBtn) {
+      integrationNetworkProfileDeleteBtn.classList.toggle('d-none', !isEdit);
+    }
+    integrationNetworkProfileEditorModal?.show();
+  }
+
+  function toggleIntegrationNetworkProfileModeFields() {
+    const mode = integrationNetworkProfileModeInput?.value === 'vpn' ? 'vpn' : 'proxy';
+    integrationNetworkProfileProxyFields?.classList.toggle('d-none', mode !== 'proxy');
+    integrationNetworkProfileVpnFields?.classList.toggle('d-none', mode !== 'vpn');
+  }
+
+  function collectIntegrationNetworkProfilePayload() {
+    return getIntegrationNetworkProfileOptions().map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      mode: profile.mode,
+      proxy: profile.proxy,
+      vpn: profile.vpn,
+    })).filter((profile) => profile.name || profile.id);
+  }
+
+  function resetMissingIntegrationNetworkProfileSelections() {
+    ['project', 'bots', 'channel'].forEach((scope) => {
+      const route = collectRouteFromInputs(scope);
+      if (route.mode === 'profile' && route.profile_id && !findIntegrationNetworkProfile(route.profile_id)) {
+        const selectEl = scope === 'project'
+          ? projectNetworkProfileIdInput
+          : scope === 'bots'
+            ? botsNetworkProfileIdInput
+            : channelEditorNetworkProfileIdInput;
+        if (selectEl) {
+          selectEl.value = '';
+        }
+      }
+      updateNetworkRouteSummary(scope);
+    });
+  }
+
+  async function saveIntegrationNetworkProfiles() {
+    try {
+      if (integrationNetworkProfilesSaveBtn) {
+        integrationNetworkProfilesSaveBtn.disabled = true;
+      }
+      const response = await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          integration_network_profiles: collectIntegrationNetworkProfilePayload(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || ('HTTP ' + response.status));
+      }
+      integrationNetworkProfilesData = collectIntegrationNetworkProfilePayload().map((item) => normalizeIntegrationNetworkProfile(item));
+      renderIntegrationNetworkProfilesTable();
+      resetMissingIntegrationNetworkProfileSelections();
+      if (integrationNetworkProfilesStatusEl) {
+        integrationNetworkProfilesStatusEl.textContent = 'Профили маршрутизации сохранены.';
+      }
+      showPopup('Профили маршрутизации сохранены.');
+    } catch (error) {
+      if (integrationNetworkProfilesStatusEl) {
+        integrationNetworkProfilesStatusEl.textContent = 'Не удалось сохранить профили: ' + error.message;
+      }
+      showPopup('Не удалось сохранить профили: ' + error.message);
+    } finally {
+      if (integrationNetworkProfilesSaveBtn) {
+        integrationNetworkProfilesSaveBtn.disabled = false;
       }
     }
   }
@@ -19043,6 +19432,8 @@
         ? 'Маршрут: proxy'
         : prepared.network_route?.mode === 'vpn'
           ? 'Маршрут: VPN'
+          : prepared.network_route?.mode === 'profile'
+            ? `Маршрут: профиль ${prepared.network_route?.profile_id || 'не выбран'}`
           : prepared.network_route?.mode === 'direct'
             ? 'Маршрут: direct'
             : 'Маршрут: общий';
@@ -19408,6 +19799,7 @@
     channelsInitialized = true;
     populateAddChannelTemplateSelects();
     togglePlatformFields();
+    renderIntegrationNetworkProfilesTable();
     renderIntegrationNetworkSettings();
     initChannelEditorControls();
     loadChannels();
@@ -19419,7 +19811,87 @@
     projectNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('project'));
     botsNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('bots'));
     channelEditorNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('channel'));
+    projectNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('project'));
+    botsNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('bots'));
+    channelEditorNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('channel'));
     integrationNetworkSaveBtn?.addEventListener('click', saveIntegrationNetworkSettings);
+    integrationNetworkProfilesAddBtn?.addEventListener('click', () => openIntegrationNetworkProfileEditor(null));
+    integrationNetworkProfilesSaveBtn?.addEventListener('click', saveIntegrationNetworkProfiles);
+    integrationNetworkProfileModeInput?.addEventListener('change', toggleIntegrationNetworkProfileModeFields);
+    integrationNetworkProfilesBody?.addEventListener('click', (event) => {
+      const actionButton = event.target.closest('[data-action]');
+      if (!actionButton) return;
+      const row = actionButton.closest('tr[data-index]');
+      if (!row) return;
+      const index = Number.parseInt(row.dataset.index, 10);
+      if (Number.isNaN(index)) return;
+      if (actionButton.dataset.action === 'edit-integration-network-profile') {
+        openIntegrationNetworkProfileEditor(index);
+        return;
+      }
+      if (actionButton.dataset.action === 'remove-integration-network-profile') {
+        integrationNetworkProfilesData.splice(index, 1);
+        renderIntegrationNetworkProfilesTable();
+        resetMissingIntegrationNetworkProfileSelections();
+      }
+    });
+    integrationNetworkProfileForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const mode = integrationNetworkProfileModeInput?.value === 'vpn' ? 'vpn' : 'proxy';
+      const existingProfile = Number.isInteger(integrationNetworkProfileEditingIndex)
+        ? integrationNetworkProfilesData[integrationNetworkProfileEditingIndex]
+        : null;
+      const draft = normalizeIntegrationNetworkProfile({
+        id: existingProfile?.id || '',
+        name: integrationNetworkProfileNameInput?.value || '',
+        mode,
+        proxy: {
+          scheme: integrationNetworkProfileProxySchemeInput?.value || 'http',
+          host: integrationNetworkProfileProxyHostInput?.value || '',
+          port: integrationNetworkProfileProxyPortInput?.value || 8080,
+          username: integrationNetworkProfileProxyUsernameInput?.value || '',
+          password: integrationNetworkProfileProxyPasswordInput?.value || '',
+        },
+        vpn: {
+          name: integrationNetworkProfileVpnNameInput?.value || '',
+          endpoint: integrationNetworkProfileVpnEndpointInput?.value || '',
+          config_path: integrationNetworkProfileVpnConfigPathInput?.value || '',
+          notes: integrationNetworkProfileVpnNotesInput?.value || '',
+        },
+      });
+      if (!draft.name) {
+        showPopup('Укажите название профиля маршрута.');
+        return;
+      }
+      if (mode === 'proxy' && !draft.proxy.host) {
+        showPopup('Для прокси-профиля укажите host.');
+        return;
+      }
+      if (mode === 'vpn' && !draft.vpn.name && !draft.vpn.endpoint) {
+        showPopup('Для VPN-профиля укажите хотя бы название или endpoint.');
+        return;
+      }
+      if (Number.isInteger(integrationNetworkProfileEditingIndex)) {
+        integrationNetworkProfilesData[integrationNetworkProfileEditingIndex] = draft;
+      } else {
+        integrationNetworkProfilesData.push(draft);
+      }
+      renderIntegrationNetworkProfilesTable();
+      resetMissingIntegrationNetworkProfileSelections();
+      integrationNetworkProfileEditorModal?.hide();
+    });
+    integrationNetworkProfileDeleteBtn?.addEventListener('click', () => {
+      if (!Number.isInteger(integrationNetworkProfileEditingIndex)) return;
+      integrationNetworkProfilesData.splice(integrationNetworkProfileEditingIndex, 1);
+      renderIntegrationNetworkProfilesTable();
+      resetMissingIntegrationNetworkProfileSelections();
+      integrationNetworkProfileEditorModal?.hide();
+    });
+    integrationNetworkProfileEditorModalEl?.addEventListener('hidden.bs.modal', () => {
+      integrationNetworkProfileEditingIndex = null;
+      integrationNetworkProfileForm?.reset();
+      toggleIntegrationNetworkProfileModeFields();
+    });
     vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
     addChannelModalEl?.addEventListener('show.bs.modal', () => {
       resetAddChannelForm();
