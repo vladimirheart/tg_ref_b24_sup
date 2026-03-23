@@ -48,6 +48,35 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
+    void resolvesProfileBasedRouteFromSharedSettings() {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+            "integration_network", Map.of(
+                "project", Map.of("mode", "profile", "profile_id", "bots-proxy"),
+                "bots", Map.of("mode", "inherit")
+            ),
+            "integration_network_profiles", java.util.List.of(
+                Map.of(
+                    "id", "bots-proxy",
+                    "name", "Боты через корпоративный прокси",
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "http",
+                        "host", "proxy.internal",
+                        "port", 3128
+                    )
+                )
+            )
+        ));
+
+        IntegrationNetworkService.RouteSettings route = service.resolveProjectRoute();
+
+        assertThat(route.mode()).isEqualTo("proxy");
+        assertThat(route.profileId()).isEqualTo("bots-proxy");
+        assertThat(route.proxySettings().host()).isEqualTo("proxy.internal");
+        assertThat(route.proxySettings().port()).isEqualTo(3128);
+    }
+
+    @Test
     void buildsProxyEnvironmentForBotProcess() {
         IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
             "mode", "proxy",
