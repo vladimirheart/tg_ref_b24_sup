@@ -1363,6 +1363,22 @@ public class DialogService {
                 })
                 .map(item -> String.valueOf(item.get("key")))
                 .toList();
+        long blockingCount = packetItems.stream()
+                .filter(item -> "hold".equals(String.valueOf(item.getOrDefault("status", "hold"))))
+                .count();
+        long attentionCount = packetItems.stream()
+                .filter(item -> "attention".equals(String.valueOf(item.getOrDefault("status", "attention"))))
+                .count();
+        long readyCount = packetItems.stream()
+                .filter(item -> "ok".equals(String.valueOf(item.getOrDefault("status", "hold"))))
+                .count();
+        long offCount = packetItems.stream()
+                .filter(item -> "off".equals(String.valueOf(item.getOrDefault("status", "hold"))))
+                .count();
+        List<String> invalidUtcItems = packetItems.stream()
+                .filter(item -> String.valueOf(item.getOrDefault("current_value", "")).contains("invalid_utc"))
+                .map(item -> String.valueOf(item.get("key")))
+                .toList();
         boolean packetReady = packetItems.stream().allMatch(item -> {
             String status = String.valueOf(item.getOrDefault("status", "hold"));
             return "ok".equals(status) || "off".equals(status);
@@ -1422,10 +1438,19 @@ public class DialogService {
         packet.put("summary", packetReady
                 ? "Governance packet complete."
                 : (packetRequired ? "Governance packet has blocking gaps." : "Governance packet is informative and has pending items."));
+        packet.put("decision_action", String.valueOf(safeRolloutDecision.getOrDefault("action", "hold")));
         packet.put("missing_items", missingItems);
+        packet.put("blocking_count", blockingCount);
+        packet.put("attention_count", attentionCount);
+        packet.put("ready_count", readyCount);
+        packet.put("off_count", offCount);
+        packet.put("invalid_utc_items", invalidUtcItems);
         packet.put("items", packetItems);
         packet.put("owner_signoff", ownerSignoff);
         packet.put("review_cadence", reviewCadence);
+        packet.put("owner_signoff_expires_at_utc", ownerSignoffAt != null ? ownerSignoffAt.plusHours(ownerSignoffTtlHours).toString() : "");
+        packet.put("review_due_at_utc", reviewCadenceEnabled && reviewCadenceAt != null ? reviewCadenceAt.plusDays(reviewCadenceDays).toString() : "");
+        packet.put("next_review_at_utc", reviewCadenceEnabled && reviewCadenceAt != null ? reviewCadenceAt.plusDays(reviewCadenceDays).toString() : "");
         packet.put("parity_snapshot", paritySnapshot);
         packet.put("parity_exit_criteria", parityExitCriteria);
         packet.put("legacy_only_scenarios", legacyOnlyScenarios);
@@ -2905,6 +2930,7 @@ public class DialogService {
         long workspaceParityGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_parity_gap_events"))).sum();
         long workspaceInlineNavigationEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_inline_navigation_events"))).sum();
         long manualLegacyOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("manual_legacy_open_events"))).sum();
+        long workspaceRolloutPacketViewedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_packet_viewed_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -2952,6 +2978,7 @@ public class DialogService {
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
         totals.put("workspace_inline_navigation_events", workspaceInlineNavigationEvents);
         totals.put("manual_legacy_open_events", manualLegacyOpenEvents);
+        totals.put("workspace_rollout_packet_viewed_events", workspaceRolloutPacketViewedEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
@@ -3902,6 +3929,7 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_parity_gap' THEN 1 ELSE 0 END) AS workspace_parity_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_inline_navigation' THEN 1 ELSE 0 END) AS workspace_inline_navigation_events,
                        SUM(CASE WHEN event_type = 'workspace_open_legacy_manual' THEN 1 ELSE 0 END) AS manual_legacy_open_events,
+                       SUM(CASE WHEN event_type = 'workspace_rollout_packet_viewed' THEN 1 ELSE 0 END) AS workspace_rollout_packet_viewed_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
@@ -3944,6 +3972,7 @@ public class DialogService {
                 item.put("workspace_parity_gap_events", rs.getLong("workspace_parity_gap_events"));
                 item.put("workspace_inline_navigation_events", rs.getLong("workspace_inline_navigation_events"));
                 item.put("manual_legacy_open_events", rs.getLong("manual_legacy_open_events"));
+                item.put("workspace_rollout_packet_viewed_events", rs.getLong("workspace_rollout_packet_viewed_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
