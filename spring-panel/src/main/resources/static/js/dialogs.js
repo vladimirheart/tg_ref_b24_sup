@@ -18,11 +18,17 @@
   const experimentTelemetryGuardrailAlerts = document.getElementById('dialogExperimentTelemetryGuardrailAlerts');
   const experimentRolloutDecisionState = document.getElementById('dialogExperimentRolloutDecisionState');
   const experimentRolloutDecisionChecklist = document.getElementById('dialogExperimentRolloutDecisionChecklist');
+  const experimentRolloutPacketState = document.getElementById('dialogExperimentRolloutPacketState');
+  const experimentRolloutPacketChecklist = document.getElementById('dialogExperimentRolloutPacketChecklist');
+  const experimentRolloutPacketWrap = document.getElementById('dialogExperimentRolloutPacketWrap');
+  const experimentRolloutPacketRows = document.getElementById('dialogExperimentRolloutPacketRows');
   const experimentRolloutScorecardWrap = document.getElementById('dialogExperimentRolloutScorecardWrap');
   const experimentRolloutScorecardRows = document.getElementById('dialogExperimentRolloutScorecardRows');
   const experimentRolloutKpiOutcomesWrap = document.getElementById('dialogExperimentRolloutKpiOutcomesWrap');
   const experimentRolloutKpiOutcomeRows = document.getElementById('dialogExperimentRolloutKpiOutcomeRows');
   const experimentTelemetrySummaryRows = document.getElementById('dialogExperimentTelemetrySummaryRows');
+  const experimentGapBreakdownWrap = document.getElementById('dialogExperimentGapBreakdownWrap');
+  const experimentGapBreakdownRows = document.getElementById('dialogExperimentGapBreakdownRows');
   const experimentTelemetryShiftRows = document.getElementById('dialogExperimentTelemetryShiftRows');
   const experimentTelemetryTeamRows = document.getElementById('dialogExperimentTelemetryTeamRows');
   const experimentTelemetryRefreshBtn = document.getElementById('dialogExperimentTelemetryRefreshBtn');
@@ -462,6 +468,7 @@
     workspace_parity_gap: 'workspace',
     workspace_inline_navigation: 'workspace',
     workspace_open_legacy_manual: 'workspace',
+    workspace_rollout_packet_viewed: 'experiment',
   });
   let workspaceReadonlyMode = false;
   let macroTemplatesCache = [];
@@ -2376,6 +2383,123 @@
     return `${sign}${Math.round(safe)}мс`;
   }
 
+
+  function renderExperimentRolloutPacket(packet) {
+    if (!experimentRolloutPacketState || !experimentRolloutPacketChecklist || !experimentRolloutPacketWrap || !experimentRolloutPacketRows) return;
+    const safePacket = packet && typeof packet === 'object' ? packet : null;
+    if (!safePacket) {
+      experimentRolloutPacketState.classList.add('d-none');
+      experimentRolloutPacketState.textContent = '';
+      experimentRolloutPacketChecklist.classList.add('d-none');
+      experimentRolloutPacketChecklist.innerHTML = '';
+      experimentRolloutPacketWrap.classList.add('d-none');
+      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>';
+      return;
+    }
+
+    const status = String(safePacket?.status || 'attention').trim().toLowerCase();
+    const required = Boolean(safePacket?.required);
+    const packetReady = Boolean(safePacket?.packet_ready);
+    const summary = String(safePacket?.summary || '').trim() || 'Governance packet загружен.';
+    const decisionAction = String(safePacket?.decision_action || 'hold').trim().toUpperCase();
+    const generatedAt = formatTimestamp(safePacket?.generated_at, { includeTime: true, fallback: '—' });
+    const blockingCount = Math.max(0, Number(safePacket?.blocking_count || 0));
+    const attentionCount = Math.max(0, Number(safePacket?.attention_count || 0));
+    const invalidUtcItems = Array.isArray(safePacket?.invalid_utc_items) ? safePacket.invalid_utc_items : [];
+    const missingItems = Array.isArray(safePacket?.missing_items) ? safePacket.missing_items : [];
+    const legacyOnlyScenarios = Array.isArray(safePacket?.legacy_only_scenarios) ? safePacket.legacy_only_scenarios : [];
+    const nextReviewAt = formatTimestamp(safePacket?.next_review_at_utc, { includeTime: true, fallback: '' });
+
+    experimentRolloutPacketState.classList.remove('d-none', 'alert-success', 'alert-warning', 'alert-danger', 'alert-secondary');
+    if (status === 'ok') {
+      experimentRolloutPacketState.classList.add('alert-success');
+    } else if (status === 'hold') {
+      experimentRolloutPacketState.classList.add('alert-danger');
+    } else if (status === 'off') {
+      experimentRolloutPacketState.classList.add('alert-secondary');
+    } else {
+      experimentRolloutPacketState.classList.add('alert-warning');
+    }
+    experimentRolloutPacketState.textContent = `Governance packet: ${status.toUpperCase()} · decision ${decisionAction} · blocking ${blockingCount} · attention ${attentionCount} · generated ${generatedAt}. ${summary}`;
+    experimentRolloutPacketState.classList.remove('d-none');
+
+    const checks = [
+      { ok: packetReady, label: required ? 'Полный governance packet собран' : 'Governance packet не блокирует rollout' },
+      { ok: missingItems.length === 0, label: missingItems.length ? `Пропущенные элементы: ${missingItems.join(', ')}` : 'Нет пропущенных элементов пакета' },
+      { ok: invalidUtcItems.length === 0, label: invalidUtcItems.length ? `UTC-ошибки: ${invalidUtcItems.join(', ')}` : 'UTC-метки governance валидны' },
+      { ok: legacyOnlyScenarios.length === 0, label: legacyOnlyScenarios.length ? `Legacy-only inventory открыт: ${legacyOnlyScenarios.join(', ')}` : 'Legacy-only inventory пуст' },
+    ];
+    if (nextReviewAt) {
+      checks.push({ ok: true, label: `Следующий review due UTC: ${nextReviewAt}` });
+    }
+    experimentRolloutPacketChecklist.classList.remove('d-none');
+    experimentRolloutPacketChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? '✅' : '⚠️'} ${escapeHtml(item.label)}</li>`)).join('');
+
+    const items = Array.isArray(safePacket?.items) ? safePacket.items : [];
+    if (!items.length) {
+      experimentRolloutPacketWrap.classList.add('d-none');
+      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>';
+      return;
+    }
+
+    experimentRolloutPacketWrap.classList.remove('d-none');
+    experimentRolloutPacketRows.innerHTML = items.map((item) => {
+      const itemStatus = String(item?.status || 'attention').trim().toLowerCase();
+      const badge = itemStatus === 'ok'
+        ? '<span class="badge text-bg-success">ok</span>'
+        : (itemStatus === 'attention'
+          ? '<span class="badge text-bg-warning">attention</span>'
+          : (itemStatus === 'off'
+            ? '<span class="badge text-bg-secondary">off</span>'
+            : '<span class="badge text-bg-danger">hold</span>'));
+      const note = String(item?.note || item?.summary || '').trim();
+      return `
+        <tr>
+          <td>
+            <div>${escapeHtml(String(item?.label || '—'))}</div>
+            ${note ? `<div class="small text-muted">${escapeHtml(note)}</div>` : ''}
+          </td>
+          <td>${escapeHtml(String(item?.category || '—'))}</td>
+          <td>${escapeHtml(String(item?.current_value || '—'))}</td>
+          <td>${escapeHtml(String(item?.threshold || '—'))}</td>
+          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: '—' }))}</td>
+          <td class="text-end">${badge}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderExperimentGapBreakdown(breakdown) {
+    if (!experimentGapBreakdownWrap || !experimentGapBreakdownRows) return;
+    const safeBreakdown = breakdown && typeof breakdown === 'object' ? breakdown : null;
+    const categoryLabels = {
+      profile: 'profile',
+      source: 'source',
+      block: 'block',
+      parity: 'parity',
+    };
+    const rows = [];
+    Object.entries(categoryLabels).forEach(([key, label]) => {
+      const items = Array.isArray(safeBreakdown?.[key]) ? safeBreakdown[key] : [];
+      items.forEach((item) => rows.push({ category: label, ...item }));
+    });
+    if (!rows.length) {
+      experimentGapBreakdownWrap.classList.add('d-none');
+      experimentGapBreakdownRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Gap breakdown появится после первых parity/context-gap событий.</td></tr>';
+      return;
+    }
+    experimentGapBreakdownWrap.classList.remove('d-none');
+    experimentGapBreakdownRows.innerHTML = rows.map((item) => `
+      <tr>
+        <td>${escapeHtml(String(item?.category || 'unknown'))}</td>
+        <td>${escapeHtml(String(item?.reason || 'unspecified'))}</td>
+        <td class="text-end">${escapeHtml(String(Number(item?.events || 0)))}</td>
+        <td class="text-end">${escapeHtml(String(Number(item?.tickets || 0)))}</td>
+        <td>${escapeHtml(formatTimestamp(item?.last_seen_at, { includeTime: true, fallback: '—' }))}</td>
+      </tr>
+    `).join('');
+  }
+
   function renderExperimentRolloutScorecard(scorecard) {
     if (!experimentRolloutScorecardWrap || !experimentRolloutScorecardRows) return;
     const items = Array.isArray(scorecard?.items) ? scorecard.items : [];
@@ -2563,8 +2687,10 @@
       renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, payload?.by_shift || [], 'shift');
       renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, payload?.by_team || [], 'team');
       renderExperimentTelemetryGuardrails(payload?.guardrails || {});
+      renderExperimentRolloutPacket(payload?.rollout_packet || {});
       renderExperimentRolloutScorecard(payload?.rollout_scorecard || {});
       renderExperimentRolloutDecision(payload?.rollout_decision || {}, payload?.cohort_comparison || {});
+      renderExperimentGapBreakdown(payload?.gap_breakdown || {});
       if (experimentTelemetrySummaryState) {
         const totals = payload?.totals || {};
         const previousTotals = payload?.previous_totals || {};
@@ -2572,15 +2698,17 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
       renderExperimentTelemetryDimensionRows(experimentTelemetryShiftRows, [], 'shift');
       renderExperimentTelemetryDimensionRows(experimentTelemetryTeamRows, [], 'team');
       renderExperimentTelemetryGuardrails(null);
+      renderExperimentRolloutPacket(null);
       renderExperimentRolloutScorecard(null);
       renderExperimentRolloutDecision(null, null);
+      renderExperimentGapBreakdown(null);
       if (experimentTelemetrySummaryState) {
         experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
       }
@@ -6759,6 +6887,9 @@
   renderExperimentInfoPanel();
   if (experimentInfoModalEl) {
     experimentInfoModalEl.addEventListener('show.bs.modal', () => {
+      emitWorkspaceTelemetry('workspace_rollout_packet_viewed', {
+        reason: 'experiment_modal',
+      });
       loadExperimentTelemetrySummary();
       syncExperimentTelemetryAutoRefresh();
     });

@@ -127,6 +127,7 @@ public class DialogApiController {
             Map.entry("workspace_parity_gap", "workspace"),
             Map.entry("workspace_inline_navigation", "workspace"),
             Map.entry("workspace_open_legacy_manual", "workspace"),
+            Map.entry("workspace_rollout_packet_viewed", "experiment"),
             Map.entry("kpi_frt_recorded", "kpi"),
             Map.entry("kpi_ttr_recorded", "kpi"),
             Map.entry("kpi_sla_breach_recorded", "kpi"),
