@@ -122,6 +122,7 @@ public class DialogApiController {
             Map.entry("workspace_media_sent", "workspace"),
             Map.entry("workspace_context_profile_gap", "workspace"),
             Map.entry("workspace_context_source_gap", "workspace"),
+            Map.entry("workspace_context_attribute_policy_gap", "workspace"),
             Map.entry("workspace_context_block_gap", "workspace"),
             Map.entry("workspace_sla_policy_gap", "workspace"),
             Map.entry("workspace_parity_gap", "workspace"),
@@ -777,6 +778,14 @@ public class DialogApiController {
         if (!contextSources.isEmpty()) {
             workspaceClient.put("context_sources", contextSources);
         }
+        List<Map<String, Object>> attributePolicies = buildWorkspaceContextAttributePolicies(
+                workspaceClient,
+                profileHealth,
+                contextSources
+        );
+        if (!attributePolicies.isEmpty()) {
+            workspaceClient.put("attribute_policies", attributePolicies);
+        }
         List<Map<String, Object>> contextBlocks = buildWorkspaceContextBlocks(
                 settings,
                 profileHealth,
@@ -841,6 +850,7 @@ public class DialogApiController {
                 "related_events", relatedEvents,
                 "profile_health", profileHealth,
                 "context_sources", contextSources,
+                "attribute_policies", attributePolicies,
                 "blocks", contextBlocks,
                 "blocks_health", contextBlocksHealth
         )
@@ -849,6 +859,7 @@ public class DialogApiController {
                 "history", List.of(),
                 "related_events", List.of(),
                 "context_sources", List.of(),
+                "attribute_policies", List.of(),
                 "blocks", List.of(),
                 "unavailable", true
         ));
@@ -2648,6 +2659,123 @@ public class DialogApiController {
                 || dialogConfig.containsKey("workspace_client_context_source_updated_at_attributes")
                 || dialogConfig.containsKey("workspace_client_context_source_stale_after_hours")
                 || dialogConfig.containsKey("workspace_client_context_source_stale_after_hours_by_source");
+    }
+
+    private List<Map<String, Object>> buildWorkspaceContextAttributePolicies(Map<String, Object> workspaceClient,
+                                                                             Map<String, Object> profileHealth,
+                                                                             List<Map<String, Object>> contextSources) {
+        if (workspaceClient == null || workspaceClient.isEmpty()
+                || profileHealth == null || profileHealth.isEmpty()
+                || !toBoolean(profileHealth.get("enabled"))) {
+            return List.of();
+        }
+        List<String> requiredFields = safeStringList(profileHealth.get("required_fields"));
+        if (requiredFields.isEmpty()) {
+            return List.of();
+        }
+        Map<String, String> attributeLabels = workspaceClient.get("attribute_labels") instanceof Map<?, ?> labels
+                ? labels.entrySet().stream()
+                .filter(entry -> StringUtils.hasText(normalizeMacroVariableKey(String.valueOf(entry.getKey()))))
+                .collect(Collectors.toMap(
+                        entry -> normalizeMacroVariableKey(String.valueOf(entry.getKey())),
+                        entry -> String.valueOf(entry.getValue()),
+                        (first, second) -> first,
+                        LinkedHashMap::new))
+                : Map.of();
+        List<Map<String, Object>> safeSources = contextSources == null ? List.of() : contextSources;
+
+        List<Map<String, Object>> policies = new ArrayList<>();
+        for (String field : requiredFields) {
+            String normalizedField = normalizeMacroVariableKey(field);
+            if (!StringUtils.hasText(normalizedField)) {
+                continue;
+            }
+            Object value = workspaceClient.get(normalizedField);
+            boolean valueReady = hasWorkspaceProfileValue(value);
+            Map<String, Object> preferredSource = safeSources.stream()
+                    .filter(source -> safeStringList(source.get("matched_attributes")).contains(normalizedField))
+                    .findFirst()
+                    .orElse(null);
+            String status;
+            List<String> issues = new ArrayList<>();
+            if (!valueReady) {
+                status = "missing";
+                issues.add("missing");
+            } else if (preferredSource == null) {
+                status = "untracked";
+                issues.add("untracked");
+            } else {
+                status = normalizeWorkspaceAttributePolicyStatus(String.valueOf(preferredSource.get("status")));
+                if (!"ready".equals(status)) {
+                    issues.add(status);
+                }
+            }
+
+            Map<String, Object> policy = new LinkedHashMap<>();
+            policy.put("key", normalizedField);
+            policy.put("label", attributeLabels.getOrDefault(normalizedField, humanizeMacroVariableLabel(normalizedField)));
+            policy.put("required", true);
+            policy.put("ready", "ready".equals(status));
+            policy.put("status", status);
+            policy.put("issues", issues);
+            if (preferredSource != null) {
+                policy.put("source_key", preferredSource.get("key"));
+                policy.put("source_label", preferredSource.get("label"));
+                policy.put("source_ready", toBoolean(preferredSource.get("ready")));
+                policy.put("freshness_required", preferredSource.get("freshness_ttl_hours") instanceof Number);
+                if (preferredSource.get("freshness_ttl_hours") instanceof Number ttl) {
+                    policy.put("freshness_ttl_hours", ttl.intValue());
+                }
+                if (preferredSource.get("updated_at_utc") != null) {
+                    policy.put("updated_at_utc", preferredSource.get("updated_at_utc"));
+                }
+                if (preferredSource.get("updated_at_raw") != null) {
+                    policy.put("updated_at_raw", preferredSource.get("updated_at_raw"));
+                }
+            } else {
+                policy.put("freshness_required", false);
+            }
+            policy.put("summary", buildWorkspaceContextAttributePolicySummary(
+                    normalizedField,
+                    status,
+                    valueReady,
+                    preferredSource
+            ));
+            policies.add(policy);
+        }
+        return policies;
+    }
+
+    private String normalizeWorkspaceAttributePolicyStatus(String status) {
+        String normalized = trimToNull(status);
+        if (!StringUtils.hasText(normalized)) {
+            return "untracked";
+        }
+        return switch (normalized.toLowerCase()) {
+            case "ready", "stale", "invalid_utc", "missing", "untracked", "unavailable" -> normalized.toLowerCase();
+            default -> "untracked";
+        };
+    }
+
+    private String buildWorkspaceContextAttributePolicySummary(String field,
+                                                               String status,
+                                                               boolean valueReady,
+                                                               Map<String, Object> preferredSource) {
+        if (!valueReady) {
+            return "Поле %s не заполнено в mandatory profile.".formatted(field);
+        }
+        if (preferredSource == null) {
+            return "Для поля %s не определён source/freshness policy.".formatted(field);
+        }
+        String sourceLabel = String.valueOf(preferredSource.getOrDefault("label", preferredSource.getOrDefault("key", "source")));
+        return switch (status) {
+            case "ready" -> "Поле %s подтверждено источником %s.".formatted(field, sourceLabel);
+            case "stale" -> "Поле %s опирается на stale-источник %s.".formatted(field, sourceLabel);
+            case "invalid_utc" -> "Для поля %s источник %s вернул невалидный UTC timestamp.".formatted(field, sourceLabel);
+            case "missing" -> "Для поля %s обязательный источник %s недоступен.".formatted(field, sourceLabel);
+            case "unavailable" -> "Для поля %s источник %s пока недоступен.".formatted(field, sourceLabel);
+            default -> "Для поля %s policy по источнику %s ещё не формализована.".formatted(field, sourceLabel);
+        };
     }
 
     private List<Map<String, Object>> buildWorkspaceContextBlocks(Map<String, Object> settings,
