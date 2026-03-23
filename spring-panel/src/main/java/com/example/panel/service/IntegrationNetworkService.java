@@ -39,29 +39,30 @@ public class IntegrationNetworkService {
     }
 
     public RouteSettings resolveProjectRoute() {
-        NetworkSettings settings = loadSettings();
-        return settings.project();
+        NetworkCatalog catalog = loadSettings();
+        return resolveRoute(catalog.project(), catalog.profiles(), false);
     }
 
     public RouteSettings resolveBotRoute(Channel channel) {
-        NetworkSettings settings = loadSettings();
+        NetworkCatalog catalog = loadSettings();
         RouteSettings channelRoute = extractChannelRoute(channel);
         if (channelRoute != null && !channelRoute.isInherited()) {
-            return channelRoute;
+            return resolveRoute(channelRoute, catalog.profiles(), true);
         }
-        RouteSettings featureRoute = settings.bots();
+        RouteSettings featureRoute = catalog.bots();
         if (featureRoute != null && !featureRoute.isInherited()) {
-            return featureRoute;
+            return resolveRoute(featureRoute, catalog.profiles(), true);
         }
-        return settings.project();
+        return resolveRoute(catalog.project(), catalog.profiles(), false);
     }
 
     public RouteSettings resolveChannelRoute(Channel channel) {
+        NetworkCatalog catalog = loadSettings();
         RouteSettings route = extractChannelRoute(channel);
         if (route != null && !route.isInherited()) {
-            return route;
+            return resolveRoute(route, catalog.profiles(), true);
         }
-        return resolveProjectRoute();
+        return resolveRoute(catalog.project(), catalog.profiles(), false);
     }
 
     public Map<String, String> buildProcessEnvironment(RouteSettings route) {
@@ -71,6 +72,9 @@ public class IntegrationNetworkService {
             return env;
         }
         env.put("APP_NETWORK_MODE", route.mode());
+        if (hasText(route.profileId())) {
+            env.put("APP_NETWORK_PROFILE_ID", route.profileId());
+        }
         if (route.proxy()) {
             ProxySettings proxy = route.proxySettings();
             String proxyUrl = buildProxyUrl(proxy);
@@ -97,7 +101,7 @@ public class IntegrationNetworkService {
     }
 
     public Map<String, Object> normalizeSettingsPayload(Object raw) {
-        return toMap(loadSettings().toMap(raw));
+        return toMap(NetworkSettings.fromMap(toMap(raw)).toMap(null));
     }
 
     private HttpClient createHttpClient(RouteSettings route, Duration connectTimeout) {
@@ -130,10 +134,34 @@ public class IntegrationNetworkService {
         return RouteSettings.fromMap(toMap(raw), true);
     }
 
-    private NetworkSettings loadSettings() {
+    private NetworkCatalog loadSettings() {
         Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object raw = settings.get("integration_network");
-        return NetworkSettings.fromMap(toMap(raw));
+        return NetworkCatalog.fromSettings(settings);
+    }
+
+    private RouteSettings resolveRoute(RouteSettings route,
+                                       Map<String, NetworkProfile> profiles,
+                                       boolean allowInherit) {
+        RouteSettings normalized = route != null ? route : RouteSettings.fromMap(Map.of(), allowInherit);
+        if (!normalized.profile()) {
+            return normalized;
+        }
+        NetworkProfile profile = profiles.get(normalized.profileId());
+        if (profile == null) {
+            return RouteSettings.fromMap(
+                Map.of(
+                    "mode", allowInherit ? "inherit" : "direct",
+                    "profile_id", normalized.profileId()
+                ),
+                allowInherit
+            );
+        }
+        return new RouteSettings(
+            profile.mode(),
+            profile.proxySettings(),
+            profile.vpnSettings(),
+            profile.id()
+        );
     }
 
     private Map<String, Object> parseMap(String raw) {
@@ -147,7 +175,6 @@ public class IntegrationNetworkService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> toMap(Object raw) {
         if (raw instanceof Map<?, ?> map) {
             Map<String, Object> normalized = new LinkedHashMap<>();
@@ -202,6 +229,29 @@ public class IntegrationNetworkService {
         return value != null && !value.trim().isEmpty();
     }
 
+    public record NetworkCatalog(RouteSettings project,
+                                 RouteSettings bots,
+                                 Map<String, NetworkProfile> profiles) {
+        static NetworkCatalog fromSettings(Map<String, Object> settings) {
+            Map<String, Object> source = settings != null ? settings : Map.of();
+            NetworkSettings routes = NetworkSettings.fromMap(asMap(source.get("integration_network")));
+            return new NetworkCatalog(
+                routes.project(),
+                routes.bots(),
+                NetworkProfile.indexById(source.get("integration_network_profiles"))
+            );
+        }
+
+        private static Map<String, Object> asMap(Object raw) {
+            if (raw instanceof Map<?, ?> map) {
+                Map<String, Object> normalized = new LinkedHashMap<>();
+                map.forEach((key, value) -> normalized.put(Objects.toString(key, ""), value));
+                return normalized;
+            }
+            return Map.of();
+        }
+    }
+
     public record NetworkSettings(RouteSettings project, RouteSettings bots) {
         static NetworkSettings fromMap(Map<String, Object> raw) {
             Map<String, Object> source = raw != null ? raw : Map.of();
@@ -228,7 +278,7 @@ public class IntegrationNetworkService {
         }
     }
 
-    public record RouteSettings(String mode, ProxySettings proxySettings, VpnSettings vpnSettings) {
+    public record RouteSettings(String mode, ProxySettings proxySettings, VpnSettings vpnSettings, String profileId) {
 
         static RouteSettings inherited() {
             return fromMap(Map.of("mode", "inherit"), true);
@@ -241,7 +291,8 @@ public class IntegrationNetworkService {
             return new RouteSettings(
                 mode,
                 ProxySettings.fromMap(asMap(source.get("proxy"))),
-                VpnSettings.fromMap(asMap(source.get("vpn")))
+                VpnSettings.fromMap(asMap(source.get("vpn"))),
+                text(source.get("profile_id"), source.get("profileId"))
             );
         }
 
@@ -257,6 +308,10 @@ public class IntegrationNetworkService {
             return "direct".equals(mode);
         }
 
+        public boolean profile() {
+            return "profile".equals(mode);
+        }
+
         public boolean isInherited() {
             return "inherit".equals(mode);
         }
@@ -266,6 +321,7 @@ public class IntegrationNetworkService {
             payload.put("mode", normalizeMode(mode, allowInherit ? "inherit" : "direct", allowInherit));
             payload.put("proxy", proxySettings.toMap());
             payload.put("vpn", vpnSettings.toMap());
+            payload.put("profile_id", profileId);
             return payload;
         }
 
@@ -274,7 +330,7 @@ public class IntegrationNetworkService {
             if (allowInherit && "inherit".equals(value)) {
                 return "inherit";
             }
-            if ("proxy".equals(value) || "vpn".equals(value) || "direct".equals(value)) {
+            if ("proxy".equals(value) || "vpn".equals(value) || "direct".equals(value) || "profile".equals(value)) {
                 return value;
             }
             return fallback;
@@ -388,7 +444,61 @@ public class IntegrationNetworkService {
         }
     }
 
-    private static String text(Object raw) {
-        return raw == null ? "" : String.valueOf(raw).trim();
+    public record NetworkProfile(String id,
+                                 String name,
+                                 String mode,
+                                 ProxySettings proxySettings,
+                                 VpnSettings vpnSettings) {
+        static Map<String, NetworkProfile> indexById(Object raw) {
+            Map<String, NetworkProfile> profiles = new LinkedHashMap<>();
+            if (!(raw instanceof Iterable<?> items)) {
+                return profiles;
+            }
+            for (Object item : items) {
+                NetworkProfile profile = fromMap(asMap(item));
+                if (hasTextStatic(profile.id()) && ("proxy".equals(profile.mode()) || "vpn".equals(profile.mode()))) {
+                    profiles.put(profile.id(), profile);
+                }
+            }
+            return profiles;
+        }
+
+        static NetworkProfile fromMap(Map<String, Object> raw) {
+            Map<String, Object> source = raw != null ? raw : Map.of();
+            String mode = text(source.get("mode")).toLowerCase(Locale.ROOT);
+            if (!"proxy".equals(mode) && !"vpn".equals(mode)) {
+                mode = "proxy";
+            }
+            return new NetworkProfile(
+                text(source.get("id")),
+                text(source.get("name")),
+                mode,
+                ProxySettings.fromMap(asMap(source.get("proxy"))),
+                VpnSettings.fromMap(asMap(source.get("vpn")))
+            );
+        }
+
+        private static Map<String, Object> asMap(Object raw) {
+            if (raw instanceof Map<?, ?> map) {
+                Map<String, Object> normalized = new LinkedHashMap<>();
+                map.forEach((key, value) -> normalized.put(Objects.toString(key, ""), value));
+                return normalized;
+            }
+            return Map.of();
+        }
+    }
+
+    private static boolean hasTextStatic(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private static String text(Object... values) {
+        for (Object raw : values) {
+            String value = raw == null ? "" : String.valueOf(raw).trim();
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+        return "";
     }
 }

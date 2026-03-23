@@ -149,6 +149,11 @@ public class SettingsBridgeController {
                 modified = true;
             }
 
+            if (payload.containsKey("integration_network_profiles")) {
+                settings.put("integration_network_profiles", payload.get("integration_network_profiles"));
+                modified = true;
+            }
+
             if (payload.containsKey("dialog_category_templates")
                 || payload.containsKey("dialog_question_templates")
                 || payload.containsKey("dialog_completion_templates")
