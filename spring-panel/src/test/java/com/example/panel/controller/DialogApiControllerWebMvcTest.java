@@ -595,6 +595,69 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspacePublishesAttributeSourceAndFreshnessPoliciesForMandatoryProfile() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-POLICY",
+                31L,
+                303L,
+                "client303",
+                "Клиент 303",
+                "enterprise",
+                5L,
+                "telegram",
+                "Москва",
+                "HQ",
+                "need help",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "VIP",
+                "client",
+                null,
+                1,
+                5,
+                "billing"
+        );
+        String crmUpdatedAt = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MINUTES).toString();
+        when(dialogService.loadDialogDetails("T-POLICY", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-POLICY", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of(
+                "crm_tier", "gold",
+                "crm_updated_at", crmUpdatedAt
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "workspace_required_client_attributes", List.of("name", "crm_tier", "last_message_at"),
+                "workspace_client_attribute_labels", Map.of("crm_tier", "CRM tier"),
+                "workspace_client_context_required_sources", List.of("crm"),
+                "workspace_client_context_source_stale_after_hours_by_source", Map.of("crm", 1)
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-POLICY/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.attribute_policies.length()").value(3))
+                .andExpect(jsonPath("$.context.attribute_policies[0].key").value("name"))
+                .andExpect(jsonPath("$.context.attribute_policies[0].source_key").value("local"))
+                .andExpect(jsonPath("$.context.attribute_policies[0].status").value("ready"))
+                .andExpect(jsonPath("$.context.attribute_policies[1].label").value("CRM tier"))
+                .andExpect(jsonPath("$.context.attribute_policies[1].source_key").value("crm"))
+                .andExpect(jsonPath("$.context.attribute_policies[1].status").value("stale"))
+                .andExpect(jsonPath("$.context.attribute_policies[1].freshness_ttl_hours").value(1))
+                .andExpect(jsonPath("$.context.attribute_policies[2].key").value("last_message_at"))
+                .andExpect(jsonPath("$.context.attribute_policies[2].status").value("missing"))
+                .andExpect(jsonPath("$.context.client.attribute_policies[1].summary").value(org.hamcrest.Matchers.containsString("stale-источник")));
+    }
+
+    @Test
     void workspacePublishesPrioritizedContextBlocks() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
@@ -1077,14 +1140,23 @@ class DialogApiControllerWebMvcTest {
                         "operator_segment", "night_shift",
                         "events", 5,
                         "context_source_gap_events", 1,
+                        "context_attribute_policy_gap_events", 2,
                         "fallbacks", 1,
                         "render_errors", 0,
                         "avg_open_ms", 980
                 )),
-                "totals", Map.of("events", 5, "workspace_parity_gap_events", 1, "context_source_gap_events", 1, "context_source_ready_rate", 0.8d, "workspace_rollout_packet_viewed_events", 2),
+                "totals", Map.of(
+                        "events", 5,
+                        "workspace_parity_gap_events", 1,
+                        "context_source_gap_events", 1,
+                        "context_attribute_policy_gap_events", 2,
+                        "context_source_ready_rate", 0.8d,
+                        "context_attribute_policy_ready_rate", 0.6d,
+                        "workspace_rollout_packet_viewed_events", 2),
                 "gap_breakdown", Map.of(
                         "profile", List.of(Map.of("reason", "last_message_at", "events", 2, "tickets", 2, "last_seen_at", "2026-01-01T02:00:00Z")),
                         "source", List.of(Map.of("reason", "contract:invalid_utc", "events", 1, "tickets", 1, "last_seen_at", "2026-01-01T03:00:00Z")),
+                        "attribute_policy", List.of(Map.of("reason", "field:crm_tier:stale", "events", 2, "tickets", 1, "last_seen_at", "2026-01-01T03:30:00Z")),
                         "block", List.of(),
                         "parity", List.of(Map.of("reason", "attachments", "events", 1, "tickets", 1, "last_seen_at", "2026-01-01T04:00:00Z"))
                 ),
@@ -1102,10 +1174,12 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.by_team[0].team").value("support"))
                 .andExpect(jsonPath("$.totals.events").value(5))
                 .andExpect(jsonPath("$.totals.context_source_gap_events").value(1))
+                .andExpect(jsonPath("$.totals.context_attribute_policy_gap_events").value(2))
                 .andExpect(jsonPath("$.totals.workspace_parity_gap_events").value(1))
                 .andExpect(jsonPath("$.totals.workspace_rollout_packet_viewed_events").value(2))
                 .andExpect(jsonPath("$.gap_breakdown.profile[0].reason").value("last_message_at"))
                 .andExpect(jsonPath("$.gap_breakdown.source[0].last_seen_at").value("2026-01-01T03:00:00Z"))
+                .andExpect(jsonPath("$.gap_breakdown.attribute_policy[0].reason").value("field:crm_tier:stale"))
                 .andExpect(jsonPath("$.gap_breakdown.parity[0].reason").value("attachments"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].key").value("sample_size"))
                 .andExpect(jsonPath("$.rollout_scorecard.items[0].status").value("ok"))

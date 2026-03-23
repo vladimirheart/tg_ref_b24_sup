@@ -463,6 +463,7 @@
     workspace_draft_restored: 'workspace',
     workspace_context_profile_gap: 'workspace',
     workspace_context_source_gap: 'workspace',
+    workspace_context_attribute_policy_gap: 'workspace',
     workspace_context_block_gap: 'workspace',
     workspace_sla_policy_gap: 'workspace',
     workspace_parity_gap: 'workspace',
@@ -491,6 +492,7 @@
   let workspaceDraftLastTelemetryAt = 0;
   let workspaceLastProfileGapSignature = '';
   let workspaceLastContextSourceGapSignature = '';
+  let workspaceLastAttributePolicyGapSignature = '';
   let workspaceLastContextBlockGapSignature = '';
   let workspaceLastSlaPolicyGapSignature = '';
   let workspaceLastParityGapSignature = '';
@@ -2698,7 +2700,7 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -3229,6 +3231,36 @@
     });
   }
 
+  function emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation) {
+    const attributePolicies = Array.isArray(context?.attribute_policies)
+      ? context.attribute_policies
+      : (Array.isArray(context?.client?.attribute_policies) ? context.client.attribute_policies : []);
+    if (!attributePolicies.length) {
+      workspaceLastAttributePolicyGapSignature = '';
+      return;
+    }
+    const blockingPolicies = attributePolicies
+      .filter((item) => item && item.required === true && item.ready !== true)
+      .map((item) => `field:${String(item.key || '').trim()}:${String(item.status || 'unknown').trim()}`)
+      .filter(Boolean);
+    if (!blockingPolicies.length) {
+      workspaceLastAttributePolicyGapSignature = '';
+      return;
+    }
+    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    const signature = `${ticketId}:${blockingPolicies.join(',')}`;
+    if (!ticketId || workspaceLastAttributePolicyGapSignature === signature) {
+      return;
+    }
+    workspaceLastAttributePolicyGapSignature = signature;
+    emitWorkspaceTelemetry('workspace_context_attribute_policy_gap', {
+      ticketId,
+      reason: blockingPolicies.join(','),
+      durationMs: blockingPolicies.length,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
   function emitWorkspaceContextBlockGapTelemetry(context, conversation) {
     const health = context?.blocks_health;
     if (!health || health.enabled !== true) {
@@ -3516,6 +3548,7 @@
     }
     emitWorkspaceProfileGapTelemetry(context, conversation);
     emitWorkspaceContextSourceGapTelemetry(context, conversation);
+    emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation);
     emitWorkspaceContextBlockGapTelemetry(context, conversation);
     emitWorkspaceSlaPolicyGapTelemetry(sla, conversation);
     emitWorkspaceParityGapTelemetry(parity, conversation);
@@ -3658,6 +3691,7 @@
           return 'text-bg-warning';
         case 'missing':
         case 'invalid_utc':
+        case 'unavailable':
           return 'text-bg-danger';
         default:
           return 'text-bg-secondary';
@@ -3799,6 +3833,70 @@
         </div>`
       : '';
 
+    const attributePolicies = Array.isArray(client.attribute_policies)
+      ? client.attribute_policies.filter((item) => item && typeof item === 'object')
+      : [];
+    const attributePolicyBadgeClass = (status) => {
+      switch (String(status || '').toLowerCase()) {
+        case 'ready':
+          return 'text-bg-success';
+        case 'stale':
+          return 'text-bg-warning';
+        case 'missing':
+        case 'invalid_utc':
+        case 'unavailable':
+          return 'text-bg-danger';
+        default:
+          return 'text-bg-secondary';
+      }
+    };
+    const attributePolicyStatusLabel = (status) => {
+      switch (String(status || '').toLowerCase()) {
+        case 'ready':
+          return 'ready';
+        case 'stale':
+          return 'stale';
+        case 'missing':
+          return 'missing';
+        case 'invalid_utc':
+          return 'invalid UTC';
+        case 'unavailable':
+          return 'unavailable';
+        default:
+          return 'untracked';
+      }
+    };
+    const attributePoliciesSection = attributePolicies.length
+      ? `<div class="small fw-semibold mt-2">Source / freshness policy</div>
+        <div class="d-flex flex-column gap-2 mt-1">
+          ${attributePolicies.map((policy) => {
+            const meta = [];
+            if (policy.source_label || policy.source_key) {
+              meta.push(`source: ${String(policy.source_label || policy.source_key).trim()}`);
+            }
+            if (Number.isFinite(Number(policy.freshness_ttl_hours)) && Number(policy.freshness_ttl_hours) > 0) {
+              meta.push(`TTL ${Number(policy.freshness_ttl_hours)}h`);
+            } else if (policy.freshness_required === true) {
+              meta.push('freshness required');
+            }
+            if (policy.updated_at_utc) {
+              meta.push(`UTC ${formatWorkspaceDateTime(policy.updated_at_utc)}`);
+            } else if (policy.updated_at_raw && String(policy.status || '').toLowerCase() === 'invalid_utc') {
+              meta.push(`invalid: ${String(policy.updated_at_raw).trim()}`);
+            }
+            return `<div class="border rounded px-2 py-1">
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-semibold">${escapeHtml(policy.label || policy.key || 'Attribute')}</span>
+                <span class="badge ${attributePolicyBadgeClass(policy.status)}">${escapeHtml(attributePolicyStatusLabel(policy.status))}</span>
+                ${policy.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
+              </div>
+              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+              ${policy.summary ? `<div class="small text-muted">${escapeHtml(String(policy.summary))}</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`
+      : '';
+
     const extraSection = expandedRows || collapsedRows
       ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>
         <div>${expandedRows}</div>
@@ -3823,7 +3921,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${contextBlocksSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${contextBlocksSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
