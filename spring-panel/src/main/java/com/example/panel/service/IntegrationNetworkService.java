@@ -46,11 +46,11 @@ public class IntegrationNetworkService {
     public RouteSettings resolveBotRoute(Channel channel) {
         NetworkSettings settings = loadSettings();
         RouteSettings channelRoute = extractChannelRoute(channel);
-        if (channelRoute != null && !channelRoute.inherit()) {
+        if (channelRoute != null && !channelRoute.isInherited()) {
             return channelRoute;
         }
         RouteSettings featureRoute = settings.bots();
-        if (featureRoute != null && !featureRoute.inherit()) {
+        if (featureRoute != null && !featureRoute.isInherited()) {
             return featureRoute;
         }
         return settings.project();
@@ -58,7 +58,7 @@ public class IntegrationNetworkService {
 
     public RouteSettings resolveChannelRoute(Channel channel) {
         RouteSettings route = extractChannelRoute(channel);
-        if (route != null && !route.inherit()) {
+        if (route != null && !route.isInherited()) {
             return route;
         }
         return resolveProjectRoute();
@@ -66,7 +66,7 @@ public class IntegrationNetworkService {
 
     public Map<String, String> buildProcessEnvironment(RouteSettings route) {
         Map<String, String> env = new LinkedHashMap<>();
-        if (route == null || route.direct() || route.inherit()) {
+        if (route == null || route.direct() || route.isInherited()) {
             env.put("APP_NETWORK_MODE", route == null ? "direct" : route.mode());
             return env;
         }
@@ -123,7 +123,7 @@ public class IntegrationNetworkService {
 
     private RouteSettings extractChannelRoute(Channel channel) {
         if (channel == null) {
-            return RouteSettings.inherit();
+            return RouteSettings.inherited();
         }
         Map<String, Object> deliverySettings = parseMap(channel.getDeliverySettings());
         Object raw = deliverySettings.get("network_route");
@@ -230,7 +230,7 @@ public class IntegrationNetworkService {
 
     public record RouteSettings(String mode, ProxySettings proxySettings, VpnSettings vpnSettings) {
 
-        static RouteSettings inherit() {
+        static RouteSettings inherited() {
             return fromMap(Map.of("mode", "inherit"), true);
         }
 
@@ -257,7 +257,7 @@ public class IntegrationNetworkService {
             return "direct".equals(mode);
         }
 
-        public boolean inherit() {
+        public boolean isInherited() {
             return "inherit".equals(mode);
         }
 
