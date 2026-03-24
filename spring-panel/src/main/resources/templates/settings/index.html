@@ -2220,6 +2220,13 @@
                         <label class="form-check-label" for="dialogWorkspaceEnabled">Workspace v1 включён</label>
                       </div>
                     </div>
+                    <div class="col-md-8">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceSingleMode">
+                        <label class="form-check-label" for="dialogWorkspaceSingleMode">Workspace-only режим (единственный интерфейс): выключить A/B и legacy modal/fallback</label>
+                      </div>
+                      <div class="form-text">Если включено, workspace становится единственным рабочим потоком. Пустое/отсутствующее значение сохраняет текущую rollout-модель.</div>
+                    </div>
                     <div class="col-md-4">
                       <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogSlaCriticalAutoSort">
@@ -5073,6 +5080,7 @@
     workspace_draft_telemetry_interval_ms: 30000,
     workspace_open_slo_ms: 2000,
     workspace_enabled: true,
+    workspace_single_mode: false,
     workspace_force_workspace: true,
     workspace_decommission_legacy_modal: true,
     sla_critical_escalation_include_assigned: true,
@@ -14246,6 +14254,7 @@
       quickSnoozeMinutes: document.getElementById('dialogQuickSnoozeMinutes'),
       overdueThresholdHours: document.getElementById('dialogOverdueThresholdHours'),
       workspaceEnabled: document.getElementById('dialogWorkspaceEnabled'),
+      workspaceSingleMode: document.getElementById('dialogWorkspaceSingleMode'),
       slaCriticalAutoSort: document.getElementById('dialogSlaCriticalAutoSort'),
       slaCriticalPinUnassignedOnly: document.getElementById('dialogSlaCriticalPinUnassignedOnly'),
       slaCriticalViewUnassignedOnly: document.getElementById('dialogSlaCriticalViewUnassignedOnly'),
@@ -14577,6 +14586,9 @@
     }
     if (inputs.workspaceEnabled instanceof HTMLInputElement) {
       inputs.workspaceEnabled.checked = DIALOG_CONFIG.workspace_v1 !== false;
+    }
+    if (inputs.workspaceSingleMode instanceof HTMLInputElement) {
+      inputs.workspaceSingleMode.checked = DIALOG_CONFIG.workspace_single_mode === true;
     }
     if (inputs.slaCriticalAutoSort instanceof HTMLInputElement) {
       inputs.slaCriticalAutoSort.checked = DIALOG_CONFIG.sla_critical_auto_sort !== false;
@@ -15255,6 +15267,7 @@
     }
     syncAllWorkspaceGovernanceUtcTimestampFields();
     syncAllExternalKpiUtcTimestampFields();
+    syncWorkspaceSingleModeControls(inputs);
     syncWorkspaceExternalKpiDatamartContractState(inputs);
     if (inputs.publicFormMessageMaxLength) {
       const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
@@ -15595,6 +15608,45 @@
       }
       meta.textContent = metaParts.join(' ');
     }
+  }
+
+  function syncWorkspaceSingleModeControls(inputs = getDialogSlaInputs()) {
+    const singleMode = inputs.workspaceSingleMode instanceof HTMLInputElement && inputs.workspaceSingleMode.checked;
+    if (!(inputs.workspaceEnabled instanceof HTMLInputElement)) {
+      return;
+    }
+    if (singleMode) {
+      inputs.workspaceEnabled.checked = true;
+    }
+    inputs.workspaceEnabled.disabled = singleMode;
+
+    const lockableControls = [
+      inputs.workspaceForceWorkspace,
+      inputs.workspaceDecommissionLegacyModal,
+      inputs.workspaceDisableLegacyFallback,
+    ];
+    lockableControls.forEach((control) => {
+      if (!(control instanceof HTMLInputElement)) return;
+      if (singleMode) {
+        control.checked = true;
+      }
+      control.disabled = singleMode;
+    });
+    if (inputs.workspaceAbEnabled instanceof HTMLInputElement) {
+      if (singleMode) {
+        inputs.workspaceAbEnabled.checked = false;
+      }
+      inputs.workspaceAbEnabled.disabled = singleMode;
+    }
+  }
+
+  function initWorkspaceSingleModeControls() {
+    const inputs = getDialogSlaInputs();
+    if (!(inputs.workspaceSingleMode instanceof HTMLInputElement)) {
+      return;
+    }
+    inputs.workspaceSingleMode.addEventListener('change', () => syncWorkspaceSingleModeControls(inputs));
+    syncWorkspaceSingleModeControls(inputs);
   }
 
   function initWorkspaceExternalKpiDatamartContractPreview() {
@@ -17052,6 +17104,7 @@
         dialog_quick_snooze_minutes: safeQuickSnoozeMinutes,
         dialog_overdue_threshold_hours: safeOverdueThresholdHours,
         dialog_workspace_v1: Boolean(inputs.workspaceEnabled?.checked),
+        dialog_workspace_single_mode: Boolean(inputs.workspaceSingleMode?.checked),
         dialog_sla_critical_auto_sort: Boolean(inputs.slaCriticalAutoSort?.checked),
         dialog_sla_critical_pin_unassigned_only: Boolean(inputs.slaCriticalPinUnassignedOnly?.checked),
         dialog_sla_critical_view_unassigned_only: Boolean(inputs.slaCriticalViewUnassignedOnly?.checked),
@@ -17590,6 +17643,7 @@
     initDialogSlaControls();
     initWorkspaceGovernanceUtcTimestampFields();
     initExternalKpiUtcTimestampFields();
+    initWorkspaceSingleModeControls();
     initWorkspaceExternalKpiDatamartContractPreview();
     bindAutoAssignRulesHelpers();
     initDialogStatusBadges();
