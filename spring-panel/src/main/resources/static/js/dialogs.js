@@ -454,6 +454,7 @@
     kpi_dialogs_per_shift_recorded: 'kpi',
     kpi_csat_recorded: 'kpi',
     triage_view_switch: 'triage',
+    triage_preferences_saved: 'triage',
     triage_quick_assign: 'triage',
     triage_quick_snooze: 'triage',
     triage_quick_close: 'triage',
@@ -852,6 +853,8 @@
   }, {});
 
   let columnState = { ...defaultColumnState };
+  let triagePreferencesLoadedFromServer = false;
+  let triagePreferencesSaveTimer = null;
 
   function loadColumnState() {
     try {
@@ -901,9 +904,11 @@
   function persistPageSize() {
     if (filterState.pageSize === Infinity) {
       localStorage.setItem(STORAGE_PAGE_SIZE, 'all');
+      queueServerTriagePreferencesSave();
       return;
     }
     localStorage.setItem(STORAGE_PAGE_SIZE, String(filterState.pageSize));
+    queueServerTriagePreferencesSave();
   }
 
   function restoreDialogPreferences() {
@@ -932,8 +937,114 @@
         localStorage.removeItem(STORAGE_SLA_WINDOW);
       }
       localStorage.setItem(STORAGE_SORT_MODE, filterState.sortMode || 'default');
+      queueServerTriagePreferencesSave();
     } catch (_error) {
       // ignore storage write errors
+    }
+  }
+
+  function applyServerTriagePreferences(preferences) {
+    if (!preferences || typeof preferences !== 'object') return false;
+    let changed = false;
+    const rawView = String(preferences.view || '').trim().toLowerCase();
+    if (rawView) {
+      const normalizedView = normalizeDialogView(rawView);
+      if (normalizedView !== filterState.view) {
+        filterState.view = normalizedView;
+        changed = true;
+      }
+    }
+    const rawSortMode = String(preferences.sort_mode || preferences.sortMode || '').trim().toLowerCase();
+    if (rawSortMode) {
+      const normalizedSortMode = rawSortMode === 'sla_priority' ? 'sla_priority' : 'default';
+      if (normalizedSortMode !== filterState.sortMode) {
+        filterState.sortMode = normalizedSortMode;
+        changed = true;
+      }
+    }
+    const rawSlaWindow = Number.parseInt(preferences.sla_window_minutes ?? preferences.slaWindowMinutes, 10);
+    if (Number.isFinite(rawSlaWindow) && DIALOG_SLA_WINDOW_PRESETS.includes(rawSlaWindow)) {
+      if (rawSlaWindow !== filterState.slaWindowMinutes) {
+        filterState.slaWindowMinutes = rawSlaWindow;
+        changed = true;
+      }
+    } else if ((preferences.sla_window_minutes === null || preferences.slaWindowMinutes === null)
+      && Number.isFinite(filterState.slaWindowMinutes)) {
+      filterState.slaWindowMinutes = null;
+      changed = true;
+    }
+    const rawPageSize = String(preferences.page_size || preferences.pageSize || '').trim().toLowerCase();
+    if (rawPageSize) {
+      const normalizedPageSize = normalizePageSize(rawPageSize);
+      if (normalizedPageSize !== filterState.pageSize) {
+        filterState.pageSize = normalizedPageSize;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  async function loadServerTriagePreferences() {
+    try {
+      const response = await fetch('/api/dialogs/triage-preferences', { headers: { Accept: 'application/json' } });
+      if (!response.ok) return;
+      const payload = await response.json().catch(() => null);
+      if (!payload || payload.success !== true || !payload.preferences) return;
+      if (applyServerTriagePreferences(payload.preferences)) {
+        if (pageSizeSelect) {
+          pageSizeSelect.value = filterState.pageSize === Infinity ? 'all' : String(filterState.pageSize);
+        }
+        configureSlaWindowSelect();
+        if (sortModeSelect) {
+          sortModeSelect.value = filterState.sortMode;
+        }
+        const activeTab = Array.from(viewTabs).find((tab) => tab.dataset.dialogView === filterState.view);
+        if (activeTab) {
+          setViewTab(filterState.view);
+        } else {
+          applyFilters();
+        }
+      }
+      triagePreferencesLoadedFromServer = true;
+    } catch (_error) {
+      // ignore network errors and continue with local defaults
+    }
+  }
+
+  function queueServerTriagePreferencesSave() {
+    if (triagePreferencesSaveTimer) {
+      clearTimeout(triagePreferencesSaveTimer);
+    }
+    triagePreferencesSaveTimer = setTimeout(() => {
+      triagePreferencesSaveTimer = null;
+      void saveServerTriagePreferences();
+    }, 500);
+  }
+
+  async function saveServerTriagePreferences() {
+    const payload = {
+      view: filterState.view || 'all',
+      sort_mode: filterState.sortMode || 'default',
+      sla_window_minutes: Number.isFinite(filterState.slaWindowMinutes) ? filterState.slaWindowMinutes : null,
+      page_size: filterState.pageSize === Infinity ? 'all' : String(filterState.pageSize || DEFAULT_PAGE_SIZE),
+    };
+    try {
+      const response = await fetch('/api/dialogs/triage-preferences', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) return;
+      if (triagePreferencesLoadedFromServer) {
+        emitWorkspaceTelemetry('triage_preferences_saved', {
+          reason: `view=${payload.view};sort=${payload.sort_mode};sla=${payload.sla_window_minutes || 'all'};page=${payload.page_size}`,
+        });
+      }
+    } catch (_error) {
+      // ignore network errors and keep local-storage behavior
     }
   }
 
@@ -7021,6 +7132,7 @@
   } else {
     applyFilters();
   }
+  void loadServerTriagePreferences();
 
   if (INITIAL_DIALOG_TICKET_ID) {
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
