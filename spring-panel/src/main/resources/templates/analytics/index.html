@@ -198,6 +198,18 @@
                                         <div class="text-muted small">Weekly review</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketReviewState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketReviewMeta"></div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewBy" placeholder="operator@example">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                            <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryReviewAtUtc">
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryReviewConfirm">Подтвердить review</button>
+                                            <small class="text-muted" id="workspaceTelemetryReviewActionState"></small>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-12 col-lg-4">
