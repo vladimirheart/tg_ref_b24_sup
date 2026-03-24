@@ -124,6 +124,7 @@ public class DialogApiController {
             Map.entry("workspace_context_source_gap", "workspace"),
             Map.entry("workspace_context_attribute_policy_gap", "workspace"),
             Map.entry("workspace_context_block_gap", "workspace"),
+            Map.entry("workspace_context_contract_gap", "workspace"),
             Map.entry("workspace_sla_policy_gap", "workspace"),
             Map.entry("workspace_parity_gap", "workspace"),
             Map.entry("workspace_inline_navigation", "workspace"),
@@ -797,6 +798,15 @@ public class DialogApiController {
                 externalLinks
         );
         Map<String, Object> contextBlocksHealth = buildWorkspaceContextBlocksHealth(contextBlocks);
+        Map<String, Object> contextContract = buildWorkspaceContextContract(
+                settings,
+                workspaceClient,
+                contextSources,
+                contextBlocks
+        );
+        if (!contextContract.isEmpty()) {
+            workspaceClient.put("context_contract", contextContract);
+        }
 
         Map<String, Object> workspaceRollout = resolveWorkspaceRolloutMeta(settings);
         Map<String, Object> workspaceNavigation = buildWorkspaceNavigationMeta(settings, operator, ticketId);
@@ -853,7 +863,8 @@ public class DialogApiController {
                 "context_sources", contextSources,
                 "attribute_policies", attributePolicies,
                 "blocks", contextBlocks,
-                "blocks_health", contextBlocksHealth
+                "blocks_health", contextBlocksHealth,
+                "contract", contextContract
         )
                 : Map.of(
                 "client", Map.of(),
@@ -862,6 +873,7 @@ public class DialogApiController {
                 "context_sources", List.of(),
                 "attribute_policies", List.of(),
                 "blocks", List.of(),
+                "contract", Map.of("enabled", false),
                 "unavailable", true
         ));
         payload.put("permissions", workspacePermissions);
@@ -3153,6 +3165,117 @@ public class DialogApiController {
         payload.put("missing_required_keys", missingKeys);
         payload.put("missing_required_labels", missingLabels);
         payload.put("checked_at_utc", Instant.now().toString());
+        return payload;
+    }
+
+    private Map<String, Object> buildWorkspaceContextContract(Map<String, Object> settings,
+                                                              Map<String, Object> workspaceClient,
+                                                              List<Map<String, Object>> contextSources,
+                                                              List<Map<String, Object>> contextBlocks) {
+        Map<String, Object> dialogConfig = extractDialogConfig(settings);
+        if (dialogConfig.isEmpty()) {
+            return Map.of("enabled", false, "required", false, "ready", true);
+        }
+        boolean required = toBoolean(dialogConfig.get("workspace_rollout_context_contract_required"));
+        List<String> scenarios = safeStringList(dialogConfig.get("workspace_rollout_context_contract_scenarios"));
+        List<String> mandatoryFields = safeStringList(dialogConfig.get("workspace_rollout_context_contract_mandatory_fields"));
+        List<String> sourceOfTruth = safeStringList(dialogConfig.get("workspace_rollout_context_contract_source_of_truth"));
+        List<String> priorityBlocks = safeStringList(dialogConfig.get("workspace_rollout_context_contract_priority_blocks"));
+        boolean enabled = required
+                || !scenarios.isEmpty()
+                || !mandatoryFields.isEmpty()
+                || !sourceOfTruth.isEmpty()
+                || !priorityBlocks.isEmpty();
+        if (!enabled) {
+            return Map.of("enabled", false, "required", false, "ready", true);
+        }
+
+        List<Map<String, Object>> safeSources = contextSources == null ? List.of() : contextSources;
+        List<Map<String, Object>> safeBlocks = contextBlocks == null ? List.of() : contextBlocks;
+        List<String> missingMandatoryFields = mandatoryFields.stream()
+                .map(this::normalizeMacroVariableKey)
+                .filter(StringUtils::hasText)
+                .filter(field -> !hasWorkspaceProfileValue(workspaceClient.get(field)))
+                .toList();
+
+        List<String> sourceViolations = sourceOfTruth.stream()
+                .map(rule -> resolveContextSourceViolation(rule, safeSources))
+                .filter(StringUtils::hasText)
+                .toList();
+
+        List<String> missingPriorityBlocks = priorityBlocks.stream()
+                .map(this::normalizeMacroVariableKey)
+                .filter(StringUtils::hasText)
+                .filter(requiredBlock -> safeBlocks.stream().noneMatch(block ->
+                        requiredBlock.equals(normalizeMacroVariableKey(String.valueOf(block.get("key"))))
+                                && toBoolean(block.get("ready"))))
+                .toList();
+
+        List<String> violations = Stream.of(
+                        missingMandatoryFields.stream().map(field -> "mandatory_field:" + field),
+                        sourceViolations.stream().map(reason -> "source_of_truth:" + reason),
+                        missingPriorityBlocks.stream().map(block -> "priority_block:" + block))
+                .flatMap(stream -> stream)
+                .distinct()
+                .toList();
+        boolean definitionReady = !mandatoryFields.isEmpty() && !sourceOfTruth.isEmpty() && !priorityBlocks.isEmpty();
+        boolean ready = violations.isEmpty() && definitionReady;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("enabled", true);
+        payload.put("required", required);
+        payload.put("ready", ready);
+        payload.put("definition_ready", definitionReady);
+        payload.put("scenarios", scenarios);
+        payload.put("mandatory_fields", mandatoryFields);
+        payload.put("source_of_truth", sourceOfTruth);
+        payload.put("priority_blocks", priorityBlocks);
+        payload.put("missing_mandatory_fields", missingMandatoryFields);
+        payload.put("source_of_truth_violations", sourceViolations);
+        payload.put("missing_priority_blocks", missingPriorityBlocks);
+        payload.put("violations", violations);
+        payload.put("checked_at_utc", Instant.now().toString());
+        return payload;
+    }
+
+    private String resolveContextSourceViolation(String sourceRule, List<Map<String, Object>> contextSources) {
+        String normalizedRule = trimToNull(sourceRule);
+        if (normalizedRule == null) {
+            return null;
+        }
+        String[] parts = normalizedRule.split(":", 2);
+        String field = normalizeMacroVariableKey(parts[0]);
+        String source = parts.length > 1 ? normalizeMacroVariableKey(parts[1]) : null;
+        if (!StringUtils.hasText(field) || !StringUtils.hasText(source)) {
+            return normalizedRule + ":invalid_rule";
+        }
+        Map<String, Object> matchedSource = contextSources.stream()
+                .filter(item -> source.equals(normalizeMacroVariableKey(String.valueOf(item.get("key")))))
+                .findFirst()
+                .orElse(null);
+        if (matchedSource == null) {
+            return field + ":" + source + ":source_missing";
+        }
+        if (!safeStringList(matchedSource.get("matched_attributes")).contains(field)) {
+            return field + ":" + source + ":field_not_matched";
+        }
+        if (!toBoolean(matchedSource.get("ready"))) {
+            String status = normalizeMacroVariableKey(String.valueOf(matchedSource.get("status")));
+            return field + ":" + source + ":" + (StringUtils.hasText(status) ? status : "not_ready");
+        }
+        return null;
+    }
+
+    private Map<String, Object> extractDialogConfig(Map<String, Object> settings) {
+        if (settings == null || settings.isEmpty()) {
+            return Map.of();
+        }
+        Object dialogConfigRaw = settings.get("dialog_config");
+        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+            return Map.of();
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        dialogConfig.forEach((key, value) -> payload.put(String.valueOf(key), value));
         return payload;
     }
 
