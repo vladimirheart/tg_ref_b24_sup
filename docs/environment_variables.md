@@ -13,6 +13,9 @@
 | `VK_BOT_TOKEN` | токен VK | Java-бот |
 | `VK_GROUP_ID` | ID сообщества VK | Java-бот |
 | `VK_OPERATOR_CHAT_ID` | чат операторов VK | Java-бот |
+| `MAX_BOT_ENABLED` | включить MAX-бота (`true/false`) | Java-бот |
+| `MAX_BOT_TOKEN` | токен MAX | Java-бот |
+| `MAX_SUPPORT_CHAT_ID` | чат операторов MAX | Java-бот |
 | `DATABASE_URL` | строка подключения PostgreSQL/MySQL | Панель и бот (если используете внешнюю БД) |
 
 ## Базы данных
