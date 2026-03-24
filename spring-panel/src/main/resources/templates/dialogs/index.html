@@ -17,44 +17,51 @@
 <div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
 
 <main class="main-content container-fluid py-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
-        <div>
-            <h1 class="h3 mb-1">Диалоги</h1>
-            <p class="text-muted mb-0">Актуальные обращения клиентов и история активности.</p>
-        </div>
-        <div class="d-flex flex-wrap gap-2 align-items-center dialog-toolbar-controls">
-            <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search" placeholder="Быстрый поиск">
-            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogPageSize">
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-                <option value="all">Все</option>
-            </select>
-            <div class="btn-group" role="group" aria-label="Вид диалогов">
-                <button class="btn btn-outline-secondary btn-sm active" type="button" data-dialog-view="all">Все</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="active">Активные</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="new">Новые</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="unassigned">Без ответственного</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="overdue">Просроченные</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="sla_critical">SLA критичные</button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="escalation_required">Нужна эскалация</button>
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+        <h1 class="h3 mb-0">Диалоги</h1>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center dialog-toolbar-controls">
+                <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search" placeholder="Поиск по обращению, клиенту или каналу">
+                <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogPageSize" aria-label="Количество диалогов на странице">
+                    <option value="10">10 / стр.</option>
+                    <option value="20">20 / стр.</option>
+                    <option value="50">50 / стр.</option>
+                    <option value="100">100 / стр.</option>
+                    <option value="all">Все</option>
+                </select>
+                <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
+                <button class="btn btn-outline-secondary btn-sm ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
             </div>
-            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSlaWindow" aria-label="Требует реакции в ближайшие N минут">
-                <option value="">SLA: все</option>
-                <option value="15">Реакция ≤ 15м</option>
-                <option value="30">Реакция ≤ 30м</option>
-                <option value="60">Реакция ≤ 60м</option>
-                <option value="120">Реакция ≤ 120м</option>
-            </select>
-            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSortMode" aria-label="Режим сортировки диалогов">
-                <option value="default">Сортировка: стандарт</option>
-                <option value="sla_priority">Сортировка: SLA-first</option>
-            </select>
-            <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
-            <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
-            <button class="btn btn-outline-info btn-sm" id="dialogExperimentInfoBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogExperimentInfoModal">🧪 Эксперимент</button>
-            <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">⌨ Шорткаты</button>
+            <div class="collapse mt-3" id="dialogToolbarAdvanced">
+                <div class="d-flex flex-wrap gap-2 align-items-center dialog-toolbar-controls">
+                    <div class="btn-group flex-wrap" role="group" aria-label="Вид диалогов">
+                        <button class="btn btn-outline-secondary btn-sm active" type="button" data-dialog-view="all">Все</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="active">Активные</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="new">Новые</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="unassigned">Без ответственного</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="overdue">Просроченные</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="sla_critical">SLA критичные</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="escalation_required">Нужна эскалация</button>
+                    </div>
+                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSlaWindow" aria-label="Требует реакции в ближайшие N минут">
+                        <option value="">SLA: все</option>
+                        <option value="15">Реакция ≤ 15м</option>
+                        <option value="30">Реакция ≤ 30м</option>
+                        <option value="60">Реакция ≤ 60м</option>
+                        <option value="120">Реакция ≤ 120м</option>
+                    </select>
+                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSortMode" aria-label="Режим сортировки диалогов">
+                        <option value="default">Сортировка: стандарт</option>
+                        <option value="sla_priority">Сортировка: SLA-first</option>
+                    </select>
+                    <button class="btn btn-outline-info btn-sm" id="dialogExperimentInfoBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogExperimentInfoModal">🧪 Эксперимент</button>
+                    <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">⌨ Шорткаты</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -197,28 +204,20 @@
         <button class="btn btn-link btn-sm text-decoration-none" id="dialogBulkClearBtn" type="button" disabled>Снять выделение</button>
     </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-12 col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small">Всего обращений</div>
-                    <div class="h4 mb-0" id="dialogsSummaryTotal" th:text="${summary != null ? summary.totalTickets : 0}">0</div>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap align-items-center gap-3 dialog-summary-inline">
+                <div class="dialog-summary-item">
+                    <span class="text-muted small">Всего обращений</span>
+                    <span class="h5 mb-0" id="dialogsSummaryTotal" th:text="${summary != null ? summary.totalTickets : 0}">0</span>
                 </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small">В ожидании</div>
-                    <div class="h4 mb-0" id="dialogsSummaryPending" th:text="${summary != null ? summary.pendingTickets : 0}">0</div>
+                <div class="dialog-summary-item">
+                    <span class="text-muted small">В ожидании</span>
+                    <span class="h5 mb-0" id="dialogsSummaryPending" th:text="${summary != null ? summary.pendingTickets : 0}">0</span>
                 </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small">Закрыто</div>
-                    <div class="h4 mb-0" id="dialogsSummaryResolved" th:text="${summary != null ? summary.resolvedTickets : 0}">0</div>
+                <div class="dialog-summary-item">
+                    <span class="text-muted small">Закрыто</span>
+                    <span class="h5 mb-0" id="dialogsSummaryResolved" th:text="${summary != null ? summary.resolvedTickets : 0}">0</span>
                 </div>
             </div>
         </div>
