@@ -909,6 +909,89 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryIncludesContextMinimumProfileContract() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_context_contract_required":true,
+                         "workspace_rollout_context_contract_scenarios":["incident","billing"],
+                         "workspace_rollout_context_contract_mandatory_fields":["full_name","crm_tier"],
+                         "workspace_rollout_context_contract_source_of_truth":["full_name:crm","crm_tier:crm"],
+                         "workspace_rollout_context_contract_priority_blocks":["customer","sla"],
+                         "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
+                         "workspace_rollout_context_contract_reviewed_at":"2099-03-01T09:10:11Z"}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-CONTEXT-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> contextContract = (Map<String, Object>) packet.get("context_contract");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+
+        assertThat(contextContract).containsEntry("enabled", true);
+        assertThat(contextContract).containsEntry("required", true);
+        assertThat(contextContract).containsEntry("ready", true);
+        assertThat(contextContract).containsEntry("reviewed_by", "ops-context-owner");
+        assertThat(contextContract).containsEntry("reviewed_at", "2099-03-01T09:10:11Z");
+        assertThat((List<String>) contextContract.get("scenarios")).containsExactly("incident", "billing");
+        assertThat((List<String>) contextContract.get("mandatory_fields")).containsExactly("full_name", "crm_tier");
+        assertThat(items).anySatisfy(item -> {
+            if ("context_minimum_profile".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("measured_at")).isEqualTo("2099-03-01T09:10:11Z");
+                assertThat(String.valueOf(item.get("current_value"))).contains("scenarios=2");
+            }
+        });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryFlagsInvalidContextMinimumProfileReviewTimestamp() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_context_contract_required":true,
+                         "workspace_rollout_context_contract_scenarios":["incident"],
+                         "workspace_rollout_context_contract_mandatory_fields":["full_name"],
+                         "workspace_rollout_context_contract_source_of_truth":["full_name:crm"],
+                         "workspace_rollout_context_contract_priority_blocks":["customer"],
+                         "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
+                         "workspace_rollout_context_contract_reviewed_at":"bad-context-date"}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-CONTEXT-INVALID', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> contextContract = (Map<String, Object>) packet.get("context_contract");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+
+        assertThat(packet.get("status")).isEqualTo("hold");
+        assertThat((List<String>) packet.get("missing_items")).contains("context_minimum_profile");
+        assertThat(contextContract).containsEntry("review_timestamp_invalid", true);
+        assertThat(items).anySatisfy(item -> {
+            if ("context_minimum_profile".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(item.get("current_value")).isEqualTo("invalid_utc");
+            }
+        });
+    }
+
+    @Test
     void workspaceTelemetrySummaryExpandsExternalCheckpointScorecardItems() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
