@@ -103,6 +103,39 @@
                                 Поддерживаемые типы: text, textarea, select, checkbox, phone, email, file.
                             </div>
                         </div>
+                        <hr>
+                        <h3 class="h6 mb-3">Очередь оповещений</h3>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="alertQueueEnabled">
+                            <label class="form-check-label" for="alertQueueEnabled">Включить очередь оповещений</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="alertQueueDepartment">Отдел</label>
+                            <input id="alertQueueDepartment" class="form-control" placeholder="Например: IT Service Desk">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="alertQueueTargetMode">Получатели</label>
+                            <select id="alertQueueTargetMode" class="form-select">
+                                <option value="department_all">Весь отдел</option>
+                                <option value="employees_only">Только выбранные сотрудники</option>
+                                <option value="department_except">Весь отдел, кроме указанных сотрудников</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="alertQueueEmployees">Сотрудники (логины, через запятую)</label>
+                            <input id="alertQueueEmployees" class="form-control" placeholder="user1, user2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="alertQueueExcludeEmployees">Исключить сотрудников (логины, через запятую)</label>
+                            <input id="alertQueueExcludeEmployees" class="form-control" placeholder="user3, user4">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="alertQueueDeliveryMode">Режим доставки</label>
+                            <select id="alertQueueDeliveryMode" class="form-select">
+                                <option value="all">Одновременно всем</option>
+                                <option value="online_only_fallback_all">Только онлайн, если никого нет — всем</option>
+                            </select>
+                        </div>
                         <div id="publicFormConfigAlert" class="alert d-none mb-0" role="alert"></div>
                     </div>
                     <div class="modal-footer">
