@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -1602,5 +1603,93 @@ class DialogApiControllerWebMvcTest {
                 eq("macro_apply"),
                 anyString(),
                 anyString());
+    }
+
+    @Test
+    void triagePreferencesReturnsNormalizedStoredValues() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "dialog_config", Map.of(
+                        "workspace_triage_preferences_by_operator", Map.of(
+                                "operator", Map.of(
+                                        "view", "SLA_CRITICAL",
+                                        "sort_mode", "unknown",
+                                        "sla_window_minutes", 30,
+                                        "page_size", "all",
+                                        "updated_at_utc", "2026-03-24T15:00:00+03:00"
+                                )
+                        )
+                )
+        ));
+
+        mockMvc.perform(get("/api/dialogs/triage-preferences").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.preferences.view").value("sla_critical"))
+                .andExpect(jsonPath("$.preferences.sort_mode").value("default"))
+                .andExpect(jsonPath("$.preferences.sla_window_minutes").value(30))
+                .andExpect(jsonPath("$.preferences.page_size").value("all"))
+                .andExpect(jsonPath("$.preferences.updated_at_utc").value("2026-03-24T12:00Z"));
+    }
+
+    @Test
+    void triagePreferencesSavePersistsUtcAndTelemetry() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "dialog_config", Map.of()
+        ));
+
+        mockMvc.perform(post("/api/dialogs/triage-preferences")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "view": "overdue",
+                                  "sort_mode": "sla_priority",
+                                  "sla_window_minutes": 60,
+                                  "page_size": "all"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.preferences.view").value("overdue"))
+                .andExpect(jsonPath("$.preferences.sort_mode").value("sla_priority"))
+                .andExpect(jsonPath("$.preferences.sla_window_minutes").value(60))
+                .andExpect(jsonPath("$.preferences.page_size").value("all"))
+                .andExpect(jsonPath("$.updated_at_utc").exists());
+
+        verify(sharedConfigService).saveSettings(argThat(settings -> {
+            Object dialogConfigRaw = settings.get("dialog_config");
+            if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
+                return false;
+            }
+            Object byOperatorRaw = dialogConfig.get("workspace_triage_preferences_by_operator");
+            if (!(byOperatorRaw instanceof Map<?, ?> byOperator)) {
+                return false;
+            }
+            Object operatorRaw = byOperator.get("operator");
+            if (!(operatorRaw instanceof Map<?, ?> preferences)) {
+                return false;
+            }
+            return "overdue".equals(preferences.get("view"))
+                    && "sla_priority".equals(preferences.get("sort_mode"))
+                    && Integer.valueOf(60).equals(preferences.get("sla_window_minutes"))
+                    && "all".equals(preferences.get("page_size"))
+                    && String.valueOf(preferences.get("updated_at_utc")).endsWith("Z");
+        }));
+        verify(dialogService).logWorkspaceTelemetry(
+                eq("operator"),
+                eq("triage_preferences_saved"),
+                eq("triage"),
+                eq(null),
+                contains("view=overdue"),
+                eq(null),
+                eq("triage_preferences.v1"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(List.of()),
+                eq(List.of()),
+                eq(null),
+                eq(null));
     }
 }
