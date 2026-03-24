@@ -54,6 +54,9 @@ body.with-sidebar.sidebar-hovering {
 .sidebar.collapsed:not(.hovering) .sidebar-header {
   display: none;
 }
+.sidebar.collapsed:not(.hovering) .sidebar-actions {
+  display: none;
+}
 .sidebar.collapsed.hovering .sidebar-header {
   display: flex;
 }
