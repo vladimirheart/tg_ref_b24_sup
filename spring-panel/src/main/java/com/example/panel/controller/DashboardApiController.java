@@ -5,6 +5,7 @@ import com.example.panel.service.DashboardAnalyticsService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.ManagerReportService;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public class DashboardApiController {
         String operator = authentication != null ? authentication.getName() : null;
         List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
         DashboardAnalyticsService.DashboardFilters filters = normalize(request);
-        Map<String, Object> payload = analyticsService.buildDashboardPayload(dialogs, filters);
+        Map<String, Object> payload = new LinkedHashMap<>(analyticsService.buildDashboardPayload(dialogs, filters));
         payload.put("success", true);
         log.info("Dashboard API payload built for operator {} with {} dialogs", operator, dialogs.size());
         return payload;
@@ -57,7 +58,7 @@ public class DashboardApiController {
         String operator = authentication != null ? authentication.getName() : null;
         List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
         DashboardAnalyticsService.DashboardFilters filters = normalize(request, true);
-        Map<String, Object> payload = managerReportService.buildManagerReport(dialogs, filters);
+        Map<String, Object> payload = new LinkedHashMap<>(managerReportService.buildManagerReport(dialogs, filters));
         payload.put("success", true);
         return payload;
     }
@@ -71,7 +72,7 @@ public class DashboardApiController {
         ManagerReportService.OlapPreviewRequest olapRequest = (request != null && request.olap() != null)
             ? request.olap()
             : new ManagerReportService.OlapPreviewRequest("location", true, true, true);
-        Map<String, Object> payload = managerReportService.buildOlapPreview(dialogs, filters, olapRequest);
+        Map<String, Object> payload = new LinkedHashMap<>(managerReportService.buildOlapPreview(dialogs, filters, olapRequest));
         payload.put("success", true);
         return payload;
     }
