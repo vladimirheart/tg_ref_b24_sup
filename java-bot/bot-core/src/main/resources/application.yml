@@ -32,6 +32,12 @@ vk-bot:
   channel-id: ${VK_OPERATOR_CHAT_ID:0}
   retry-delay-seconds: ${VK_RETRY_DELAY:5}
 
+
+max-bot:
+  enabled: ${MAX_BOT_ENABLED:false}
+  token: ${MAX_BOT_TOKEN:}
+  webhook-secret: ${MAX_WEBHOOK_SECRET:}
+
 logging:
   file:
     name: ${APP_BOT_LOG_PATH:${APP_BOT_LOG_DIR:../logs}/support-bot.log}

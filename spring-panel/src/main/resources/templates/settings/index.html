@@ -1046,7 +1046,7 @@
           <div class="card-body">
             <div class="tile-icon">🤖</div>
             <h5 class="card-title">Каналы (боты)</h5>
-            <p class="card-text text-muted">Подключайте и управляйте ботами в Telegram и VK.</p>
+            <p class="card-text text-muted">Подключайте и управляйте ботами в Telegram, VK и MAX.</p>
           </div>
         </div>
       </div>
@@ -4632,6 +4632,7 @@
               <select id="new_platform" class="form-select">
                 <option value="telegram" selected>Telegram</option>
                 <option value="vk">VK</option>
+                <option value="max">MAX</option>
               </select>
             </div>
             <div class="col-12 col-md-4 col-xl-3">
@@ -19427,7 +19428,7 @@
     }
     rows.forEach((row) => {
       const platform = String(row.platform || 'telegram').toLowerCase();
-      const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
+      const platformLabel = platform === 'vk' ? 'VK' : (platform === 'max' ? 'MAX' : 'Telegram');
       const platformConfig = parsePlatformConfig(row.platform_config ?? row.platformConfig);
       const deliverySettings = parseDeliverySettings(row.delivery_settings ?? row.deliverySettings);
       const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId ?? null) : null;

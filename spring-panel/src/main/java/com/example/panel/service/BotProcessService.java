@@ -75,10 +75,16 @@ public class BotProcessService {
             env.put("TELEGRAM_BOT_TOKEN", credential.token());
             env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
             env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
-            env.put("VK_BOT_ENABLED", "vk".equalsIgnoreCase(channel.getPlatform()) ? "true" : "false");
-            if ("vk".equalsIgnoreCase(channel.getPlatform())) {
+            String platform = Objects.toString(channel.getPlatform(), "telegram").toLowerCase();
+            env.put("VK_BOT_ENABLED", "vk".equals(platform) ? "true" : "false");
+            if ("vk".equals(platform)) {
                 env.put("VK_BOT_TOKEN", credential.token());
                 env.put("VK_OPERATOR_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
+            }
+            env.put("MAX_BOT_ENABLED", "max".equals(platform) ? "true" : "false");
+            if ("max".equals(platform)) {
+                env.put("MAX_BOT_TOKEN", credential.token());
+                env.put("MAX_SUPPORT_CHAT_ID", Objects.toString(channel.getSupportChatId(), ""));
             }
             env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
             env.put("APP_BOT_LOG_PATH", logFile.toString());
@@ -188,8 +194,14 @@ public class BotProcessService {
     }
 
     private String resolveBotModule(Channel channel) {
-        if (channel != null && "vk".equalsIgnoreCase(channel.getPlatform())) {
+        if (channel == null || channel.getPlatform() == null) {
+            return "bot-telegram";
+        }
+        if ("vk".equalsIgnoreCase(channel.getPlatform())) {
             return "bot-vk";
+        }
+        if ("max".equalsIgnoreCase(channel.getPlatform())) {
+            return "bot-max";
         }
         return "bot-telegram";
     }
