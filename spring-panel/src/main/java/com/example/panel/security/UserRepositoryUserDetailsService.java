@@ -1,8 +1,10 @@
 package com.example.panel.security;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -11,10 +13,27 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 class UserRepositoryUserDetailsService implements UserDetailsService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() { };
+    private static final Map<String, String> PAGE_PERMISSION_TO_AUTHORITY = Map.ofEntries(
+            Map.entry("dialogs", "PAGE_DIALOGS"),
+            Map.entry("tasks", "PAGE_TASKS"),
+            Map.entry("clients", "PAGE_CLIENTS"),
+            Map.entry("object_passports", "PAGE_OBJECT_PASSPORTS"),
+            Map.entry("knowledge_base", "PAGE_KNOWLEDGE_BASE"),
+            Map.entry("dashboard", "PAGE_ANALYTICS"),
+            Map.entry("analytics", "PAGE_ANALYTICS"),
+            Map.entry("channels", "PAGE_CHANNELS"),
+            Map.entry("settings", "PAGE_SETTINGS"),
+            Map.entry("user_management", "PAGE_USERS")
+    );
 
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
@@ -58,19 +77,94 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
     }
 
     private List<GrantedAuthority> loadAuthorities(Long userId) {
-        RowMapper<GrantedAuthority> mapper = (rs, rowNum) ->
-                new SimpleGrantedAuthority(rs.getString("authority"));
+        Set<String> authorityNames = new LinkedHashSet<>();
+        authorityNames.addAll(loadDirectAuthorities(userId));
+        authorityNames.addAll(loadRoleAuthorities(userId));
 
-        List<GrantedAuthority> authorities = jdbcTemplate.query(
-                "SELECT authority FROM user_authorities WHERE user_id = ?",
-                mapper,
-                userId
-        );
-
-        if (authorities.isEmpty()) {
-            authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        if (authorityNames.isEmpty()) {
+            authorityNames.add("ROLE_USER");
         }
-        return authorities;
+        return authorityNames.stream().map(SimpleGrantedAuthority::new).toList();
+    }
+
+    private Set<String> loadDirectAuthorities(Long userId) {
+        try {
+            return new LinkedHashSet<>(jdbcTemplate.query(
+                    "SELECT authority FROM user_authorities WHERE user_id = ?",
+                    (rs, rowNum) -> rs.getString("authority"),
+                    userId
+            ));
+        } catch (DataAccessException ex) {
+            return Set.of();
+        }
+    }
+
+    private Set<String> loadRoleAuthorities(Long userId) {
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT r.name AS role_name, r.permissions AS permissions " +
+                            "FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1",
+                    userId
+            );
+            if (rows.isEmpty()) {
+                return Set.of();
+            }
+            Map<String, Object> row = rows.get(0);
+            Set<String> result = new LinkedHashSet<>(mapPagePermissionsToAuthorities(extractPagePermissions(row.get("permissions"))));
+            String roleName = stringValue(row.get("role_name"));
+            if ("admin".equalsIgnoreCase(roleName)) {
+                result.add("ROLE_ADMIN");
+            }
+            return result;
+        } catch (DataAccessException ex) {
+            return Set.of();
+        }
+    }
+
+    static Set<String> mapPagePermissionsToAuthorities(List<String> pages) {
+        if (pages == null || pages.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> result = new LinkedHashSet<>();
+        boolean wildcard = pages.stream().anyMatch(value -> "*".equals(value));
+        if (wildcard) {
+            result.addAll(PAGE_PERMISSION_TO_AUTHORITY.values());
+            return result;
+        }
+        for (String page : pages) {
+            String authority = PAGE_PERMISSION_TO_AUTHORITY.get(page);
+            if (authority != null) {
+                result.add(authority);
+            }
+        }
+        return result;
+    }
+
+    static List<String> extractPagePermissions(Object rawPermissions) {
+        if (rawPermissions == null) {
+            return List.of();
+        }
+        String json = rawPermissions.toString().trim();
+        if (json.isEmpty()) {
+            return List.of();
+        }
+        try {
+            Map<String, Object> permissions = OBJECT_MAPPER.readValue(json, MAP_TYPE);
+            Object pagesObj = permissions.get("pages");
+            if (!(pagesObj instanceof List<?> pages)) {
+                return List.of();
+            }
+            return pages.stream()
+                    .filter(value -> value != null && !value.toString().trim().isEmpty())
+                    .map(Object::toString)
+                    .toList();
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : value.toString().trim();
     }
 
     void ensureDefaultAdmin(String username, String rawPassword) {
