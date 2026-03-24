@@ -514,6 +514,98 @@ public class AnalyticsController {
         ));
     }
 
+    @PostMapping(value = "/macro-governance/review", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> updateMacroGovernanceReview(@RequestBody(required = false) MacroGovernanceReviewRequest request,
+                                                         Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
+        if (reviewedBy == null) {
+            reviewedBy = actor;
+        }
+        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+        OffsetDateTime reviewedAtUtc;
+        if (reviewedAtRaw == null) {
+            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        } else {
+            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
+            if (reviewedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
+        if (reviewNote != null && reviewNote.length() > 500) {
+            reviewNote = reviewNote.substring(0, 500);
+        }
+        String cleanupTicketId = normalize(String.valueOf(request != null ? request.cleanupTicketId() : null));
+        if (cleanupTicketId != null && cleanupTicketId.length() > 80) {
+            cleanupTicketId = cleanupTicketId.substring(0, 80);
+        }
+        String decision = normalize(String.valueOf(request != null ? request.decision() : null));
+        if (decision != null) {
+            decision = decision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(decision) && !"hold".equals(decision)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "decision must be one of: go, hold"));
+            }
+        }
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+        dialogConfig.put("macro_governance_reviewed_by", reviewedBy);
+        dialogConfig.put("macro_governance_reviewed_at", reviewedAtUtc.toInstant().toString());
+        if (reviewNote == null) {
+            dialogConfig.remove("macro_governance_review_note");
+        } else {
+            dialogConfig.put("macro_governance_review_note", reviewNote);
+        }
+        if (cleanupTicketId == null) {
+            dialogConfig.remove("macro_governance_cleanup_ticket_id");
+        } else {
+            dialogConfig.put("macro_governance_cleanup_ticket_id", cleanupTicketId);
+        }
+        if (decision == null) {
+            dialogConfig.remove("macro_governance_review_decision");
+        } else {
+            dialogConfig.put("macro_governance_review_decision", decision);
+        }
+        settings.put("dialog_config", dialogConfig);
+        sharedConfigService.saveSettings(settings);
+
+        dialogService.logWorkspaceTelemetry(
+                actor,
+                "workspace_macro_governance_review_updated",
+                "experiment",
+                null,
+                "analytics_macro_governance_review",
+                null,
+                "workspace.v1",
+                null,
+                "workspace_v1_rollout",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "reviewed_by", reviewedBy,
+                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
+                "review_note", reviewNote == null ? "" : reviewNote,
+                "cleanup_ticket_id", cleanupTicketId == null ? "" : cleanupTicketId,
+                "decision", decision == null ? "" : decision
+        ));
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return null;
@@ -604,5 +696,12 @@ public class AnalyticsController {
                                                     String reviewNote,
                                                     String dryRunTicketId,
                                                     String decision) {
+    }
+
+    private record MacroGovernanceReviewRequest(String reviewedBy,
+                                                String reviewedAtUtc,
+                                                String reviewNote,
+                                                String cleanupTicketId,
+                                                String decision) {
     }
 }
