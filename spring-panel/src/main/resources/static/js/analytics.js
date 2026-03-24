@@ -45,6 +45,18 @@
   const packetExitMeta = document.getElementById('workspaceTelemetryPacketExitMeta');
   const packetLegacyState = document.getElementById('workspaceTelemetryPacketLegacyState');
   const packetLegacyMeta = document.getElementById('workspaceTelemetryPacketLegacyMeta');
+  const packetContextState = document.getElementById('workspaceTelemetryPacketContextState');
+  const packetContextMeta = document.getElementById('workspaceTelemetryPacketContextMeta');
+  const contextRequiredInput = document.getElementById('workspaceTelemetryContextRequired');
+  const contextScenariosInput = document.getElementById('workspaceTelemetryContextScenarios');
+  const contextMandatoryFieldsInput = document.getElementById('workspaceTelemetryContextMandatoryFields');
+  const contextSourceOfTruthInput = document.getElementById('workspaceTelemetryContextSourceOfTruth');
+  const contextPriorityBlocksInput = document.getElementById('workspaceTelemetryContextPriorityBlocks');
+  const contextReviewedByInput = document.getElementById('workspaceTelemetryContextReviewedBy');
+  const contextReviewedAtInput = document.getElementById('workspaceTelemetryContextReviewedAtUtc');
+  const contextReviewNoteInput = document.getElementById('workspaceTelemetryContextReviewNote');
+  const contextSaveButton = document.getElementById('workspaceTelemetryContextSave');
+  const contextActionState = document.getElementById('workspaceTelemetryContextActionState');
   const slaPolicyAuditStatus = document.getElementById('workspaceTelemetrySlaPolicyAuditStatus');
   const slaPolicyAuditUpdatedAt = document.getElementById('workspaceTelemetrySlaPolicyAuditUpdatedAt');
   const slaPolicyAuditSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditSummary');
@@ -237,6 +249,15 @@
     }
     if (packetLegacyMeta) {
       packetLegacyMeta.textContent = '';
+    }
+    if (packetContextState) {
+      packetContextState.textContent = '—';
+    }
+    if (packetContextMeta) {
+      packetContextMeta.textContent = '';
+    }
+    if (contextActionState) {
+      contextActionState.textContent = '';
     }
     if (slaPolicyAuditStatus) {
       slaPolicyAuditStatus.className = 'badge text-bg-secondary';
@@ -607,6 +628,52 @@
       packetLegacyMeta.textContent = legacyOnlyScenarios.length
         ? legacyOnlyScenarios.join(', ')
         : 'Инвентарь пуст — legacy modal можно удерживать только как rollback.';
+    }
+    const contextContract = packet?.context_contract || {};
+    const contextScenarios = Array.isArray(contextContract?.scenarios) ? contextContract.scenarios : [];
+    const contextMandatoryFields = Array.isArray(contextContract?.mandatory_fields) ? contextContract.mandatory_fields : [];
+    const contextSourceOfTruth = Array.isArray(contextContract?.source_of_truth) ? contextContract.source_of_truth : [];
+    const contextPriorityBlocks = Array.isArray(contextContract?.priority_blocks) ? contextContract.priority_blocks : [];
+    if (packetContextState) {
+      if (contextContract?.enabled !== true) {
+        packetContextState.textContent = 'Не требуется';
+      } else if (contextContract?.review_timestamp_invalid === true) {
+        packetContextState.textContent = 'Невалидная UTC-дата';
+      } else if (contextContract?.ready === true) {
+        packetContextState.textContent = 'Контракт подтверждён';
+      } else {
+        packetContextState.textContent = 'Контракт неполный';
+      }
+    }
+    if (packetContextMeta) {
+      const reviewedAt = contextContract?.reviewed_at ? formatTimestamp(contextContract.reviewed_at) : '—';
+      const reviewedBy = String(contextContract?.reviewed_by || '').trim() || '—';
+      const ttl = Number(contextContract?.review_ttl_hours || 0);
+      packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · sources=${contextSourceOfTruth.length} · blocks=${contextPriorityBlocks.length} · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
+    }
+    if (contextRequiredInput) {
+      contextRequiredInput.checked = contextContract?.required === true;
+    }
+    if (contextScenariosInput) {
+      contextScenariosInput.value = contextScenarios.join(', ');
+    }
+    if (contextMandatoryFieldsInput) {
+      contextMandatoryFieldsInput.value = contextMandatoryFields.join(', ');
+    }
+    if (contextSourceOfTruthInput) {
+      contextSourceOfTruthInput.value = contextSourceOfTruth.join(', ');
+    }
+    if (contextPriorityBlocksInput) {
+      contextPriorityBlocksInput.value = contextPriorityBlocks.join(', ');
+    }
+    if (contextReviewedByInput) {
+      contextReviewedByInput.value = String(contextContract?.reviewed_by || '').trim();
+    }
+    if (contextReviewedAtInput) {
+      contextReviewedAtInput.value = toDateTimeLocalValue(contextContract?.reviewed_at);
+    }
+    if (contextReviewNoteInput) {
+      contextReviewNoteInput.value = String(contextContract?.review_note || '').trim();
     }
   }
 
@@ -1483,6 +1550,63 @@
     }
   }
 
+  function parseCsvList(value) {
+    return String(value || '')
+      .split(/[,\n;]/)
+      .map((part) => part.trim())
+      .filter((part, index, arr) => part.length > 0 && part.length <= 120 && arr.indexOf(part) === index);
+  }
+
+  async function saveContextStandard() {
+    if (!contextSaveButton) {
+      return;
+    }
+    contextSaveButton.disabled = true;
+    if (contextActionState) {
+      contextActionState.textContent = 'Сохраняем...';
+    }
+    const reviewedAtUtc = dateTimeLocalToUtcIso(contextReviewedAtInput ? (contextReviewedAtInput.value || '').trim() : '');
+    if (reviewedAtUtc === null) {
+      if (contextActionState) {
+        contextActionState.textContent = 'Ошибка: поле "Reviewed at (UTC)" содержит невалидную дату.';
+      }
+      contextSaveButton.disabled = false;
+      return;
+    }
+    try {
+      const response = await fetch('/analytics/workspace-context/standard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          required: contextRequiredInput ? contextRequiredInput.checked : false,
+          scenarios: parseCsvList(contextScenariosInput ? contextScenariosInput.value : ''),
+          mandatoryFields: parseCsvList(contextMandatoryFieldsInput ? contextMandatoryFieldsInput.value : ''),
+          sourceOfTruth: parseCsvList(contextSourceOfTruthInput ? contextSourceOfTruthInput.value : ''),
+          priorityBlocks: parseCsvList(contextPriorityBlocksInput ? contextPriorityBlocksInput.value : ''),
+          reviewedBy: contextReviewedByInput ? (contextReviewedByInput.value || '').trim() : '',
+          reviewedAtUtc,
+          note: contextReviewNoteInput ? (contextReviewNoteInput.value || '').trim().slice(0, 500) : '',
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      if (contextActionState) {
+        contextActionState.textContent = `Сохранено: ${formatTimestamp(payload?.reviewed_at_utc)}`;
+      }
+      await loadTelemetry();
+    } catch (error) {
+      if (contextActionState) {
+        contextActionState.textContent = `Ошибка: ${error.message}`;
+      }
+    } finally {
+      contextSaveButton.disabled = false;
+    }
+  }
+
   refreshButton.addEventListener('click', loadTelemetry);
   if (resetWindowButton) {
     resetWindowButton.addEventListener('click', () => {
@@ -1520,6 +1644,9 @@
   daysSelect.addEventListener('change', loadTelemetry);
   if (reviewConfirmButton) {
     reviewConfirmButton.addEventListener('click', confirmWeeklyReview);
+  }
+  if (contextSaveButton) {
+    contextSaveButton.addEventListener('click', saveContextStandard);
   }
   experimentInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
