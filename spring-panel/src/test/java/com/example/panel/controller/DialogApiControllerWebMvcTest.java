@@ -754,6 +754,42 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetrySummaryAcceptsExplicitUtcWindow() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(dialogService.loadWorkspaceTelemetrySummary(eq(7), eq("workspace_v1_rollout"), org.mockito.ArgumentMatchers.any(Instant.class), org.mockito.ArgumentMatchers.any(Instant.class)))
+                .thenReturn(Map.of(
+                        "totals", Map.of("events", 12),
+                        "rows", List.of(),
+                        "window_from_utc", "2026-03-01T00:00:00Z",
+                        "window_to_utc", "2026-03-08T00:00:00Z",
+                        "guardrails", Map.of("status", "ok", "alerts", List.of())
+                ));
+
+        mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
+                        .param("days", "7")
+                        .param("experiment_name", "workspace_v1_rollout")
+                        .param("from_utc", "2026-03-01T00:00:00Z")
+                        .param("to_utc", "2026-03-08T00:00:00Z")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.window_from_utc").value("2026-03-01T00:00:00Z"))
+                .andExpect(jsonPath("$.window_to_utc").value("2026-03-08T00:00:00Z"));
+    }
+
+    @Test
+    void workspaceTelemetrySummaryRejectsInvalidUtcWindow() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+
+        mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
+                        .param("from_utc", "not-a-date")
+                        .with(user("operator")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("from_utc must be a valid UTC timestamp (ISO-8601)"));
+    }
+
+    @Test
     void workspaceSupportsIncludeAndPaginationParams() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);

@@ -85,6 +85,8 @@
                             <option value="30">30 дней</option>
                         </select>
                         <input type="text" class="form-control form-control-sm" id="workspaceTelemetryExperiment" placeholder="experiment_name (опц.)" style="max-width: 220px;">
+                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryFromUtc" aria-label="From UTC" title="Начало окна (UTC)" style="max-width: 210px;">
+                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryToUtc" aria-label="To UTC" title="Конец окна (UTC)" style="max-width: 210px;">
                         <select class="form-select form-select-sm" id="workspaceTelemetryScope" style="width: auto;" aria-label="Срез guardrails">
                             <option value="all" selected>Срез: все</option>
                             <option value="global">Только global</option>
@@ -92,6 +94,7 @@
                             <option value="team">По командам</option>
                         </select>
                         <input type="search" class="form-control form-control-sm" id="workspaceTelemetrySegment" placeholder="segment (напр. night/team-a)" style="max-width: 230px;">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="workspaceTelemetryResetWindow">Сбросить окно</button>
                         <button class="btn btn-sm btn-outline-primary" type="button" id="workspaceTelemetryRefresh">Обновить</button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" id="workspaceTelemetryExportCsv">CSV guardrails</button>
                     </div>
