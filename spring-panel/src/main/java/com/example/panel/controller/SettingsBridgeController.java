@@ -193,6 +193,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_list_poll_interval_ms")
                 || payload.containsKey("dialog_history_poll_interval_ms")
                 || payload.containsKey("dialog_workspace_v1")
+                || payload.containsKey("dialog_workspace_single_mode")
                 || payload.containsKey("dialog_workspace_force_workspace")
                 || payload.containsKey("dialog_workspace_decommission_legacy_modal")
                 || payload.containsKey("dialog_sla_critical_auto_sort")
@@ -510,6 +511,9 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_workspace_v1")) {
                     dialogConfig.put("workspace_v1", payload.get("dialog_workspace_v1"));
+                }
+                if (payload.containsKey("dialog_workspace_single_mode")) {
+                    dialogConfig.put("workspace_single_mode", payload.get("dialog_workspace_single_mode"));
                 }
                 if (payload.containsKey("dialog_workspace_force_workspace")) {
                     dialogConfig.put("workspace_force_workspace", payload.get("dialog_workspace_force_workspace"));

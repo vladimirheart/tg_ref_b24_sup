@@ -1213,12 +1213,13 @@ public class DialogApiController {
         Map<?, ?> dialogConfig = dialogConfigRaw instanceof Map<?, ?> map ? map : Map.of();
 
         boolean workspaceEnabled = resolveBooleanDialogConfig(dialogConfig, "workspace_v1", true);
-        boolean forceWorkspace = resolveBooleanDialogConfig(dialogConfig, "workspace_force_workspace", false);
-        boolean decommissionLegacyModal = resolveBooleanDialogConfig(dialogConfig, "workspace_decommission_legacy_modal", false);
+        boolean workspaceSingleMode = resolveBooleanDialogConfig(dialogConfig, "workspace_single_mode", false);
+        boolean forceWorkspace = resolveBooleanDialogConfig(dialogConfig, "workspace_force_workspace", false) || workspaceSingleMode;
+        boolean decommissionLegacyModal = resolveBooleanDialogConfig(dialogConfig, "workspace_decommission_legacy_modal", false) || workspaceSingleMode;
         boolean disableLegacyFallback = resolveBooleanDialogConfig(dialogConfig, "workspace_disable_legacy_fallback", false)
                 || forceWorkspace
                 || decommissionLegacyModal;
-        boolean abEnabled = resolveBooleanDialogConfig(dialogConfig, "workspace_ab_enabled", false);
+        boolean abEnabled = resolveBooleanDialogConfig(dialogConfig, "workspace_ab_enabled", false) && !workspaceSingleMode;
         int rolloutPercent = resolveIntegerDialogConfig(dialogConfig, "workspace_ab_rollout_percent", 0, 0, 100);
         String experimentName = trimToNull(String.valueOf(dialogConfig.get("workspace_ab_experiment_name")));
         String operatorSegment = trimToNull(String.valueOf(dialogConfig.get("workspace_ab_operator_segment")));
@@ -1230,6 +1231,9 @@ public class DialogApiController {
         if (!workspaceEnabled) {
             mode = "legacy_primary";
             bannerTone = "warning";
+        } else if (workspaceSingleMode) {
+            mode = "workspace_single_mode";
+            bannerTone = "success";
         } else if (forceWorkspace || decommissionLegacyModal || !abEnabled) {
             mode = "workspace_primary";
             bannerTone = disableLegacyFallback ? "success" : "info";
@@ -1241,6 +1245,8 @@ public class DialogApiController {
         String summary;
         if (!workspaceEnabled) {
             summary = "Workspace выключен: используется legacy modal.";
+        } else if (workspaceSingleMode) {
+            summary = "Workspace-only режим включён: legacy modal отключён, fallback недоступен, A/B rollout выключен.";
         } else if (disableLegacyFallback) {
             summary = "Workspace — основной режим. Auto-fallback в legacy отключён текущим rollout-режимом.";
         } else if (abEnabled) {
@@ -1251,6 +1257,7 @@ public class DialogApiController {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("workspace_enabled", workspaceEnabled);
+        payload.put("workspace_single_mode", workspaceSingleMode);
         payload.put("mode", mode);
         payload.put("banner_tone", bannerTone);
         payload.put("summary", summary);

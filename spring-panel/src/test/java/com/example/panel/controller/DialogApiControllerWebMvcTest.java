@@ -327,6 +327,62 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceRolloutMetaEnforcesSingleModeWhenConfigured() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-SINGLE",
+                1L,
+                42L,
+                "user",
+                "Клиент",
+                "biz",
+                1L,
+                "demo",
+                "city",
+                "location",
+                "problem",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "label",
+                "user",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "category"
+        );
+        when(dialogService.loadDialogDetails("T-SINGLE", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-SINGLE", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of());
+        when(dialogService.loadDialogs("operator")).thenReturn(List.of(summary));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
+                "workspace_v1", true,
+                "workspace_single_mode", true,
+                "workspace_ab_enabled", true,
+                "workspace_disable_legacy_fallback", false
+        )));
+        when(slaEscalationWebhookNotifier.buildRoutingPolicySnapshot(eq(summary), org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of());
+
+        mockMvc.perform(get("/api/dialogs/T-SINGLE/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meta.rollout.mode").value("workspace_single_mode"))
+                .andExpect(jsonPath("$.meta.rollout.workspace_single_mode").value(true))
+                .andExpect(jsonPath("$.meta.rollout.ab_enabled").value(false))
+                .andExpect(jsonPath("$.meta.rollout.disable_legacy_fallback").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_fallback_available").value(false))
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void workspaceBuildsClientSegmentsForContextPanel() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
