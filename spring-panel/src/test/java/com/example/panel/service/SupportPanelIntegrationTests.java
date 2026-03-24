@@ -797,6 +797,7 @@ class SupportPanelIntegrationTests {
         List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
         Map<String, Object> reviewCadence = (Map<String, Object>) packet.get("review_cadence");
         Map<String, Object> parityExitCriteria = (Map<String, Object>) packet.get("parity_exit_criteria");
+        Map<String, Object> legacyInventory = (Map<String, Object>) packet.get("legacy_only_inventory");
 
         assertThat(packet.get("status")).isEqualTo("ok");
         assertThat(reviewCadence).containsEntry("enabled", true);
@@ -808,6 +809,8 @@ class SupportPanelIntegrationTests {
         assertThat(parityExitCriteria).containsEntry("critical_gap_events", 0L);
         assertThat((List<String>) parityExitCriteria.get("critical_reasons")).containsExactly("reply_threading", "permissions");
         assertThat((List<String>) packet.get("legacy_only_scenarios")).isEmpty();
+        assertThat(legacyInventory).containsEntry("reviewed_at", "");
+        assertThat(legacyInventory).containsEntry("review_timestamp_invalid", false);
         assertThat(items).anySatisfy(item -> {
             if ("weekly_review".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
@@ -848,12 +851,15 @@ class SupportPanelIntegrationTests {
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
         List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
         Map<String, Object> reviewCadence = (Map<String, Object>) packet.get("review_cadence");
+        Map<String, Object> legacyInventory = (Map<String, Object>) packet.get("legacy_only_inventory");
 
         assertThat(packet.get("packet_ready")).isEqualTo(false);
         assertThat(packet.get("status")).isEqualTo("hold");
         assertThat((List<String>) packet.get("missing_items")).contains("weekly_review", "legacy_only_inventory");
         assertThat(reviewCadence).containsEntry("timestamp_invalid", true);
         assertThat((List<String>) packet.get("legacy_only_scenarios")).containsExactly("attachments_edit", "inline_reopen");
+        assertThat(legacyInventory).containsEntry("review_timestamp_invalid", false);
+        assertThat(legacyInventory).containsEntry("reviewed_at", "");
         assertThat(items).anySatisfy(item -> {
             if ("weekly_review".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("hold");
@@ -904,6 +910,30 @@ class SupportPanelIntegrationTests {
                 assertThat(item.get("status")).isEqualTo("hold");
                 assertThat(String.valueOf(item.get("threshold"))).contains("decision required");
                 assertThat(String.valueOf(item.get("threshold"))).contains("incident follow-up required");
+            }
+        });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryMarksLegacyInventoryInvalidUtc() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":false,
+                         "workspace_rollout_governance_legacy_only_scenarios":["attachments_edit"],
+                         "workspace_rollout_governance_legacy_inventory_reviewed_by":"ops-oncall",
+                         "workspace_rollout_governance_legacy_inventory_reviewed_at":"bad-legacy-ts"}
+                        """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> legacyInventory = (Map<String, Object>) packet.get("legacy_only_inventory");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+
+        assertThat(legacyInventory).containsEntry("review_timestamp_invalid", true);
+        assertThat((List<String>) packet.get("invalid_utc_items")).contains("legacy_only_inventory");
+        assertThat(items).anySatisfy(item -> {
+            if ("legacy_only_inventory".equals(item.get("key"))) {
+                assertThat(item.get("note")).contains("invalid_utc");
             }
         });
     }

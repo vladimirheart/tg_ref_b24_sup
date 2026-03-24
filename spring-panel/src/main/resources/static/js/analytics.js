@@ -45,6 +45,12 @@
   const packetExitMeta = document.getElementById('workspaceTelemetryPacketExitMeta');
   const packetLegacyState = document.getElementById('workspaceTelemetryPacketLegacyState');
   const packetLegacyMeta = document.getElementById('workspaceTelemetryPacketLegacyMeta');
+  const legacyScenariosInput = document.getElementById('workspaceTelemetryLegacyScenarios');
+  const legacyReviewedByInput = document.getElementById('workspaceTelemetryLegacyReviewedBy');
+  const legacyReviewedAtInput = document.getElementById('workspaceTelemetryLegacyReviewedAtUtc');
+  const legacyReviewNoteInput = document.getElementById('workspaceTelemetryLegacyReviewNote');
+  const legacySaveButton = document.getElementById('workspaceTelemetryLegacySave');
+  const legacyActionState = document.getElementById('workspaceTelemetryLegacyActionState');
   const packetContextState = document.getElementById('workspaceTelemetryPacketContextState');
   const packetContextMeta = document.getElementById('workspaceTelemetryPacketContextMeta');
   const contextRequiredInput = document.getElementById('workspaceTelemetryContextRequired');
@@ -249,6 +255,9 @@
     }
     if (packetLegacyMeta) {
       packetLegacyMeta.textContent = '';
+    }
+    if (legacyActionState) {
+      legacyActionState.textContent = '';
     }
     if (packetContextState) {
       packetContextState.textContent = '—';
@@ -619,15 +628,32 @@
       packetExitMeta.textContent = `window=${formatNumber(parityExit?.window_days || 0)}d UTC · last=${lastSeenAt}${topReasons ? ` · ${topReasons}` : ''}`;
     }
     const legacyOnlyScenarios = Array.isArray(packet?.legacy_only_scenarios) ? packet.legacy_only_scenarios : [];
+    const legacyInventory = packet?.legacy_only_inventory || {};
     if (packetLegacyState) {
       packetLegacyState.textContent = legacyOnlyScenarios.length
         ? `${legacyOnlyScenarios.length} open`
         : 'Legacy-only gaps не заявлены';
     }
     if (packetLegacyMeta) {
+      const reviewedAt = legacyInventory?.reviewed_at ? formatTimestamp(legacyInventory.reviewed_at) : '—';
+      const reviewedBy = String(legacyInventory?.reviewed_by || '').trim() || '—';
+      const note = String(legacyInventory?.review_note || '').trim();
+      const invalid = legacyInventory?.review_timestamp_invalid === true ? ' · invalid_utc' : '';
       packetLegacyMeta.textContent = legacyOnlyScenarios.length
-        ? legacyOnlyScenarios.join(', ')
-        : 'Инвентарь пуст — legacy modal можно удерживать только как rollback.';
+        ? `${legacyOnlyScenarios.join(', ')} · reviewed=${reviewedBy} @ ${reviewedAt}${invalid}${note ? ` · note: ${note}` : ''}`
+        : `Инвентарь пуст — legacy modal можно удерживать только как rollback. reviewed=${reviewedBy} @ ${reviewedAt}${invalid}${note ? ` · note: ${note}` : ''}`;
+    }
+    if (legacyScenariosInput) {
+      legacyScenariosInput.value = legacyOnlyScenarios.join(', ');
+    }
+    if (legacyReviewedByInput) {
+      legacyReviewedByInput.value = String(legacyInventory?.reviewed_by || '').trim();
+    }
+    if (legacyReviewedAtInput) {
+      legacyReviewedAtInput.value = toDateTimeLocalValue(legacyInventory?.reviewed_at);
+    }
+    if (legacyReviewNoteInput) {
+      legacyReviewNoteInput.value = String(legacyInventory?.review_note || '').trim();
     }
     const contextContract = packet?.context_contract || {};
     const contextScenarios = Array.isArray(contextContract?.scenarios) ? contextContract.scenarios : [];
@@ -1607,6 +1633,52 @@
     }
   }
 
+  async function saveLegacyInventory() {
+    if (!legacySaveButton) {
+      return;
+    }
+    legacySaveButton.disabled = true;
+    if (legacyActionState) {
+      legacyActionState.textContent = 'Сохраняем...';
+    }
+    const reviewedAtUtc = dateTimeLocalToUtcIso(legacyReviewedAtInput ? (legacyReviewedAtInput.value || '').trim() : '');
+    if (reviewedAtUtc === null) {
+      if (legacyActionState) {
+        legacyActionState.textContent = 'Ошибка: поле "Reviewed at (UTC)" содержит невалидную дату.';
+      }
+      legacySaveButton.disabled = false;
+      return;
+    }
+    try {
+      const response = await fetch('/analytics/workspace-rollout/legacy-only-scenarios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scenarios: parseCsvList(legacyScenariosInput ? legacyScenariosInput.value : ''),
+          reviewedBy: legacyReviewedByInput ? (legacyReviewedByInput.value || '').trim() : '',
+          reviewedAtUtc,
+          note: legacyReviewNoteInput ? (legacyReviewNoteInput.value || '').trim().slice(0, 500) : '',
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      if (legacyActionState) {
+        legacyActionState.textContent = `Сохранено: ${formatTimestamp(payload?.reviewed_at_utc)}`;
+      }
+      await loadTelemetry();
+    } catch (error) {
+      if (legacyActionState) {
+        legacyActionState.textContent = `Ошибка: ${error.message}`;
+      }
+    } finally {
+      legacySaveButton.disabled = false;
+    }
+  }
+
   refreshButton.addEventListener('click', loadTelemetry);
   if (resetWindowButton) {
     resetWindowButton.addEventListener('click', () => {
@@ -1647,6 +1719,9 @@
   }
   if (contextSaveButton) {
     contextSaveButton.addEventListener('click', saveContextStandard);
+  }
+  if (legacySaveButton) {
+    legacySaveButton.addEventListener('click', saveLegacyInventory);
   }
   experimentInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {

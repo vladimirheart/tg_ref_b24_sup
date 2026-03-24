@@ -248,4 +248,76 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
     }
+
+    @Test
+    void updateWorkspaceLegacyOnlyScenariosPersistsUtcInventoryReview() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
+                "dialog_config", new LinkedHashMap<>()
+        )));
+
+        mockMvc.perform(post("/analytics/workspace-rollout/legacy-only-scenarios")
+                        .with(user("ops.lead"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "scenarios": ["attachments_edit", "inline_reopen"],
+                                  "reviewedBy": "ops.lead",
+                                  "reviewedAtUtc": "2026-03-24T22:10:00Z",
+                                  "note": "Сценарий attachments_edit ещё не закрыт в workspace."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.reviewed_by").value("ops.lead"))
+                .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-24T22:10:00Z"))
+                .andExpect(jsonPath("$.scenarios[0]").value("attachments_edit"))
+                .andExpect(jsonPath("$.scenarios[1]").value("inline_reopen"))
+                .andExpect(jsonPath("$.note").value("Сценарий attachments_edit ещё не закрыт в workspace."));
+
+        ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(sharedConfigService).saveSettings(settingsCaptor.capture());
+        Map<String, Object> savedSettings = settingsCaptor.getValue();
+        Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
+        assertThat(dialogConfig.get("workspace_rollout_governance_legacy_only_scenarios"))
+                .isEqualTo(java.util.List.of("attachments_edit", "inline_reopen"));
+        assertThat(dialogConfig.get("workspace_rollout_governance_legacy_inventory_reviewed_by")).isEqualTo("ops.lead");
+        assertThat(dialogConfig.get("workspace_rollout_governance_legacy_inventory_reviewed_at")).isEqualTo("2026-03-24T22:10:00Z");
+        assertThat(dialogConfig.get("workspace_rollout_governance_legacy_inventory_review_note"))
+                .isEqualTo("Сценарий attachments_edit ещё не закрыт в workspace.");
+
+        verify(dialogService).logWorkspaceTelemetry(
+                eq("ops.lead"),
+                eq("workspace_legacy_inventory_updated"),
+                eq("experiment"),
+                eq(null),
+                eq("analytics_legacy_inventory"),
+                eq(null),
+                eq("workspace.v1"),
+                eq(2.0d),
+                eq("workspace_v1_rollout"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
+    }
+
+    @Test
+    void updateWorkspaceLegacyOnlyScenariosRejectsInvalidUtcTimestamp() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        mockMvc.perform(post("/analytics/workspace-rollout/legacy-only-scenarios")
+                        .with(user("ops.lead"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "scenarios": ["attachments_edit"],
+                                  "reviewedAtUtc": "2026-03-24T22:10:00+03:00"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+    }
 }
