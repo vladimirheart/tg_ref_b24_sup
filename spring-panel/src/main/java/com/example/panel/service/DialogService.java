@@ -1100,19 +1100,19 @@ public class DialogService {
                 "review_ttl_hours", reviewTtlHours,
                 "deprecation_requires_reason", deprecationRequiresReason,
                 "unused_days", usageWindowDays));
-        audit.put("governance_review", Map.of(
-                "required", governanceReviewRequired,
-                "ready", governanceReady,
-                "reviewed_by", governanceReviewedBy == null ? "" : governanceReviewedBy,
-                "reviewed_at_utc", governanceReviewedAt == null ? "" : governanceReviewedAt.toString(),
-                "reviewed_at_invalid_utc", governanceReviewedAtInvalid,
-                "review_ttl_hours", governanceReviewTtlHours,
-                "review_age_hours", governanceReviewAgeHours,
-                "cleanup_ticket_required", governanceCleanupTicketRequired,
-                "cleanup_ticket_id", governanceCleanupTicketId == null ? "" : governanceCleanupTicketId,
-                "decision", governanceDecision == null ? "" : governanceDecision,
-                "review_note", governanceReviewNote == null ? "" : governanceReviewNote,
-                "issues", governanceReviewIssues));
+        audit.put("governance_review", Map.ofEntries(
+                Map.entry("required", governanceReviewRequired),
+                Map.entry("ready", governanceReady),
+                Map.entry("reviewed_by", governanceReviewedBy == null ? "" : governanceReviewedBy),
+                Map.entry("reviewed_at_utc", governanceReviewedAt == null ? "" : governanceReviewedAt.toString()),
+                Map.entry("reviewed_at_invalid_utc", governanceReviewedAtInvalid),
+                Map.entry("review_ttl_hours", governanceReviewTtlHours),
+                Map.entry("review_age_hours", governanceReviewAgeHours),
+                Map.entry("cleanup_ticket_required", governanceCleanupTicketRequired),
+                Map.entry("cleanup_ticket_id", governanceCleanupTicketId == null ? "" : governanceCleanupTicketId),
+                Map.entry("decision", governanceDecision == null ? "" : governanceDecision),
+                Map.entry("review_note", governanceReviewNote == null ? "" : governanceReviewNote),
+                Map.entry("issues", governanceReviewIssues)));
         audit.put("issues", issues);
         audit.put("templates", auditedTemplates);
         return audit;
