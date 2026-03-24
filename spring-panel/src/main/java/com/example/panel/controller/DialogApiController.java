@@ -830,14 +830,14 @@ public class DialogApiController {
         payload.put("contract_version", "workspace.v1");
         payload.put("conversation", summary);
         payload.put("messages", includeSections.contains("messages")
-                ? Map.of(
+                ? mapWithNullableValues(
                 "items", pagedHistory,
                 "next_cursor", nextCursor,
                 "has_more", hasMore,
                 "limit", resolvedLimit,
                 "cursor", safeCursor
         )
-                : Map.of(
+                : mapWithNullableValues(
                 "items", List.of(),
                 "next_cursor", null,
                 "has_more", false,
@@ -866,7 +866,7 @@ public class DialogApiController {
         payload.put("permissions", workspacePermissions);
         payload.put("composer", workspaceComposer);
         payload.put("sla", includeSections.contains("sla")
-                ? Map.of(
+                ? mapWithNullableValues(
                 "target_minutes", slaTargetMinutes,
                 "warning_minutes", slaWarningMinutes,
                 "critical_minutes", slaCriticalMinutes,
@@ -876,7 +876,7 @@ public class DialogApiController {
                 "escalation_required", slaMinutesLeft != null && slaMinutesLeft <= slaCriticalMinutes,
                 "policy", workspaceSlaPolicy
         )
-                : Map.of(
+                : mapWithNullableValues(
                 "target_minutes", slaTargetMinutes,
                 "warning_minutes", slaWarningMinutes,
                 "critical_minutes", slaCriticalMinutes,
@@ -887,7 +887,7 @@ public class DialogApiController {
                 "policy", workspaceSlaPolicy,
                 "unavailable", true
         ));
-        payload.put("meta", Map.of(
+        payload.put("meta", mapWithNullableValues(
                 "include", includeSections,
                 "limit", resolvedLimit,
                 "cursor", safeCursor,
@@ -897,6 +897,20 @@ public class DialogApiController {
         ));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+    private Map<String, Object> mapWithNullableValues(Object... keyValues) {
+        if (keyValues == null || keyValues.length == 0) {
+            return Map.of();
+        }
+        if (keyValues.length % 2 != 0) {
+            throw new IllegalArgumentException("mapWithNullableValues expects even number of arguments");
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            payload.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
+        }
+        return payload;
     }
 
     private Map<String, Object> buildWorkspaceNavigationMeta(Map<String, Object> settings,
