@@ -3149,6 +3149,7 @@ public class DialogService {
         long contextSourceGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_source_gap_events"))).sum();
         long contextAttributePolicyGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_attribute_policy_gap_events"))).sum();
         long contextBlockGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_block_gap_events"))).sum();
+        long contextContractGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_contract_gap_events"))).sum();
         long workspaceSlaPolicyGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_gap_events"))).sum();
         long workspaceParityGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_parity_gap_events"))).sum();
         long workspaceInlineNavigationEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_inline_navigation_events"))).sum();
@@ -3199,6 +3200,7 @@ public class DialogService {
         totals.put("context_source_gap_events", contextSourceGapEvents);
         totals.put("context_attribute_policy_gap_events", contextAttributePolicyGapEvents);
         totals.put("context_block_gap_events", contextBlockGapEvents);
+        totals.put("context_contract_gap_events", contextContractGapEvents);
         totals.put("workspace_sla_policy_gap_events", workspaceSlaPolicyGapEvents);
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
         totals.put("workspace_inline_navigation_events", workspaceInlineNavigationEvents);
@@ -3220,6 +3222,10 @@ public class DialogService {
         totals.put("context_block_gap_rate", workspaceOpenEvents > 0 ? (double) contextBlockGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_block_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextBlockGapEvents / workspaceOpenEvents))
+                : 1d);
+        totals.put("context_contract_gap_rate", workspaceOpenEvents > 0 ? (double) contextContractGapEvents / workspaceOpenEvents : 0d);
+        totals.put("context_contract_ready_rate", workspaceOpenEvents > 0
+                ? Math.max(0d, 1d - ((double) contextContractGapEvents / workspaceOpenEvents))
                 : 1d);
         totals.put("workspace_sla_policy_gap_rate", workspaceOpenEvents > 0 ? (double) workspaceSlaPolicyGapEvents / workspaceOpenEvents : 0d);
         totals.put("workspace_sla_policy_ready_rate", workspaceOpenEvents > 0
@@ -4156,6 +4162,7 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_context_source_gap' THEN 1 ELSE 0 END) AS context_source_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_context_attribute_policy_gap' THEN 1 ELSE 0 END) AS context_attribute_policy_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_context_block_gap' THEN 1 ELSE 0 END) AS context_block_gap_events,
+                       SUM(CASE WHEN event_type = 'workspace_context_contract_gap' THEN 1 ELSE 0 END) AS context_contract_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_sla_policy_gap' THEN 1 ELSE 0 END) AS workspace_sla_policy_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_parity_gap' THEN 1 ELSE 0 END) AS workspace_parity_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_inline_navigation' THEN 1 ELSE 0 END) AS workspace_inline_navigation_events,
@@ -4199,6 +4206,7 @@ public class DialogService {
                 item.put("context_source_gap_events", rs.getLong("context_source_gap_events"));
                 item.put("context_attribute_policy_gap_events", rs.getLong("context_attribute_policy_gap_events"));
                 item.put("context_block_gap_events", rs.getLong("context_block_gap_events"));
+                item.put("context_contract_gap_events", rs.getLong("context_contract_gap_events"));
                 item.put("workspace_sla_policy_gap_events", rs.getLong("workspace_sla_policy_gap_events"));
                 item.put("workspace_parity_gap_events", rs.getLong("workspace_parity_gap_events"));
                 item.put("workspace_inline_navigation_events", rs.getLong("workspace_inline_navigation_events"));
@@ -4252,6 +4260,7 @@ public class DialogService {
         payload.put("source", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_source_gap"));
         payload.put("attribute_policy", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_attribute_policy_gap"));
         payload.put("block", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_block_gap"));
+        payload.put("contract", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_contract_gap"));
         payload.put("sla_policy", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_sla_policy_gap"));
         payload.put("parity", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_parity_gap"));
         return payload;

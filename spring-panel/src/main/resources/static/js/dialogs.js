@@ -467,6 +467,7 @@
     workspace_context_source_gap: 'workspace',
     workspace_context_attribute_policy_gap: 'workspace',
     workspace_context_block_gap: 'workspace',
+    workspace_context_contract_gap: 'workspace',
     workspace_sla_policy_gap: 'workspace',
     workspace_parity_gap: 'workspace',
     workspace_inline_navigation: 'workspace',
@@ -2590,7 +2591,9 @@
     const categoryLabels = {
       profile: 'profile',
       source: 'source',
+      attribute_policy: 'attribute_policy',
       block: 'block',
+      contract: 'contract',
       parity: 'parity',
     };
     const rows = [];
@@ -2813,7 +2816,7 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -3402,6 +3405,26 @@
     });
   }
 
+  function emitWorkspaceContextContractGapTelemetry(context, conversation) {
+    const contract = context?.contract;
+    if (!contract || contract.enabled !== true || contract.ready === true) {
+      return;
+    }
+    const violations = Array.isArray(contract.violations)
+      ? contract.violations.filter(Boolean).map((item) => String(item).trim()).filter(Boolean)
+      : [];
+    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    if (!ticketId) {
+      return;
+    }
+    emitWorkspaceTelemetry('workspace_context_contract_gap', {
+      ticketId,
+      reason: violations.join(',') || 'contract_not_ready',
+      durationMs: violations.length,
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
   function emitWorkspaceSlaPolicyGapTelemetry(sla, conversation) {
     const policy = sla?.policy;
     if (!policy || typeof policy !== 'object') {
@@ -3664,6 +3687,7 @@
     emitWorkspaceContextSourceGapTelemetry(context, conversation);
     emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation);
     emitWorkspaceContextBlockGapTelemetry(context, conversation);
+    emitWorkspaceContextContractGapTelemetry(context, conversation);
     emitWorkspaceSlaPolicyGapTelemetry(sla, conversation);
     emitWorkspaceParityGapTelemetry(parity, conversation);
 
@@ -3760,6 +3784,7 @@
       'language',
       'segments',
       'context_sources',
+      'context_contract',
       'external_links',
       'attribute_labels',
       'attribute_order',
@@ -4011,6 +4036,20 @@
         </div>`
       : '';
 
+    const contract = context?.contract && typeof context.contract === 'object'
+      ? context.contract
+      : (client.context_contract && typeof client.context_contract === 'object' ? client.context_contract : null);
+    const contractViolations = Array.isArray(contract?.violations) ? contract.violations.filter(Boolean) : [];
+    const contextContractSection = contract && contract.enabled === true
+      ? `<div class="alert ${contract.ready === true ? 'alert-success' : 'alert-warning'} py-2 px-3 small mt-2 mb-2">
+          <div class="fw-semibold mb-1">Context contract</div>
+          <div>${contract.ready === true
+            ? 'Minimum profile соблюдён.'
+            : `Есть отклонения: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`}</div>
+          <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
+        </div>`
+      : '';
+
     const extraSection = expandedRows || collapsedRows
       ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>
         <div>${expandedRows}</div>
@@ -4035,7 +4074,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${contextBlocksSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {

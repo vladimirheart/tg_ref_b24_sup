@@ -269,6 +269,11 @@ class DialogApiControllerWebMvcTest {
                 "workspace_ab_rollout_percent", 35,
                 "workspace_ab_experiment_name", "workspace_v1_rollout",
                 "workspace_disable_legacy_fallback", true,
+                "workspace_rollout_context_contract_required", true,
+                "workspace_rollout_context_contract_scenarios", List.of("billing"),
+                "workspace_rollout_context_contract_mandatory_fields", List.of("total_dialogs", "open_dialogs"),
+                "workspace_rollout_context_contract_source_of_truth", List.of("total_dialogs:local"),
+                "workspace_rollout_context_contract_priority_blocks", List.of("customer_profile", "context_sources"),
                 "workspace_rollout_external_kpi_reviewed_at", "2026-01-01T10:15:00+03:00",
                 "workspace_rollout_external_kpi_data_updated_at", "invalid-date"
         )));
@@ -295,6 +300,10 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.client.segments.length()").value(0))
                 .andExpect(jsonPath("$.context.client.total_dialogs").value(8))
                 .andExpect(jsonPath("$.context.client.open_dialogs").value(2))
+                .andExpect(jsonPath("$.context.contract.enabled").value(true))
+                .andExpect(jsonPath("$.context.contract.ready").value(true))
+                .andExpect(jsonPath("$.context.contract.missing_mandatory_fields.length()").value(0))
+                .andExpect(jsonPath("$.context.contract.source_of_truth_violations.length()").value(0))
                 .andExpect(jsonPath("$.permissions.can_bulk").value(false))
                 .andExpect(jsonPath("$.sla.target_minutes").value(1440))
                 .andExpect(jsonPath("$.sla.policy.status").value("ready"))
@@ -1121,6 +1130,23 @@ class DialogApiControllerWebMvcTest {
                                   "event_type": "workspace_context_block_gap",
                                   "ticket_id": "T-CTX",
                                   "reason": "context_sources,customer_profile",
+                                  "duration_ms": 2
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceTelemetryAcceptsContextContractGapEvent() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_context_contract_gap",
+                                  "ticket_id": "T-CTX-CONTRACT",
+                                  "reason": "mandatory_field:crm_tier,source_of_truth:crm_tier:crm:source_missing",
                                   "duration_ms": 2
                                 }
                                 """))
