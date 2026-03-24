@@ -373,6 +373,39 @@
                                 </div>
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetrySlaPolicyAuditIssueSummary"></div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetrySlaPolicyReviewForm">
+                                <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyReviewedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyReviewedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetrySlaPolicyDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyDryRunTicketId" class="form-label form-label-sm mb-1">Dry-run ticket ID</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyDryRunTicketId" maxlength="80" placeholder="INC-1234">
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="workspaceTelemetrySlaPolicyReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyReviewNote" maxlength="500" placeholder="conflict cleanup, broad route review, owner follow-up">
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetrySlaPolicySaveReview">Сохранить SLA review</button>
+                                    <small class="text-muted" id="workspaceTelemetrySlaPolicyActionState"></small>
+                                </div>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-12 col-xl-5">
                                     <div class="table-responsive">
