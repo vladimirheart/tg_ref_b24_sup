@@ -84,7 +84,9 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
         if (authorityNames.isEmpty()) {
             authorityNames.add("ROLE_USER");
         }
-        return authorityNames.stream().map(SimpleGrantedAuthority::new).toList();
+        return authorityNames.stream()
+                .map(authority -> (GrantedAuthority) new SimpleGrantedAuthority(authority))
+                .toList();
     }
 
     private Set<String> loadDirectAuthorities(Long userId) {
