@@ -74,6 +74,13 @@
   const slaPolicyAuditIssueSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditIssueSummary');
   const slaPolicyAuditIssuesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditIssuesTable');
   const slaPolicyAuditRulesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditRulesTable');
+  const slaPolicyReviewedByInput = document.getElementById('workspaceTelemetrySlaPolicyReviewedBy');
+  const slaPolicyReviewedAtInput = document.getElementById('workspaceTelemetrySlaPolicyReviewedAtUtc');
+  const slaPolicyReviewNoteInput = document.getElementById('workspaceTelemetrySlaPolicyReviewNote');
+  const slaPolicyDecisionInput = document.getElementById('workspaceTelemetrySlaPolicyDecision');
+  const slaPolicyDryRunTicketIdInput = document.getElementById('workspaceTelemetrySlaPolicyDryRunTicketId');
+  const slaPolicySaveReviewButton = document.getElementById('workspaceTelemetrySlaPolicySaveReview');
+  const slaPolicyActionState = document.getElementById('workspaceTelemetrySlaPolicyActionState');
   const macroGovernanceStatus = document.getElementById('workspaceTelemetryMacroGovernanceStatus');
   const macroGovernanceUpdatedAt = document.getElementById('workspaceTelemetryMacroGovernanceUpdatedAt');
   const macroGovernanceSummary = document.getElementById('workspaceTelemetryMacroGovernanceSummary');
@@ -734,7 +741,8 @@
       slaPolicyAuditSummary.textContent = audit?.summary || 'SLA policy audit недоступен.';
     }
     if (slaPolicyAuditMeta) {
-      slaPolicyAuditMeta.textContent = `rules=${formatNumber(audit?.rules_total || 0)} · critical candidates=${formatNumber(audit?.critical_candidates || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · mode=${escapeHtml(audit?.orchestration_mode || '—')}`;
+      const slaPolicyReviewEvents = latestPayload?.totals?.workspace_sla_policy_review_updated_events ?? 0;
+      slaPolicyAuditMeta.textContent = `rules=${formatNumber(audit?.rules_total || 0)} · critical candidates=${formatNumber(audit?.critical_candidates || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · mode=${escapeHtml(audit?.orchestration_mode || '—')} · review updates=${formatNumber(slaPolicyReviewEvents)}`;
     }
     const layerCounts = audit?.layer_counts && typeof audit.layer_counts === 'object' ? audit.layer_counts : {};
     const layerEntries = Object.entries(layerCounts);
@@ -745,7 +753,7 @@
     }
     if (slaPolicyAuditLayersMeta) {
       const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
-      slaPolicyAuditLayersMeta.textContent = `require_layers=${requirements.require_layers === true ? 'on' : 'off'} · require_owner=${requirements.require_owner === true ? 'on' : 'off'} · require_review=${requirements.require_review === true ? `on (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'off'}`;
+      slaPolicyAuditLayersMeta.textContent = `require_layers=${requirements.require_layers === true ? 'on' : 'off'} · require_owner=${requirements.require_owner === true ? 'on' : 'off'} · require_review=${requirements.require_review === true ? `on (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'off'} · governance_review=${requirements.governance_review_required === true ? `on (${formatNumber(requirements.governance_review_ttl_hours || 0)}h)` : 'off'}`;
     }
     const preview = audit?.decision_preview && typeof audit.decision_preview === 'object' ? audit.decision_preview : {};
     const selectedByLayer = preview.selected_by_layer && typeof preview.selected_by_layer === 'object' ? preview.selected_by_layer : {};
@@ -839,6 +847,23 @@
           `;
         }).join('');
       }
+    }
+    const governanceReview = audit?.governance_review && typeof audit.governance_review === 'object' ? audit.governance_review : {};
+    if (slaPolicyReviewedByInput) {
+      slaPolicyReviewedByInput.value = String(governanceReview?.reviewed_by || '').trim();
+    }
+    if (slaPolicyReviewedAtInput) {
+      slaPolicyReviewedAtInput.value = toDateTimeLocalValue(governanceReview?.reviewed_at_utc);
+    }
+    if (slaPolicyReviewNoteInput) {
+      slaPolicyReviewNoteInput.value = String(governanceReview?.review_note || '').trim();
+    }
+    if (slaPolicyDryRunTicketIdInput) {
+      slaPolicyDryRunTicketIdInput.value = String(governanceReview?.dry_run_ticket_id || '').trim();
+    }
+    if (slaPolicyDecisionInput) {
+      const decision = String(governanceReview?.decision || '').trim().toLowerCase();
+      slaPolicyDecisionInput.value = ['go', 'hold'].includes(decision) ? decision : '';
     }
   }
 
@@ -1683,6 +1708,53 @@
     }
   }
 
+  async function saveSlaPolicyGovernanceReview() {
+    if (!slaPolicySaveReviewButton) {
+      return;
+    }
+    slaPolicySaveReviewButton.disabled = true;
+    if (slaPolicyActionState) {
+      slaPolicyActionState.textContent = 'Сохраняем...';
+    }
+    const reviewedAtUtc = dateTimeLocalToUtcIso(slaPolicyReviewedAtInput ? (slaPolicyReviewedAtInput.value || '').trim() : '');
+    if (reviewedAtUtc === null) {
+      if (slaPolicyActionState) {
+        slaPolicyActionState.textContent = 'Ошибка: поле "Reviewed at (UTC)" содержит невалидную дату.';
+      }
+      slaPolicySaveReviewButton.disabled = false;
+      return;
+    }
+    try {
+      const response = await fetch('/analytics/sla-policy/governance-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reviewedBy: slaPolicyReviewedByInput ? (slaPolicyReviewedByInput.value || '').trim() : '',
+          reviewedAtUtc,
+          reviewNote: slaPolicyReviewNoteInput ? (slaPolicyReviewNoteInput.value || '').trim().slice(0, 500) : '',
+          dryRunTicketId: slaPolicyDryRunTicketIdInput ? (slaPolicyDryRunTicketIdInput.value || '').trim().slice(0, 80) : '',
+          decision: slaPolicyDecisionInput ? String(slaPolicyDecisionInput.value || '').trim().toLowerCase() : '',
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      if (slaPolicyActionState) {
+        slaPolicyActionState.textContent = `Сохранено: ${formatTimestamp(payload?.reviewed_at_utc)}`;
+      }
+      await loadTelemetry();
+    } catch (error) {
+      if (slaPolicyActionState) {
+        slaPolicyActionState.textContent = `Ошибка: ${error.message}`;
+      }
+    } finally {
+      slaPolicySaveReviewButton.disabled = false;
+    }
+  }
+
   refreshButton.addEventListener('click', loadTelemetry);
   if (resetWindowButton) {
     resetWindowButton.addEventListener('click', () => {
@@ -1726,6 +1798,9 @@
   }
   if (legacySaveButton) {
     legacySaveButton.addEventListener('click', saveLegacyInventory);
+  }
+  if (slaPolicySaveReviewButton) {
+    slaPolicySaveReviewButton.addEventListener('click', saveSlaPolicyGovernanceReview);
   }
   experimentInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {

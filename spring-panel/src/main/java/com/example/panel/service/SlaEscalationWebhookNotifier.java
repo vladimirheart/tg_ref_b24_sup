@@ -27,6 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -448,6 +449,30 @@ public class SlaEscalationWebhookNotifier {
         boolean requireReview = resolveBoolean(dialogConfig, "sla_critical_auto_assign_audit_require_review", false);
         boolean blockOnConflict = resolveBoolean(dialogConfig, "sla_critical_auto_assign_audit_block_on_conflicts", false);
         long reviewTtlHours = Math.max(1L, resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_audit_review_ttl_hours", 168, 24 * 90));
+        boolean governanceReviewRequired = resolveBoolean(dialogConfig, "sla_critical_auto_assign_governance_review_required", false);
+        long governanceReviewTtlHours = Math.max(1L, resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_governance_review_ttl_hours", 168, 24 * 90));
+        boolean governanceDryRunTicketRequired = resolveBoolean(dialogConfig, "sla_critical_auto_assign_governance_dry_run_ticket_required", false);
+        String governanceReviewedBy = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_by")));
+        String governanceReviewedAtRaw = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_at")));
+        Instant governanceReviewedAt = parseUtcInstant(governanceReviewedAtRaw);
+        boolean governanceReviewedAtInvalid = governanceReviewedAtRaw != null && governanceReviewedAt == null;
+        long governanceReviewAgeHours = governanceReviewedAt != null
+                ? Math.max(0L, Duration.between(governanceReviewedAt, generatedAt).toHours())
+                : -1L;
+        boolean governanceReviewFresh = governanceReviewedAt != null && governanceReviewAgeHours <= governanceReviewTtlHours;
+        boolean governanceReviewPresent = governanceReviewedAt != null && governanceReviewedBy != null;
+        String governanceReviewNote = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_review_note")));
+        String governanceDryRunTicketId = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_id")));
+        String governanceDecision = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_decision")));
+        if (governanceDecision != null) {
+            governanceDecision = governanceDecision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(governanceDecision) && !"hold".equals(governanceDecision)) {
+                governanceDecision = null;
+            }
+        }
+        boolean governanceDryRunReady = !governanceDryRunTicketRequired || governanceDryRunTicketId != null;
+        boolean governanceReviewReady = !governanceReviewRequired
+                || (governanceReviewPresent && governanceReviewFresh && !governanceReviewedAtInvalid && governanceDryRunReady);
 
         List<DialogListItem> safeDialogs = dialogs == null ? List.of() : dialogs.stream().filter(dialog -> dialog != null).toList();
         List<Map<String, Object>> criticalCandidates = findEscalationCandidates(safeDialogs, targetMinutes, criticalMinutes, includeAssigned);
@@ -646,6 +671,53 @@ public class SlaEscalationWebhookNotifier {
                 Collectors.summingLong(row -> toLong(row.get("selected_candidates")))
         ));
 
+        if (governanceReviewedAtInvalid) {
+            issues.add(buildGovernanceIssue(
+                    governanceReviewRequired ? "rollout_blocker" : "backlog_candidate",
+                    governanceReviewRequired ? "hold" : "attention",
+                    "governance_review_invalid_utc",
+                    "governance_review",
+                    "UTC timestamp в SLA governance review невалиден.",
+                    "reviewed_at=invalid",
+                    List.of(),
+                    List.of()
+            ));
+        } else if (governanceReviewRequired && !governanceReviewPresent) {
+            issues.add(buildGovernanceIssue(
+                    "rollout_blocker",
+                    "hold",
+                    "governance_review_missing",
+                    "governance_review",
+                    "SLA policy governance review обязателен, но ещё не подтверждён.",
+                    "reviewed_by/reviewed_at missing",
+                    List.of(),
+                    List.of()
+            ));
+        } else if (governanceReviewRequired && !governanceReviewFresh) {
+            issues.add(buildGovernanceIssue(
+                    "rollout_blocker",
+                    "hold",
+                    "governance_review_stale",
+                    "governance_review",
+                    "SLA policy governance review устарел и требует обновления.",
+                    "review_age_hours=%d > ttl=%d".formatted(governanceReviewAgeHours, governanceReviewTtlHours),
+                    List.of(),
+                    List.of()
+            ));
+        }
+        if (governanceDryRunTicketRequired && governanceDryRunTicketId == null) {
+            issues.add(buildGovernanceIssue(
+                    governanceReviewRequired ? "rollout_blocker" : "backlog_candidate",
+                    governanceReviewRequired ? "hold" : "attention",
+                    "governance_dry_run_ticket_missing",
+                    "governance_review",
+                    "Для SLA policy review нужен ticket-id dry-run проверки.",
+                    "dry_run_ticket_id=missing",
+                    List.of(),
+                    List.of()
+            ));
+        }
+
         boolean hasHoldIssues = issues.stream().anyMatch(issue -> "hold".equals(String.valueOf(issue.get("status"))));
         boolean hasAttentionIssues = issues.stream().anyMatch(issue -> "attention".equals(String.valueOf(issue.get("status"))));
         String status;
@@ -694,7 +766,23 @@ public class SlaEscalationWebhookNotifier {
                 "require_review", requireReview,
                 "review_ttl_hours", reviewTtlHours,
                 "block_on_conflicts", blockOnConflict,
-                "broad_rule_coverage_pct", broadCoveragePct
+                "broad_rule_coverage_pct", broadCoveragePct,
+                "governance_review_required", governanceReviewRequired,
+                "governance_review_ttl_hours", governanceReviewTtlHours,
+                "governance_dry_run_ticket_required", governanceDryRunTicketRequired
+        ));
+        auditPayload.put("governance_review", Map.of(
+                "required", governanceReviewRequired,
+                "ready", governanceReviewReady,
+                "reviewed_by", governanceReviewedBy == null ? "" : governanceReviewedBy,
+                "reviewed_at_utc", governanceReviewedAt != null ? governanceReviewedAt.toString() : "",
+                "reviewed_at_invalid_utc", governanceReviewedAtInvalid,
+                "review_note", governanceReviewNote == null ? "" : governanceReviewNote,
+                "dry_run_ticket_id", governanceDryRunTicketId == null ? "" : governanceDryRunTicketId,
+                "dry_run_ticket_required", governanceDryRunTicketRequired,
+                "decision", governanceDecision == null ? "" : governanceDecision,
+                "review_ttl_hours", governanceReviewTtlHours,
+                "review_age_hours", governanceReviewAgeHours
         ));
         auditPayload.put("issues", issues);
         auditPayload.put("rules", rules);
