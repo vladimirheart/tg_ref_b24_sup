@@ -3168,6 +3168,7 @@ public class DialogService {
         long workspaceRolloutReviewDecisionHoldEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_hold_events"))).sum();
         long workspaceRolloutReviewDecisionRollbackEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_rollback_events"))).sum();
         long workspaceRolloutReviewIncidentFollowupLinkedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_incident_followup_linked_events"))).sum();
+        long workspaceSlaPolicyReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_review_updated_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -3223,6 +3224,7 @@ public class DialogService {
         totals.put("workspace_rollout_review_decision_hold_events", workspaceRolloutReviewDecisionHoldEvents);
         totals.put("workspace_rollout_review_decision_rollback_events", workspaceRolloutReviewDecisionRollbackEvents);
         totals.put("workspace_rollout_review_incident_followup_linked_events", workspaceRolloutReviewIncidentFollowupLinkedEvents);
+        totals.put("workspace_sla_policy_review_updated_events", workspaceSlaPolicyReviewUpdatedEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
@@ -4189,6 +4191,7 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_hold' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_hold_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_rollback' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_rollback_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_incident_followup_linked' THEN 1 ELSE 0 END) AS workspace_rollout_review_incident_followup_linked_events,
+                       SUM(CASE WHEN event_type = 'workspace_sla_policy_review_updated' THEN 1 ELSE 0 END) AS workspace_sla_policy_review_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
@@ -4237,6 +4240,7 @@ public class DialogService {
                 item.put("workspace_rollout_review_decision_hold_events", rs.getLong("workspace_rollout_review_decision_hold_events"));
                 item.put("workspace_rollout_review_decision_rollback_events", rs.getLong("workspace_rollout_review_decision_rollback_events"));
                 item.put("workspace_rollout_review_incident_followup_linked_events", rs.getLong("workspace_rollout_review_incident_followup_linked_events"));
+                item.put("workspace_sla_policy_review_updated_events", rs.getLong("workspace_sla_policy_review_updated_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));

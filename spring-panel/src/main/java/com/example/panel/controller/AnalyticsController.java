@@ -422,6 +422,98 @@ public class AnalyticsController {
         ));
     }
 
+    @PostMapping(value = "/sla-policy/governance-review", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> updateSlaPolicyGovernanceReview(@RequestBody(required = false) SlaPolicyGovernanceReviewRequest request,
+                                                             Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
+        if (reviewedBy == null) {
+            reviewedBy = actor;
+        }
+        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+        OffsetDateTime reviewedAtUtc;
+        if (reviewedAtRaw == null) {
+            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        } else {
+            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
+            if (reviewedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
+        if (reviewNote != null && reviewNote.length() > 500) {
+            reviewNote = reviewNote.substring(0, 500);
+        }
+        String dryRunTicketId = normalize(String.valueOf(request != null ? request.dryRunTicketId() : null));
+        if (dryRunTicketId != null && dryRunTicketId.length() > 80) {
+            dryRunTicketId = dryRunTicketId.substring(0, 80);
+        }
+        String decision = normalize(String.valueOf(request != null ? request.decision() : null));
+        if (decision != null) {
+            decision = decision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(decision) && !"hold".equals(decision)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "decision must be one of: go, hold"));
+            }
+        }
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+        dialogConfig.put("sla_critical_auto_assign_governance_reviewed_by", reviewedBy);
+        dialogConfig.put("sla_critical_auto_assign_governance_reviewed_at", reviewedAtUtc.toInstant().toString());
+        if (reviewNote == null) {
+            dialogConfig.remove("sla_critical_auto_assign_governance_review_note");
+        } else {
+            dialogConfig.put("sla_critical_auto_assign_governance_review_note", reviewNote);
+        }
+        if (dryRunTicketId == null) {
+            dialogConfig.remove("sla_critical_auto_assign_governance_dry_run_ticket_id");
+        } else {
+            dialogConfig.put("sla_critical_auto_assign_governance_dry_run_ticket_id", dryRunTicketId);
+        }
+        if (decision == null) {
+            dialogConfig.remove("sla_critical_auto_assign_governance_decision");
+        } else {
+            dialogConfig.put("sla_critical_auto_assign_governance_decision", decision);
+        }
+        settings.put("dialog_config", dialogConfig);
+        sharedConfigService.saveSettings(settings);
+
+        dialogService.logWorkspaceTelemetry(
+                actor,
+                "workspace_sla_policy_review_updated",
+                "experiment",
+                null,
+                "analytics_sla_policy_governance_review",
+                null,
+                "workspace.v1",
+                null,
+                "workspace_v1_rollout",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "reviewed_by", reviewedBy,
+                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
+                "review_note", reviewNote == null ? "" : reviewNote,
+                "dry_run_ticket_id", dryRunTicketId == null ? "" : dryRunTicketId,
+                "decision", decision == null ? "" : decision
+        ));
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return null;
@@ -505,5 +597,12 @@ public class AnalyticsController {
                                                        String reviewedBy,
                                                        String reviewedAtUtc,
                                                        String note) {
+    }
+
+    private record SlaPolicyGovernanceReviewRequest(String reviewedBy,
+                                                    String reviewedAtUtc,
+                                                    String reviewNote,
+                                                    String dryRunTicketId,
+                                                    String decision) {
     }
 }
