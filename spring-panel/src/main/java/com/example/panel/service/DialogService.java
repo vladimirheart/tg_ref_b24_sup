@@ -1290,6 +1290,10 @@ public class DialogService {
             reviewCadenceFresh = reviewCadenceAgeDays <= reviewCadenceDays;
         }
         long reviewConfirmedEvents = toLong(safeTotals.get("workspace_rollout_review_confirmed_events"));
+        long reviewDecisionGoEvents = toLong(safeTotals.get("workspace_rollout_review_decision_go_events"));
+        long reviewDecisionHoldEvents = toLong(safeTotals.get("workspace_rollout_review_decision_hold_events"));
+        long reviewDecisionRollbackEvents = toLong(safeTotals.get("workspace_rollout_review_decision_rollback_events"));
+        long reviewIncidentFollowupLinkedEvents = toLong(safeTotals.get("workspace_rollout_review_incident_followup_linked_events"));
 
         List<Map<String, Object>> scorecardItems = safeListOfMaps(safeRolloutScorecard.get("items"));
         boolean scorecardSnapshotReady = !scorecardItems.isEmpty();
@@ -1607,6 +1611,10 @@ public class DialogService {
         reviewCadence.put("age_days", reviewCadenceAgeDays);
         reviewCadence.put("timestamp_invalid", reviewCadenceTimestampInvalid);
         reviewCadence.put("confirmed_events_in_window", reviewConfirmedEvents);
+        reviewCadence.put("decision_go_events_in_window", reviewDecisionGoEvents);
+        reviewCadence.put("decision_hold_events_in_window", reviewDecisionHoldEvents);
+        reviewCadence.put("decision_rollback_events_in_window", reviewDecisionRollbackEvents);
+        reviewCadence.put("incident_followup_linked_events_in_window", reviewIncidentFollowupLinkedEvents);
         reviewCadence.put("review_note", reviewCadenceNote == null ? "" : reviewCadenceNote);
         reviewCadence.put("decision_action", reviewDecisionAction == null ? "" : reviewDecisionAction);
         reviewCadence.put("incident_followup", reviewIncidentFollowup == null ? "" : reviewIncidentFollowup);
@@ -3156,6 +3164,10 @@ public class DialogService {
         long manualLegacyOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("manual_legacy_open_events"))).sum();
         long workspaceRolloutPacketViewedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_packet_viewed_events"))).sum();
         long workspaceRolloutReviewConfirmedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_confirmed_events"))).sum();
+        long workspaceRolloutReviewDecisionGoEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_go_events"))).sum();
+        long workspaceRolloutReviewDecisionHoldEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_hold_events"))).sum();
+        long workspaceRolloutReviewDecisionRollbackEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_rollback_events"))).sum();
+        long workspaceRolloutReviewIncidentFollowupLinkedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_incident_followup_linked_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -3207,6 +3219,10 @@ public class DialogService {
         totals.put("manual_legacy_open_events", manualLegacyOpenEvents);
         totals.put("workspace_rollout_packet_viewed_events", workspaceRolloutPacketViewedEvents);
         totals.put("workspace_rollout_review_confirmed_events", workspaceRolloutReviewConfirmedEvents);
+        totals.put("workspace_rollout_review_decision_go_events", workspaceRolloutReviewDecisionGoEvents);
+        totals.put("workspace_rollout_review_decision_hold_events", workspaceRolloutReviewDecisionHoldEvents);
+        totals.put("workspace_rollout_review_decision_rollback_events", workspaceRolloutReviewDecisionRollbackEvents);
+        totals.put("workspace_rollout_review_incident_followup_linked_events", workspaceRolloutReviewIncidentFollowupLinkedEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
@@ -4169,6 +4185,10 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_open_legacy_manual' THEN 1 ELSE 0 END) AS manual_legacy_open_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_packet_viewed' THEN 1 ELSE 0 END) AS workspace_rollout_packet_viewed_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_confirmed' THEN 1 ELSE 0 END) AS workspace_rollout_review_confirmed_events,
+                       SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_go' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_go_events,
+                       SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_hold' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_hold_events,
+                       SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_rollback' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_rollback_events,
+                       SUM(CASE WHEN event_type = 'workspace_rollout_review_incident_followup_linked' THEN 1 ELSE 0 END) AS workspace_rollout_review_incident_followup_linked_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
@@ -4213,6 +4233,10 @@ public class DialogService {
                 item.put("manual_legacy_open_events", rs.getLong("manual_legacy_open_events"));
                 item.put("workspace_rollout_packet_viewed_events", rs.getLong("workspace_rollout_packet_viewed_events"));
                 item.put("workspace_rollout_review_confirmed_events", rs.getLong("workspace_rollout_review_confirmed_events"));
+                item.put("workspace_rollout_review_decision_go_events", rs.getLong("workspace_rollout_review_decision_go_events"));
+                item.put("workspace_rollout_review_decision_hold_events", rs.getLong("workspace_rollout_review_decision_hold_events"));
+                item.put("workspace_rollout_review_decision_rollback_events", rs.getLong("workspace_rollout_review_decision_rollback_events"));
+                item.put("workspace_rollout_review_incident_followup_linked_events", rs.getLong("workspace_rollout_review_incident_followup_linked_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));

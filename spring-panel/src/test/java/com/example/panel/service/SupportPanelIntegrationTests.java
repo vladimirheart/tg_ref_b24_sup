@@ -804,6 +804,10 @@ class SupportPanelIntegrationTests {
         assertThat(reviewCadence).containsEntry("ready", true);
         assertThat(reviewCadence).containsEntry("reviewed_by", "ops-oncall");
         assertThat(reviewCadence).containsEntry("reviewed_at", "2026-02-04T10:11:12Z");
+        assertThat(reviewCadence).containsEntry("decision_go_events_in_window", 0L);
+        assertThat(reviewCadence).containsEntry("decision_hold_events_in_window", 0L);
+        assertThat(reviewCadence).containsEntry("decision_rollback_events_in_window", 0L);
+        assertThat(reviewCadence).containsEntry("incident_followup_linked_events_in_window", 0L);
         assertThat(parityExitCriteria).containsEntry("enabled", true);
         assertThat(parityExitCriteria).containsEntry("ready", true);
         assertThat(parityExitCriteria).containsEntry("critical_gap_events", 0L);
@@ -912,6 +916,37 @@ class SupportPanelIntegrationTests {
                 assertThat(String.valueOf(item.get("threshold"))).contains("incident follow-up required");
             }
         });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryIncludesWeeklyDecisionTelemetryCounters() {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('ops', 'workspace_rollout_review_confirmed', 'experiment', NULL, 'analytics_weekly_review', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-20 minute')),
+                    ('ops', 'workspace_rollout_review_decision_go', 'experiment', NULL, 'analytics_weekly_review_decision', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-19 minute')),
+                    ('ops', 'workspace_rollout_review_decision_hold', 'experiment', NULL, 'analytics_weekly_review_decision', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-18 minute')),
+                    ('ops', 'workspace_rollout_review_decision_rollback', 'experiment', NULL, 'analytics_weekly_review_decision', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-17 minute')),
+                    ('ops', 'workspace_rollout_review_incident_followup_linked', 'experiment', NULL, 'analytics_weekly_review_incident_followup', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-16 minute'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> reviewCadence = (Map<String, Object>) packet.get("review_cadence");
+        Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
+
+        assertThat(totals.get("workspace_rollout_review_decision_go_events")).isEqualTo(1L);
+        assertThat(totals.get("workspace_rollout_review_decision_hold_events")).isEqualTo(1L);
+        assertThat(totals.get("workspace_rollout_review_decision_rollback_events")).isEqualTo(1L);
+        assertThat(totals.get("workspace_rollout_review_incident_followup_linked_events")).isEqualTo(1L);
+        assertThat(reviewCadence).containsEntry("confirmed_events_in_window", 1L);
+        assertThat(reviewCadence).containsEntry("decision_go_events_in_window", 1L);
+        assertThat(reviewCadence).containsEntry("decision_hold_events_in_window", 1L);
+        assertThat(reviewCadence).containsEntry("decision_rollback_events_in_window", 1L);
+        assertThat(reviewCadence).containsEntry("incident_followup_linked_events_in_window", 1L);
     }
 
     @Test
