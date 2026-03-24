@@ -310,6 +310,80 @@ public class AnalyticsController {
         ));
     }
 
+    @PostMapping(value = "/workspace-rollout/legacy-only-scenarios", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> updateWorkspaceLegacyOnlyScenarios(@RequestBody(required = false) WorkspaceLegacyOnlyScenariosRequest request,
+                                                                Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
+        if (reviewedBy == null) {
+            reviewedBy = actor;
+        }
+        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+        OffsetDateTime reviewedAtUtc;
+        if (reviewedAtRaw == null) {
+            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        } else {
+            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
+            if (reviewedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+        List<String> scenarios = sanitizeStringList(request != null ? request.scenarios() : null);
+        String note = normalize(String.valueOf(request != null ? request.note() : null));
+        if (note != null && note.length() > 500) {
+            note = note.substring(0, 500);
+        }
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+        if (scenarios.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_governance_legacy_only_scenarios");
+        } else {
+            dialogConfig.put("workspace_rollout_governance_legacy_only_scenarios", scenarios);
+        }
+        dialogConfig.put("workspace_rollout_governance_legacy_inventory_reviewed_by", reviewedBy);
+        dialogConfig.put("workspace_rollout_governance_legacy_inventory_reviewed_at", reviewedAtUtc.toInstant().toString());
+        if (note == null) {
+            dialogConfig.remove("workspace_rollout_governance_legacy_inventory_review_note");
+        } else {
+            dialogConfig.put("workspace_rollout_governance_legacy_inventory_review_note", note);
+        }
+        settings.put("dialog_config", dialogConfig);
+        sharedConfigService.saveSettings(settings);
+
+        dialogService.logWorkspaceTelemetry(
+                actor,
+                "workspace_legacy_inventory_updated",
+                "experiment",
+                null,
+                "analytics_legacy_inventory",
+                null,
+                "workspace.v1",
+                (double) scenarios.size(),
+                "workspace_v1_rollout",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "scenarios", scenarios,
+                "reviewed_by", reviewedBy,
+                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
+                "note", note == null ? "" : note
+        ));
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return null;
@@ -387,5 +461,11 @@ public class AnalyticsController {
                                                    String reviewedBy,
                                                    String reviewedAtUtc,
                                                    String note) {
+    }
+
+    private record WorkspaceLegacyOnlyScenariosRequest(Object scenarios,
+                                                       String reviewedBy,
+                                                       String reviewedAtUtc,
+                                                       String note) {
     }
 }

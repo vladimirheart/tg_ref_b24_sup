@@ -244,6 +244,26 @@
                                         <div class="text-muted small">Legacy-only scenarios</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketLegacyState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketLegacyMeta"></div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyScenarios" class="form-label form-label-sm mb-1">Scenarios (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyScenarios" placeholder="attachments_edit, inline_reopen">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyReviewedBy" placeholder="ops.lead">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                            <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryLegacyReviewedAtUtc">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyReviewNote" maxlength="500" placeholder="Почему сценарий остаётся legacy-only и когда закрываем">
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryLegacySave">Сохранить inventory</button>
+                                            <small class="text-muted" id="workspaceTelemetryLegacyActionState"></small>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-12">
