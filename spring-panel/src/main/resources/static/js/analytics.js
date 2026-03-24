@@ -589,10 +589,14 @@
       const cadenceDays = reviewCadence?.cadence_days ?? '—';
       const ageDays = reviewCadence?.age_days ?? '—';
       const confirmedEvents = reviewCadence?.confirmed_events_in_window ?? 0;
+      const goEvents = reviewCadence?.decision_go_events_in_window ?? 0;
+      const holdEvents = reviewCadence?.decision_hold_events_in_window ?? 0;
+      const rollbackEvents = reviewCadence?.decision_rollback_events_in_window ?? 0;
+      const followupLinkedEvents = reviewCadence?.incident_followup_linked_events_in_window ?? 0;
       const reviewNote = String(reviewCadence?.review_note || '').trim();
       const decisionAction = String(reviewCadence?.decision_action || '').trim().toLowerCase();
       const incidentFollowup = String(reviewCadence?.incident_followup || '').trim();
-      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents}${decisionAction ? ` · decision: ${decisionAction}` : ''}${reviewNote ? ` · note: ${reviewNote}` : ''}${incidentFollowup ? ` · incident: ${incidentFollowup}` : ''}`;
+      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents} · go/hold/rollback: ${goEvents}/${holdEvents}/${rollbackEvents} · followup linked: ${followupLinkedEvents}${decisionAction ? ` · decision: ${decisionAction}` : ''}${reviewNote ? ` · note: ${reviewNote}` : ''}${incidentFollowup ? ` · incident: ${incidentFollowup}` : ''}`;
     }
     if (reviewByInput) {
       reviewByInput.value = reviewCadence?.reviewed_by || '';

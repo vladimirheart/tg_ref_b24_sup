@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -90,6 +91,38 @@ class AnalyticsControllerWebMvcTest {
                 eq("experiment"),
                 eq(null),
                 eq("analytics_weekly_review"),
+                eq(null),
+                eq("workspace.v1"),
+                eq(null),
+                eq("workspace_v1_rollout"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
+        verify(dialogService).logWorkspaceTelemetry(
+                eq("ops.lead"),
+                eq("workspace_rollout_review_decision_hold"),
+                eq("experiment"),
+                eq(null),
+                eq("analytics_weekly_review_decision"),
+                eq(null),
+                eq("workspace.v1"),
+                eq(null),
+                eq("workspace_v1_rollout"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
+        verify(dialogService).logWorkspaceTelemetry(
+                eq("ops.lead"),
+                eq("workspace_rollout_review_incident_followup_linked"),
+                eq("experiment"),
+                eq(null),
+                eq("analytics_weekly_review_incident_followup"),
                 eq(null),
                 eq("workspace.v1"),
                 eq(null),
@@ -185,6 +218,38 @@ class AnalyticsControllerWebMvcTest {
         Map<String, Object> savedSettings = settingsCaptor.getValue();
         Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
         assertThat(dialogConfig.containsKey("workspace_rollout_governance_review_note")).isFalse();
+        verify(dialogService, never()).logWorkspaceTelemetry(
+                eq("ops.lead"),
+                eq("workspace_rollout_review_decision_go"),
+                eq("experiment"),
+                eq(null),
+                eq("analytics_weekly_review_decision"),
+                eq(null),
+                eq("workspace.v1"),
+                eq(null),
+                eq("workspace_v1_rollout"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
+        verify(dialogService, never()).logWorkspaceTelemetry(
+                eq("ops.lead"),
+                eq("workspace_rollout_review_incident_followup_linked"),
+                eq("experiment"),
+                eq(null),
+                eq("analytics_weekly_review_incident_followup"),
+                eq(null),
+                eq("workspace.v1"),
+                eq(null),
+                eq("workspace_v1_rollout"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
     }
 
     @Test
