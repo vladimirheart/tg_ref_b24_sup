@@ -213,6 +213,19 @@
                                             <label for="workspaceTelemetryReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
                                             <textarea class="form-control form-control-sm" id="workspaceTelemetryReviewNote" rows="2" maxlength="500" placeholder="Короткий follow-up: parity-gap, incident action, owner next step"></textarea>
                                         </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewDecisionAction" class="form-label form-label-sm mb-1">Decision (go/hold/rollback)</label>
+                                            <select class="form-select form-select-sm" id="workspaceTelemetryReviewDecisionAction">
+                                                <option value="">Не указан</option>
+                                                <option value="go">Go</option>
+                                                <option value="hold">Hold</option>
+                                                <option value="rollback">Rollback</option>
+                                            </select>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewIncidentFollowup" class="form-label form-label-sm mb-1">Incident follow-up (optional)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewIncidentFollowup" maxlength="255" placeholder="INC-123 / ссылка на postmortem">
+                                        </div>
                                         <div class="d-flex align-items-center gap-2 mt-2">
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryReviewConfirm">Подтвердить review</button>
                                             <small class="text-muted" id="workspaceTelemetryReviewActionState"></small>

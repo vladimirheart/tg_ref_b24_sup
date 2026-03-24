@@ -1234,6 +1234,16 @@ public class DialogService {
         String reviewCadenceBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_reviewed_by")));
         String reviewCadenceAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_reviewed_at"));
         String reviewCadenceNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_review_note")));
+        String reviewDecisionAction = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_review_decision_action")));
+        if (reviewDecisionAction != null) {
+            reviewDecisionAction = reviewDecisionAction.toLowerCase(Locale.ROOT);
+            if (!"go".equals(reviewDecisionAction) && !"hold".equals(reviewDecisionAction) && !"rollback".equals(reviewDecisionAction)) {
+                reviewDecisionAction = null;
+            }
+        }
+        String reviewIncidentFollowup = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_review_incident_followup")));
+        boolean reviewDecisionRequired = resolveBooleanDialogConfigValue("workspace_rollout_governance_review_decision_required", false);
+        boolean reviewIncidentFollowupRequired = resolveBooleanDialogConfigValue("workspace_rollout_governance_incident_followup_required", false);
         long parityExitDays = resolveLongDialogConfigValue(
                 "workspace_rollout_governance_parity_exit_days", 0, 0, 90);
         List<String> parityCriticalReasons = resolveDialogConfigStringList(
@@ -1261,8 +1271,6 @@ public class DialogService {
             reviewCadenceAgeDays = Math.max(0, java.time.Duration.between(reviewCadenceAt, OffsetDateTime.now(ZoneOffset.UTC)).toDays());
             reviewCadenceFresh = reviewCadenceAgeDays <= reviewCadenceDays;
         }
-        boolean reviewCadenceReady = !reviewCadenceEnabled
-                || (reviewCadencePresent && reviewCadenceFresh && !reviewCadenceTimestampInvalid);
         long reviewConfirmedEvents = toLong(safeTotals.get("workspace_rollout_review_confirmed_events"));
 
         List<Map<String, Object>> scorecardItems = safeListOfMaps(safeRolloutScorecard.get("items"));
@@ -1287,6 +1295,13 @@ public class DialogService {
         long fallbackAlerts = alerts.stream().filter(alert -> "fallback_rate".equals(String.valueOf(alert.get("metric")))).count();
         long abandonAlerts = alerts.stream().filter(alert -> "abandon_rate".equals(String.valueOf(alert.get("metric")))).count();
         long slowOpenAlerts = alerts.stream().filter(alert -> "slow_open_rate".equals(String.valueOf(alert.get("metric")))).count();
+        boolean reviewDecisionPresent = StringUtils.hasText(reviewDecisionAction);
+        boolean reviewIncidentFollowupPresent = StringUtils.hasText(reviewIncidentFollowup);
+        boolean incidentActionRequiredNow = reviewIncidentFollowupRequired && !alerts.isEmpty();
+        boolean reviewCadenceReady = !reviewCadenceEnabled
+                || (reviewCadencePresent && reviewCadenceFresh && !reviewCadenceTimestampInvalid
+                && (!reviewDecisionRequired || reviewDecisionPresent)
+                && (!incidentActionRequiredNow || reviewIncidentFollowupPresent));
         boolean incidentHistoryReady = true;
         boolean externalGateSnapshotReady = !externalSignal.isEmpty();
         Map<String, Object> parityExitCriteria = buildWorkspaceParityExitCriteria(
@@ -1392,9 +1407,17 @@ public class DialogService {
                         : reviewCadenceTimestampInvalid
                                 ? "invalid_utc"
                                 : reviewCadencePresent
-                                        ? "reviewed_by=%s".formatted(reviewCadenceBy)
+                                        ? "reviewed_by=%s%s%s".formatted(
+                                        reviewCadenceBy,
+                                        reviewDecisionPresent ? ", decision=%s".formatted(reviewDecisionAction) : "",
+                                        reviewIncidentFollowupPresent ? ", incident_followup=present" : "")
                                         : "missing",
-                reviewCadenceEnabled ? "present & <= %d days".formatted(reviewCadenceDays) : "optional",
+                reviewCadenceEnabled
+                        ? "present & <= %d days%s%s".formatted(
+                        reviewCadenceDays,
+                        reviewDecisionRequired ? ", decision required" : "",
+                        incidentActionRequiredNow ? ", incident follow-up required when alerts>0" : "")
+                        : "optional",
                 reviewCadenceAt != null ? reviewCadenceAt.toString() : "",
                 reviewCadencePresent
                         ? StringUtils.hasText(reviewCadenceNote)
@@ -1497,6 +1520,10 @@ public class DialogService {
         reviewCadence.put("timestamp_invalid", reviewCadenceTimestampInvalid);
         reviewCadence.put("confirmed_events_in_window", reviewConfirmedEvents);
         reviewCadence.put("review_note", reviewCadenceNote == null ? "" : reviewCadenceNote);
+        reviewCadence.put("decision_action", reviewDecisionAction == null ? "" : reviewDecisionAction);
+        reviewCadence.put("incident_followup", reviewIncidentFollowup == null ? "" : reviewIncidentFollowup);
+        reviewCadence.put("decision_required", reviewDecisionRequired);
+        reviewCadence.put("incident_followup_required", reviewIncidentFollowupRequired);
 
         Map<String, Object> paritySnapshot = new LinkedHashMap<>();
         paritySnapshot.put("ready", paritySnapshotReady);

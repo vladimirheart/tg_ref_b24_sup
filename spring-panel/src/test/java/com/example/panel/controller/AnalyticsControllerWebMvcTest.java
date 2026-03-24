@@ -59,7 +59,9 @@ class AnalyticsControllerWebMvcTest {
                                 {
                                   "reviewedBy": "ops.lead",
                                   "reviewedAtUtc": "2026-03-24T12:15:30Z",
-                                  "reviewNote": "INC-42 follow-up: проверить parity gap по media attachments"
+                                  "reviewNote": "INC-42 follow-up: проверить parity gap по media attachments",
+                                  "decisionAction": "hold",
+                                  "incidentFollowup": "INC-42"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -67,7 +69,9 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(jsonPath("$.reviewed_by").value("ops.lead"))
                 .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-24T12:15:30Z"))
                 .andExpect(jsonPath("$.next_review_due_at_utc").value("2026-03-31T12:15:30Z"))
-                .andExpect(jsonPath("$.review_note").value("INC-42 follow-up: проверить parity gap по media attachments"));
+                .andExpect(jsonPath("$.review_note").value("INC-42 follow-up: проверить parity gap по media attachments"))
+                .andExpect(jsonPath("$.decision_action").value("hold"))
+                .andExpect(jsonPath("$.incident_followup").value("INC-42"));
 
         ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(sharedConfigService).saveSettings(settingsCaptor.capture());
@@ -77,6 +81,8 @@ class AnalyticsControllerWebMvcTest {
         assertThat(dialogConfig.get("workspace_rollout_governance_reviewed_by")).isEqualTo("ops.lead");
         assertThat(dialogConfig.get("workspace_rollout_governance_reviewed_at")).isEqualTo("2026-03-24T12:15:30Z");
         assertThat(dialogConfig.get("workspace_rollout_governance_review_note")).isEqualTo("INC-42 follow-up: проверить parity gap по media attachments");
+        assertThat(dialogConfig.get("workspace_rollout_governance_review_decision_action")).isEqualTo("hold");
+        assertThat(dialogConfig.get("workspace_rollout_governance_review_incident_followup")).isEqualTo("INC-42");
 
         verify(dialogService).logWorkspaceTelemetry(
                 eq("ops.lead"),
@@ -112,6 +118,43 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+    }
+
+    @Test
+    void confirmWorkspaceRolloutReviewRejectsNonUtcOffsetTimestamp() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        mockMvc.perform(post("/analytics/workspace-rollout/review")
+                        .with(user("ops.lead"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewedBy": "ops.lead",
+                                  "reviewedAtUtc": "2026-03-24T15:15:30+03:00"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+    }
+
+    @Test
+    void confirmWorkspaceRolloutReviewRejectsUnknownDecisionAction() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        mockMvc.perform(post("/analytics/workspace-rollout/review")
+                        .with(user("ops.lead"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewedBy": "ops.lead",
+                                  "reviewedAtUtc": "2026-03-24T12:15:30Z",
+                                  "decisionAction": "ship-it"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("decision_action must be one of: go, hold, rollback"));
     }
 
     @Test
