@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.model.AnalyticsClientSummary;
 import com.example.panel.model.AnalyticsTicketSummary;
 import com.example.panel.service.AnalyticsService;
+import com.example.panel.service.DialogService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import org.slf4j.Logger;
@@ -17,9 +18,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.PrintWriter;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,13 +37,16 @@ public class AnalyticsController {
     private static final Logger log = LoggerFactory.getLogger(AnalyticsController.class);
 
     private final AnalyticsService analyticsService;
+    private final DialogService dialogService;
     private final NavigationService navigationService;
     private final SharedConfigService sharedConfigService;
 
     public AnalyticsController(AnalyticsService analyticsService,
+                               DialogService dialogService,
                                NavigationService navigationService,
                                SharedConfigService sharedConfigService) {
         this.analyticsService = analyticsService;
+        this.dialogService = dialogService;
         this.navigationService = navigationService;
         this.sharedConfigService = sharedConfigService;
     }
@@ -100,5 +110,114 @@ public class AnalyticsController {
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=analytics.csv")
                 .body(body);
+    }
+
+    @PostMapping(value = "/workspace-rollout/review", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> confirmWorkspaceRolloutReview(@RequestBody(required = false) WorkspaceRolloutReviewRequest request,
+                                                           Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
+        if (reviewedBy == null) {
+            reviewedBy = actor;
+        }
+        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+        OffsetDateTime reviewedAtUtc;
+        if (reviewedAtRaw == null) {
+            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        } else {
+            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
+            if (reviewedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+        dialogConfig.put("workspace_rollout_governance_reviewed_by", reviewedBy);
+        dialogConfig.put("workspace_rollout_governance_reviewed_at", reviewedAtUtc.toString());
+        settings.put("dialog_config", dialogConfig);
+        sharedConfigService.saveSettings(settings);
+
+        Object cadenceRaw = dialogConfig.get("workspace_rollout_governance_review_cadence_days");
+        long cadenceDays = parsePositiveLong(cadenceRaw);
+        String dueAtUtc = cadenceDays > 0 ? reviewedAtUtc.plusDays(cadenceDays).toString() : "";
+
+        dialogService.logWorkspaceTelemetry(
+                actor,
+                "workspace_rollout_review_confirmed",
+                "experiment",
+                null,
+                "analytics_weekly_review",
+                null,
+                "workspace.v1",
+                null,
+                "workspace_v1_rollout",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "reviewed_by", reviewedBy,
+                "reviewed_at_utc", reviewedAtUtc.toString(),
+                "next_review_due_at_utc", dueAtUtc
+        ));
+    }
+
+    private static String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static OffsetDateTime parseUtcTimestamp(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            Instant parsed = Instant.parse(value);
+            return parsed.atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            // fallback
+        }
+        try {
+            OffsetDateTime parsed = OffsetDateTime.parse(value);
+            return parsed.withOffsetSameInstant(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    private static long parsePositiveLong(Object value) {
+        if (value instanceof Number number) {
+            return Math.max(0L, number.longValue());
+        }
+        if (value == null) {
+            return 0L;
+        }
+        try {
+            return Math.max(0L, Long.parseLong(String.valueOf(value).trim()));
+        } catch (NumberFormatException ex) {
+            return 0L;
+        }
+    }
+
+    private record WorkspaceRolloutReviewRequest(String reviewedBy, String reviewedAtUtc) {
     }
 }
