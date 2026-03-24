@@ -22,6 +22,7 @@
         <module>bot-core</module>
         <module>bot-telegram</module>
         <module>bot-vk</module>
+        <module>bot-max</module>
     </modules>
 
     <properties>
