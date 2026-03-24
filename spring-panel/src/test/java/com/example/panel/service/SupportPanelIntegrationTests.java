@@ -867,6 +867,48 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryRequiresDecisionAndIncidentFollowupWhenConfigured() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_governance_review_cadence_days":7,
+                         "workspace_rollout_governance_reviewed_by":"ops-oncall",
+                         "workspace_rollout_governance_reviewed_at":"2099-02-04T10:11:12",
+                         "workspace_rollout_governance_review_decision_required":true,
+                         "workspace_rollout_governance_incident_followup_required":true}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-3', NULL, NULL, 'workspace.v1', 1200, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-20 minute')),
+                    ('op1', 'workspace_render_error', 'guardrail', 'T-PACKET-GOV-3', NULL, NULL, 'workspace.v1', 0, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-18 minute'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> reviewCadence = (Map<String, Object>) packet.get("review_cadence");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+
+        assertThat(packet.get("status")).isEqualTo("hold");
+        assertThat((List<String>) packet.get("missing_items")).contains("weekly_review");
+        assertThat(reviewCadence).containsEntry("decision_required", true);
+        assertThat(reviewCadence).containsEntry("incident_followup_required", true);
+        assertThat(reviewCadence).containsEntry("decision_action", "");
+        assertThat(reviewCadence).containsEntry("incident_followup", "");
+        assertThat(items).anySatisfy(item -> {
+            if ("weekly_review".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(String.valueOf(item.get("threshold"))).contains("decision required");
+                assertThat(String.valueOf(item.get("threshold"))).contains("incident follow-up required");
+            }
+        });
+    }
+
+    @Test
     void workspaceTelemetrySummaryExpandsExternalCheckpointScorecardItems() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
