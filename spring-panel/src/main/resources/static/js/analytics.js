@@ -31,6 +31,10 @@
   const packetIncidentMeta = document.getElementById('workspaceTelemetryPacketIncidentMeta');
   const packetReviewState = document.getElementById('workspaceTelemetryPacketReviewState');
   const packetReviewMeta = document.getElementById('workspaceTelemetryPacketReviewMeta');
+  const reviewByInput = document.getElementById('workspaceTelemetryReviewBy');
+  const reviewAtInput = document.getElementById('workspaceTelemetryReviewAtUtc');
+  const reviewConfirmButton = document.getElementById('workspaceTelemetryReviewConfirm');
+  const reviewActionState = document.getElementById('workspaceTelemetryReviewActionState');
   const packetExitState = document.getElementById('workspaceTelemetryPacketExitState');
   const packetExitMeta = document.getElementById('workspaceTelemetryPacketExitMeta');
   const packetLegacyState = document.getElementById('workspaceTelemetryPacketLegacyState');
@@ -112,6 +116,22 @@
     return `${day}.${month}.${year} ${hours}:${minutes} UTC`;
   }
 
+  function toDateTimeLocalValue(value) {
+    if (!value) {
+      return '';
+    }
+    const parsed = new Date(String(value));
+    if (Number.isNaN(parsed.getTime())) {
+      return '';
+    }
+    const year = parsed.getUTCFullYear();
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
+    const hours = String(parsed.getUTCHours()).padStart(2, '0');
+    const minutes = String(parsed.getUTCMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
   function isTimestampInvalid(signal, canonicalKey, legacyKey) {
     if (!signal || typeof signal !== 'object') {
       return false;
@@ -184,6 +204,9 @@
     }
     if (packetReviewMeta) {
       packetReviewMeta.textContent = '';
+    }
+    if (reviewActionState) {
+      reviewActionState.textContent = '';
     }
     if (packetExitState) {
       packetExitState.textContent = '—';
@@ -517,7 +540,14 @@
       const reviewedAt = reviewCadence?.reviewed_at ? formatTimestamp(reviewCadence.reviewed_at) : '—';
       const cadenceDays = reviewCadence?.cadence_days ?? '—';
       const ageDays = reviewCadence?.age_days ?? '—';
-      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d`;
+      const confirmedEvents = reviewCadence?.confirmed_events_in_window ?? 0;
+      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents}`;
+    }
+    if (reviewByInput) {
+      reviewByInput.value = reviewCadence?.reviewed_by || '';
+    }
+    if (reviewAtInput) {
+      reviewAtInput.value = toDateTimeLocalValue(reviewCadence?.reviewed_at);
     }
     const parityExit = packet?.parity_exit_criteria || {};
     if (packetExitState) {
@@ -1351,6 +1381,45 @@
     }
   }
 
+  async function confirmWeeklyReview() {
+    if (!reviewConfirmButton) {
+      return;
+    }
+    reviewConfirmButton.disabled = true;
+    if (reviewActionState) {
+      reviewActionState.textContent = 'Сохраняем...';
+    }
+    const reviewedBy = reviewByInput ? (reviewByInput.value || '').trim() : '';
+    const reviewedAtLocal = reviewAtInput ? (reviewAtInput.value || '').trim() : '';
+    const reviewedAtUtc = reviewedAtLocal ? `${reviewedAtLocal}:00Z` : '';
+    try {
+      const response = await fetch('/analytics/workspace-rollout/review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reviewedBy,
+          reviewedAtUtc,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      if (reviewActionState) {
+        reviewActionState.textContent = `Сохранено: ${formatTimestamp(payload?.reviewed_at_utc)}`;
+      }
+      await loadTelemetry();
+    } catch (error) {
+      if (reviewActionState) {
+        reviewActionState.textContent = `Ошибка: ${error.message}`;
+      }
+    } finally {
+      reviewConfirmButton.disabled = false;
+    }
+  }
+
   refreshButton.addEventListener('click', loadTelemetry);
   if (scopeSelect) {
     scopeSelect.addEventListener('change', () => {
@@ -1375,6 +1444,9 @@
     });
   }
   daysSelect.addEventListener('change', loadTelemetry);
+  if (reviewConfirmButton) {
+    reviewConfirmButton.addEventListener('click', confirmWeeklyReview);
+  }
   experimentInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
