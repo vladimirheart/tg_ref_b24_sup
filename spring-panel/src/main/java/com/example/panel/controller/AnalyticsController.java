@@ -199,6 +199,44 @@ public class AnalyticsController {
                 null,
                 null
         );
+        if (decisionAction != null) {
+            dialogService.logWorkspaceTelemetry(
+                    actor,
+                    "workspace_rollout_review_decision_" + decisionAction,
+                    "experiment",
+                    null,
+                    "analytics_weekly_review_decision",
+                    null,
+                    "workspace.v1",
+                    null,
+                    "workspace_v1_rollout",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+        if (incidentFollowup != null) {
+            dialogService.logWorkspaceTelemetry(
+                    actor,
+                    "workspace_rollout_review_incident_followup_linked",
+                    "experiment",
+                    null,
+                    "analytics_weekly_review_incident_followup",
+                    null,
+                    "workspace.v1",
+                    null,
+                    "workspace_v1_rollout",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
 
         return ResponseEntity.ok(Map.of(
                 "success", true,

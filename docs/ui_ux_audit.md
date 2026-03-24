@@ -296,6 +296,19 @@
 
 Итог: контур minimum customer context теперь не только описывается на уровне policy, но и проверяется end-to-end в рабочем потоке оператора (UI → API payload → telemetry → analytics breakdown).
 
+### Обновление от 24 марта 2026 (четвёртая итерация): weekly rollout review стал измеряемым decision-loop
+
+Следующий логичный gap из P1 (перевести rollout governance в регулярный ритуал) закрыт дополнительной инструментализацией review:
+
+- **Подтверждение weekly review теперь пишет отдельные telemetry-события по decision action** (`go/hold/rollback`) и по факту привязки incident follow-up.
+  Это позволяет видеть не только число подтверждений review, но и фактическое распределение решений.
+- **В `rollout_packet.review_cadence` добавлены счётчики decision/follow-up за текущее UTC-окно**:
+  `decision_go_events_in_window`, `decision_hold_events_in_window`, `decision_rollback_events_in_window`, `incident_followup_linked_events_in_window`.
+- **Analytics UI расширен мета-строкой weekly review**: оператор и владелец rollout теперь видят распределение `go/hold/rollback` и число review с incident follow-up прямо в governance packet.
+- **Обратная совместимость сохранена**: при отсутствии новых telemetry-событий счётчики остаются `0`, а существующий flow review не меняется.
+
+Итог: weekly review перестаёт быть только бинарным чекбоксом «review подтверждён/не подтверждён» и становится наблюдаемым decision-loop, где можно отследить сдвиг решений и дисциплину incident follow-up в реальной эксплуатации.
+
 ### P1. Закрыть transition-state между workspace и legacy
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
