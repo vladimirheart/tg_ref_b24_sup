@@ -771,18 +771,18 @@ public class SlaEscalationWebhookNotifier {
                 "governance_review_ttl_hours", governanceReviewTtlHours,
                 "governance_dry_run_ticket_required", governanceDryRunTicketRequired
         ));
-        auditPayload.put("governance_review", Map.of(
-                "required", governanceReviewRequired,
-                "ready", governanceReviewReady,
-                "reviewed_by", governanceReviewedBy == null ? "" : governanceReviewedBy,
-                "reviewed_at_utc", governanceReviewedAt != null ? governanceReviewedAt.toString() : "",
-                "reviewed_at_invalid_utc", governanceReviewedAtInvalid,
-                "review_note", governanceReviewNote == null ? "" : governanceReviewNote,
-                "dry_run_ticket_id", governanceDryRunTicketId == null ? "" : governanceDryRunTicketId,
-                "dry_run_ticket_required", governanceDryRunTicketRequired,
-                "decision", governanceDecision == null ? "" : governanceDecision,
-                "review_ttl_hours", governanceReviewTtlHours,
-                "review_age_hours", governanceReviewAgeHours
+        auditPayload.put("governance_review", Map.ofEntries(
+                Map.entry("required", governanceReviewRequired),
+                Map.entry("ready", governanceReviewReady),
+                Map.entry("reviewed_by", governanceReviewedBy == null ? "" : governanceReviewedBy),
+                Map.entry("reviewed_at_utc", governanceReviewedAt != null ? governanceReviewedAt.toString() : ""),
+                Map.entry("reviewed_at_invalid_utc", governanceReviewedAtInvalid),
+                Map.entry("review_note", governanceReviewNote == null ? "" : governanceReviewNote),
+                Map.entry("dry_run_ticket_id", governanceDryRunTicketId == null ? "" : governanceDryRunTicketId),
+                Map.entry("dry_run_ticket_required", governanceDryRunTicketRequired),
+                Map.entry("decision", governanceDecision == null ? "" : governanceDecision),
+                Map.entry("review_ttl_hours", governanceReviewTtlHours),
+                Map.entry("review_age_hours", governanceReviewAgeHours)
         ));
         auditPayload.put("issues", issues);
         auditPayload.put("rules", rules);
