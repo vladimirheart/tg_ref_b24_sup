@@ -6,6 +6,9 @@
 
   const daysSelect = document.getElementById('workspaceTelemetryDays');
   const experimentInput = document.getElementById('workspaceTelemetryExperiment');
+  const fromUtcInput = document.getElementById('workspaceTelemetryFromUtc');
+  const toUtcInput = document.getElementById('workspaceTelemetryToUtc');
+  const resetWindowButton = document.getElementById('workspaceTelemetryResetWindow');
   const refreshButton = document.getElementById('workspaceTelemetryRefresh');
   const exportCsvButton = document.getElementById('workspaceTelemetryExportCsv');
   const scopeSelect = document.getElementById('workspaceTelemetryScope');
@@ -131,6 +134,18 @@
     const hours = String(parsed.getUTCHours()).padStart(2, '0');
     const minutes = String(parsed.getUTCMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function dateTimeLocalToUtcIso(value) {
+    const normalized = String(value || '').trim();
+    if (!normalized) {
+      return '';
+    }
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    return parsed.toISOString();
   }
 
   function isTimestampInvalid(signal, canonicalKey, legacyKey) {
@@ -994,6 +1009,8 @@
     const rows = [
       ['generated_at', payload?.generated_at || ''],
       ['window_days', payload?.window_days || ''],
+      ['window_from_utc', payload?.window_from_utc || ''],
+      ['window_to_utc', payload?.window_to_utc || ''],
       ['scope_filter', filters.scope],
       ['segment_filter', filters.segment || ''],
       [],
@@ -1282,7 +1299,12 @@
     okBadge.classList.toggle('d-none', status !== 'ok');
     attentionBadge.classList.toggle('d-none', status !== 'attention');
 
+    const windowFrom = formatTimestamp(payload?.window_from_utc || '');
+    const windowTo = formatTimestamp(payload?.window_to_utc || '');
     updatedAt.textContent = `Обновлено: ${formatTimestamp(payload?.generated_at)} · окно ${payload?.window_days || '—'} дн.`;
+    if (windowFrom !== '—' && windowTo !== '—') {
+      updatedAt.textContent = `Обновлено: ${formatTimestamp(payload?.generated_at)} · окно ${payload?.window_days || '—'} дн. · ${windowFrom} — ${windowTo}`;
+    }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
@@ -1315,8 +1337,21 @@
     if (experimentName) {
       params.set('experiment_name', experimentName);
     }
-
     try {
+      const fromUtcIso = dateTimeLocalToUtcIso(fromUtcInput?.value || '');
+      if (fromUtcIso === null) {
+        throw new Error('Поле "from UTC" содержит невалидную дату.');
+      }
+      const toUtcIso = dateTimeLocalToUtcIso(toUtcInput?.value || '');
+      if (toUtcIso === null) {
+        throw new Error('Поле "to UTC" содержит невалидную дату.');
+      }
+      if (fromUtcIso) {
+        params.set('from_utc', fromUtcIso);
+      }
+      if (toUtcIso) {
+        params.set('to_utc', toUtcIso);
+      }
       const response = await fetch(`/api/dialogs/workspace-telemetry/summary?${params.toString()}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -1428,6 +1463,17 @@
   }
 
   refreshButton.addEventListener('click', loadTelemetry);
+  if (resetWindowButton) {
+    resetWindowButton.addEventListener('click', () => {
+      if (fromUtcInput) {
+        fromUtcInput.value = '';
+      }
+      if (toUtcInput) {
+        toUtcInput.value = '';
+      }
+      loadTelemetry();
+    });
+  }
   if (scopeSelect) {
     scopeSelect.addEventListener('change', () => {
       if (latestPayload) {
