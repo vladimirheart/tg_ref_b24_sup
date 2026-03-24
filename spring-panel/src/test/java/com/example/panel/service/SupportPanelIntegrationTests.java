@@ -968,7 +968,7 @@ class SupportPanelIntegrationTests {
         assertThat((List<String>) packet.get("invalid_utc_items")).contains("legacy_only_inventory");
         assertThat(items).anySatisfy(item -> {
             if ("legacy_only_inventory".equals(item.get("key"))) {
-                assertThat(item.get("note")).contains("invalid_utc");
+                assertThat((String) item.get("note")).contains("invalid_utc");
             }
         });
     }
