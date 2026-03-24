@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @Controller
 @RequestMapping("/analytics")
@@ -210,6 +211,105 @@ public class AnalyticsController {
         ));
     }
 
+    @PostMapping(value = "/workspace-context/standard", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> updateWorkspaceContextStandard(@RequestBody(required = false) WorkspaceContextStandardRequest request,
+                                                            Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
+        if (reviewedBy == null) {
+            reviewedBy = actor;
+        }
+        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+        OffsetDateTime reviewedAtUtc;
+        if (reviewedAtRaw == null) {
+            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        } else {
+            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
+            if (reviewedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+
+        List<String> scenarios = sanitizeStringList(request != null ? request.scenarios() : null);
+        List<String> mandatoryFields = sanitizeStringList(request != null ? request.mandatoryFields() : null);
+        List<String> sourceOfTruth = sanitizeStringList(request != null ? request.sourceOfTruth() : null);
+        List<String> priorityBlocks = sanitizeStringList(request != null ? request.priorityBlocks() : null);
+        String note = normalize(String.valueOf(request != null ? request.note() : null));
+        if (note != null && note.length() > 500) {
+            note = note.substring(0, 500);
+        }
+        boolean required = request != null && Boolean.TRUE.equals(request.required());
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+        dialogConfig.put("workspace_rollout_context_contract_required", required);
+        if (scenarios.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_scenarios");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_scenarios", scenarios);
+        }
+        if (mandatoryFields.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_mandatory_fields");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_mandatory_fields", mandatoryFields);
+        }
+        if (sourceOfTruth.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_source_of_truth");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_source_of_truth", sourceOfTruth);
+        }
+        if (priorityBlocks.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_priority_blocks");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_priority_blocks", priorityBlocks);
+        }
+        dialogConfig.put("workspace_rollout_context_contract_reviewed_by", reviewedBy);
+        dialogConfig.put("workspace_rollout_context_contract_reviewed_at", reviewedAtUtc.toInstant().toString());
+        if (note == null) {
+            dialogConfig.remove("workspace_rollout_context_contract_review_note");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_review_note", note);
+        }
+        settings.put("dialog_config", dialogConfig);
+        sharedConfigService.saveSettings(settings);
+
+        dialogService.logWorkspaceTelemetry(
+                actor,
+                "workspace_context_contract_updated",
+                "experiment",
+                null,
+                "analytics_context_standard",
+                null,
+                "workspace.v1",
+                null,
+                "workspace_v1_rollout",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "required", required,
+                "reviewed_by", reviewedBy,
+                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
+                "scenarios", scenarios,
+                "mandatory_fields", mandatoryFields,
+                "source_of_truth", sourceOfTruth,
+                "priority_blocks", priorityBlocks,
+                "note", note == null ? "" : note
+        ));
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return null;
@@ -256,10 +356,36 @@ public class AnalyticsController {
         }
     }
 
+    private static List<String> sanitizeStringList(Object raw) {
+        Stream<?> stream;
+        if (raw instanceof List<?> list) {
+            stream = list.stream();
+        } else if (raw instanceof String value) {
+            stream = Stream.of(value.split("[,\\n;]"));
+        } else {
+            return List.of();
+        }
+        return stream
+                .map(item -> normalize(item == null ? null : String.valueOf(item)))
+                .filter(value -> value != null && value.length() <= 120)
+                .distinct()
+                .toList();
+    }
+
     private record WorkspaceRolloutReviewRequest(String reviewedBy,
                                                  String reviewedAtUtc,
                                                  String reviewNote,
                                                  String decisionAction,
                                                  String incidentFollowup) {
+    }
+
+    private record WorkspaceContextStandardRequest(Boolean required,
+                                                   Object scenarios,
+                                                   Object mandatoryFields,
+                                                   Object sourceOfTruth,
+                                                   Object priorityBlocks,
+                                                   String reviewedBy,
+                                                   String reviewedAtUtc,
+                                                   String note) {
     }
 }
