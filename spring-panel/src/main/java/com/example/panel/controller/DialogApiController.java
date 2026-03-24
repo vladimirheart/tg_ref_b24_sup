@@ -1945,15 +1945,15 @@ public class DialogApiController {
                     .body(Map.of("success", false, "error", result.error()));
         }
         String attachmentUrl = "/api/attachments/tickets/" + ticketId + "/" + result.storedName();
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "timestamp", result.timestamp(),
-                "telegramMessageId", result.telegramMessageId(),
-                "responsible", operator,
-                "attachment", attachmentUrl,
-                "messageType", result.messageType(),
-                "message", result.message()
-        ));
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("success", true);
+        response.put("timestamp", result.timestamp());
+        response.put("telegramMessageId", result.telegramMessageId());
+        response.put("responsible", operator);
+        response.put("attachment", attachmentUrl);
+        response.put("messageType", result.messageType());
+        response.put("message", result.message());
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{ticketId}/resolve")

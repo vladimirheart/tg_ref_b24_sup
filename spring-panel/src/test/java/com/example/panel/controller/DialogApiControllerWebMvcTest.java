@@ -16,12 +16,14 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 import java.util.List;
 import java.util.Map;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,6 +38,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -1510,6 +1513,37 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.telegramMessageId").value(7001));
+    }
+
+    @Test
+    void replyWithMediaAllowsNullCaptionInResponse() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(), eq("T-1"), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.example.panel.storage.AttachmentService.AttachmentUploadMetadata(
+                        "fun.gif",
+                        "stored-fun.gif",
+                        128L,
+                        OffsetDateTime.parse("2026-01-01T10:00:00Z")
+                ));
+        when(dialogReplyService.sendMediaReply(eq("T-1"), org.mockito.ArgumentMatchers.any(), eq(null), eq("operator"), eq("stored-fun.gif"), eq("fun.gif")))
+                .thenReturn(new DialogReplyService.DialogMediaReplyResult(
+                        true,
+                        null,
+                        "2026-01-01T10:00:00Z",
+                        7002L,
+                        "stored-fun.gif",
+                        "animation",
+                        null
+                ));
+
+        MockMultipartFile file = new MockMultipartFile("file", "fun.gif", "image/gif", "gif-bytes".getBytes());
+        mockMvc.perform(multipart("/api/dialogs/T-1/media")
+                        .file(file)
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messageType").value("animation"))
+                .andExpect(jsonPath("$.message").doesNotExist());
     }
 
     @Test
