@@ -356,7 +356,8 @@
     60000,
   );
   const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
-  const WORKSPACE_FORCE_MODE = window.DIALOG_CONFIG?.workspace_force_workspace === true;
+  const WORKSPACE_SINGLE_MODE = window.DIALOG_CONFIG?.workspace_single_mode === true;
+  const WORKSPACE_FORCE_MODE = window.DIALOG_CONFIG?.workspace_force_workspace === true || WORKSPACE_SINGLE_MODE;
   const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX = normalizeNumberInRange(
     window.DIALOG_CONFIG?.workspace_client_extra_attributes_max,
     20,
@@ -378,7 +379,7 @@
     normalizeStringArray(window.DIALOG_CONFIG?.workspace_client_hidden_attributes, []).map((value) => value.toLowerCase()),
   );
   const WORKSPACE_INLINE_NAVIGATION = window.DIALOG_CONFIG?.workspace_inline_navigation !== false;
-  const WORKSPACE_DECOMMISSION_LEGACY_MODAL = window.DIALOG_CONFIG?.workspace_decommission_legacy_modal === true;
+  const WORKSPACE_DECOMMISSION_LEGACY_MODAL = window.DIALOG_CONFIG?.workspace_decommission_legacy_modal === true || WORKSPACE_SINGLE_MODE;
   const WORKSPACE_DISABLE_LEGACY_FALLBACK = window.DIALOG_CONFIG?.workspace_disable_legacy_fallback === true
     || WORKSPACE_FORCE_MODE
     || WORKSPACE_DECOMMISSION_LEGACY_MODAL;
@@ -428,7 +429,7 @@
   const WORKSPACE_MUTATING_PERMISSION_KEYS = Object.freeze(['can_assign', 'can_close', 'can_snooze', 'can_bulk']);
   const WORKSPACE_AB_TEST_CONFIG = Object.freeze({
     experimentName: String(window.DIALOG_CONFIG?.workspace_ab_experiment_name || 'workspace_v1_rollout').trim() || 'workspace_v1_rollout',
-    enabled: Boolean(window.DIALOG_CONFIG?.workspace_ab_enabled),
+    enabled: Boolean(window.DIALOG_CONFIG?.workspace_ab_enabled) && !WORKSPACE_SINGLE_MODE,
     rolloutPercent: Math.max(0, Math.min(100, Number(window.DIALOG_CONFIG?.workspace_ab_rollout_percent) || 0)),
     operatorSegment: String(window.DIALOG_CONFIG?.workspace_ab_operator_segment || 'all_operators').trim() || 'all_operators',
     operatorOverrides: normalizeOperatorExperimentOverrides(window.DIALOG_CONFIG?.workspace_ab_operator_overrides),
@@ -3161,7 +3162,8 @@
     const rollout = payload?.meta?.rollout || {};
     renderWorkspaceRolloutBanner(rollout);
     if (workspaceLegacyBtn) {
-      const fallbackAvailable = rollout?.legacy_fallback_available === true || (!payload?.meta?.rollout && !WORKSPACE_DISABLE_LEGACY_FALLBACK);
+      const fallbackAvailable = !WORKSPACE_SINGLE_MODE
+        && (rollout?.legacy_fallback_available === true || (!payload?.meta?.rollout && !WORKSPACE_DISABLE_LEGACY_FALLBACK));
       workspaceLegacyBtn.disabled = !fallbackAvailable;
       workspaceLegacyBtn.classList.toggle('d-none', !fallbackAvailable);
     }
@@ -6089,6 +6091,7 @@
 
   if (workspaceLegacyBtn) {
     workspaceLegacyBtn.addEventListener('click', async () => {
+      if (WORKSPACE_SINGLE_MODE) return;
       if (!activeWorkspaceTicketId || !activeDialogRow || workspaceLegacyBtn.disabled) return;
       await emitWorkspaceTelemetry('workspace_open_legacy_manual', {
         ticketId: activeWorkspaceTicketId,
