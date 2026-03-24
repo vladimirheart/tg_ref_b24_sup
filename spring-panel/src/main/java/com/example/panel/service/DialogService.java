@@ -1168,6 +1168,7 @@ public class DialogService {
                 "workspace_rollout_governance_review_cadence_days", 0, 0, 90);
         String reviewCadenceBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_reviewed_by")));
         String reviewCadenceAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_reviewed_at"));
+        String reviewCadenceNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_review_note")));
         long parityExitDays = resolveLongDialogConfigValue(
                 "workspace_rollout_governance_parity_exit_days", 0, 0, 90);
         List<String> parityCriticalReasons = resolveDialogConfigStringList(
@@ -1331,8 +1332,10 @@ public class DialogService {
                 reviewCadenceEnabled ? "present & <= %d days".formatted(reviewCadenceDays) : "optional",
                 reviewCadenceAt != null ? reviewCadenceAt.toString() : "",
                 reviewCadencePresent
-                        ? "age_days=%d".formatted(reviewCadenceAgeDays)
-                        : ""
+                        ? StringUtils.hasText(reviewCadenceNote)
+                                ? "age_days=%d; note=%s".formatted(reviewCadenceAgeDays, reviewCadenceNote)
+                                : "age_days=%d".formatted(reviewCadenceAgeDays)
+                        : reviewCadenceNote
         ));
         packetItems.add(buildScorecardItem(
                 "parity_exit_criteria",
@@ -1428,6 +1431,7 @@ public class DialogService {
         reviewCadence.put("age_days", reviewCadenceAgeDays);
         reviewCadence.put("timestamp_invalid", reviewCadenceTimestampInvalid);
         reviewCadence.put("confirmed_events_in_window", reviewConfirmedEvents);
+        reviewCadence.put("review_note", reviewCadenceNote == null ? "" : reviewCadenceNote);
 
         Map<String, Object> paritySnapshot = new LinkedHashMap<>();
         paritySnapshot.put("ready", paritySnapshotReady);
