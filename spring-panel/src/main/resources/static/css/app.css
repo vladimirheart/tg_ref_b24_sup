@@ -587,11 +587,33 @@ body {
 }
 
 .dialog-toolbar-search {
-  min-width: 220px;
+  min-width: 280px;
+  flex: 1 1 320px;
 }
 
 .dialog-toolbar-page-size {
   min-width: 140px;
+}
+
+.dialog-summary-inline {
+  justify-content: space-between;
+}
+
+.dialog-summary-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+@media (max-width: 991.98px) {
+  .dialog-summary-inline {
+    justify-content: flex-start;
+  }
+
+  .dialog-toolbar-search {
+    min-width: 220px;
+    flex-basis: 100%;
+  }
 }
 
 
