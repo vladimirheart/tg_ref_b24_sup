@@ -18,6 +18,8 @@
 
   const LS_KEY_PIN = 'sidebarPinned';
   let pinned = localStorage.getItem(LS_KEY_PIN) === '1';
+  const HOVER_LEAVE_DELAY_MS = 1000;
+  let hoverLeaveTimer = null;
 
   // оборачиваем страницу, чтобы не было пустоты справа
   function ensureLayoutWrap() {
@@ -64,6 +66,10 @@
   }
 
   function applyState() {
+    if (hoverLeaveTimer) {
+      clearTimeout(hoverLeaveTimer);
+      hoverLeaveTimer = null;
+    }
     if (pinned) {
       sidebar.classList.add('pinned');
       sidebar.classList.remove('collapsed', 'hovering');
@@ -438,6 +444,10 @@
 
   // hover раскрытие, если не pinned
   sidebar.addEventListener('mouseenter', () => {
+    if (hoverLeaveTimer) {
+      clearTimeout(hoverLeaveTimer);
+      hoverLeaveTimer = null;
+    }
     if (!pinned) {
       sidebar.classList.add('hovering');
       if (root) root.classList.add('sidebar-hovering');
@@ -445,8 +455,12 @@
   });
   sidebar.addEventListener('mouseleave', () => {
     if (!pinned) {
-      sidebar.classList.remove('hovering');
-      if (root) root.classList.remove('sidebar-hovering');
+      if (hoverLeaveTimer) clearTimeout(hoverLeaveTimer);
+      hoverLeaveTimer = setTimeout(() => {
+        sidebar.classList.remove('hovering');
+        if (root) root.classList.remove('sidebar-hovering');
+        hoverLeaveTimer = null;
+      }, HOVER_LEAVE_DELAY_MS);
     }
   });
 
