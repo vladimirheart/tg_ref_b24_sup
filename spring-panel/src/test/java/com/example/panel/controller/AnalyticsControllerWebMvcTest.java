@@ -58,14 +58,16 @@ class AnalyticsControllerWebMvcTest {
                         .content("""
                                 {
                                   "reviewedBy": "ops.lead",
-                                  "reviewedAtUtc": "2026-03-24T12:15:30Z"
+                                  "reviewedAtUtc": "2026-03-24T12:15:30Z",
+                                  "reviewNote": "INC-42 follow-up: проверить parity gap по media attachments"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.reviewed_by").value("ops.lead"))
                 .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-24T12:15:30Z"))
-                .andExpect(jsonPath("$.next_review_due_at_utc").value("2026-03-31T12:15:30Z"));
+                .andExpect(jsonPath("$.next_review_due_at_utc").value("2026-03-31T12:15:30Z"))
+                .andExpect(jsonPath("$.review_note").value("INC-42 follow-up: проверить parity gap по media attachments"));
 
         ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(sharedConfigService).saveSettings(settingsCaptor.capture());
@@ -74,6 +76,7 @@ class AnalyticsControllerWebMvcTest {
         Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
         assertThat(dialogConfig.get("workspace_rollout_governance_reviewed_by")).isEqualTo("ops.lead");
         assertThat(dialogConfig.get("workspace_rollout_governance_reviewed_at")).isEqualTo("2026-03-24T12:15:30Z");
+        assertThat(dialogConfig.get("workspace_rollout_governance_review_note")).isEqualTo("INC-42 follow-up: проверить parity gap по media attachments");
 
         verify(dialogService).logWorkspaceTelemetry(
                 eq("ops.lead"),
@@ -109,5 +112,35 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+    }
+
+    @Test
+    void confirmWorkspaceRolloutReviewRemovesNoteWhenBlank() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
+                "dialog_config", new LinkedHashMap<>(Map.of(
+                        "workspace_rollout_governance_review_cadence_days", 7,
+                        "workspace_rollout_governance_review_note", "old note"
+                ))
+        )));
+
+        mockMvc.perform(post("/analytics/workspace-rollout/review")
+                        .with(user("ops.lead"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewedBy": "ops.lead",
+                                  "reviewedAtUtc": "2026-03-24T12:15:30Z",
+                                  "reviewNote": "   "
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.review_note").value(""));
+
+        ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(sharedConfigService).saveSettings(settingsCaptor.capture());
+        Map<String, Object> savedSettings = settingsCaptor.getValue();
+        Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
+        assertThat(dialogConfig.containsKey("workspace_rollout_governance_review_note")).isFalse();
     }
 }
