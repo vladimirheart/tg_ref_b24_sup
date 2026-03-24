@@ -358,7 +358,7 @@ class AnalyticsControllerWebMvcTest {
                 eq("analytics_legacy_inventory"),
                 eq(null),
                 eq("workspace.v1"),
-                eq(2.0d),
+                eq(2L),
                 eq("workspace_v1_rollout"),
                 eq(null),
                 eq(null),

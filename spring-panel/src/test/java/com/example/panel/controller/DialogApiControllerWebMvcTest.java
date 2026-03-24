@@ -262,20 +262,20 @@ class DialogApiControllerWebMvcTest {
                         "category"
                 )
         ));
-        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of(
-                "sla_target_minutes", 1440,
-                "sla_warning_minutes", 240,
-                "workspace_ab_enabled", true,
-                "workspace_ab_rollout_percent", 35,
-                "workspace_ab_experiment_name", "workspace_v1_rollout",
-                "workspace_disable_legacy_fallback", true,
-                "workspace_rollout_context_contract_required", true,
-                "workspace_rollout_context_contract_scenarios", List.of("billing"),
-                "workspace_rollout_context_contract_mandatory_fields", List.of("total_dialogs", "open_dialogs"),
-                "workspace_rollout_context_contract_source_of_truth", List.of("total_dialogs:local"),
-                "workspace_rollout_context_contract_priority_blocks", List.of("customer_profile", "context_sources"),
-                "workspace_rollout_external_kpi_reviewed_at", "2026-01-01T10:15:00+03:00",
-                "workspace_rollout_external_kpi_data_updated_at", "invalid-date"
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.ofEntries(
+                Map.entry("sla_target_minutes", 1440),
+                Map.entry("sla_warning_minutes", 240),
+                Map.entry("workspace_ab_enabled", true),
+                Map.entry("workspace_ab_rollout_percent", 35),
+                Map.entry("workspace_ab_experiment_name", "workspace_v1_rollout"),
+                Map.entry("workspace_disable_legacy_fallback", true),
+                Map.entry("workspace_rollout_context_contract_required", true),
+                Map.entry("workspace_rollout_context_contract_scenarios", List.of("billing")),
+                Map.entry("workspace_rollout_context_contract_mandatory_fields", List.of("total_dialogs", "open_dialogs")),
+                Map.entry("workspace_rollout_context_contract_source_of_truth", List.of("total_dialogs:local")),
+                Map.entry("workspace_rollout_context_contract_priority_blocks", List.of("customer_profile", "context_sources")),
+                Map.entry("workspace_rollout_external_kpi_reviewed_at", "2026-01-01T10:15:00+03:00"),
+                Map.entry("workspace_rollout_external_kpi_data_updated_at", "invalid-date")
         )));
         when(slaEscalationWebhookNotifier.buildRoutingPolicySnapshot(eq(summary), org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of(
                 "enabled", true,
