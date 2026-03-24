@@ -1170,6 +1170,7 @@
   }
 
   function statusClassByKey(statusKey) {
+    const normalizedKey = String(statusKey || '').toLowerCase();
     if (normalizedKey === 'auto_closed') return 'dialog-status-badge status-auto-closed';
     if (normalizedKey === 'closed') return 'dialog-status-badge status-closed';
     if (normalizedKey === 'waiting_operator') return 'dialog-status-badge status-waiting-operator';
