@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class DialogService {
@@ -1250,6 +1251,20 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_governance_parity_critical_reasons"));
         List<String> legacyOnlyScenarios = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_governance_legacy_only_scenarios"));
+        boolean contextContractRequired = resolveBooleanDialogConfigValue("workspace_rollout_context_contract_required", false);
+        List<String> contextContractScenarios = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_context_contract_scenarios"));
+        List<String> contextContractMandatoryFields = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_context_contract_mandatory_fields"));
+        List<String> contextContractSourceOfTruth = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_context_contract_source_of_truth"));
+        List<String> contextContractPriorityBlocks = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_context_contract_priority_blocks"));
+        String contextContractReviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_reviewed_by")));
+        String contextContractReviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_reviewed_at"));
+        String contextContractReviewNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_review_note")));
+        long contextContractReviewTtlHours = resolveLongDialogConfigValue(
+                "workspace_rollout_context_contract_review_ttl_hours", 168, 1, 24 * 90L);
 
         OffsetDateTime ownerSignoffAt = parseReviewTimestamp(ownerSignoffAtRaw);
         boolean ownerSignoffTimestampInvalid = StringUtils.hasText(normalizeNullString(ownerSignoffAtRaw)) && ownerSignoffAt == null;
@@ -1312,6 +1327,32 @@ public class DialogService {
         boolean parityExitCriteriaReady = toBoolean(parityExitCriteria.get("ready"));
         boolean legacyInventoryEnabled = packetRequired || !legacyOnlyScenarios.isEmpty();
         boolean legacyInventoryReady = legacyOnlyScenarios.isEmpty();
+        boolean contextContractEnabled = contextContractRequired
+                || !contextContractScenarios.isEmpty()
+                || !contextContractMandatoryFields.isEmpty()
+                || !contextContractSourceOfTruth.isEmpty()
+                || !contextContractPriorityBlocks.isEmpty();
+        OffsetDateTime contextContractReviewedAt = parseReviewTimestamp(contextContractReviewedAtRaw);
+        boolean contextContractReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(contextContractReviewedAtRaw))
+                && contextContractReviewedAt == null;
+        boolean contextContractReviewPresent = contextContractReviewedAt != null
+                && StringUtils.hasText(contextContractReviewedBy);
+        boolean contextContractReviewFresh = false;
+        long contextContractReviewAgeHours = -1L;
+        if (contextContractReviewedAt != null) {
+            contextContractReviewAgeHours = Math.max(0, java.time.Duration
+                    .between(contextContractReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+            contextContractReviewFresh = contextContractReviewAgeHours <= contextContractReviewTtlHours;
+        }
+        boolean contextContractDefinitionReady = !contextContractScenarios.isEmpty()
+                && !contextContractMandatoryFields.isEmpty()
+                && !contextContractSourceOfTruth.isEmpty()
+                && !contextContractPriorityBlocks.isEmpty();
+        boolean contextContractReady = !contextContractEnabled
+                || (contextContractDefinitionReady
+                && contextContractReviewPresent
+                && contextContractReviewFresh
+                && !contextContractReviewTimestampInvalid);
 
         List<Map<String, Object>> packetItems = new ArrayList<>();
         packetItems.add(buildScorecardItem(
@@ -1461,6 +1502,40 @@ public class DialogService {
                 normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
                 legacyInventoryReady ? null : String.join(", ", legacyOnlyScenarios)
         ));
+        packetItems.add(buildScorecardItem(
+                "context_minimum_profile",
+                "context",
+                "Customer context minimum profile",
+                !contextContractEnabled ? "off" : (contextContractReady ? "ok" : (contextContractRequired ? "hold" : "attention")),
+                contextContractRequired && !contextContractReady,
+                "Minimum customer context должен быть формализован по сценариям: mandatory fields, source-of-truth, priority blocks и UTC-review.",
+                !contextContractEnabled
+                        ? "not required"
+                        : contextContractReviewTimestampInvalid
+                                ? "invalid_utc"
+                                : "scenarios=%d, fields=%d, sources=%d, blocks=%d".formatted(
+                                contextContractScenarios.size(),
+                                contextContractMandatoryFields.size(),
+                                contextContractSourceOfTruth.size(),
+                                contextContractPriorityBlocks.size()),
+                contextContractEnabled
+                        ? "all lists non-empty + review <= %d h UTC".formatted(contextContractReviewTtlHours)
+                        : "optional",
+                contextContractReviewedAt != null ? contextContractReviewedAt.toString() : "",
+                contextContractDefinitionReady
+                        ? firstNonBlank(
+                        contextContractReviewNote,
+                        "reviewed_by=%s; age_hours=%d".formatted(
+                                StringUtils.hasText(contextContractReviewedBy) ? contextContractReviewedBy : "n/a",
+                                contextContractReviewAgeHours))
+                        : "missing=" + Stream.of(
+                                contextContractScenarios.isEmpty() ? "scenarios" : null,
+                                contextContractMandatoryFields.isEmpty() ? "mandatory_fields" : null,
+                                contextContractSourceOfTruth.isEmpty() ? "source_of_truth" : null,
+                                contextContractPriorityBlocks.isEmpty() ? "priority_blocks" : null)
+                        .filter(StringUtils::hasText)
+                        .collect(Collectors.joining(", "))
+        ));
 
         List<String> missingItems = packetItems.stream()
                 .filter(item -> {
@@ -1541,6 +1616,21 @@ public class DialogService {
         incidentHistory.put("fallback_alerts", fallbackAlerts);
         incidentHistory.put("abandon_alerts", abandonAlerts);
         incidentHistory.put("slow_open_alerts", slowOpenAlerts);
+        Map<String, Object> contextContract = new LinkedHashMap<>();
+        contextContract.put("enabled", contextContractEnabled);
+        contextContract.put("required", contextContractRequired);
+        contextContract.put("ready", contextContractReady);
+        contextContract.put("reviewed_by", contextContractReviewedBy == null ? "" : contextContractReviewedBy);
+        contextContract.put("reviewed_at", contextContractReviewedAt != null ? contextContractReviewedAt.toString() : "");
+        contextContract.put("review_note", contextContractReviewNote == null ? "" : contextContractReviewNote);
+        contextContract.put("review_ttl_hours", contextContractReviewTtlHours);
+        contextContract.put("review_age_hours", contextContractReviewAgeHours);
+        contextContract.put("review_timestamp_invalid", contextContractReviewTimestampInvalid);
+        contextContract.put("scenarios", contextContractScenarios);
+        contextContract.put("mandatory_fields", contextContractMandatoryFields);
+        contextContract.put("source_of_truth", contextContractSourceOfTruth);
+        contextContract.put("priority_blocks", contextContractPriorityBlocks);
+        contextContract.put("definition_ready", contextContractDefinitionReady);
 
         Map<String, Object> packet = new LinkedHashMap<>();
         packet.put("generated_at", Instant.now().toString());
@@ -1567,6 +1657,7 @@ public class DialogService {
         packet.put("parity_exit_criteria", parityExitCriteria);
         packet.put("legacy_only_scenarios", legacyOnlyScenarios);
         packet.put("incident_history", incidentHistory);
+        packet.put("context_contract", contextContract);
         packet.put("external_gate", Map.of(
                 "ready", externalGateSnapshotReady,
                 "enabled", toBoolean(externalSignal.get("enabled")),
