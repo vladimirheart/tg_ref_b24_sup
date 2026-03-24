@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -732,8 +733,12 @@ public class DialogService {
     public Map<String, Object> loadWorkspaceTelemetrySummary(int days, String experimentName) {
         Map<String, Object> workspaceTelemetryConfig = resolveWorkspaceTelemetryConfig();
         int windowDays = Math.max(1, Math.min(days, 30));
-        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowDays, experimentName, 0);
-        List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(windowDays, experimentName, windowDays);
+        Instant windowEnd = Instant.now();
+        Instant windowStart = windowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
+        Instant previousWindowEnd = windowStart;
+        Instant previousWindowStart = previousWindowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
+        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowStart, windowEnd, experimentName);
+        List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
         List<Map<String, Object>> shiftRows = aggregateWorkspaceTelemetryRows(rows, "shift");
         List<Map<String, Object>> teamRows = aggregateWorkspaceTelemetryRows(rows, "team");
         Map<String, Object> totals = computeWorkspaceTelemetryTotals(rows);
@@ -741,6 +746,8 @@ public class DialogService {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("window_days", windowDays);
+        payload.put("window_from_utc", windowStart.toString());
+        payload.put("window_to_utc", windowEnd.toString());
         payload.put("generated_at", Instant.now().toString());
         payload.put("totals", totals);
         payload.put("previous_totals", previousTotals);
@@ -750,7 +757,7 @@ public class DialogService {
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
-        payload.put("gap_breakdown", buildWorkspaceGapBreakdown(windowDays, experimentName));
+        payload.put("gap_breakdown", buildWorkspaceGapBreakdown(windowStart, windowEnd, experimentName));
         Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows, workspaceTelemetryConfig);
         payload.put("guardrails", guardrails);
         Map<String, Object> rolloutDecision = buildWorkspaceRolloutDecision(cohortComparison, guardrails);
@@ -759,6 +766,64 @@ public class DialogService {
         payload.put("rollout_scorecard", rolloutScorecard);
         payload.put("rollout_packet", buildWorkspaceRolloutPacket(totals, guardrails, rolloutDecision, rolloutScorecard,
                 payload.get("gap_breakdown"), windowDays, experimentName));
+        return payload;
+    }
+
+    public Map<String, Object> loadWorkspaceTelemetrySummary(int days,
+                                                             String experimentName,
+                                                             Instant fromUtc,
+                                                             Instant toUtc) {
+        Instant resolvedEnd = toUtc != null ? toUtc : Instant.now();
+        int fallbackWindowDays = Math.max(1, Math.min(days, 30));
+        Instant resolvedStart = fromUtc != null
+                ? fromUtc
+                : resolvedEnd.minusSeconds(fallbackWindowDays * 24L * 60L * 60L);
+        if (!resolvedStart.isBefore(resolvedEnd)) {
+            resolvedStart = resolvedEnd.minusSeconds(fallbackWindowDays * 24L * 60L * 60L);
+        }
+        long rangeSeconds = Math.max(1L, Duration.between(resolvedStart, resolvedEnd).getSeconds());
+        long windowDaysRaw = Math.max(1L, (long) Math.ceil((double) rangeSeconds / (24d * 60d * 60d)));
+        int windowDays = (int) Math.max(1L, Math.min(30L, windowDaysRaw));
+
+        Instant previousWindowEnd = resolvedStart;
+        Instant previousWindowStart = previousWindowEnd.minusSeconds(rangeSeconds);
+
+        Map<String, Object> workspaceTelemetryConfig = resolveWorkspaceTelemetryConfig();
+        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(resolvedStart, resolvedEnd, experimentName);
+        List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
+        List<Map<String, Object>> shiftRows = aggregateWorkspaceTelemetryRows(rows, "shift");
+        List<Map<String, Object>> teamRows = aggregateWorkspaceTelemetryRows(rows, "team");
+        Map<String, Object> totals = computeWorkspaceTelemetryTotals(rows);
+        Map<String, Object> previousTotals = computeWorkspaceTelemetryTotals(previousRows);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("window_days", windowDays);
+        payload.put("window_from_utc", resolvedStart.toString());
+        payload.put("window_to_utc", resolvedEnd.toString());
+        payload.put("generated_at", Instant.now().toString());
+        payload.put("totals", totals);
+        payload.put("previous_totals", previousTotals);
+        payload.put("period_comparison", buildWorkspaceTelemetryComparison(totals, previousTotals));
+        Map<String, Object> cohortComparison = buildWorkspaceCohortComparison(rows, workspaceTelemetryConfig);
+        payload.put("cohort_comparison", cohortComparison);
+        payload.put("rows", rows);
+        payload.put("by_shift", shiftRows);
+        payload.put("by_team", teamRows);
+        payload.put("gap_breakdown", buildWorkspaceGapBreakdown(resolvedStart, resolvedEnd, experimentName));
+        Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows, workspaceTelemetryConfig);
+        payload.put("guardrails", guardrails);
+        Map<String, Object> rolloutDecision = buildWorkspaceRolloutDecision(cohortComparison, guardrails);
+        payload.put("rollout_decision", rolloutDecision);
+        Map<String, Object> rolloutScorecard = buildWorkspaceRolloutScorecard(totals, cohortComparison, guardrails, rolloutDecision);
+        payload.put("rollout_scorecard", rolloutScorecard);
+        payload.put("rollout_packet", buildWorkspaceRolloutPacket(
+                totals,
+                guardrails,
+                rolloutDecision,
+                rolloutScorecard,
+                payload.get("gap_breakdown"),
+                windowDays,
+                experimentName));
         return payload;
     }
 
@@ -3940,7 +4005,7 @@ public class DialogService {
         return null;
     }
 
-    private List<Map<String, Object>> loadWorkspaceTelemetryRows(int windowDays, String experimentName, int offsetDays) {
+    private List<Map<String, Object>> loadWorkspaceTelemetryRows(Instant windowStart, Instant windowEnd, String experimentName) {
         String filterExperiment = trimOrNull(experimentName);
         String sql = """
                 SELECT COALESCE(experiment_cohort, 'unknown') AS experiment_cohort,
@@ -3982,8 +4047,6 @@ public class DialogService {
                  ORDER BY events DESC, experiment_cohort ASC, operator_segment ASC
                 """;
         try {
-            Instant windowEnd = Instant.now().minusSeconds(Math.max(0, offsetDays) * 24L * 60L * 60L);
-            Instant windowStart = windowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
             Timestamp cutoffStart = Timestamp.from(windowStart);
             Timestamp cutoffEnd = Timestamp.from(windowEnd);
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
@@ -4046,18 +4109,19 @@ public class DialogService {
         return value.trim();
     }
 
-    private Map<String, Object> buildWorkspaceGapBreakdown(int windowDays, String experimentName) {
+    private Map<String, Object> buildWorkspaceGapBreakdown(Instant windowStart, Instant windowEnd, String experimentName) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("profile", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_profile_gap"));
-        payload.put("source", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_source_gap"));
-        payload.put("attribute_policy", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_attribute_policy_gap"));
-        payload.put("block", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_context_block_gap"));
-        payload.put("sla_policy", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_sla_policy_gap"));
-        payload.put("parity", loadWorkspaceGapBreakdownRows(windowDays, experimentName, "workspace_parity_gap"));
+        payload.put("profile", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_profile_gap"));
+        payload.put("source", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_source_gap"));
+        payload.put("attribute_policy", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_attribute_policy_gap"));
+        payload.put("block", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_block_gap"));
+        payload.put("sla_policy", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_sla_policy_gap"));
+        payload.put("parity", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_parity_gap"));
         return payload;
     }
 
-    private List<Map<String, Object>> loadWorkspaceGapBreakdownRows(int windowDays,
+    private List<Map<String, Object>> loadWorkspaceGapBreakdownRows(Instant windowStart,
+                                                                    Instant windowEnd,
                                                                     String experimentName,
                                                                     String eventType) {
         String filterExperiment = StringUtils.hasText(experimentName) ? experimentName.trim() : null;
@@ -4071,8 +4135,6 @@ public class DialogService {
                  ORDER BY created_at DESC
                 """;
         try {
-            Instant windowEnd = Instant.now();
-            Instant windowStart = windowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
             List<Map<String, Object>> rawRows = jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("reason", rs.getString("reason"));

@@ -1788,9 +1788,44 @@ public class DialogApiController {
 
     @GetMapping("/workspace-telemetry/summary")
     public ResponseEntity<?> workspaceTelemetrySummary(@RequestParam(name = "days", defaultValue = "7") Integer days,
-                                                       @RequestParam(name = "experiment_name", required = false) String experimentName) {
+                                                       @RequestParam(name = "experiment_name", required = false) String experimentName,
+                                                       @RequestParam(name = "from_utc", required = false) String fromUtcRaw,
+                                                       @RequestParam(name = "to_utc", required = false) String toUtcRaw) {
         int safeDays = days != null ? days : 7;
-        Map<String, Object> payload = new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(safeDays, experimentName));
+        String fromUtcValue = trimToNull(fromUtcRaw);
+        String toUtcValue = trimToNull(toUtcRaw);
+        boolean explicitWindowRequested = fromUtcValue != null || toUtcValue != null;
+        OffsetDateTime fromUtc = null;
+        OffsetDateTime toUtc = null;
+        if (fromUtcValue != null) {
+            fromUtc = parseUtcTimestamp(fromUtcValue);
+            if (fromUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "from_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+        if (toUtcValue != null) {
+            toUtc = parseUtcTimestamp(toUtcValue);
+            if (toUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "to_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+        if (fromUtc != null && toUtc != null && !fromUtc.isBefore(toUtc)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "from_utc must be earlier than to_utc"));
+        }
+
+        Map<String, Object> payload = explicitWindowRequested
+                ? new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(
+                safeDays,
+                experimentName,
+                fromUtc != null ? fromUtc.toInstant() : null,
+                toUtc != null ? toUtc.toInstant() : null))
+                : new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(safeDays, experimentName));
         Map<String, Object> settings = sharedConfigService.loadSettings();
         Map<String, Object> slaPolicyAudit = slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(
                 dialogService.loadDialogs(null),
