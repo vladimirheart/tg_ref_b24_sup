@@ -1707,11 +1707,11 @@
       const marker = buildDialogsMarker(dialogs);
       const isInitialSync = lastListMarker === null;
       if (isInitialSync || marker !== lastListMarker) {
-        syncDialogsTable(dialogs);
-        applySlaOrchestrationToRows();
-        refreshSummaryCounters(data.summary || {});
         lastListMarker = marker;
       }
+      syncDialogsTable(dialogs);
+      applySlaOrchestrationToRows();
+      refreshSummaryCounters(data.summary || {});
     } catch (error) {
       // ignore polling errors
     } finally {
