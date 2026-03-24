@@ -251,6 +251,11 @@ public class DashboardAnalyticsService {
             }
         }
         try {
+            return LocalDateTime.parse(normalized);
+        } catch (DateTimeParseException ignored) {
+            // try offset datetime format
+        }
+        try {
             return java.time.OffsetDateTime.parse(normalized).atZoneSameInstant(DEFAULT_ZONE).toLocalDateTime();
         } catch (DateTimeParseException ignored) {
             return null;
