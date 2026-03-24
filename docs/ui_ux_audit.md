@@ -323,6 +323,20 @@
 
 Итог: SLA policy governance перестаёт быть только «статичным dry-run отчётом» и становится управляемым review-loop с owner/date-дисциплиной, dry-run traceability и наблюдаемостью adoption.
 
+### Обновление от 24 марта 2026 (шестая итерация): macro governance получил обязательный review-checkpoint
+
+Следующий логичный шаг из P2 по предотвращению «macro entropy» закрыт через отдельный review-loop в analytics:
+
+- **В analytics добавлена форма Macro governance review checkpoint** (reviewed by, reviewed at UTC, decision go/hold, cleanup ticket id, review note) с сохранением через backend endpoint `/analytics/macro-governance/review`.
+- **В macro governance audit добавлен структурированный блок `governance_review`**:
+  `required`, `ready`, `reviewed_by`, `reviewed_at_utc`, `reviewed_at_invalid_utc`, `review_ttl_hours`, `review_age_hours`, `cleanup_ticket_required`, `cleanup_ticket_id`, `decision`, `review_note`, `issues`.
+- **Audit теперь явно сигнализирует review-gap по governance-слою**, включая:
+  `governance_review_missing`, `governance_review_stale`, `governance_review_invalid_utc`, `governance_cleanup_ticket_missing`.
+- **Добавлена telemetry-точка `workspace_macro_governance_review_updated` и счётчик в analytics summary**, чтобы было видно adoption review-практики в UTC-окне.
+- **Обратная совместимость сохранена**: если новые флаги governance review не включены, macro audit работает как раньше, а отсутствие checkpoint не блокирует текущий поток.
+
+Итог: macro governance перестаёт быть только «снимком проблем шаблонов» и становится управляемым operational-loop с owner/date-дисциплиной, cleanup traceability и измеряемым adoption.
+
 ### P1. Закрыть transition-state между workspace и legacy
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
