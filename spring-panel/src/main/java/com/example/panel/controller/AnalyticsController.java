@@ -403,7 +403,7 @@ public class AnalyticsController {
                 "analytics_legacy_inventory",
                 null,
                 "workspace.v1",
-                (long) scenarios.size(),
+                Long.valueOf(scenarios.size()),
                 "workspace_v1_rollout",
                 null,
                 null,
