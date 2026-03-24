@@ -654,7 +654,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             if (current == null) {
                 return;
             }
-            answers.put(current.getId(), text);
+            String answerKey = answerKeyFor(current);
+            if (answerKey != null) {
+                answers.put(answerKey, text);
+            }
             history.add(new HistoryEvent(userId, text, "text", null));
             currentIndex += 1;
         }
@@ -722,8 +725,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private void applyCachedAnswers() {
             for (int i = 0; i < flow.size(); i++) {
                 QuestionFlowItemDto item = flow.get(i);
-                if (cachedAnswers.containsKey(item.getId())) {
-                    answers.put(item.getId(), cachedAnswers.get(item.getId()));
+                String answerKey = answerKeyFor(item);
+                if (answerKey != null && cachedAnswers.containsKey(answerKey)) {
+                    answers.put(answerKey, cachedAnswers.get(answerKey));
                     currentIndex = i + 1;
                 } else {
                     currentIndex = i;
@@ -747,8 +751,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     .append(" от пользователя ").append(userId).append("\n");
             builder.append("Создана: ").append(startedAt).append("\n\n");
             for (QuestionFlowItemDto item : flow) {
+                String answerKey = answerKeyFor(item);
                 builder.append(item.getText()).append(": ")
-                        .append(answers.getOrDefault(item.getId(), "")).append("\n");
+                        .append(answerKey != null ? answers.getOrDefault(answerKey, "") : "").append("\n");
             }
             if (!history.isEmpty()) {
                 builder.append("\nВложения:\n");
@@ -757,6 +762,17 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         .forEach(h -> builder.append("- ").append(h.attachment()).append("\n"));
             }
             return builder.toString();
+        }
+
+        private String answerKeyFor(QuestionFlowItemDto item) {
+            if (item == null) {
+                return null;
+            }
+            if (item.getPreset() != null && item.getPreset().field() != null
+                    && !item.getPreset().field().isBlank()) {
+                return item.getPreset().field();
+            }
+            return item.getId();
         }
     }
 
