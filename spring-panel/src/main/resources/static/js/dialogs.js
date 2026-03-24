@@ -107,6 +107,7 @@
   const summaryPending = document.getElementById('dialogsSummaryPending');
   const summaryResolved = document.getElementById('dialogsSummaryResolved');
   const bulkCount = document.getElementById('dialogBulkCount');
+  const bulkToolbar = document.getElementById('dialogBulkToolbar');
   const bulkTakeBtn = document.getElementById('dialogBulkTakeBtn');
   const bulkSnoozeBtn = document.getElementById('dialogBulkSnoozeBtn');
   const hotkeySingleSnoozeLabel = document.getElementById('dialogHotkeySingleSnoozeLabel');
@@ -2087,13 +2088,17 @@
 
   function updateBulkActionsState() {
     const count = selectedTicketIds.size;
+    const canShowBulkToolbar = count > 1;
+    if (bulkToolbar) {
+      bulkToolbar.classList.toggle('d-none', !canShowBulkToolbar);
+    }
     if (bulkCount) {
       bulkCount.textContent = `Выбрано: ${count}`;
     }
-    if (bulkTakeBtn) bulkTakeBtn.disabled = count === 0 || !canRunAction('can_bulk') || !canRunAction('can_assign');
-    if (bulkSnoozeBtn) bulkSnoozeBtn.disabled = count === 0 || !canRunAction('can_bulk') || !canRunAction('can_snooze');
-    if (bulkCloseBtn) bulkCloseBtn.disabled = count === 0 || !canRunAction('can_bulk') || !canRunAction('can_close');
-    if (bulkClearBtn) bulkClearBtn.disabled = count === 0;
+    if (bulkTakeBtn) bulkTakeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_assign');
+    if (bulkSnoozeBtn) bulkSnoozeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_snooze');
+    if (bulkCloseBtn) bulkCloseBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_close');
+    if (bulkClearBtn) bulkClearBtn.disabled = !canShowBulkToolbar;
     rowsList().forEach((row) => syncRowSelectionState(row));
     updateSelectAllState();
   }
