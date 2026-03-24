@@ -37,6 +37,8 @@
   const reviewByInput = document.getElementById('workspaceTelemetryReviewBy');
   const reviewAtInput = document.getElementById('workspaceTelemetryReviewAtUtc');
   const reviewNoteInput = document.getElementById('workspaceTelemetryReviewNote');
+  const reviewDecisionActionInput = document.getElementById('workspaceTelemetryReviewDecisionAction');
+  const reviewIncidentFollowupInput = document.getElementById('workspaceTelemetryReviewIncidentFollowup');
   const reviewConfirmButton = document.getElementById('workspaceTelemetryReviewConfirm');
   const reviewActionState = document.getElementById('workspaceTelemetryReviewActionState');
   const packetExitState = document.getElementById('workspaceTelemetryPacketExitState');
@@ -141,7 +143,7 @@
     if (!normalized) {
       return '';
     }
-    const parsed = new Date(normalized);
+    const parsed = new Date(`${normalized}:00Z`);
     if (Number.isNaN(parsed.getTime())) {
       return null;
     }
@@ -558,7 +560,9 @@
       const ageDays = reviewCadence?.age_days ?? '—';
       const confirmedEvents = reviewCadence?.confirmed_events_in_window ?? 0;
       const reviewNote = String(reviewCadence?.review_note || '').trim();
-      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents}${reviewNote ? ` · note: ${reviewNote}` : ''}`;
+      const decisionAction = String(reviewCadence?.decision_action || '').trim().toLowerCase();
+      const incidentFollowup = String(reviewCadence?.incident_followup || '').trim();
+      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents}${decisionAction ? ` · decision: ${decisionAction}` : ''}${reviewNote ? ` · note: ${reviewNote}` : ''}${incidentFollowup ? ` · incident: ${incidentFollowup}` : ''}`;
     }
     if (reviewByInput) {
       reviewByInput.value = reviewCadence?.reviewed_by || '';
@@ -568,6 +572,13 @@
     }
     if (reviewNoteInput) {
       reviewNoteInput.value = String(reviewCadence?.review_note || '').trim();
+    }
+    if (reviewDecisionActionInput) {
+      const decisionAction = String(reviewCadence?.decision_action || '').trim().toLowerCase();
+      reviewDecisionActionInput.value = ['go', 'hold', 'rollback'].includes(decisionAction) ? decisionAction : '';
+    }
+    if (reviewIncidentFollowupInput) {
+      reviewIncidentFollowupInput.value = String(reviewCadence?.incident_followup || '').trim();
     }
     const parityExit = packet?.parity_exit_criteria || {};
     if (packetExitState) {
@@ -1430,9 +1441,17 @@
       reviewActionState.textContent = 'Сохраняем...';
     }
     const reviewedBy = reviewByInput ? (reviewByInput.value || '').trim() : '';
-    const reviewedAtLocal = reviewAtInput ? (reviewAtInput.value || '').trim() : '';
-    const reviewedAtUtc = reviewedAtLocal ? `${reviewedAtLocal}:00Z` : '';
+    const reviewedAtUtc = dateTimeLocalToUtcIso(reviewAtInput ? (reviewAtInput.value || '').trim() : '');
+    if (reviewedAtUtc === null) {
+      if (reviewActionState) {
+        reviewActionState.textContent = 'Ошибка: поле "Reviewed at (UTC)" содержит невалидную дату.';
+      }
+      reviewConfirmButton.disabled = false;
+      return;
+    }
     const reviewNote = reviewNoteInput ? (reviewNoteInput.value || '').trim().slice(0, 500) : '';
+    const decisionAction = reviewDecisionActionInput ? String(reviewDecisionActionInput.value || '').trim().toLowerCase() : '';
+    const incidentFollowup = reviewIncidentFollowupInput ? (reviewIncidentFollowupInput.value || '').trim().slice(0, 255) : '';
     try {
       const response = await fetch('/analytics/workspace-rollout/review', {
         method: 'POST',
@@ -1443,6 +1462,8 @@
           reviewedBy,
           reviewedAtUtc,
           reviewNote,
+          decisionAction,
+          incidentFollowup,
         }),
       });
       const payload = await response.json();
