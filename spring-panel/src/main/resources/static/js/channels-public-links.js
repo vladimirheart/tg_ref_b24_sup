@@ -10,6 +10,12 @@
   const configCaptchaInput = document.getElementById('publicFormCaptchaEnabled');
   const configDisabledStatusInput = document.getElementById('publicFormDisabledStatus');
   const configFieldsInput = document.getElementById('publicFormFieldsJson');
+  const alertQueueEnabledInput = document.getElementById('alertQueueEnabled');
+  const alertQueueDepartmentInput = document.getElementById('alertQueueDepartment');
+  const alertQueueTargetModeInput = document.getElementById('alertQueueTargetMode');
+  const alertQueueEmployeesInput = document.getElementById('alertQueueEmployees');
+  const alertQueueExcludeEmployeesInput = document.getElementById('alertQueueExcludeEmployees');
+  const alertQueueDeliveryModeInput = document.getElementById('alertQueueDeliveryMode');
   const configModal = window.bootstrap && configModalEl ? new window.bootstrap.Modal(configModalEl) : null;
 
   if (!table) {
@@ -71,6 +77,13 @@
     }));
   }
 
+  function parseCommaSeparatedUsers(value) {
+    return String(value || '')
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
   async function openPublicFormEditor(row) {
     if (!configModal || !configForm) {
       throw new Error('Форма настройки недоступна на этой странице');
@@ -85,12 +98,19 @@
       throw new Error('Канал не найден');
     }
     const cfg = (channel.questions_cfg && typeof channel.questions_cfg === 'object') ? channel.questions_cfg : {};
+    const alertQueue = (cfg.alertQueue && typeof cfg.alertQueue === 'object') ? cfg.alertQueue : {};
     configChannelIdInput.value = String(channel.id);
     configTitle.textContent = `Настройка внешней формы — ${channel.channel_name || `Канал #${channel.id}`}`;
     configEnabledInput.checked = cfg.enabled === true;
     configCaptchaInput.checked = cfg.captchaEnabled === true;
     configDisabledStatusInput.value = Number.parseInt(cfg.disabledStatus, 10) === 410 ? '410' : '404';
     configFieldsInput.value = JSON.stringify(normalizeFieldsForEditor(cfg.fields), null, 2);
+    alertQueueEnabledInput.checked = alertQueue.enabled === true;
+    alertQueueDepartmentInput.value = String(alertQueue.department || '').trim();
+    alertQueueTargetModeInput.value = String(alertQueue.targetMode || 'department_all');
+    alertQueueDeliveryModeInput.value = String(alertQueue.deliveryMode || 'all');
+    alertQueueEmployeesInput.value = Array.isArray(alertQueue.employeeUsernames) ? alertQueue.employeeUsernames.join(', ') : '';
+    alertQueueExcludeEmployeesInput.value = Array.isArray(alertQueue.excludeUsernames) ? alertQueue.excludeUsernames.join(', ') : '';
     configModal.show();
   }
 
@@ -117,6 +137,14 @@
         captchaEnabled: Boolean(configCaptchaInput?.checked),
         disabledStatus: Number.parseInt(configDisabledStatusInput?.value, 10) === 410 ? 410 : 404,
         fields,
+        alertQueue: {
+          enabled: Boolean(alertQueueEnabledInput?.checked),
+          department: String(alertQueueDepartmentInput?.value || '').trim(),
+          targetMode: String(alertQueueTargetModeInput?.value || 'department_all'),
+          deliveryMode: String(alertQueueDeliveryModeInput?.value || 'all'),
+          employeeUsernames: parseCommaSeparatedUsers(alertQueueEmployeesInput?.value),
+          excludeUsernames: parseCommaSeparatedUsers(alertQueueExcludeEmployeesInput?.value),
+        },
       },
     };
 

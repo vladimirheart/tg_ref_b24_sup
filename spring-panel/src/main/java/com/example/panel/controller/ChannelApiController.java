@@ -652,6 +652,9 @@ public class ChannelApiController {
         Integer rateLimitMaxRequests = root.has("rateLimitMaxRequests")
                 ? normalizeIntegerOrNull(root.path("rateLimitMaxRequests"), 1, 500)
                 : null;
+        Map<String, Object> alertQueue = root.has("alertQueue")
+                ? normalizeAlertQueue(root.path("alertQueue"))
+                : null;
         int disabledStatus = root.path("disabledStatus").asInt(404) == 410 ? 410 : 404;
         List<Map<String, Object>> fields = normalizeQuestionFields(root.path("fields"));
         Map<String, Object> normalized = new LinkedHashMap<>();
@@ -667,9 +670,51 @@ public class ChannelApiController {
         if (rateLimitMaxRequests != null) {
             normalized.put("rateLimitMaxRequests", rateLimitMaxRequests);
         }
+        if (alertQueue != null) {
+            normalized.put("alertQueue", alertQueue);
+        }
         normalized.put("disabledStatus", disabledStatus);
         normalized.put("fields", fields);
         return serializeIfNeeded(normalized);
+    }
+
+    private Map<String, Object> normalizeAlertQueue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return Map.of();
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException("questions_cfg.alertQueue должен быть объектом");
+        }
+        String mode = stringValue(node.path("targetMode").asText("department_all")).toLowerCase();
+        if (!Set.of("department_all", "employees_only", "department_except").contains(mode)) {
+            mode = "department_all";
+        }
+        String deliveryMode = stringValue(node.path("deliveryMode").asText("all")).toLowerCase();
+        if (!Set.of("all", "online_only_fallback_all").contains(deliveryMode)) {
+            deliveryMode = "all";
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put("enabled", node.path("enabled").asBoolean(false));
+        normalized.put("department", stringValue(node.path("department").asText("")));
+        normalized.put("targetMode", mode);
+        normalized.put("deliveryMode", deliveryMode);
+        normalized.put("employeeUsernames", normalizeStringList(node.path("employeeUsernames")));
+        normalized.put("excludeUsernames", normalizeStringList(node.path("excludeUsernames")));
+        return normalized;
+    }
+
+    private List<String> normalizeStringList(JsonNode node) {
+        if (node == null || node.isNull() || !node.isArray()) {
+            return List.of();
+        }
+        Set<String> values = new LinkedHashSet<>();
+        for (JsonNode item : node) {
+            String value = stringValue(item.asText(""));
+            if (!value.isEmpty()) {
+                values.add(value.toLowerCase());
+            }
+        }
+        return new ArrayList<>(values);
     }
 
     private Integer normalizeIntegerOrNull(JsonNode node, int min, int max) {

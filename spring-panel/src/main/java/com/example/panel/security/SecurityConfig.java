@@ -25,6 +25,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    SecurityHeadersFilter securityHeadersFilter,
+                                                   UserLastActivityFilter userLastActivityFilter,
                                                    DaoAuthenticationProvider daoAuthenticationProvider) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
@@ -72,7 +73,8 @@ public class SecurityConfig {
 
                     response.sendRedirect("/error/403");
                 }))
-                .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class);
+                .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class)
+                .addFilterAfter(userLastActivityFilter, org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);
 
         http.authenticationProvider(daoAuthenticationProvider);
 

@@ -75,6 +75,7 @@ public class PublicFormService {
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
     private final DialogService dialogService;
+    private final AlertQueueService alertQueueService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
     private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
     private final Map<Long, PublicFormMetricsAccumulator> metricsByChannel = new ConcurrentHashMap<>();
@@ -88,7 +89,8 @@ public class PublicFormService {
                              MessageRepository messageRepository,
                              ObjectMapper objectMapper,
                              SharedConfigService sharedConfigService,
-                             DialogService dialogService) {
+                             DialogService dialogService,
+                             AlertQueueService alertQueueService) {
         this.channelRepository = channelRepository;
         this.sessionRepository = sessionRepository;
         this.chatHistoryRepository = chatHistoryRepository;
@@ -97,6 +99,7 @@ public class PublicFormService {
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
         this.dialogService = dialogService;
+        this.alertQueueService = alertQueueService;
     }
 
     @Transactional(readOnly = true)
@@ -181,6 +184,7 @@ public class PublicFormService {
                 "success",
                 "channel=" + channel.getId() + ", source=web_form"
         );
+        alertQueueService.notifyQueueForNewPublicAppeal(channel, saved.getTicketId(), combinedMessage);
         cacheIdempotentSession(channel, requesterKey, requestId, payloadHash, result);
         return result;
     }
