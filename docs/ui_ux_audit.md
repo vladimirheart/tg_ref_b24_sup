@@ -309,6 +309,20 @@
 
 Итог: weekly review перестаёт быть только бинарным чекбоксом «review подтверждён/не подтверждён» и становится наблюдаемым decision-loop, где можно отследить сдвиг решений и дисциплину incident follow-up в реальной эксплуатации.
 
+### Обновление от 24 марта 2026 (пятая итерация): SLA policy governance получил отдельный review-checkpoint
+
+Следующий логичный шаг из P2 по снижению конфигурационного долга в SLA-routing закрыт через отдельный governance-контур:
+
+- **В analytics добавлена форма SLA policy governance review** (reviewed by, reviewed at UTC, decision go/hold, dry-run ticket id, review note) с сохранением через backend endpoint `/analytics/sla-policy/governance-review`.
+- **В SLA routing governance audit добавлен структурированный блок `governance_review`**:
+  `required`, `ready`, `reviewed_by`, `reviewed_at_utc`, `reviewed_at_invalid_utc`, `review_ttl_hours`, `review_age_hours`, `dry_run_ticket_required`, `dry_run_ticket_id`, `decision`, `review_note`.
+- **Audit теперь умеет явно сигнализировать governance-gap по review слою**, включая:
+  `governance_review_missing`, `governance_review_stale`, `governance_review_invalid_utc`, `governance_dry_run_ticket_missing`.
+- **Добавлена telemetry-точка `workspace_sla_policy_review_updated` и счётчик в analytics summary**, чтобы было видно adoption review-практики за UTC-окно.
+- **Обратная совместимость сохранена**: если новые governance-флаги не настроены, SLA routing audit работает как раньше и не блокирует существующий поток.
+
+Итог: SLA policy governance перестаёт быть только «статичным dry-run отчётом» и становится управляемым review-loop с owner/date-дисциплиной, dry-run traceability и наблюдаемостью adoption.
+
 ### P1. Закрыть transition-state между workspace и legacy
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
