@@ -33,6 +33,7 @@
   const packetReviewMeta = document.getElementById('workspaceTelemetryPacketReviewMeta');
   const reviewByInput = document.getElementById('workspaceTelemetryReviewBy');
   const reviewAtInput = document.getElementById('workspaceTelemetryReviewAtUtc');
+  const reviewNoteInput = document.getElementById('workspaceTelemetryReviewNote');
   const reviewConfirmButton = document.getElementById('workspaceTelemetryReviewConfirm');
   const reviewActionState = document.getElementById('workspaceTelemetryReviewActionState');
   const packetExitState = document.getElementById('workspaceTelemetryPacketExitState');
@@ -541,13 +542,17 @@
       const cadenceDays = reviewCadence?.cadence_days ?? '—';
       const ageDays = reviewCadence?.age_days ?? '—';
       const confirmedEvents = reviewCadence?.confirmed_events_in_window ?? 0;
-      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents}`;
+      const reviewNote = String(reviewCadence?.review_note || '').trim();
+      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents}${reviewNote ? ` · note: ${reviewNote}` : ''}`;
     }
     if (reviewByInput) {
       reviewByInput.value = reviewCadence?.reviewed_by || '';
     }
     if (reviewAtInput) {
       reviewAtInput.value = toDateTimeLocalValue(reviewCadence?.reviewed_at);
+    }
+    if (reviewNoteInput) {
+      reviewNoteInput.value = String(reviewCadence?.review_note || '').trim();
     }
     const parityExit = packet?.parity_exit_criteria || {};
     if (packetExitState) {
@@ -1392,6 +1397,7 @@
     const reviewedBy = reviewByInput ? (reviewByInput.value || '').trim() : '';
     const reviewedAtLocal = reviewAtInput ? (reviewAtInput.value || '').trim() : '';
     const reviewedAtUtc = reviewedAtLocal ? `${reviewedAtLocal}:00Z` : '';
+    const reviewNote = reviewNoteInput ? (reviewNoteInput.value || '').trim().slice(0, 500) : '';
     try {
       const response = await fetch('/analytics/workspace-rollout/review', {
         method: 'POST',
@@ -1401,6 +1407,7 @@
         body: JSON.stringify({
           reviewedBy,
           reviewedAtUtc,
+          reviewNote,
         }),
       });
       const payload = await response.json();
