@@ -238,6 +238,10 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_governance_review_cadence_days")
                 || payload.containsKey("dialog_workspace_rollout_governance_reviewed_by")
                 || payload.containsKey("dialog_workspace_rollout_governance_reviewed_at")
+                || payload.containsKey("dialog_workspace_rollout_governance_review_decision_required")
+                || payload.containsKey("dialog_workspace_rollout_governance_incident_followup_required")
+                || payload.containsKey("dialog_workspace_rollout_governance_review_decision_action")
+                || payload.containsKey("dialog_workspace_rollout_governance_review_incident_followup")
                 || payload.containsKey("dialog_workspace_rollout_governance_parity_exit_days")
                 || payload.containsKey("dialog_workspace_rollout_governance_parity_critical_reasons")
                 || payload.containsKey("dialog_workspace_rollout_governance_legacy_only_scenarios")
@@ -661,6 +665,22 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_governance_reviewed_at")) {
                     dialogConfig.put("workspace_rollout_governance_reviewed_at",
                             payload.get("dialog_workspace_rollout_governance_reviewed_at"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_review_decision_required")) {
+                    dialogConfig.put("workspace_rollout_governance_review_decision_required",
+                            payload.get("dialog_workspace_rollout_governance_review_decision_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_incident_followup_required")) {
+                    dialogConfig.put("workspace_rollout_governance_incident_followup_required",
+                            payload.get("dialog_workspace_rollout_governance_incident_followup_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_review_decision_action")) {
+                    dialogConfig.put("workspace_rollout_governance_review_decision_action",
+                            payload.get("dialog_workspace_rollout_governance_review_decision_action"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_review_incident_followup")) {
+                    dialogConfig.put("workspace_rollout_governance_review_incident_followup",
+                            payload.get("dialog_workspace_rollout_governance_review_incident_followup"));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_governance_parity_exit_days")) {
                     dialogConfig.put("workspace_rollout_governance_parity_exit_days",

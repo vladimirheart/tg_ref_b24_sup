@@ -28,6 +28,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Controller
@@ -124,8 +125,21 @@ public class AnalyticsController {
         }
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
         String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
+        String decisionAction = normalize(String.valueOf(request != null ? request.decisionAction() : null));
+        String incidentFollowup = normalize(String.valueOf(request != null ? request.incidentFollowup() : null));
         if (reviewNote != null && reviewNote.length() > 500) {
             reviewNote = reviewNote.substring(0, 500);
+        }
+        if (incidentFollowup != null && incidentFollowup.length() > 255) {
+            incidentFollowup = incidentFollowup.substring(0, 255);
+        }
+        if (decisionAction != null) {
+            decisionAction = decisionAction.toLowerCase(Locale.ROOT);
+            if (!"go".equals(decisionAction) && !"hold".equals(decisionAction) && !"rollback".equals(decisionAction)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "decision_action must be one of: go, hold, rollback"));
+            }
         }
         OffsetDateTime reviewedAtUtc;
         if (reviewedAtRaw == null) {
@@ -149,6 +163,16 @@ public class AnalyticsController {
             dialogConfig.remove("workspace_rollout_governance_review_note");
         } else {
             dialogConfig.put("workspace_rollout_governance_review_note", reviewNote);
+        }
+        if (decisionAction == null) {
+            dialogConfig.remove("workspace_rollout_governance_review_decision_action");
+        } else {
+            dialogConfig.put("workspace_rollout_governance_review_decision_action", decisionAction);
+        }
+        if (incidentFollowup == null) {
+            dialogConfig.remove("workspace_rollout_governance_review_incident_followup");
+        } else {
+            dialogConfig.put("workspace_rollout_governance_review_incident_followup", incidentFollowup);
         }
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
@@ -180,7 +204,9 @@ public class AnalyticsController {
                 "reviewed_by", reviewedBy,
                 "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
                 "next_review_due_at_utc", dueAtUtc,
-                "review_note", reviewNote == null ? "" : reviewNote
+                "review_note", reviewNote == null ? "" : reviewNote,
+                "decision_action", decisionAction == null ? "" : decisionAction,
+                "incident_followup", incidentFollowup == null ? "" : incidentFollowup
         ));
     }
 
@@ -201,16 +227,18 @@ public class AnalyticsController {
             return null;
         }
         try {
-            Instant parsed = Instant.parse(value);
-            return parsed.atOffset(ZoneOffset.UTC);
-        } catch (DateTimeParseException ignored) {
-            // fallback
-        }
-        try {
             OffsetDateTime parsed = OffsetDateTime.parse(value);
+            if (!ZoneOffset.UTC.equals(parsed.getOffset())) {
+                return null;
+            }
             return parsed.withOffsetSameInstant(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
-            return null;
+            try {
+                Instant parsed = Instant.parse(value);
+                return value.endsWith("Z") ? parsed.atOffset(ZoneOffset.UTC) : null;
+            } catch (DateTimeParseException ignoredAgain) {
+                return null;
+            }
         }
     }
 
@@ -228,6 +256,10 @@ public class AnalyticsController {
         }
     }
 
-    private record WorkspaceRolloutReviewRequest(String reviewedBy, String reviewedAtUtc, String reviewNote) {
+    private record WorkspaceRolloutReviewRequest(String reviewedBy,
+                                                 String reviewedAtUtc,
+                                                 String reviewNote,
+                                                 String decisionAction,
+                                                 String incidentFollowup) {
     }
 }
