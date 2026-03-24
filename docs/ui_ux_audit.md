@@ -283,6 +283,19 @@
 
 Итог: переходный dual-run теперь поддерживается более дисциплинированно — список legacy-only сценариев не «живет в стороне», а становится частью регулярного governance-loop прямо в рабочем аналитическом контуре.
 
+### Обновление от 24 марта 2026 (третья итерация): minimum customer context доведён до runtime-контракта
+
+Следующим логичным шагом после формализации context standard стал runtime-контроль прямо в workspace:
+
+- **В `workspace.v1` payload добавлен блок `context.contract`**, который проверяет minimum-profile контракт в реальном диалоге:
+  mandatory fields, source-of-truth rules (`field:source`) и priority blocks.
+- **Появилась явная оценка готовности контракта (`ready`) и список нарушений (`violations`)** с безопасной деградацией.
+  Если настройки контракта не заданы, блок не блокирует поток (`enabled=false`, дефолтное поведение сохранено).
+- **Во фронте workspace добавлен визуальный banner “Context contract”** в карточке клиента, чтобы оператор видел runtime-статус без перехода в settings/analytics.
+- **Добавлена telemetry-точка `workspace_context_contract_gap`** и протянуты агрегаты в analytics summary + gap breakdown, чтобы adoption/проблемы контракта были наблюдаемы на уровне governance.
+
+Итог: контур minimum customer context теперь не только описывается на уровне policy, но и проверяется end-to-end в рабочем потоке оператора (UI → API payload → telemetry → analytics breakdown).
+
 ### P1. Закрыть transition-state между workspace и legacy
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
