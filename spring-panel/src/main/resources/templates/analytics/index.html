@@ -487,6 +487,39 @@
                                 </div>
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryMacroGovernanceIssueSummary"></div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroGovernanceReviewForm">
+                                <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceReviewedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceReviewedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetryMacroGovernanceDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceCleanupTicketId" class="form-label form-label-sm mb-1">Cleanup ticket ID</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceCleanupTicketId" maxlength="80" placeholder="MACRO-1234">
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="workspaceTelemetryMacroGovernanceReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceReviewNote" maxlength="500" placeholder="owner cleanup backlog, namespace split, deprecation follow-up">
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroGovernanceSaveReview">Сохранить macro review</button>
+                                    <small class="text-muted" id="workspaceTelemetryMacroGovernanceActionState"></small>
+                                </div>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-12 col-xl-5">
                                     <div class="table-responsive">

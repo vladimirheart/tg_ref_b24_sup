@@ -92,6 +92,13 @@
   const macroGovernanceIssueSummary = document.getElementById('workspaceTelemetryMacroGovernanceIssueSummary');
   const macroGovernanceIssuesTable = document.getElementById('workspaceTelemetryMacroGovernanceIssuesTable');
   const macroGovernanceTemplatesTable = document.getElementById('workspaceTelemetryMacroGovernanceTemplatesTable');
+  const macroGovernanceReviewedByInput = document.getElementById('workspaceTelemetryMacroGovernanceReviewedBy');
+  const macroGovernanceReviewedAtInput = document.getElementById('workspaceTelemetryMacroGovernanceReviewedAtUtc');
+  const macroGovernanceReviewNoteInput = document.getElementById('workspaceTelemetryMacroGovernanceReviewNote');
+  const macroGovernanceDecisionInput = document.getElementById('workspaceTelemetryMacroGovernanceDecision');
+  const macroGovernanceCleanupTicketIdInput = document.getElementById('workspaceTelemetryMacroGovernanceCleanupTicketId');
+  const macroGovernanceSaveReviewButton = document.getElementById('workspaceTelemetryMacroGovernanceSaveReview');
+  const macroGovernanceActionState = document.getElementById('workspaceTelemetryMacroGovernanceActionState');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -344,6 +351,9 @@
     }
     if (macroGovernanceTemplatesTable) {
       macroGovernanceTemplatesTable.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
+    }
+    if (macroGovernanceActionState) {
+      macroGovernanceActionState.textContent = '';
     }
     alertsTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
     shiftTable.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td></tr>';
@@ -882,9 +892,11 @@
       macroGovernanceSummary.textContent = audit?.summary || 'Macro governance audit недоступен.';
     }
     if (macroGovernanceMeta) {
-      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)}`;
+      const reviewUpdates = latestPayload?.totals?.workspace_macro_governance_review_updated_events ?? 0;
+      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · review updates=${formatNumber(reviewUpdates)}`;
     }
     const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
+    const governanceReview = audit?.governance_review && typeof audit.governance_review === 'object' ? audit.governance_review : {};
     if (macroGovernanceRequirements) {
       macroGovernanceRequirements.textContent = `owner=${requirements.require_owner === true ? 'required' : 'optional'} · namespace=${requirements.require_namespace === true ? 'required' : 'optional'}`;
     }
@@ -895,7 +907,7 @@
       macroGovernanceCleanup.textContent = `unused=${formatNumber(audit?.unused_published_total || 0)} · stale_review=${formatNumber(audit?.stale_review_total || 0)}`;
     }
     if (macroGovernanceCleanupMeta) {
-      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)}`;
+      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'}`;
     }
     const issues = Array.isArray(audit?.issues) ? audit.issues : [];
     if (macroGovernanceIssueSummary) {
@@ -958,6 +970,22 @@
           `;
         }).join('');
       }
+    }
+    if (macroGovernanceReviewedByInput) {
+      macroGovernanceReviewedByInput.value = String(governanceReview?.reviewed_by || '').trim();
+    }
+    if (macroGovernanceReviewedAtInput) {
+      macroGovernanceReviewedAtInput.value = toDateTimeLocalValue(governanceReview?.reviewed_at_utc);
+    }
+    if (macroGovernanceReviewNoteInput) {
+      macroGovernanceReviewNoteInput.value = String(governanceReview?.review_note || '').trim();
+    }
+    if (macroGovernanceCleanupTicketIdInput) {
+      macroGovernanceCleanupTicketIdInput.value = String(governanceReview?.cleanup_ticket_id || '').trim();
+    }
+    if (macroGovernanceDecisionInput) {
+      const decision = String(governanceReview?.decision || '').trim().toLowerCase();
+      macroGovernanceDecisionInput.value = ['go', 'hold'].includes(decision) ? decision : '';
     }
   }
 
@@ -1755,6 +1783,53 @@
     }
   }
 
+  async function saveMacroGovernanceReview() {
+    if (!macroGovernanceSaveReviewButton) {
+      return;
+    }
+    macroGovernanceSaveReviewButton.disabled = true;
+    if (macroGovernanceActionState) {
+      macroGovernanceActionState.textContent = 'Сохраняем...';
+    }
+    const reviewedAtUtc = dateTimeLocalToUtcIso(macroGovernanceReviewedAtInput ? (macroGovernanceReviewedAtInput.value || '').trim() : '');
+    if (reviewedAtUtc === null) {
+      if (macroGovernanceActionState) {
+        macroGovernanceActionState.textContent = 'Ошибка: поле "Reviewed at (UTC)" содержит невалидную дату.';
+      }
+      macroGovernanceSaveReviewButton.disabled = false;
+      return;
+    }
+    try {
+      const response = await fetch('/analytics/macro-governance/review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reviewedBy: macroGovernanceReviewedByInput ? (macroGovernanceReviewedByInput.value || '').trim() : '',
+          reviewedAtUtc,
+          reviewNote: macroGovernanceReviewNoteInput ? (macroGovernanceReviewNoteInput.value || '').trim().slice(0, 500) : '',
+          cleanupTicketId: macroGovernanceCleanupTicketIdInput ? (macroGovernanceCleanupTicketIdInput.value || '').trim().slice(0, 80) : '',
+          decision: macroGovernanceDecisionInput ? String(macroGovernanceDecisionInput.value || '').trim().toLowerCase() : '',
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      if (macroGovernanceActionState) {
+        macroGovernanceActionState.textContent = `Сохранено: ${formatTimestamp(payload?.reviewed_at_utc)}`;
+      }
+      await loadTelemetry();
+    } catch (error) {
+      if (macroGovernanceActionState) {
+        macroGovernanceActionState.textContent = `Ошибка: ${error.message}`;
+      }
+    } finally {
+      macroGovernanceSaveReviewButton.disabled = false;
+    }
+  }
+
   refreshButton.addEventListener('click', loadTelemetry);
   if (resetWindowButton) {
     resetWindowButton.addEventListener('click', () => {
@@ -1801,6 +1876,9 @@
   }
   if (slaPolicySaveReviewButton) {
     slaPolicySaveReviewButton.addEventListener('click', saveSlaPolicyGovernanceReview);
+  }
+  if (macroGovernanceSaveReviewButton) {
+    macroGovernanceSaveReviewButton.addEventListener('click', saveMacroGovernanceReview);
   }
   experimentInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {

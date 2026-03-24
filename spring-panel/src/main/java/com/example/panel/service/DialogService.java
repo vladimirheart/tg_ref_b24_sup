@@ -82,6 +82,7 @@ public class DialogService {
     private static final int DEFAULT_COHORT_MIN_EVENTS = 30;
     private static final int DEFAULT_MACRO_GOVERNANCE_UNUSED_DAYS = 30;
     private static final long DEFAULT_MACRO_GOVERNANCE_REVIEW_TTL_HOURS = 24L * 90L;
+    private static final long DEFAULT_MACRO_GOVERNANCE_CHECKPOINT_TTL_HOURS = 24L * 7L;
 
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
@@ -987,6 +988,84 @@ public class DialogService {
             auditedTemplates.add(auditTemplate);
         }
 
+        boolean governanceReviewRequired = resolveBooleanConfig(dialogConfig, "macro_governance_review_required", false);
+        long governanceReviewTtlHours = resolveLongConfig(
+                dialogConfig,
+                "macro_governance_checkpoint_ttl_hours",
+                DEFAULT_MACRO_GOVERNANCE_CHECKPOINT_TTL_HOURS,
+                1,
+                24L * 90L);
+        boolean governanceCleanupTicketRequired = resolveBooleanConfig(
+                dialogConfig,
+                "macro_governance_cleanup_ticket_required",
+                false);
+        String governanceReviewedBy = normalizeNullString(String.valueOf(dialogConfig.get("macro_governance_reviewed_by")));
+        String governanceReviewedAtRaw = normalizeNullString(String.valueOf(dialogConfig.get("macro_governance_reviewed_at")));
+        OffsetDateTime governanceReviewedAt = parseReviewTimestamp(governanceReviewedAtRaw);
+        boolean governanceReviewedAtInvalid = StringUtils.hasText(governanceReviewedAtRaw) && governanceReviewedAt == null;
+        long governanceReviewAgeHours = governanceReviewedAt != null
+                ? Math.max(0L, java.time.Duration.between(governanceReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours())
+                : -1L;
+        boolean governanceReviewFresh = governanceReviewedAt != null && governanceReviewAgeHours <= governanceReviewTtlHours;
+        String governanceReviewNote = normalizeNullString(String.valueOf(dialogConfig.get("macro_governance_review_note")));
+        String governanceDecision = normalizeNullString(String.valueOf(dialogConfig.get("macro_governance_review_decision")));
+        if (governanceDecision != null) {
+            governanceDecision = governanceDecision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(governanceDecision) && !"hold".equals(governanceDecision)) {
+                governanceDecision = null;
+            }
+        }
+        String governanceCleanupTicketId = normalizeNullString(String.valueOf(dialogConfig.get("macro_governance_cleanup_ticket_id")));
+        boolean governanceReady = !governanceReviewRequired || (StringUtils.hasText(governanceReviewedBy)
+                && governanceReviewFresh
+                && !governanceReviewedAtInvalid
+                && (!governanceCleanupTicketRequired || StringUtils.hasText(governanceCleanupTicketId)));
+        List<String> governanceReviewIssues = new ArrayList<>();
+        if (governanceReviewRequired) {
+            if (!StringUtils.hasText(governanceReviewedBy) || governanceReviewedAt == null) {
+                governanceReviewIssues.add("governance_review_missing");
+                issues.add(buildMacroGovernanceIssue(
+                        "governance_review_missing",
+                        null,
+                        null,
+                        "hold",
+                        "rollout_blocker",
+                        "Macro governance review checkpoint не заполнен.",
+                        "reviewed_by/reviewed_at=missing"));
+            } else if (governanceReviewedAtInvalid) {
+                governanceReviewIssues.add("governance_review_invalid_utc");
+                issues.add(buildMacroGovernanceIssue(
+                        "governance_review_invalid_utc",
+                        null,
+                        null,
+                        "hold",
+                        "rollout_blocker",
+                        "Дата macro governance review невалидна и не может быть интерпретирована как UTC.",
+                        "reviewed_at=invalid"));
+            } else if (!governanceReviewFresh) {
+                governanceReviewIssues.add("governance_review_stale");
+                issues.add(buildMacroGovernanceIssue(
+                        "governance_review_stale",
+                        null,
+                        null,
+                        "hold",
+                        "rollout_blocker",
+                        "Macro governance review устарел и требует повторной проверки.",
+                        "review_age_hours=%d > ttl=%d".formatted(governanceReviewAgeHours, governanceReviewTtlHours)));
+            }
+            if (governanceCleanupTicketRequired && !StringUtils.hasText(governanceCleanupTicketId)) {
+                governanceReviewIssues.add("governance_cleanup_ticket_missing");
+                issues.add(buildMacroGovernanceIssue(
+                        "governance_cleanup_ticket_missing",
+                        null,
+                        null,
+                        "attention",
+                        "backlog_candidate",
+                        "Для macro governance review требуется cleanup ticket.",
+                        "cleanup_ticket_id=missing"));
+            }
+        }
+
         String status;
         if (templates.isEmpty()) {
             status = "off";
@@ -1021,6 +1100,19 @@ public class DialogService {
                 "review_ttl_hours", reviewTtlHours,
                 "deprecation_requires_reason", deprecationRequiresReason,
                 "unused_days", usageWindowDays));
+        audit.put("governance_review", Map.of(
+                "required", governanceReviewRequired,
+                "ready", governanceReady,
+                "reviewed_by", governanceReviewedBy == null ? "" : governanceReviewedBy,
+                "reviewed_at_utc", governanceReviewedAt == null ? "" : governanceReviewedAt.toString(),
+                "reviewed_at_invalid_utc", governanceReviewedAtInvalid,
+                "review_ttl_hours", governanceReviewTtlHours,
+                "review_age_hours", governanceReviewAgeHours,
+                "cleanup_ticket_required", governanceCleanupTicketRequired,
+                "cleanup_ticket_id", governanceCleanupTicketId == null ? "" : governanceCleanupTicketId,
+                "decision", governanceDecision == null ? "" : governanceDecision,
+                "review_note", governanceReviewNote == null ? "" : governanceReviewNote,
+                "issues", governanceReviewIssues));
         audit.put("issues", issues);
         audit.put("templates", auditedTemplates);
         return audit;
@@ -3169,6 +3261,7 @@ public class DialogService {
         long workspaceRolloutReviewDecisionRollbackEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_rollback_events"))).sum();
         long workspaceRolloutReviewIncidentFollowupLinkedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_incident_followup_linked_events"))).sum();
         long workspaceSlaPolicyReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_review_updated_events"))).sum();
+        long workspaceMacroGovernanceReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_governance_review_updated_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -3225,6 +3318,7 @@ public class DialogService {
         totals.put("workspace_rollout_review_decision_rollback_events", workspaceRolloutReviewDecisionRollbackEvents);
         totals.put("workspace_rollout_review_incident_followup_linked_events", workspaceRolloutReviewIncidentFollowupLinkedEvents);
         totals.put("workspace_sla_policy_review_updated_events", workspaceSlaPolicyReviewUpdatedEvents);
+        totals.put("workspace_macro_governance_review_updated_events", workspaceMacroGovernanceReviewUpdatedEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
@@ -4192,6 +4286,7 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_rollback' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_rollback_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_incident_followup_linked' THEN 1 ELSE 0 END) AS workspace_rollout_review_incident_followup_linked_events,
                        SUM(CASE WHEN event_type = 'workspace_sla_policy_review_updated' THEN 1 ELSE 0 END) AS workspace_sla_policy_review_updated_events,
+                       SUM(CASE WHEN event_type = 'workspace_macro_governance_review_updated' THEN 1 ELSE 0 END) AS workspace_macro_governance_review_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
@@ -4241,6 +4336,7 @@ public class DialogService {
                 item.put("workspace_rollout_review_decision_rollback_events", rs.getLong("workspace_rollout_review_decision_rollback_events"));
                 item.put("workspace_rollout_review_incident_followup_linked_events", rs.getLong("workspace_rollout_review_incident_followup_linked_events"));
                 item.put("workspace_sla_policy_review_updated_events", rs.getLong("workspace_sla_policy_review_updated_events"));
+                item.put("workspace_macro_governance_review_updated_events", rs.getLong("workspace_macro_governance_review_updated_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
