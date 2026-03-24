@@ -123,6 +123,10 @@ public class AnalyticsController {
             reviewedBy = actor;
         }
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
+        if (reviewNote != null && reviewNote.length() > 500) {
+            reviewNote = reviewNote.substring(0, 500);
+        }
         OffsetDateTime reviewedAtUtc;
         if (reviewedAtRaw == null) {
             reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
@@ -140,13 +144,18 @@ public class AnalyticsController {
                 ? new LinkedHashMap<>((Map<String, Object>) map)
                 : new LinkedHashMap<>();
         dialogConfig.put("workspace_rollout_governance_reviewed_by", reviewedBy);
-        dialogConfig.put("workspace_rollout_governance_reviewed_at", reviewedAtUtc.toString());
+        dialogConfig.put("workspace_rollout_governance_reviewed_at", reviewedAtUtc.toInstant().toString());
+        if (reviewNote == null) {
+            dialogConfig.remove("workspace_rollout_governance_review_note");
+        } else {
+            dialogConfig.put("workspace_rollout_governance_review_note", reviewNote);
+        }
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
 
         Object cadenceRaw = dialogConfig.get("workspace_rollout_governance_review_cadence_days");
         long cadenceDays = parsePositiveLong(cadenceRaw);
-        String dueAtUtc = cadenceDays > 0 ? reviewedAtUtc.plusDays(cadenceDays).toString() : "";
+        String dueAtUtc = cadenceDays > 0 ? reviewedAtUtc.plusDays(cadenceDays).toInstant().toString() : "";
 
         dialogService.logWorkspaceTelemetry(
                 actor,
@@ -169,8 +178,9 @@ public class AnalyticsController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "reviewed_by", reviewedBy,
-                "reviewed_at_utc", reviewedAtUtc.toString(),
-                "next_review_due_at_utc", dueAtUtc
+                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
+                "next_review_due_at_utc", dueAtUtc,
+                "review_note", reviewNote == null ? "" : reviewNote
         ));
     }
 
@@ -218,6 +228,6 @@ public class AnalyticsController {
         }
     }
 
-    private record WorkspaceRolloutReviewRequest(String reviewedBy, String reviewedAtUtc) {
+    private record WorkspaceRolloutReviewRequest(String reviewedBy, String reviewedAtUtc, String reviewNote) {
     }
 }
