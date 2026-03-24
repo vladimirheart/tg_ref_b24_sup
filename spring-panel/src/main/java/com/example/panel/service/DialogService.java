@@ -1251,6 +1251,9 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_governance_parity_critical_reasons"));
         List<String> legacyOnlyScenarios = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_governance_legacy_only_scenarios"));
+        String legacyInventoryReviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_reviewed_by")));
+        String legacyInventoryReviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_reviewed_at"));
+        String legacyInventoryReviewNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_review_note")));
         boolean contextContractRequired = resolveBooleanDialogConfigValue("workspace_rollout_context_contract_required", false);
         List<String> contextContractScenarios = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_context_contract_scenarios"));
@@ -1327,6 +1330,9 @@ public class DialogService {
         boolean parityExitCriteriaReady = toBoolean(parityExitCriteria.get("ready"));
         boolean legacyInventoryEnabled = packetRequired || !legacyOnlyScenarios.isEmpty();
         boolean legacyInventoryReady = legacyOnlyScenarios.isEmpty();
+        OffsetDateTime legacyInventoryReviewedAt = parseReviewTimestamp(legacyInventoryReviewedAtRaw);
+        boolean legacyInventoryReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyInventoryReviewedAtRaw))
+                && legacyInventoryReviewedAt == null;
         boolean contextContractEnabled = contextContractRequired
                 || !contextContractScenarios.isEmpty()
                 || !contextContractMandatoryFields.isEmpty()
@@ -1499,8 +1505,15 @@ public class DialogService {
                                 ? "none"
                                 : "open=%d".formatted(legacyOnlyScenarios.size()),
                 legacyInventoryEnabled ? "inventory empty before decommission" : "optional",
-                normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
-                legacyInventoryReady ? null : String.join(", ", legacyOnlyScenarios)
+                legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
+                legacyInventoryReady
+                        ? firstNonBlank(legacyInventoryReviewNote, legacyInventoryReviewedBy)
+                        : Stream.of(
+                                String.join(", ", legacyOnlyScenarios),
+                                legacyInventoryReviewNote,
+                                legacyInventoryReviewTimestampInvalid ? "invalid_utc" : null)
+                        .filter(StringUtils::hasText)
+                        .collect(Collectors.joining(" · "))
         ));
         packetItems.add(buildScorecardItem(
                 "context_minimum_profile",
@@ -1656,6 +1669,12 @@ public class DialogService {
         packet.put("parity_snapshot", paritySnapshot);
         packet.put("parity_exit_criteria", parityExitCriteria);
         packet.put("legacy_only_scenarios", legacyOnlyScenarios);
+        packet.put("legacy_only_inventory", Map.of(
+                "reviewed_by", legacyInventoryReviewedBy == null ? "" : legacyInventoryReviewedBy,
+                "reviewed_at", legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : "",
+                "review_note", legacyInventoryReviewNote == null ? "" : legacyInventoryReviewNote,
+                "review_timestamp_invalid", legacyInventoryReviewTimestampInvalid
+        ));
         packet.put("incident_history", incidentHistory);
         packet.put("context_contract", contextContract);
         packet.put("external_gate", Map.of(
