@@ -2240,6 +2240,32 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void settingsBridgePersistsSlaPolicyGovernanceBaselineFields() {
+        settingsBridgeController.updateSettings(Map.of(
+                "dialog_sla_critical_auto_assign_audit_require_layers", true,
+                "dialog_sla_critical_auto_assign_audit_require_owner", true,
+                "dialog_sla_critical_auto_assign_audit_require_review", true,
+                "dialog_sla_critical_auto_assign_audit_review_ttl_hours", 72,
+                "dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct", 55,
+                "dialog_sla_critical_auto_assign_audit_block_on_conflicts", true,
+                "dialog_sla_critical_auto_assign_governance_review_required", true,
+                "dialog_sla_critical_auto_assign_governance_review_ttl_hours", 48,
+                "dialog_sla_critical_auto_assign_governance_dry_run_ticket_required", true
+        ), null);
+
+        Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");
+        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_require_layers")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_require_owner")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_require_review")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_review_ttl_hours")).isEqualTo(72L);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_broad_rule_coverage_pct")).isEqualTo(55L);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_block_on_conflicts")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_ttl_hours")).isEqualTo(48L);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_required")).isEqualTo(true);
+    }
+
+    @Test
     void workspaceRolloutDecisionPublishesCanonicalTimestampInvalidAliases() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """
