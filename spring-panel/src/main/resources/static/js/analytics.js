@@ -51,6 +51,15 @@
   const legacyReviewNoteInput = document.getElementById('workspaceTelemetryLegacyReviewNote');
   const legacySaveButton = document.getElementById('workspaceTelemetryLegacySave');
   const legacyActionState = document.getElementById('workspaceTelemetryLegacyActionState');
+  const packetLegacyUsageState = document.getElementById('workspaceTelemetryPacketLegacyUsageState');
+  const packetLegacyUsageMeta = document.getElementById('workspaceTelemetryPacketLegacyUsageMeta');
+  const legacyUsageReviewedByInput = document.getElementById('workspaceTelemetryLegacyUsageReviewedBy');
+  const legacyUsageReviewedAtInput = document.getElementById('workspaceTelemetryLegacyUsageReviewedAtUtc');
+  const legacyUsageMaxSharePctInput = document.getElementById('workspaceTelemetryLegacyUsageMaxSharePct');
+  const legacyUsageDecisionInput = document.getElementById('workspaceTelemetryLegacyUsageDecision');
+  const legacyUsageReviewNoteInput = document.getElementById('workspaceTelemetryLegacyUsageReviewNote');
+  const legacyUsageSaveButton = document.getElementById('workspaceTelemetryLegacyUsageSave');
+  const legacyUsageActionState = document.getElementById('workspaceTelemetryLegacyUsageActionState');
   const packetContextState = document.getElementById('workspaceTelemetryPacketContextState');
   const packetContextMeta = document.getElementById('workspaceTelemetryPacketContextMeta');
   const contextRequiredInput = document.getElementById('workspaceTelemetryContextRequired');
@@ -676,6 +685,45 @@
     if (legacyReviewNoteInput) {
       legacyReviewNoteInput.value = String(legacyInventory?.review_note || '').trim();
     }
+    const legacyUsagePolicy = packet?.legacy_usage_policy || {};
+if (packetLegacyUsageState) {
+  if (legacyUsagePolicy?.enabled !== true) {
+    packetLegacyUsageState.textContent = 'Не требуется';
+  } else if (legacyUsagePolicy?.review_timestamp_invalid === true) {
+    packetLegacyUsageState.textContent = 'Невалидная UTC-дата';
+  } else if (legacyUsagePolicy?.ready === true) {
+    packetLegacyUsageState.textContent = 'Policy подтверждена';
+  } else {
+    packetLegacyUsageState.textContent = 'Policy требует review';
+  }
+}
+if (packetLegacyUsageMeta) {
+  const reviewedAt = legacyUsagePolicy?.reviewed_at ? formatTimestamp(legacyUsagePolicy.reviewed_at) : '—';
+  const reviewedBy = String(legacyUsagePolicy?.reviewed_by || '').trim() || '—';
+  const share = Number(legacyUsagePolicy?.manual_legacy_share_pct || 0).toFixed(1);
+  const maxShare = legacyUsagePolicy?.max_manual_legacy_share_pct;
+  const note = String(legacyUsagePolicy?.review_note || '').trim();
+  const policyEvents = Number(legacyUsagePolicy?.policy_updated_events_in_window || 0);
+  const decision = String(legacyUsagePolicy?.decision || '').trim();
+  packetLegacyUsageMeta.textContent = `manual legacy share=${share}%${maxShare !== null && maxShare !== undefined && maxShare !== '' ? ` (max ${maxShare}%)` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${decision ? ` · decision: ${decision}` : ''} · policy updates: ${policyEvents}${note ? ` · note: ${note}` : ''}`;
+}
+if (legacyUsageReviewedByInput) {
+  legacyUsageReviewedByInput.value = String(legacyUsagePolicy?.reviewed_by || '').trim();
+}
+if (legacyUsageReviewedAtInput) {
+  legacyUsageReviewedAtInput.value = toDateTimeLocalValue(legacyUsagePolicy?.reviewed_at);
+}
+if (legacyUsageMaxSharePctInput) {
+  const maxShare = legacyUsagePolicy?.max_manual_legacy_share_pct;
+  legacyUsageMaxSharePctInput.value = maxShare === null || maxShare === undefined || maxShare === '' ? '' : String(maxShare);
+}
+if (legacyUsageDecisionInput) {
+  const decision = String(legacyUsagePolicy?.decision || '').trim().toLowerCase();
+  legacyUsageDecisionInput.value = ['go', 'hold'].includes(decision) ? decision : '';
+}
+if (legacyUsageReviewNoteInput) {
+  legacyUsageReviewNoteInput.value = String(legacyUsagePolicy?.review_note || '').trim();
+}
     const contextContract = packet?.context_contract || {};
     const contextScenarios = Array.isArray(contextContract?.scenarios) ? contextContract.scenarios : [];
     const contextMandatoryFields = Array.isArray(contextContract?.mandatory_fields) ? contextContract.mandatory_fields : [];
@@ -1736,6 +1784,65 @@
     }
   }
 
+async function saveLegacyUsagePolicy() {
+  if (!legacyUsageSaveButton) {
+    return;
+  }
+  legacyUsageSaveButton.disabled = true;
+  if (legacyUsageActionState) {
+    legacyUsageActionState.textContent = 'Сохраняем...';
+  }
+  const reviewedAtUtc = dateTimeLocalToUtcIso(legacyUsageReviewedAtInput ? (legacyUsageReviewedAtInput.value || '').trim() : '');
+  if (reviewedAtUtc === null) {
+    if (legacyUsageActionState) {
+      legacyUsageActionState.textContent = 'Ошибка: поле "Reviewed at (UTC)" содержит невалидную дату.';
+    }
+    legacyUsageSaveButton.disabled = false;
+    return;
+  }
+  const maxShareRaw = legacyUsageMaxSharePctInput ? String(legacyUsageMaxSharePctInput.value || '').trim() : '';
+  let maxSharePct = null;
+  if (maxShareRaw) {
+    const parsed = Number(maxShareRaw);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) {
+      if (legacyUsageActionState) {
+        legacyUsageActionState.textContent = 'Ошибка: max share должен быть целым числом 0..100.';
+      }
+      legacyUsageSaveButton.disabled = false;
+      return;
+    }
+    maxSharePct = parsed;
+  }
+  try {
+    const response = await fetch('/analytics/workspace-rollout/legacy-usage-policy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        reviewedBy: legacyUsageReviewedByInput ? (legacyUsageReviewedByInput.value || '').trim() : '',
+        reviewedAtUtc,
+        reviewNote: legacyUsageReviewNoteInput ? (legacyUsageReviewNoteInput.value || '').trim().slice(0, 500) : '',
+        decision: legacyUsageDecisionInput ? String(legacyUsageDecisionInput.value || '').trim().toLowerCase() : '',
+        maxLegacyManualSharePct: maxSharePct,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok || payload?.success !== true) {
+      throw new Error(payload?.error || `HTTP ${response.status}`);
+    }
+    if (legacyUsageActionState) {
+      legacyUsageActionState.textContent = `Сохранено: ${formatTimestamp(payload?.reviewed_at_utc)}`;
+    }
+    await loadTelemetry();
+  } catch (error) {
+    if (legacyUsageActionState) {
+      legacyUsageActionState.textContent = `Ошибка: ${error.message}`;
+    }
+  } finally {
+    legacyUsageSaveButton.disabled = false;
+  }
+}
   async function saveSlaPolicyGovernanceReview() {
     if (!slaPolicySaveReviewButton) {
       return;
@@ -1874,6 +1981,9 @@
   if (legacySaveButton) {
     legacySaveButton.addEventListener('click', saveLegacyInventory);
   }
+  if (legacyUsageSaveButton) {
+  legacyUsageSaveButton.addEventListener('click', saveLegacyUsagePolicy);
+}
   if (slaPolicySaveReviewButton) {
     slaPolicySaveReviewButton.addEventListener('click', saveSlaPolicyGovernanceReview);
   }

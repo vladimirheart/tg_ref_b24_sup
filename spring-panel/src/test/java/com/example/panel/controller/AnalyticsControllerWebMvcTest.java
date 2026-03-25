@@ -386,6 +386,95 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
     }
 
+@Test
+void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
+    when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
+            "dialog_config", new LinkedHashMap<>()
+    )));
+
+    mockMvc.perform(post("/analytics/workspace-rollout/legacy-usage-policy")
+                    .with(user("ops.lead"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            {
+                              "reviewedBy": "ops.lead",
+                              "reviewedAtUtc": "2026-03-24T22:55:00Z",
+                              "reviewNote": "Legacy usage in guardrails window stays under budget.",
+                              "decision": "go",
+                              "maxLegacyManualSharePct": 10
+                            }
+                            """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.reviewed_by").value("ops.lead"))
+            .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-24T22:55:00Z"))
+            .andExpect(jsonPath("$.review_note").value("Legacy usage in guardrails window stays under budget."))
+            .andExpect(jsonPath("$.decision").value("go"))
+            .andExpect(jsonPath("$.max_legacy_manual_share_pct").value(10));
+
+    ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(sharedConfigService).saveSettings(settingsCaptor.capture());
+    Map<String, Object> savedSettings = settingsCaptor.getValue();
+    Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_reviewed_by")).isEqualTo("ops.lead");
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_reviewed_at")).isEqualTo("2026-03-24T22:55:00Z");
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_review_note"))
+            .isEqualTo("Legacy usage in guardrails window stays under budget.");
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_decision")).isEqualTo("go");
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_manual_share_max_pct")).isEqualTo(10L);
+
+    verify(dialogService).logWorkspaceTelemetry(
+            eq("ops.lead"),
+            eq("workspace_legacy_usage_policy_updated"),
+            eq("experiment"),
+            eq(null),
+            eq("analytics_legacy_usage_policy"),
+            eq(null),
+            eq("workspace.v1"),
+            eq(10L),
+            eq("workspace_v1_rollout"),
+            eq(null),
+            eq(null),
+            eq(null),
+            eq(null),
+            eq(null),
+            eq(null));
+}
+
+@Test
+void updateWorkspaceLegacyUsagePolicyRejectsInvalidUtcTimestamp() throws Exception {
+    when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+    mockMvc.perform(post("/analytics/workspace-rollout/legacy-usage-policy")
+                    .with(user("ops.lead"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            {
+                              "reviewedAtUtc": "2026-03-24T22:55:00+03:00"
+                            }
+                            """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+}
+
+@Test
+void updateWorkspaceLegacyUsagePolicyRejectsInvalidMaxShare() throws Exception {
+    when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+    mockMvc.perform(post("/analytics/workspace-rollout/legacy-usage-policy")
+                    .with(user("ops.lead"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            {
+                              "reviewedAtUtc": "2026-03-24T22:55:00Z",
+                              "maxLegacyManualSharePct": 120
+                            }
+                            """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("max_legacy_manual_share_pct must be between 0 and 100"));
+}
     @Test
     void updateSlaPolicyGovernanceReviewPersistsUtcReview() throws Exception {
         when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
