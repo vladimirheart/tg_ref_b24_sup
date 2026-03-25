@@ -274,6 +274,8 @@ public class AnalyticsController {
 
         List<String> scenarios = sanitizeStringList(request != null ? request.scenarios() : null);
         List<String> mandatoryFields = sanitizeStringList(request != null ? request.mandatoryFields() : null);
+        Map<String, List<String>> scenarioMandatoryFields = sanitizeStringListMap(
+                request != null ? request.scenarioMandatoryFields() : null);
         List<String> sourceOfTruth = sanitizeStringList(request != null ? request.sourceOfTruth() : null);
         List<String> priorityBlocks = sanitizeStringList(request != null ? request.priorityBlocks() : null);
         String note = normalize(String.valueOf(request != null ? request.note() : null));
@@ -291,6 +293,11 @@ public class AnalyticsController {
             dialogConfig.remove("workspace_rollout_context_contract_scenarios");
         } else {
             dialogConfig.put("workspace_rollout_context_contract_scenarios", scenarios);
+        }
+        if (scenarioMandatoryFields.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_mandatory_fields_by_scenario");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_mandatory_fields_by_scenario", scenarioMandatoryFields);
         }
         if (mandatoryFields.isEmpty()) {
             dialogConfig.remove("workspace_rollout_context_contract_mandatory_fields");
@@ -342,6 +349,7 @@ public class AnalyticsController {
                 "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
                 "scenarios", scenarios,
                 "mandatory_fields", mandatoryFields,
+                "scenario_mandatory_fields", scenarioMandatoryFields,
                 "source_of_truth", sourceOfTruth,
                 "priority_blocks", priorityBlocks,
                 "note", note == null ? "" : note
@@ -979,11 +987,30 @@ public class AnalyticsController {
     private record WorkspaceContextStandardRequest(Boolean required,
                                                    Object scenarios,
                                                    Object mandatoryFields,
+                                                  Object scenarioMandatoryFields,
                                                    Object sourceOfTruth,
                                                    Object priorityBlocks,
                                                    String reviewedBy,
                                                    String reviewedAtUtc,
                                                    String note) {
+    }
+
+    private static Map<String, List<String>> sanitizeStringListMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = normalize(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
+            if (key == null || key.length() > 120) {
+                continue;
+            }
+            List<String> values = sanitizeStringList(entry.getValue());
+            if (!values.isEmpty()) {
+                result.put(key.toLowerCase(Locale.ROOT), values);
+            }
+        }
+        return result;
     }
 
     private record WorkspaceLegacyOnlyScenariosRequest(Object scenarios,
