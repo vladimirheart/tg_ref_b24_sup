@@ -1489,6 +1489,8 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_context_contract_scenarios"));
         List<String> contextContractMandatoryFields = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_context_contract_mandatory_fields"));
+        Map<String, List<String>> contextContractMandatoryFieldsByScenario = resolveDialogConfigStringListMap(
+                resolveDialogConfigValue("workspace_rollout_context_contract_mandatory_fields_by_scenario"));
         List<String> contextContractSourceOfTruth = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_context_contract_source_of_truth"));
         List<String> contextContractPriorityBlocks = resolveDialogConfigStringList(
@@ -1816,9 +1818,10 @@ packetItems.add(buildScorecardItem(
                         ? "not required"
                         : contextContractReviewTimestampInvalid
                                 ? "invalid_utc"
-                                : "scenarios=%d, fields=%d, sources=%d, blocks=%d".formatted(
+                                : "scenarios=%d, fields=%d, scenario_profiles=%d, sources=%d, blocks=%d".formatted(
                                 contextContractScenarios.size(),
                                 contextContractMandatoryFields.size(),
+                                contextContractMandatoryFieldsByScenario.size(),
                                 contextContractSourceOfTruth.size(),
                                 contextContractPriorityBlocks.size()),
                 contextContractEnabled
@@ -1833,7 +1836,8 @@ packetItems.add(buildScorecardItem(
                                 contextContractReviewAgeHours))
                         : "missing=" + Stream.of(
                                 contextContractScenarios.isEmpty() ? "scenarios" : null,
-                                contextContractMandatoryFields.isEmpty() ? "mandatory_fields" : null,
+                                (contextContractMandatoryFields.isEmpty() && contextContractMandatoryFieldsByScenario.isEmpty())
+                                        ? "mandatory_fields" : null,
                                 contextContractSourceOfTruth.isEmpty() ? "source_of_truth" : null,
                                 contextContractPriorityBlocks.isEmpty() ? "priority_blocks" : null)
                         .filter(StringUtils::hasText)
@@ -1952,6 +1956,7 @@ packetItems.add(buildScorecardItem(
         contextContract.put("review_timestamp_invalid", contextContractReviewTimestampInvalid);
         contextContract.put("scenarios", contextContractScenarios);
         contextContract.put("mandatory_fields", contextContractMandatoryFields);
+        contextContract.put("mandatory_fields_by_scenario", contextContractMandatoryFieldsByScenario);
         contextContract.put("source_of_truth", contextContractSourceOfTruth);
         contextContract.put("priority_blocks", contextContractPriorityBlocks);
         contextContract.put("definition_ready", contextContractDefinitionReady);
@@ -2562,6 +2567,24 @@ packetItems.add(buildScorecardItem(
                 .filter(StringUtils::hasText)
                 .distinct()
                 .toList();
+    }
+
+    private Map<String, List<String>> resolveDialogConfigStringListMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, List<String>> normalized = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = normalizeNullString(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
+            if (!StringUtils.hasText(key)) {
+                continue;
+            }
+            List<String> items = resolveDialogConfigStringList(entry.getValue());
+            if (!items.isEmpty()) {
+                normalized.put(key.toLowerCase(Locale.ROOT), items);
+            }
+        }
+        return normalized;
     }
 
     private double safeDouble(Object value) {

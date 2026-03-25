@@ -1,0 +1,30 @@
+diff a/spring-panel/src/main/java/com/example/panel/controller/AnalyticsController.java b/spring-panel/src/main/java/com/example/panel/controller/AnalyticsController.java	(rejected hunks)
+@@ -976,9 +983,28 @@ public class AnalyticsController {
+     private record WorkspaceContextStandardRequest(Boolean required,
+                                                    Object scenarios,
+                                                    Object mandatoryFields,
++                                                   Object scenarioMandatoryFields,
+                                                    Object sourceOfTruth,
+                                                    Object priorityBlocks,
+                                                    String reviewedBy,
+                                                    String reviewedAtUtc,
+                                                    String note) {
+     }
++
++    private static Map<String, List<String>> sanitizeStringListMap(Object raw) {
++        if (!(raw instanceof Map<?, ?> map)) {
++            return Map.of();
++        }
++        Map<String, List<String>> result = new LinkedHashMap<>();
++        for (Map.Entry<?, ?> entry : map.entrySet()) {
++            String key = normalize(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
++            if (key == null || key.length() > 120) {
++                continue;
++            }
++            List<String> values = sanitizeStringList(entry.getValue());
++            if (!values.isEmpty()) {
++                result.put(key.toLowerCase(Locale.ROOT), values);
++            }
++        }
++        return result;
++    }
