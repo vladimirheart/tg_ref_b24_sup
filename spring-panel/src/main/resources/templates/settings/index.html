@@ -2450,6 +2450,32 @@
                       <input type="datetime-local" class="form-control" id="dialogWorkspaceGovernanceReviewedAt">
                       <div class="form-text utc-timestamp-status" id="dialogWorkspaceGovernanceReviewedAtStatus"></div>
                     </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceReviewDecisionRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceReviewDecisionRequired">Требовать явное decision action (go / hold / rollback) в weekly review</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceIncidentFollowupRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceIncidentFollowupRequired">Требовать incident follow-up link при weekly review</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceGovernanceReviewDecisionAction" class="form-label">Decision action weekly review</label>
+                      <select class="form-select" id="dialogWorkspaceGovernanceReviewDecisionAction">
+                        <option value="">(не задано)</option>
+                        <option value="go">go</option>
+                        <option value="hold">hold</option>
+                        <option value="rollback">rollback</option>
+                      </select>
+                      <div class="form-text">Пустое значение сохраняет текущее поведение (backward-compatible).</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceGovernanceReviewIncidentFollowup" class="form-label">Incident follow-up link / note</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceReviewIncidentFollowup" maxlength="500" placeholder="INC-123 / https://tracker/...">
+                    </div>
                     <div class="col-md-4">
                       <label for="dialogWorkspaceGovernanceParityExitDays" class="form-label">Parity exit window, дней</label>
                       <input type="number" class="form-control" id="dialogWorkspaceGovernanceParityExitDays" min="0" max="90" step="1">
@@ -2506,6 +2532,43 @@
                       <label for="dialogMacroVariableCatalogExternalAuthToken" class="form-label">Auth token / value</label>
                       <input type="password" class="form-control" id="dialogMacroVariableCatalogExternalAuthToken" placeholder="Bearer &lt;token&gt;">
                       <div class="form-text">Опционально: заголовок авторизации для защищённого external catalog API.</div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Macro governance baseline</h6>
+                  <p class="small text-muted">Минимальные правила hygiene для macro library. Если поля не заданы — поведение остаётся прежним (дефолты).</p>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRequireOwner">
+                        <label class="form-check-label" for="dialogMacroGovernanceRequireOwner">Требовать owner у macro template</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRequireNamespace">
+                        <label class="form-check-label" for="dialogMacroGovernanceRequireNamespace">Требовать namespace у macro template</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRequireReview">
+                        <label class="form-check-label" for="dialogMacroGovernanceRequireReview">Требовать review timestamp у macro template</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceReviewTtlHours" class="form-label">Review TTL, часов</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceReviewTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-4">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceDeprecationRequiresReason">
+                        <label class="form-check-label" for="dialogMacroGovernanceDeprecationRequiresReason">Требовать reason для deprecated templates</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceUnusedDays" class="form-label">Unused window, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceUnusedDays" min="1" max="365" step="1">
                     </div>
                   </div>
                   <hr class="my-4">
@@ -5122,9 +5185,19 @@
     workspace_rollout_governance_review_cadence_days: 0,
     workspace_rollout_governance_reviewed_by: '',
     workspace_rollout_governance_reviewed_at: '',
+    workspace_rollout_governance_review_decision_required: false,
+    workspace_rollout_governance_incident_followup_required: false,
+    workspace_rollout_governance_review_decision_action: '',
+    workspace_rollout_governance_review_incident_followup: '',
     workspace_rollout_governance_parity_exit_days: 0,
     workspace_rollout_governance_parity_critical_reasons: [],
     workspace_rollout_governance_legacy_only_scenarios: [],
+    macro_governance_require_owner: false,
+    macro_governance_require_namespace: false,
+    macro_governance_require_review: false,
+    macro_governance_review_ttl_hours: 168,
+    macro_governance_deprecation_requires_reason: false,
+    macro_governance_unused_days: 30,
     escalation_webhook_max_tickets_per_run: 50,
     workspace_context_history_limit: 5,
     workspace_context_related_events_limit: 5,
@@ -14329,9 +14402,19 @@
       workspaceGovernanceReviewCadenceDays: document.getElementById('dialogWorkspaceGovernanceReviewCadenceDays'),
       workspaceGovernanceReviewedBy: document.getElementById('dialogWorkspaceGovernanceReviewedBy'),
       workspaceGovernanceReviewedAt: document.getElementById('dialogWorkspaceGovernanceReviewedAt'),
+      workspaceGovernanceReviewDecisionRequired: document.getElementById('dialogWorkspaceGovernanceReviewDecisionRequired'),
+      workspaceGovernanceIncidentFollowupRequired: document.getElementById('dialogWorkspaceGovernanceIncidentFollowupRequired'),
+      workspaceGovernanceReviewDecisionAction: document.getElementById('dialogWorkspaceGovernanceReviewDecisionAction'),
+      workspaceGovernanceReviewIncidentFollowup: document.getElementById('dialogWorkspaceGovernanceReviewIncidentFollowup'),
       workspaceGovernanceParityExitDays: document.getElementById('dialogWorkspaceGovernanceParityExitDays'),
       workspaceGovernanceParityCriticalReasons: document.getElementById('dialogWorkspaceGovernanceParityCriticalReasons'),
       workspaceGovernanceLegacyOnlyScenarios: document.getElementById('dialogWorkspaceGovernanceLegacyOnlyScenarios'),
+      macroGovernanceRequireOwner: document.getElementById('dialogMacroGovernanceRequireOwner'),
+      macroGovernanceRequireNamespace: document.getElementById('dialogMacroGovernanceRequireNamespace'),
+      macroGovernanceRequireReview: document.getElementById('dialogMacroGovernanceRequireReview'),
+      macroGovernanceReviewTtlHours: document.getElementById('dialogMacroGovernanceReviewTtlHours'),
+      macroGovernanceDeprecationRequiresReason: document.getElementById('dialogMacroGovernanceDeprecationRequiresReason'),
+      macroGovernanceUnusedDays: document.getElementById('dialogMacroGovernanceUnusedDays'),
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
@@ -14969,6 +15052,21 @@
     if (inputs.workspaceGovernanceReviewedBy) {
       inputs.workspaceGovernanceReviewedBy.value = String(DIALOG_CONFIG.workspace_rollout_governance_reviewed_by || '').trim();
     }
+    if (inputs.workspaceGovernanceReviewDecisionRequired) {
+      inputs.workspaceGovernanceReviewDecisionRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_review_decision_required);
+    }
+    if (inputs.workspaceGovernanceIncidentFollowupRequired) {
+      inputs.workspaceGovernanceIncidentFollowupRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_incident_followup_required);
+    }
+    if (inputs.workspaceGovernanceReviewDecisionAction) {
+      const decisionAction = String(DIALOG_CONFIG.workspace_rollout_governance_review_decision_action || '').trim().toLowerCase();
+      inputs.workspaceGovernanceReviewDecisionAction.value = ['go', 'hold', 'rollback'].includes(decisionAction)
+        ? decisionAction
+        : '';
+    }
+    if (inputs.workspaceGovernanceReviewIncidentFollowup) {
+      inputs.workspaceGovernanceReviewIncidentFollowup.value = String(DIALOG_CONFIG.workspace_rollout_governance_review_incident_followup || '').trim();
+    }
     populateWorkspaceGovernanceUtcTimestampField(WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS[1]);
     if (inputs.workspaceGovernanceParityExitDays) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_parity_exit_days, 10);
@@ -14996,6 +15094,30 @@
       }
     }
     syncAllWorkspaceGovernanceUtcTimestampFields();
+    if (inputs.macroGovernanceRequireOwner) {
+      inputs.macroGovernanceRequireOwner.checked = Boolean(DIALOG_CONFIG.macro_governance_require_owner);
+    }
+    if (inputs.macroGovernanceRequireNamespace) {
+      inputs.macroGovernanceRequireNamespace.checked = Boolean(DIALOG_CONFIG.macro_governance_require_namespace);
+    }
+    if (inputs.macroGovernanceRequireReview) {
+      inputs.macroGovernanceRequireReview.checked = Boolean(DIALOG_CONFIG.macro_governance_require_review);
+    }
+    if (inputs.macroGovernanceReviewTtlHours) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_review_ttl_hours, 10);
+      inputs.macroGovernanceReviewTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 2160
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_review_ttl_hours;
+    }
+    if (inputs.macroGovernanceDeprecationRequiresReason) {
+      inputs.macroGovernanceDeprecationRequiresReason.checked = Boolean(DIALOG_CONFIG.macro_governance_deprecation_requires_reason);
+    }
+    if (inputs.macroGovernanceUnusedDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_unused_days, 10);
+      inputs.macroGovernanceUnusedDays.value = Number.isFinite(value) && value >= 1 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_unused_days;
+    }
     if (inputs.workspaceClientHiddenAttributes) {
       const hiddenAttributes = Array.isArray(DIALOG_CONFIG.workspace_client_hidden_attributes)
         ? DIALOG_CONFIG.workspace_client_hidden_attributes
@@ -16717,11 +16839,24 @@
     if (safeWorkspaceGovernanceReviewedAtRaw && !safeWorkspaceGovernanceReviewedAt) {
       errors.push('Дата governance review указана в некорректном формате UTC.');
     }
+    const safeWorkspaceGovernanceReviewDecisionRequired = Boolean(inputs.workspaceGovernanceReviewDecisionRequired?.checked);
+    const safeWorkspaceGovernanceIncidentFollowupRequired = Boolean(inputs.workspaceGovernanceIncidentFollowupRequired?.checked);
+    const safeWorkspaceGovernanceReviewDecisionAction = (() => {
+      const value = String(inputs.workspaceGovernanceReviewDecisionAction?.value || '').trim().toLowerCase();
+      return ['go', 'hold', 'rollback'].includes(value) ? value : '';
+    })();
+    const safeWorkspaceGovernanceReviewIncidentFollowup = String(inputs.workspaceGovernanceReviewIncidentFollowup?.value || '').trim().slice(0, 500);
     if (safeWorkspaceGovernanceReviewCadenceDays > 0 && !safeWorkspaceGovernanceReviewedBy) {
       errors.push('Для review cadence укажите последнего reviewer.');
     }
     if (safeWorkspaceGovernanceReviewCadenceDays > 0 && !safeWorkspaceGovernanceReviewedAt) {
       errors.push('Для review cadence укажите валидную UTC-дату последнего review.');
+    }
+    if (safeWorkspaceGovernanceReviewDecisionRequired && !safeWorkspaceGovernanceReviewDecisionAction) {
+      errors.push('При включенном decision action required выберите go / hold / rollback.');
+    }
+    if (safeWorkspaceGovernanceIncidentFollowupRequired && !safeWorkspaceGovernanceReviewIncidentFollowup) {
+      errors.push('При включенном incident follow-up required укажите ссылку или заметку follow-up.');
     }
     const safeWorkspaceGovernanceParityExitDaysRaw = Number.parseInt(inputs.workspaceGovernanceParityExitDays?.value || '', 10);
     const safeWorkspaceGovernanceParityExitDays = Number.isFinite(safeWorkspaceGovernanceParityExitDaysRaw)
@@ -16840,6 +16975,22 @@
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean),
     ));
+    const safeMacroGovernanceRequireOwner = Boolean(inputs.macroGovernanceRequireOwner?.checked);
+    const safeMacroGovernanceRequireNamespace = Boolean(inputs.macroGovernanceRequireNamespace?.checked);
+    const safeMacroGovernanceRequireReview = Boolean(inputs.macroGovernanceRequireReview?.checked);
+    const safeMacroGovernanceReviewTtlHours = sanitizeInt(
+      inputs.macroGovernanceReviewTtlHours?.value,
+      1,
+      2160,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_review_ttl_hours,
+    );
+    const safeMacroGovernanceDeprecationRequiresReason = Boolean(inputs.macroGovernanceDeprecationRequiresReason?.checked);
+    const safeMacroGovernanceUnusedDays = sanitizeInt(
+      inputs.macroGovernanceUnusedDays?.value,
+      1,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_unused_days,
+    );
 
     const safeWorkspaceContextHistoryLimitRaw = Math.round(Number(inputs.workspaceContextHistoryLimit?.value));
     const safeWorkspaceContextHistoryLimit = Number.isFinite(safeWorkspaceContextHistoryLimitRaw)
@@ -17152,6 +17303,10 @@
         dialog_workspace_rollout_governance_review_cadence_days: safeWorkspaceGovernanceReviewCadenceDays,
         dialog_workspace_rollout_governance_reviewed_by: safeWorkspaceGovernanceReviewedBy,
         dialog_workspace_rollout_governance_reviewed_at: safeWorkspaceGovernanceReviewedAt,
+        dialog_workspace_rollout_governance_review_decision_required: safeWorkspaceGovernanceReviewDecisionRequired,
+        dialog_workspace_rollout_governance_incident_followup_required: safeWorkspaceGovernanceIncidentFollowupRequired,
+        dialog_workspace_rollout_governance_review_decision_action: safeWorkspaceGovernanceReviewDecisionAction,
+        dialog_workspace_rollout_governance_review_incident_followup: safeWorkspaceGovernanceReviewIncidentFollowup,
         dialog_workspace_rollout_governance_parity_exit_days: safeWorkspaceGovernanceParityExitDays,
         dialog_workspace_rollout_governance_parity_critical_reasons: safeWorkspaceGovernanceParityCriticalReasons,
         dialog_workspace_rollout_governance_legacy_only_scenarios: safeWorkspaceGovernanceLegacyOnlyScenarios,
@@ -17164,6 +17319,12 @@
         dialog_macro_variable_catalog_external_auth_token: safeMacroCatalogExternalAuthToken,
         dialog_macro_publish_allowed_roles: safeMacroPublishAllowedRoles,
         dialog_macro_require_independent_review: Boolean(inputs.macroRequireIndependentReview?.checked),
+        dialog_macro_governance_require_owner: safeMacroGovernanceRequireOwner,
+        dialog_macro_governance_require_namespace: safeMacroGovernanceRequireNamespace,
+        dialog_macro_governance_require_review: safeMacroGovernanceRequireReview,
+        dialog_macro_governance_review_ttl_hours: safeMacroGovernanceReviewTtlHours,
+        dialog_macro_governance_deprecation_requires_reason: safeMacroGovernanceDeprecationRequiresReason,
+        dialog_macro_governance_unused_days: safeMacroGovernanceUnusedDays,
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
         dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
         dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,
