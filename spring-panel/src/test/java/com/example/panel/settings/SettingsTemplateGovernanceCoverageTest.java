@@ -45,4 +45,29 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("dialog_macro_governance_deprecation_requires_reason")
                 .contains("dialog_macro_governance_unused_days");
     }
+
+    @Test
+    void settingsTemplateContainsSlaPolicyGovernanceBaselineFields() throws IOException {
+        String html = Files.readString(SETTINGS_TEMPLATE);
+
+        assertThat(html)
+                .contains("id=\"dialogSlaPolicyAuditRequireLayers\"")
+                .contains("id=\"dialogSlaPolicyAuditRequireOwner\"")
+                .contains("id=\"dialogSlaPolicyAuditRequireReview\"")
+                .contains("id=\"dialogSlaPolicyAuditReviewTtlHours\"")
+                .contains("id=\"dialogSlaPolicyAuditBroadRuleCoveragePct\"")
+                .contains("id=\"dialogSlaPolicyAuditBlockOnConflicts\"")
+                .contains("id=\"dialogSlaPolicyGovernanceReviewRequired\"")
+                .contains("id=\"dialogSlaPolicyGovernanceReviewTtlHours\"")
+                .contains("id=\"dialogSlaPolicyGovernanceDryRunTicketRequired\"")
+                .contains("dialog_sla_critical_auto_assign_audit_require_layers")
+                .contains("dialog_sla_critical_auto_assign_audit_require_owner")
+                .contains("dialog_sla_critical_auto_assign_audit_require_review")
+                .contains("dialog_sla_critical_auto_assign_audit_review_ttl_hours")
+                .contains("dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct")
+                .contains("dialog_sla_critical_auto_assign_audit_block_on_conflicts")
+                .contains("dialog_sla_critical_auto_assign_governance_review_required")
+                .contains("dialog_sla_critical_auto_assign_governance_review_ttl_hours")
+                .contains("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required");
+    }
 }
