@@ -338,6 +338,18 @@
 Итог: macro governance перестаёт быть только «снимком проблем шаблонов» и становится управляемым operational-loop с owner/date-дисциплиной, cleanup traceability и измеряемым adoption.
 
 ### P1. Закрыть transition-state между workspace и legacy
+### Обновление от 25 марта 2026 (седьмая итерация): legacy usage policy добавлен в rollout governance packet
+
+Следующим шагом по снижению dual-run debt закрыт оставшийся gap из P1 про «legacy перестаёт быть ежедневным вариантом только по формальным критериям»:
+
+- **В analytics добавлена форма Legacy manual-open policy review** (reviewed by, reviewed at UTC, max manual legacy share %, decision go/hold, review note) с сохранением через backend endpoint `/analytics/workspace-rollout/legacy-usage-policy`.
+- **В rollout governance packet добавлен структурированный блок `legacy_usage_policy`**:
+  `enabled`, `ready`, `reviewed_by`, `reviewed_at`, `review_note`, `review_ttl_hours`, `review_age_hours`, `review_timestamp_invalid`, `manual_legacy_open_events`, `workspace_open_events`, `manual_legacy_share_pct`, `max_manual_legacy_share_pct`, `threshold_ready`, `decision_required`, `decision`, `policy_updated_events_in_window`.
+- **Добавлен отдельный packet item `legacy_usage_policy`**, который явно сигнализирует `hold`, если review просрочен, дата невалидна или доля manual legacy-open выше порога.
+- **Добавлена telemetry-точка `workspace_legacy_usage_policy_updated`** и счётчик в analytics totals, чтобы adoption policy было видно в UTC-окне.
+- **Обратная совместимость сохранена**: если policy-порог и флаги не заданы, новый checkpoint остаётся `off` и не меняет существующий rollout flow.
+
+Итог: переход к primary workspace становится измеряемым не только через parity-gap/инвентарь edge-кейсов, но и через явный «бюджет» ручных legacy-open с owner/date-дисциплиной.
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**

@@ -422,6 +422,99 @@ public class AnalyticsController {
         ));
     }
 
+    @PostMapping(value = "/workspace-rollout/legacy-usage-policy", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> updateWorkspaceLegacyUsagePolicy(@RequestBody(required = false) WorkspaceLegacyUsagePolicyRequest request,
+                                                          Authentication authentication) {
+    String actor = authentication != null ? authentication.getName() : "anonymous";
+    String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
+    if (reviewedBy == null) {
+        reviewedBy = actor;
+    }
+    String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+    OffsetDateTime reviewedAtUtc;
+    if (reviewedAtRaw == null) {
+        reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+    } else {
+        reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
+        if (reviewedAtUtc == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+        }
+    }
+    String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
+    if (reviewNote != null && reviewNote.length() > 500) {
+        reviewNote = reviewNote.substring(0, 500);
+    }
+    String decision = normalize(String.valueOf(request != null ? request.decision() : null));
+    if (decision != null) {
+        decision = decision.toLowerCase(Locale.ROOT);
+        if (!"go".equals(decision) && !"hold".equals(decision)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "decision must be one of: go, hold"));
+        }
+    }
+    Long maxSharePct = request != null ? request.maxLegacyManualSharePct() : null;
+    if (maxSharePct != null && (maxSharePct < 0L || maxSharePct > 100L)) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "error", "max_legacy_manual_share_pct must be between 0 and 100"));
+    }
+
+    Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+    Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+    dialogConfig.put("workspace_rollout_governance_legacy_usage_reviewed_by", reviewedBy);
+    dialogConfig.put("workspace_rollout_governance_legacy_usage_reviewed_at", reviewedAtUtc.toInstant().toString());
+    if (reviewNote == null) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_usage_review_note");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_usage_review_note", reviewNote);
+    }
+    if (decision == null) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_usage_decision");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_usage_decision", decision);
+    }
+    if (maxSharePct == null) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_manual_share_max_pct");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_manual_share_max_pct", maxSharePct);
+    }
+    settings.put("dialog_config", dialogConfig);
+    sharedConfigService.saveSettings(settings);
+
+    dialogService.logWorkspaceTelemetry(
+            actor,
+            "workspace_legacy_usage_policy_updated",
+            "experiment",
+            null,
+            "analytics_legacy_usage_policy",
+            null,
+            "workspace.v1",
+            maxSharePct,
+            "workspace_v1_rollout",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+    );
+
+    return ResponseEntity.ok(Map.of(
+            "success", true,
+            "reviewed_by", reviewedBy,
+            "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
+            "review_note", reviewNote == null ? "" : reviewNote,
+            "decision", decision == null ? "" : decision,
+            "max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct
+    ));
+}
     @PostMapping(value = "/sla-policy/governance-review", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
@@ -691,6 +784,12 @@ public class AnalyticsController {
                                                        String note) {
     }
 
+private record WorkspaceLegacyUsagePolicyRequest(String reviewedBy,
+                                                 String reviewedAtUtc,
+                                                 String reviewNote,
+                                                 String decision,
+                                                 Long maxLegacyManualSharePct) {
+}
     private record SlaPolicyGovernanceReviewRequest(String reviewedBy,
                                                     String reviewedAtUtc,
                                                     String reviewNote,

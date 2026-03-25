@@ -266,6 +266,41 @@
                                         </div>
                                     </div>
                                 </div>
+    <div class="col-12 col-lg-4">
+    <div class="border rounded p-3 h-100">
+        <div class="text-muted small">Legacy manual-open policy</div>
+        <div class="fw-semibold" id="workspaceTelemetryPacketLegacyUsageState">—</div>
+        <div class="small text-muted" id="workspaceTelemetryPacketLegacyUsageMeta"></div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageReviewedBy" placeholder="ops.lead">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+            <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageReviewedAtUtc">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageMaxSharePct" class="form-label form-label-sm mb-1">Max manual legacy share % (optional)</label>
+            <input type="number" min="0" max="100" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageMaxSharePct" placeholder="10">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageDecision" class="form-label form-label-sm mb-1">Decision (go/hold)</label>
+            <select class="form-select form-select-sm" id="workspaceTelemetryLegacyUsageDecision">
+                <option value="">Не указан</option>
+                <option value="go">Go</option>
+                <option value="hold">Hold</option>
+            </select>
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageReviewNote" maxlength="500" placeholder="Почему legacy-open доля допустима / какой follow-up">
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryLegacyUsageSave">Сохранить policy</button>
+            <small class="text-muted" id="workspaceTelemetryLegacyUsageActionState"></small>
+        </div>
+    </div>
+</div>
                                 <div class="col-12">
                                     <div class="border rounded p-3 h-100">
                                         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">

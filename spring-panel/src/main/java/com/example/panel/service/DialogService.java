@@ -1346,6 +1346,22 @@ public class DialogService {
         String legacyInventoryReviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_reviewed_by")));
         String legacyInventoryReviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_reviewed_at"));
         String legacyInventoryReviewNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_review_note")));
+        String legacyUsageReviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_usage_reviewed_by")));
+        String legacyUsageReviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_usage_reviewed_at"));
+        String legacyUsageReviewNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_usage_review_note")));
+        String legacyUsageDecision = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_usage_decision")));
+        if (legacyUsageDecision != null) {
+            legacyUsageDecision = legacyUsageDecision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(legacyUsageDecision) && !"hold".equals(legacyUsageDecision)) {
+                legacyUsageDecision = null;
+            }
+        }
+        long legacyUsageReviewTtlHours = resolveLongDialogConfigValue(
+                "workspace_rollout_governance_legacy_usage_review_ttl_hours", 168, 1, 24 * 90L);
+        Long legacyUsageMaxSharePct = resolveNullableLongDialogConfigValue(
+                "workspace_rollout_governance_legacy_manual_share_max_pct", 0, 100);
+        boolean legacyUsageDecisionRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_governance_legacy_usage_decision_required", false);
         boolean contextContractRequired = resolveBooleanDialogConfigValue("workspace_rollout_context_contract_required", false);
         List<String> contextContractScenarios = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_context_contract_scenarios"));
@@ -1456,6 +1472,34 @@ public class DialogService {
                 && contextContractReviewFresh
                 && !contextContractReviewTimestampInvalid);
 
+OffsetDateTime legacyUsageReviewedAt = parseReviewTimestamp(legacyUsageReviewedAtRaw);
+boolean legacyUsageReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyUsageReviewedAtRaw))
+        && legacyUsageReviewedAt == null;
+boolean legacyUsageReviewPresent = legacyUsageReviewedAt != null && StringUtils.hasText(legacyUsageReviewedBy);
+boolean legacyUsageReviewFresh = false;
+long legacyUsageReviewAgeHours = -1L;
+if (legacyUsageReviewedAt != null) {
+    legacyUsageReviewAgeHours = Math.max(0, java.time.Duration
+            .between(legacyUsageReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+    legacyUsageReviewFresh = legacyUsageReviewAgeHours <= legacyUsageReviewTtlHours;
+}
+long legacyUsagePolicyUpdatedEvents = toLong(safeTotals.get("workspace_legacy_usage_policy_updated_events"));
+long manualLegacyOpenEvents = toLong(safeTotals.get("manual_legacy_open_events"));
+double manualLegacyShare = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
+boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
+double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
+boolean legacyUsageThresholdReady = !legacyUsageThresholdConfigured || manualLegacyShare <= legacyUsageThresholdShare;
+boolean legacyUsageDecisionPresent = StringUtils.hasText(legacyUsageDecision);
+boolean legacyUsagePolicyEnabled = legacyUsageThresholdConfigured
+        || legacyUsageDecisionRequired
+        || legacyUsageReviewPresent
+        || StringUtils.hasText(legacyUsageReviewNote);
+boolean legacyUsagePolicyReady = !legacyUsagePolicyEnabled
+        || (legacyUsageReviewPresent
+        && legacyUsageReviewFresh
+        && !legacyUsageReviewTimestampInvalid
+        && legacyUsageThresholdReady
+        && (!legacyUsageDecisionRequired || legacyUsageDecisionPresent));
         List<Map<String, Object>> packetItems = new ArrayList<>();
         packetItems.add(buildScorecardItem(
                 "scorecard_snapshot",
@@ -1611,6 +1655,34 @@ public class DialogService {
                         .filter(StringUtils::hasText)
                         .collect(Collectors.joining(" · "))
         ));
+packetItems.add(buildScorecardItem(
+        "legacy_usage_policy",
+        "workspace",
+        "Legacy manual-open policy",
+        !legacyUsagePolicyEnabled ? "off" : (legacyUsagePolicyReady ? "ok" : "hold"),
+        legacyUsagePolicyEnabled && !legacyUsagePolicyReady,
+        "Переход к primary-flow требует контролировать долю manual legacy-open в UTC-окне и зафиксировать review-решение.",
+        !legacyUsagePolicyEnabled
+                ? "not required"
+                : legacyUsageReviewTimestampInvalid
+                        ? "invalid_utc"
+                        : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s".formatted(
+                        manualLegacyShare * 100d,
+                        manualLegacyOpenEvents,
+                        workspaceOpenEvents,
+                        legacyUsageThresholdConfigured ? ", max=%d%%".formatted(legacyUsageMaxSharePct) : "",
+                        legacyUsageDecisionPresent ? ", decision=%s".formatted(legacyUsageDecision) : ""),
+        legacyUsagePolicyEnabled
+                ? "review <= %d h UTC%s%s".formatted(
+                legacyUsageReviewTtlHours,
+                legacyUsageThresholdConfigured ? ", manual share <= %d%%".formatted(legacyUsageMaxSharePct) : "",
+                legacyUsageDecisionRequired ? ", decision required" : "")
+                : "optional",
+        legacyUsageReviewedAt != null ? legacyUsageReviewedAt.toString() : "",
+        firstNonBlank(
+                legacyUsageReviewNote,
+                legacyUsageReviewPresent ? "reviewed_by=%s; age_hours=%d".formatted(legacyUsageReviewedBy, legacyUsageReviewAgeHours) : "")
+));
         packetItems.add(buildScorecardItem(
                 "context_minimum_profile",
                 "context",
@@ -1730,6 +1802,23 @@ public class DialogService {
         incidentHistory.put("abandon_alerts", abandonAlerts);
         incidentHistory.put("slow_open_alerts", slowOpenAlerts);
         Map<String, Object> contextContract = new LinkedHashMap<>();
+        Map<String, Object> legacyUsagePolicy = new LinkedHashMap<>();
+        legacyUsagePolicy.put("enabled", legacyUsagePolicyEnabled);
+        legacyUsagePolicy.put("ready", legacyUsagePolicyReady);
+        legacyUsagePolicy.put("reviewed_by", legacyUsageReviewedBy == null ? "" : legacyUsageReviewedBy);
+        legacyUsagePolicy.put("reviewed_at", legacyUsageReviewedAt != null ? legacyUsageReviewedAt.toString() : "");
+        legacyUsagePolicy.put("review_note", legacyUsageReviewNote == null ? "" : legacyUsageReviewNote);
+        legacyUsagePolicy.put("review_ttl_hours", legacyUsageReviewTtlHours);
+        legacyUsagePolicy.put("review_age_hours", legacyUsageReviewAgeHours);
+        legacyUsagePolicy.put("review_timestamp_invalid", legacyUsageReviewTimestampInvalid);
+        legacyUsagePolicy.put("manual_legacy_open_events", manualLegacyOpenEvents);
+        legacyUsagePolicy.put("workspace_open_events", workspaceOpenEvents);
+        legacyUsagePolicy.put("manual_legacy_share_pct", Math.round(manualLegacyShare * 1000d) / 10d);
+        legacyUsagePolicy.put("max_manual_legacy_share_pct", legacyUsageMaxSharePct);
+        legacyUsagePolicy.put("threshold_ready", legacyUsageThresholdReady);
+        legacyUsagePolicy.put("decision_required", legacyUsageDecisionRequired);
+        legacyUsagePolicy.put("decision", legacyUsageDecision == null ? "" : legacyUsageDecision);
+        legacyUsagePolicy.put("policy_updated_events_in_window", legacyUsagePolicyUpdatedEvents);
         contextContract.put("enabled", contextContractEnabled);
         contextContract.put("required", contextContractRequired);
         contextContract.put("ready", contextContractReady);
@@ -1777,6 +1866,7 @@ public class DialogService {
         ));
         packet.put("incident_history", incidentHistory);
         packet.put("context_contract", contextContract);
+        packet.put("legacy_usage_policy", legacyUsagePolicy);
         packet.put("external_gate", Map.of(
                 "ready", externalGateSnapshotReady,
                 "enabled", toBoolean(externalSignal.get("enabled")),
@@ -3289,6 +3379,7 @@ public class DialogService {
                 .sum();
         Long avgOpenMs = weightedOpenCount > 0 ? Math.round((double) weightedOpenSum / weightedOpenCount) : null;
         Long avgFrtMs = weightedAverage(rows, "kpi_frt_recorded_events", "avg_frt_ms");
+        long workspaceLegacyUsagePolicyUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_legacy_usage_policy_updated_events"))).sum();
         Long avgTtrMs = weightedAverage(rows, "kpi_ttr_recorded_events", "avg_ttr_ms");
 
         totals.put("events", events);
@@ -3346,6 +3437,7 @@ public class DialogService {
         totals.put("workspace_parity_gap_rate", workspaceOpenEvents > 0 ? (double) workspaceParityGapEvents / workspaceOpenEvents : 0d);
         totals.put("workspace_parity_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) workspaceParityGapEvents / workspaceOpenEvents))
+                totals.put("workspace_legacy_usage_policy_updated_events", workspaceLegacyUsagePolicyUpdatedEvents);
                 : 1d);
         totals.put("kpi_frt_recorded_events", frtRecordedEvents);
         totals.put("kpi_ttr_recorded_events", ttrRecordedEvents);
@@ -4314,6 +4406,7 @@ public class DialogService {
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("experiment_cohort", rs.getString("experiment_cohort"));
+                SUM(CASE WHEN event_type = 'workspace_legacy_usage_policy_updated' THEN 1 ELSE 0 END) AS workspace_legacy_usage_policy_updated_events,
                 item.put("operator_segment", rs.getString("operator_segment"));
                 item.put("events", rs.getLong("events"));
                 item.put("render_errors", rs.getLong("render_errors"));
@@ -4364,6 +4457,7 @@ public class DialogService {
             return null;
         }
         String joined = values.stream()
+            item.put("workspace_legacy_usage_policy_updated_events", rs.getLong("workspace_legacy_usage_policy_updated_events"));
                 .map(value -> value == null ? "" : value.trim())
                 .filter(value -> !value.isBlank())
                 .distinct()
