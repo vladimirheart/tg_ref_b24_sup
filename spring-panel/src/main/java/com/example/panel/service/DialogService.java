@@ -3426,10 +3426,7 @@ packetItems.add(buildScorecardItem(
         long csatRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_csat_recorded_events"))).sum();
 
         long weightedOpenCount = rows.stream()
-                .mapToLong(row -> Math.max(toLong(row.get("events"))
-                        - toLong(row.get("render_errors"))
-                        - toLong(row.get("fallbacks"))
-                        - toLong(row.get("abandons")), 0L))
+                .mapToLong(this::resolveWorkspaceOpenWeight)
                 .sum();
         long weightedOpenSum = rows.stream()
                 .mapToLong(row -> {
@@ -3437,10 +3434,7 @@ packetItems.add(buildScorecardItem(
                     if (avgOpenMs == null) {
                         return 0L;
                     }
-                    long rowWeight = Math.max(toLong(row.get("events"))
-                            - toLong(row.get("render_errors"))
-                            - toLong(row.get("fallbacks"))
-                            - toLong(row.get("abandons")), 0L);
+                    long rowWeight = resolveWorkspaceOpenWeight(row);
                     return avgOpenMs * rowWeight;
                 })
                 .sum();
@@ -3534,6 +3528,13 @@ packetItems.add(buildScorecardItem(
             weightedValueSum += avg * weight;
         }
         return weightSum > 0 ? Math.round((double) weightedValueSum / weightSum) : null;
+    }
+
+    private long resolveWorkspaceOpenWeight(Map<String, Object> row) {
+        return Math.max(toLong(row.get("events"))
+                - toLong(row.get("render_errors"))
+                - toLong(row.get("fallbacks"))
+                - toLong(row.get("abandons")), 0L);
     }
 
     private Map<String, Object> buildPrimaryKpiOutcomeSignal(Map<String, Object> controlTotals,
