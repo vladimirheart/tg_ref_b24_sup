@@ -1,0 +1,56 @@
+diff a/spring-panel/src/main/java/com/example/panel/controller/DialogApiController.java b/spring-panel/src/main/java/com/example/panel/controller/DialogApiController.java	(rejected hunks)
+@@ -1227,6 +1227,20 @@ public class DialogApiController {
+         return values.stream()
+                 .map(item -> trimToNull(String.valueOf(item)))
+                 .filter(StringUtils::hasText)
+                 .toList();
+     }
++
++    private Map<String, List<String>> safeStringListMap(Object rawValue) {
++        if (!(rawValue instanceof Map<?, ?> map)) {
++            return Map.of();
++        }
++        Map<String, List<String>> result = new LinkedHashMap<>();
++        for (Map.Entry<?, ?> entry : map.entrySet()) {
++            String key = trimToNull(String.valueOf(entry.getKey()));
++            if (!StringUtils.hasText(key)) {
++                continue;
++            }
++            List<String> items = safeStringList(entry.getValue());
++            if (!items.isEmpty()) {
++                result.put(key.toLowerCase(Locale.ROOT), items);
++            }
++        }
++        return result;
++    }
+@@ -3230,6 +3258,35 @@ private Map<String, Object> buildWorkspaceContextContract(Map<String, Object> settings,
+         payload.put("checked_at_utc", Instant.now().toString());
+         return payload;
+     }
++
++    private List<String> resolveActiveScenarios(DialogListItem summary, List<String> configuredScenarios) {
++        if (configuredScenarios.isEmpty()) {
++            return List.of();
++        }
++        String category = summary.categoriesSafe();
++        List<String> active = new ArrayList<>();
++        for (String scenario : configuredScenarios) {
++            if (StringUtils.hasText(category) && category.toLowerCase(Locale.ROOT).contains(scenario.toLowerCase(Locale.ROOT))) {
++                active.add(scenario);
++            }
++        }
++        return active.isEmpty() && !configuredScenarios.isEmpty() ? List.of(configuredScenarios.get(0)) : active;
++    }
++
++    private List<String> computeEffectiveMandatoryFields(List<String> baseline,
++                                                         Map<String, List<String>> byScenario,
++                                                         List<String> activeScenarios) {
++        Set<String> effective = new LinkedHashSet<>(baseline);
++        for (String scenario : activeScenarios) {
++            List<String> scenarioFields = byScenario.get(scenario.toLowerCase(Locale.ROOT));
++            if (scenarioFields != null) {
++                effective.addAll(scenarioFields);
++            }
++        }
++        return new ArrayList<>(effective);
++    }
