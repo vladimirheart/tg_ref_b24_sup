@@ -52,6 +52,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ArrayList;
@@ -801,6 +802,7 @@ public class DialogApiController {
         Map<String, Object> contextBlocksHealth = buildWorkspaceContextBlocksHealth(contextBlocks);
         Map<String, Object> contextContract = buildWorkspaceContextContract(
                 settings,
+                summary,
                 workspaceClient,
                 contextSources,
                 contextBlocks
@@ -3186,6 +3188,7 @@ public class DialogApiController {
     }
 
     private Map<String, Object> buildWorkspaceContextContract(Map<String, Object> settings,
+                                                              DialogListItem summary,
                                                               Map<String, Object> workspaceClient,
                                                               List<Map<String, Object>> contextSources,
                                                               List<Map<String, Object>> contextBlocks) {
