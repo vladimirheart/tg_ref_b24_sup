@@ -1609,10 +1609,10 @@ if (legacyUsageReviewedAt != null) {
 }
 long legacyUsagePolicyUpdatedEvents = toLong(safeTotals.get("workspace_legacy_usage_policy_updated_events"));
 long manualLegacyOpenEvents = toLong(safeTotals.get("manual_legacy_open_events"));
-double manualLegacyShare = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
+double manualLegacyShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
 boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
 double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
-boolean legacyUsageThresholdReady = !legacyUsageThresholdConfigured || manualLegacyShare <= legacyUsageThresholdShare;
+boolean legacyUsageThresholdReady = !legacyUsageThresholdConfigured || manualLegacyShareRatio <= legacyUsageThresholdShare;
 boolean legacyUsageDecisionPresent = StringUtils.hasText(legacyUsageDecision);
 boolean legacyUsagePolicyEnabled = legacyUsageThresholdConfigured
         || legacyUsageDecisionRequired
@@ -1791,7 +1791,7 @@ packetItems.add(buildScorecardItem(
                 : legacyUsageReviewTimestampInvalid
                         ? "invalid_utc"
                         : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s".formatted(
-                        manualLegacyShare * 100d,
+                        manualLegacyShareRatio * 100d,
                         manualLegacyOpenEvents,
                         workspaceOpenEvents,
                         legacyUsageThresholdConfigured ? ", max=%d%%".formatted(legacyUsageMaxSharePct) : "",
@@ -1939,7 +1939,7 @@ packetItems.add(buildScorecardItem(
         legacyUsagePolicy.put("review_timestamp_invalid", legacyUsageReviewTimestampInvalid);
         legacyUsagePolicy.put("manual_legacy_open_events", manualLegacyOpenEvents);
         legacyUsagePolicy.put("workspace_open_events", workspaceOpenEvents);
-        legacyUsagePolicy.put("manual_legacy_share_pct", Math.round(manualLegacyShare * 1000d) / 10d);
+        legacyUsagePolicy.put("manual_legacy_share_pct", Math.round(manualLegacyShareRatio * 1000d) / 10d);
         legacyUsagePolicy.put("max_manual_legacy_share_pct", legacyUsageMaxSharePct);
         legacyUsagePolicy.put("threshold_ready", legacyUsageThresholdReady);
         legacyUsagePolicy.put("decision_required", legacyUsageDecisionRequired);
