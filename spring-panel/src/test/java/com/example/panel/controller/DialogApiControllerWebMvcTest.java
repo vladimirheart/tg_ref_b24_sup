@@ -1314,6 +1314,7 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.rollout_packet.items[1].key").value("owner_signoff"))
                 .andExpect(jsonPath("$.rollout_packet.items[1].status").value("hold"))
                 .andExpect(jsonPath("$.macro_governance_audit.status").value("attention"))
+                .andExpect(jsonPath("$.macro_governance_audit.external_catalog_contract.required").value(false))
                 .andExpect(jsonPath("$.macro_governance_audit.templates[1].template_id").value("macro_legacy"))
                 .andExpect(jsonPath("$.macro_governance_audit.issues[0].type").value("unused_recently"));
     }
