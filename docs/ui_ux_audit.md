@@ -404,6 +404,18 @@
 - **Обратная совместимость сохранена**: если новая map-настройка не задана, работает прежняя логика `mandatory_fields`.
 
 Итог: minimum customer context перестаёт быть только «единым списком для всех кейсов» и становится управляемым сценарным контрактом без изменения legacy/default-потока.
+### Обновление от 25 марта 2026 (двенадцатая итерация): SLA policy layering/ownership вынесены в Settings UI
+
+Следующим по логике шагом из P2 закрыт практический разрыв между SLA governance-возможностями backend и операционным доступом через стандартный UI настроек:
+
+- **В Settings UI добавлен блок `SLA policy governance baseline`** с полями:
+  `require_layers`, `require_owner`, `require_review`, `review_ttl_hours`, `broad_rule_coverage_pct`, `block_on_conflicts`, `governance_review_required`, `governance_review_ttl_hours`, `governance_dry_run_ticket_required`.
+- **Сохранение проходит end-to-end через `/settings`**:
+  новые ключи мапятся в `dialog_config` и сразу влияют на SLA routing governance audit в аналитике без ручного редактирования JSON/конфига.
+- **Обратная совместимость сохранена**:
+  при пустых/выключенных полях используются прежние дефолты SLA-аудита, текущий flow не меняется.
+
+Итог: policy layering, ownership discipline, conflict guard и governance review для SLA-routing теперь управляются из стандартного operational UI, а не остаются «скрытой» backend-конфигурацией.
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**
