@@ -364,6 +364,20 @@
 - **Обратная совместимость сохранена**: при выключенном флаге `macro_external_catalog_contract_required` новый checkpoint не влияет на текущий rollout flow.
 
 Итог: внешний macro catalog перестаёт быть «неявной внешней зависимостью» и становится частью явного governance-контракта с version-pin и UTC-freshness review.
+
+### Обновление от 25 марта 2026 (девятая итерация): deprecation policy макросов переведён в явный review-loop
+
+Следующим логичным шагом из P2 по стабилизации lifecycle macro library закрыт оставшийся gap по deprecation discipline:
+
+- **В macro governance audit добавлен блок `deprecation_policy`** с полями:
+  `required`, `ready`, `reviewed_by`, `reviewed_at_utc`, `reviewed_at_invalid_utc`, `review_ttl_hours`, `review_age_hours`, `deprecation_ticket_required`, `deprecation_ticket_id`, `decision`, `review_note`, `issues`.
+- **В analytics добавлена форма Deprecation policy checkpoint** с сохранением через backend endpoint `/analytics/macro-governance/deprecation-policy`.
+- **Audit теперь явно сигнализирует deprecation governance-gap**, включая:
+  `deprecation_policy_review_missing`, `deprecation_policy_review_invalid_utc`, `deprecation_policy_review_stale`, `deprecation_policy_ticket_missing`.
+- **Добавлена telemetry-точка `workspace_macro_deprecation_policy_updated` и агрегат в analytics totals**, чтобы adoption review-практики по deprecation был наблюдаем в UTC-окне.
+- **Обратная совместимость сохранена**: при выключенном флаге `macro_deprecation_policy_required` новый checkpoint не влияет на текущий rollout flow.
+
+Итог: deprecation policy перестаёт быть только набором полей в шаблонах и становится управляемым operational-checkpoint с owner/date дисциплиной и traceability через ticket/decision.
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**

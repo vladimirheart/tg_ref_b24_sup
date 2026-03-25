@@ -1118,6 +1118,49 @@ public class DialogService {
             }
         }
         boolean externalCatalogReady = !externalCatalogContractRequired || externalCatalogIssues.isEmpty();
+        boolean deprecationPolicyRequired = resolveBooleanConfig(dialogConfig, "macro_deprecation_policy_required", false);
+        long deprecationPolicyTtlHours = resolveLongConfig(
+                dialogConfig,
+                "macro_deprecation_policy_ttl_hours",
+                168,
+                1,
+                24L * 90L);
+        boolean deprecationPolicyTicketRequired = resolveBooleanConfig(dialogConfig, "macro_deprecation_policy_ticket_required", false);
+        String deprecationPolicyReviewedBy = normalizeNullString(String.valueOf(dialogConfig.get("macro_deprecation_policy_reviewed_by")));
+        String deprecationPolicyReviewedAtRaw = normalizeNullString(String.valueOf(dialogConfig.get("macro_deprecation_policy_reviewed_at")));
+        OffsetDateTime deprecationPolicyReviewedAt = parseReviewTimestamp(deprecationPolicyReviewedAtRaw);
+        boolean deprecationPolicyReviewedAtInvalid = StringUtils.hasText(deprecationPolicyReviewedAtRaw) && deprecationPolicyReviewedAt == null;
+        long deprecationPolicyReviewAgeHours = deprecationPolicyReviewedAt != null
+                ? Math.max(0L, java.time.Duration.between(deprecationPolicyReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours())
+                : -1L;
+        boolean deprecationPolicyReviewFresh = deprecationPolicyReviewedAt != null && deprecationPolicyReviewAgeHours <= deprecationPolicyTtlHours;
+        String deprecationPolicyDecision = normalizeNullString(String.valueOf(dialogConfig.get("macro_deprecation_policy_decision")));
+        if (deprecationPolicyDecision != null) {
+            deprecationPolicyDecision = deprecationPolicyDecision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(deprecationPolicyDecision) && !"hold".equals(deprecationPolicyDecision)) {
+                deprecationPolicyDecision = null;
+            }
+        }
+        String deprecationPolicyReviewNote = normalizeNullString(String.valueOf(dialogConfig.get("macro_deprecation_policy_review_note")));
+        String deprecationPolicyTicketId = normalizeNullString(String.valueOf(dialogConfig.get("macro_deprecation_policy_ticket_id")));
+        List<String> deprecationPolicyIssues = new ArrayList<>();
+        if (deprecationPolicyRequired) {
+            if (!StringUtils.hasText(deprecationPolicyReviewedBy) || deprecationPolicyReviewedAt == null) {
+                deprecationPolicyIssues.add("deprecation_policy_review_missing");
+                issues.add(buildMacroGovernanceIssue("deprecation_policy_review_missing", null, null, "hold", "rollout_blocker", "Macro deprecation policy review checkpoint не заполнен.", "reviewed_by/reviewed_at=missing"));
+            } else if (deprecationPolicyReviewedAtInvalid) {
+                deprecationPolicyIssues.add("deprecation_policy_review_invalid_utc");
+                issues.add(buildMacroGovernanceIssue("deprecation_policy_review_invalid_utc", null, null, "hold", "rollout_blocker", "Дата macro deprecation policy review невалидна для UTC.", "reviewed_at=invalid"));
+            } else if (!deprecationPolicyReviewFresh) {
+                deprecationPolicyIssues.add("deprecation_policy_review_stale");
+                issues.add(buildMacroGovernanceIssue("deprecation_policy_review_stale", null, null, "hold", "rollout_blocker", "Macro deprecation policy review устарел.", "review_age_hours=%d > ttl=%d".formatted(deprecationPolicyReviewAgeHours, deprecationPolicyTtlHours)));
+            }
+            if (deprecationPolicyTicketRequired && !StringUtils.hasText(deprecationPolicyTicketId)) {
+                deprecationPolicyIssues.add("deprecation_policy_ticket_missing");
+                issues.add(buildMacroGovernanceIssue("deprecation_policy_ticket_missing", null, null, "attention", "backlog_candidate", "Для deprecation policy checkpoint требуется deprecation ticket.", "deprecation_ticket_id=missing"));
+            }
+        }
+        boolean deprecationPolicyReady = !deprecationPolicyRequired || deprecationPolicyIssues.isEmpty();
 
         String status;
         if (templates.isEmpty()) {
@@ -1179,6 +1222,19 @@ public class DialogService {
                 Map.entry("decision", externalCatalogDecision == null ? "" : externalCatalogDecision),
                 Map.entry("review_note", externalCatalogReviewNote == null ? "" : externalCatalogReviewNote),
                 Map.entry("issues", externalCatalogIssues)));
+        audit.put("deprecation_policy", Map.ofEntries(
+                Map.entry("required", deprecationPolicyRequired),
+                Map.entry("ready", deprecationPolicyReady),
+                Map.entry("reviewed_by", deprecationPolicyReviewedBy == null ? "" : deprecationPolicyReviewedBy),
+                Map.entry("reviewed_at_utc", deprecationPolicyReviewedAt == null ? "" : deprecationPolicyReviewedAt.toString()),
+                Map.entry("reviewed_at_invalid_utc", deprecationPolicyReviewedAtInvalid),
+                Map.entry("review_ttl_hours", deprecationPolicyTtlHours),
+                Map.entry("review_age_hours", deprecationPolicyReviewAgeHours),
+                Map.entry("deprecation_ticket_required", deprecationPolicyTicketRequired),
+                Map.entry("deprecation_ticket_id", deprecationPolicyTicketId == null ? "" : deprecationPolicyTicketId),
+                Map.entry("decision", deprecationPolicyDecision == null ? "" : deprecationPolicyDecision),
+                Map.entry("review_note", deprecationPolicyReviewNote == null ? "" : deprecationPolicyReviewNote),
+                Map.entry("issues", deprecationPolicyIssues)));
         audit.put("issues", issues);
         audit.put("templates", auditedTemplates);
         return audit;
@@ -3440,6 +3496,7 @@ packetItems.add(buildScorecardItem(
         long workspaceSlaPolicyReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_review_updated_events"))).sum();
         long workspaceMacroGovernanceReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_governance_review_updated_events"))).sum();
         long workspaceMacroExternalCatalogPolicyUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_external_catalog_policy_updated_events"))).sum();
+        long workspaceMacroDeprecationPolicyUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_deprecation_policy_updated_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -3493,6 +3550,7 @@ packetItems.add(buildScorecardItem(
         totals.put("workspace_sla_policy_review_updated_events", workspaceSlaPolicyReviewUpdatedEvents);
         totals.put("workspace_macro_governance_review_updated_events", workspaceMacroGovernanceReviewUpdatedEvents);
         totals.put("workspace_macro_external_catalog_policy_updated_events", workspaceMacroExternalCatalogPolicyUpdatedEvents);
+        totals.put("workspace_macro_deprecation_policy_updated_events", workspaceMacroDeprecationPolicyUpdatedEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
@@ -4470,6 +4528,7 @@ packetItems.add(buildScorecardItem(
                        SUM(CASE WHEN event_type = 'workspace_sla_policy_review_updated' THEN 1 ELSE 0 END) AS workspace_sla_policy_review_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_macro_governance_review_updated' THEN 1 ELSE 0 END) AS workspace_macro_governance_review_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_macro_external_catalog_policy_updated' THEN 1 ELSE 0 END) AS workspace_macro_external_catalog_policy_updated_events,
+                       SUM(CASE WHEN event_type = 'workspace_macro_deprecation_policy_updated' THEN 1 ELSE 0 END) AS workspace_macro_deprecation_policy_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_legacy_usage_policy_updated' THEN 1 ELSE 0 END) AS workspace_legacy_usage_policy_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
@@ -4522,6 +4581,7 @@ packetItems.add(buildScorecardItem(
                 item.put("workspace_sla_policy_review_updated_events", rs.getLong("workspace_sla_policy_review_updated_events"));
                 item.put("workspace_macro_governance_review_updated_events", rs.getLong("workspace_macro_governance_review_updated_events"));
                 item.put("workspace_macro_external_catalog_policy_updated_events", rs.getLong("workspace_macro_external_catalog_policy_updated_events"));
+                item.put("workspace_macro_deprecation_policy_updated_events", rs.getLong("workspace_macro_deprecation_policy_updated_events"));
                 item.put("workspace_legacy_usage_policy_updated_events", rs.getLong("workspace_legacy_usage_policy_updated_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
