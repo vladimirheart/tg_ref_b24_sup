@@ -221,7 +221,7 @@ class DialogApiControllerWebMvcTest {
                 "2026-01-01T10:00:00Z",
                 0,
                 null,
-                "category"
+                "billing"
         );
         when(dialogService.loadDialogDetails("T-1", null, "operator"))
                 .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
@@ -259,7 +259,7 @@ class DialogApiControllerWebMvcTest {
                         "2026-01-01T11:00:00Z",
                         0,
                         null,
-                        "category"
+                        "billing"
                 )
         ));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.ofEntries(
@@ -271,7 +271,8 @@ class DialogApiControllerWebMvcTest {
                 Map.entry("workspace_disable_legacy_fallback", true),
                 Map.entry("workspace_rollout_context_contract_required", true),
                 Map.entry("workspace_rollout_context_contract_scenarios", List.of("billing")),
-                Map.entry("workspace_rollout_context_contract_mandatory_fields", List.of("total_dialogs", "open_dialogs")),
+                Map.entry("workspace_rollout_context_contract_mandatory_fields", List.of("total_dialogs")),
+                Map.entry("workspace_rollout_context_contract_mandatory_fields_by_scenario", Map.of("billing", List.of("open_dialogs"))),
                 Map.entry("workspace_rollout_context_contract_source_of_truth", List.of("total_dialogs:local")),
                 Map.entry("workspace_rollout_context_contract_priority_blocks", List.of("customer_profile", "context_sources")),
                 Map.entry("workspace_rollout_external_kpi_reviewed_at", "2026-01-01T10:15:00+03:00"),
@@ -302,6 +303,8 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.client.open_dialogs").value(2))
                 .andExpect(jsonPath("$.context.contract.enabled").value(true))
                 .andExpect(jsonPath("$.context.contract.ready").value(true))
+                .andExpect(jsonPath("$.context.contract.active_scenarios[0]").value("billing"))
+                .andExpect(jsonPath("$.context.contract.effective_mandatory_fields.length()").value(2))
                 .andExpect(jsonPath("$.context.contract.missing_mandatory_fields.length()").value(0))
                 .andExpect(jsonPath("$.context.contract.source_of_truth_violations.length()").value(0))
                 .andExpect(jsonPath("$.permissions.can_bulk").value(false))
