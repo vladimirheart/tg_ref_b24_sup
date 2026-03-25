@@ -173,6 +173,15 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_auto_assign_max_open_per_operator")
                 || payload.containsKey("dialog_sla_critical_auto_assign_require_categories")
                 || payload.containsKey("dialog_sla_critical_auto_assign_include_assigned")
+                || payload.containsKey("dialog_sla_critical_auto_assign_audit_require_layers")
+                || payload.containsKey("dialog_sla_critical_auto_assign_audit_require_owner")
+                || payload.containsKey("dialog_sla_critical_auto_assign_audit_require_review")
+                || payload.containsKey("dialog_sla_critical_auto_assign_audit_review_ttl_hours")
+                || payload.containsKey("dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct")
+                || payload.containsKey("dialog_sla_critical_auto_assign_audit_block_on_conflicts")
+                || payload.containsKey("dialog_sla_critical_auto_assign_governance_review_required")
+                || payload.containsKey("dialog_sla_critical_auto_assign_governance_review_ttl_hours")
+                || payload.containsKey("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required")
                 || payload.containsKey("dialog_sla_critical_operator_skills")
                 || payload.containsKey("dialog_sla_critical_operator_queues")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")
@@ -455,6 +464,33 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_auto_assign_include_assigned")) {
                     dialogConfig.put("sla_critical_auto_assign_include_assigned", payload.get("dialog_sla_critical_auto_assign_include_assigned"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_audit_require_layers")) {
+                    dialogConfig.put("sla_critical_auto_assign_audit_require_layers", payload.get("dialog_sla_critical_auto_assign_audit_require_layers"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_audit_require_owner")) {
+                    dialogConfig.put("sla_critical_auto_assign_audit_require_owner", payload.get("dialog_sla_critical_auto_assign_audit_require_owner"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_audit_require_review")) {
+                    dialogConfig.put("sla_critical_auto_assign_audit_require_review", payload.get("dialog_sla_critical_auto_assign_audit_require_review"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_audit_review_ttl_hours")) {
+                    dialogConfig.put("sla_critical_auto_assign_audit_review_ttl_hours", payload.get("dialog_sla_critical_auto_assign_audit_review_ttl_hours"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct")) {
+                    dialogConfig.put("sla_critical_auto_assign_audit_broad_rule_coverage_pct", payload.get("dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_audit_block_on_conflicts")) {
+                    dialogConfig.put("sla_critical_auto_assign_audit_block_on_conflicts", payload.get("dialog_sla_critical_auto_assign_audit_block_on_conflicts"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_governance_review_required")) {
+                    dialogConfig.put("sla_critical_auto_assign_governance_review_required", payload.get("dialog_sla_critical_auto_assign_governance_review_required"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_governance_review_ttl_hours")) {
+                    dialogConfig.put("sla_critical_auto_assign_governance_review_ttl_hours", payload.get("dialog_sla_critical_auto_assign_governance_review_ttl_hours"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required")) {
+                    dialogConfig.put("sla_critical_auto_assign_governance_dry_run_ticket_required", payload.get("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required"));
                 }
                 if (payload.containsKey("dialog_sla_critical_operator_skills")) {
                     dialogConfig.put("sla_critical_operator_skills", payload.get("dialog_sla_critical_operator_skills"));
