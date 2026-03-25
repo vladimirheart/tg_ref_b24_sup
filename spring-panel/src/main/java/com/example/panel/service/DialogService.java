@@ -1066,6 +1066,59 @@ public class DialogService {
             }
         }
 
+        boolean externalCatalogContractRequired = resolveBooleanConfig(dialogConfig, "macro_external_catalog_contract_required", false);
+        long externalCatalogContractTtlHours = resolveLongConfig(
+                dialogConfig,
+                "macro_external_catalog_contract_ttl_hours",
+                168,
+                1,
+                24L * 90L);
+        String externalCatalogExpectedVersion = normalizeNullString(String.valueOf(dialogConfig.get("macro_external_catalog_expected_version")));
+        String externalCatalogObservedVersion = normalizeNullString(String.valueOf(dialogConfig.get("macro_external_catalog_observed_version")));
+        String externalCatalogVerifiedBy = normalizeNullString(String.valueOf(dialogConfig.get("macro_external_catalog_verified_by")));
+        String externalCatalogVerifiedAtRaw = normalizeNullString(String.valueOf(dialogConfig.get("macro_external_catalog_verified_at")));
+        OffsetDateTime externalCatalogVerifiedAt = parseReviewTimestamp(externalCatalogVerifiedAtRaw);
+        boolean externalCatalogVerifiedAtInvalid = StringUtils.hasText(externalCatalogVerifiedAtRaw) && externalCatalogVerifiedAt == null;
+        long externalCatalogReviewAgeHours = externalCatalogVerifiedAt != null
+                ? Math.max(0L, java.time.Duration.between(externalCatalogVerifiedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours())
+                : -1L;
+        boolean externalCatalogReviewFresh = externalCatalogVerifiedAt != null && externalCatalogReviewAgeHours <= externalCatalogContractTtlHours;
+        String externalCatalogReviewNote = normalizeNullString(String.valueOf(dialogConfig.get("macro_external_catalog_review_note")));
+        String externalCatalogDecision = normalizeNullString(String.valueOf(dialogConfig.get("macro_external_catalog_decision")));
+        if (externalCatalogDecision != null) {
+            externalCatalogDecision = externalCatalogDecision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(externalCatalogDecision) && !"hold".equals(externalCatalogDecision)) {
+                externalCatalogDecision = null;
+            }
+        }
+        List<String> externalCatalogIssues = new ArrayList<>();
+        if (externalCatalogContractRequired) {
+            if (!StringUtils.hasText(externalCatalogExpectedVersion)) {
+                externalCatalogIssues.add("external_catalog_expected_version_missing");
+                issues.add(buildMacroGovernanceIssue("external_catalog_expected_version_missing", null, null, "hold", "rollout_blocker", "Не задан expected version для external macro catalog.", "expected_version=missing"));
+            }
+            if (!StringUtils.hasText(externalCatalogObservedVersion)) {
+                externalCatalogIssues.add("external_catalog_observed_version_missing");
+                issues.add(buildMacroGovernanceIssue("external_catalog_observed_version_missing", null, null, "hold", "rollout_blocker", "Не зафиксирована observed version для external macro catalog.", "observed_version=missing"));
+            }
+            if (StringUtils.hasText(externalCatalogExpectedVersion) && StringUtils.hasText(externalCatalogObservedVersion)
+                    && !externalCatalogExpectedVersion.equalsIgnoreCase(externalCatalogObservedVersion)) {
+                externalCatalogIssues.add("external_catalog_version_mismatch");
+                issues.add(buildMacroGovernanceIssue("external_catalog_version_mismatch", null, null, "hold", "rollout_blocker", "Observed version external macro catalog не совпадает с ожидаемой.", "expected=%s observed=%s".formatted(externalCatalogExpectedVersion, externalCatalogObservedVersion)));
+            }
+            if (!StringUtils.hasText(externalCatalogVerifiedBy) || externalCatalogVerifiedAt == null) {
+                externalCatalogIssues.add("external_catalog_review_missing");
+                issues.add(buildMacroGovernanceIssue("external_catalog_review_missing", null, null, "hold", "rollout_blocker", "External catalog compatibility review не заполнен.", "verified_by/verified_at=missing"));
+            } else if (externalCatalogVerifiedAtInvalid) {
+                externalCatalogIssues.add("external_catalog_review_invalid_utc");
+                issues.add(buildMacroGovernanceIssue("external_catalog_review_invalid_utc", null, null, "hold", "rollout_blocker", "Дата compatibility review external macro catalog невалидна для UTC.", "verified_at=invalid"));
+            } else if (!externalCatalogReviewFresh) {
+                externalCatalogIssues.add("external_catalog_review_stale");
+                issues.add(buildMacroGovernanceIssue("external_catalog_review_stale", null, null, "hold", "rollout_blocker", "External catalog compatibility review устарел.", "review_age_hours=%d > ttl=%d".formatted(externalCatalogReviewAgeHours, externalCatalogContractTtlHours)));
+            }
+        }
+        boolean externalCatalogReady = !externalCatalogContractRequired || externalCatalogIssues.isEmpty();
+
         String status;
         if (templates.isEmpty()) {
             status = "off";
@@ -1113,6 +1166,19 @@ public class DialogService {
                 Map.entry("decision", governanceDecision == null ? "" : governanceDecision),
                 Map.entry("review_note", governanceReviewNote == null ? "" : governanceReviewNote),
                 Map.entry("issues", governanceReviewIssues)));
+        audit.put("external_catalog_contract", Map.ofEntries(
+                Map.entry("required", externalCatalogContractRequired),
+                Map.entry("ready", externalCatalogReady),
+                Map.entry("expected_version", externalCatalogExpectedVersion == null ? "" : externalCatalogExpectedVersion),
+                Map.entry("observed_version", externalCatalogObservedVersion == null ? "" : externalCatalogObservedVersion),
+                Map.entry("verified_by", externalCatalogVerifiedBy == null ? "" : externalCatalogVerifiedBy),
+                Map.entry("verified_at_utc", externalCatalogVerifiedAt == null ? "" : externalCatalogVerifiedAt.toString()),
+                Map.entry("verified_at_invalid_utc", externalCatalogVerifiedAtInvalid),
+                Map.entry("review_ttl_hours", externalCatalogContractTtlHours),
+                Map.entry("review_age_hours", externalCatalogReviewAgeHours),
+                Map.entry("decision", externalCatalogDecision == null ? "" : externalCatalogDecision),
+                Map.entry("review_note", externalCatalogReviewNote == null ? "" : externalCatalogReviewNote),
+                Map.entry("issues", externalCatalogIssues)));
         audit.put("issues", issues);
         audit.put("templates", auditedTemplates);
         return audit;
@@ -3352,6 +3418,7 @@ packetItems.add(buildScorecardItem(
         long workspaceRolloutReviewIncidentFollowupLinkedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_incident_followup_linked_events"))).sum();
         long workspaceSlaPolicyReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_review_updated_events"))).sum();
         long workspaceMacroGovernanceReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_governance_review_updated_events"))).sum();
+        long workspaceMacroExternalCatalogPolicyUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_external_catalog_policy_updated_events"))).sum();
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -3410,6 +3477,7 @@ packetItems.add(buildScorecardItem(
         totals.put("workspace_rollout_review_incident_followup_linked_events", workspaceRolloutReviewIncidentFollowupLinkedEvents);
         totals.put("workspace_sla_policy_review_updated_events", workspaceSlaPolicyReviewUpdatedEvents);
         totals.put("workspace_macro_governance_review_updated_events", workspaceMacroGovernanceReviewUpdatedEvents);
+        totals.put("workspace_macro_external_catalog_policy_updated_events", workspaceMacroExternalCatalogPolicyUpdatedEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
@@ -3437,8 +3505,8 @@ packetItems.add(buildScorecardItem(
         totals.put("workspace_parity_gap_rate", workspaceOpenEvents > 0 ? (double) workspaceParityGapEvents / workspaceOpenEvents : 0d);
         totals.put("workspace_parity_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) workspaceParityGapEvents / workspaceOpenEvents))
-                totals.put("workspace_legacy_usage_policy_updated_events", workspaceLegacyUsagePolicyUpdatedEvents);
                 : 1d);
+        totals.put("workspace_legacy_usage_policy_updated_events", workspaceLegacyUsagePolicyUpdatedEvents);
         totals.put("kpi_frt_recorded_events", frtRecordedEvents);
         totals.put("kpi_ttr_recorded_events", ttrRecordedEvents);
         totals.put("kpi_sla_breach_recorded_events", slaBreachRecordedEvents);
@@ -4379,6 +4447,8 @@ packetItems.add(buildScorecardItem(
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_incident_followup_linked' THEN 1 ELSE 0 END) AS workspace_rollout_review_incident_followup_linked_events,
                        SUM(CASE WHEN event_type = 'workspace_sla_policy_review_updated' THEN 1 ELSE 0 END) AS workspace_sla_policy_review_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_macro_governance_review_updated' THEN 1 ELSE 0 END) AS workspace_macro_governance_review_updated_events,
+                       SUM(CASE WHEN event_type = 'workspace_macro_external_catalog_policy_updated' THEN 1 ELSE 0 END) AS workspace_macro_external_catalog_policy_updated_events,
+                       SUM(CASE WHEN event_type = 'workspace_legacy_usage_policy_updated' THEN 1 ELSE 0 END) AS workspace_legacy_usage_policy_updated_events,
                        SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
                        SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
                        SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
@@ -4406,7 +4476,6 @@ packetItems.add(buildScorecardItem(
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("experiment_cohort", rs.getString("experiment_cohort"));
-                SUM(CASE WHEN event_type = 'workspace_legacy_usage_policy_updated' THEN 1 ELSE 0 END) AS workspace_legacy_usage_policy_updated_events,
                 item.put("operator_segment", rs.getString("operator_segment"));
                 item.put("events", rs.getLong("events"));
                 item.put("render_errors", rs.getLong("render_errors"));
@@ -4430,6 +4499,8 @@ packetItems.add(buildScorecardItem(
                 item.put("workspace_rollout_review_incident_followup_linked_events", rs.getLong("workspace_rollout_review_incident_followup_linked_events"));
                 item.put("workspace_sla_policy_review_updated_events", rs.getLong("workspace_sla_policy_review_updated_events"));
                 item.put("workspace_macro_governance_review_updated_events", rs.getLong("workspace_macro_governance_review_updated_events"));
+                item.put("workspace_macro_external_catalog_policy_updated_events", rs.getLong("workspace_macro_external_catalog_policy_updated_events"));
+                item.put("workspace_legacy_usage_policy_updated_events", rs.getLong("workspace_legacy_usage_policy_updated_events"));
                 item.put("slow_open_events", rs.getLong("slow_open_events"));
                 item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
                 item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
@@ -4457,7 +4528,6 @@ packetItems.add(buildScorecardItem(
             return null;
         }
         String joined = values.stream()
-            item.put("workspace_legacy_usage_policy_updated_events", rs.getLong("workspace_legacy_usage_policy_updated_events"));
                 .map(value -> value == null ? "" : value.trim())
                 .filter(value -> !value.isBlank())
                 .distinct()

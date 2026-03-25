@@ -350,6 +350,20 @@
 - **Обратная совместимость сохранена**: если policy-порог и флаги не заданы, новый checkpoint остаётся `off` и не меняет существующий rollout flow.
 
 Итог: переход к primary workspace становится измеряемым не только через parity-gap/инвентарь edge-кейсов, но и через явный «бюджет» ручных legacy-open с owner/date-дисциплиной.
+
+### Обновление от 25 марта 2026 (восьмая итерация): защита от breaking changes external macro catalog
+
+Следующим шагом из P2 по снижению macro entropy закрыт пункт про защиту от несовместимых изменений во внешнем catalog:
+
+- **В macro governance audit добавлен блок `external_catalog_contract`** с полями:
+  `required`, `ready`, `expected_version`, `observed_version`, `verified_by`, `verified_at_utc`, `verified_at_invalid_utc`, `review_ttl_hours`, `review_age_hours`, `decision`, `review_note`, `issues`.
+- **В analytics добавлена форма External catalog compatibility checkpoint** с сохранением через backend endpoint `/analytics/macro-governance/external-catalog-policy`.
+- **Audit теперь явно сигнализирует breaking-risk**, включая:
+  `external_catalog_expected_version_missing`, `external_catalog_observed_version_missing`, `external_catalog_version_mismatch`, `external_catalog_review_missing`, `external_catalog_review_invalid_utc`, `external_catalog_review_stale`.
+- **Добавлена telemetry-точка `workspace_macro_external_catalog_policy_updated`**, чтобы adoption compatibility-checkpoint был наблюдаем в UTC-окне.
+- **Обратная совместимость сохранена**: при выключенном флаге `macro_external_catalog_contract_required` новый checkpoint не влияет на текущий rollout flow.
+
+Итог: внешний macro catalog перестаёт быть «неявной внешней зависимостью» и становится частью явного governance-контракта с version-pin и UTC-freshness review.
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**
