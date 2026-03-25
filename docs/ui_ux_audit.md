@@ -378,6 +378,21 @@
 - **Обратная совместимость сохранена**: при выключенном флаге `macro_deprecation_policy_required` новый checkpoint не влияет на текущий rollout flow.
 
 Итог: deprecation policy перестаёт быть только набором полей в шаблонах и становится управляемым operational-checkpoint с owner/date дисциплиной и traceability через ticket/decision.
+
+### Обновление от 25 марта 2026 (десятая итерация): governance-настройки выведены в Settings UI
+
+Следующим по логике закрыт практический UX-gap между backend-возможностями и операторским доступом к настройкам governance:
+
+- **В Settings UI добавлены явные поля для rollout review discipline**:
+  `decision_required`, `incident_followup_required`, `review_decision_action`, `review_incident_followup`.
+- **В Settings UI добавлены поля baseline macro governance**:
+  `require_owner`, `require_namespace`, `require_review`, `review_ttl_hours`, `deprecation_requires_reason`, `unused_days`.
+- **Сохранение проходит end-to-end через существующий backend bridge `/settings`**:
+  значения нормализуются, сохраняются в `dialog_config` и сразу попадают в analytics-аудиты (workspace rollout / macro governance) без дополнительных ручных шагов.
+- **Обратная совместимость сохранена**:
+  если новые поля пустые или выключены, используется прежний default-flow и поведение не меняется.
+
+Итог: governance-настройки перестают быть «скрытыми ключами backend» и становятся операционно управляемыми прямо из стандартного UI настроек, что снижает риск рассинхрона между policy и фактической эксплуатацией.
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**
