@@ -323,6 +323,10 @@
                                                 <label for="workspaceTelemetryContextMandatoryFields" class="form-label form-label-sm mb-1">Mandatory fields (CSV)</label>
                                                 <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextMandatoryFields" placeholder="full_name, crm_tier, contract_status">
                                             </div>
+                                            <div class="col-12">
+                                                <label for="workspaceTelemetryContextScenarioMandatoryFields" class="form-label form-label-sm mb-1">Mandatory fields by scenario (JSON)</label>
+                                                <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioMandatoryFields" rows="3" placeholder='{"billing":["contract_status","crm_tier"],"incident":["full_name","phone"]}'></textarea>
+                                            </div>
                                             <div class="col-12 col-lg-6">
                                                 <label for="workspaceTelemetryContextSourceOfTruth" class="form-label form-label-sm mb-1">Source-of-truth (CSV)</label>
                                                 <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextSourceOfTruth" placeholder="crm_tier:crm, contract_status:billing_api">

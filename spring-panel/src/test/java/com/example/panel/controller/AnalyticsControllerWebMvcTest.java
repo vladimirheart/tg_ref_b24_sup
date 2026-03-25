@@ -266,6 +266,10 @@ class AnalyticsControllerWebMvcTest {
                                   "required": true,
                                   "scenarios": ["incident", "billing"],
                                   "mandatoryFields": ["full_name", "crm_tier"],
+                                  "scenarioMandatoryFields": {
+                                    "billing": ["contract_status", "crm_tier"],
+                                    "incident": ["full_name", "phone"]
+                                  },
                                   "sourceOfTruth": ["full_name:crm", "crm_tier:crm"],
                                   "priorityBlocks": ["customer", "sla"],
                                   "reviewedBy": "ops.lead",
@@ -280,6 +284,7 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-24T20:10:00Z"))
                 .andExpect(jsonPath("$.scenarios[0]").value("incident"))
                 .andExpect(jsonPath("$.mandatory_fields[0]").value("full_name"))
+                .andExpect(jsonPath("$.scenario_mandatory_fields.billing[0]").value("contract_status"))
                 .andExpect(jsonPath("$.source_of_truth[0]").value("full_name:crm"))
                 .andExpect(jsonPath("$.priority_blocks[0]").value("customer"));
 
@@ -293,6 +298,10 @@ class AnalyticsControllerWebMvcTest {
         assertThat(dialogConfig.get("workspace_rollout_context_contract_review_note")).isEqualTo("Updated after weekly context review");
         assertThat(dialogConfig.get("workspace_rollout_context_contract_scenarios")).isEqualTo(java.util.List.of("incident", "billing"));
         assertThat(dialogConfig.get("workspace_rollout_context_contract_mandatory_fields")).isEqualTo(java.util.List.of("full_name", "crm_tier"));
+        assertThat(dialogConfig.get("workspace_rollout_context_contract_mandatory_fields_by_scenario"))
+                .isEqualTo(Map.of(
+                        "billing", java.util.List.of("contract_status", "crm_tier"),
+                        "incident", java.util.List.of("full_name", "phone")));
         assertThat(dialogConfig.get("workspace_rollout_context_contract_source_of_truth")).isEqualTo(java.util.List.of("full_name:crm", "crm_tier:crm"));
         assertThat(dialogConfig.get("workspace_rollout_context_contract_priority_blocks")).isEqualTo(java.util.List.of("customer", "sla"));
     }

@@ -65,6 +65,7 @@
   const contextRequiredInput = document.getElementById('workspaceTelemetryContextRequired');
   const contextScenariosInput = document.getElementById('workspaceTelemetryContextScenarios');
   const contextMandatoryFieldsInput = document.getElementById('workspaceTelemetryContextMandatoryFields');
+  const contextScenarioMandatoryFieldsInput = document.getElementById('workspaceTelemetryContextScenarioMandatoryFields');
   const contextSourceOfTruthInput = document.getElementById('workspaceTelemetryContextSourceOfTruth');
   const contextPriorityBlocksInput = document.getElementById('workspaceTelemetryContextPriorityBlocks');
   const contextReviewedByInput = document.getElementById('workspaceTelemetryContextReviewedBy');
@@ -744,6 +745,9 @@ if (legacyUsageReviewNoteInput) {
     const contextContract = packet?.context_contract || {};
     const contextScenarios = Array.isArray(contextContract?.scenarios) ? contextContract.scenarios : [];
     const contextMandatoryFields = Array.isArray(contextContract?.mandatory_fields) ? contextContract.mandatory_fields : [];
+    const contextMandatoryFieldsByScenario = contextContract?.mandatory_fields_by_scenario && typeof contextContract?.mandatory_fields_by_scenario === 'object'
+      ? contextContract.mandatory_fields_by_scenario
+      : {};
     const contextSourceOfTruth = Array.isArray(contextContract?.source_of_truth) ? contextContract.source_of_truth : [];
     const contextPriorityBlocks = Array.isArray(contextContract?.priority_blocks) ? contextContract.priority_blocks : [];
     if (packetContextState) {
@@ -761,7 +765,7 @@ if (legacyUsageReviewNoteInput) {
       const reviewedAt = contextContract?.reviewed_at ? formatTimestamp(contextContract.reviewed_at) : '—';
       const reviewedBy = String(contextContract?.reviewed_by || '').trim() || '—';
       const ttl = Number(contextContract?.review_ttl_hours || 0);
-      packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · sources=${contextSourceOfTruth.length} · blocks=${contextPriorityBlocks.length} · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
+      packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · scenario profiles=${Object.keys(contextMandatoryFieldsByScenario).length} · sources=${contextSourceOfTruth.length} · blocks=${contextPriorityBlocks.length} · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
     }
     if (contextRequiredInput) {
       contextRequiredInput.checked = contextContract?.required === true;
@@ -771,6 +775,11 @@ if (legacyUsageReviewNoteInput) {
     }
     if (contextMandatoryFieldsInput) {
       contextMandatoryFieldsInput.value = contextMandatoryFields.join(', ');
+    }
+    if (contextScenarioMandatoryFieldsInput) {
+      contextScenarioMandatoryFieldsInput.value = Object.keys(contextMandatoryFieldsByScenario).length > 0
+        ? JSON.stringify(contextMandatoryFieldsByScenario, null, 2)
+        : '';
     }
     if (contextSourceOfTruthInput) {
       contextSourceOfTruthInput.value = contextSourceOfTruth.join(', ');
@@ -1764,6 +1773,27 @@ if (legacyUsageReviewNoteInput) {
       .filter((part, index, arr) => part.length > 0 && part.length <= 120 && arr.indexOf(part) === index);
   }
 
+  function parseScenarioMandatoryFields(value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Scenario mandatory fields должен быть JSON-объектом вида {"scenario":["field1"]}.');
+    }
+    const result = {};
+    Object.entries(parsed).forEach(([scenario, fields]) => {
+      const normalizedScenario = String(scenario || '').trim();
+      if (!normalizedScenario || normalizedScenario.length > 120) return;
+      const normalizedFields = Array.isArray(fields)
+        ? fields.map((item) => String(item || '').trim()).filter((item, index, arr) => item.length > 0 && item.length <= 120 && arr.indexOf(item) === index)
+        : [];
+      if (normalizedFields.length > 0) result[normalizedScenario] = normalizedFields;
+    });
+    return result;
+  }
+
   async function saveContextStandard() {
     if (!contextSaveButton) {
       return;
@@ -1780,6 +1810,18 @@ if (legacyUsageReviewNoteInput) {
       contextSaveButton.disabled = false;
       return;
     }
+    let scenarioMandatoryFields = {};
+    try {
+      scenarioMandatoryFields = parseScenarioMandatoryFields(
+        contextScenarioMandatoryFieldsInput ? contextScenarioMandatoryFieldsInput.value : ''
+      );
+    } catch (error) {
+      if (contextActionState) {
+        contextActionState.textContent = `Ошибка: ${error.message}`;
+      }
+      contextSaveButton.disabled = false;
+      return;
+    }
     try {
       const response = await fetch('/analytics/workspace-context/standard', {
         method: 'POST',
@@ -1790,6 +1832,7 @@ if (legacyUsageReviewNoteInput) {
           required: contextRequiredInput ? contextRequiredInput.checked : false,
           scenarios: parseCsvList(contextScenariosInput ? contextScenariosInput.value : ''),
           mandatoryFields: parseCsvList(contextMandatoryFieldsInput ? contextMandatoryFieldsInput.value : ''),
+          scenarioMandatoryFields,
           sourceOfTruth: parseCsvList(contextSourceOfTruthInput ? contextSourceOfTruthInput.value : ''),
           priorityBlocks: parseCsvList(contextPriorityBlocksInput ? contextPriorityBlocksInput.value : ''),
           reviewedBy: contextReviewedByInput ? (contextReviewedByInput.value || '').trim() : '',

@@ -3180,11 +3180,14 @@ public class DialogApiController {
         boolean required = toBoolean(dialogConfig.get("workspace_rollout_context_contract_required"));
         List<String> scenarios = safeStringList(dialogConfig.get("workspace_rollout_context_contract_scenarios"));
         List<String> mandatoryFields = safeStringList(dialogConfig.get("workspace_rollout_context_contract_mandatory_fields"));
+        Map<String, List<String>> mandatoryFieldsByScenario = safeStringListMap(
+                dialogConfig.get("workspace_rollout_context_contract_mandatory_fields_by_scenario"));
         List<String> sourceOfTruth = safeStringList(dialogConfig.get("workspace_rollout_context_contract_source_of_truth"));
         List<String> priorityBlocks = safeStringList(dialogConfig.get("workspace_rollout_context_contract_priority_blocks"));
         boolean enabled = required
                 || !scenarios.isEmpty()
                 || !mandatoryFields.isEmpty()
+                || !mandatoryFieldsByScenario.isEmpty()
                 || !sourceOfTruth.isEmpty()
                 || !priorityBlocks.isEmpty();
         if (!enabled) {
@@ -3193,10 +3196,16 @@ public class DialogApiController {
 
         List<Map<String, Object>> safeSources = contextSources == null ? List.of() : contextSources;
         List<Map<String, Object>> safeBlocks = contextBlocks == null ? List.of() : contextBlocks;
-        List<String> missingMandatoryFields = mandatoryFields.stream()
+        List<String> activeScenarios = resolveActiveScenarios(summary, scenarios);
+        List<String> effectiveMandatoryFields = computeEffectiveMandatoryFields(
+                mandatoryFields,
+                mandatoryFieldsByScenario,
+                activeScenarios);
+        List<String> missingMandatoryFields = effectiveMandatoryFields.stream()
                 .map(this::normalizeMacroVariableKey)
                 .filter(StringUtils::hasText)
                 .filter(field -> !hasWorkspaceProfileValue(workspaceClient.get(field)))
+                .distinct()
                 .toList();
 
         List<String> sourceViolations = sourceOfTruth.stream()
@@ -3219,7 +3228,10 @@ public class DialogApiController {
                 .flatMap(stream -> stream)
                 .distinct()
                 .toList();
-        boolean definitionReady = !mandatoryFields.isEmpty() && !sourceOfTruth.isEmpty() && !priorityBlocks.isEmpty();
+        boolean definitionReady = !scenarios.isEmpty()
+                && (!mandatoryFields.isEmpty() || !mandatoryFieldsByScenario.isEmpty())
+                && !sourceOfTruth.isEmpty()
+                && !priorityBlocks.isEmpty();
         boolean ready = violations.isEmpty() && definitionReady;
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -3229,6 +3241,9 @@ public class DialogApiController {
         payload.put("definition_ready", definitionReady);
         payload.put("scenarios", scenarios);
         payload.put("mandatory_fields", mandatoryFields);
+        payload.put("mandatory_fields_by_scenario", mandatoryFieldsByScenario);
+        payload.put("active_scenarios", activeScenarios);
+        payload.put("effective_mandatory_fields", effectiveMandatoryFields);
         payload.put("source_of_truth", sourceOfTruth);
         payload.put("priority_blocks", priorityBlocks);
         payload.put("missing_mandatory_fields", missingMandatoryFields);
