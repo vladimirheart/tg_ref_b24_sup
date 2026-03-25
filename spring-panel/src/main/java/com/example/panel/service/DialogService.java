@@ -3252,6 +3252,27 @@ packetItems.add(buildScorecardItem(
         return parsed;
     }
 
+    private Long resolveNullableLongDialogConfigValue(String key, long minInclusive, long maxInclusive) {
+        Object value = resolveDialogConfigValue(key);
+        if (value == null) {
+            return null;
+        }
+        long parsed;
+        if (value instanceof Number number) {
+            parsed = number.longValue();
+        } else {
+            try {
+                parsed = Long.parseLong(String.valueOf(value).trim());
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        if (parsed < minInclusive || parsed > maxInclusive) {
+            return null;
+        }
+        return parsed;
+    }
+
     private boolean resolveBooleanDialogConfigValue(String key, boolean fallback) {
         Object value = resolveDialogConfigValue(key);
         if (value == null) {
