@@ -555,6 +555,47 @@
                                     <small class="text-muted" id="workspaceTelemetryMacroGovernanceActionState"></small>
                                 </div>
                             </div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroExternalCatalogPolicyForm">
+                                <div class="small text-muted mb-2">External catalog compatibility checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogVerifiedBy" class="form-label form-label-sm mb-1">Verified by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogVerifiedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogVerifiedAtUtc" class="form-label form-label-sm mb-1">Verified at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogVerifiedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogExpectedVersion" class="form-label form-label-sm mb-1">Expected version</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogExpectedVersion" maxlength="120" placeholder="2026.03.24">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogObservedVersion" class="form-label form-label-sm mb-1">Observed version</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogObservedVersion" maxlength="120" placeholder="2026.03.24">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetryMacroExternalCatalogDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogReviewTtlHours" class="form-label form-label-sm mb-1">Review TTL (hours)</label>
+                                        <input type="number" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogReviewTtlHours" min="1" max="2160" placeholder="168">
+                                    </div>
+                                    <div class="col-12 col-lg-6">
+                                        <label for="workspaceTelemetryMacroExternalCatalogReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogReviewNote" maxlength="500" placeholder="verified external payload contract and variable compatibility">
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroExternalCatalogSavePolicy">Сохранить external catalog policy</button>
+                                    <small class="text-muted" id="workspaceTelemetryMacroExternalCatalogActionState"></small>
+                                </div>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-12 col-xl-5">
                                     <div class="table-responsive">

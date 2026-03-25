@@ -108,6 +108,15 @@
   const macroGovernanceCleanupTicketIdInput = document.getElementById('workspaceTelemetryMacroGovernanceCleanupTicketId');
   const macroGovernanceSaveReviewButton = document.getElementById('workspaceTelemetryMacroGovernanceSaveReview');
   const macroGovernanceActionState = document.getElementById('workspaceTelemetryMacroGovernanceActionState');
+  const macroExternalCatalogVerifiedByInput = document.getElementById('workspaceTelemetryMacroExternalCatalogVerifiedBy');
+  const macroExternalCatalogVerifiedAtInput = document.getElementById('workspaceTelemetryMacroExternalCatalogVerifiedAtUtc');
+  const macroExternalCatalogExpectedVersionInput = document.getElementById('workspaceTelemetryMacroExternalCatalogExpectedVersion');
+  const macroExternalCatalogObservedVersionInput = document.getElementById('workspaceTelemetryMacroExternalCatalogObservedVersion');
+  const macroExternalCatalogDecisionInput = document.getElementById('workspaceTelemetryMacroExternalCatalogDecision');
+  const macroExternalCatalogReviewTtlHoursInput = document.getElementById('workspaceTelemetryMacroExternalCatalogReviewTtlHours');
+  const macroExternalCatalogReviewNoteInput = document.getElementById('workspaceTelemetryMacroExternalCatalogReviewNote');
+  const macroExternalCatalogSavePolicyButton = document.getElementById('workspaceTelemetryMacroExternalCatalogSavePolicy');
+  const macroExternalCatalogActionState = document.getElementById('workspaceTelemetryMacroExternalCatalogActionState');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -941,10 +950,14 @@ if (legacyUsageReviewNoteInput) {
     }
     if (macroGovernanceMeta) {
       const reviewUpdates = latestPayload?.totals?.workspace_macro_governance_review_updated_events ?? 0;
-      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · review updates=${formatNumber(reviewUpdates)}`;
+      const externalPolicyUpdates = latestPayload?.totals?.workspace_macro_external_catalog_policy_updated_events ?? 0;
+      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · review updates=${formatNumber(reviewUpdates)} · external policy updates=${formatNumber(externalPolicyUpdates)}`;
     }
     const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
     const governanceReview = audit?.governance_review && typeof audit.governance_review === 'object' ? audit.governance_review : {};
+    const externalCatalog = audit?.external_catalog_contract && typeof audit.external_catalog_contract === 'object'
+      ? audit.external_catalog_contract
+      : {};
     if (macroGovernanceRequirements) {
       macroGovernanceRequirements.textContent = `owner=${requirements.require_owner === true ? 'required' : 'optional'} · namespace=${requirements.require_namespace === true ? 'required' : 'optional'}`;
     }
@@ -955,7 +968,10 @@ if (legacyUsageReviewNoteInput) {
       macroGovernanceCleanup.textContent = `unused=${formatNumber(audit?.unused_published_total || 0)} · stale_review=${formatNumber(audit?.stale_review_total || 0)}`;
     }
     if (macroGovernanceCleanupMeta) {
-      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'}`;
+      const externalCatalogMeta = externalCatalog.required === true
+        ? (externalCatalog.ready === true ? 'ready' : 'gap')
+        : 'optional';
+      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta}`;
     }
     const issues = Array.isArray(audit?.issues) ? audit.issues : [];
     if (macroGovernanceIssueSummary) {
@@ -1034,6 +1050,30 @@ if (legacyUsageReviewNoteInput) {
     if (macroGovernanceDecisionInput) {
       const decision = String(governanceReview?.decision || '').trim().toLowerCase();
       macroGovernanceDecisionInput.value = ['go', 'hold'].includes(decision) ? decision : '';
+    }
+    if (macroExternalCatalogVerifiedByInput) {
+      macroExternalCatalogVerifiedByInput.value = String(externalCatalog?.verified_by || '').trim();
+    }
+    if (macroExternalCatalogVerifiedAtInput) {
+      macroExternalCatalogVerifiedAtInput.value = toDateTimeLocalValue(externalCatalog?.verified_at_utc);
+    }
+    if (macroExternalCatalogExpectedVersionInput) {
+      macroExternalCatalogExpectedVersionInput.value = String(externalCatalog?.expected_version || '').trim();
+    }
+    if (macroExternalCatalogObservedVersionInput) {
+      macroExternalCatalogObservedVersionInput.value = String(externalCatalog?.observed_version || '').trim();
+    }
+    if (macroExternalCatalogDecisionInput) {
+      const decision = String(externalCatalog?.decision || '').trim().toLowerCase();
+      macroExternalCatalogDecisionInput.value = ['go', 'hold'].includes(decision) ? decision : '';
+    }
+    if (macroExternalCatalogReviewTtlHoursInput) {
+      macroExternalCatalogReviewTtlHoursInput.value = Number(externalCatalog?.review_ttl_hours || 0) > 0
+        ? String(Number(externalCatalog.review_ttl_hours))
+        : '';
+    }
+    if (macroExternalCatalogReviewNoteInput) {
+      macroExternalCatalogReviewNoteInput.value = String(externalCatalog?.review_note || '').trim();
     }
   }
 
@@ -1937,6 +1977,55 @@ async function saveLegacyUsagePolicy() {
     }
   }
 
+  async function saveMacroExternalCatalogPolicy() {
+    if (!macroExternalCatalogSavePolicyButton) {
+      return;
+    }
+    macroExternalCatalogSavePolicyButton.disabled = true;
+    if (macroExternalCatalogActionState) {
+      macroExternalCatalogActionState.textContent = 'Сохраняем...';
+    }
+    const verifiedAtUtc = dateTimeLocalToUtcIso(macroExternalCatalogVerifiedAtInput ? (macroExternalCatalogVerifiedAtInput.value || '').trim() : '');
+    if (verifiedAtUtc === null) {
+      if (macroExternalCatalogActionState) {
+        macroExternalCatalogActionState.textContent = 'Ошибка: поле "Verified at (UTC)" содержит невалидную дату.';
+      }
+      macroExternalCatalogSavePolicyButton.disabled = false;
+      return;
+    }
+    try {
+      const response = await fetch('/analytics/macro-governance/external-catalog-policy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          verifiedBy: macroExternalCatalogVerifiedByInput ? (macroExternalCatalogVerifiedByInput.value || '').trim() : '',
+          verifiedAtUtc,
+          expectedVersion: macroExternalCatalogExpectedVersionInput ? (macroExternalCatalogExpectedVersionInput.value || '').trim().slice(0, 120) : '',
+          observedVersion: macroExternalCatalogObservedVersionInput ? (macroExternalCatalogObservedVersionInput.value || '').trim().slice(0, 120) : '',
+          decision: macroExternalCatalogDecisionInput ? String(macroExternalCatalogDecisionInput.value || '').trim().toLowerCase() : '',
+          reviewTtlHours: macroExternalCatalogReviewTtlHoursInput ? Number(macroExternalCatalogReviewTtlHoursInput.value || 0) : 0,
+          reviewNote: macroExternalCatalogReviewNoteInput ? (macroExternalCatalogReviewNoteInput.value || '').trim().slice(0, 500) : '',
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      if (macroExternalCatalogActionState) {
+        macroExternalCatalogActionState.textContent = `Сохранено: ${formatTimestamp(payload?.verified_at_utc)}`;
+      }
+      await loadTelemetry();
+    } catch (error) {
+      if (macroExternalCatalogActionState) {
+        macroExternalCatalogActionState.textContent = `Ошибка: ${error.message}`;
+      }
+    } finally {
+      macroExternalCatalogSavePolicyButton.disabled = false;
+    }
+  }
+
   refreshButton.addEventListener('click', loadTelemetry);
   if (resetWindowButton) {
     resetWindowButton.addEventListener('click', () => {
@@ -1989,6 +2078,9 @@ async function saveLegacyUsagePolicy() {
   }
   if (macroGovernanceSaveReviewButton) {
     macroGovernanceSaveReviewButton.addEventListener('click', saveMacroGovernanceReview);
+  }
+  if (macroExternalCatalogSavePolicyButton) {
+    macroExternalCatalogSavePolicyButton.addEventListener('click', saveMacroExternalCatalogPolicy);
   }
   experimentInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {

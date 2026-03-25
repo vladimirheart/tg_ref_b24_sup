@@ -699,6 +699,115 @@ public class AnalyticsController {
         ));
     }
 
+    @PostMapping(value = "/macro-governance/external-catalog-policy", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> updateMacroExternalCatalogPolicy(@RequestBody(required = false) MacroExternalCatalogPolicyRequest request,
+                                                              Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String verifiedBy = normalize(String.valueOf(request != null ? request.verifiedBy() : null));
+        if (verifiedBy == null) {
+            verifiedBy = actor;
+        }
+        String verifiedAtRaw = normalize(String.valueOf(request != null ? request.verifiedAtUtc() : null));
+        OffsetDateTime verifiedAtUtc;
+        if (verifiedAtRaw == null) {
+            verifiedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        } else {
+            verifiedAtUtc = parseUtcTimestamp(verifiedAtRaw);
+            if (verifiedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "verified_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+        String expectedVersion = normalize(String.valueOf(request != null ? request.expectedVersion() : null));
+        if (expectedVersion != null && expectedVersion.length() > 120) {
+            expectedVersion = expectedVersion.substring(0, 120);
+        }
+        String observedVersion = normalize(String.valueOf(request != null ? request.observedVersion() : null));
+        if (observedVersion != null && observedVersion.length() > 120) {
+            observedVersion = observedVersion.substring(0, 120);
+        }
+        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
+        if (reviewNote != null && reviewNote.length() > 500) {
+            reviewNote = reviewNote.substring(0, 500);
+        }
+        String decision = normalize(String.valueOf(request != null ? request.decision() : null));
+        if (decision != null) {
+            decision = decision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(decision) && !"hold".equals(decision)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "decision must be one of: go, hold"));
+            }
+        }
+        long reviewTtlHours = parsePositiveLong(request != null ? request.reviewTtlHours() : null);
+        if (reviewTtlHours <= 0) {
+            reviewTtlHours = 168;
+        }
+        reviewTtlHours = Math.min(reviewTtlHours, 24L * 90L);
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+        dialogConfig.put("macro_external_catalog_verified_by", verifiedBy);
+        dialogConfig.put("macro_external_catalog_verified_at", verifiedAtUtc.toInstant().toString());
+        dialogConfig.put("macro_external_catalog_contract_ttl_hours", reviewTtlHours);
+        if (expectedVersion == null) {
+            dialogConfig.remove("macro_external_catalog_expected_version");
+        } else {
+            dialogConfig.put("macro_external_catalog_expected_version", expectedVersion);
+        }
+        if (observedVersion == null) {
+            dialogConfig.remove("macro_external_catalog_observed_version");
+        } else {
+            dialogConfig.put("macro_external_catalog_observed_version", observedVersion);
+        }
+        if (reviewNote == null) {
+            dialogConfig.remove("macro_external_catalog_review_note");
+        } else {
+            dialogConfig.put("macro_external_catalog_review_note", reviewNote);
+        }
+        if (decision == null) {
+            dialogConfig.remove("macro_external_catalog_decision");
+        } else {
+            dialogConfig.put("macro_external_catalog_decision", decision);
+        }
+        settings.put("dialog_config", dialogConfig);
+        sharedConfigService.saveSettings(settings);
+
+        dialogService.logWorkspaceTelemetry(
+                actor,
+                "workspace_macro_external_catalog_policy_updated",
+                "experiment",
+                null,
+                "analytics_macro_external_catalog_policy",
+                null,
+                "workspace.v1",
+                null,
+                "workspace_v1_rollout",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "verified_by", verifiedBy,
+                "verified_at_utc", verifiedAtUtc.toInstant().toString(),
+                "expected_version", expectedVersion == null ? "" : expectedVersion,
+                "observed_version", observedVersion == null ? "" : observedVersion,
+                "review_note", reviewNote == null ? "" : reviewNote,
+                "decision", decision == null ? "" : decision,
+                "review_ttl_hours", reviewTtlHours
+        ));
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return null;
@@ -802,5 +911,14 @@ private record WorkspaceLegacyUsagePolicyRequest(String reviewedBy,
                                                 String reviewNote,
                                                 String cleanupTicketId,
                                                 String decision) {
+    }
+
+    private record MacroExternalCatalogPolicyRequest(String verifiedBy,
+                                                     String verifiedAtUtc,
+                                                     String expectedVersion,
+                                                     String observedVersion,
+                                                     String reviewNote,
+                                                     String decision,
+                                                     Long reviewTtlHours) {
     }
 }
