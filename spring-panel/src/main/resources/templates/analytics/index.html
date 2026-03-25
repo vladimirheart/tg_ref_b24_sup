@@ -596,6 +596,43 @@
                                     <small class="text-muted" id="workspaceTelemetryMacroExternalCatalogActionState"></small>
                                 </div>
                             </div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroDeprecationPolicyForm">
+                                <div class="small text-muted mb-2">Deprecation policy checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetryMacroDeprecationDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewTtlHours" class="form-label form-label-sm mb-1">Review TTL (hours)</label>
+                                        <input type="number" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewTtlHours" min="1" max="2160" placeholder="168">
+                                    </div>
+                                    <div class="col-12 col-lg-4">
+                                        <label for="workspaceTelemetryMacroDeprecationTicketId" class="form-label form-label-sm mb-1">Deprecation ticket ID</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationTicketId" maxlength="80" placeholder="MACRO-DEP-42">
+                                    </div>
+                                    <div class="col-12 col-lg-8">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewNote" maxlength="500" placeholder="deprecated templates reviewed with owner and communication timeline">
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroDeprecationSavePolicy">Сохранить deprecation policy</button>
+                                    <small class="text-muted" id="workspaceTelemetryMacroDeprecationActionState"></small>
+                                </div>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-12 col-xl-5">
                                     <div class="table-responsive">

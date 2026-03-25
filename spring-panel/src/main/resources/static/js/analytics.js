@@ -117,6 +117,14 @@
   const macroExternalCatalogReviewNoteInput = document.getElementById('workspaceTelemetryMacroExternalCatalogReviewNote');
   const macroExternalCatalogSavePolicyButton = document.getElementById('workspaceTelemetryMacroExternalCatalogSavePolicy');
   const macroExternalCatalogActionState = document.getElementById('workspaceTelemetryMacroExternalCatalogActionState');
+  const macroDeprecationReviewedByInput = document.getElementById('workspaceTelemetryMacroDeprecationReviewedBy');
+  const macroDeprecationReviewedAtInput = document.getElementById('workspaceTelemetryMacroDeprecationReviewedAtUtc');
+  const macroDeprecationDecisionInput = document.getElementById('workspaceTelemetryMacroDeprecationDecision');
+  const macroDeprecationReviewTtlHoursInput = document.getElementById('workspaceTelemetryMacroDeprecationReviewTtlHours');
+  const macroDeprecationTicketIdInput = document.getElementById('workspaceTelemetryMacroDeprecationTicketId');
+  const macroDeprecationReviewNoteInput = document.getElementById('workspaceTelemetryMacroDeprecationReviewNote');
+  const macroDeprecationSavePolicyButton = document.getElementById('workspaceTelemetryMacroDeprecationSavePolicy');
+  const macroDeprecationActionState = document.getElementById('workspaceTelemetryMacroDeprecationActionState');
   const alertsTable = document.getElementById('workspaceTelemetryAlertsTable');
   const shiftTable = document.getElementById('workspaceTelemetryShiftTable');
   const teamTable = document.getElementById('workspaceTelemetryTeamTable');
@@ -951,12 +959,16 @@ if (legacyUsageReviewNoteInput) {
     if (macroGovernanceMeta) {
       const reviewUpdates = latestPayload?.totals?.workspace_macro_governance_review_updated_events ?? 0;
       const externalPolicyUpdates = latestPayload?.totals?.workspace_macro_external_catalog_policy_updated_events ?? 0;
-      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · review updates=${formatNumber(reviewUpdates)} · external policy updates=${formatNumber(externalPolicyUpdates)}`;
+      const deprecationPolicyUpdates = latestPayload?.totals?.workspace_macro_deprecation_policy_updated_events ?? 0;
+      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · review updates=${formatNumber(reviewUpdates)} · external policy updates=${formatNumber(externalPolicyUpdates)} · deprecation policy updates=${formatNumber(deprecationPolicyUpdates)}`;
     }
     const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
     const governanceReview = audit?.governance_review && typeof audit.governance_review === 'object' ? audit.governance_review : {};
     const externalCatalog = audit?.external_catalog_contract && typeof audit.external_catalog_contract === 'object'
       ? audit.external_catalog_contract
+      : {};
+    const deprecationPolicy = audit?.deprecation_policy && typeof audit.deprecation_policy === 'object'
+      ? audit.deprecation_policy
       : {};
     if (macroGovernanceRequirements) {
       macroGovernanceRequirements.textContent = `owner=${requirements.require_owner === true ? 'required' : 'optional'} · namespace=${requirements.require_namespace === true ? 'required' : 'optional'}`;
@@ -971,7 +983,10 @@ if (legacyUsageReviewNoteInput) {
       const externalCatalogMeta = externalCatalog.required === true
         ? (externalCatalog.ready === true ? 'ready' : 'gap')
         : 'optional';
-      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta}`;
+      const deprecationPolicyMeta = deprecationPolicy.required === true
+        ? (deprecationPolicy.ready === true ? 'ready' : 'gap')
+        : 'optional';
+      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta} · deprecation_policy=${deprecationPolicyMeta}`;
     }
     const issues = Array.isArray(audit?.issues) ? audit.issues : [];
     if (macroGovernanceIssueSummary) {
@@ -1074,6 +1089,27 @@ if (legacyUsageReviewNoteInput) {
     }
     if (macroExternalCatalogReviewNoteInput) {
       macroExternalCatalogReviewNoteInput.value = String(externalCatalog?.review_note || '').trim();
+    }
+    if (macroDeprecationReviewedByInput) {
+      macroDeprecationReviewedByInput.value = String(deprecationPolicy?.reviewed_by || '').trim();
+    }
+    if (macroDeprecationReviewedAtInput) {
+      macroDeprecationReviewedAtInput.value = toDateTimeLocalValue(deprecationPolicy?.reviewed_at_utc);
+    }
+    if (macroDeprecationDecisionInput) {
+      const decision = String(deprecationPolicy?.decision || '').trim().toLowerCase();
+      macroDeprecationDecisionInput.value = ['go', 'hold'].includes(decision) ? decision : '';
+    }
+    if (macroDeprecationReviewTtlHoursInput) {
+      macroDeprecationReviewTtlHoursInput.value = Number(deprecationPolicy?.review_ttl_hours || 0) > 0
+        ? String(Number(deprecationPolicy.review_ttl_hours))
+        : '';
+    }
+    if (macroDeprecationTicketIdInput) {
+      macroDeprecationTicketIdInput.value = String(deprecationPolicy?.deprecation_ticket_id || '').trim();
+    }
+    if (macroDeprecationReviewNoteInput) {
+      macroDeprecationReviewNoteInput.value = String(deprecationPolicy?.review_note || '').trim();
     }
   }
 
@@ -2026,6 +2062,54 @@ async function saveLegacyUsagePolicy() {
     }
   }
 
+  async function saveMacroDeprecationPolicy() {
+    if (!macroDeprecationSavePolicyButton) {
+      return;
+    }
+    macroDeprecationSavePolicyButton.disabled = true;
+    if (macroDeprecationActionState) {
+      macroDeprecationActionState.textContent = 'Сохраняем...';
+    }
+    const reviewedAtUtc = dateTimeLocalToUtcIso(macroDeprecationReviewedAtInput ? (macroDeprecationReviewedAtInput.value || '').trim() : '');
+    if (reviewedAtUtc === null) {
+      if (macroDeprecationActionState) {
+        macroDeprecationActionState.textContent = 'Ошибка: поле "Reviewed at (UTC)" содержит невалидную дату.';
+      }
+      macroDeprecationSavePolicyButton.disabled = false;
+      return;
+    }
+    try {
+      const response = await fetch('/analytics/macro-governance/deprecation-policy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reviewedBy: macroDeprecationReviewedByInput ? (macroDeprecationReviewedByInput.value || '').trim() : '',
+          reviewedAtUtc,
+          deprecationTicketId: macroDeprecationTicketIdInput ? (macroDeprecationTicketIdInput.value || '').trim().slice(0, 80) : '',
+          reviewNote: macroDeprecationReviewNoteInput ? (macroDeprecationReviewNoteInput.value || '').trim().slice(0, 500) : '',
+          decision: macroDeprecationDecisionInput ? String(macroDeprecationDecisionInput.value || '').trim().toLowerCase() : '',
+          reviewTtlHours: macroDeprecationReviewTtlHoursInput ? Number(macroDeprecationReviewTtlHoursInput.value || 0) : 0,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.success !== true) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      if (macroDeprecationActionState) {
+        macroDeprecationActionState.textContent = `Сохранено: ${formatTimestamp(payload?.reviewed_at_utc)}`;
+      }
+      await loadTelemetry();
+    } catch (error) {
+      if (macroDeprecationActionState) {
+        macroDeprecationActionState.textContent = `Ошибка: ${error.message}`;
+      }
+    } finally {
+      macroDeprecationSavePolicyButton.disabled = false;
+    }
+  }
+
   refreshButton.addEventListener('click', loadTelemetry);
   if (resetWindowButton) {
     resetWindowButton.addEventListener('click', () => {
@@ -2081,6 +2165,9 @@ async function saveLegacyUsagePolicy() {
   }
   if (macroExternalCatalogSavePolicyButton) {
     macroExternalCatalogSavePolicyButton.addEventListener('click', saveMacroExternalCatalogPolicy);
+  }
+  if (macroDeprecationSavePolicyButton) {
+    macroDeprecationSavePolicyButton.addEventListener('click', saveMacroDeprecationPolicy);
   }
   experimentInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
