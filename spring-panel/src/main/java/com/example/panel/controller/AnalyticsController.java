@@ -808,6 +808,105 @@ public class AnalyticsController {
         ));
     }
 
+    @PostMapping(value = "/macro-governance/deprecation-policy", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public ResponseEntity<?> updateMacroDeprecationPolicy(@RequestBody(required = false) MacroDeprecationPolicyRequest request,
+                                                          Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
+        if (reviewedBy == null) {
+            reviewedBy = actor;
+        }
+        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
+        OffsetDateTime reviewedAtUtc;
+        if (reviewedAtRaw == null) {
+            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        } else {
+            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
+            if (reviewedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
+        String deprecationTicketId = normalize(String.valueOf(request != null ? request.deprecationTicketId() : null));
+        if (deprecationTicketId != null && deprecationTicketId.length() > 80) {
+            deprecationTicketId = deprecationTicketId.substring(0, 80);
+        }
+        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
+        if (reviewNote != null && reviewNote.length() > 500) {
+            reviewNote = reviewNote.substring(0, 500);
+        }
+        String decision = normalize(String.valueOf(request != null ? request.decision() : null));
+        if (decision != null) {
+            decision = decision.toLowerCase(Locale.ROOT);
+            if (!"go".equals(decision) && !"hold".equals(decision)) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "decision must be one of: go, hold"));
+            }
+        }
+        long reviewTtlHours = parsePositiveLong(request != null ? request.reviewTtlHours() : null);
+        if (reviewTtlHours <= 0) {
+            reviewTtlHours = 168;
+        }
+        reviewTtlHours = Math.min(reviewTtlHours, 24L * 90L);
+
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+        dialogConfig.put("macro_deprecation_policy_reviewed_by", reviewedBy);
+        dialogConfig.put("macro_deprecation_policy_reviewed_at", reviewedAtUtc.toInstant().toString());
+        dialogConfig.put("macro_deprecation_policy_ttl_hours", reviewTtlHours);
+        if (deprecationTicketId == null) {
+            dialogConfig.remove("macro_deprecation_policy_ticket_id");
+        } else {
+            dialogConfig.put("macro_deprecation_policy_ticket_id", deprecationTicketId);
+        }
+        if (reviewNote == null) {
+            dialogConfig.remove("macro_deprecation_policy_review_note");
+        } else {
+            dialogConfig.put("macro_deprecation_policy_review_note", reviewNote);
+        }
+        if (decision == null) {
+            dialogConfig.remove("macro_deprecation_policy_decision");
+        } else {
+            dialogConfig.put("macro_deprecation_policy_decision", decision);
+        }
+        settings.put("dialog_config", dialogConfig);
+        sharedConfigService.saveSettings(settings);
+
+        dialogService.logWorkspaceTelemetry(
+                actor,
+                "workspace_macro_deprecation_policy_updated",
+                "experiment",
+                null,
+                "analytics_macro_deprecation_policy",
+                null,
+                "workspace.v1",
+                null,
+                "workspace_v1_rollout",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "reviewed_by", reviewedBy,
+                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
+                "deprecation_ticket_id", deprecationTicketId == null ? "" : deprecationTicketId,
+                "review_note", reviewNote == null ? "" : reviewNote,
+                "decision", decision == null ? "" : decision,
+                "review_ttl_hours", reviewTtlHours
+        ));
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return null;
@@ -920,5 +1019,13 @@ private record WorkspaceLegacyUsagePolicyRequest(String reviewedBy,
                                                      String reviewNote,
                                                      String decision,
                                                      Long reviewTtlHours) {
+    }
+
+    private record MacroDeprecationPolicyRequest(String reviewedBy,
+                                                 String reviewedAtUtc,
+                                                 String deprecationTicketId,
+                                                 String reviewNote,
+                                                 String decision,
+                                                 Long reviewTtlHours) {
     }
 }
