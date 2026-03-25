@@ -726,4 +726,74 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidMaxShare() throws Exception {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("verified_at_utc must be a valid UTC timestamp (ISO-8601)"));
     }
+
+    @Test
+    void updateMacroDeprecationPolicyPersistsUtcValues() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
+                "dialog_config", new LinkedHashMap<>()
+        )));
+
+        mockMvc.perform(post("/analytics/macro-governance/deprecation-policy")
+                        .with(user("ops.lead"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewedBy": "ops.lead",
+                                  "reviewedAtUtc": "2026-03-25T01:40:00Z",
+                                  "deprecationTicketId": "MACRO-DEP-42",
+                                  "decision": "hold",
+                                  "reviewTtlHours": 96,
+                                  "reviewNote": "Deprecated templates scheduled for cleanup window."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-25T01:40:00Z"))
+                .andExpect(jsonPath("$.deprecation_ticket_id").value("MACRO-DEP-42"))
+                .andExpect(jsonPath("$.decision").value("hold"))
+                .andExpect(jsonPath("$.review_ttl_hours").value(96));
+
+        ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(sharedConfigService).saveSettings(settingsCaptor.capture());
+        Map<String, Object> savedSettings = settingsCaptor.getValue();
+        Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
+        assertThat(dialogConfig.get("macro_deprecation_policy_reviewed_by")).isEqualTo("ops.lead");
+        assertThat(dialogConfig.get("macro_deprecation_policy_reviewed_at")).isEqualTo("2026-03-25T01:40:00Z");
+        assertThat(dialogConfig.get("macro_deprecation_policy_ticket_id")).isEqualTo("MACRO-DEP-42");
+        assertThat(dialogConfig.get("macro_deprecation_policy_decision")).isEqualTo("hold");
+        assertThat(dialogConfig.get("macro_deprecation_policy_ttl_hours")).isEqualTo(96L);
+
+        verify(dialogService).logWorkspaceTelemetry(
+                eq("ops.lead"),
+                eq("workspace_macro_deprecation_policy_updated"),
+                eq("experiment"),
+                eq(null),
+                eq("analytics_macro_deprecation_policy"),
+                eq(null),
+                eq("workspace.v1"),
+                eq(null),
+                eq("workspace_v1_rollout"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
+    }
+
+    @Test
+    void updateMacroDeprecationPolicyRejectsInvalidUtc() throws Exception {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        mockMvc.perform(post("/analytics/macro-governance/deprecation-policy")
+                        .with(user("ops.lead"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewedAtUtc": "2026-03-25T04:40:00+03:00"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+    }
 }
