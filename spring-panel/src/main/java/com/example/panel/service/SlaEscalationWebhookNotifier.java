@@ -452,6 +452,7 @@ public class SlaEscalationWebhookNotifier {
         boolean governanceReviewRequired = resolveBoolean(dialogConfig, "sla_critical_auto_assign_governance_review_required", false);
         long governanceReviewTtlHours = Math.max(1L, resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_governance_review_ttl_hours", 168, 24 * 90));
         boolean governanceDryRunTicketRequired = resolveBoolean(dialogConfig, "sla_critical_auto_assign_governance_dry_run_ticket_required", false);
+        boolean governanceDecisionRequired = resolveBoolean(dialogConfig, "sla_critical_auto_assign_governance_decision_required", false);
         String governanceReviewedBy = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_by")));
         String governanceReviewedAtRaw = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_at")));
         Instant governanceReviewedAt = parseUtcInstant(governanceReviewedAtRaw);
@@ -471,8 +472,10 @@ public class SlaEscalationWebhookNotifier {
             }
         }
         boolean governanceDryRunReady = !governanceDryRunTicketRequired || governanceDryRunTicketId != null;
+        boolean governanceDecisionReady = !governanceDecisionRequired || governanceDecision != null;
         boolean governanceReviewReady = !governanceReviewRequired
-                || (governanceReviewPresent && governanceReviewFresh && !governanceReviewedAtInvalid && governanceDryRunReady);
+                || (governanceReviewPresent && governanceReviewFresh && !governanceReviewedAtInvalid && governanceDryRunReady
+                && governanceDecisionReady && !"hold".equals(governanceDecision));
 
         List<DialogListItem> safeDialogs = dialogs == null ? List.of() : dialogs.stream().filter(dialog -> dialog != null).toList();
         List<Map<String, Object>> criticalCandidates = findEscalationCandidates(safeDialogs, targetMinutes, criticalMinutes, includeAssigned);
@@ -717,6 +720,29 @@ public class SlaEscalationWebhookNotifier {
                     List.of()
             ));
         }
+        if (governanceDecisionRequired && governanceDecision == null) {
+            issues.add(buildGovernanceIssue(
+                    governanceReviewRequired ? "rollout_blocker" : "backlog_candidate",
+                    governanceReviewRequired ? "hold" : "attention",
+                    "governance_decision_missing",
+                    "governance_review",
+                    "Для SLA policy governance review нужно явно зафиксировать decision (go/hold).",
+                    "decision=missing",
+                    List.of(),
+                    List.of()
+            ));
+        } else if ("hold".equals(governanceDecision)) {
+            issues.add(buildGovernanceIssue(
+                    "rollout_blocker",
+                    "hold",
+                    "governance_decision_hold",
+                    "governance_review",
+                    "SLA policy governance decision зафиксирован как hold.",
+                    "decision=hold",
+                    List.of(),
+                    List.of()
+            ));
+        }
 
         boolean hasHoldIssues = issues.stream().anyMatch(issue -> "hold".equals(String.valueOf(issue.get("status"))));
         boolean hasAttentionIssues = issues.stream().anyMatch(issue -> "attention".equals(String.valueOf(issue.get("status"))));
@@ -769,7 +795,8 @@ public class SlaEscalationWebhookNotifier {
                 "broad_rule_coverage_pct", broadCoveragePct,
                 "governance_review_required", governanceReviewRequired,
                 "governance_review_ttl_hours", governanceReviewTtlHours,
-                "governance_dry_run_ticket_required", governanceDryRunTicketRequired
+                "governance_dry_run_ticket_required", governanceDryRunTicketRequired,
+                "governance_decision_required", governanceDecisionRequired
         ));
         auditPayload.put("governance_review", Map.ofEntries(
                 Map.entry("required", governanceReviewRequired),
@@ -780,6 +807,8 @@ public class SlaEscalationWebhookNotifier {
                 Map.entry("review_note", governanceReviewNote == null ? "" : governanceReviewNote),
                 Map.entry("dry_run_ticket_id", governanceDryRunTicketId == null ? "" : governanceDryRunTicketId),
                 Map.entry("dry_run_ticket_required", governanceDryRunTicketRequired),
+                Map.entry("decision_required", governanceDecisionRequired),
+                Map.entry("decision_ready", governanceDecisionReady),
                 Map.entry("decision", governanceDecision == null ? "" : governanceDecision),
                 Map.entry("review_ttl_hours", governanceReviewTtlHours),
                 Map.entry("review_age_hours", governanceReviewAgeHours)
