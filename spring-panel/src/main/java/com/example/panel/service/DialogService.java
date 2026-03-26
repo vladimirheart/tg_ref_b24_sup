@@ -1482,6 +1482,8 @@ public class DialogService {
                 "workspace_rollout_governance_legacy_usage_review_ttl_hours", 168, 1, 24 * 90L);
         Long legacyUsageMaxSharePct = resolveNullableLongDialogConfigValue(
                 "workspace_rollout_governance_legacy_manual_share_max_pct", 0, 100);
+        Long legacyUsageMinWorkspaceOpenEvents = resolveNullableLongDialogConfigValue(
+                "workspace_rollout_governance_legacy_usage_min_workspace_open_events", 0, 100_000);
         boolean legacyUsageDecisionRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_governance_legacy_usage_decision_required", false);
         boolean contextContractRequired = resolveBooleanDialogConfigValue("workspace_rollout_context_contract_required", false);
@@ -1642,8 +1644,12 @@ double manualLegacyShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyO
 boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
 double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
 boolean legacyUsageThresholdReady = !legacyUsageThresholdConfigured || manualLegacyShareRatio <= legacyUsageThresholdShare;
+boolean legacyUsageMinWorkspaceOpenEventsConfigured = legacyUsageMinWorkspaceOpenEvents != null;
+boolean legacyUsageVolumeReady = !legacyUsageMinWorkspaceOpenEventsConfigured
+        || workspaceOpenEvents >= legacyUsageMinWorkspaceOpenEvents;
 boolean legacyUsageDecisionPresent = StringUtils.hasText(legacyUsageDecision);
 boolean legacyUsagePolicyEnabled = legacyUsageThresholdConfigured
+        || legacyUsageMinWorkspaceOpenEventsConfigured
         || legacyUsageDecisionRequired
         || legacyUsageReviewPresent
         || StringUtils.hasText(legacyUsageReviewNote);
@@ -1652,6 +1658,7 @@ boolean legacyUsagePolicyReady = !legacyUsagePolicyEnabled
         && legacyUsageReviewFresh
         && !legacyUsageReviewTimestampInvalid
         && legacyUsageThresholdReady
+        && legacyUsageVolumeReady
         && (!legacyUsageDecisionRequired || legacyUsageDecisionPresent));
         List<Map<String, Object>> packetItems = new ArrayList<>();
         packetItems.add(buildScorecardItem(
@@ -1825,11 +1832,16 @@ packetItems.add(buildScorecardItem(
                         workspaceOpenEvents,
                         legacyUsageThresholdConfigured ? ", max=%d%%".formatted(legacyUsageMaxSharePct) : "",
                         legacyUsageDecisionPresent ? ", decision=%s".formatted(legacyUsageDecision) : ""),
+                         Stream.of(
+                                legacyUsageMinWorkspaceOpenEventsConfigured
+                                        ? "min_workspace_opens=%d".formatted(legacyUsageMinWorkspaceOpenEvents) : null,
         legacyUsagePolicyEnabled
                 ? "review <= %d h UTC%s%s".formatted(
                 legacyUsageReviewTtlHours,
                 legacyUsageThresholdConfigured ? ", manual share <= %d%%".formatted(legacyUsageMaxSharePct) : "",
-                legacyUsageDecisionRequired ? ", decision required" : "")
+                (legacyUsageMinWorkspaceOpenEventsConfigured
+                        ? ", workspace opens >= %d".formatted(legacyUsageMinWorkspaceOpenEvents) : "")
+                        + (legacyUsageDecisionRequired ? ", decision required" : ""))
                 : "optional",
         legacyUsageReviewedAt != null ? legacyUsageReviewedAt.toString() : "",
         firstNonBlank(
@@ -1979,6 +1991,8 @@ packetItems.add(buildScorecardItem(
         legacyUsagePolicy.put("manual_legacy_share_pct", Math.round(manualLegacyShareRatio * 1000d) / 10d);
         legacyUsagePolicy.put("max_manual_legacy_share_pct", legacyUsageMaxSharePct);
         legacyUsagePolicy.put("threshold_ready", legacyUsageThresholdReady);
+        legacyUsagePolicy.put("min_workspace_open_events", legacyUsageMinWorkspaceOpenEvents);
+        legacyUsagePolicy.put("volume_ready", legacyUsageVolumeReady);
         legacyUsagePolicy.put("decision_required", legacyUsageDecisionRequired);
         legacyUsagePolicy.put("decision", legacyUsageDecision == null ? "" : legacyUsageDecision);
         legacyUsagePolicy.put("policy_updated_events_in_window", legacyUsagePolicyUpdatedEvents);

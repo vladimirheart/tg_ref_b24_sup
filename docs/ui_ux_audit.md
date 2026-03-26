@@ -446,6 +446,19 @@
 Итог: legacy modal остаётся rollback-инструментом, но его ручное использование теперь связано с формальным policy-loop и наблюдаемостью на уровне telemetry/analytics.
 
 Итог: legacy modal остаётся rollback-инструментом, но его ручное использование теперь связано с формальным policy-loop и наблюдаемостью на уровне telemetry/analytics.
+
+
+### Обновление от 26 марта 2026 (шестнадцатая итерация): legacy usage policy получил volume-gate
+
+Следующим логичным шагом из P1 по stabilizing primary-flow decisioning закрыт риск ложноположительного `go` на слишком маленьком telemetry-окне:
+
+- **В legacy usage policy добавлен параметр `min_workspace_open_events`** с сохранением через analytics endpoint `/analytics/workspace-rollout/legacy-usage-policy` и через стандартный `/settings` bridge.
+- **В rollout governance packet блок `legacy_usage_policy` расширен полями** `min_workspace_open_events` и `volume_ready`.
+- **Готовность policy теперь зависит не только от доли manual legacy-open, но и от минимального объёма workspace-open в UTC-окне**, если volume-gate настроен.
+- **В Analytics и Settings UI добавлено явное поле для min workspace opens**, с обратной совместимостью: пустое значение выключает новый gate.
+
+Итог: решение `go/hold` по legacy usage policy теперь опирается не только на share-метрику, но и на минимально достаточный объём наблюдений, что снижает риск premature primary-flow decision.
+ 
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**
