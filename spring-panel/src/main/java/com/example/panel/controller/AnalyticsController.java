@@ -488,6 +488,13 @@ public class AnalyticsController {
                 "error", "max_legacy_manual_share_pct must be between 0 and 100"));
     }
 
+    Long minWorkspaceOpenEvents = request != null ? request.minWorkspaceOpenEvents() : null;
+    if (minWorkspaceOpenEvents != null && (minWorkspaceOpenEvents < 0L || minWorkspaceOpenEvents > 100000L)) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "error", "min_workspace_open_events must be between 0 and 100000"));
+    }
+
     Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
     Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
@@ -508,6 +515,11 @@ public class AnalyticsController {
         dialogConfig.remove("workspace_rollout_governance_legacy_manual_share_max_pct");
     } else {
         dialogConfig.put("workspace_rollout_governance_legacy_manual_share_max_pct", maxSharePct);
+    }
+    if (minWorkspaceOpenEvents == null) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_usage_min_workspace_open_events");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_usage_min_workspace_open_events", minWorkspaceOpenEvents);
     }
         List<String> allowedReasons = sanitizeStringList(request != null ? request.allowedReasons() : null);
         if (allowedReasons.isEmpty()) {
@@ -548,7 +560,8 @@ public class AnalyticsController {
             "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
             "review_note", reviewNote == null ? "" : reviewNote,
             "decision", decision == null ? "" : decision,
-            "max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct
+            "max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct,
+            "min_workspace_open_events", minWorkspaceOpenEvents == null ? "" : minWorkspaceOpenEvents
                 "allowed_reasons", allowedReasons,
                 "reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired
     ));
@@ -1051,11 +1064,12 @@ public class AnalyticsController {
                                                        String note) {
     }
 
-private record WorkspaceLegacyUsagePolicyRequest(String reviewedBy,
+    private record WorkspaceLegacyUsagePolicyRequest(String reviewedBy,
                                                  String reviewedAtUtc,
                                                  String reviewNote,
                                                  String decision,
-                                                 Long maxLegacyManualSharePct) {
+                                                 Long maxLegacyManualSharePct,
+                                                 Long minWorkspaceOpenEvents) {
 }
     private record SlaPolicyGovernanceReviewRequest(String reviewedBy,
                                                     String reviewedAtUtc,

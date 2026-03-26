@@ -2516,6 +2516,11 @@
                       </div>
                     </div>
                     <div class="col-md-6">
+                      <label for="dialogWorkspaceLegacyUsageMinWorkspaceOpens" class="form-label">Мин. workspace opens в окне</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceLegacyUsageMinWorkspaceOpens" min="0" max="100000" step="1">
+                      <div class="form-text">0/пусто = volume-gate выключен (обратная совместимость).</div>
+                    </div>
+                    <div class="col-md-4">
                       <label for="dialogWorkspaceGovernanceReviewDecisionAction" class="form-label">Decision action weekly review</label>
                       <select class="form-select" id="dialogWorkspaceGovernanceReviewDecisionAction">
                         <option value="">(не задано)</option>
@@ -5254,6 +5259,7 @@
     workspace_rollout_governance_parity_exit_days: 0,
     workspace_rollout_governance_parity_critical_reasons: [],
     workspace_rollout_governance_legacy_only_scenarios: [],
+    workspace_rollout_governance_legacy_usage_min_workspace_open_events: '',
     macro_governance_require_owner: false,
     macro_governance_require_namespace: false,
     macro_governance_require_review: false,
@@ -14480,6 +14486,10 @@
       workspaceGovernanceParityExitDays: document.getElementById('dialogWorkspaceGovernanceParityExitDays'),
       workspaceGovernanceParityCriticalReasons: document.getElementById('dialogWorkspaceGovernanceParityCriticalReasons'),
       workspaceGovernanceLegacyOnlyScenarios: document.getElementById('dialogWorkspaceGovernanceLegacyOnlyScenarios'),
+      workspaceLegacyUsageReviewNote: document.getElementById('dialogWorkspaceLegacyUsageReviewNote'),
+      workspaceLegacyUsageDecision: document.getElementById('dialogWorkspaceLegacyUsageDecision'),
+      workspaceLegacyUsageMaxSharePct: document.getElementById('dialogWorkspaceLegacyUsageMaxSharePct'),
+      workspaceLegacyUsageMinWorkspaceOpens: document.getElementById('dialogWorkspaceLegacyUsageMinWorkspaceOpens'),
       macroGovernanceRequireOwner: document.getElementById('dialogMacroGovernanceRequireOwner'),
       macroGovernanceRequireNamespace: document.getElementById('dialogMacroGovernanceRequireNamespace'),
       macroGovernanceRequireReview: document.getElementById('dialogMacroGovernanceRequireReview'),
@@ -15199,6 +15209,10 @@
       } else {
         inputs.workspaceGovernanceLegacyOnlyScenarios.value = '[]';
       }
+    }
+    if (inputs.workspaceLegacyUsageMinWorkspaceOpens) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_legacy_usage_min_workspace_open_events, 10);
+      inputs.workspaceLegacyUsageMinWorkspaceOpens.value = Number.isFinite(value) && value >= 0 && value <= 100000 ? value : '';
     }
     syncAllWorkspaceGovernanceUtcTimestampFields();
     if (inputs.macroGovernanceRequireOwner) {
