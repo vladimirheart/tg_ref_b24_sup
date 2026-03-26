@@ -486,6 +486,18 @@
   пустые criteria-поля трактуются как выключенный gate и оставляют прежний flow без изменений.
 
 Итог: weekly review перестаёт зависеть от «свободной интерпретации заметки» и получает формализованный checklist decision-оснований, наблюдаемый в analytics packet end-to-end.
+
+### Обновление от 26 марта 2026 (девятнадцатая итерация): go после hold/rollback теперь требует incident follow-up связь
+
+Следующим логичным шагом из P1 по дисциплине weekly review закрыт риск «формального go без связки с разбором инцидента»:
+
+- **В rollout governance baseline добавлен флаг `followup_for_non_go_required`** (через Settings `/settings`), который включает правило для decision-loop.
+- **Backend review flow сохраняет предыдущее решение (`previous_decision_action`, `previous_decision_at` UTC)** при каждом новом weekly review, чтобы проверка перехода `hold/rollback → go` работала end-to-end.
+- **В `review_cadence` rollout packet добавлены поля** `followup_after_non_go_required`, `followup_after_non_go_ready`, `previous_decision_action`, `previous_decision_at`, `previous_decision_timestamp_invalid`.
+- **Analytics UI теперь явно показывает этот checkpoint** и переводит weekly review в `hold`, если включён gate и для перехода в `go` не указан incident follow-up.
+- **Обратная совместимость сохранена**: при выключенном флаге новое правило не участвует в расчёте ready-state; при пустых/невалидных датах срабатывает безопасная UTC-деградация без падения потока.
+
+Итог: decision `go` после `hold/rollback` теперь формально связан с incident follow-up артефактом и становится наблюдаемым в governance packet, а не остаётся неявным процессным ожиданием.
  
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
