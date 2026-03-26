@@ -1617,6 +1617,27 @@ if (legacyUsageReviewedAt != null) {
 long legacyUsagePolicyUpdatedEvents = toLong(safeTotals.get("workspace_legacy_usage_policy_updated_events"));
 long manualLegacyOpenEvents = toLong(safeTotals.get("manual_legacy_open_events"));
 long manualLegacyBlockedEvents = toLong(safeTotals.get("workspace_open_legacy_blocked_events"));
+List<Map<String, Object>> manualLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
+        "workspace_open_legacy_manual",
+        windowStart,
+        windowEnd,
+        experimentName,
+        5);
+List<Map<String, Object>> blockedLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
+        "workspace_open_legacy_blocked",
+        windowStart,
+        windowEnd,
+        experimentName,
+        5);
+long unknownManualLegacyReasons = manualLegacyReasonBreakdown.stream()
+        .filter(row -> {
+            String reason = normalizeNullString(String.valueOf(row.getOrDefault("reason", "")));
+            return !StringUtils.hasText(reason)
+                    || (legacyManualReasonCatalogRequired && !legacyManualAllowedReasons.contains(reason));
+        })
+        .mapToLong(row -> toLong(row.get("events")))
+        .sum();
+long manualLegacyBlockedEvents = toLong(safeTotals.get("workspace_open_legacy_blocked_events"));
 double manualLegacyShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
 boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
 double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
@@ -1949,6 +1970,11 @@ packetItems.add(buildScorecardItem(
         legacyUsagePolicy.put("review_timestamp_invalid", legacyUsageReviewTimestampInvalid);
         legacyUsagePolicy.put("manual_legacy_open_events", manualLegacyOpenEvents);
         legacyUsagePolicy.put("manual_legacy_blocked_events", manualLegacyBlockedEvents);
+        legacyUsagePolicy.put("manual_legacy_reasons_top", manualLegacyReasonBreakdown);
+        legacyUsagePolicy.put("manual_legacy_blocked_reasons_top", blockedLegacyReasonBreakdown);
+        legacyUsagePolicy.put("allowed_reasons", legacyManualAllowedReasons);
+        legacyUsagePolicy.put("reason_catalog_required", legacyManualReasonCatalogRequired);
+        legacyUsagePolicy.put("unknown_manual_reason_events", unknownManualLegacyReasons);
         legacyUsagePolicy.put("workspace_open_events", workspaceOpenEvents);
         legacyUsagePolicy.put("manual_legacy_share_pct", Math.round(manualLegacyShareRatio * 1000d) / 10d);
         legacyUsagePolicy.put("max_manual_legacy_share_pct", legacyUsageMaxSharePct);
@@ -4641,6 +4667,44 @@ packetItems.add(buildScorecardItem(
             }, cutoffStart, cutoffEnd, filterExperiment, filterExperiment);
         } catch (DataAccessException ex) {
             log.warn("Unable to load workspace telemetry summary: {}", summarizeDataAccessException(ex));
+            return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> loadWorkspaceEventReasonBreakdown(String eventType,
+                                                                        Instant windowStart,
+                                                                        Instant windowEnd,
+                                                                        String experimentName,
+                                                                        int limit) {
+        if (!StringUtils.hasText(eventType)) {
+            return List.of();
+        }
+        int safeLimit = Math.max(1, Math.min(limit, 20));
+        String filterExperiment = trimOrNull(experimentName);
+        String sql = """
+                SELECT LOWER(TRIM(COALESCE(reason, ''))) AS reason,
+                       COUNT(*) AS events
+                  FROM workspace_telemetry_audit
+                 WHERE created_at >= ?
+                   AND created_at < ?
+                   AND event_type = ?
+                   AND (? IS NULL OR experiment_name = ?)
+                 GROUP BY LOWER(TRIM(COALESCE(reason, '')))
+                 ORDER BY events DESC, reason ASC
+                 LIMIT ?
+                """;
+        try {
+            Timestamp cutoffStart = Timestamp.from(windowStart);
+            Timestamp cutoffEnd = Timestamp.from(windowEnd);
+            return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                String reason = normalizeNullString(rs.getString("reason"));
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("reason", StringUtils.hasText(reason) ? reason : "unspecified");
+                row.put("events", rs.getLong("events"));
+                return row;
+            }, cutoffStart, cutoffEnd, eventType.trim(), filterExperiment, filterExperiment, safeLimit);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load workspace reason breakdown for {}: {}", eventType, summarizeDataAccessException(ex));
             return List.of();
         }
     }

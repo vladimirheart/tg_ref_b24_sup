@@ -509,6 +509,18 @@ public class AnalyticsController {
     } else {
         dialogConfig.put("workspace_rollout_governance_legacy_manual_share_max_pct", maxSharePct);
     }
+        List<String> allowedReasons = sanitizeStringList(request != null ? request.allowedReasons() : null);
+        if (allowedReasons.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_legacy_manual_open_allowed_reasons");
+        } else {
+            dialogConfig.put("workspace_rollout_legacy_manual_open_allowed_reasons", allowedReasons);
+        }
+        Boolean reasonCatalogRequired = request != null ? request.reasonCatalogRequired() : null;
+        if (reasonCatalogRequired == null) {
+            dialogConfig.remove("workspace_rollout_legacy_manual_open_reason_catalog_required");
+        } else {
+            dialogConfig.put("workspace_rollout_legacy_manual_open_reason_catalog_required", reasonCatalogRequired);
+        }
     settings.put("dialog_config", dialogConfig);
     sharedConfigService.saveSettings(settings);
 
@@ -537,6 +549,8 @@ public class AnalyticsController {
             "review_note", reviewNote == null ? "" : reviewNote,
             "decision", decision == null ? "" : decision,
             "max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct
+                "allowed_reasons", allowedReasons,
+                "reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired
     ));
 }
     @PostMapping(value = "/sla-policy/governance-review", produces = MediaType.APPLICATION_JSON_VALUE)
