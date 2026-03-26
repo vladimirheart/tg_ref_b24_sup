@@ -160,6 +160,18 @@ public class AnalyticsController {
         Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
                 ? new LinkedHashMap<>((Map<String, Object>) map)
                 : new LinkedHashMap<>();
+        String previousDecisionAction = normalize(String.valueOf(
+                dialogConfig.get("workspace_rollout_governance_review_decision_action")));
+        if (previousDecisionAction != null) {
+            previousDecisionAction = previousDecisionAction.toLowerCase(Locale.ROOT);
+            if (!"go".equals(previousDecisionAction)
+                    && !"hold".equals(previousDecisionAction)
+                    && !"rollback".equals(previousDecisionAction)) {
+                previousDecisionAction = null;
+            }
+        }
+        String previousDecisionAt = normalize(String.valueOf(
+                dialogConfig.get("workspace_rollout_governance_reviewed_at")));
         dialogConfig.put("workspace_rollout_governance_reviewed_by", reviewedBy);
         dialogConfig.put("workspace_rollout_governance_reviewed_at", reviewedAtUtc.toInstant().toString());
         if (reviewNote == null) {
@@ -170,6 +182,14 @@ public class AnalyticsController {
         if (decisionAction == null) {
             dialogConfig.remove("workspace_rollout_governance_review_decision_action");
         } else {
+            if (previousDecisionAction != null) {
+                dialogConfig.put("workspace_rollout_governance_previous_decision_action", previousDecisionAction);
+                if (previousDecisionAt == null) {
+                    dialogConfig.remove("workspace_rollout_governance_previous_decision_at");
+                } else {
+                    dialogConfig.put("workspace_rollout_governance_previous_decision_at", previousDecisionAt);
+                }
+            }
             dialogConfig.put("workspace_rollout_governance_review_decision_action", decisionAction);
         }
         if (incidentFollowup == null) {
