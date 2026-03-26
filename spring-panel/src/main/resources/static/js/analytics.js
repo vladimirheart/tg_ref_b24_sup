@@ -907,7 +907,7 @@ if (legacyUsageReasonCatalogRequiredInput) {
     }
     if (slaPolicyAuditLayersMeta) {
       const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
-      slaPolicyAuditLayersMeta.textContent = `require_layers=${requirements.require_layers === true ? 'on' : 'off'} · require_owner=${requirements.require_owner === true ? 'on' : 'off'} · require_review=${requirements.require_review === true ? `on (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'off'} · governance_review=${requirements.governance_review_required === true ? `on (${formatNumber(requirements.governance_review_ttl_hours || 0)}h)` : 'off'}`;
+      slaPolicyAuditLayersMeta.textContent = `require_layers=${requirements.require_layers === true ? 'on' : 'off'} · require_owner=${requirements.require_owner === true ? 'on' : 'off'} · require_review=${requirements.require_review === true ? `on (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'off'} · governance_review=${requirements.governance_review_required === true ? `on (${formatNumber(requirements.governance_review_ttl_hours || 0)}h)` : 'off'} · decision_required=${requirements.governance_decision_required === true ? 'on' : 'off'}`;
     }
     const preview = audit?.decision_preview && typeof audit.decision_preview === 'object' ? audit.decision_preview : {};
     const selectedByLayer = preview.selected_by_layer && typeof preview.selected_by_layer === 'object' ? preview.selected_by_layer : {};

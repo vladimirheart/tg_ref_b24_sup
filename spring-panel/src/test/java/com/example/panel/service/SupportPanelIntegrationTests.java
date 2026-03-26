@@ -2250,7 +2250,8 @@ class SupportPanelIntegrationTests {
                 "dialog_sla_critical_auto_assign_audit_block_on_conflicts", true,
                 "dialog_sla_critical_auto_assign_governance_review_required", true,
                 "dialog_sla_critical_auto_assign_governance_review_ttl_hours", 48,
-                "dialog_sla_critical_auto_assign_governance_dry_run_ticket_required", true
+                "dialog_sla_critical_auto_assign_governance_dry_run_ticket_required", true,
+                "dialog_sla_critical_auto_assign_governance_decision_required", true
         ), null);
 
         Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");
@@ -2263,6 +2264,7 @@ class SupportPanelIntegrationTests {
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_required")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_ttl_hours")).isEqualTo(48L);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_governance_decision_required")).isEqualTo(true);
     }
 
     @Test
