@@ -956,6 +956,62 @@ class SlaEscalationWebhookNotifierTest {
                 && Boolean.TRUE.equals(rule.get("reviewed_at_invalid_utc"))));
     }
 
+    @Test
+    void buildRoutingGovernanceAuditRequiresExplicitDecisionWhenConfigured() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Instant now = Instant.now();
+
+        Map<String, Object> audit = notifier.buildRoutingGovernanceAudit(
+                List.of(dialog("T-AUDIT-DECISION", now.minusSeconds(23 * 60 * 60 + 50 * 60).toString(), "open", null)),
+                Map.of(
+                        "dialog_config", Map.of(
+                                "sla_target_minutes", 1440,
+                                "sla_critical_minutes", 30,
+                                "sla_critical_auto_assign_enabled", true,
+                                "sla_critical_auto_assign_governance_review_required", true,
+                                "sla_critical_auto_assign_governance_decision_required", true,
+                                "sla_critical_auto_assign_governance_reviewed_by", "ops.lead",
+                                "sla_critical_auto_assign_governance_reviewed_at", "2026-03-26T11:22:00Z",
+                                "sla_critical_auto_assign_rules", List.of(
+                                        Map.of("rule_id", "rule_reviewed", "match_channel", "telegram", "assign_to", "duty")
+                                )
+                        )
+                )
+        );
+
+        assertEquals("hold", audit.get("status"));
+        List<Map<String, Object>> issues = (List<Map<String, Object>>) audit.get("issues");
+        assertTrue(issues.stream().anyMatch(issue -> "governance_decision_missing".equals(issue.get("type"))));
+    }
+
+    @Test
+    void buildRoutingGovernanceAuditTurnsHoldWhenGovernanceDecisionIsHold() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+        Instant now = Instant.now();
+
+        Map<String, Object> audit = notifier.buildRoutingGovernanceAudit(
+                List.of(dialog("T-AUDIT-HOLD", now.minusSeconds(23 * 60 * 60 + 45 * 60).toString(), "open", null)),
+                Map.of(
+                        "dialog_config", Map.of(
+                                "sla_target_minutes", 1440,
+                                "sla_critical_minutes", 30,
+                                "sla_critical_auto_assign_enabled", true,
+                                "sla_critical_auto_assign_governance_review_required", true,
+                                "sla_critical_auto_assign_governance_reviewed_by", "ops.lead",
+                                "sla_critical_auto_assign_governance_reviewed_at", "2026-03-26T11:35:00Z",
+                                "sla_critical_auto_assign_governance_decision", "hold",
+                                "sla_critical_auto_assign_rules", List.of(
+                                        Map.of("rule_id", "rule_reviewed", "match_channel", "telegram", "assign_to", "duty")
+                                )
+                        )
+                )
+        );
+
+        assertEquals("hold", audit.get("status"));
+        List<Map<String, Object>> issues = (List<Map<String, Object>>) audit.get("issues");
+        assertTrue(issues.stream().anyMatch(issue -> "governance_decision_hold".equals(issue.get("type"))));
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,

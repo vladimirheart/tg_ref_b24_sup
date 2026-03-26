@@ -60,6 +60,7 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("id=\"dialogSlaPolicyGovernanceReviewRequired\"")
                 .contains("id=\"dialogSlaPolicyGovernanceReviewTtlHours\"")
                 .contains("id=\"dialogSlaPolicyGovernanceDryRunTicketRequired\"")
+                .contains("id=\"dialogSlaPolicyGovernanceDecisionRequired\"")
                 .contains("dialog_sla_critical_auto_assign_audit_require_layers")
                 .contains("dialog_sla_critical_auto_assign_audit_require_owner")
                 .contains("dialog_sla_critical_auto_assign_audit_require_review")
@@ -68,6 +69,7 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("dialog_sla_critical_auto_assign_audit_block_on_conflicts")
                 .contains("dialog_sla_critical_auto_assign_governance_review_required")
                 .contains("dialog_sla_critical_auto_assign_governance_review_ttl_hours")
-                .contains("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required");
+                .contains("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required")
+                .contains("dialog_sla_critical_auto_assign_governance_decision_required");
     }
 }
