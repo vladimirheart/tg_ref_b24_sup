@@ -534,6 +534,12 @@ public class AnalyticsController {
                 "success", false,
                 "error", "max_legacy_manual_share_delta_pct must be between 0 and 100"));
     }
+    Long maxBlockedShareDeltaPct = request != null ? request.maxLegacyBlockedShareDeltaPct() : null;
+    if (maxBlockedShareDeltaPct != null && (maxBlockedShareDeltaPct < 0L || maxBlockedShareDeltaPct > 100L)) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "error", "max_legacy_blocked_share_delta_pct must be between 0 and 100"));
+    }
 
     Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
     Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
@@ -565,6 +571,11 @@ public class AnalyticsController {
         dialogConfig.remove("workspace_rollout_governance_legacy_usage_max_share_delta_pct");
     } else {
         dialogConfig.put("workspace_rollout_governance_legacy_usage_max_share_delta_pct", maxShareDeltaPct);
+    }
+    if (maxBlockedShareDeltaPct == null) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_usage_max_blocked_share_delta_pct");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_usage_max_blocked_share_delta_pct", maxBlockedShareDeltaPct);
     }
         List<String> allowedReasons = sanitizeStringList(request != null ? request.allowedReasons() : null);
         if (allowedReasons.isEmpty()) {
@@ -608,6 +619,7 @@ public class AnalyticsController {
             "max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct,
             "min_workspace_open_events", minWorkspaceOpenEvents == null ? "" : minWorkspaceOpenEvents,
             "max_legacy_manual_share_delta_pct", maxShareDeltaPct == null ? "" : maxShareDeltaPct,
+            "max_legacy_blocked_share_delta_pct", maxBlockedShareDeltaPct == null ? "" : maxBlockedShareDeltaPct,
             "allowed_reasons", allowedReasons,
             "reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired
     ));
@@ -1119,6 +1131,7 @@ public class AnalyticsController {
                                                  Long maxLegacyManualSharePct,
                                                  Long minWorkspaceOpenEvents,
                                                  Long maxLegacyManualShareDeltaPct,
+                                                 Long maxLegacyBlockedShareDeltaPct,
                                                  Object allowedReasons,
                                                  Boolean reasonCatalogRequired) {
 }
