@@ -632,6 +632,8 @@
         packetReviewState.textContent = 'Невалидная UTC-дата';
       } else if (reviewCadence?.criteria_ready === false) {
         packetReviewState.textContent = 'Review: критерии не закрыты';
+      } else if (reviewCadence?.followup_after_non_go_ready === false) {
+        packetReviewState.textContent = 'Review: нет incident follow-up для перехода в go';
       } else if (reviewCadence?.ready === true) {
         packetReviewState.textContent = reviewCadence?.reviewed_by ? `Reviewed by: ${reviewCadence.reviewed_by}` : 'Review подтверждён';
       } else {
@@ -650,10 +652,13 @@
       const reviewNote = String(reviewCadence?.review_note || '').trim();
       const decisionAction = String(reviewCadence?.decision_action || '').trim().toLowerCase();
       const incidentFollowup = String(reviewCadence?.incident_followup || '').trim();
+      const previousDecisionAction = String(reviewCadence?.previous_decision_action || '').trim().toLowerCase();
+      const previousDecisionAt = reviewCadence?.previous_decision_at ? formatTimestamp(reviewCadence.previous_decision_at) : '';
+      const followupAfterNonGoRequired = reviewCadence?.followup_after_non_go_required === true;
       const requiredCriteria = Array.isArray(reviewCadence?.required_criteria) ? reviewCadence.required_criteria.filter(Boolean) : [];
       const checkedCriteria = Array.isArray(reviewCadence?.checked_criteria) ? reviewCadence.checked_criteria.filter(Boolean) : [];
       const missingCriteria = Array.isArray(reviewCadence?.missing_criteria) ? reviewCadence.missing_criteria.filter(Boolean) : [];
-      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents} · go/hold/rollback: ${goEvents}/${holdEvents}/${rollbackEvents} · followup linked: ${followupLinkedEvents}${decisionAction ? ` · decision: ${decisionAction}` : ''}${requiredCriteria.length ? ` · criteria required: ${requiredCriteria.join('|')}` : ''}${checkedCriteria.length ? ` · checked: ${checkedCriteria.join('|')}` : ''}${missingCriteria.length ? ` · missing: ${missingCriteria.join('|')}` : ''}${reviewNote ? ` · note: ${reviewNote}` : ''}${incidentFollowup ? ` · incident: ${incidentFollowup}` : ''}`;
+      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents} · go/hold/rollback: ${goEvents}/${holdEvents}/${rollbackEvents} · followup linked: ${followupLinkedEvents}${decisionAction ? ` · decision: ${decisionAction}` : ''}${followupAfterNonGoRequired ? ' · go-after-non-go-followup=required' : ''}${previousDecisionAction ? ` · prev decision: ${previousDecisionAction}${previousDecisionAt ? `@${previousDecisionAt}` : ''}` : ''}${requiredCriteria.length ? ` · criteria required: ${requiredCriteria.join('|')}` : ''}${checkedCriteria.length ? ` · checked: ${checkedCriteria.join('|')}` : ''}${missingCriteria.length ? ` · missing: ${missingCriteria.join('|')}` : ''}${reviewNote ? ` · note: ${reviewNote}` : ''}${incidentFollowup ? ` · incident: ${incidentFollowup}` : ''}`;
     }
     if (reviewByInput) {
       reviewByInput.value = reviewCadence?.reviewed_by || '';

@@ -2516,6 +2516,12 @@
                       </div>
                     </div>
                     <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceFollowupForNonGoRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceFollowupForNonGoRequired">Требовать incident follow-up при переходе hold/rollback → go</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
                       <label for="dialogWorkspaceLegacyUsageMinWorkspaceOpens" class="form-label">Мин. workspace opens в окне</label>
                       <input type="number" class="form-control" id="dialogWorkspaceLegacyUsageMinWorkspaceOpens" min="0" max="100000" step="1">
                       <div class="form-text">0/пусто = volume-gate выключен (обратная совместимость).</div>
@@ -5254,6 +5260,7 @@
     workspace_rollout_governance_reviewed_at: '',
     workspace_rollout_governance_review_decision_required: false,
     workspace_rollout_governance_incident_followup_required: false,
+    workspace_rollout_governance_followup_for_non_go_required: false,
     workspace_rollout_governance_review_decision_action: '',
     workspace_rollout_governance_review_incident_followup: '',
     workspace_rollout_governance_parity_exit_days: 0,
@@ -14481,6 +14488,7 @@
       workspaceGovernanceReviewedAt: document.getElementById('dialogWorkspaceGovernanceReviewedAt'),
       workspaceGovernanceReviewDecisionRequired: document.getElementById('dialogWorkspaceGovernanceReviewDecisionRequired'),
       workspaceGovernanceIncidentFollowupRequired: document.getElementById('dialogWorkspaceGovernanceIncidentFollowupRequired'),
+      workspaceGovernanceFollowupForNonGoRequired: document.getElementById('dialogWorkspaceGovernanceFollowupForNonGoRequired'),
       workspaceGovernanceReviewDecisionAction: document.getElementById('dialogWorkspaceGovernanceReviewDecisionAction'),
       workspaceGovernanceReviewIncidentFollowup: document.getElementById('dialogWorkspaceGovernanceReviewIncidentFollowup'),
       workspaceGovernanceParityExitDays: document.getElementById('dialogWorkspaceGovernanceParityExitDays'),
@@ -15174,6 +15182,9 @@
     }
     if (inputs.workspaceGovernanceIncidentFollowupRequired) {
       inputs.workspaceGovernanceIncidentFollowupRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_incident_followup_required);
+    }
+    if (inputs.workspaceGovernanceFollowupForNonGoRequired) {
+      inputs.workspaceGovernanceFollowupForNonGoRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_followup_for_non_go_required);
     }
     if (inputs.workspaceGovernanceReviewDecisionAction) {
       const decisionAction = String(DIALOG_CONFIG.workspace_rollout_governance_review_decision_action || '').trim().toLowerCase();
@@ -16986,6 +16997,7 @@
     }
     const safeWorkspaceGovernanceReviewDecisionRequired = Boolean(inputs.workspaceGovernanceReviewDecisionRequired?.checked);
     const safeWorkspaceGovernanceIncidentFollowupRequired = Boolean(inputs.workspaceGovernanceIncidentFollowupRequired?.checked);
+    const safeWorkspaceGovernanceFollowupForNonGoRequired = Boolean(inputs.workspaceGovernanceFollowupForNonGoRequired?.checked);
     const safeWorkspaceGovernanceReviewDecisionAction = (() => {
       const value = String(inputs.workspaceGovernanceReviewDecisionAction?.value || '').trim().toLowerCase();
       return ['go', 'hold', 'rollback'].includes(value) ? value : '';
@@ -17002,6 +17014,11 @@
     }
     if (safeWorkspaceGovernanceIncidentFollowupRequired && !safeWorkspaceGovernanceReviewIncidentFollowup) {
       errors.push('При включенном incident follow-up required укажите ссылку или заметку follow-up.');
+    }
+    if (safeWorkspaceGovernanceFollowupForNonGoRequired
+      && safeWorkspaceGovernanceReviewDecisionAction === 'go'
+      && !safeWorkspaceGovernanceReviewIncidentFollowup) {
+      errors.push('Для перехода hold/rollback → go укажите incident follow-up ссылку или заметку.');
     }
     const safeWorkspaceGovernanceParityExitDaysRaw = Number.parseInt(inputs.workspaceGovernanceParityExitDays?.value || '', 10);
     const safeWorkspaceGovernanceParityExitDays = Number.isFinite(safeWorkspaceGovernanceParityExitDaysRaw)
@@ -17459,6 +17476,7 @@
         dialog_workspace_rollout_governance_reviewed_at: safeWorkspaceGovernanceReviewedAt,
         dialog_workspace_rollout_governance_review_decision_required: safeWorkspaceGovernanceReviewDecisionRequired,
         dialog_workspace_rollout_governance_incident_followup_required: safeWorkspaceGovernanceIncidentFollowupRequired,
+        dialog_workspace_rollout_governance_followup_for_non_go_required: safeWorkspaceGovernanceFollowupForNonGoRequired,
         dialog_workspace_rollout_governance_review_decision_action: safeWorkspaceGovernanceReviewDecisionAction,
         dialog_workspace_rollout_governance_review_incident_followup: safeWorkspaceGovernanceReviewIncidentFollowup,
         dialog_workspace_rollout_governance_parity_exit_days: safeWorkspaceGovernanceParityExitDays,
