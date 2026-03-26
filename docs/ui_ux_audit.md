@@ -458,6 +458,20 @@
 - **В Analytics и Settings UI добавлено явное поле для min workspace opens**, с обратной совместимостью: пустое значение выключает новый gate.
 
 Итог: решение `go/hold` по legacy usage policy теперь опирается не только на share-метрику, но и на минимально достаточный объём наблюдений, что снижает риск premature primary-flow decision.
+
+### Обновление от 26 марта 2026 (семнадцатая итерация): legacy usage policy получил trend-gate относительно предыдущего окна
+
+Следующим логичным шагом из P1 по стабилизации decision-loop закрыт риск скрытого ухудшения при формально «допустимой» текущей доле legacy-open:
+
+- **В legacy usage policy добавлен параметр `max_legacy_manual_share_delta_pct`** с сохранением через analytics endpoint `/analytics/workspace-rollout/legacy-usage-policy`.
+- **В rollout governance packet блок `legacy_usage_policy` расширен полями**:
+  `previous_window_manual_legacy_share_pct`, `manual_legacy_share_delta_pct`, `max_manual_legacy_share_delta_pct`, `trend_ready`.
+- **Готовность policy теперь учитывает тренд относительно предыдущего UTC-окна**:
+  даже при проходе порога `max_manual_legacy_share_pct` policy может перейти в `hold`, если рост доли manual legacy-open превышает допустимый delta-budget.
+- **В Analytics UI добавлено отдельное поле для delta-gate** и явная мета-индикация `delta vs previous window` для review.
+- **Обратная совместимость сохранена**: пустое значение `max_legacy_manual_share_delta_pct` выключает новый gate и сохраняет прежнее поведение.
+
+Итог: decision `go/hold` по legacy usage policy учитывает не только абсолютный уровень manual legacy-open, но и направление изменения метрики между окнами, что снижает риск пропустить раннюю деградацию primary-flow.
  
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
