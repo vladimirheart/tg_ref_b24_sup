@@ -131,6 +131,7 @@ public class DialogApiController {
             Map.entry("workspace_parity_gap", "workspace"),
             Map.entry("workspace_inline_navigation", "workspace"),
             Map.entry("workspace_open_legacy_manual", "workspace"),
+            Map.entry("workspace_open_legacy_blocked", "workspace"),
             Map.entry("workspace_rollout_packet_viewed", "experiment"),
             Map.entry("kpi_frt_recorded", "kpi"),
             Map.entry("kpi_ttr_recorded", "kpi"),
@@ -1271,6 +1272,43 @@ public class DialogApiController {
         String operatorSegment = trimToNull(String.valueOf(dialogConfig.get("workspace_ab_operator_segment")));
         OffsetDateTime reviewedAtUtc = parseUtcTimestamp(trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_external_kpi_reviewed_at"))));
         OffsetDateTime dataUpdatedAtUtc = parseUtcTimestamp(trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_external_kpi_data_updated_at"))));
+        boolean legacyManualOpenPolicyEnabled = resolveBooleanDialogConfig(dialogConfig, "workspace_rollout_legacy_manual_open_policy_enabled", false);
+        boolean legacyManualOpenReasonRequired = resolveBooleanDialogConfig(dialogConfig, "workspace_rollout_legacy_manual_open_reason_required", true);
+        boolean legacyManualOpenBlockOnHold = resolveBooleanDialogConfig(dialogConfig, "workspace_rollout_legacy_manual_open_block_on_hold", false);
+        boolean legacyManualOpenBlockOnStaleReview = resolveBooleanDialogConfig(dialogConfig, "workspace_rollout_legacy_manual_open_block_on_stale_review", false);
+        int legacyManualOpenReviewTtlHours = resolveIntegerDialogConfig(dialogConfig,
+                "workspace_rollout_legacy_manual_open_review_ttl_hours", 168, 1, 24 * 60);
+        String legacyUsageDecision = trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_governance_legacy_usage_decision")));
+        if (legacyUsageDecision != null) {
+            legacyUsageDecision = legacyUsageDecision.toLowerCase(Locale.ROOT);
+        }
+        String legacyUsageReviewedBy = trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_governance_legacy_usage_reviewed_by")));
+        String legacyUsageReviewNote = trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_governance_legacy_usage_review_note")));
+        String legacyUsageReviewedAtRaw = trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_governance_legacy_usage_reviewed_at")));
+        OffsetDateTime legacyUsageReviewedAtUtc = parseUtcTimestamp(legacyUsageReviewedAtRaw);
+        boolean legacyUsageReviewInvalidUtc = StringUtils.hasText(legacyUsageReviewedAtRaw) && legacyUsageReviewedAtUtc == null;
+        Long legacyUsageReviewAgeHours = null;
+        if (legacyUsageReviewedAtUtc != null) {
+            long hours = Duration.between(legacyUsageReviewedAtUtc.toInstant(), Instant.now()).toHours();
+            legacyUsageReviewAgeHours = Math.max(0L, hours);
+        }
+        boolean legacyUsageReviewStale = legacyManualOpenPolicyEnabled
+                && legacyManualOpenBlockOnStaleReview
+                && (legacyUsageReviewedAtUtc == null || legacyUsageReviewAgeHours == null || legacyUsageReviewAgeHours > legacyManualOpenReviewTtlHours);
+        boolean legacyUsageDecisionHold = legacyManualOpenPolicyEnabled
+                && legacyManualOpenBlockOnHold
+                && "hold".equalsIgnoreCase(legacyUsageDecision);
+        boolean legacyManualOpenBlocked = legacyUsageDecisionHold || legacyUsageReviewStale || legacyUsageReviewInvalidUtc;
+        String legacyManualOpenBlockReason = null;
+        if (legacyManualOpenBlocked) {
+            if (legacyUsageReviewInvalidUtc) {
+                legacyManualOpenBlockReason = "invalid_review_timestamp";
+            } else if (legacyUsageDecisionHold) {
+                legacyManualOpenBlockReason = "review_decision_hold";
+            } else if (legacyUsageReviewStale) {
+                legacyManualOpenBlockReason = "stale_review";
+            }
+        }
 
         String mode;
         String bannerTone;
@@ -1315,6 +1353,23 @@ public class DialogApiController {
         payload.put("rollout_percent", rolloutPercent);
         payload.put("experiment_name", experimentName != null ? experimentName : "");
         payload.put("operator_segment", operatorSegment != null ? operatorSegment : "");
+        Map<String, Object> legacyManualOpenPolicy = new LinkedHashMap<>();
+        legacyManualOpenPolicy.put("enabled", legacyManualOpenPolicyEnabled);
+        legacyManualOpenPolicy.put("reason_required", legacyManualOpenReasonRequired);
+        legacyManualOpenPolicy.put("block_on_hold", legacyManualOpenBlockOnHold);
+        legacyManualOpenPolicy.put("block_on_stale_review", legacyManualOpenBlockOnStaleReview);
+        legacyManualOpenPolicy.put("review_ttl_hours", legacyManualOpenReviewTtlHours);
+        legacyManualOpenPolicy.put("reviewed_by", legacyUsageReviewedBy != null ? legacyUsageReviewedBy : "");
+        legacyManualOpenPolicy.put("review_note", legacyUsageReviewNote != null ? legacyUsageReviewNote : "");
+        legacyManualOpenPolicy.put("review_timestamp_invalid", legacyUsageReviewInvalidUtc);
+        legacyManualOpenPolicy.put("review_age_hours", legacyUsageReviewAgeHours == null ? "" : legacyUsageReviewAgeHours);
+        legacyManualOpenPolicy.put("decision", legacyUsageDecision != null ? legacyUsageDecision : "");
+        legacyManualOpenPolicy.put("blocked", legacyManualOpenBlocked);
+        legacyManualOpenPolicy.put("block_reason", legacyManualOpenBlockReason != null ? legacyManualOpenBlockReason : "");
+        if (legacyUsageReviewedAtUtc != null) {
+            legacyManualOpenPolicy.put("reviewed_at_utc", legacyUsageReviewedAtUtc.toString());
+        }
+        payload.put("legacy_manual_open_policy", legacyManualOpenPolicy);
         if (reviewedAtUtc != null) {
             payload.put("reviewed_at_utc", reviewedAtUtc.toString());
         }
