@@ -472,6 +472,20 @@
 - **Обратная совместимость сохранена**: пустое значение `max_legacy_manual_share_delta_pct` выключает новый gate и сохраняет прежнее поведение.
 
 Итог: decision `go/hold` по legacy usage policy учитывает не только абсолютный уровень manual legacy-open, но и направление изменения метрики между окнами, что снижает риск пропустить раннюю деградацию primary-flow.
+
+### Обновление от 26 марта 2026 (восемнадцатая итерация): weekly review получил criteria-gate для единых go/hold/rollback критериев
+
+Следующим логичным шагом из P1 по переводу rollout governance в повторяемый ритуал команды закрыт remaining-gap по явным критериям решения:
+
+- **В weekly rollout review добавлены поля `required_criteria` и `checked_criteria`** с сохранением через существующий endpoint `/analytics/workspace-rollout/review`.
+- **В rollout governance packet блок `review_cadence` расширен критерийными полями**:
+  `required_criteria`, `checked_criteria`, `missing_criteria`, `criteria_ready`.
+- **Готовность weekly review теперь учитывает coverage обязательных критериев**:
+  при незакрытом criteria-list пакет явно остаётся в `hold`, даже если review свежий по UTC и заполнены owner/date.
+- **UTC/невалидные значения и обратная совместимость сохранены**:
+  пустые criteria-поля трактуются как выключенный gate и оставляют прежний flow без изменений.
+
+Итог: weekly review перестаёт зависеть от «свободной интерпретации заметки» и получает формализованный checklist decision-оснований, наблюдаемый в analytics packet end-to-end.
  
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
