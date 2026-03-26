@@ -416,6 +416,17 @@
   при пустых/выключенных полях используются прежние дефолты SLA-аудита, текущий flow не меняется.
 
 Итог: policy layering, ownership discipline, conflict guard и governance review для SLA-routing теперь управляются из стандартного operational UI, а не остаются «скрытой» backend-конфигурацией.
+### Обновление от 25 марта 2026 (тринадцатая итерация): scenario-aware source-of-truth и priority blocks для context contract
+
+Следующим логичным шагом из P1 закрыт оставшийся разрыв по scenario-specific правилам в minimum customer context:
+
+- **В analytics-форме context governance добавлены JSON-поля** `source_of_truth_by_scenario` и `priority_blocks_by_scenario` с end-to-end сохранением через `/analytics/workspace-context/standard`.
+- **В runtime `workspace.v1` contract добавлены поля** `source_of_truth_by_scenario`, `priority_blocks_by_scenario`, `effective_source_of_truth`, `effective_priority_blocks`.
+  Для активного сценария правила вычисляются как baseline + scenario overrides, при этом если новые map-настройки отсутствуют — сохраняется текущая baseline-логика.
+- **В rollout governance packet (`context_contract`) добавлены scenario-aware структуры** и обновлён критерий `definition_ready`: теперь достаточно baseline или scenario-определений для mandatory/source/priority слоёв.
+- **UTC/валидация и обратная совместимость сохранены**: пустые/невалидные значения не ломают сохранение и не меняют поведение без включения новых настроек.
+
+Итог: minimum profile теперь формализован не только по mandatory fields, но и по source-of-truth/priority rules на уровне конкретных сценариев, что снижает риск ложных context-gap в runtime.
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**

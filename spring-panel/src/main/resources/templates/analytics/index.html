@@ -332,8 +332,16 @@
                                                 <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextSourceOfTruth" placeholder="crm_tier:crm, contract_status:billing_api">
                                             </div>
                                             <div class="col-12 col-lg-6">
+                                                <label for="workspaceTelemetryContextScenarioSourceOfTruth" class="form-label form-label-sm mb-1">Source-of-truth by scenario (JSON)</label>
+                                                <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioSourceOfTruth" rows="3" placeholder='{"billing":["contract_status:billing_api"],"incident":["severity:incident_hub"]}'></textarea>
+                                            </div>
+                                            <div class="col-12 col-lg-6">
                                                 <label for="workspaceTelemetryContextPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks (CSV)</label>
                                                 <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextPriorityBlocks" placeholder="customer, sla, related_events">
+                                            </div>
+                                            <div class="col-12 col-lg-6">
+                                                <label for="workspaceTelemetryContextScenarioPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks by scenario (JSON)</label>
+                                                <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioPriorityBlocks" rows="3" placeholder='{"billing":["customer","sla"],"incident":["related_events","sla"]}'></textarea>
                                             </div>
                                             <div class="col-12 col-lg-3">
                                                 <label for="workspaceTelemetryContextReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
