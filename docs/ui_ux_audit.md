@@ -427,6 +427,18 @@
 - **UTC/валидация и обратная совместимость сохранены**: пустые/невалидные значения не ломают сохранение и не меняют поведение без включения новых настроек.
 
 Итог: minimum profile теперь формализован не только по mandatory fields, но и по source-of-truth/priority rules на уровне конкретных сценариев, что снижает риск ложных context-gap в runtime.
+### Обновление от 26 марта 2026 (четырнадцатая итерация): manual legacy-open переведён под policy-контроль primary-flow
+
+Следующим логичным шагом из P1 по снижению dual-run debt закрыт runtime-gap между analytics policy и ежедневным поведением оператора:
+
+- **В `workspace` rollout meta добавлен блок `legacy_manual_open_policy`** с UTC-aware полями review (`reviewed_at_utc`, `review_age_hours`, `review_timestamp_invalid`), decision и block reason.
+- **Во фронте workspace manual переход в legacy modal теперь проходит policy-checkpoint**:
+  при `blocked=true` переход останавливается, оператор получает явную причину block, а событие фиксируется в telemetry.
+- **Добавлена telemetry-точка `workspace_open_legacy_blocked`** и отдельный аналитический счётчик blocked-attempts, чтобы видеть не только долю manual legacy-open, но и попытки обхода policy.
+- **При включённой policy можно требовать explicit reason для manual legacy-open**; если политика не включена — поведение остаётся прежним (`manual_rollback` по умолчанию).
+- **UTC/невалидные даты обработаны безопасно**: битый timestamp review не ломает workspace payload и превращается в явный `invalid_review_timestamp` reason.
+
+Итог: legacy modal остаётся rollback-инструментом, но его ручное использование теперь связано с формальным policy-loop и наблюдаемостью на уровне telemetry/analytics.
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**
