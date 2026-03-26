@@ -494,6 +494,12 @@ public class AnalyticsController {
                 "success", false,
                 "error", "min_workspace_open_events must be between 0 and 100000"));
     }
+    Long maxShareDeltaPct = request != null ? request.maxLegacyManualShareDeltaPct() : null;
+    if (maxShareDeltaPct != null && (maxShareDeltaPct < 0L || maxShareDeltaPct > 100L)) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "error", "max_legacy_manual_share_delta_pct must be between 0 and 100"));
+    }
 
     Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
     Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
@@ -520,6 +526,11 @@ public class AnalyticsController {
         dialogConfig.remove("workspace_rollout_governance_legacy_usage_min_workspace_open_events");
     } else {
         dialogConfig.put("workspace_rollout_governance_legacy_usage_min_workspace_open_events", minWorkspaceOpenEvents);
+    }
+    if (maxShareDeltaPct == null) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_usage_max_share_delta_pct");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_usage_max_share_delta_pct", maxShareDeltaPct);
     }
         List<String> allowedReasons = sanitizeStringList(request != null ? request.allowedReasons() : null);
         if (allowedReasons.isEmpty()) {
@@ -561,9 +572,10 @@ public class AnalyticsController {
             "review_note", reviewNote == null ? "" : reviewNote,
             "decision", decision == null ? "" : decision,
             "max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct,
-            "min_workspace_open_events", minWorkspaceOpenEvents == null ? "" : minWorkspaceOpenEvents
-                "allowed_reasons", allowedReasons,
-                "reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired
+            "min_workspace_open_events", minWorkspaceOpenEvents == null ? "" : minWorkspaceOpenEvents,
+            "max_legacy_manual_share_delta_pct", maxShareDeltaPct == null ? "" : maxShareDeltaPct,
+            "allowed_reasons", allowedReasons,
+            "reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired
     ));
 }
     @PostMapping(value = "/sla-policy/governance-review", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -1069,7 +1081,10 @@ public class AnalyticsController {
                                                  String reviewNote,
                                                  String decision,
                                                  Long maxLegacyManualSharePct,
-                                                 Long minWorkspaceOpenEvents) {
+                                                 Long minWorkspaceOpenEvents,
+                                                 Long maxLegacyManualShareDeltaPct,
+                                                 Object allowedReasons,
+                                                 Boolean reasonCatalogRequired) {
 }
     private record SlaPolicyGovernanceReviewRequest(String reviewedBy,
                                                     String reviewedAtUtc,
