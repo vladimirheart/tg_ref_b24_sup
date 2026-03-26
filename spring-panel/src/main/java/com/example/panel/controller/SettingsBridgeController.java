@@ -182,6 +182,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_auto_assign_governance_review_required")
                 || payload.containsKey("dialog_sla_critical_auto_assign_governance_review_ttl_hours")
                 || payload.containsKey("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required")
+                || payload.containsKey("dialog_sla_critical_auto_assign_governance_decision_required")
                 || payload.containsKey("dialog_sla_critical_operator_skills")
                 || payload.containsKey("dialog_sla_critical_operator_queues")
                 || payload.containsKey("dialog_sla_critical_escalation_webhook_enabled")
@@ -496,6 +497,9 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required")) {
                     dialogConfig.put("sla_critical_auto_assign_governance_dry_run_ticket_required", payload.get("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required"));
+                }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_governance_decision_required")) {
+                    dialogConfig.put("sla_critical_auto_assign_governance_decision_required", payload.get("dialog_sla_critical_auto_assign_governance_decision_required"));
                 }
                 if (payload.containsKey("dialog_sla_critical_operator_skills")) {
                     dialogConfig.put("sla_critical_operator_skills", payload.get("dialog_sla_critical_operator_skills"));

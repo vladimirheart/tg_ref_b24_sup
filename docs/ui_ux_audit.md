@@ -499,6 +499,18 @@
 
 Итог: decision `go` после `hold/rollback` теперь формально связан с incident follow-up артефактом и становится наблюдаемым в governance packet, а не остаётся неявным процессным ожиданием.
  
+### Обновление от 26 марта 2026 (двадцатая итерация): SLA governance review получил обязательный decision-gate
+
+Следующим логичным шагом из P2 по снижению неоднозначности в SLA policy governance закрыт gap, когда review-date присутствует, но явное решение `go/hold` остаётся необязательным:
+
+- **В SLA policy governance baseline (Settings UI) добавлен флаг** `governance_decision_required` с сохранением через `/settings`.
+- **SLA routing governance audit теперь учитывает decision-gate**:
+  при включённом флаге отсутствие decision даёт `governance_decision_missing`, а `decision=hold` даёт явный блокирующий сигнал `governance_decision_hold`.
+- **В audit payload расширены поля `requirements` и `governance_review`** (`decision_required`, `decision_ready`) для прозрачной аналитики readiness.
+- **Обратная совместимость сохранена**: при выключенном флаге поведение остаётся прежним, decision в review остаётся необязательным.
+
+Итог: SLA governance review теперь фиксирует не только факт и свежесть review, но и явное управленческое решение, что снижает риск «формально валидного, но процессно не завершённого» checkpoint.
+ 
 Пока legacy modal остаётся быстрым rollback-сценарием, система фактически живёт в dual-run архитектуре. Это оправдано с точки зрения риска, но дорого с точки зрения простоты UX и сопровождения.
 
 **Что нужно:**
