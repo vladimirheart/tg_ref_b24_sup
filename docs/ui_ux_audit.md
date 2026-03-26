@@ -503,6 +503,19 @@
 
 Итог: SLA governance review теперь фиксирует не только факт и свежесть review, но и явное управленческое решение, что снижает риск «формально валидного, но процессно не завершённого» checkpoint.
 
+### Обновление от 26 марта 2026 (двадцатая итерация): legacy usage policy получил blocked-trend gate и top reason visibility
+
+Следующим логичным шагом из P1 по контролю dual-run bypass закрыт gap по динамике `workspace_open_legacy_blocked`:
+
+- **В legacy usage policy добавлен параметр `max_legacy_blocked_share_delta_pct`** с end-to-end сохранением через analytics endpoint `/analytics/workspace-rollout/legacy-usage-policy`.
+- **В rollout governance packet блок `legacy_usage_policy` расширен полями**:
+  `previous_window_manual_legacy_blocked_share_pct`, `manual_legacy_blocked_share_pct`, `manual_legacy_blocked_share_delta_pct`, `max_manual_legacy_blocked_share_delta_pct`, `blocked_trend_ready`.
+- **Ready-state policy теперь учитывает тренд blocked-attempts относительно предыдущего UTC-окна**, а не только manual-open share/trend.
+- **Analytics UI теперь показывает top blocked reasons** вместе с manual reasons и явной мета-индикацией `blocked delta vs previous window`.
+- **Обратная совместимость сохранена**: если `max_legacy_blocked_share_delta_pct` не задан, новый gate выключен и текущий flow не меняется.
+
+Итог: weekly review получает наблюдаемую динамику попыток ручного обхода legacy policy, а разбор причин становится операционно видимым без ручной выгрузки telemetry.
+
 После серии итераций 24–26 марта 2026 года ключевые «архитектурные долги первого порядка» уже частично закрыты: формализованы policy-гейты для legacy-open, weekly review, SLA/macro governance и scenario-aware context contract.
 
 Это меняет приоритет: сейчас важнее не наращивать количество checkpoint-ов, а стабилизировать качество их применения и снизить операционный шум.

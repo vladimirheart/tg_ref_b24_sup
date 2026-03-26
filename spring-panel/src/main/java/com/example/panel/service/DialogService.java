@@ -1508,6 +1508,8 @@ public class DialogService {
                 "workspace_rollout_governance_legacy_usage_min_workspace_open_events", 0, 100_000);
         Long legacyUsageMaxShareDeltaPct = resolveNullableLongDialogConfigValue(
                 "workspace_rollout_governance_legacy_usage_max_share_delta_pct", 0, 100);
+        Long legacyUsageMaxBlockedShareDeltaPct = resolveNullableLongDialogConfigValue(
+                "workspace_rollout_governance_legacy_usage_max_blocked_share_delta_pct", 0, 100);
         boolean legacyUsageDecisionRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_governance_legacy_usage_decision_required", false);
         boolean contextContractRequired = resolveBooleanDialogConfigValue("workspace_rollout_context_contract_required", false);
@@ -1684,11 +1686,17 @@ public class DialogService {
         Map<String, Object> previousTotals = computeWorkspaceTelemetryTotals(previousRows);
         long previousWorkspaceOpenEvents = toLong(previousTotals.get("workspace_open_events"));
         long previousManualLegacyOpenEvents = toLong(previousTotals.get("manual_legacy_open_events"));
+        long previousManualLegacyBlockedEvents = toLong(previousTotals.get("workspace_open_legacy_blocked_events"));
         double previousManualLegacyShareRatio = previousWorkspaceOpenEvents > 0
                 ? (double) previousManualLegacyOpenEvents / previousWorkspaceOpenEvents
                 : 0d;
+        double previousManualLegacyBlockedShareRatio = previousWorkspaceOpenEvents > 0
+                ? (double) previousManualLegacyBlockedEvents / previousWorkspaceOpenEvents
+                : 0d;
         double manualLegacyShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
+        double manualLegacyBlockedShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyBlockedEvents / workspaceOpenEvents : 0d;
         double manualLegacyShareDeltaPct = (manualLegacyShareRatio - previousManualLegacyShareRatio) * 100d;
+        double manualLegacyBlockedShareDeltaPct = (manualLegacyBlockedShareRatio - previousManualLegacyBlockedShareRatio) * 100d;
         boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
         double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
         boolean legacyUsageThresholdReady = !legacyUsageThresholdConfigured || manualLegacyShareRatio <= legacyUsageThresholdShare;
@@ -1697,10 +1705,14 @@ public class DialogService {
                 || workspaceOpenEvents >= legacyUsageMinWorkspaceOpenEvents;
         boolean legacyUsageShareDeltaConfigured = legacyUsageMaxShareDeltaPct != null;
         boolean legacyUsageTrendReady = !legacyUsageShareDeltaConfigured || manualLegacyShareDeltaPct <= legacyUsageMaxShareDeltaPct;
+        boolean legacyUsageBlockedShareDeltaConfigured = legacyUsageMaxBlockedShareDeltaPct != null;
+        boolean legacyUsageBlockedTrendReady = !legacyUsageBlockedShareDeltaConfigured
+                || manualLegacyBlockedShareDeltaPct <= legacyUsageMaxBlockedShareDeltaPct;
         boolean legacyUsageDecisionPresent = StringUtils.hasText(legacyUsageDecision);
         boolean legacyUsagePolicyEnabled = legacyUsageThresholdConfigured
                 || legacyUsageMinWorkspaceOpenEventsConfigured
                 || legacyUsageShareDeltaConfigured
+                || legacyUsageBlockedShareDeltaConfigured
                 || legacyUsageDecisionRequired
                 || legacyUsageReviewPresent
                 || StringUtils.hasText(legacyUsageReviewNote);
@@ -1711,6 +1723,7 @@ public class DialogService {
                 && legacyUsageThresholdReady
                 && legacyUsageVolumeReady
                 && legacyUsageTrendReady
+                && legacyUsageBlockedTrendReady
                 && (!legacyUsageDecisionRequired || legacyUsageDecisionPresent));
         List<Map<String, Object>> packetItems = new ArrayList<>();
         packetItems.add(buildScorecardItem(
@@ -1887,21 +1900,26 @@ public class DialogService {
                         ? "not required"
                         : legacyUsageReviewTimestampInvalid
                                 ? "invalid_utc"
-                                : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s%s".formatted(
+                                : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s%s%s".formatted(
                                 manualLegacyShareRatio * 100d,
                                 manualLegacyOpenEvents,
                                 workspaceOpenEvents,
                                 legacyUsageThresholdConfigured ? ", max=%d%%".formatted(legacyUsageMaxSharePct) : "",
                                 legacyUsageShareDeltaConfigured ? ", delta=%.1fpp (max +%dpp)".formatted(manualLegacyShareDeltaPct, legacyUsageMaxShareDeltaPct) : "",
+                                legacyUsageBlockedShareDeltaConfigured
+                                        ? ", blocked_delta=%.1fpp (max +%dpp)".formatted(
+                                        manualLegacyBlockedShareDeltaPct, legacyUsageMaxBlockedShareDeltaPct) : "",
                                 legacyUsageDecisionPresent ? ", decision=%s".formatted(legacyUsageDecision) : ""),
                 legacyUsagePolicyEnabled
-                        ? "review <= %d h UTC%s%s%s%s".formatted(
+                        ? "review <= %d h UTC%s%s%s%s%s".formatted(
                         legacyUsageReviewTtlHours,
                         legacyUsageThresholdConfigured ? ", manual share <= %d%%".formatted(legacyUsageMaxSharePct) : "",
                         legacyUsageMinWorkspaceOpenEventsConfigured
                                 ? ", workspace opens >= %d".formatted(legacyUsageMinWorkspaceOpenEvents) : "",
                         legacyUsageShareDeltaConfigured
                                 ? ", share delta <= +%dpp vs previous window".formatted(legacyUsageMaxShareDeltaPct) : "",
+                        legacyUsageBlockedShareDeltaConfigured
+                                ? ", blocked share delta <= +%dpp vs previous window".formatted(legacyUsageMaxBlockedShareDeltaPct) : "",
                         legacyUsageDecisionRequired ? ", decision required" : "")
                         : "optional",
                 legacyUsageReviewedAt != null ? legacyUsageReviewedAt.toString() : "",
@@ -2067,6 +2085,11 @@ public class DialogService {
         legacyUsagePolicy.put("previous_window_manual_legacy_share_pct", Math.round(previousManualLegacyShareRatio * 1000d) / 10d);
         legacyUsagePolicy.put("manual_legacy_share_delta_pct", Math.round(manualLegacyShareDeltaPct * 10d) / 10d);
         legacyUsagePolicy.put("trend_ready", legacyUsageTrendReady);
+        legacyUsagePolicy.put("max_manual_legacy_blocked_share_delta_pct", legacyUsageMaxBlockedShareDeltaPct);
+        legacyUsagePolicy.put("previous_window_manual_legacy_blocked_share_pct", Math.round(previousManualLegacyBlockedShareRatio * 1000d) / 10d);
+        legacyUsagePolicy.put("manual_legacy_blocked_share_pct", Math.round(manualLegacyBlockedShareRatio * 1000d) / 10d);
+        legacyUsagePolicy.put("manual_legacy_blocked_share_delta_pct", Math.round(manualLegacyBlockedShareDeltaPct * 10d) / 10d);
+        legacyUsagePolicy.put("blocked_trend_ready", legacyUsageBlockedTrendReady);
         legacyUsagePolicy.put("decision_required", legacyUsageDecisionRequired);
         legacyUsagePolicy.put("decision", legacyUsageDecision == null ? "" : legacyUsageDecision);
         legacyUsagePolicy.put("policy_updated_events_in_window", legacyUsagePolicyUpdatedEvents);

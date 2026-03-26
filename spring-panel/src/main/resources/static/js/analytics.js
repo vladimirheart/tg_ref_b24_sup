@@ -60,6 +60,7 @@
   const legacyUsageMaxSharePctInput = document.getElementById('workspaceTelemetryLegacyUsageMaxSharePct');
   const legacyUsageMinWorkspaceOpensInput = document.getElementById('workspaceTelemetryLegacyUsageMinWorkspaceOpens');
   const legacyUsageMaxShareDeltaPctInput = document.getElementById('workspaceTelemetryLegacyUsageMaxShareDeltaPct');
+  const legacyUsageMaxBlockedShareDeltaPctInput = document.getElementById('workspaceTelemetryLegacyUsageMaxBlockedShareDeltaPct');
   const legacyUsageDecisionInput = document.getElementById('workspaceTelemetryLegacyUsageDecision');
   const legacyUsageReviewNoteInput = document.getElementById('workspaceTelemetryLegacyUsageReviewNote');
   const legacyUsageSaveButton = document.getElementById('workspaceTelemetryLegacyUsageSave');
@@ -752,6 +753,10 @@ if (packetLegacyUsageMeta) {
   const shareDelta = Number(legacyUsagePolicy?.manual_legacy_share_delta_pct || 0).toFixed(1);
   const trendReady = legacyUsagePolicy?.trend_ready;
   const previousShare = Number(legacyUsagePolicy?.previous_window_manual_legacy_share_pct || 0).toFixed(1);
+  const maxBlockedShareDelta = legacyUsagePolicy?.max_manual_legacy_blocked_share_delta_pct;
+  const blockedShareDelta = Number(legacyUsagePolicy?.manual_legacy_blocked_share_delta_pct || 0).toFixed(1);
+  const blockedTrendReady = legacyUsagePolicy?.blocked_trend_ready;
+  const previousBlockedShare = Number(legacyUsagePolicy?.previous_window_manual_legacy_blocked_share_pct || 0).toFixed(1);
   const note = String(legacyUsagePolicy?.review_note || '').trim();
   const policyEvents = Number(legacyUsagePolicy?.policy_updated_events_in_window || 0);
   const decision = String(legacyUsagePolicy?.decision || '').trim();
@@ -759,8 +764,12 @@ if (packetLegacyUsageMeta) {
   const reasonsSummary = reasonsTop.length
     ? reasonsTop.slice(0, 3).map((row) => `${String(row?.reason || 'unspecified')}:${Number(row?.events || 0)}`).join(', ')
     : '';
+  const blockedReasonsTop = Array.isArray(legacyUsagePolicy?.manual_legacy_blocked_reasons_top) ? legacyUsagePolicy.manual_legacy_blocked_reasons_top : [];
+  const blockedReasonsSummary = blockedReasonsTop.length
+    ? blockedReasonsTop.slice(0, 3).map((row) => `${String(row?.reason || 'unspecified')}:${Number(row?.events || 0)}`).join(', ')
+    : '';
   const unknownEvents = Number(legacyUsagePolicy?.unknown_manual_reason_events || 0);
-  packetLegacyUsageMeta.textContent = `manual legacy share=${share}%${maxShare !== null && maxShare !== undefined && maxShare !== '' ? ` (max ${maxShare}%)` : ''}${minWorkspaceOpens !== null && minWorkspaceOpens !== undefined && minWorkspaceOpens !== '' ? ` · min opens=${minWorkspaceOpens} (${volumeReady === true ? 'ok' : 'hold'})` : ''}${maxShareDelta !== null && maxShareDelta !== undefined && maxShareDelta !== '' ? ` · delta=${shareDelta}pp vs prev ${previousShare}% (max +${maxShareDelta}pp, ${trendReady === true ? 'ok' : 'hold'})` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${decision ? ` · decision: ${decision}` : ''} · policy updates: ${policyEvents}${note ? ` · note: ${note}` : ''}`;
+  packetLegacyUsageMeta.textContent = `manual legacy share=${share}%${maxShare !== null && maxShare !== undefined && maxShare !== '' ? ` (max ${maxShare}%)` : ''}${minWorkspaceOpens !== null && minWorkspaceOpens !== undefined && minWorkspaceOpens !== '' ? ` · min opens=${minWorkspaceOpens} (${volumeReady === true ? 'ok' : 'hold'})` : ''}${maxShareDelta !== null && maxShareDelta !== undefined && maxShareDelta !== '' ? ` · share delta=${shareDelta}pp vs prev ${previousShare}% (max +${maxShareDelta}pp, ${trendReady === true ? 'ok' : 'hold'})` : ''}${maxBlockedShareDelta !== null && maxBlockedShareDelta !== undefined && maxBlockedShareDelta !== '' ? ` · blocked delta=${blockedShareDelta}pp vs prev ${previousBlockedShare}% (max +${maxBlockedShareDelta}pp, ${blockedTrendReady === true ? 'ok' : 'hold'})` : ''}${reasonsSummary ? ` · manual reasons: ${reasonsSummary}` : ''}${blockedReasonsSummary ? ` · blocked reasons: ${blockedReasonsSummary}` : ''}${unknownEvents > 0 ? ` · unknown reasons: ${unknownEvents}` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${decision ? ` · decision: ${decision}` : ''} · policy updates: ${policyEvents}${note ? ` · note: ${note}` : ''}`;
 }
 if (legacyUsageReviewedByInput) {
   legacyUsageReviewedByInput.value = String(legacyUsagePolicy?.reviewed_by || '').trim();
@@ -779,6 +788,10 @@ if (legacyUsageMinWorkspaceOpensInput) {
 if (legacyUsageMaxShareDeltaPctInput) {
   const maxShareDelta = legacyUsagePolicy?.max_manual_legacy_share_delta_pct;
   legacyUsageMaxShareDeltaPctInput.value = maxShareDelta === null || maxShareDelta === undefined || maxShareDelta === '' ? '' : String(maxShareDelta);
+}
+if (legacyUsageMaxBlockedShareDeltaPctInput) {
+  const maxBlockedShareDelta = legacyUsagePolicy?.max_manual_legacy_blocked_share_delta_pct;
+  legacyUsageMaxBlockedShareDeltaPctInput.value = maxBlockedShareDelta === null || maxBlockedShareDelta === undefined || maxBlockedShareDelta === '' ? '' : String(maxBlockedShareDelta);
 }
 if (legacyUsageDecisionInput) {
   const decision = String(legacyUsagePolicy?.decision || '').trim().toLowerCase();
@@ -2009,9 +2022,11 @@ async function saveLegacyUsagePolicy() {
   const maxShareRaw = legacyUsageMaxSharePctInput ? String(legacyUsageMaxSharePctInput.value || '').trim() : '';
   const minWorkspaceOpensRaw = legacyUsageMinWorkspaceOpensInput ? String(legacyUsageMinWorkspaceOpensInput.value || '').trim() : '';
   const maxShareDeltaRaw = legacyUsageMaxShareDeltaPctInput ? String(legacyUsageMaxShareDeltaPctInput.value || '').trim() : '';
+  const maxBlockedShareDeltaRaw = legacyUsageMaxBlockedShareDeltaPctInput ? String(legacyUsageMaxBlockedShareDeltaPctInput.value || '').trim() : '';
   let maxSharePct = null;
   let minWorkspaceOpenEvents = null;
   let maxLegacyManualShareDeltaPct = null;
+  let maxLegacyBlockedShareDeltaPct = null;
   if (maxShareRaw) {
     const parsed = Number(maxShareRaw);
     if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) {
@@ -2045,6 +2060,17 @@ async function saveLegacyUsagePolicy() {
     }
     maxLegacyManualShareDeltaPct = parsed;
   }
+  if (maxBlockedShareDeltaRaw) {
+    const parsed = Number(maxBlockedShareDeltaRaw);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) {
+      if (legacyUsageActionState) {
+        legacyUsageActionState.textContent = 'Ошибка: max blocked share delta должен быть целым числом 0..100.';
+      }
+      legacyUsageSaveButton.disabled = false;
+      return;
+    }
+    maxLegacyBlockedShareDeltaPct = parsed;
+  }
   try {
     const response = await fetch('/analytics/workspace-rollout/legacy-usage-policy', {
       method: 'POST',
@@ -2059,6 +2085,7 @@ async function saveLegacyUsagePolicy() {
         maxLegacyManualSharePct: maxSharePct,
         minWorkspaceOpenEvents,
         maxLegacyManualShareDeltaPct,
+        maxLegacyBlockedShareDeltaPct,
         allowedReasons: parseCsvList(legacyUsageAllowedReasonsInput ? legacyUsageAllowedReasonsInput.value : ''),
         reasonCatalogRequired: legacyUsageReasonCatalogRequiredInput ? legacyUsageReasonCatalogRequiredInput.checked : false,
       }),
