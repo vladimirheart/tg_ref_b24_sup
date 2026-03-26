@@ -249,6 +249,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_governance_reviewed_at")
                 || payload.containsKey("dialog_workspace_rollout_governance_review_decision_required")
                 || payload.containsKey("dialog_workspace_rollout_governance_incident_followup_required")
+                || payload.containsKey("dialog_workspace_rollout_governance_followup_for_non_go_required")
                 || payload.containsKey("dialog_workspace_rollout_governance_review_decision_action")
                 || payload.containsKey("dialog_workspace_rollout_governance_review_incident_followup")
                 || payload.containsKey("dialog_workspace_rollout_governance_parity_exit_days")
@@ -713,6 +714,10 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_governance_incident_followup_required")) {
                     dialogConfig.put("workspace_rollout_governance_incident_followup_required",
                             payload.get("dialog_workspace_rollout_governance_incident_followup_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_followup_for_non_go_required")) {
+                    dialogConfig.put("workspace_rollout_governance_followup_for_non_go_required",
+                            payload.get("dialog_workspace_rollout_governance_followup_for_non_go_required"));
                 }
                 if (payload.containsKey("dialog_workspace_rollout_governance_review_decision_action")) {
                     dialogConfig.put("workspace_rollout_governance_review_decision_action",

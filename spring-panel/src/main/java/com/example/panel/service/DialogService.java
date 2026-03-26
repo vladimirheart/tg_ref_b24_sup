@@ -1467,6 +1467,20 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_governance_review_checked_criteria"));
         boolean reviewDecisionRequired = resolveBooleanDialogConfigValue("workspace_rollout_governance_review_decision_required", false);
         boolean reviewIncidentFollowupRequired = resolveBooleanDialogConfigValue("workspace_rollout_governance_incident_followup_required", false);
+        boolean reviewFollowupForNonGoRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_governance_followup_for_non_go_required", false);
+        String previousDecisionAction = normalizeNullString(String.valueOf(
+                resolveDialogConfigValue("workspace_rollout_governance_previous_decision_action")));
+        if (previousDecisionAction != null) {
+            previousDecisionAction = previousDecisionAction.toLowerCase(Locale.ROOT);
+            if (!"go".equals(previousDecisionAction)
+                    && !"hold".equals(previousDecisionAction)
+                    && !"rollback".equals(previousDecisionAction)) {
+                previousDecisionAction = null;
+            }
+        }
+        String previousDecisionAtRaw = String.valueOf(
+                resolveDialogConfigValue("workspace_rollout_governance_previous_decision_at"));
         long parityExitDays = resolveLongDialogConfigValue(
                 "workspace_rollout_governance_parity_exit_days", 0, 0, 90);
         List<String> parityCriticalReasons = resolveDialogConfigStringList(
@@ -1567,6 +1581,16 @@ public class DialogService {
         long slowOpenAlerts = alerts.stream().filter(alert -> "slow_open_rate".equals(String.valueOf(alert.get("metric")))).count();
         boolean reviewDecisionPresent = StringUtils.hasText(reviewDecisionAction);
         boolean reviewIncidentFollowupPresent = StringUtils.hasText(reviewIncidentFollowup);
+        boolean reviewDecisionGo = "go".equals(reviewDecisionAction);
+        OffsetDateTime previousDecisionAt = parseReviewTimestamp(previousDecisionAtRaw);
+        boolean previousDecisionTimestampInvalid = StringUtils.hasText(normalizeNullString(previousDecisionAtRaw))
+                && previousDecisionAt == null;
+        boolean previousDecisionNonGo = "hold".equals(previousDecisionAction)
+                || "rollback".equals(previousDecisionAction);
+        boolean followupForNonGoReady = !reviewFollowupForNonGoRequired
+                || !reviewDecisionGo
+                || !previousDecisionNonGo
+                || reviewIncidentFollowupPresent;
         List<String> reviewMissingCriteria = reviewRequiredCriteria.stream()
                 .filter(criteria -> !reviewCheckedCriteria.contains(criteria))
                 .toList();
@@ -1576,6 +1600,8 @@ public class DialogService {
                 || (reviewCadencePresent && reviewCadenceFresh && !reviewCadenceTimestampInvalid
                 && (!reviewDecisionRequired || reviewDecisionPresent)
                 && reviewCriteriaReady
+                && (!reviewFollowupForNonGoRequired || !previousDecisionTimestampInvalid)
+                && followupForNonGoReady
                 && (!incidentActionRequiredNow || reviewIncidentFollowupPresent));
         boolean incidentHistoryReady = true;
         boolean externalGateSnapshotReady = !externalSignal.isEmpty();
@@ -1790,6 +1816,9 @@ public class DialogService {
                         reviewCadenceDays,
                         reviewDecisionRequired ? ", decision required" : "",
                         incidentActionRequiredNow ? ", incident follow-up required when alerts>0" : "")
+                        + (reviewFollowupForNonGoRequired
+                        ? ", incident follow-up required for go after hold/rollback"
+                        : "")
                         + (!reviewRequiredCriteria.isEmpty()
                         ? ", criteria required=%s".formatted(String.join("|", reviewRequiredCriteria))
                         : "")
@@ -1985,6 +2014,11 @@ public class DialogService {
         reviewCadence.put("incident_followup", reviewIncidentFollowup == null ? "" : reviewIncidentFollowup);
         reviewCadence.put("decision_required", reviewDecisionRequired);
         reviewCadence.put("incident_followup_required", reviewIncidentFollowupRequired);
+        reviewCadence.put("followup_after_non_go_required", reviewFollowupForNonGoRequired);
+        reviewCadence.put("previous_decision_action", previousDecisionAction == null ? "" : previousDecisionAction);
+        reviewCadence.put("previous_decision_at", previousDecisionAt != null ? previousDecisionAt.toString() : "");
+        reviewCadence.put("previous_decision_timestamp_invalid", previousDecisionTimestampInvalid);
+        reviewCadence.put("followup_after_non_go_ready", followupForNonGoReady);
         reviewCadence.put("required_criteria", reviewRequiredCriteria);
         reviewCadence.put("checked_criteria", reviewCheckedCriteria);
         reviewCadence.put("missing_criteria", reviewMissingCriteria);
