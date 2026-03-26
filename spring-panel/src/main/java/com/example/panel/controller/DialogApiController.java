@@ -1280,10 +1280,6 @@ public class DialogApiController {
                 "workspace_rollout_legacy_manual_open_review_ttl_hours", 168, 1, 24 * 60);
         List<String> legacyManualAllowedReasons = safeStringList(dialogConfig.get("workspace_rollout_legacy_manual_open_allowed_reasons"));
         boolean legacyManualReasonCatalogRequired = resolveBooleanDialogConfig(dialogConfig, "workspace_rollout_legacy_manual_open_reason_catalog_required", false);
-        boolean legacyManualOpenBlockOnHold = resolveBooleanDialogConfig(dialogConfig, "workspace_rollout_legacy_manual_open_block_on_hold", false);
-        boolean legacyManualOpenBlockOnStaleReview = resolveBooleanDialogConfig(dialogConfig, "workspace_rollout_legacy_manual_open_block_on_stale_review", false);
-        int legacyManualOpenReviewTtlHours = resolveIntegerDialogConfig(dialogConfig,
-                "workspace_rollout_legacy_manual_open_review_ttl_hours", 168, 1, 24 * 60);
         String legacyUsageDecision = trimToNull(String.valueOf(dialogConfig.get("workspace_rollout_governance_legacy_usage_decision")));
         if (legacyUsageDecision != null) {
             legacyUsageDecision = legacyUsageDecision.toLowerCase(Locale.ROOT);
@@ -1315,21 +1311,6 @@ public class DialogApiController {
                 legacyManualOpenBlockReason = "stale_review";
             }
         }
-        boolean legacyUsageDecisionHold = legacyManualOpenPolicyEnabled
-                && legacyManualOpenBlockOnHold
-                && "hold".equalsIgnoreCase(legacyUsageDecision);
-        boolean legacyManualOpenBlocked = legacyUsageDecisionHold || legacyUsageReviewStale || legacyUsageReviewInvalidUtc;
-        String legacyManualOpenBlockReason = null;
-        if (legacyManualOpenBlocked) {
-            if (legacyUsageReviewInvalidUtc) {
-                legacyManualOpenBlockReason = "invalid_review_timestamp";
-            } else if (legacyUsageDecisionHold) {
-                legacyManualOpenBlockReason = "review_decision_hold";
-            } else if (legacyUsageReviewStale) {
-                legacyManualOpenBlockReason = "stale_review";
-            }
-        }
-
         String mode;
         String bannerTone;
         if (!workspaceEnabled) {
@@ -1382,8 +1363,10 @@ public class DialogApiController {
         legacyManualOpenPolicy.put("reviewed_by", legacyUsageReviewedBy != null ? legacyUsageReviewedBy : "");
         legacyManualOpenPolicy.put("review_note", legacyUsageReviewNote != null ? legacyUsageReviewNote : "");
         legacyManualOpenPolicy.put("review_timestamp_invalid", legacyUsageReviewInvalidUtc);
-        legacyManualOpenPolicy.put("review_age_hours", legacyUsageReviewAgeHours == null ? "" : legacyUsageReviewAgeHours);
+                legacyManualOpenPolicy.put("review_age_hours", legacyUsageReviewAgeHours == null ? "" : legacyUsageReviewAgeHours);
         legacyManualOpenPolicy.put("decision", legacyUsageDecision != null ? legacyUsageDecision : "");
+        legacyManualOpenPolicy.put("allowed_reasons", legacyManualAllowedReasons);
+        legacyManualOpenPolicy.put("reason_catalog_required", legacyManualReasonCatalogRequired);
         legacyManualOpenPolicy.put("blocked", legacyManualOpenBlocked);
         legacyManualOpenPolicy.put("block_reason", legacyManualOpenBlockReason != null ? legacyManualOpenBlockReason : "");
         if (legacyUsageReviewedAtUtc != null) {
