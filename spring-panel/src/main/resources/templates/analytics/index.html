@@ -227,6 +227,14 @@
                                             <label for="workspaceTelemetryReviewIncidentFollowup" class="form-label form-label-sm mb-1">Incident follow-up (optional)</label>
                                             <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewIncidentFollowup" maxlength="255" placeholder="INC-123 / ссылка на postmortem">
                                         </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewRequiredCriteria" class="form-label form-label-sm mb-1">Required criteria (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewRequiredCriteria" maxlength="500" placeholder="sample_size_ready, guardrails_ok, parity_snapshot_ready">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewCheckedCriteria" class="form-label form-label-sm mb-1">Criteria covered in this review (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewCheckedCriteria" maxlength="500" placeholder="sample_size_ready, guardrails_ok">
+                                        </div>
                                         <div class="d-flex align-items-center gap-2 mt-2">
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryReviewConfirm">Подтвердить review</button>
                                             <small class="text-muted" id="workspaceTelemetryReviewActionState"></small>
