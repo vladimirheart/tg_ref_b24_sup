@@ -39,6 +39,8 @@
   const reviewNoteInput = document.getElementById('workspaceTelemetryReviewNote');
   const reviewDecisionActionInput = document.getElementById('workspaceTelemetryReviewDecisionAction');
   const reviewIncidentFollowupInput = document.getElementById('workspaceTelemetryReviewIncidentFollowup');
+  const reviewRequiredCriteriaInput = document.getElementById('workspaceTelemetryReviewRequiredCriteria');
+  const reviewCheckedCriteriaInput = document.getElementById('workspaceTelemetryReviewCheckedCriteria');
   const reviewConfirmButton = document.getElementById('workspaceTelemetryReviewConfirm');
   const reviewActionState = document.getElementById('workspaceTelemetryReviewActionState');
   const packetExitState = document.getElementById('workspaceTelemetryPacketExitState');
@@ -628,6 +630,8 @@
         packetReviewState.textContent = 'Не требуется';
       } else if (reviewCadence?.timestamp_invalid === true) {
         packetReviewState.textContent = 'Невалидная UTC-дата';
+      } else if (reviewCadence?.criteria_ready === false) {
+        packetReviewState.textContent = 'Review: критерии не закрыты';
       } else if (reviewCadence?.ready === true) {
         packetReviewState.textContent = reviewCadence?.reviewed_by ? `Reviewed by: ${reviewCadence.reviewed_by}` : 'Review подтверждён';
       } else {
@@ -646,7 +650,10 @@
       const reviewNote = String(reviewCadence?.review_note || '').trim();
       const decisionAction = String(reviewCadence?.decision_action || '').trim().toLowerCase();
       const incidentFollowup = String(reviewCadence?.incident_followup || '').trim();
-      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents} · go/hold/rollback: ${goEvents}/${holdEvents}/${rollbackEvents} · followup linked: ${followupLinkedEvents}${decisionAction ? ` · decision: ${decisionAction}` : ''}${reviewNote ? ` · note: ${reviewNote}` : ''}${incidentFollowup ? ` · incident: ${incidentFollowup}` : ''}`;
+      const requiredCriteria = Array.isArray(reviewCadence?.required_criteria) ? reviewCadence.required_criteria.filter(Boolean) : [];
+      const checkedCriteria = Array.isArray(reviewCadence?.checked_criteria) ? reviewCadence.checked_criteria.filter(Boolean) : [];
+      const missingCriteria = Array.isArray(reviewCadence?.missing_criteria) ? reviewCadence.missing_criteria.filter(Boolean) : [];
+      packetReviewMeta.textContent = `UTC: ${reviewedAt} · cadence: ${cadenceDays}d · age: ${ageDays}d · confirms: ${confirmedEvents} · go/hold/rollback: ${goEvents}/${holdEvents}/${rollbackEvents} · followup linked: ${followupLinkedEvents}${decisionAction ? ` · decision: ${decisionAction}` : ''}${requiredCriteria.length ? ` · criteria required: ${requiredCriteria.join('|')}` : ''}${checkedCriteria.length ? ` · checked: ${checkedCriteria.join('|')}` : ''}${missingCriteria.length ? ` · missing: ${missingCriteria.join('|')}` : ''}${reviewNote ? ` · note: ${reviewNote}` : ''}${incidentFollowup ? ` · incident: ${incidentFollowup}` : ''}`;
     }
     if (reviewByInput) {
       reviewByInput.value = reviewCadence?.reviewed_by || '';
@@ -663,6 +670,14 @@
     }
     if (reviewIncidentFollowupInput) {
       reviewIncidentFollowupInput.value = String(reviewCadence?.incident_followup || '').trim();
+    }
+    if (reviewRequiredCriteriaInput) {
+      const requiredCriteria = Array.isArray(reviewCadence?.required_criteria) ? reviewCadence.required_criteria.filter(Boolean) : [];
+      reviewRequiredCriteriaInput.value = requiredCriteria.join(', ');
+    }
+    if (reviewCheckedCriteriaInput) {
+      const checkedCriteria = Array.isArray(reviewCadence?.checked_criteria) ? reviewCadence.checked_criteria.filter(Boolean) : [];
+      reviewCheckedCriteriaInput.value = checkedCriteria.join(', ');
     }
     const parityExit = packet?.parity_exit_criteria || {};
     if (packetExitState) {
@@ -1785,6 +1800,8 @@ if (legacyUsageReasonCatalogRequiredInput) {
     const reviewNote = reviewNoteInput ? (reviewNoteInput.value || '').trim().slice(0, 500) : '';
     const decisionAction = reviewDecisionActionInput ? String(reviewDecisionActionInput.value || '').trim().toLowerCase() : '';
     const incidentFollowup = reviewIncidentFollowupInput ? (reviewIncidentFollowupInput.value || '').trim().slice(0, 255) : '';
+    const requiredCriteria = reviewRequiredCriteriaInput ? parseCsvList(reviewRequiredCriteriaInput.value || '') : [];
+    const checkedCriteria = reviewCheckedCriteriaInput ? parseCsvList(reviewCheckedCriteriaInput.value || '') : [];
     try {
       const response = await fetch('/analytics/workspace-rollout/review', {
         method: 'POST',
@@ -1797,6 +1814,8 @@ if (legacyUsageReasonCatalogRequiredInput) {
           reviewNote,
           decisionAction,
           incidentFollowup,
+          requiredCriteria,
+          checkedCriteria,
         }),
       });
       const payload = await response.json();
