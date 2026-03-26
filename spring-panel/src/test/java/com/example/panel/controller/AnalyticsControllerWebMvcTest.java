@@ -410,7 +410,8 @@ void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
                               "reviewedAtUtc": "2026-03-24T22:55:00Z",
                               "reviewNote": "Legacy usage in guardrails window stays under budget.",
                               "decision": "go",
-                              "maxLegacyManualSharePct": 10
+                              "maxLegacyManualSharePct": 10,
+                              "maxLegacyBlockedShareDeltaPct": 3
                             }
                             """))
             .andExpect(status().isOk())
@@ -419,7 +420,8 @@ void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
             .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-24T22:55:00Z"))
             .andExpect(jsonPath("$.review_note").value("Legacy usage in guardrails window stays under budget."))
             .andExpect(jsonPath("$.decision").value("go"))
-            .andExpect(jsonPath("$.max_legacy_manual_share_pct").value(10));
+            .andExpect(jsonPath("$.max_legacy_manual_share_pct").value(10))
+            .andExpect(jsonPath("$.max_legacy_blocked_share_delta_pct").value(3));
 
     ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
     verify(sharedConfigService).saveSettings(settingsCaptor.capture());
@@ -431,6 +433,7 @@ void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
             .isEqualTo("Legacy usage in guardrails window stays under budget.");
     assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_decision")).isEqualTo("go");
     assertThat(dialogConfig.get("workspace_rollout_governance_legacy_manual_share_max_pct")).isEqualTo(10L);
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_max_blocked_share_delta_pct")).isEqualTo(3L);
 
     verify(dialogService).logWorkspaceTelemetry(
             eq("ops.lead"),
@@ -483,6 +486,24 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidMaxShare() throws Exception {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("max_legacy_manual_share_pct must be between 0 and 100"));
+}
+
+@Test
+void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Exception {
+    when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+    mockMvc.perform(post("/analytics/workspace-rollout/legacy-usage-policy")
+                    .with(user("ops.lead"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            {
+                              "reviewedAtUtc": "2026-03-24T22:55:00Z",
+                              "maxLegacyBlockedShareDeltaPct": 140
+                            }
+                            """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("max_legacy_blocked_share_delta_pct must be between 0 and 100"));
 }
     @Test
     void updateSlaPolicyGovernanceReviewPersistsUtcReview() throws Exception {
