@@ -1493,8 +1493,12 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_context_contract_mandatory_fields_by_scenario"));
         List<String> contextContractSourceOfTruth = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_context_contract_source_of_truth"));
+        Map<String, List<String>> contextContractSourceOfTruthByScenario = resolveDialogConfigStringListMap(
+                resolveDialogConfigValue("workspace_rollout_context_contract_source_of_truth_by_scenario"));
         List<String> contextContractPriorityBlocks = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_context_contract_priority_blocks"));
+        Map<String, List<String>> contextContractPriorityBlocksByScenario = resolveDialogConfigStringListMap(
+                resolveDialogConfigValue("workspace_rollout_context_contract_priority_blocks_by_scenario"));
         String contextContractReviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_reviewed_by")));
         String contextContractReviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_reviewed_at"));
         String contextContractReviewNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_review_note")));
@@ -1572,8 +1576,11 @@ public class DialogService {
         boolean contextContractEnabled = contextContractRequired
                 || !contextContractScenarios.isEmpty()
                 || !contextContractMandatoryFields.isEmpty()
+                || !contextContractMandatoryFieldsByScenario.isEmpty()
                 || !contextContractSourceOfTruth.isEmpty()
-                || !contextContractPriorityBlocks.isEmpty();
+                || !contextContractSourceOfTruthByScenario.isEmpty()
+                || !contextContractPriorityBlocks.isEmpty()
+                || !contextContractPriorityBlocksByScenario.isEmpty();
         OffsetDateTime contextContractReviewedAt = parseReviewTimestamp(contextContractReviewedAtRaw);
         boolean contextContractReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(contextContractReviewedAtRaw))
                 && contextContractReviewedAt == null;
@@ -1587,9 +1594,9 @@ public class DialogService {
             contextContractReviewFresh = contextContractReviewAgeHours <= contextContractReviewTtlHours;
         }
         boolean contextContractDefinitionReady = !contextContractScenarios.isEmpty()
-                && !contextContractMandatoryFields.isEmpty()
-                && !contextContractSourceOfTruth.isEmpty()
-                && !contextContractPriorityBlocks.isEmpty();
+                && (!contextContractMandatoryFields.isEmpty() || !contextContractMandatoryFieldsByScenario.isEmpty())
+                && (!contextContractSourceOfTruth.isEmpty() || !contextContractSourceOfTruthByScenario.isEmpty())
+                && (!contextContractPriorityBlocks.isEmpty() || !contextContractPriorityBlocksByScenario.isEmpty());
         boolean contextContractReady = !contextContractEnabled
                 || (contextContractDefinitionReady
                 && contextContractReviewPresent
@@ -1822,10 +1829,10 @@ packetItems.add(buildScorecardItem(
                                 contextContractScenarios.size(),
                                 contextContractMandatoryFields.size(),
                                 contextContractMandatoryFieldsByScenario.size(),
-                                contextContractSourceOfTruth.size(),
-                                contextContractPriorityBlocks.size()),
+                                contextContractSourceOfTruth.size() + contextContractSourceOfTruthByScenario.size(),
+                                contextContractPriorityBlocks.size() + contextContractPriorityBlocksByScenario.size()),
                 contextContractEnabled
-                        ? "all lists non-empty + review <= %d h UTC".formatted(contextContractReviewTtlHours)
+                        ? "scenarios + mandatory/source/priority definitions + review <= %d h UTC".formatted(contextContractReviewTtlHours)
                         : "optional",
                 contextContractReviewedAt != null ? contextContractReviewedAt.toString() : "",
                 contextContractDefinitionReady
@@ -1838,8 +1845,10 @@ packetItems.add(buildScorecardItem(
                                 contextContractScenarios.isEmpty() ? "scenarios" : null,
                                 (contextContractMandatoryFields.isEmpty() && contextContractMandatoryFieldsByScenario.isEmpty())
                                         ? "mandatory_fields" : null,
-                                contextContractSourceOfTruth.isEmpty() ? "source_of_truth" : null,
-                                contextContractPriorityBlocks.isEmpty() ? "priority_blocks" : null)
+                                (contextContractSourceOfTruth.isEmpty() && contextContractSourceOfTruthByScenario.isEmpty())
+                                        ? "source_of_truth" : null,
+                                (contextContractPriorityBlocks.isEmpty() && contextContractPriorityBlocksByScenario.isEmpty())
+                                        ? "priority_blocks" : null)
                         .filter(StringUtils::hasText)
                         .collect(Collectors.joining(", "))
         ));
@@ -1958,7 +1967,9 @@ packetItems.add(buildScorecardItem(
         contextContract.put("mandatory_fields", contextContractMandatoryFields);
         contextContract.put("mandatory_fields_by_scenario", contextContractMandatoryFieldsByScenario);
         contextContract.put("source_of_truth", contextContractSourceOfTruth);
+        contextContract.put("source_of_truth_by_scenario", contextContractSourceOfTruthByScenario);
         contextContract.put("priority_blocks", contextContractPriorityBlocks);
+        contextContract.put("priority_blocks_by_scenario", contextContractPriorityBlocksByScenario);
         contextContract.put("definition_ready", contextContractDefinitionReady);
 
         Map<String, Object> packet = new LinkedHashMap<>();

@@ -277,7 +277,11 @@ public class AnalyticsController {
         Map<String, List<String>> scenarioMandatoryFields = sanitizeStringListMap(
                 request != null ? request.scenarioMandatoryFields() : null);
         List<String> sourceOfTruth = sanitizeStringList(request != null ? request.sourceOfTruth() : null);
+        Map<String, List<String>> scenarioSourceOfTruth = sanitizeStringListMap(
+                request != null ? request.scenarioSourceOfTruth() : null);
         List<String> priorityBlocks = sanitizeStringList(request != null ? request.priorityBlocks() : null);
+        Map<String, List<String>> scenarioPriorityBlocks = sanitizeStringListMap(
+                request != null ? request.scenarioPriorityBlocks() : null);
         String note = normalize(String.valueOf(request != null ? request.note() : null));
         if (note != null && note.length() > 500) {
             note = note.substring(0, 500);
@@ -309,10 +313,20 @@ public class AnalyticsController {
         } else {
             dialogConfig.put("workspace_rollout_context_contract_source_of_truth", sourceOfTruth);
         }
+        if (scenarioSourceOfTruth.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_source_of_truth_by_scenario");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_source_of_truth_by_scenario", scenarioSourceOfTruth);
+        }
         if (priorityBlocks.isEmpty()) {
             dialogConfig.remove("workspace_rollout_context_contract_priority_blocks");
         } else {
             dialogConfig.put("workspace_rollout_context_contract_priority_blocks", priorityBlocks);
+        }
+        if (scenarioPriorityBlocks.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_priority_blocks_by_scenario");
+        } else {
+            dialogConfig.put("workspace_rollout_context_contract_priority_blocks_by_scenario", scenarioPriorityBlocks);
         }
         dialogConfig.put("workspace_rollout_context_contract_reviewed_by", reviewedBy);
         dialogConfig.put("workspace_rollout_context_contract_reviewed_at", reviewedAtUtc.toInstant().toString());
@@ -351,7 +365,9 @@ public class AnalyticsController {
                 "mandatory_fields", mandatoryFields,
                 "scenario_mandatory_fields", scenarioMandatoryFields,
                 "source_of_truth", sourceOfTruth,
+                "scenario_source_of_truth", scenarioSourceOfTruth,
                 "priority_blocks", priorityBlocks,
+                "scenario_priority_blocks", scenarioPriorityBlocks,
                 "note", note == null ? "" : note
         ));
     }
@@ -989,7 +1005,9 @@ public class AnalyticsController {
                                                    Object mandatoryFields,
                                                   Object scenarioMandatoryFields,
                                                    Object sourceOfTruth,
+                                                  Object scenarioSourceOfTruth,
                                                    Object priorityBlocks,
+                                                  Object scenarioPriorityBlocks,
                                                    String reviewedBy,
                                                    String reviewedAtUtc,
                                                    String note) {
