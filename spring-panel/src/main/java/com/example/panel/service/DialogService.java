@@ -1616,6 +1616,7 @@ if (legacyUsageReviewedAt != null) {
 }
 long legacyUsagePolicyUpdatedEvents = toLong(safeTotals.get("workspace_legacy_usage_policy_updated_events"));
 long manualLegacyOpenEvents = toLong(safeTotals.get("manual_legacy_open_events"));
+long manualLegacyBlockedEvents = toLong(safeTotals.get("workspace_open_legacy_blocked_events"));
 double manualLegacyShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
 boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
 double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
@@ -1947,6 +1948,7 @@ packetItems.add(buildScorecardItem(
         legacyUsagePolicy.put("review_age_hours", legacyUsageReviewAgeHours);
         legacyUsagePolicy.put("review_timestamp_invalid", legacyUsageReviewTimestampInvalid);
         legacyUsagePolicy.put("manual_legacy_open_events", manualLegacyOpenEvents);
+        legacyUsagePolicy.put("manual_legacy_blocked_events", manualLegacyBlockedEvents);
         legacyUsagePolicy.put("workspace_open_events", workspaceOpenEvents);
         legacyUsagePolicy.put("manual_legacy_share_pct", Math.round(manualLegacyShareRatio * 1000d) / 10d);
         legacyUsagePolicy.put("max_manual_legacy_share_pct", legacyUsageMaxSharePct);
@@ -3521,6 +3523,7 @@ packetItems.add(buildScorecardItem(
         long workspaceParityGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_parity_gap_events"))).sum();
         long workspaceInlineNavigationEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_inline_navigation_events"))).sum();
         long manualLegacyOpenEvents = rows.stream().mapToLong(row -> toLong(row.get("manual_legacy_open_events"))).sum();
+        long workspaceOpenLegacyBlockedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_open_legacy_blocked_events"))).sum();
         long workspaceRolloutPacketViewedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_packet_viewed_events"))).sum();
         long workspaceRolloutReviewConfirmedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_confirmed_events"))).sum();
         long workspaceRolloutReviewDecisionGoEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_go_events"))).sum();
@@ -3575,6 +3578,7 @@ packetItems.add(buildScorecardItem(
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
         totals.put("workspace_inline_navigation_events", workspaceInlineNavigationEvents);
         totals.put("manual_legacy_open_events", manualLegacyOpenEvents);
+        totals.put("workspace_open_legacy_blocked_events", workspaceOpenLegacyBlockedEvents);
         totals.put("workspace_rollout_packet_viewed_events", workspaceRolloutPacketViewedEvents);
         totals.put("workspace_rollout_review_confirmed_events", workspaceRolloutReviewConfirmedEvents);
         totals.put("workspace_rollout_review_decision_go_events", workspaceRolloutReviewDecisionGoEvents);
@@ -4553,6 +4557,7 @@ packetItems.add(buildScorecardItem(
                        SUM(CASE WHEN event_type = 'workspace_parity_gap' THEN 1 ELSE 0 END) AS workspace_parity_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_inline_navigation' THEN 1 ELSE 0 END) AS workspace_inline_navigation_events,
                        SUM(CASE WHEN event_type = 'workspace_open_legacy_manual' THEN 1 ELSE 0 END) AS manual_legacy_open_events,
+                       SUM(CASE WHEN event_type = 'workspace_open_legacy_blocked' THEN 1 ELSE 0 END) AS workspace_open_legacy_blocked_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_packet_viewed' THEN 1 ELSE 0 END) AS workspace_rollout_packet_viewed_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_confirmed' THEN 1 ELSE 0 END) AS workspace_rollout_review_confirmed_events,
                        SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_go' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_go_events,
@@ -4606,6 +4611,7 @@ packetItems.add(buildScorecardItem(
                 item.put("workspace_parity_gap_events", rs.getLong("workspace_parity_gap_events"));
                 item.put("workspace_inline_navigation_events", rs.getLong("workspace_inline_navigation_events"));
                 item.put("manual_legacy_open_events", rs.getLong("manual_legacy_open_events"));
+                item.put("workspace_open_legacy_blocked_events", rs.getLong("workspace_open_legacy_blocked_events"));
                 item.put("workspace_rollout_packet_viewed_events", rs.getLong("workspace_rollout_packet_viewed_events"));
                 item.put("workspace_rollout_review_confirmed_events", rs.getLong("workspace_rollout_review_confirmed_events"));
                 item.put("workspace_rollout_review_decision_go_events", rs.getLong("workspace_rollout_review_decision_go_events"));

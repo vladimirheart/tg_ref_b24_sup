@@ -473,6 +473,7 @@
     workspace_parity_gap: 'workspace',
     workspace_inline_navigation: 'workspace',
     workspace_open_legacy_manual: 'workspace',
+    workspace_open_legacy_blocked: 'workspace',
     workspace_rollout_packet_viewed: 'experiment',
   });
   let workspaceReadonlyMode = false;
@@ -565,6 +566,34 @@
     workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
     workspaceRolloutBanner.classList.remove('d-none');
     workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
+  }
+
+  function resolveLegacyOpenPolicy(rollout) {
+    const policy = rollout?.legacy_manual_open_policy && typeof rollout.legacy_manual_open_policy === 'object'
+      ? rollout.legacy_manual_open_policy
+      : {};
+    return {
+      enabled: policy.enabled === true,
+      reasonRequired: policy.reason_required === true,
+      blocked: policy.blocked === true,
+      blockReason: String(policy.block_reason || '').trim(),
+      reviewedBy: String(policy.reviewed_by || '').trim(),
+      reviewedAtUtc: String(policy.reviewed_at_utc || '').trim(),
+      decision: String(policy.decision || '').trim(),
+    };
+  }
+
+  function formatLegacyOpenBlockReason(reason) {
+    switch (String(reason || '').trim()) {
+      case 'review_decision_hold':
+        return 'policy decision = HOLD';
+      case 'stale_review':
+        return 'policy review is stale';
+      case 'invalid_review_timestamp':
+        return 'policy review timestamp is invalid UTC';
+      default:
+        return 'legacy manual-open policy is blocking';
+    }
   }
 
   function resolveWorkspaceParityBannerClass(status) {
@@ -2821,7 +2850,7 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Legacy blocked: ${Number(totals.workspace_open_legacy_blocked_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -6249,9 +6278,38 @@
     workspaceLegacyBtn.addEventListener('click', async () => {
       if (WORKSPACE_SINGLE_MODE) return;
       if (!activeWorkspaceTicketId || !activeDialogRow || workspaceLegacyBtn.disabled) return;
+      const policy = resolveLegacyOpenPolicy(activeWorkspacePayload?.meta?.rollout);
+      if (policy.enabled && policy.blocked) {
+        const blockReason = policy.blockReason || 'policy_blocked';
+        const humanReason = formatLegacyOpenBlockReason(blockReason);
+        if (typeof showNotification === 'function') {
+          const reviewMeta = [policy.reviewedBy, policy.reviewedAtUtc].filter(Boolean).join(' @ ');
+          showNotification(`Legacy modal blocked: ${humanReason}${reviewMeta ? ` (${reviewMeta})` : ''}.`, 'warning');
+        }
+        await emitWorkspaceTelemetry('workspace_open_legacy_blocked', {
+          ticketId: activeWorkspaceTicketId,
+          reason: blockReason,
+          decision: policy.decision || null,
+          reviewedBy: policy.reviewedBy || null,
+          reviewedAtUtc: policy.reviewedAtUtc || null,
+          contractVersion: activeWorkspacePayload?.contract_version || null,
+        });
+        return;
+      }
+      let legacyOpenReason = 'manual_rollback';
+      if (policy.enabled && policy.reasonRequired) {
+        const answer = window.prompt('Укажите причину manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
+        legacyOpenReason = String(answer || '').trim();
+        if (!legacyOpenReason) {
+          if (typeof showNotification === 'function') {
+            showNotification('Legacy modal не открыт: требуется причина manual open.', 'warning');
+          }
+          return;
+        }
+      }
       await emitWorkspaceTelemetry('workspace_open_legacy_manual', {
         ticketId: activeWorkspaceTicketId,
-        reason: 'manual_rollback',
+        reason: legacyOpenReason,
         contractVersion: activeWorkspacePayload?.contract_version || null,
       });
       openDialogDetails(activeWorkspaceTicketId, activeDialogRow);
