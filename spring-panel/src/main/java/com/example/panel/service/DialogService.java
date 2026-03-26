@@ -1603,56 +1603,59 @@ public class DialogService {
                 && contextContractReviewFresh
                 && !contextContractReviewTimestampInvalid);
 
-OffsetDateTime legacyUsageReviewedAt = parseReviewTimestamp(legacyUsageReviewedAtRaw);
-boolean legacyUsageReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyUsageReviewedAtRaw))
-        && legacyUsageReviewedAt == null;
-boolean legacyUsageReviewPresent = legacyUsageReviewedAt != null && StringUtils.hasText(legacyUsageReviewedBy);
-boolean legacyUsageReviewFresh = false;
-long legacyUsageReviewAgeHours = -1L;
-if (legacyUsageReviewedAt != null) {
-    legacyUsageReviewAgeHours = Math.max(0, java.time.Duration
-            .between(legacyUsageReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
-    legacyUsageReviewFresh = legacyUsageReviewAgeHours <= legacyUsageReviewTtlHours;
-}
-long legacyUsagePolicyUpdatedEvents = toLong(safeTotals.get("workspace_legacy_usage_policy_updated_events"));
-long manualLegacyOpenEvents = toLong(safeTotals.get("manual_legacy_open_events"));
-long manualLegacyBlockedEvents = toLong(safeTotals.get("workspace_open_legacy_blocked_events"));
-List<Map<String, Object>> manualLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
-        "workspace_open_legacy_manual",
-        windowStart,
-        windowEnd,
-        experimentName,
-        5);
-List<Map<String, Object>> blockedLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
-        "workspace_open_legacy_blocked",
-        windowStart,
-        windowEnd,
-        experimentName,
-        5);
-long unknownManualLegacyReasons = manualLegacyReasonBreakdown.stream()
-        .filter(row -> {
-            String reason = normalizeNullString(String.valueOf(row.getOrDefault("reason", "")));
-            return !StringUtils.hasText(reason)
-                    || (legacyManualReasonCatalogRequired && !legacyManualAllowedReasons.contains(reason));
-        })
-        .mapToLong(row -> toLong(row.get("events")))
-        .sum();
-long manualLegacyBlockedEvents = toLong(safeTotals.get("workspace_open_legacy_blocked_events"));
-double manualLegacyShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
-boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
-double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
-boolean legacyUsageThresholdReady = !legacyUsageThresholdConfigured || manualLegacyShareRatio <= legacyUsageThresholdShare;
-boolean legacyUsageDecisionPresent = StringUtils.hasText(legacyUsageDecision);
-boolean legacyUsagePolicyEnabled = legacyUsageThresholdConfigured
-        || legacyUsageDecisionRequired
-        || legacyUsageReviewPresent
-        || StringUtils.hasText(legacyUsageReviewNote);
-boolean legacyUsagePolicyReady = !legacyUsagePolicyEnabled
-        || (legacyUsageReviewPresent
-        && legacyUsageReviewFresh
-        && !legacyUsageReviewTimestampInvalid
-        && legacyUsageThresholdReady
-        && (!legacyUsageDecisionRequired || legacyUsageDecisionPresent));
+        OffsetDateTime legacyUsageReviewedAt = parseReviewTimestamp(legacyUsageReviewedAtRaw);
+        boolean legacyUsageReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyUsageReviewedAtRaw))
+                && legacyUsageReviewedAt == null;
+        boolean legacyUsageReviewPresent = legacyUsageReviewedAt != null && StringUtils.hasText(legacyUsageReviewedBy);
+        boolean legacyUsageReviewFresh = false;
+        long legacyUsageReviewAgeHours = -1L;
+        if (legacyUsageReviewedAt != null) {
+            legacyUsageReviewAgeHours = Math.max(0, java.time.Duration
+                    .between(legacyUsageReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours());
+            legacyUsageReviewFresh = legacyUsageReviewAgeHours <= legacyUsageReviewTtlHours;
+        }
+        long legacyUsagePolicyUpdatedEvents = toLong(safeTotals.get("workspace_legacy_usage_policy_updated_events"));
+        long manualLegacyOpenEvents = toLong(safeTotals.get("manual_legacy_open_events"));
+        long manualLegacyBlockedEvents = toLong(safeTotals.get("workspace_open_legacy_blocked_events"));
+        List<Map<String, Object>> manualLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
+                "workspace_open_legacy_manual",
+                windowStart,
+                windowEnd,
+                experimentName,
+                5);
+        List<Map<String, Object>> blockedLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
+                "workspace_open_legacy_blocked",
+                windowStart,
+                windowEnd,
+                experimentName,
+                5);
+        long unknownManualLegacyReasons = manualLegacyReasonBreakdown.stream()
+                .filter(row -> {
+                    String reason = normalizeNullString(String.valueOf(row.getOrDefault("reason", "")));
+                    return !StringUtils.hasText(reason)
+                            || (legacyManualReasonCatalogRequired && !legacyManualAllowedReasons.contains(reason));
+                })
+                .mapToLong(row -> toLong(row.get("events")))
+                .sum();
+        double manualLegacyShareRatio = workspaceOpenEvents > 0 ? (double) manualLegacyOpenEvents / workspaceOpenEvents : 0d;
+        boolean legacyUsageThresholdConfigured = legacyUsageMaxSharePct != null;
+        double legacyUsageThresholdShare = legacyUsageThresholdConfigured ? legacyUsageMaxSharePct / 100d : 1d;
+        boolean legacyUsageThresholdReady = !legacyUsageThresholdConfigured || manualLegacyShareRatio <= legacyUsageThresholdShare;
+        boolean legacyUsageReasonsReady = !legacyManualReasonCatalogRequired || unknownManualLegacyReasons == 0;
+        boolean legacyUsageDecisionPresent = StringUtils.hasText(legacyUsageDecision);
+        boolean legacyUsagePolicyEnabled = legacyUsageThresholdConfigured
+                || legacyUsageDecisionRequired
+                || legacyUsageReviewPresent
+                || StringUtils.hasText(legacyUsageReviewNote)
+                || legacyManualReasonCatalogRequired
+                || !legacyManualAllowedReasons.isEmpty();
+        boolean legacyUsagePolicyReady = !legacyUsagePolicyEnabled
+                || (legacyUsageReviewPresent
+                && legacyUsageReviewFresh
+                && !legacyUsageReviewTimestampInvalid
+                && legacyUsageThresholdReady
+                && legacyUsageReasonsReady
+                && (!legacyUsageDecisionRequired || legacyUsageDecisionPresent));
         List<Map<String, Object>> packetItems = new ArrayList<>();
         packetItems.add(buildScorecardItem(
                 "scorecard_snapshot",
@@ -1808,34 +1811,36 @@ boolean legacyUsagePolicyReady = !legacyUsagePolicyEnabled
                         .filter(StringUtils::hasText)
                         .collect(Collectors.joining(" · "))
         ));
-packetItems.add(buildScorecardItem(
-        "legacy_usage_policy",
-        "workspace",
-        "Legacy manual-open policy",
-        !legacyUsagePolicyEnabled ? "off" : (legacyUsagePolicyReady ? "ok" : "hold"),
-        legacyUsagePolicyEnabled && !legacyUsagePolicyReady,
-        "Переход к primary-flow требует контролировать долю manual legacy-open в UTC-окне и зафиксировать review-решение.",
-        !legacyUsagePolicyEnabled
-                ? "not required"
-                : legacyUsageReviewTimestampInvalid
-                        ? "invalid_utc"
-                        : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s".formatted(
-                        manualLegacyShareRatio * 100d,
-                        manualLegacyOpenEvents,
-                        workspaceOpenEvents,
-                        legacyUsageThresholdConfigured ? ", max=%d%%".formatted(legacyUsageMaxSharePct) : "",
-                        legacyUsageDecisionPresent ? ", decision=%s".formatted(legacyUsageDecision) : ""),
-        legacyUsagePolicyEnabled
-                ? "review <= %d h UTC%s%s".formatted(
-                legacyUsageReviewTtlHours,
-                legacyUsageThresholdConfigured ? ", manual share <= %d%%".formatted(legacyUsageMaxSharePct) : "",
-                legacyUsageDecisionRequired ? ", decision required" : "")
-                : "optional",
-        legacyUsageReviewedAt != null ? legacyUsageReviewedAt.toString() : "",
-        firstNonBlank(
-                legacyUsageReviewNote,
-                legacyUsageReviewPresent ? "reviewed_by=%s; age_hours=%d".formatted(legacyUsageReviewedBy, legacyUsageReviewAgeHours) : "")
-));
+        packetItems.add(buildScorecardItem(
+                "legacy_usage_policy",
+                "workspace",
+                "Legacy manual-open policy",
+                !legacyUsagePolicyEnabled ? "off" : (legacyUsagePolicyReady ? "ok" : "hold"),
+                legacyUsagePolicyEnabled && !legacyUsagePolicyReady,
+                "Переход к primary-flow требует контролировать долю manual legacy-open в UTC-окне и зафиксировать review-решение.",
+                !legacyUsagePolicyEnabled
+                        ? "not required"
+                        : legacyUsageReviewTimestampInvalid
+                                ? "invalid_utc"
+                                : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s%s".formatted(
+                                manualLegacyShareRatio * 100d,
+                                manualLegacyOpenEvents,
+                                workspaceOpenEvents,
+                                legacyUsageThresholdConfigured ? ", max=%d%%".formatted(legacyUsageMaxSharePct) : "",
+                                legacyManualReasonCatalogRequired ? ", unknown_reasons=%d".formatted(unknownManualLegacyReasons) : "",
+                                legacyUsageDecisionPresent ? ", decision=%s".formatted(legacyUsageDecision) : ""),
+                legacyUsagePolicyEnabled
+                        ? "review <= %d h UTC%s%s%s".formatted(
+                        legacyUsageReviewTtlHours,
+                        legacyUsageThresholdConfigured ? ", manual share <= %d%%".formatted(legacyUsageMaxSharePct) : "",
+                        legacyUsageDecisionRequired ? ", decision required" : "",
+                        legacyManualReasonCatalogRequired ? ", reasons in allowed catalog" : "")
+                        : "optional",
+                legacyUsageReviewedAt != null ? legacyUsageReviewedAt.toString() : "",
+                firstNonBlank(
+                        legacyUsageReviewNote,
+                        legacyUsageReviewPresent ? "reviewed_by=%s; age_hours=%d".formatted(legacyUsageReviewedBy, legacyUsageReviewAgeHours) : "")
+        ));
         packetItems.add(buildScorecardItem(
                 "context_minimum_profile",
                 "context",
