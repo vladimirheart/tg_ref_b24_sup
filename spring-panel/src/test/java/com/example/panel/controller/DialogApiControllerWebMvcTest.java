@@ -275,6 +275,14 @@ class DialogApiControllerWebMvcTest {
                 Map.entry("workspace_rollout_context_contract_mandatory_fields_by_scenario", Map.of("billing", List.of("open_dialogs"))),
                 Map.entry("workspace_rollout_context_contract_source_of_truth", List.of("total_dialogs:local")),
                 Map.entry("workspace_rollout_context_contract_priority_blocks", List.of("customer_profile", "context_sources")),
+                Map.entry("workspace_rollout_legacy_manual_open_policy_enabled", true),
+                Map.entry("workspace_rollout_legacy_manual_open_reason_required", true),
+                Map.entry("workspace_rollout_legacy_manual_open_block_on_hold", true),
+                Map.entry("workspace_rollout_legacy_manual_open_block_on_stale_review", true),
+                Map.entry("workspace_rollout_legacy_manual_open_review_ttl_hours", 72),
+                Map.entry("workspace_rollout_governance_legacy_usage_decision", "hold"),
+                Map.entry("workspace_rollout_governance_legacy_usage_reviewed_by", "lead"),
+                Map.entry("workspace_rollout_governance_legacy_usage_reviewed_at", "broken-timestamp"),
                 Map.entry("workspace_rollout_external_kpi_reviewed_at", "2026-01-01T10:15:00+03:00"),
                 Map.entry("workspace_rollout_external_kpi_data_updated_at", "invalid-date")
         )));
@@ -315,6 +323,11 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.meta.rollout.mode").value("cohort_rollout"))
                 .andExpect(jsonPath("$.meta.rollout.disable_legacy_fallback").value(true))
                 .andExpect(jsonPath("$.meta.rollout.legacy_fallback_available").value(false))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.enabled").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.reason_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.blocked").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.block_reason").value("invalid_review_timestamp"))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.review_timestamp_invalid").value(true))
                 .andExpect(jsonPath("$.meta.parity.status").value("ok"))
                 .andExpect(jsonPath("$.meta.parity.score_pct").value(100))
                 .andExpect(jsonPath("$.meta.parity.checked_at").exists())
@@ -338,6 +351,18 @@ class DialogApiControllerWebMvcTest {
                         .with(user("operator"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"event_type\":\"workspace_open_legacy_manual\",\"ticket_id\":\"T-1\",\"reason\":\"manual_rollback\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void workspaceTelemetryAcceptsBlockedLegacyOpenEvent() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"event_type\":\"workspace_open_legacy_blocked\",\"ticket_id\":\"T-1\",\"reason\":\"review_decision_hold\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
