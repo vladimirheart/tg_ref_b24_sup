@@ -128,6 +128,8 @@ public class AnalyticsController {
         String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
         String decisionAction = normalize(String.valueOf(request != null ? request.decisionAction() : null));
         String incidentFollowup = normalize(String.valueOf(request != null ? request.incidentFollowup() : null));
+        List<String> requiredCriteria = sanitizeStringList(request != null ? request.requiredCriteria() : null);
+        List<String> checkedCriteria = sanitizeStringList(request != null ? request.checkedCriteria() : null);
         if (reviewNote != null && reviewNote.length() > 500) {
             reviewNote = reviewNote.substring(0, 500);
         }
@@ -174,6 +176,16 @@ public class AnalyticsController {
             dialogConfig.remove("workspace_rollout_governance_review_incident_followup");
         } else {
             dialogConfig.put("workspace_rollout_governance_review_incident_followup", incidentFollowup);
+        }
+        if (requiredCriteria.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_governance_review_required_criteria");
+        } else {
+            dialogConfig.put("workspace_rollout_governance_review_required_criteria", requiredCriteria);
+        }
+        if (checkedCriteria.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_governance_review_checked_criteria");
+        } else {
+            dialogConfig.put("workspace_rollout_governance_review_checked_criteria", checkedCriteria);
         }
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
@@ -245,7 +257,9 @@ public class AnalyticsController {
                 "next_review_due_at_utc", dueAtUtc,
                 "review_note", reviewNote == null ? "" : reviewNote,
                 "decision_action", decisionAction == null ? "" : decisionAction,
-                "incident_followup", incidentFollowup == null ? "" : incidentFollowup
+                "incident_followup", incidentFollowup == null ? "" : incidentFollowup,
+                "required_criteria", requiredCriteria,
+                "checked_criteria", checkedCriteria
         ));
     }
 
@@ -1036,7 +1050,9 @@ public class AnalyticsController {
                                                  String reviewedAtUtc,
                                                  String reviewNote,
                                                  String decisionAction,
-                                                 String incidentFollowup) {
+                                                 String incidentFollowup,
+                                                 Object requiredCriteria,
+                                                 Object checkedCriteria) {
     }
 
     private record WorkspaceContextStandardRequest(Boolean required,
