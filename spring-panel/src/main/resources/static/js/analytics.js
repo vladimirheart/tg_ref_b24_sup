@@ -59,6 +59,8 @@
   const legacyUsageDecisionInput = document.getElementById('workspaceTelemetryLegacyUsageDecision');
   const legacyUsageReviewNoteInput = document.getElementById('workspaceTelemetryLegacyUsageReviewNote');
   const legacyUsageSaveButton = document.getElementById('workspaceTelemetryLegacyUsageSave');
+  const legacyUsageAllowedReasonsInput = document.getElementById('workspaceTelemetryLegacyUsageAllowedReasons');
+  const legacyUsageReasonCatalogRequiredInput = document.getElementById('workspaceTelemetryLegacyUsageReasonCatalogRequired');
   const legacyUsageActionState = document.getElementById('workspaceTelemetryLegacyUsageActionState');
   const packetContextState = document.getElementById('workspaceTelemetryPacketContextState');
   const packetContextMeta = document.getElementById('workspaceTelemetryPacketContextMeta');
@@ -725,6 +727,11 @@ if (packetLegacyUsageMeta) {
   const note = String(legacyUsagePolicy?.review_note || '').trim();
   const policyEvents = Number(legacyUsagePolicy?.policy_updated_events_in_window || 0);
   const decision = String(legacyUsagePolicy?.decision || '').trim();
+  const reasonsTop = Array.isArray(legacyUsagePolicy?.manual_legacy_reasons_top) ? legacyUsagePolicy.manual_legacy_reasons_top : [];
+  const reasonsSummary = reasonsTop.length
+    ? reasonsTop.slice(0, 3).map((row) => `${String(row?.reason || 'unspecified')}:${Number(row?.events || 0)}`).join(', ')
+    : '';
+  const unknownEvents = Number(legacyUsagePolicy?.unknown_manual_reason_events || 0);
   packetLegacyUsageMeta.textContent = `manual legacy share=${share}%${maxShare !== null && maxShare !== undefined && maxShare !== '' ? ` (max ${maxShare}%)` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${decision ? ` · decision: ${decision}` : ''} · policy updates: ${policyEvents}${note ? ` · note: ${note}` : ''}`;
 }
 if (legacyUsageReviewedByInput) {
@@ -743,6 +750,13 @@ if (legacyUsageDecisionInput) {
 }
 if (legacyUsageReviewNoteInput) {
   legacyUsageReviewNoteInput.value = String(legacyUsagePolicy?.review_note || '').trim();
+}
+if (legacyUsageAllowedReasonsInput) {
+  const allowedReasons = Array.isArray(legacyUsagePolicy?.allowed_reasons) ? legacyUsagePolicy.allowed_reasons : [];
+  legacyUsageAllowedReasonsInput.value = allowedReasons.join(', ');
+}
+if (legacyUsageReasonCatalogRequiredInput) {
+  legacyUsageReasonCatalogRequiredInput.checked = legacyUsagePolicy?.reason_catalog_required === true;
 }
     const contextContract = packet?.context_contract || {};
     const contextScenarios = Array.isArray(contextContract?.scenarios) ? contextContract.scenarios : [];
@@ -1977,6 +1991,8 @@ async function saveLegacyUsagePolicy() {
         reviewNote: legacyUsageReviewNoteInput ? (legacyUsageReviewNoteInput.value || '').trim().slice(0, 500) : '',
         decision: legacyUsageDecisionInput ? String(legacyUsageDecisionInput.value || '').trim().toLowerCase() : '',
         maxLegacyManualSharePct: maxSharePct,
+        allowedReasons: parseCsvList(legacyUsageAllowedReasonsInput ? legacyUsageAllowedReasonsInput.value : ''),
+        reasonCatalogRequired: legacyUsageReasonCatalogRequiredInput ? legacyUsageReasonCatalogRequiredInput.checked : false,
       }),
     });
     const payload = await response.json();

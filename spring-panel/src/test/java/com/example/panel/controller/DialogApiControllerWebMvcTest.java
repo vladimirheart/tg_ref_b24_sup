@@ -346,7 +346,6 @@ class DialogApiControllerWebMvcTest {
     @Test
     void workspaceTelemetryAcceptsManualLegacyRollbackEvent() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
-
         mockMvc.perform(post("/api/dialogs/workspace-telemetry")
                         .with(user("operator"))
                         .contentType(MediaType.APPLICATION_JSON)
