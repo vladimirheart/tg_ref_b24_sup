@@ -77,6 +77,7 @@
   const contextScenarioSourceOfTruthInput = document.getElementById('workspaceTelemetryContextScenarioSourceOfTruth');
   const contextPriorityBlocksInput = document.getElementById('workspaceTelemetryContextPriorityBlocks');
   const contextScenarioPriorityBlocksInput = document.getElementById('workspaceTelemetryContextScenarioPriorityBlocks');
+  const contextPlaybooksInput = document.getElementById('workspaceTelemetryContextPlaybooks');
   const contextReviewedByInput = document.getElementById('workspaceTelemetryContextReviewedBy');
   const contextReviewedAtInput = document.getElementById('workspaceTelemetryContextReviewedAtUtc');
   const contextReviewNoteInput = document.getElementById('workspaceTelemetryContextReviewNote');
@@ -838,7 +839,11 @@ if (legacyUsageReasonCatalogRequiredInput) {
       const reviewedAt = contextContract?.reviewed_at ? formatTimestamp(contextContract.reviewed_at) : '—';
       const reviewedBy = String(contextContract?.reviewed_by || '').trim() || '—';
       const ttl = Number(contextContract?.review_ttl_hours || 0);
-      packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · scenario profiles=${Object.keys(contextMandatoryFieldsByScenario).length} · sources=${contextSourceOfTruth.length} (+scenario ${Object.keys(contextSourceOfTruthByScenario).length}, effective ${contextEffectiveSourceOfTruth.length}) · blocks=${contextPriorityBlocks.length} (+scenario ${Object.keys(contextPriorityBlocksByScenario).length}, effective ${contextEffectivePriorityBlocks.length}) · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
+      const playbookCount = Number(contextContract?.playbook_count || 0);
+      const playbookExpectedCount = Number(contextContract?.playbook_expected_count || 0);
+      const playbookCoveredCount = Number(contextContract?.playbook_covered_count || 0);
+      const playbookCoveragePct = Number(contextContract?.playbook_coverage_pct || 0);
+      packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · scenario profiles=${Object.keys(contextMandatoryFieldsByScenario).length} · sources=${contextSourceOfTruth.length} (+scenario ${Object.keys(contextSourceOfTruthByScenario).length}, effective ${contextEffectiveSourceOfTruth.length}) · blocks=${contextPriorityBlocks.length} (+scenario ${Object.keys(contextPriorityBlocksByScenario).length}, effective ${contextEffectivePriorityBlocks.length}) · playbooks=${playbookCount}${playbookExpectedCount > 0 ? ` (${playbookCoveredCount}/${playbookExpectedCount}, ${playbookCoveragePct}%)` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
     }
     if (contextRequiredInput) {
       contextRequiredInput.checked = contextContract?.required === true;
@@ -868,6 +873,14 @@ if (legacyUsageReasonCatalogRequiredInput) {
     if (contextScenarioPriorityBlocksInput) {
       contextScenarioPriorityBlocksInput.value = Object.keys(contextPriorityBlocksByScenario).length > 0
         ? JSON.stringify(contextPriorityBlocksByScenario, null, 2)
+        : '';
+    }
+    if (contextPlaybooksInput) {
+      const playbooks = contextContract?.playbooks && typeof contextContract.playbooks === 'object'
+        ? contextContract.playbooks
+        : {};
+      contextPlaybooksInput.value = Object.keys(playbooks).length > 0
+        ? JSON.stringify(playbooks, null, 2)
         : '';
     }
     if (contextReviewedByInput) {
@@ -1266,6 +1279,24 @@ if (legacyUsageReasonCatalogRequiredInput) {
     const normalized = String(reason || '').trim();
     if (!normalized) {
       return 'unspecified';
+    }
+    if (normalized.includes(',')) {
+      return normalized
+        .split(',')
+        .map((item) => formatGapReason(item))
+        .filter(Boolean)
+        .join('; ');
+    }
+    if (normalized.startsWith('mandatory_field:')) {
+      return `Mandatory field: ${normalized.slice('mandatory_field:'.length)}`;
+    }
+    if (normalized.startsWith('source_of_truth:')) {
+      const payload = normalized.slice('source_of_truth:'.length);
+      const [field, source, status] = payload.split(':');
+      return `Source of truth: ${field || 'field'} via ${source || 'source'}${status ? ` (${status})` : ''}`;
+    }
+    if (normalized.startsWith('priority_block:')) {
+      return `Priority block: ${normalized.slice('priority_block:'.length)}`;
     }
     if (normalized.startsWith('field:')) {
       const payload = normalized.slice('field:'.length);
@@ -1881,6 +1912,34 @@ if (legacyUsageReasonCatalogRequiredInput) {
     return result;
   }
 
+  function parseContextPlaybooksMap(value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Context-gap playbooks должен быть JSON-объектом вида {"mandatory_field:phone":{"label":"...","url":"https://..."}}.');
+    }
+    const result = {};
+    Object.entries(parsed).forEach(([key, item]) => {
+      const normalizedKey = String(key || '').trim().toLowerCase();
+      if (!normalizedKey || normalizedKey.length > 160 || !item || typeof item !== 'object' || Array.isArray(item)) {
+        return;
+      }
+      const label = String(item.label || '').trim().slice(0, 160) || 'Playbook';
+      const url = String(item.url || '').trim();
+      const summary = String(item.summary || '').trim().slice(0, 300);
+      if (!/^https?:\/\//i.test(url)) {
+        throw new Error(`Context-gap playbook "${normalizedKey}" должен содержать http/https URL.`);
+      }
+      result[normalizedKey] = summary
+        ? { label, url, summary }
+        : { label, url };
+    });
+    return result;
+  }
+
   async function saveContextStandard() {
     if (!contextSaveButton) {
       return;
@@ -1900,6 +1959,7 @@ if (legacyUsageReasonCatalogRequiredInput) {
     let scenarioMandatoryFields = {};
     let scenarioSourceOfTruth = {};
     let scenarioPriorityBlocks = {};
+    let playbooks = {};
     try {
       scenarioMandatoryFields = parseScenarioListMap(
         contextScenarioMandatoryFieldsInput ? contextScenarioMandatoryFieldsInput.value : '',
@@ -1913,6 +1973,7 @@ if (legacyUsageReasonCatalogRequiredInput) {
         contextScenarioPriorityBlocksInput ? contextScenarioPriorityBlocksInput.value : '',
         'Scenario priority blocks'
       );
+      playbooks = parseContextPlaybooksMap(contextPlaybooksInput ? contextPlaybooksInput.value : '');
     } catch (error) {
       if (contextActionState) {
         contextActionState.textContent = `Ошибка: ${error.message}`;
@@ -1935,6 +1996,7 @@ if (legacyUsageReasonCatalogRequiredInput) {
           scenarioSourceOfTruth,
           priorityBlocks: parseCsvList(contextPriorityBlocksInput ? contextPriorityBlocksInput.value : ''),
           scenarioPriorityBlocks,
+          playbooks,
           reviewedBy: contextReviewedByInput ? (contextReviewedByInput.value || '').trim() : '',
           reviewedAtUtc,
           note: contextReviewNoteInput ? (contextReviewNoteInput.value || '').trim().slice(0, 500) : '',

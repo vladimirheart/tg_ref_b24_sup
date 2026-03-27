@@ -344,6 +344,75 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceIncludesActionableContextViolationDetailsWithPlaybookLinks() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("DIALOG_BULK_ACTIONS"))).thenReturn(false);
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("ROLE_ADMIN"))).thenReturn(false);
+        DialogListItem summary = new DialogListItem(
+                "T-CONTEXT-GAP",
+                1L,
+                42L,
+                "user",
+                "Клиент",
+                "biz",
+                1L,
+                "demo",
+                "city",
+                "location",
+                "problem",
+                "2026-01-01T10:00:00Z",
+                "pending",
+                null,
+                null,
+                "operator",
+                "2026-01-01",
+                "10:00",
+                "label",
+                "user",
+                "2026-01-01T10:00:00Z",
+                0,
+                null,
+                "billing"
+        );
+        when(dialogService.loadDialogDetails("T-CONTEXT-GAP", null, "operator"))
+                .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
+        when(dialogService.loadHistory("T-CONTEXT-GAP", null)).thenReturn(List.of());
+        when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadRelatedEvents(anyString(), anyInt())).thenReturn(List.of());
+        when(dialogService.loadClientProfileEnrichment(anyLong())).thenReturn(Map.of(
+                "total_dialogs", 8,
+                "open_dialogs", 2
+        ));
+        when(dialogService.loadDialogs("operator")).thenReturn(List.of(summary));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.ofEntries(
+                Map.entry("workspace_rollout_context_contract_required", true),
+                Map.entry("workspace_rollout_context_contract_scenarios", List.of("billing")),
+                Map.entry("workspace_rollout_context_contract_mandatory_fields", List.of("phone")),
+                Map.entry("workspace_rollout_context_contract_source_of_truth", List.of("phone:crm")),
+                Map.entry("workspace_rollout_context_contract_priority_blocks", List.of("customer_profile")),
+                Map.entry("workspace_rollout_context_contract_playbooks", Map.of(
+                        "mandatory_field:phone", Map.of(
+                                "label", "Phone recovery",
+                                "url", "https://wiki.example.local/context/phone",
+                                "summary", "Запросить телефон у клиента и обновить CRM"),
+                        "source_of_truth", Map.of(
+                                "label", "Source guide",
+                                "url", "https://wiki.example.local/context/source-of-truth"))),
+                Map.entry("workspace_rollout_context_contract_reviewed_by", "ops.lead"),
+                Map.entry("workspace_rollout_context_contract_reviewed_at", "2026-01-01T10:00:00Z")
+        )));
+
+        mockMvc.perform(get("/api/dialogs/T-CONTEXT-GAP/workspace").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.context.contract.ready").value(false))
+                .andExpect(jsonPath("$.context.contract.missing_mandatory_fields[0]").value("phone"))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].code").value("mandatory_field:phone"))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].operator_message").value("Заполните обязательное поле \"Phone\" в карточке клиента."))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].playbook.label").value("Phone recovery"))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].playbook.url").value("https://wiki.example.local/context/phone"));
+    }
+
+    @Test
     void workspaceTelemetryAcceptsManualLegacyRollbackEvent() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         mockMvc.perform(post("/api/dialogs/workspace-telemetry")
