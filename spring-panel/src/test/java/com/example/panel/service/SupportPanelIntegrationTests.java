@@ -865,6 +865,8 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("review_timestamp_invalid", false);
         assertThat(legacyInventory).containsEntry("reviewed_at", "");
         assertThat(legacyInventory).containsEntry("managed", false);
+        assertThat(legacyInventory).containsEntry("repeat_review_required", true);
+        assertThat(legacyInventory).containsEntry("repeat_review_reason", "review_missing");
         assertThat(legacyInventory).containsEntry("unmanaged_count", 2L);
         assertThat(items).anySatisfy(item -> {
             if ("weekly_review".equals(item.get("key"))) {
@@ -914,6 +916,7 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("managed_coverage_pct", 100L);
         assertThat(legacyInventory).containsEntry("owner_coverage_pct", 100L);
         assertThat(legacyInventory).containsEntry("deadline_coverage_pct", 100L);
+        assertThat(legacyInventory).containsEntry("repeat_review_required", false);
         assertThat(legacyInventory).containsEntry("unmanaged_count", 0L);
         assertThat((List<String>) legacyInventory.get("action_items")).isEmpty();
         assertThat(items).anySatisfy(item -> {
