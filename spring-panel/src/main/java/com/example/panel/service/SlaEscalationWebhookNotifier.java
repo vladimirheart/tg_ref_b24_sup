@@ -828,6 +828,47 @@ public class SlaEscalationWebhookNotifier {
         } else {
             summary = "SLA routing audit нашёл non-blocking сигналы, которые стоит убрать до роста конфигурационного долга.";
         }
+        long mandatoryIssueTotal = issues.stream()
+                .filter(issue -> "rollout_blocker".equals(String.valueOf(issue.get("classification"))))
+                .count();
+        long advisoryIssueTotal = Math.max(0L, issues.size() - mandatoryIssueTotal);
+        long conflictIssueTotal = issues.stream()
+                .filter(issue -> String.valueOf(issue.get("type")).contains("conflict"))
+                .count();
+        long reviewIssueTotal = issues.stream()
+                .filter(issue -> String.valueOf(issue.get("type")).contains("review")
+                        || String.valueOf(issue.get("type")).contains("decision"))
+                .count();
+        long ownershipIssueTotal = issues.stream()
+                .filter(issue -> String.valueOf(issue.get("type")).contains("owner")
+                        || String.valueOf(issue.get("type")).contains("layer"))
+                .count();
+        List<String> minimumRequiredReviewPath = new ArrayList<>();
+        if (governanceReviewRequired) {
+            minimumRequiredReviewPath.add("utc_review");
+        }
+        if (governanceDecisionRequired) {
+            minimumRequiredReviewPath.add("explicit_decision");
+        }
+        if (governanceDryRunTicketRequired && minimumRequiredReviewPath.size() < 2) {
+            minimumRequiredReviewPath.add("dry_run_ticket");
+        }
+        if (minimumRequiredReviewPath.isEmpty() && requireOwner) {
+            minimumRequiredReviewPath.add("rule_owner");
+        }
+        List<String> advisoryCheckpoints = new ArrayList<>();
+        if (requireLayers) {
+            advisoryCheckpoints.add("layering");
+        }
+        if (requireReview && !minimumRequiredReviewPath.contains("utc_review")) {
+            advisoryCheckpoints.add("rule_review_freshness");
+        }
+        if (requireOwner && !minimumRequiredReviewPath.contains("rule_owner")) {
+            advisoryCheckpoints.add("rule_owner");
+        }
+        if (blockOnConflict || conflictingRulesCount > 0) {
+            advisoryCheckpoints.add("conflict_cleanup");
+        }
 
         Map<String, Object> auditPayload = new LinkedHashMap<>();
         auditPayload.put("generated_at", generatedAt.toString());
@@ -840,27 +881,38 @@ public class SlaEscalationWebhookNotifier {
         auditPayload.put("critical_candidates", criticalCandidates.size());
         auditPayload.put("rules_total", definitions.size());
         auditPayload.put("issues_total", issues.size());
+        auditPayload.put("mandatory_issue_total", mandatoryIssueTotal);
+        auditPayload.put("advisory_issue_total", advisoryIssueTotal);
+        auditPayload.put("minimum_required_review_path", minimumRequiredReviewPath);
+        auditPayload.put("advisory_checkpoints", advisoryCheckpoints.stream().distinct().toList());
+        auditPayload.put("issue_breakdown", Map.of(
+                "conflicts", conflictIssueTotal,
+                "review", reviewIssueTotal,
+                "ownership", ownershipIssueTotal,
+                "mandatory", mandatoryIssueTotal,
+                "advisory", advisoryIssueTotal
+        ));
         auditPayload.put("layer_counts", layerCounts);
         auditPayload.put("decision_preview", Map.of(
                 "selected_by_layer", decisionsByLayer,
                 "selected_by_route", decisionsByRoute
         ));
-        auditPayload.put("requirements", Map.of(
-                "require_layers", requireLayers,
-                "require_owner", requireOwner,
-                "require_review", requireReview,
-                "review_ttl_hours", reviewTtlHours,
-                "block_on_conflicts", blockOnConflict,
-                "broad_rule_coverage_pct", broadCoveragePct,
-                "governance_review_path", governanceReviewPath,
-                "governance_review_required", governanceReviewRequired,
-                "governance_review_required_configured", governanceReviewRequiredConfigured,
-                "governance_review_ttl_hours", governanceReviewTtlHours,
-                "governance_dry_run_ticket_required", governanceDryRunTicketRequired,
-                "governance_dry_run_ticket_required_configured", governanceDryRunTicketRequiredConfigured,
-                "governance_decision_required", governanceDecisionRequired,
-                "governance_decision_required_configured", governanceDecisionRequiredConfigured,
-                "governance_pre_review_conflicts_detected", conflictingRulesCount > 0
+        auditPayload.put("requirements", Map.ofEntries(
+                Map.entry("require_layers", requireLayers),
+                Map.entry("require_owner", requireOwner),
+                Map.entry("require_review", requireReview),
+                Map.entry("review_ttl_hours", reviewTtlHours),
+                Map.entry("block_on_conflicts", blockOnConflict),
+                Map.entry("broad_rule_coverage_pct", broadCoveragePct),
+                Map.entry("governance_review_path", governanceReviewPath),
+                Map.entry("governance_review_required", governanceReviewRequired),
+                Map.entry("governance_review_required_configured", governanceReviewRequiredConfigured),
+                Map.entry("governance_review_ttl_hours", governanceReviewTtlHours),
+                Map.entry("governance_dry_run_ticket_required", governanceDryRunTicketRequired),
+                Map.entry("governance_dry_run_ticket_required_configured", governanceDryRunTicketRequiredConfigured),
+                Map.entry("governance_decision_required", governanceDecisionRequired),
+                Map.entry("governance_decision_required_configured", governanceDecisionRequiredConfigured),
+                Map.entry("governance_pre_review_conflicts_detected", conflictingRulesCount > 0)
         ));
         auditPayload.put("governance_review", Map.ofEntries(
                 Map.entry("review_path", governanceReviewPath),

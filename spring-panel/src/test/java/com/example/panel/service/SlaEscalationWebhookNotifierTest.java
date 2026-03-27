@@ -1038,11 +1038,17 @@ class SlaEscalationWebhookNotifierTest {
 
         Map<String, Object> governanceReview = (Map<String, Object>) audit.get("governance_review");
         Map<String, Object> requirements = (Map<String, Object>) audit.get("requirements");
+        List<String> minimumPath = (List<String>) audit.get("minimum_required_review_path");
+        Number mandatoryIssues = (Number) audit.get("mandatory_issue_total");
+        Number advisoryIssues = (Number) audit.get("advisory_issue_total");
         assertEquals("strict", governanceReview.get("review_path"));
         assertEquals(4L, governanceReview.get("decision_lead_time_hours"));
         assertEquals(true, governanceReview.get("decision_ready"));
         assertEquals(true, requirements.get("governance_dry_run_ticket_required"));
         assertEquals(true, requirements.get("governance_decision_required"));
+        assertEquals(List.of("utc_review", "explicit_decision"), minimumPath);
+        assertTrue(mandatoryIssues.longValue() >= 0L);
+        assertTrue(advisoryIssues.longValue() >= 0L);
     }
 
     @Test

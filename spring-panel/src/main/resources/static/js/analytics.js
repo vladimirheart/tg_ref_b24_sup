@@ -54,6 +54,7 @@
   const legacyScenarioMetadataInput = document.getElementById('workspaceTelemetryLegacyScenarioMetadata');
   const legacySaveButton = document.getElementById('workspaceTelemetryLegacySave');
   const legacyActionState = document.getElementById('workspaceTelemetryLegacyActionState');
+  const legacyInventorySummary = document.getElementById('workspaceTelemetryLegacyInventorySummary');
   const packetLegacyUsageState = document.getElementById('workspaceTelemetryPacketLegacyUsageState');
   const packetLegacyUsageMeta = document.getElementById('workspaceTelemetryPacketLegacyUsageMeta');
   const legacyUsageReviewedByInput = document.getElementById('workspaceTelemetryLegacyUsageReviewedBy');
@@ -86,6 +87,7 @@
   const contextReviewNoteInput = document.getElementById('workspaceTelemetryContextReviewNote');
   const contextSaveButton = document.getElementById('workspaceTelemetryContextSave');
   const contextActionState = document.getElementById('workspaceTelemetryContextActionState');
+  const contextActionSummary = document.getElementById('workspaceTelemetryContextActionSummary');
   const slaPolicyAuditStatus = document.getElementById('workspaceTelemetrySlaPolicyAuditStatus');
   const slaPolicyAuditUpdatedAt = document.getElementById('workspaceTelemetrySlaPolicyAuditUpdatedAt');
   const slaPolicyAuditSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditSummary');
@@ -95,6 +97,7 @@
   const slaPolicyAuditPreview = document.getElementById('workspaceTelemetrySlaPolicyAuditPreview');
   const slaPolicyAuditPreviewMeta = document.getElementById('workspaceTelemetrySlaPolicyAuditPreviewMeta');
   const slaPolicyAuditIssueSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditIssueSummary');
+  const slaPolicyAuditSummaryCompact = document.getElementById('workspaceTelemetrySlaPolicyAuditSummaryCompact');
   const slaPolicyAuditIssuesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditIssuesTable');
   const slaPolicyAuditRulesTable = document.getElementById('workspaceTelemetrySlaPolicyAuditRulesTable');
   const slaPolicyReviewedByInput = document.getElementById('workspaceTelemetrySlaPolicyReviewedBy');
@@ -114,6 +117,7 @@
   const macroGovernanceCleanup = document.getElementById('workspaceTelemetryMacroGovernanceCleanup');
   const macroGovernanceCleanupMeta = document.getElementById('workspaceTelemetryMacroGovernanceCleanupMeta');
   const macroGovernanceIssueSummary = document.getElementById('workspaceTelemetryMacroGovernanceIssueSummary');
+  const macroGovernanceSummaryCompact = document.getElementById('workspaceTelemetryMacroGovernanceSummaryCompact');
   const macroGovernanceIssuesTable = document.getElementById('workspaceTelemetryMacroGovernanceIssuesTable');
   const macroGovernanceTemplatesTable = document.getElementById('workspaceTelemetryMacroGovernanceTemplatesTable');
   const macroGovernanceReviewedByInput = document.getElementById('workspaceTelemetryMacroGovernanceReviewedBy');
@@ -311,6 +315,9 @@
     if (packetLegacyMeta) {
       packetLegacyMeta.textContent = '';
     }
+    if (legacyInventorySummary) {
+      legacyInventorySummary.textContent = '';
+    }
     if (legacyActionState) {
       legacyActionState.textContent = '';
     }
@@ -319,6 +326,9 @@
     }
     if (packetContextMeta) {
       packetContextMeta.textContent = '';
+    }
+    if (contextActionSummary) {
+      contextActionSummary.textContent = '';
     }
     if (contextActionState) {
       contextActionState.textContent = '';
@@ -351,6 +361,9 @@
     if (slaPolicyAuditIssueSummary) {
       slaPolicyAuditIssueSummary.textContent = '';
       slaPolicyAuditIssueSummary.classList.add('d-none');
+    }
+    if (slaPolicyAuditSummaryCompact) {
+      slaPolicyAuditSummaryCompact.textContent = '';
     }
     if (slaPolicyAuditIssuesTable) {
       slaPolicyAuditIssuesTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
@@ -386,6 +399,9 @@
     if (macroGovernanceIssueSummary) {
       macroGovernanceIssueSummary.textContent = '';
       macroGovernanceIssueSummary.classList.add('d-none');
+    }
+    if (macroGovernanceSummaryCompact) {
+      macroGovernanceSummaryCompact.textContent = '';
     }
     if (macroGovernanceIssuesTable) {
       macroGovernanceIssuesTable.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Загрузка audit...</td></tr>';
@@ -760,6 +776,21 @@
         ? JSON.stringify(metadata, null, 2)
         : '';
     }
+    if (legacyInventorySummary) {
+      const actionItems = Array.isArray(legacyInventory?.action_items) ? legacyInventory.action_items : [];
+      const parts = [
+        `managed=${formatNumber(legacyInventory?.managed_count || 0)}/${formatNumber(legacyInventory?.open_count || 0)} (${formatNumber(legacyInventory?.managed_coverage_pct || 0)}%)`,
+        `owner=${formatNumber(legacyInventory?.owner_coverage_pct || 0)}%`,
+        `deadline=${formatNumber(legacyInventory?.deadline_coverage_pct || 0)}%`,
+      ];
+      if (Number(legacyInventory?.deadline_overdue_count || 0) > 0) {
+        parts.push(`overdue=${formatNumber(legacyInventory.deadline_overdue_count)} (${formatNumber(legacyInventory?.deadline_overdue_pct || 0)}%)`);
+      }
+      if (actionItems.length) {
+        parts.push(`next: ${actionItems[0]}`);
+      }
+      legacyInventorySummary.textContent = parts.join(' · ');
+    }
     const legacyUsagePolicy = packet?.legacy_usage_policy || {};
 if (packetLegacyUsageState) {
   if (legacyUsagePolicy?.enabled !== true) {
@@ -885,6 +916,22 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const playbookCoveredCount = Number(contextContract?.playbook_covered_count || 0);
       const playbookCoveragePct = Number(contextContract?.playbook_coverage_pct || 0);
       packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · scenario profiles=${Object.keys(contextMandatoryFieldsByScenario).length} · sources=${contextSourceOfTruth.length} (+scenario ${Object.keys(contextSourceOfTruthByScenario).length}, effective ${contextEffectiveSourceOfTruth.length}) · blocks=${contextPriorityBlocks.length} (+scenario ${Object.keys(contextPriorityBlocksByScenario).length}, effective ${contextEffectivePriorityBlocks.length}) · playbooks=${playbookCount}${playbookExpectedCount > 0 ? ` (${playbookCoveredCount}/${playbookExpectedCount}, ${playbookCoveragePct}%)` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
+    }
+    if (contextActionSummary) {
+      const focusBlocks = Array.isArray(contextContract?.operator_focus_blocks) ? contextContract.operator_focus_blocks : [];
+      const definitionGaps = Array.isArray(contextContract?.definition_gaps) ? contextContract.definition_gaps : [];
+      const actionItems = Array.isArray(contextContract?.action_items) ? contextContract.action_items : [];
+      const parts = [];
+      if (focusBlocks.length) {
+        parts.push(`operator first: ${focusBlocks.join(', ')}`);
+      }
+      if (definitionGaps.length) {
+        parts.push(`missing: ${definitionGaps.join(', ')}`);
+      }
+      if (actionItems.length) {
+        parts.push(`next: ${actionItems[0]}`);
+      }
+      contextActionSummary.textContent = parts.join(' · ');
     }
     if (contextRequiredInput) {
       contextRequiredInput.checked = contextContract?.required === true;
@@ -1025,6 +1072,20 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       slaPolicyAuditIssueSummary.textContent = parts.join(' · ');
       slaPolicyAuditIssueSummary.className = `alert ${status === 'hold' ? 'alert-danger' : (status === 'attention' ? 'alert-warning' : 'alert-secondary')} mb-3${parts.length ? '' : ' d-none'}`;
       slaPolicyAuditIssueSummary.classList.toggle('d-none', parts.length === 0);
+    }
+    if (slaPolicyAuditSummaryCompact) {
+      const minimumPath = Array.isArray(audit?.minimum_required_review_path) ? audit.minimum_required_review_path : [];
+      const advisory = Array.isArray(audit?.advisory_checkpoints) ? audit.advisory_checkpoints : [];
+      const parts = [];
+      if (minimumPath.length) {
+        parts.push(`required now: ${minimumPath.join(' -> ')}`);
+      }
+      parts.push(`mandatory=${formatNumber(audit?.mandatory_issue_total || 0)}`);
+      parts.push(`advisory=${formatNumber(audit?.advisory_issue_total || 0)}`);
+      if (advisory.length) {
+        parts.push(`noise filter: ${advisory.slice(0, 2).join(', ')}`);
+      }
+      slaPolicyAuditSummaryCompact.textContent = parts.join(' · ');
     }
     if (slaPolicyAuditIssuesTable) {
       if (!issues.length) {
@@ -1186,6 +1247,20 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       macroGovernanceIssueSummary.textContent = parts.join(' · ');
       macroGovernanceIssueSummary.className = `alert ${status === 'hold' ? 'alert-danger' : (status === 'attention' ? 'alert-warning' : 'alert-secondary')} mb-3${parts.length ? '' : ' d-none'}`;
       macroGovernanceIssueSummary.classList.toggle('d-none', parts.length === 0);
+    }
+    if (macroGovernanceSummaryCompact) {
+      const required = Array.isArray(audit?.minimum_required_checkpoints) ? audit.minimum_required_checkpoints : [];
+      const advisory = Array.isArray(audit?.advisory_signals) ? audit.advisory_signals : [];
+      const parts = [];
+      if (required.length) {
+        parts.push(`required now: ${required.join(' -> ')}`);
+      }
+      parts.push(`mandatory=${formatNumber(audit?.mandatory_issue_total || 0)}`);
+      parts.push(`advisory=${formatNumber(audit?.advisory_issue_total || 0)}`);
+      if (advisory.length) {
+        parts.push(`noise filter: ${advisory.slice(0, 2).join(', ')}`);
+      }
+      macroGovernanceSummaryCompact.textContent = parts.join(' · ');
     }
     if (macroGovernanceIssuesTable) {
       if (!issues.length) {
