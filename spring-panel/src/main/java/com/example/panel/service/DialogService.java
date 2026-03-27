@@ -1631,7 +1631,6 @@ public class DialogService {
         boolean parityExitCriteriaEnabled = toBoolean(parityExitCriteria.get("enabled"));
         boolean parityExitCriteriaReady = toBoolean(parityExitCriteria.get("ready"));
         boolean legacyInventoryEnabled = packetRequired || !legacyOnlyScenarios.isEmpty();
-        boolean legacyInventoryReady = legacyOnlyScenarios.isEmpty();
         OffsetDateTime legacyInventoryReviewedAt = parseReviewTimestamp(legacyInventoryReviewedAtRaw);
         boolean legacyInventoryReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyInventoryReviewedAtRaw))
                 && legacyInventoryReviewedAt == null;
@@ -1679,6 +1678,18 @@ public class DialogService {
         long legacyDeadlineOverdueCount = legacyOnlyScenarioDetails.stream()
                 .filter(item -> toBoolean(item.get("deadline_overdue")))
                 .count();
+        long legacyManagedScenarioCount = legacyOnlyScenarioDetails.stream()
+                .filter(item -> toBoolean(item.get("ready")) && !toBoolean(item.get("deadline_overdue")))
+                .count();
+        long legacyUnmanagedScenarioCount = Math.max(0, legacyOnlyScenarios.size() - legacyManagedScenarioCount);
+        boolean legacyInventoryReady = legacyOnlyScenarios.isEmpty();
+        boolean legacyInventoryManaged = !legacyInventoryReady
+                && legacyUnmanagedScenarioCount == 0
+                && legacyDeadlineInvalidCount == 0
+                && legacyDeadlineOverdueCount == 0;
+        String legacyInventoryStatus = !legacyInventoryEnabled
+                ? "off"
+                : legacyInventoryReady ? "ok" : (legacyInventoryManaged ? "attention" : "hold");
         boolean contextContractEnabled = contextContractRequired
                 || !contextContractScenarios.isEmpty()
                 || !contextContractMandatoryFields.isEmpty()
@@ -1966,14 +1977,16 @@ public class DialogService {
                 "legacy_only_inventory",
                 "workspace",
                 "Legacy-only scenario inventory",
-                !legacyInventoryEnabled ? "off" : (legacyInventoryReady ? "ok" : "attention"),
-                packetRequired && !legacyInventoryReady,
+                legacyInventoryStatus,
+                packetRequired && !legacyInventoryReady && !legacyInventoryManaged,
                 "Явный список legacy-only сценариев нужен, чтобы контролируемо завершить dual-run и не потерять edge-cases.",
                 !legacyInventoryEnabled
                         ? "not required"
                         : legacyInventoryReady
                                 ? "none"
-                                : "open=%d, owner=%d/%d, deadline=%d/%d%s%s".formatted(
+                                : "open=%d, managed=%d/%d, owner=%d/%d, deadline=%d/%d%s%s".formatted(
+                                legacyOnlyScenarios.size(),
+                                legacyManagedScenarioCount,
                                 legacyOnlyScenarios.size(),
                                 legacyOwnerAssignedCount,
                                 legacyOnlyScenarios.size(),
@@ -1981,12 +1994,13 @@ public class DialogService {
                                 legacyOnlyScenarios.size(),
                                 legacyDeadlineInvalidCount > 0 ? ", invalid_deadlines=%d".formatted(legacyDeadlineInvalidCount) : "",
                                 legacyDeadlineOverdueCount > 0 ? ", overdue=%d".formatted(legacyDeadlineOverdueCount) : ""),
-                legacyInventoryEnabled ? "inventory empty before decommission" : "optional",
+                legacyInventoryEnabled ? "inventory empty or every open scenario has owner + UTC deadline" : "optional",
                 legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
                 legacyInventoryReady
                         ? firstNonBlank(legacyInventoryReviewNote, legacyInventoryReviewedBy)
                         : Stream.of(
                                 String.join(", ", legacyOnlyScenarios),
+                                legacyInventoryManaged ? "sunset_plan=managed" : null,
                                 legacyOwnerAssignedCount < legacyOnlyScenarios.size()
                                         ? "missing_owner=%d".formatted(legacyOnlyScenarios.size() - legacyOwnerAssignedCount) : null,
                                 legacyDeadlineAssignedCount < legacyOnlyScenarios.size()
@@ -2270,10 +2284,16 @@ public class DialogService {
         packet.put("parity_exit_criteria", parityExitCriteria);
         packet.put("legacy_only_scenarios", legacyOnlyScenarios);
         packet.put("legacy_only_inventory", Map.of(
+                "status", legacyInventoryStatus,
+                "ready", legacyInventoryReady,
+                "managed", legacyInventoryManaged,
                 "reviewed_by", legacyInventoryReviewedBy == null ? "" : legacyInventoryReviewedBy,
                 "reviewed_at", legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : "",
                 "review_note", legacyInventoryReviewNote == null ? "" : legacyInventoryReviewNote,
                 "review_timestamp_invalid", legacyInventoryReviewTimestampInvalid,
+                "open_count", legacyOnlyScenarios.size(),
+                "managed_count", legacyManagedScenarioCount,
+                "unmanaged_count", legacyUnmanagedScenarioCount,
                 "owners_ready_count", legacyOwnerAssignedCount,
                 "deadlines_ready_count", legacyDeadlineAssignedCount,
                 "deadline_invalid_count", legacyDeadlineInvalidCount,

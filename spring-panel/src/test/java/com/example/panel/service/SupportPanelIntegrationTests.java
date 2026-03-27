@@ -864,14 +864,59 @@ class SupportPanelIntegrationTests {
         assertThat((List<String>) packet.get("legacy_only_scenarios")).containsExactly("attachments_edit", "inline_reopen");
         assertThat(legacyInventory).containsEntry("review_timestamp_invalid", false);
         assertThat(legacyInventory).containsEntry("reviewed_at", "");
+        assertThat(legacyInventory).containsEntry("managed", false);
+        assertThat(legacyInventory).containsEntry("unmanaged_count", 2L);
         assertThat(items).anySatisfy(item -> {
             if ("weekly_review".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("hold");
                 assertThat(item.get("current_value")).isEqualTo("invalid_utc");
             }
             if ("legacy_only_inventory".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(String.valueOf(item.get("current_value"))).contains("open=2");
+                assertThat(String.valueOf(item.get("current_value"))).contains("managed=0/2");
+            }
+        });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryMarksManagedLegacyInventoryAsAttention() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_governance_legacy_only_scenarios":["attachments_edit","inline_reopen"],
+                         "workspace_rollout_governance_legacy_inventory_reviewed_by":"ops-oncall",
+                         "workspace_rollout_governance_legacy_inventory_reviewed_at":"2099-03-04T10:11:12Z",
+                         "workspace_rollout_governance_legacy_only_scenario_metadata":{
+                           "attachments_edit":{"owner":"workspace-core","deadline_at_utc":"2099-04-01T00:00:00Z","note":"composer parity"},
+                           "inline_reopen":{"owner":"workspace-core","deadline_at_utc":"2099-04-05T00:00:00Z","note":"queue controls"}
+                         }}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-2A', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> legacyInventory = (Map<String, Object>) packet.get("legacy_only_inventory");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+
+        assertThat(packet.get("status")).isEqualTo("hold");
+        assertThat((List<String>) packet.get("missing_items")).contains("legacy_only_inventory");
+        assertThat(legacyInventory).containsEntry("managed", true);
+        assertThat(legacyInventory).containsEntry("managed_count", 2L);
+        assertThat(legacyInventory).containsEntry("unmanaged_count", 0L);
+        assertThat(items).anySatisfy(item -> {
+            if ("legacy_only_inventory".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("attention");
-                assertThat(item.get("current_value")).isEqualTo("open=2");
+                assertThat(String.valueOf(item.get("current_value"))).contains("managed=2/2");
+                assertThat(String.valueOf(item.get("note"))).contains("sunset_plan=managed");
             }
         });
     }
