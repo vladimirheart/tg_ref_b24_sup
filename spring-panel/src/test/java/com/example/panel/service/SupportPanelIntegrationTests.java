@@ -2296,7 +2296,8 @@ class SupportPanelIntegrationTests {
                                 "message", "Текст 3",
                                 "owner", "ops-core",
                                 "namespace", "ops.legacy",
-                                "deprecated", true
+                                "deprecated", true,
+                                "deprecated_at", "2026-01-01T00:00:00Z"
                         )
                 )),
                 Map.entry("dialog_macro_governance_require_owner", true),
@@ -2310,7 +2311,16 @@ class SupportPanelIntegrationTests {
                 Map.entry("dialog_macro_governance_owner_action_required", true),
                 Map.entry("dialog_macro_governance_cleanup_cadence_days", 7),
                 Map.entry("dialog_macro_governance_alias_cleanup_required", true),
-                Map.entry("dialog_macro_governance_variable_cleanup_required", true)
+                Map.entry("dialog_macro_governance_variable_cleanup_required", true),
+                Map.entry("dialog_macro_governance_usage_tier_sla_required", true),
+                Map.entry("dialog_macro_governance_usage_tier_low_max", 0),
+                Map.entry("dialog_macro_governance_usage_tier_medium_max", 5),
+                Map.entry("dialog_macro_governance_cleanup_sla_low_days", 7),
+                Map.entry("dialog_macro_governance_cleanup_sla_medium_days", 30),
+                Map.entry("dialog_macro_governance_cleanup_sla_high_days", 90),
+                Map.entry("dialog_macro_governance_deprecation_sla_low_days", 14),
+                Map.entry("dialog_macro_governance_deprecation_sla_medium_days", 45),
+                Map.entry("dialog_macro_governance_deprecation_sla_high_days", 120)
         ), null);
 
         jdbcTemplate.update("""
@@ -2335,6 +2345,8 @@ class SupportPanelIntegrationTests {
         assertThat(audit).containsEntry("owner_action_total", 3);
         assertThat(audit).containsEntry("alias_cleanup_total", 1);
         assertThat(audit).containsEntry("variable_cleanup_total", 1);
+        assertThat(audit).containsEntry("cleanup_sla_overdue_total", 1);
+        assertThat(audit).containsEntry("deprecation_sla_overdue_total", 1);
         assertThat(issues).anySatisfy(issue -> {
             if ("owner_missing".equals(issue.get("type"))) {
                 assertThat(issue.get("status")).isEqualTo("hold");
@@ -2366,31 +2378,44 @@ class SupportPanelIntegrationTests {
         assertThat(templates).anySatisfy(template -> {
             if ("macro_review_stale".equals(template.get("template_id"))) {
                 assertThat(template.get("duplicate_alias_count")).isEqualTo(1);
+                assertThat(template.get("usage_tier")).isEqualTo("medium");
+                assertThat(template.get("cleanup_sla_status")).isEqualTo("hold");
             }
         });
         assertThat(templates).anySatisfy(template -> {
             if ("macro_unknown_variable".equals(template.get("template_id"))) {
                 assertThat(template.get("unknown_variable_count")).isEqualTo(1);
                 assertThat(template.get("owner_action_required")).isEqualTo(true);
+                assertThat(template.get("usage_tier")).isEqualTo("low");
             }
         });
         assertThat(templates).anySatisfy(template -> {
             if ("macro_deprecated".equals(template.get("template_id"))) {
                 assertThat(template.get("status")).isEqualTo("off");
                 assertThat(template.get("deprecated")).isEqualTo(true);
+                assertThat(template.get("deprecation_sla_status")).isEqualTo("hold");
             }
         });
     }
 
     @Test
     void settingsBridgePersistsMacroGovernanceQualityLoopFields() {
-        settingsBridgeController.updateSettings(Map.of(
-                "dialog_macro_governance_red_list_enabled", true,
-                "dialog_macro_governance_red_list_usage_max", 2,
-                "dialog_macro_governance_owner_action_required", true,
-                "dialog_macro_governance_cleanup_cadence_days", 14,
-                "dialog_macro_governance_alias_cleanup_required", true,
-                "dialog_macro_governance_variable_cleanup_required", true
+        settingsBridgeController.updateSettings(Map.ofEntries(
+                Map.entry("dialog_macro_governance_red_list_enabled", true),
+                Map.entry("dialog_macro_governance_red_list_usage_max", 2),
+                Map.entry("dialog_macro_governance_owner_action_required", true),
+                Map.entry("dialog_macro_governance_cleanup_cadence_days", 14),
+                Map.entry("dialog_macro_governance_alias_cleanup_required", true),
+                Map.entry("dialog_macro_governance_variable_cleanup_required", true),
+                Map.entry("dialog_macro_governance_usage_tier_sla_required", true),
+                Map.entry("dialog_macro_governance_usage_tier_low_max", 1),
+                Map.entry("dialog_macro_governance_usage_tier_medium_max", 6),
+                Map.entry("dialog_macro_governance_cleanup_sla_low_days", 10),
+                Map.entry("dialog_macro_governance_cleanup_sla_medium_days", 20),
+                Map.entry("dialog_macro_governance_cleanup_sla_high_days", 40),
+                Map.entry("dialog_macro_governance_deprecation_sla_low_days", 15),
+                Map.entry("dialog_macro_governance_deprecation_sla_medium_days", 30),
+                Map.entry("dialog_macro_governance_deprecation_sla_high_days", 60)
         ), null);
 
         Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");
@@ -2400,6 +2425,15 @@ class SupportPanelIntegrationTests {
         assertThat(dialogConfig.get("macro_governance_cleanup_cadence_days")).isEqualTo(14L);
         assertThat(dialogConfig.get("macro_governance_alias_cleanup_required")).isEqualTo(true);
         assertThat(dialogConfig.get("macro_governance_variable_cleanup_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("macro_governance_usage_tier_sla_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("macro_governance_usage_tier_low_max")).isEqualTo(1L);
+        assertThat(dialogConfig.get("macro_governance_usage_tier_medium_max")).isEqualTo(6L);
+        assertThat(dialogConfig.get("macro_governance_cleanup_sla_low_days")).isEqualTo(10L);
+        assertThat(dialogConfig.get("macro_governance_cleanup_sla_medium_days")).isEqualTo(20L);
+        assertThat(dialogConfig.get("macro_governance_cleanup_sla_high_days")).isEqualTo(40L);
+        assertThat(dialogConfig.get("macro_governance_deprecation_sla_low_days")).isEqualTo(15L);
+        assertThat(dialogConfig.get("macro_governance_deprecation_sla_medium_days")).isEqualTo(30L);
+        assertThat(dialogConfig.get("macro_governance_deprecation_sla_high_days")).isEqualTo(60L);
     }
 
     @Test

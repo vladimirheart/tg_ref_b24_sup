@@ -1135,10 +1135,10 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       macroGovernanceRequirements.textContent = `owner=${requirements.require_owner === true ? 'required' : 'optional'} · namespace=${requirements.require_namespace === true ? 'required' : 'optional'}`;
     }
     if (macroGovernanceRequirementsMeta) {
-      macroGovernanceRequirementsMeta.textContent = `review=${requirements.require_review === true ? `required (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'optional'} · deprecation_reason=${requirements.deprecation_requires_reason === true ? 'required' : 'optional'} · red_list=${requirements.red_list_enabled === true ? `on (usage<=${formatNumber(requirements.red_list_usage_max || 0)})` : 'off'} · owner_action=${requirements.owner_action_required === true ? 'on' : 'off'}`;
+      macroGovernanceRequirementsMeta.textContent = `review=${requirements.require_review === true ? `required (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'optional'} · deprecation_reason=${requirements.deprecation_requires_reason === true ? 'required' : 'optional'} · red_list=${requirements.red_list_enabled === true ? `on (usage<=${formatNumber(requirements.red_list_usage_max || 0)})` : 'off'} · owner_action=${requirements.owner_action_required === true ? 'on' : 'off'} · tier_sla=${requirements.usage_tier_sla_required === true ? `on (low<=${formatNumber(requirements.usage_tier_low_max || 0)}, medium<=${formatNumber(requirements.usage_tier_medium_max || 0)})` : 'off'}`;
     }
     if (macroGovernanceCleanup) {
-      macroGovernanceCleanup.textContent = `unused=${formatNumber(audit?.unused_published_total || 0)} · stale_review=${formatNumber(audit?.stale_review_total || 0)} · aliases=${formatNumber(audit?.alias_cleanup_total || 0)} · variables=${formatNumber(audit?.variable_cleanup_total || 0)}`;
+      macroGovernanceCleanup.textContent = `unused=${formatNumber(audit?.unused_published_total || 0)} · stale_review=${formatNumber(audit?.stale_review_total || 0)} · aliases=${formatNumber(audit?.alias_cleanup_total || 0)} · variables=${formatNumber(audit?.variable_cleanup_total || 0)} · cleanup_overdue=${formatNumber(audit?.cleanup_sla_overdue_total || 0)} · deprecation_overdue=${formatNumber(audit?.deprecation_sla_overdue_total || 0)}`;
     }
     if (macroGovernanceCleanupMeta) {
       const externalCatalogMeta = externalCatalog.required === true
@@ -1147,7 +1147,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const deprecationPolicyMeta = deprecationPolicy.required === true
         ? (deprecationPolicy.ready === true ? 'ready' : 'gap')
         : 'optional';
-      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · cadence=${formatNumber(requirements.cleanup_cadence_days || 0)}d · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta} · deprecation_policy=${deprecationPolicyMeta}`;
+      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · cadence=${formatNumber(requirements.cleanup_cadence_days || 0)}d · cleanup_sla=${formatNumber(requirements.cleanup_sla_low_days || 0)}/${formatNumber(requirements.cleanup_sla_medium_days || 0)}/${formatNumber(requirements.cleanup_sla_high_days || 0)}d · deprecation_sla=${formatNumber(requirements.deprecation_sla_low_days || 0)}/${formatNumber(requirements.deprecation_sla_medium_days || 0)}/${formatNumber(requirements.deprecation_sla_high_days || 0)}d · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta} · deprecation_policy=${deprecationPolicyMeta}`;
     }
     const issues = Array.isArray(audit?.issues) ? audit.issues : [];
     if (macroGovernanceIssueSummary) {
@@ -1198,6 +1198,11 @@ if (legacyUsageBlockedReasonsFollowupInput) {
           if (template?.deprecated === true) cleanupMeta.push('deprecated');
           if (template?.deprecation_reason) cleanupMeta.push(`reason=${String(template.deprecation_reason)}`);
           if (template?.red_list_candidate === true) cleanupMeta.push(`red-list:${Array.isArray(template?.red_list_reasons) ? template.red_list_reasons.join('|') : 'candidate'}`);
+          if (template?.usage_tier) cleanupMeta.push(`tier=${String(template.usage_tier)}`);
+          if (Number(template?.cleanup_due_in_days) >= 0) cleanupMeta.push(`cleanup_due_in=${formatNumber(template.cleanup_due_in_days)}d`);
+          if (String(template?.cleanup_sla_status || '').toLowerCase() === 'hold') cleanupMeta.push('cleanup_sla=overdue');
+          if (Number(template?.deprecation_due_in_days) >= 0) cleanupMeta.push(`deprecation_due_in=${formatNumber(template.deprecation_due_in_days)}d`);
+          if (String(template?.deprecation_sla_status || '').toLowerCase() === 'hold') cleanupMeta.push('deprecation_sla=overdue');
           if (template?.owner_action_required === true) cleanupMeta.push(`owner_action=${String(template?.owner_action_status || 'attention')}`);
           if (Number(template?.owner_action_due_in_days) >= 0) cleanupMeta.push(`due_in=${formatNumber(template.owner_action_due_in_days)}d`);
           if (Number(template?.duplicate_alias_count) > 0) cleanupMeta.push(`duplicate_aliases=${formatNumber(template.duplicate_alias_count)}`);
@@ -1538,7 +1543,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         Array.isArray(issue?.related) ? issue.related.join('|') : '',
       ]),
       [],
-      ['macro_template_id', 'macro_template_name', 'status', 'published', 'deprecated', 'owner', 'namespace', 'reviewed_at_utc', 'usage_count', 'preview_count', 'error_count', 'last_used_at_utc', 'red_list_candidate', 'red_list_reasons', 'owner_action_required', 'owner_action_status', 'owner_action_due_in_days', 'duplicate_alias_count', 'unknown_variable_count', 'issues'],
+      ['macro_template_id', 'macro_template_name', 'status', 'published', 'deprecated', 'owner', 'namespace', 'reviewed_at_utc', 'usage_count', 'preview_count', 'error_count', 'last_used_at_utc', 'usage_tier', 'cleanup_sla_days', 'cleanup_due_in_days', 'cleanup_sla_status', 'deprecation_sla_days', 'deprecation_due_in_days', 'deprecation_sla_status', 'red_list_candidate', 'red_list_reasons', 'owner_action_required', 'owner_action_status', 'owner_action_due_in_days', 'duplicate_alias_count', 'unknown_variable_count', 'issues'],
       ...(Array.isArray(payload?.macro_governance_audit?.templates) ? payload.macro_governance_audit.templates : []).map((template) => [
         template?.template_id || '',
         template?.template_name || '',
@@ -1552,6 +1557,13 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         template?.preview_count ?? '',
         template?.error_count ?? '',
         template?.last_used_at_utc || '',
+        template?.usage_tier || '',
+        template?.cleanup_sla_days ?? '',
+        template?.cleanup_due_in_days ?? '',
+        template?.cleanup_sla_status || '',
+        template?.deprecation_sla_days ?? '',
+        template?.deprecation_due_in_days ?? '',
+        template?.deprecation_sla_status || '',
         template?.red_list_candidate === true ? 'true' : 'false',
         Array.isArray(template?.red_list_reasons) ? template.red_list_reasons.join('|') : '',
         template?.owner_action_required === true ? 'true' : 'false',

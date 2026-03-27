@@ -48,6 +48,15 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("id=\"dialogMacroGovernanceCleanupCadenceDays\"")
                 .contains("id=\"dialogMacroGovernanceAliasCleanupRequired\"")
                 .contains("id=\"dialogMacroGovernanceVariableCleanupRequired\"")
+                .contains("id=\"dialogMacroGovernanceUsageTierSlaRequired\"")
+                .contains("id=\"dialogMacroGovernanceUsageTierLowMax\"")
+                .contains("id=\"dialogMacroGovernanceUsageTierMediumMax\"")
+                .contains("id=\"dialogMacroGovernanceCleanupSlaLowDays\"")
+                .contains("id=\"dialogMacroGovernanceCleanupSlaMediumDays\"")
+                .contains("id=\"dialogMacroGovernanceCleanupSlaHighDays\"")
+                .contains("id=\"dialogMacroGovernanceDeprecationSlaLowDays\"")
+                .contains("id=\"dialogMacroGovernanceDeprecationSlaMediumDays\"")
+                .contains("id=\"dialogMacroGovernanceDeprecationSlaHighDays\"")
                 .contains("dialog_macro_governance_require_owner")
                 .contains("dialog_macro_governance_require_namespace")
                 .contains("dialog_macro_governance_require_review")
@@ -59,7 +68,16 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("dialog_macro_governance_owner_action_required")
                 .contains("dialog_macro_governance_cleanup_cadence_days")
                 .contains("dialog_macro_governance_alias_cleanup_required")
-                .contains("dialog_macro_governance_variable_cleanup_required");
+                .contains("dialog_macro_governance_variable_cleanup_required")
+                .contains("dialog_macro_governance_usage_tier_sla_required")
+                .contains("dialog_macro_governance_usage_tier_low_max")
+                .contains("dialog_macro_governance_usage_tier_medium_max")
+                .contains("dialog_macro_governance_cleanup_sla_low_days")
+                .contains("dialog_macro_governance_cleanup_sla_medium_days")
+                .contains("dialog_macro_governance_cleanup_sla_high_days")
+                .contains("dialog_macro_governance_deprecation_sla_low_days")
+                .contains("dialog_macro_governance_deprecation_sla_medium_days")
+                .contains("dialog_macro_governance_deprecation_sla_high_days");
     }
 
     @Test
