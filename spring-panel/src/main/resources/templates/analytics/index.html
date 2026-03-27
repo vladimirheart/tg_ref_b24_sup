@@ -269,6 +269,10 @@
                                             <label for="workspaceTelemetryLegacyReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
                                             <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyReviewNote" maxlength="500" placeholder="Почему сценарий остаётся legacy-only и когда закрываем">
                                         </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyScenarioMetadata" class="form-label form-label-sm mb-1">Owner + sunset deadline by scenario (JSON)</label>
+                                            <textarea class="form-control form-control-sm font-monospace" id="workspaceTelemetryLegacyScenarioMetadata" rows="4" placeholder='{"attachments_edit":{"owner":"workspace-core","deadline_at_utc":"2026-04-15T12:00:00Z","note":"reply composer parity"}}'></textarea>
+                                        </div>
                                         <div class="d-flex align-items-center gap-2 mt-2">
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryLegacySave">Сохранить inventory</button>
                                             <small class="text-muted" id="workspaceTelemetryLegacyActionState"></small>
@@ -375,6 +379,10 @@
                                             <div class="col-12 col-lg-6">
                                                 <label for="workspaceTelemetryContextScenarioPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks by scenario (JSON)</label>
                                                 <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioPriorityBlocks" rows="3" placeholder='{"billing":["customer","sla"],"incident":["related_events","sla"]}'></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label for="workspaceTelemetryContextPlaybooks" class="form-label form-label-sm mb-1">Context-gap playbooks (JSON)</label>
+                                                <textarea class="form-control form-control-sm font-monospace" id="workspaceTelemetryContextPlaybooks" rows="4" placeholder='{"mandatory_field:phone":{"label":"Как дозаполнить телефон","url":"https://wiki.company.local/playbooks/phone","summary":"Спросить клиента и обновить CRM"},"source_of_truth":{"label":"Source-of-truth guide","url":"https://wiki.company.local/playbooks/context-sources"}}'></textarea>
                                             </div>
                                             <div class="col-12 col-lg-3">
                                                 <label for="workspaceTelemetryContextReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>

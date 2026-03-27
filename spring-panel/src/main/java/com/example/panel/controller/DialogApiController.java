@@ -3265,6 +3265,7 @@ public class DialogApiController {
         List<String> priorityBlocks = safeStringList(dialogConfig.get("workspace_rollout_context_contract_priority_blocks"));
         Map<String, List<String>> priorityBlocksByScenario = safeStringListMap(
                 dialogConfig.get("workspace_rollout_context_contract_priority_blocks_by_scenario"));
+        Map<String, Map<String, String>> playbooks = resolveContextContractPlaybooks(dialogConfig);
         boolean enabled = required
                 || !scenarios.isEmpty()
                 || !mandatoryFields.isEmpty()
@@ -3272,7 +3273,8 @@ public class DialogApiController {
                 || !sourceOfTruth.isEmpty()
                 || !sourceOfTruthByScenario.isEmpty()
                 || !priorityBlocks.isEmpty()
-                || !priorityBlocksByScenario.isEmpty();
+                || !priorityBlocksByScenario.isEmpty()
+                || !playbooks.isEmpty();
         if (!enabled) {
             return Map.of("enabled", false, "required", false, "ready", true);
         }
@@ -3319,6 +3321,14 @@ public class DialogApiController {
                 .flatMap(stream -> stream)
                 .distinct()
                 .toList();
+        List<Map<String, Object>> violationDetails = buildWorkspaceContextContractViolationDetails(
+                workspaceClient,
+                safeSources,
+                safeBlocks,
+                missingMandatoryFields,
+                sourceViolations,
+                missingPriorityBlocks,
+                playbooks);
          boolean definitionReady = !scenarios.isEmpty()
                  && (!mandatoryFields.isEmpty() || !mandatoryFieldsByScenario.isEmpty())
                  && (!sourceOfTruth.isEmpty() || !sourceOfTruthByScenario.isEmpty())
@@ -3345,6 +3355,8 @@ public class DialogApiController {
         payload.put("source_of_truth_violations", sourceViolations);
         payload.put("missing_priority_blocks", missingPriorityBlocks);
         payload.put("violations", violations);
+        payload.put("violation_details", violationDetails);
+        payload.put("playbooks", playbooks);
         payload.put("checked_at_utc", Instant.now().toString());
         return payload;
     }
@@ -3407,6 +3419,188 @@ public class DialogApiController {
             return field + ":" + source + ":" + (StringUtils.hasText(status) ? status : "not_ready");
         }
         return null;
+    }
+
+    private Map<String, Map<String, String>> resolveContextContractPlaybooks(Map<String, Object> dialogConfig) {
+        Object raw = dialogConfig.get("workspace_rollout_context_contract_playbooks");
+        if (!(raw instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Map<String, String>> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = normalizeMacroVariableKey(String.valueOf(entry.getKey()));
+            if (!StringUtils.hasText(key) || !(entry.getValue() instanceof Map<?, ?> item)) {
+                continue;
+            }
+            Object labelRaw = item.get("label");
+            Object urlRaw = item.get("url");
+            Object summaryRaw = item.get("summary");
+            String label = trimToNull(labelRaw == null ? null : String.valueOf(labelRaw));
+            String url = trimToNull(urlRaw == null ? null : String.valueOf(urlRaw));
+            String summary = trimToNull(summaryRaw == null ? null : String.valueOf(summaryRaw));
+            if (!StringUtils.hasText(url) || (!url.startsWith("https://") && !url.startsWith("http://"))) {
+                continue;
+            }
+            Map<String, String> payload = new LinkedHashMap<>();
+            payload.put("label", label != null ? label : "Playbook");
+            payload.put("url", url);
+            payload.put("summary", summary != null ? summary : "");
+            result.put(key, payload);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> buildWorkspaceContextContractViolationDetails(Map<String, Object> workspaceClient,
+                                                                                    List<Map<String, Object>> contextSources,
+                                                                                    List<Map<String, Object>> contextBlocks,
+                                                                                    List<String> missingMandatoryFields,
+                                                                                    List<String> sourceViolations,
+                                                                                    List<String> missingPriorityBlocks,
+                                                                                    Map<String, Map<String, String>> playbooks) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        missingMandatoryFields.forEach(field -> result.add(buildMandatoryFieldViolationDetail(field, workspaceClient, playbooks)));
+        sourceViolations.forEach(violation -> result.add(buildSourceOfTruthViolationDetail(violation, workspaceClient, contextSources, playbooks)));
+        missingPriorityBlocks.forEach(block -> result.add(buildPriorityBlockViolationDetail(block, contextBlocks, playbooks)));
+        return result;
+    }
+
+    private Map<String, Object> buildMandatoryFieldViolationDetail(String field,
+                                                                   Map<String, Object> workspaceClient,
+                                                                   Map<String, Map<String, String>> playbooks) {
+        String normalizedField = normalizeMacroVariableKey(field);
+        String label = resolveWorkspaceContextAttributeLabel(workspaceClient, normalizedField);
+        String code = "mandatory_field:" + normalizedField;
+        return buildContextViolationDetail(
+                code,
+                "mandatory_field",
+                normalizedField,
+                "Заполните обязательное поле \"" + label + "\" в карточке клиента.",
+                "Missing mandatory field: " + label,
+                resolveContextContractPlaybook(playbooks, code, "mandatory_field:" + normalizedField, "mandatory_field"));
+    }
+
+    private Map<String, Object> buildSourceOfTruthViolationDetail(String rawViolation,
+                                                                  Map<String, Object> workspaceClient,
+                                                                  List<Map<String, Object>> contextSources,
+                                                                  Map<String, Map<String, String>> playbooks) {
+        String normalized = trimToNull(rawViolation);
+        String[] parts = normalized == null ? new String[0] : normalized.split(":");
+        String field = parts.length > 0 ? normalizeMacroVariableKey(parts[0]) : "";
+        String source = parts.length > 1 ? normalizeMacroVariableKey(parts[1]) : "";
+        String status = parts.length > 2 ? normalizeMacroVariableKey(parts[2]) : "not_ready";
+        String fieldLabel = resolveWorkspaceContextAttributeLabel(workspaceClient, field);
+        String sourceLabel = resolveWorkspaceContextSourceLabel(contextSources, source);
+        String operatorMessage;
+        if ("source_missing".equals(status)) {
+            operatorMessage = "Подключите источник \"" + sourceLabel + "\" для поля \"" + fieldLabel + "\".";
+        } else if ("field_not_matched".equals(status)) {
+            operatorMessage = "Проверьте, что источник \"" + sourceLabel + "\" действительно отдаёт поле \"" + fieldLabel + "\".";
+        } else if ("stale".equals(status)) {
+            operatorMessage = "Обновите данные \"" + fieldLabel + "\" из источника \"" + sourceLabel + "\".";
+        } else if ("invalid_utc".equals(status)) {
+            operatorMessage = "Исправьте UTC timestamp источника \"" + sourceLabel + "\" для поля \"" + fieldLabel + "\".";
+        } else {
+            operatorMessage = "Проверьте источник \"" + sourceLabel + "\" для поля \"" + fieldLabel + "\".";
+        }
+        String code = "source_of_truth:" + normalized;
+        return buildContextViolationDetail(
+                code,
+                "source_of_truth",
+                field,
+                operatorMessage,
+                "Source-of-truth gap: " + fieldLabel + " via " + sourceLabel + " (" + status + ")",
+                resolveContextContractPlaybook(playbooks, code, "source_of_truth:" + field + ":" + source, "source_of_truth"));
+    }
+
+    private Map<String, Object> buildPriorityBlockViolationDetail(String block,
+                                                                  List<Map<String, Object>> contextBlocks,
+                                                                  Map<String, Map<String, String>> playbooks) {
+        String normalizedBlock = normalizeMacroVariableKey(block);
+        String label = resolveWorkspaceContextBlockLabel(contextBlocks, normalizedBlock);
+        String code = "priority_block:" + normalizedBlock;
+        return buildContextViolationDetail(
+                code,
+                "priority_block",
+                normalizedBlock,
+                "Верните в рабочий контур блок \"" + label + "\" или снимите его из обязательных для этого сценария.",
+                "Priority block missing: " + label,
+                resolveContextContractPlaybook(playbooks, code, "priority_block:" + normalizedBlock, "priority_block"));
+    }
+
+    private Map<String, Object> buildContextViolationDetail(String code,
+                                                            String type,
+                                                            String key,
+                                                            String operatorMessage,
+                                                            String analyticsMessage,
+                                                            Map<String, String> playbook) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("code", code);
+        payload.put("type", type);
+        payload.put("key", key);
+        payload.put("operator_message", operatorMessage);
+        payload.put("analytics_message", analyticsMessage);
+        if (playbook != null && !playbook.isEmpty()) {
+            payload.put("playbook", playbook);
+        }
+        return payload;
+    }
+
+    private Map<String, String> resolveContextContractPlaybook(Map<String, Map<String, String>> playbooks,
+                                                               String exactCode,
+                                                               String scopedCode,
+                                                               String type) {
+        if (playbooks.isEmpty()) {
+            return Map.of();
+        }
+        for (String key : List.of(
+                normalizeMacroVariableKey(exactCode),
+                normalizeMacroVariableKey(scopedCode),
+                normalizeMacroVariableKey(type))) {
+            if (StringUtils.hasText(key) && playbooks.containsKey(key)) {
+                return playbooks.get(key);
+            }
+        }
+        return Map.of();
+    }
+
+    private String resolveWorkspaceContextAttributeLabel(Map<String, Object> workspaceClient, String key) {
+        if (workspaceClient.get("attribute_labels") instanceof Map<?, ?> labels) {
+            for (Map.Entry<?, ?> entry : labels.entrySet()) {
+                String normalizedKey = normalizeMacroVariableKey(String.valueOf(entry.getKey()));
+                if (key.equals(normalizedKey)) {
+                    Object labelRaw = entry.getValue();
+                    String label = trimToNull(labelRaw == null ? null : String.valueOf(labelRaw));
+                    if (StringUtils.hasText(label)) {
+                        return label;
+                    }
+                }
+            }
+        }
+        return humanizeMacroVariableLabel(key);
+    }
+
+    private String resolveWorkspaceContextSourceLabel(List<Map<String, Object>> contextSources, String sourceKey) {
+        return contextSources.stream()
+                .filter(item -> sourceKey.equals(normalizeMacroVariableKey(String.valueOf(item.get("key")))))
+                .map(item -> {
+                    Object labelRaw = item.get("label");
+                    return trimToNull(labelRaw == null ? null : String.valueOf(labelRaw));
+                })
+                .filter(StringUtils::hasText)
+                .findFirst()
+                .orElse(humanizeMacroVariableLabel(sourceKey));
+    }
+
+    private String resolveWorkspaceContextBlockLabel(List<Map<String, Object>> contextBlocks, String blockKey) {
+        return contextBlocks.stream()
+                .filter(item -> blockKey.equals(normalizeMacroVariableKey(String.valueOf(item.get("key")))))
+                .map(item -> {
+                    Object labelRaw = item.get("label");
+                    return trimToNull(labelRaw == null ? null : String.valueOf(labelRaw));
+                })
+                .filter(StringUtils::hasText)
+                .findFirst()
+                .orElse(humanizeMacroVariableLabel(blockKey));
     }
 
     private Map<String, Object> extractDialogConfig(Map<String, Object> settings) {

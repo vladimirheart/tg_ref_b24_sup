@@ -316,6 +316,8 @@ public class AnalyticsController {
         List<String> priorityBlocks = sanitizeStringList(request != null ? request.priorityBlocks() : null);
         Map<String, List<String>> scenarioPriorityBlocks = sanitizeStringListMap(
                 request != null ? request.scenarioPriorityBlocks() : null);
+        Map<String, ContextPlaybookPayload> playbooks = sanitizeContextPlaybookMap(
+                request != null ? request.playbooks() : null);
         String note = normalize(String.valueOf(request != null ? request.note() : null));
         if (note != null && note.length() > 500) {
             note = note.substring(0, 500);
@@ -362,6 +364,21 @@ public class AnalyticsController {
         } else {
             dialogConfig.put("workspace_rollout_context_contract_priority_blocks_by_scenario", scenarioPriorityBlocks);
         }
+        if (playbooks.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_context_contract_playbooks");
+        } else {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            playbooks.forEach((key, value) -> {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("label", value.label());
+                item.put("url", value.url());
+                if (value.summary() != null) {
+                    item.put("summary", value.summary());
+                }
+                payload.put(key, item);
+            });
+            dialogConfig.put("workspace_rollout_context_contract_playbooks", payload);
+        }
         dialogConfig.put("workspace_rollout_context_contract_reviewed_by", reviewedBy);
         dialogConfig.put("workspace_rollout_context_contract_reviewed_at", reviewedAtUtc.toInstant().toString());
         if (note == null) {
@@ -402,6 +419,7 @@ public class AnalyticsController {
                 "scenario_source_of_truth", scenarioSourceOfTruth,
                 "priority_blocks", priorityBlocks,
                 "scenario_priority_blocks", scenarioPriorityBlocks,
+                "playbooks", playbooks,
                 "note", note == null ? "" : note
         ));
     }
@@ -429,6 +447,15 @@ public class AnalyticsController {
             }
         }
         List<String> scenarios = sanitizeStringList(request != null ? request.scenarios() : null);
+        Map<String, LegacyScenarioMetadataPayload> scenarioMetadata;
+        try {
+            scenarioMetadata = sanitizeLegacyScenarioMetadataMap(
+                    request != null ? request.scenarioMetadata() : null);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", ex.getMessage()));
+        }
         String note = normalize(String.valueOf(request != null ? request.note() : null));
         if (note != null && note.length() > 500) {
             note = note.substring(0, 500);
@@ -442,6 +469,23 @@ public class AnalyticsController {
             dialogConfig.remove("workspace_rollout_governance_legacy_only_scenarios");
         } else {
             dialogConfig.put("workspace_rollout_governance_legacy_only_scenarios", scenarios);
+        }
+        if (scenarioMetadata.isEmpty()) {
+            dialogConfig.remove("workspace_rollout_governance_legacy_only_scenario_metadata");
+        } else {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            scenarioMetadata.forEach((scenario, metadata) -> {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("owner", metadata.owner());
+                if (metadata.deadlineAtUtc() != null) {
+                    item.put("deadline_at_utc", metadata.deadlineAtUtc());
+                }
+                if (metadata.note() != null) {
+                    item.put("note", metadata.note());
+                }
+                payload.put(scenario, item);
+            });
+            dialogConfig.put("workspace_rollout_governance_legacy_only_scenario_metadata", payload);
         }
         dialogConfig.put("workspace_rollout_governance_legacy_inventory_reviewed_by", reviewedBy);
         dialogConfig.put("workspace_rollout_governance_legacy_inventory_reviewed_at", reviewedAtUtc.toInstant().toString());
@@ -474,6 +518,7 @@ public class AnalyticsController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "scenarios", scenarios,
+                "scenario_metadata", scenarioMetadata,
                 "reviewed_by", reviewedBy,
                 "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
                 "note", note == null ? "" : note
@@ -1095,6 +1140,7 @@ public class AnalyticsController {
                                                   Object scenarioSourceOfTruth,
                                                    Object priorityBlocks,
                                                   Object scenarioPriorityBlocks,
+                                                   Object playbooks,
                                                    String reviewedBy,
                                                    String reviewedAtUtc,
                                                    String note) {
@@ -1118,10 +1164,98 @@ public class AnalyticsController {
         return result;
     }
 
+    private static Map<String, ContextPlaybookPayload> sanitizeContextPlaybookMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, ContextPlaybookPayload> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = normalize(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
+            if (key == null || key.length() > 160) {
+                continue;
+            }
+            if (!(entry.getValue() instanceof Map<?, ?> item)) {
+                continue;
+            }
+            Object labelRaw = item.get("label");
+            Object urlRaw = item.get("url");
+            Object summaryRaw = item.get("summary");
+            String label = normalize(labelRaw == null ? null : String.valueOf(labelRaw));
+            String url = normalize(urlRaw == null ? null : String.valueOf(urlRaw));
+            String summary = normalize(summaryRaw == null ? null : String.valueOf(summaryRaw));
+            if (label != null && label.length() > 160) {
+                label = label.substring(0, 160);
+            }
+            if (summary != null && summary.length() > 300) {
+                summary = summary.substring(0, 300);
+            }
+            if (url == null || (!url.startsWith("https://") && !url.startsWith("http://"))) {
+                continue;
+            }
+            result.put(key.toLowerCase(Locale.ROOT), new ContextPlaybookPayload(
+                    label == null ? "Playbook" : label,
+                    url,
+                    summary));
+        }
+        return result;
+    }
+
     private record WorkspaceLegacyOnlyScenariosRequest(Object scenarios,
+                                                       Object scenarioMetadata,
                                                        String reviewedBy,
                                                        String reviewedAtUtc,
                                                        String note) {
+    }
+
+    private static Map<String, LegacyScenarioMetadataPayload> sanitizeLegacyScenarioMetadataMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, LegacyScenarioMetadataPayload> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String scenario = normalize(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
+            if (scenario == null || scenario.length() > 120 || !(entry.getValue() instanceof Map<?, ?> item)) {
+                continue;
+            }
+            Object ownerRaw = item.get("owner");
+            String owner = normalize(ownerRaw == null ? null : String.valueOf(ownerRaw));
+            if (owner != null && owner.length() > 120) {
+                owner = owner.substring(0, 120);
+            }
+            Object deadlineAtRaw = item.get("deadlineAtUtc");
+            String deadlineRaw = normalize(deadlineAtRaw == null ? null : String.valueOf(deadlineAtRaw));
+            if (deadlineRaw == null) {
+                Object deadlineSnakeRaw = item.get("deadline_at_utc");
+                deadlineRaw = normalize(deadlineSnakeRaw == null ? null : String.valueOf(deadlineSnakeRaw));
+            }
+            String deadlineAtUtc = null;
+            if (deadlineRaw != null) {
+                OffsetDateTime parsed = parseUtcTimestamp(deadlineRaw);
+                if (parsed == null) {
+                    throw new IllegalArgumentException("legacy scenario deadline_at_utc must be a valid UTC timestamp (ISO-8601)");
+                }
+                deadlineAtUtc = parsed.toInstant().toString();
+            }
+            Object noteRaw = item.get("note");
+            String note = normalize(noteRaw == null ? null : String.valueOf(noteRaw));
+            if (note != null && note.length() > 300) {
+                note = note.substring(0, 300);
+            }
+            if (owner != null || deadlineAtUtc != null || note != null) {
+                result.put(scenario.toLowerCase(Locale.ROOT), new LegacyScenarioMetadataPayload(owner, deadlineAtUtc, note));
+            }
+        }
+        return result;
+    }
+
+    private record ContextPlaybookPayload(String label,
+                                          String url,
+                                          String summary) {
+    }
+
+    private record LegacyScenarioMetadataPayload(String owner,
+                                                 String deadlineAtUtc,
+                                                 String note) {
     }
 
     private record WorkspaceLegacyUsagePolicyRequest(String reviewedBy,
