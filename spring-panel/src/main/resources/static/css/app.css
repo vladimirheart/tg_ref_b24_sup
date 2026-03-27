@@ -1,14 +1,14 @@
 :root {
-    --brand-color: #0d6efd;
-    --bg-muted: #f5f7fb;
-    --text-muted: #6c757d;
-    --card-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --brand-color: var(--primary);
+    --bg-muted: var(--background);
+    --text-muted: var(--muted-foreground);
+    --card-shadow: var(--color-shadow);
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-sans);
     background-color: var(--bg-muted);
-    color: #1f2937;
+    color: var(--foreground);
     min-height: 100vh;
 }
 
@@ -18,7 +18,7 @@ body {
 }
 
 .card {
-    border: none;
+    border: 1px solid transparent;
     box-shadow: var(--card-shadow);
 }
 
@@ -47,14 +47,15 @@ body {
 
 .auth-wrapper {
     min-height: 100vh;
-    background: radial-gradient(circle at 10% 20%, rgba(13, 110, 253, 0.08), transparent 30%),
-                radial-gradient(circle at 90% 10%, rgba(25, 135, 84, 0.08), transparent 32%),
-                radial-gradient(circle at 30% 80%, rgba(255, 193, 7, 0.08), transparent 30%),
-                var(--bg-muted);
+    background:
+        radial-gradient(circle at 10% 20%, color-mix(in srgb, var(--secondary) 65%, transparent), transparent 30%),
+        radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--accent) 78%, transparent), transparent 32%),
+        radial-gradient(circle at 30% 80%, color-mix(in srgb, var(--primary) 20%, transparent), transparent 30%),
+        linear-gradient(180deg, color-mix(in srgb, var(--background) 92%, white), var(--bg-muted));
 }
 
 .auth-card {
-    border: none;
+    border: 1px solid transparent;
     border-radius: 1rem;
     box-shadow: var(--card-shadow);
     overflow: hidden;
@@ -66,12 +67,12 @@ body {
 }
 
 .empty-state {
-    border: 1px dashed #d0d7e2;
+    border: 1px dashed color-mix(in srgb, var(--color-border) 80%, transparent);
     border-radius: 1rem;
     padding: 2rem;
     text-align: center;
     color: var(--text-muted);
-    background: #fff;
+    background: color-mix(in srgb, var(--card) 92%, white);
 }
 
 .chat-message {
@@ -85,9 +86,9 @@ body {
     font-size: var(--dialog-font-size, 0.95rem);
 }
 
-.chat-message.user { background: #e8f1ff; margin-right: auto; }
-.chat-message.support { background: #e9fbef; margin-right: auto; }
-.chat-message.system { background: #f1f3f5; margin-right: auto; }
+.chat-message.user { background: color-mix(in srgb, var(--secondary) 70%, white); margin-right: auto; }
+.chat-message.support { background: color-mix(in srgb, var(--accent) 75%, white); margin-right: auto; }
+.chat-message.system { background: color-mix(in srgb, var(--muted) 85%, white); margin-right: auto; }
 
 
 .chat-message.is-deleted {

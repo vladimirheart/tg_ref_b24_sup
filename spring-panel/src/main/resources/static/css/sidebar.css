@@ -37,14 +37,25 @@ body.with-sidebar.sidebar-hovering {
   left: 0;
   height: 100vh;
   width: var(--sidebar-w);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 92%, var(--color-bg-muted)) 0%, var(--color-surface) 100%);
-  border-right: 1px solid var(--color-border);
+  background:
+    linear-gradient(color-mix(in srgb, var(--color-surface) 95%, white), color-mix(in srgb, var(--color-surface) 98%, var(--sidebar))),
+    conic-gradient(
+      from var(--gradient-angle),
+      color-mix(in srgb, var(--gradient-primary) 45%, transparent),
+      color-mix(in srgb, var(--gradient-secondary) 55%, transparent),
+      color-mix(in srgb, var(--gradient-accent) 45%, transparent),
+      color-mix(in srgb, var(--gradient-primary) 45%, transparent)
+    );
+  border-right: 1px solid transparent;
   box-shadow: 16px 0 30px rgba(15, 23, 42, 0.06);
   transition: width .2s ease, opacity .2s ease;
   z-index: var(--sidebar-z);
   display: flex;
   flex-direction: column;
   overflow: visible;
+  background-origin: padding-box, border-box;
+  background-clip: padding-box, border-box;
+  animation: gradient-rotate 18s linear infinite;
 }
 
 .sidebar.collapsed {
@@ -80,7 +91,7 @@ body.with-sidebar.sidebar-hovering {
   gap: 12px;
   padding: 14px 14px 12px;
   border-bottom: 1px solid var(--color-border);
-  background: linear-gradient(95deg, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent);
+  background: linear-gradient(95deg, color-mix(in srgb, var(--sidebar-accent) 65%, transparent), transparent);
 }
 .sidebar .brand {
   display: inline-flex;
@@ -235,7 +246,17 @@ body.with-sidebar.sidebar-hovering {
   padding: 12px;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--color-border) 90%, transparent);
-  background: color-mix(in srgb, var(--color-bg-muted) 75%, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--color-bg-muted) 82%, white), color-mix(in srgb, var(--color-bg-muted) 88%, transparent)),
+    conic-gradient(
+      from var(--gradient-angle),
+      color-mix(in srgb, var(--gradient-primary) 35%, transparent),
+      color-mix(in srgb, var(--gradient-secondary) 40%, transparent),
+      color-mix(in srgb, var(--gradient-accent) 35%, transparent),
+      color-mix(in srgb, var(--gradient-primary) 35%, transparent)
+    );
+  background-origin: padding-box, border-box;
+  background-clip: padding-box, border-box;
 }
 
 .sidebar-user-avatar {
@@ -287,8 +308,8 @@ body.with-sidebar.sidebar-hovering {
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  border: 1px dashed color-mix(in srgb, var(--color-accent) 45%, transparent);
-  background: color-mix(in srgb, var(--color-bg-muted) 80%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--sidebar-accent) 60%, transparent);
   color: var(--color-accent);
   font-size: 1.125rem;
   cursor: pointer;

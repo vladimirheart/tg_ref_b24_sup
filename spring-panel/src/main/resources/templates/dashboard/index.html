@@ -21,19 +21,42 @@
   <style>
     body {
       padding-top: 0;
-      background-color: #f8f9fa;
+      background-color: var(--color-bg);
     }
     .card { margin-bottom: 20px; }
     .chart-container { height: 300px; }
-    .stats-value { font-size: 1.5rem; font-weight: bold; }
+    .stats-value {
+      font-size: 2.15rem;
+      font-weight: 700;
+      font-family: var(--font-serif);
+      line-height: 1.1;
+    }
     .stats-change { font-size: 0.9rem; }
-    .positive-change { color: #28a745; }
-    .negative-change { color: #dc3545; }
-    .filter-section { background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    .positive-change { color: var(--chart-3); }
+    .negative-change { color: var(--destructive); }
+    .filter-section {
+      padding: 1.25rem;
+      border-radius: 1.25rem;
+      margin-bottom: 20px;
+      background:
+        linear-gradient(color-mix(in srgb, var(--card) 94%, white), color-mix(in srgb, var(--secondary) 26%, white)),
+        conic-gradient(
+          from var(--gradient-angle),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent),
+          color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
+          color-mix(in srgb, var(--gradient-accent) 52%, transparent),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent)
+        );
+      background-origin: padding-box, border-box;
+      background-clip: padding-box, border-box;
+      border: 1px solid transparent;
+      box-shadow: var(--color-shadow);
+      animation: gradient-rotate 12s linear infinite;
+    }
     .chart-value-label {
       font-size: 0.75rem;
       font-weight: bold;
-      fill: #000;
+      fill: var(--color-text);
     }
     .period-presets {
       display: flex;
@@ -42,20 +65,23 @@
       flex-wrap: wrap;
     }
     .period-preset-btn {
-      padding: 4px 8px;
+      padding: 0.45rem 0.75rem;
       font-size: 0.75rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background: white;
+      border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 88%, white);
+      color: var(--color-text);
       cursor: pointer;
+      transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
     }
     .period-preset-btn:hover {
-      background: #f0f0f0;
+      transform: translateY(-1px);
+      background: color-mix(in srgb, var(--secondary) 40%, white);
     }
     .period-preset-btn.active {
-      background: #007bff;
-      color: white;
-      border-color: #007bff;
+      background: linear-gradient(135deg, var(--primary), var(--chart-2));
+      color: var(--primary-foreground);
+      border-color: color-mix(in srgb, var(--primary) 55%, var(--chart-4));
     }
     .container-fluid {
       padding-left: 20px;
@@ -90,11 +116,11 @@
       z-index: 9999;
     }
     .notification {
-      background: white;
-      border-radius: 5px;
+      background: color-mix(in srgb, var(--card) 95%, white);
+      border-radius: 1rem;
       padding: 15px;
       margin-bottom: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      box-shadow: var(--color-shadow);
       border-left: 4px solid;
       min-width: 300px;
       display: flex;
@@ -216,9 +242,20 @@
     }
 
     .time-stats-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
+      color: var(--primary-foreground);
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--chart-4) 82%, #022c22), color-mix(in srgb, var(--chart-2) 76%, #0f766e)),
+        conic-gradient(
+          from var(--gradient-angle),
+          #ecfeff,
+          rgba(255, 255, 255, 0.55),
+          #bbf7d0,
+          rgba(255, 255, 255, 0.55),
+          #ecfeff
+        );
+      border: 1px solid transparent;
+      background-origin: padding-box, border-box;
+      background-clip: padding-box, border-box;
     }
 
     .time-stats-value {
@@ -272,7 +309,7 @@
 
     .staff-time-total {
       font-weight: bold;
-      color: #6c757d;
+      color: var(--color-text-muted);
     }
 
     .staff-time-details {
@@ -290,7 +327,7 @@
 
     .staff-time-label {
       font-size: 0.75rem;
-      color: #6c757d;
+      color: var(--color-text-muted);
       margin-bottom: 2px;
     }
 
@@ -298,28 +335,62 @@
       font-weight: 500;
     }
 
-    .staff-time-avg {
-      color: #28a745;
-    }
-
-    .staff-time-response {
-      color: #007bff;
-    }
-
-    .staff-time-count {
-      color: #6c757d;
-    }
+    .staff-time-avg { color: var(--chart-3); }
+    .staff-time-response { color: var(--chart-2); }
+    .staff-time-count { color: var(--color-text-muted); }
     .top-sticky-bar { position: sticky; top: 0; z-index: 1030; }
     .toast, .alert[data-role="loaded-hint"] { z-index: 1020 !important; }
     .page-title { margin-top: 0 !important; }
     header h1, .content h1, .container h1 { margin-top: 0 !important; }
+    .reports-title {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    .reports-title h2 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 2.25rem;
+      letter-spacing: -0.02em;
+    }
+    .reports-kicker {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 85%, white);
+      color: var(--accent-foreground);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .nav-tabs {
+      border-bottom-color: color-mix(in srgb, var(--color-border) 82%, transparent);
+    }
+    .nav-tabs .nav-link {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      color: var(--color-text-muted);
+      font-weight: 600;
+    }
+    .nav-tabs .nav-link.active {
+      background: color-mix(in srgb, var(--card) 92%, white);
+      color: var(--color-text);
+      border-color: color-mix(in srgb, var(--primary) 26%, var(--color-border));
+      box-shadow: 0 8px 24px rgba(34, 197, 94, 0.12);
+    }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
   <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
   <main class="main-content container-fluid">
   <div class="container-fluid mt-4">
-    <h2>📈 Отчёты поддержки</h2>
+    <div class="reports-title">
+      <span class="reports-kicker">Support Intelligence</span>
+      <h2>📈 Отчёты поддержки</h2>
+    </div>
 
     <ul class="nav nav-tabs mb-3" id="reportsTabs" role="tablist">
       <li class="nav-item" role="presentation">
@@ -340,7 +411,7 @@
     <div class="filters-and-stats-row">
       <!-- Колонка с фильтрами -->
       <div class="filters-column">
-        <div class="filter-section">
+        <div class="filter-section gradient-border-stop-hover">
           <div class="row">
             <div class="col-md-12">
               <label for="dateRange">Период:</label>
@@ -378,7 +449,7 @@
       <!-- Колонка со статистикой -->
       <div class="stats-column">
         <!-- Карточка общего количества заявок -->
-        <div class="card text-center">
+        <div class="card text-center gradient-border-hover">
           <div class="card-body">
             <h5 class="card-title">Всего заявок</h5>
             <div class="stats-value" id="totalTickets">0</div>
@@ -387,7 +458,7 @@
         </div>
 
         <!-- НОВАЯ КАРТОЧКА - ЗАТРАЧЕННОЕ ВРЕМЯ -->
-        <div class="card text-center time-stats-card mt-3">
+        <div class="card text-center time-stats-card mt-3 gradient-border-stop-hover">
           <div class="card-body">
             <h5 class="card-title">⏱️ Затраченное время</h5>
             <div class="time-stats-value" id="totalTime">0 ч</div>
@@ -403,7 +474,7 @@
     </div>
 
     <!-- Время по сотрудникам -->
-    <div class="card mt-3">
+    <div class="card mt-3 gradient-border-hover">
         <div class="card-body">
             <h5 class="card-title">⏱️ Время по сотрудникам</h5>
             <div id="staffTimeStats" class="staff-time-stats">
@@ -414,7 +485,7 @@
 
       <!-- График по каналам -->
       <div class="col-md-6">
-        <div class="card">
+        <div class="card gradient-border-hover">
           <div class="card-body">
             <h5 class="card-title">Заявки по каналам</h5>
             <div class="chart-container">
@@ -427,7 +498,7 @@
     <div class="row">
       <!-- По бизнесу (круговая) -->
       <div class="col-md-6">
-          <div class="card">
+          <div class="card gradient-border-hover">
               <div class="card-body">
                   <h5 class="card-title">По бизнесу</h5>
                   <div class="pie-chart-container">
@@ -442,7 +513,7 @@
 
       <!-- По сетям (круговая) -->
       <div class="col-md-6">
-          <div class="card">
+          <div class="card gradient-border-hover">
               <div class="card-body">
                   <h5 class="card-title">По сетям</h5>
                   <div class="pie-chart-container">
@@ -459,7 +530,7 @@
     <div class="row">
       <!-- Категории -->
       <div class="col-md-6">
-        <div class="card">
+        <div class="card gradient-border-hover">
           <div class="card-body">
             <h5 class="card-title">Категории обращений</h5>
             <div class="chart-container">
@@ -471,7 +542,7 @@
 
       <!-- Города -->
       <div class="col-md-6">
-        <div class="card">
+        <div class="card gradient-border-hover">
           <div class="card-body">
             <h5 class="card-title">По городам</h5>
             <div class="chart-container">
@@ -485,7 +556,7 @@
     <div class="row">
       <!-- Рестораны -->
       <div class="col-md-12">
-        <div class="card">
+        <div class="card gradient-border-hover">
           <div class="card-body">
             <h5 class="card-title">По ресторанам (топ-10)</h5>
             <div class="chart-container">
@@ -499,7 +570,7 @@
       </div>
 
       <div class="tab-pane fade" id="reports-managers" role="tabpanel">
-        <div class="card mb-3">
+        <div class="card mb-3 gradient-border-hover">
           <div class="card-body">
             <div class="row g-3 align-items-end">
               <div class="col-md-6">
@@ -515,7 +586,7 @@
             </div>
           </div>
         </div>
-        <div class="card">
+        <div class="card gradient-border-hover">
           <div class="card-body">
             <h5 class="card-title">Срез по руководителям управляющих</h5>
             <div id="supervisorSummary" class="text-muted">Нет данных</div>
@@ -525,7 +596,7 @@
       </div>
 
       <div class="tab-pane fade" id="reports-olap" role="tabpanel">
-        <div class="card">
+        <div class="card gradient-border-hover">
           <div class="card-body">
             <div class="row g-3 align-items-end">
               <div class="col-md-4">
