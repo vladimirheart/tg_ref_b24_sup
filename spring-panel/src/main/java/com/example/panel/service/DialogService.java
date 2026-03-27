@@ -1513,6 +1513,10 @@ public class DialogService {
                 "workspace_rollout_governance_legacy_usage_max_share_delta_pct", 0, 100);
         Long legacyUsageMaxBlockedShareDeltaPct = resolveNullableLongDialogConfigValue(
                 "workspace_rollout_governance_legacy_usage_max_blocked_share_delta_pct", 0, 100);
+        List<String> legacyManualAllowedReasons = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_legacy_manual_open_allowed_reasons"));
+        boolean legacyManualReasonCatalogRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_legacy_manual_open_reason_catalog_required", false);
         boolean legacyUsageDecisionRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_governance_legacy_usage_decision_required", false);
         boolean contextContractRequired = resolveBooleanDialogConfigValue("workspace_rollout_context_contract_required", false);

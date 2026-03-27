@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,8 +29,8 @@ public class UserLastActivityFilter extends OncePerRequestFilter {
     private final JdbcTemplate usersJdbcTemplate;
     private volatile boolean columnMissing = false;
 
-    public UserLastActivityFilter(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate) {
-        this.usersJdbcTemplate = usersJdbcTemplate;
+    public UserLastActivityFilter(@Qualifier("usersJdbcTemplate") ObjectProvider<JdbcTemplate> usersJdbcTemplate) {
+        this.usersJdbcTemplate = usersJdbcTemplate.getIfAvailable();
     }
 
     @Override
@@ -45,7 +46,7 @@ public class UserLastActivityFilter extends OncePerRequestFilter {
     }
 
     private void touchCurrentUser() {
-        if (columnMissing) {
+        if (columnMissing || usersJdbcTemplate == null) {
             return;
         }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

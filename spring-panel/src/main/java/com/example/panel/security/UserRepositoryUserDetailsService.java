@@ -43,8 +43,19 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    JdbcTemplate getJdbcTemplate() {
+        return jdbcTemplate;
+    }
+
+    javax.sql.DataSource getDataSource() {
+        return jdbcTemplate != null ? jdbcTemplate.getDataSource() : null;
+    }
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        if (jdbcTemplate == null || jdbcTemplate.getDataSource() == null) {
+            throw new UsernameNotFoundException("User store is not configured");
+        }
         try {
             Map<String, Object> userRow = jdbcTemplate.queryForMap(
                     "SELECT id, username, password, enabled FROM users WHERE lower(username) = lower(?)",
@@ -170,6 +181,9 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
     }
 
     void ensureDefaultAdmin(String username, String rawPassword) {
+        if (jdbcTemplate == null || jdbcTemplate.getDataSource() == null) {
+            return;
+        }
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Integer.class);
         if (count != null && count > 0) {
             return;
