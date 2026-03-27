@@ -51,6 +51,7 @@
   const legacyReviewedByInput = document.getElementById('workspaceTelemetryLegacyReviewedBy');
   const legacyReviewedAtInput = document.getElementById('workspaceTelemetryLegacyReviewedAtUtc');
   const legacyReviewNoteInput = document.getElementById('workspaceTelemetryLegacyReviewNote');
+  const legacyScenarioMetadataInput = document.getElementById('workspaceTelemetryLegacyScenarioMetadata');
   const legacySaveButton = document.getElementById('workspaceTelemetryLegacySave');
   const legacyActionState = document.getElementById('workspaceTelemetryLegacyActionState');
   const packetLegacyUsageState = document.getElementById('workspaceTelemetryPacketLegacyUsageState');
@@ -740,6 +741,24 @@
     }
     if (legacyReviewNoteInput) {
       legacyReviewNoteInput.value = String(legacyInventory?.review_note || '').trim();
+    }
+    if (legacyScenarioMetadataInput) {
+      const details = Array.isArray(legacyInventory?.scenario_details) ? legacyInventory.scenario_details : [];
+      const metadata = {};
+      details.forEach((item) => {
+        const scenario = String(item?.scenario || '').trim();
+        if (!scenario) {
+          return;
+        }
+        metadata[scenario] = {
+          owner: String(item?.owner || '').trim(),
+          deadline_at_utc: String(item?.deadline_at_utc || '').trim(),
+          note: String(item?.note || '').trim(),
+        };
+      });
+      legacyScenarioMetadataInput.value = Object.keys(metadata).length > 0
+        ? JSON.stringify(metadata, null, 2)
+        : '';
     }
     const legacyUsagePolicy = packet?.legacy_usage_policy || {};
 if (packetLegacyUsageState) {
@@ -2031,6 +2050,51 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     return result;
   }
 
+  function normalizeUtcIsoTimestamp(value, label) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+    if (!/(Z|[+-]00:00)$/i.test(raw)) {
+      throw new Error(`${label} должен быть UTC timestamp в ISO-8601.`);
+    }
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(`${label} содержит невалидную дату.`);
+    }
+    return parsed.toISOString();
+  }
+
+  function parseLegacyScenarioMetadataMap(value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Owner + sunset deadline by scenario должен быть JSON-объектом вида {"scenario":{"owner":"...","deadline_at_utc":"2026-04-15T12:00:00Z"}}.');
+    }
+    const result = {};
+    Object.entries(parsed).forEach(([scenario, item]) => {
+      const normalizedScenario = String(scenario || '').trim();
+      if (!normalizedScenario || normalizedScenario.length > 120 || !item || typeof item !== 'object' || Array.isArray(item)) {
+        return;
+      }
+      const owner = String(item.owner || '').trim().slice(0, 120);
+      const deadlineAtUtc = normalizeUtcIsoTimestamp(item.deadlineAtUtc || item.deadline_at_utc || '', `Deadline for ${normalizedScenario}`);
+      const note = String(item.note || '').trim().slice(0, 300);
+      if (!owner && !deadlineAtUtc && !note) {
+        return;
+      }
+      result[normalizedScenario] = {
+        owner,
+        deadlineAtUtc,
+        note,
+      };
+    });
+    return result;
+  }
+
   async function saveContextStandard() {
     if (!contextSaveButton) {
       return;
@@ -2126,6 +2190,16 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       legacySaveButton.disabled = false;
       return;
     }
+    let scenarioMetadata = {};
+    try {
+      scenarioMetadata = parseLegacyScenarioMetadataMap(legacyScenarioMetadataInput ? legacyScenarioMetadataInput.value : '');
+    } catch (error) {
+      if (legacyActionState) {
+        legacyActionState.textContent = `Ошибка: ${error.message}`;
+      }
+      legacySaveButton.disabled = false;
+      return;
+    }
     try {
       const response = await fetch('/analytics/workspace-rollout/legacy-only-scenarios', {
         method: 'POST',
@@ -2134,6 +2208,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         },
         body: JSON.stringify({
           scenarios: parseCsvList(legacyScenariosInput ? legacyScenariosInput.value : ''),
+          scenarioMetadata,
           reviewedBy: legacyReviewedByInput ? (legacyReviewedByInput.value || '').trim() : '',
           reviewedAtUtc,
           note: legacyReviewNoteInput ? (legacyReviewNoteInput.value || '').trim().slice(0, 500) : '',
