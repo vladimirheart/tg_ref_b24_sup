@@ -3329,6 +3329,30 @@ public class DialogApiController {
                 sourceViolations,
                 missingPriorityBlocks,
                 playbooks);
+        List<String> definitionGaps = Stream.of(
+                        scenarios.isEmpty() ? "scenarios" : null,
+                        (mandatoryFields.isEmpty() && mandatoryFieldsByScenario.isEmpty()) ? "mandatory_fields" : null,
+                        (sourceOfTruth.isEmpty() && sourceOfTruthByScenario.isEmpty()) ? "source_of_truth" : null,
+                        (priorityBlocks.isEmpty() && priorityBlocksByScenario.isEmpty()) ? "priority_blocks" : null)
+                .filter(StringUtils::hasText)
+                .toList();
+        List<String> operatorFocusBlocks = Stream.concat(priorityBlocks.stream(), priorityBlocksByScenario.values().stream().flatMap(List::stream))
+                .map(this::normalizeMacroVariableKey)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .limit(4)
+                .toList();
+        List<String> actionItems = new ArrayList<>();
+        if (!definitionGaps.isEmpty()) {
+            actionItems.add("Дополните contract definitions: " + String.join(", ", definitionGaps) + ".");
+        }
+        if (!missingMandatoryFields.isEmpty()) {
+            actionItems.add("Сначала дозаполните поля: " + String.join(", ", missingMandatoryFields.stream().limit(3).toList()) + ".");
+        } else if (!sourceViolations.isEmpty()) {
+            actionItems.add("Проверьте источники данных: " + String.join(", ", sourceViolations.stream().limit(2).toList()) + ".");
+        } else if (!missingPriorityBlocks.isEmpty()) {
+            actionItems.add("Верните в workspace блоки: " + String.join(", ", missingPriorityBlocks.stream().limit(3).toList()) + ".");
+        }
          boolean definitionReady = !scenarios.isEmpty()
                  && (!mandatoryFields.isEmpty() || !mandatoryFieldsByScenario.isEmpty())
                  && (!sourceOfTruth.isEmpty() || !sourceOfTruthByScenario.isEmpty())
@@ -3357,6 +3381,10 @@ public class DialogApiController {
         payload.put("violations", violations);
         payload.put("violation_details", violationDetails);
         payload.put("playbooks", playbooks);
+        payload.put("definition_gaps", definitionGaps);
+        payload.put("operator_focus_blocks", operatorFocusBlocks);
+        payload.put("progressive_disclosure_ready", !operatorFocusBlocks.isEmpty());
+        payload.put("action_items", actionItems);
         payload.put("checked_at_utc", Instant.now().toString());
         return payload;
     }

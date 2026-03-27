@@ -2063,6 +2063,18 @@ public class DialogService {
         long legacyInventoryReviewAgeHours = legacyInventoryReviewedAt != null
                 ? Math.max(0L, java.time.Duration.between(legacyInventoryReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours())
                 : -1L;
+        long legacyRepeatReviewCadenceDays = reviewCadenceDays > 0 ? reviewCadenceDays : 7L;
+        boolean legacyRepeatReviewRequired = !legacyOnlyScenarios.isEmpty()
+                && (legacyInventoryReviewedAt == null
+                || legacyInventoryReviewAgeHours > legacyRepeatReviewCadenceDays * 24L
+                || legacyDeadlineOverdueCount > 0);
+        String legacyRepeatReviewReason = legacyDeadlineOverdueCount > 0
+                ? "overdue_commitments"
+                : legacyInventoryReviewedAt == null
+                ? "review_missing"
+                : legacyInventoryReviewAgeHours > legacyRepeatReviewCadenceDays * 24L
+                ? "review_stale"
+                : "";
         List<String> legacyInventoryActionItems = new ArrayList<>();
         if (!legacyOnlyScenarios.isEmpty()) {
             if (legacyOwnerAssignedCount < legacyOnlyScenarios.size()) {
@@ -2673,6 +2685,9 @@ public class DialogService {
                 Map.entry("review_note", legacyInventoryReviewNote == null ? "" : legacyInventoryReviewNote),
                 Map.entry("review_age_hours", legacyInventoryReviewAgeHours),
                 Map.entry("review_timestamp_invalid", legacyInventoryReviewTimestampInvalid),
+                Map.entry("repeat_review_cadence_days", legacyRepeatReviewCadenceDays),
+                Map.entry("repeat_review_required", legacyRepeatReviewRequired),
+                Map.entry("repeat_review_reason", legacyRepeatReviewReason),
                 Map.entry("open_count", legacyOnlyScenarios.size()),
                 Map.entry("managed_count", legacyManagedScenarioCount),
                 Map.entry("managed_coverage_pct", legacyManagedCoveragePct),

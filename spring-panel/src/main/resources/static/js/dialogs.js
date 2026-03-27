@@ -2558,6 +2558,12 @@
     const invalidUtcItems = Array.isArray(safePacket?.invalid_utc_items) ? safePacket.invalid_utc_items : [];
     const missingItems = Array.isArray(safePacket?.missing_items) ? safePacket.missing_items : [];
     const legacyOnlyScenarios = Array.isArray(safePacket?.legacy_only_scenarios) ? safePacket.legacy_only_scenarios : [];
+    const legacyInventory = safePacket?.legacy_only_inventory && typeof safePacket.legacy_only_inventory === 'object'
+      ? safePacket.legacy_only_inventory
+      : {};
+    const contextContract = safePacket?.context_contract && typeof safePacket.context_contract === 'object'
+      ? safePacket.context_contract
+      : {};
     const nextReviewAt = formatTimestamp(safePacket?.next_review_at_utc, { includeTime: true, fallback: '' });
 
     experimentRolloutPacketState.classList.remove('d-none', 'alert-success', 'alert-warning', 'alert-danger', 'alert-secondary');
@@ -2579,6 +2585,32 @@
       { ok: invalidUtcItems.length === 0, label: invalidUtcItems.length ? `UTC-ошибки: ${invalidUtcItems.join(', ')}` : 'UTC-метки governance валидны' },
       { ok: legacyOnlyScenarios.length === 0, label: legacyOnlyScenarios.length ? `Legacy-only inventory открыт: ${legacyOnlyScenarios.join(', ')}` : 'Legacy-only inventory пуст' },
     ];
+    if (legacyOnlyScenarios.length) {
+      const legacyActionItems = Array.isArray(legacyInventory?.action_items) ? legacyInventory.action_items : [];
+      const overdue = Number(legacyInventory?.deadline_overdue_count || 0);
+      checks.push({
+        ok: overdue === 0,
+        label: overdue > 0
+          ? `Sunset commitments overdue: ${overdue}${legacyActionItems.length ? ` · ${legacyActionItems[0]}` : ''}`
+          : `Owner/deadline coverage ${Number(legacyInventory?.owner_coverage_pct || 0)}% / ${Number(legacyInventory?.deadline_coverage_pct || 0)}%`
+      });
+      if (legacyInventory?.repeat_review_required === true) {
+        checks.push({
+          ok: false,
+          label: `Повторный legacy review обязателен (${String(legacyInventory?.repeat_review_reason || 'review_due')})`
+        });
+      }
+    }
+    if (contextContract?.enabled === true) {
+      const contextActionItems = Array.isArray(contextContract?.action_items) ? contextContract.action_items : [];
+      const focusBlocks = Array.isArray(contextContract?.operator_focus_blocks) ? contextContract.operator_focus_blocks : [];
+      checks.push({
+        ok: contextContract?.ready === true,
+        label: contextContract?.ready === true
+          ? `Context contract ready${focusBlocks.length ? ` · operator first: ${focusBlocks.join(', ')}` : ''}`
+          : (contextActionItems[0] || 'Context contract требует action-oriented follow-up')
+      });
+    }
     if (nextReviewAt) {
       checks.push({ ok: true, label: `Следующий review due UTC: ${nextReviewAt}` });
     }
@@ -4179,6 +4211,12 @@
             : contractViolationDetails.length
               ? `Нужно закрыть ${contractViolationDetails.length} context-gap ${contractViolationDetails.length === 1 ? 'элемент' : (contractViolationDetails.length < 5 ? 'элемента' : 'элементов')}.`
               : `Есть отклонения: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`}</div>
+          ${Array.isArray(contract.operator_focus_blocks) && contract.operator_focus_blocks.length
+            ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(contract.operator_focus_blocks.join(', '))}</div>`
+            : ''}
+          ${Array.isArray(contract.action_items) && contract.action_items.length
+            ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contract.action_items[0])}</div>`
+            : ''}
           ${violationActionsSection}
           <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
         </div>`
