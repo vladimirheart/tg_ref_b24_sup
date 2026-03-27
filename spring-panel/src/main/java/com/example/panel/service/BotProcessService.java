@@ -84,6 +84,7 @@ public class BotProcessService {
             env.put("MAX_BOT_ENABLED", "max".equals(platform) ? "true" : "false");
             if ("max".equals(platform)) {
                 env.put("MAX_BOT_TOKEN", credential.token());
+                env.put("MAX_CHANNEL_ID", Objects.toString(channel.getId(), "0"));
                 env.put("MAX_SUPPORT_CHAT_ID", Objects.toString(channel.getSupportChatId(), ""));
             }
             env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");

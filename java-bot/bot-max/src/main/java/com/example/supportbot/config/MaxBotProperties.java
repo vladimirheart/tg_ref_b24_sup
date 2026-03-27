@@ -9,6 +9,7 @@ public class MaxBotProperties {
 
     private boolean enabled = false;
     private String token = "";
+    private Long channelId = 0L;
     private String webhookSecret = "";
 
     public boolean isEnabled() {
@@ -25,6 +26,14 @@ public class MaxBotProperties {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public Long getChannelId() {
+        return channelId;
+    }
+
+    public void setChannelId(Long channelId) {
+        this.channelId = channelId;
     }
 
     public String getWebhookSecret() {

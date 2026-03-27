@@ -36,6 +36,7 @@ vk-bot:
 max-bot:
   enabled: ${MAX_BOT_ENABLED:false}
   token: ${MAX_BOT_TOKEN:}
+  channel-id: ${MAX_CHANNEL_ID:0}
   webhook-secret: ${MAX_WEBHOOK_SECRET:}
 
 logging:

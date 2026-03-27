@@ -69,7 +69,7 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", "missing-user-or-text"));
         }
 
-        Channel channel = channelService.ensurePublicIdForToken(properties.getToken(), "MAX", "max");
+        Channel channel = channelService.resolveConfiguredChannel(properties.getChannelId(), properties.getToken(), "MAX", "max");
         if ("/start".equalsIgnoreCase(text.trim())) {
             messagingService.sendToUser(channel, userId, "Здравствуйте! Я бот поддержки. Опишите проблему в одном сообщении.");
             return ResponseEntity.ok(Map.of("ok", true));

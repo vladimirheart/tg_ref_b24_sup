@@ -31,8 +31,8 @@ public class MaxOutboundMessenger implements OutboundMessenger {
         if (supportChatId == null || supportChatId.isBlank()) {
             return false;
         }
-        if (!supportChatId.matches("\\d+")) {
-            log.warn("MAX support chat id '{}' is not numeric", supportChatId);
+        if (!supportChatId.matches("-?\\d+")) {
+            log.warn("MAX support chat id '{}' is not a valid signed integer", supportChatId);
             return false;
         }
         return maxApiClient.sendMessageToChat(supportChatId, text);
