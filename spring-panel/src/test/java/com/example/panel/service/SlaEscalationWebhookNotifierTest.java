@@ -1012,6 +1012,70 @@ class SlaEscalationWebhookNotifierTest {
         assertTrue(issues.stream().anyMatch(issue -> "governance_decision_hold".equals(issue.get("type"))));
     }
 
+    @Test
+    void buildRoutingGovernanceAuditAppliesStrictReviewPathAndLeadTime() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        Map<String, Object> audit = notifier.buildRoutingGovernanceAudit(
+                List.of(dialog("T-AUDIT-STRICT", "2026-03-26T10:00:00Z", "open", null)),
+                Map.of(
+                        "dialog_config", Map.of(
+                                "sla_target_minutes", 1440,
+                                "sla_critical_minutes", 30,
+                                "sla_critical_auto_assign_enabled", true,
+                                "sla_critical_auto_assign_governance_review_path", "strict",
+                                "sla_critical_auto_assign_governance_policy_changed_at", "2026-03-26T08:00:00Z",
+                                "sla_critical_auto_assign_governance_reviewed_by", "ops.lead",
+                                "sla_critical_auto_assign_governance_reviewed_at", "2026-03-26T12:00:00Z",
+                                "sla_critical_auto_assign_governance_decision", "go",
+                                "sla_critical_auto_assign_governance_dry_run_ticket_id", "INC-42",
+                                "sla_critical_auto_assign_rules", List.of(
+                                        Map.of("rule_id", "rule_reviewed", "match_channel", "telegram", "assign_to", "duty")
+                                )
+                        )
+                )
+        );
+
+        Map<String, Object> governanceReview = (Map<String, Object>) audit.get("governance_review");
+        Map<String, Object> requirements = (Map<String, Object>) audit.get("requirements");
+        assertEquals("strict", governanceReview.get("review_path"));
+        assertEquals(4L, governanceReview.get("decision_lead_time_hours"));
+        assertEquals(true, governanceReview.get("decision_ready"));
+        assertEquals(true, requirements.get("governance_dry_run_ticket_required"));
+        assertEquals(true, requirements.get("governance_decision_required"));
+    }
+
+    @Test
+    void buildRoutingGovernanceAuditRequiresRefreshAfterPolicyChange() {
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, null, new ObjectMapper());
+
+        Map<String, Object> audit = notifier.buildRoutingGovernanceAudit(
+                List.of(dialog("T-AUDIT-POLICY-CHANGE", "2026-03-26T10:00:00Z", "open", null)),
+                Map.of(
+                        "dialog_config", Map.of(
+                                "sla_target_minutes", 1440,
+                                "sla_critical_minutes", 30,
+                                "sla_critical_auto_assign_enabled", true,
+                                "sla_critical_auto_assign_governance_review_required", true,
+                                "sla_critical_auto_assign_governance_policy_changed_at", "2026-03-26T15:00:00Z",
+                                "sla_critical_auto_assign_governance_reviewed_by", "ops.lead",
+                                "sla_critical_auto_assign_governance_reviewed_at", "2026-03-26T12:00:00Z",
+                                "sla_critical_auto_assign_governance_decision", "go",
+                                "sla_critical_auto_assign_rules", List.of(
+                                        Map.of("rule_id", "rule_reviewed", "match_channel", "telegram", "assign_to", "duty")
+                                )
+                        )
+                )
+        );
+
+        assertEquals("hold", audit.get("status"));
+        Map<String, Object> governanceReview = (Map<String, Object>) audit.get("governance_review");
+        assertEquals(true, governanceReview.get("policy_changed_after_review"));
+        assertEquals(false, governanceReview.get("ready"));
+        List<Map<String, Object>> issues = (List<Map<String, Object>>) audit.get("issues");
+        assertTrue(issues.stream().anyMatch(issue -> "governance_review_outdated_after_policy_change".equals(issue.get("type"))));
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId,

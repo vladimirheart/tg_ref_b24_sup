@@ -101,6 +101,7 @@
   const slaPolicyReviewNoteInput = document.getElementById('workspaceTelemetrySlaPolicyReviewNote');
   const slaPolicyDecisionInput = document.getElementById('workspaceTelemetrySlaPolicyDecision');
   const slaPolicyDryRunTicketIdInput = document.getElementById('workspaceTelemetrySlaPolicyDryRunTicketId');
+  const slaPolicyReviewMeta = document.getElementById('workspaceTelemetrySlaPolicyReviewMeta');
   const slaPolicySaveReviewButton = document.getElementById('workspaceTelemetrySlaPolicySaveReview');
   const slaPolicyActionState = document.getElementById('workspaceTelemetrySlaPolicyActionState');
   const macroGovernanceStatus = document.getElementById('workspaceTelemetryMacroGovernanceStatus');
@@ -927,6 +928,19 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     }
   }
 
+  function formatReviewPath(value) {
+    switch (String(value || '').trim().toLowerCase()) {
+      case 'light':
+        return 'light';
+      case 'standard':
+        return 'standard';
+      case 'strict':
+        return 'strict';
+      default:
+        return 'custom';
+    }
+  }
+
   function renderSlaPolicyAudit(audit) {
     const status = String(audit?.status || 'off').toLowerCase();
     if (slaPolicyAuditStatus) {
@@ -954,7 +968,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     }
     if (slaPolicyAuditLayersMeta) {
       const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
-      slaPolicyAuditLayersMeta.textContent = `require_layers=${requirements.require_layers === true ? 'on' : 'off'} · require_owner=${requirements.require_owner === true ? 'on' : 'off'} · require_review=${requirements.require_review === true ? `on (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'off'} · governance_review=${requirements.governance_review_required === true ? `on (${formatNumber(requirements.governance_review_ttl_hours || 0)}h)` : 'off'} · decision_required=${requirements.governance_decision_required === true ? 'on' : 'off'}`;
+      slaPolicyAuditLayersMeta.textContent = `require_layers=${requirements.require_layers === true ? 'on' : 'off'} · require_owner=${requirements.require_owner === true ? 'on' : 'off'} · require_review=${requirements.require_review === true ? `on (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'off'} · governance_path=${formatReviewPath(requirements.governance_review_path)} · governance_review=${requirements.governance_review_required === true ? `on (${formatNumber(requirements.governance_review_ttl_hours || 0)}h)` : 'off'} · decision_required=${requirements.governance_decision_required === true ? 'on' : 'off'}`;
     }
     const preview = audit?.decision_preview && typeof audit.decision_preview === 'object' ? audit.decision_preview : {};
     const selectedByLayer = preview.selected_by_layer && typeof preview.selected_by_layer === 'object' ? preview.selected_by_layer : {};
@@ -984,6 +998,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       }
       if (issues.length) {
         parts.push(`Issues: ${issues.length}`);
+      }
+      if (requirements.governance_pre_review_conflicts_detected === true) {
+        parts.push('pre-review conflicts detected');
       }
       parts.push(`conflicts_block=${requirements.block_on_conflicts === true ? 'on' : 'off'}`);
       slaPolicyAuditIssueSummary.textContent = parts.join(' · ');
@@ -1065,6 +1082,24 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     if (slaPolicyDecisionInput) {
       const decision = String(governanceReview?.decision || '').trim().toLowerCase();
       slaPolicyDecisionInput.value = ['go', 'hold'].includes(decision) ? decision : '';
+    }
+    if (slaPolicyReviewMeta) {
+      const parts = [`path=${formatReviewPath(governanceReview?.review_path)}`];
+      if (governanceReview?.policy_changed_at_utc) {
+        parts.push(`policy changed: ${formatTimestamp(governanceReview.policy_changed_at_utc)}`);
+      }
+      if (Number(governanceReview?.decision_lead_time_hours) >= 0) {
+        parts.push(`lead time=${formatNumber(governanceReview.decision_lead_time_hours)}h`);
+      } else if (Number(governanceReview?.decision_lead_time_active_hours) >= 0) {
+        parts.push(`lead time pending=${formatNumber(governanceReview.decision_lead_time_active_hours)}h`);
+      }
+      if (governanceReview?.policy_changed_after_review === true) {
+        parts.push('review outdated after policy change');
+      }
+      if (governanceReview?.pre_review_conflicts_detected === true) {
+        parts.push(`conflicts: rules=${formatNumber(governanceReview.pre_review_conflicting_rules || 0)}, tickets=${formatNumber(governanceReview.pre_review_conflicting_tickets || 0)}`);
+      }
+      slaPolicyReviewMeta.textContent = parts.join(' · ');
     }
   }
 

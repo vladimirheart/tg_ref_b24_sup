@@ -138,12 +138,14 @@
 Что уже закрыто:
 - layering/ownership/review checkpoints;
 - decision gate;
-- analytics review loop.
+- analytics review loop;
+- risk-based review paths (`custom/light/standard/strict`);
+- pre-review сигнализация конфликтующих routing rules;
+- lead time от policy change до governance decision.
 
 Что остаётся:
-- risk-based review paths;
-- более раннее обнаружение конфликтующих правил;
-- lead time от policy change до финального decision.
+- упростить noisy governance-signals до 1-2 действительно обязательных путей эскалации;
+- проверить, что обновление policy не создаёт лишний churn в review-cycle.
 
 ### P2. Macro governance нужно удержать в продуктивном режиме
 Что уже закрыто:
@@ -182,9 +184,8 @@
 - governance должен уменьшать риск, а не замедлять изменение правил.
 
 Минимум на следующий цикл:
-- light/standard/strict path для review;
-- pre-review сигнализация конфликтов;
-- lead-time метрика по жизненному циклу policy change.
+- отфильтровать noisy SLA governance checkpoints;
+- определить минимальный обязательный review path для типовых policy change.
 
 ### Шаг 4. Ввести quality loop для macro catalog
 Цель:

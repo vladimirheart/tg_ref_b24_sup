@@ -558,7 +558,8 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
                 .andExpect(jsonPath("$.reviewed_at_utc").value("2026-03-24T23:10:00Z"))
                 .andExpect(jsonPath("$.review_note").value("Dry-run checked against INC-99, broad rule cleanup queued."))
                 .andExpect(jsonPath("$.dry_run_ticket_id").value("INC-99"))
-                .andExpect(jsonPath("$.decision").value("hold"));
+                .andExpect(jsonPath("$.decision").value("hold"))
+                .andExpect(jsonPath("$.policy_changed_at_utc").value(""));
 
         ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(sharedConfigService).saveSettings(settingsCaptor.capture());

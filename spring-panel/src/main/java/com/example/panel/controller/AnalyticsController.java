@@ -730,6 +730,16 @@ public class AnalyticsController {
                         "error", "decision must be one of: go, hold"));
             }
         }
+        String policyChangedAtRaw = normalize(String.valueOf(request != null ? request.policyChangedAtUtc() : null));
+        OffsetDateTime policyChangedAtUtc = null;
+        if (policyChangedAtRaw != null) {
+            policyChangedAtUtc = parseUtcTimestamp(policyChangedAtRaw);
+            if (policyChangedAtUtc == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "policy_changed_at_utc must be a valid UTC timestamp (ISO-8601)"));
+            }
+        }
 
         Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
         Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
@@ -751,6 +761,9 @@ public class AnalyticsController {
             dialogConfig.remove("sla_critical_auto_assign_governance_decision");
         } else {
             dialogConfig.put("sla_critical_auto_assign_governance_decision", decision);
+        }
+        if (policyChangedAtUtc != null) {
+            dialogConfig.put("sla_critical_auto_assign_governance_policy_changed_at", policyChangedAtUtc.toInstant().toString());
         }
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
@@ -779,7 +792,8 @@ public class AnalyticsController {
                 "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
                 "review_note", reviewNote == null ? "" : reviewNote,
                 "dry_run_ticket_id", dryRunTicketId == null ? "" : dryRunTicketId,
-                "decision", decision == null ? "" : decision
+                "decision", decision == null ? "" : decision,
+                "policy_changed_at_utc", policyChangedAtUtc != null ? policyChangedAtUtc.toInstant().toString() : ""
         ));
     }
 
@@ -1310,7 +1324,8 @@ public class AnalyticsController {
                                                     String reviewedAtUtc,
                                                     String reviewNote,
                                                     String dryRunTicketId,
-                                                    String decision) {
+                                                    String decision,
+                                                    String policyChangedAtUtc) {
     }
 
     private record MacroGovernanceReviewRequest(String reviewedBy,
