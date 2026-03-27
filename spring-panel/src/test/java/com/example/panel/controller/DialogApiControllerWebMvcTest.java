@@ -407,7 +407,11 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.contract.ready").value(false))
                 .andExpect(jsonPath("$.context.contract.missing_mandatory_fields[0]").value("phone"))
                 .andExpect(jsonPath("$.context.contract.violation_details[0].code").value("mandatory_field:phone"))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].severity").value("high"))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].short_label").value("Поле \"Phone\" не заполнено"))
                 .andExpect(jsonPath("$.context.contract.violation_details[0].operator_message").value("Заполните обязательное поле \"Phone\" в карточке клиента."))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].next_step").value("Свяжитесь с клиентом или проверьте CRM, затем сохраните поле \"Phone\"."))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].action_label").value("Открыть playbook"))
                 .andExpect(jsonPath("$.context.contract.violation_details[0].playbook.label").value("Phone recovery"))
                 .andExpect(jsonPath("$.context.contract.violation_details[0].playbook.url").value("https://wiki.example.local/context/phone"));
     }
