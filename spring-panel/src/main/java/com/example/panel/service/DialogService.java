@@ -1207,7 +1207,7 @@ public class DialogService {
             auditTemplate.put("cleanup_due_in_days", cleanupDueInDays);
             auditTemplate.put("cleanup_sla_status", cleanupSlaStatus);
             auditTemplate.put("deprecation_sla_days", deprecationSlaDays);
-            auditTemplate.put("deprecation_due_in_days", deprecation ? deprecationDueInDays : -1L);
+            auditTemplate.put("deprecation_due_in_days", deprecated ? deprecationDueInDays : -1L);
             auditTemplate.put("deprecation_sla_status", deprecationSlaStatus);
             auditTemplate.put("red_list_candidate", redListCandidate);
             auditTemplate.put("red_list_reasons", redListReasons);
