@@ -14,24 +14,50 @@
   <script src="/js/common.js"></script>
   <style>
     .settings-tiles .settings-tile {
-      border: 1px solid #e9ecef;
+      border: 1px solid transparent;
       border-radius: 1rem;
-      background: linear-gradient(135deg, #f8f9fa, #ffffff);
-      box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+      background:
+        linear-gradient(color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 18%, white)),
+        conic-gradient(
+          from var(--gradient-angle),
+          color-mix(in srgb, var(--gradient-primary) 42%, transparent),
+          color-mix(in srgb, var(--gradient-secondary) 34%, transparent),
+          color-mix(in srgb, var(--gradient-accent) 42%, transparent),
+          color-mix(in srgb, var(--gradient-primary) 42%, transparent)
+        );
+      box-shadow: var(--color-shadow);
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      background-origin: padding-box, border-box;
+      background-clip: padding-box, border-box;
+      animation: gradient-rotate 16s linear infinite;
     }
 
     .settings-tiles .settings-tile--accent {
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), #ffffff);
-      border-color: rgba(13, 110, 253, 0.2);
-      box-shadow: 0 0.25rem 0.75rem rgba(13, 110, 253, 0.15);
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 74%, white), color-mix(in srgb, var(--card) 94%, white)),
+        conic-gradient(
+          from var(--gradient-angle),
+          color-mix(in srgb, var(--gradient-primary) 52%, transparent),
+          color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
+          color-mix(in srgb, var(--gradient-accent) 50%, transparent),
+          color-mix(in srgb, var(--gradient-primary) 52%, transparent)
+        );
+      border-color: transparent;
     }
 
     .settings-tiles .settings-tile.is-active {
-      border-color: rgba(13, 110, 253, 0.45);
-      box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.2);
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.18), #ffffff);
+      border-color: transparent;
+      box-shadow: 0 0.9rem 1.8rem rgba(16, 185, 129, 0.18);
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 84%, white), color-mix(in srgb, var(--card) 96%, white)),
+        conic-gradient(
+          from var(--gradient-angle),
+          color-mix(in srgb, var(--gradient-primary) 60%, transparent),
+          color-mix(in srgb, var(--gradient-secondary) 48%, transparent),
+          color-mix(in srgb, var(--gradient-accent) 58%, transparent),
+          color-mix(in srgb, var(--gradient-primary) 60%, transparent)
+        );
     }
 
     .settings-tiles .settings-tile:hover {
@@ -43,7 +69,7 @@
       width: 3rem;
       height: 3rem;
       border-radius: 0.75rem;
-      background: rgba(13, 110, 253, 0.08);
+      background: color-mix(in srgb, var(--accent) 72%, white);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -52,47 +78,47 @@
     }
 
     .settings-tiles .settings-tile--accent .tile-icon {
-      background: rgba(13, 110, 253, 0.18);
-      color: #0d6efd;
+      background: color-mix(in srgb, var(--primary) 14%, white);
+      color: var(--primary);
     }
 
     .settings-tiles .settings-tile .card-title {
       text-align: center;
-      color: #0d6efd;
+      color: var(--color-text);
       font-weight: 600;
     }
 
     .settings-tiles .settings-tile--accent .card-text {
-      color: #495057;
+      color: var(--color-text-muted);
     }
 
     .it-section-accordion .accordion-button {
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.04));
-      color: #0d6efd;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 68%, white), color-mix(in srgb, var(--secondary) 32%, white));
+      color: var(--primary);
       font-weight: 600;
     }
 
     .it-section-accordion .accordion-button.collapsed {
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.05), #ffffff);
-      color: #0d6efd;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 18%, white));
+      color: var(--primary);
     }
 
     .it-section-accordion .accordion-button:focus {
-      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--primary) 24%, transparent);
     }
 
     .it-section-accordion .accordion-body {
-      background-color: #fdfdfd;
+      background-color: color-mix(in srgb, var(--card) 96%, white);
     }
 
     .it-section-accordion .table thead th {
-      background: rgba(13, 110, 253, 0.1);
-      color: #0d6efd;
+      background: color-mix(in srgb, var(--accent) 70%, white);
+      color: var(--primary);
       border-bottom: 0;
     }
 
     .it-section-accordion--nested .accordion-item {
-      border: 1px solid rgba(13, 110, 253, 0.15);
+      border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
       border-radius: 0.75rem;
       overflow: hidden;
     }
@@ -102,16 +128,16 @@
     }
 
     .it-section-accordion--nested .accordion-button {
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.15), rgba(13, 110, 253, 0.05));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 78%, white), color-mix(in srgb, var(--secondary) 26%, white));
     }
 
     .it-section-accordion--nested .accordion-button.collapsed {
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), rgba(13, 110, 253, 0.02));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 14%, white));
     }
 
     .modal .card-header {
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.05));
-      color: #0d6efd;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 74%, white), color-mix(in srgb, var(--secondary) 28%, white));
+      color: var(--primary);
       font-weight: 600;
     }
 
@@ -1038,7 +1064,11 @@
   <main class="main-content container-fluid">
 
   <div class="container mt-4">
-    <h2>⚙️ Настройки системы</h2>
+    <div class="page-header-card">
+      <span class="page-kicker">Workspace Control</span>
+      <h2 class="page-title">⚙️ Настройки системы</h2>
+      <p class="page-subtitle">Каналы, доступы, справочники и оформление панели в одном рабочем пространстве.</p>
+    </div>
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 settings-tiles">
       <div class="col">

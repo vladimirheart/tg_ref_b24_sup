@@ -163,6 +163,60 @@ body, html {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+.page-header-card {
+  position: relative;
+  margin-bottom: 1.5rem;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid transparent;
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 24%, white)),
+    conic-gradient(
+      from var(--gradient-angle),
+      color-mix(in srgb, var(--gradient-primary) 55%, transparent),
+      color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
+      color-mix(in srgb, var(--gradient-accent) 52%, transparent),
+      color-mix(in srgb, var(--gradient-primary) 55%, transparent)
+    );
+  background-origin: padding-box, border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: var(--color-shadow);
+  animation: gradient-rotate 14s linear infinite;
+}
+
+.page-kicker {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 78%, white);
+  color: var(--accent-foreground);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.page-title {
+  margin: 0.75rem 0 0.25rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.8rem, 2.6vw, 2.6rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  max-width: 70ch;
+}
+
+.surface-soft {
+  background: color-mix(in srgb, var(--color-surface-soft) 85%, white);
+  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
+  border-radius: 1rem;
+}
+
 .card,
 .modal-content,
 .dropdown-menu,
