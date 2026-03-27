@@ -589,6 +589,11 @@ public class AnalyticsController {
                 "success", false,
                 "error", "max_legacy_blocked_share_delta_pct must be between 0 and 100"));
     }
+    List<String> blockedReasonsReviewed = sanitizeStringList(request != null ? request.blockedReasonsReviewed() : null);
+    String blockedReasonsFollowup = normalize(String.valueOf(request != null ? request.blockedReasonsFollowup() : null));
+    if (blockedReasonsFollowup != null && blockedReasonsFollowup.length() > 500) {
+        blockedReasonsFollowup = blockedReasonsFollowup.substring(0, 500);
+    }
 
     Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
     Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
@@ -638,6 +643,16 @@ public class AnalyticsController {
         } else {
             dialogConfig.put("workspace_rollout_legacy_manual_open_reason_catalog_required", reasonCatalogRequired);
         }
+    if (blockedReasonsReviewed.isEmpty()) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_blocked_reasons_reviewed");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_blocked_reasons_reviewed", blockedReasonsReviewed);
+    }
+    if (blockedReasonsFollowup == null) {
+        dialogConfig.remove("workspace_rollout_governance_legacy_blocked_reasons_followup");
+    } else {
+        dialogConfig.put("workspace_rollout_governance_legacy_blocked_reasons_followup", blockedReasonsFollowup);
+    }
     settings.put("dialog_config", dialogConfig);
     sharedConfigService.saveSettings(settings);
 
@@ -671,6 +686,8 @@ public class AnalyticsController {
     response.put("max_legacy_blocked_share_delta_pct", maxBlockedShareDeltaPct == null ? "" : maxBlockedShareDeltaPct);
     response.put("allowed_reasons", allowedReasons);
     response.put("reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired);
+    response.put("blocked_reasons_reviewed", blockedReasonsReviewed);
+    response.put("blocked_reasons_followup", blockedReasonsFollowup == null ? "" : blockedReasonsFollowup);
     return ResponseEntity.ok(response);
 }
     @PostMapping(value = "/sla-policy/governance-review", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -1285,8 +1302,10 @@ public class AnalyticsController {
                                                  Long maxLegacyManualShareDeltaPct,
                                                  Long maxLegacyBlockedShareDeltaPct,
                                                  Object allowedReasons,
-                                                 Boolean reasonCatalogRequired) {
-}
+                                                 Boolean reasonCatalogRequired,
+                                                 Object blockedReasonsReviewed,
+                                                 String blockedReasonsFollowup) {
+    }
     private record SlaPolicyGovernanceReviewRequest(String reviewedBy,
                                                     String reviewedAtUtc,
                                                     String reviewNote,

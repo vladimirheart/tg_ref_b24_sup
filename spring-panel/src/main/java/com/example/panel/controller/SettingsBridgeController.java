@@ -260,6 +260,8 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_governance_legacy_usage_decision")
                 || payload.containsKey("dialog_workspace_rollout_governance_legacy_manual_share_max_pct")
                 || payload.containsKey("dialog_workspace_rollout_governance_legacy_usage_min_workspace_open_events")
+                || payload.containsKey("dialog_workspace_rollout_governance_legacy_blocked_reasons_review_required")
+                || payload.containsKey("dialog_workspace_rollout_governance_legacy_blocked_reasons_top_n")
                 || payload.containsKey("dialog_macro_variable_defaults")
                 || payload.containsKey("dialog_macro_variable_catalog")
                 || payload.containsKey("dialog_macro_variable_catalog_external_url")
@@ -746,6 +748,14 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_workspace_rollout_governance_legacy_usage_min_workspace_open_events")) {
                     dialogConfig.put("workspace_rollout_governance_legacy_usage_min_workspace_open_events",
                             payload.get("dialog_workspace_rollout_governance_legacy_usage_min_workspace_open_events"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_legacy_blocked_reasons_review_required")) {
+                    dialogConfig.put("workspace_rollout_governance_legacy_blocked_reasons_review_required",
+                            payload.get("dialog_workspace_rollout_governance_legacy_blocked_reasons_review_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_governance_legacy_blocked_reasons_top_n")) {
+                    dialogConfig.put("workspace_rollout_governance_legacy_blocked_reasons_top_n",
+                            payload.get("dialog_workspace_rollout_governance_legacy_blocked_reasons_top_n"));
                 }
                 if (payload.containsKey("dialog_macro_variable_defaults")) {
                     dialogConfig.put("macro_variable_defaults", payload.get("dialog_macro_variable_defaults"));

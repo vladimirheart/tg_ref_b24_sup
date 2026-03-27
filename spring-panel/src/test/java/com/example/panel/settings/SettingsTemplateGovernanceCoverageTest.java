@@ -19,10 +19,14 @@ class SettingsTemplateGovernanceCoverageTest {
         assertThat(html)
                 .contains("id=\"dialogWorkspaceGovernanceReviewDecisionRequired\"")
                 .contains("id=\"dialogWorkspaceGovernanceIncidentFollowupRequired\"")
+                .contains("id=\"dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired\"")
+                .contains("id=\"dialogWorkspaceGovernanceLegacyBlockedReasonsTopN\"")
                 .contains("id=\"dialogWorkspaceGovernanceReviewDecisionAction\"")
                 .contains("id=\"dialogWorkspaceGovernanceReviewIncidentFollowup\"")
                 .contains("dialog_workspace_rollout_governance_review_decision_required")
                 .contains("dialog_workspace_rollout_governance_incident_followup_required")
+                .contains("dialog_workspace_rollout_governance_legacy_blocked_reasons_review_required")
+                .contains("dialog_workspace_rollout_governance_legacy_blocked_reasons_top_n")
                 .contains("dialog_workspace_rollout_governance_review_decision_action")
                 .contains("dialog_workspace_rollout_governance_review_incident_followup");
     }
