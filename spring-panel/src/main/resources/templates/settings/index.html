@@ -2532,6 +2532,18 @@
                       <input type="number" class="form-control" id="dialogWorkspaceLegacyUsageMinWorkspaceOpens" min="0" max="100000" step="1">
                       <div class="form-text">0/пусто = volume-gate выключен (обратная совместимость).</div>
                     </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired">Требовать post-review top blocked reasons для `workspace_open_legacy_blocked`</label>
+                      </div>
+                      <div class="form-text">Если выключено, новый review-gate не участвует в readiness и поведение не меняется.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceLegacyBlockedReasonsTopN" class="form-label">Top blocked reasons для review</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceLegacyBlockedReasonsTopN" min="1" max="10" step="1">
+                      <div class="form-text">Используется только если включён post-review blocked reasons.</div>
+                    </div>
                     <div class="col-md-4">
                       <label for="dialogWorkspaceGovernanceReviewDecisionAction" class="form-label">Decision action weekly review</label>
                       <select class="form-select" id="dialogWorkspaceGovernanceReviewDecisionAction">
@@ -5274,6 +5286,8 @@
     workspace_rollout_governance_parity_critical_reasons: [],
     workspace_rollout_governance_legacy_only_scenarios: [],
     workspace_rollout_governance_legacy_usage_min_workspace_open_events: '',
+    workspace_rollout_governance_legacy_blocked_reasons_review_required: false,
+    workspace_rollout_governance_legacy_blocked_reasons_top_n: 3,
     macro_governance_require_owner: false,
     macro_governance_require_namespace: false,
     macro_governance_require_review: false,
@@ -14502,6 +14516,8 @@
       workspaceGovernanceParityExitDays: document.getElementById('dialogWorkspaceGovernanceParityExitDays'),
       workspaceGovernanceParityCriticalReasons: document.getElementById('dialogWorkspaceGovernanceParityCriticalReasons'),
       workspaceGovernanceLegacyOnlyScenarios: document.getElementById('dialogWorkspaceGovernanceLegacyOnlyScenarios'),
+      workspaceGovernanceLegacyBlockedReasonsReviewRequired: document.getElementById('dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired'),
+      workspaceGovernanceLegacyBlockedReasonsTopN: document.getElementById('dialogWorkspaceGovernanceLegacyBlockedReasonsTopN'),
       workspaceLegacyUsageReviewNote: document.getElementById('dialogWorkspaceLegacyUsageReviewNote'),
       workspaceLegacyUsageDecision: document.getElementById('dialogWorkspaceLegacyUsageDecision'),
       workspaceLegacyUsageMaxSharePct: document.getElementById('dialogWorkspaceLegacyUsageMaxSharePct'),
@@ -15231,6 +15247,15 @@
       } else {
         inputs.workspaceGovernanceLegacyOnlyScenarios.value = '[]';
       }
+    }
+    if (inputs.workspaceGovernanceLegacyBlockedReasonsReviewRequired) {
+      inputs.workspaceGovernanceLegacyBlockedReasonsReviewRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_review_required);
+    }
+    if (inputs.workspaceGovernanceLegacyBlockedReasonsTopN) {
+      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_top_n, 10);
+      inputs.workspaceGovernanceLegacyBlockedReasonsTopN.value = Number.isFinite(value) && value >= 1 && value <= 10
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_top_n;
     }
     if (inputs.workspaceLegacyUsageMinWorkspaceOpens) {
       const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_legacy_usage_min_workspace_open_events, 10);
@@ -17042,6 +17067,17 @@
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean),
     ));
+    const safeWorkspaceGovernanceLegacyBlockedReasonsReviewRequired = Boolean(inputs.workspaceGovernanceLegacyBlockedReasonsReviewRequired?.checked);
+    const safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw = Number.parseInt(inputs.workspaceGovernanceLegacyBlockedReasonsTopN?.value || '', 10);
+    const safeWorkspaceGovernanceLegacyBlockedReasonsTopN = Number.isFinite(safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw)
+      ? Math.max(1, Math.min(10, safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_top_n;
+    if (safeWorkspaceGovernanceLegacyBlockedReasonsReviewRequired
+      && (!Number.isFinite(safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw)
+        || safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw < 1
+        || safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw > 10)) {
+      errors.push('Top blocked reasons для review должен быть целым числом 1..10.');
+    }
     let safeWorkspaceGovernanceLegacyOnlyScenarios = [];
     const legacyOnlyScenariosRaw = String(inputs.workspaceGovernanceLegacyOnlyScenarios?.value || '').trim();
     if (legacyOnlyScenariosRaw) {
@@ -17064,6 +17100,16 @@
           .map((value) => String(value || '').trim())
           .filter(Boolean)));
       }
+    }
+    const safeWorkspaceLegacyUsageMinWorkspaceOpensRaw = Number.parseInt(inputs.workspaceLegacyUsageMinWorkspaceOpens?.value || '', 10);
+    const safeWorkspaceLegacyUsageMinWorkspaceOpens = Number.isFinite(safeWorkspaceLegacyUsageMinWorkspaceOpensRaw)
+      ? Math.max(0, Math.min(100000, safeWorkspaceLegacyUsageMinWorkspaceOpensRaw))
+      : '';
+    if (String(inputs.workspaceLegacyUsageMinWorkspaceOpens?.value || '').trim()
+      && (!Number.isFinite(safeWorkspaceLegacyUsageMinWorkspaceOpensRaw)
+        || safeWorkspaceLegacyUsageMinWorkspaceOpensRaw < 0
+        || safeWorkspaceLegacyUsageMinWorkspaceOpensRaw > 100000)) {
+      errors.push('Мин. workspace opens в окне должен быть целым числом 0..100000.');
     }
 
     const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
@@ -17495,6 +17541,9 @@
         dialog_workspace_rollout_governance_parity_exit_days: safeWorkspaceGovernanceParityExitDays,
         dialog_workspace_rollout_governance_parity_critical_reasons: safeWorkspaceGovernanceParityCriticalReasons,
         dialog_workspace_rollout_governance_legacy_only_scenarios: safeWorkspaceGovernanceLegacyOnlyScenarios,
+        dialog_workspace_rollout_governance_legacy_usage_min_workspace_open_events: safeWorkspaceLegacyUsageMinWorkspaceOpens,
+        dialog_workspace_rollout_governance_legacy_blocked_reasons_review_required: safeWorkspaceGovernanceLegacyBlockedReasonsReviewRequired,
+        dialog_workspace_rollout_governance_legacy_blocked_reasons_top_n: safeWorkspaceGovernanceLegacyBlockedReasonsTopN,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
         dialog_macro_variable_catalog: safeMacroVariableCatalog,
         dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,

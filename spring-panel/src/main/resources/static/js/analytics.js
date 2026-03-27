@@ -66,6 +66,8 @@
   const legacyUsageSaveButton = document.getElementById('workspaceTelemetryLegacyUsageSave');
   const legacyUsageAllowedReasonsInput = document.getElementById('workspaceTelemetryLegacyUsageAllowedReasons');
   const legacyUsageReasonCatalogRequiredInput = document.getElementById('workspaceTelemetryLegacyUsageReasonCatalogRequired');
+  const legacyUsageBlockedReasonsReviewedInput = document.getElementById('workspaceTelemetryLegacyUsageBlockedReasonsReviewed');
+  const legacyUsageBlockedReasonsFollowupInput = document.getElementById('workspaceTelemetryLegacyUsageBlockedReasonsFollowup');
   const legacyUsageActionState = document.getElementById('workspaceTelemetryLegacyUsageActionState');
   const packetContextState = document.getElementById('workspaceTelemetryPacketContextState');
   const packetContextMeta = document.getElementById('workspaceTelemetryPacketContextMeta');
@@ -769,8 +771,14 @@ if (packetLegacyUsageMeta) {
   const blockedReasonsSummary = blockedReasonsTop.length
     ? blockedReasonsTop.slice(0, 3).map((row) => `${String(row?.reason || 'unspecified')}:${Number(row?.events || 0)}`).join(', ')
     : '';
+  const blockedReasonsReviewRequired = legacyUsagePolicy?.blocked_reasons_review_required === true;
+  const blockedReasonsTopN = Number(legacyUsagePolicy?.blocked_reasons_top_n || 0);
+  const blockedReasonsReviewed = Array.isArray(legacyUsagePolicy?.blocked_reasons_reviewed) ? legacyUsagePolicy.blocked_reasons_reviewed : [];
+  const blockedReasonsMissing = Array.isArray(legacyUsagePolicy?.blocked_reasons_missing) ? legacyUsagePolicy.blocked_reasons_missing : [];
+  const blockedReasonsReviewReady = legacyUsagePolicy?.blocked_reasons_review_ready === true;
+  const blockedReasonsFollowup = String(legacyUsagePolicy?.blocked_reasons_followup || '').trim();
   const unknownEvents = Number(legacyUsagePolicy?.unknown_manual_reason_events || 0);
-  packetLegacyUsageMeta.textContent = `manual legacy share=${share}%${maxShare !== null && maxShare !== undefined && maxShare !== '' ? ` (max ${maxShare}%)` : ''}${minWorkspaceOpens !== null && minWorkspaceOpens !== undefined && minWorkspaceOpens !== '' ? ` · min opens=${minWorkspaceOpens} (${volumeReady === true ? 'ok' : 'hold'})` : ''}${maxShareDelta !== null && maxShareDelta !== undefined && maxShareDelta !== '' ? ` · share delta=${shareDelta}pp vs prev ${previousShare}% (max +${maxShareDelta}pp, ${trendReady === true ? 'ok' : 'hold'})` : ''}${maxBlockedShareDelta !== null && maxBlockedShareDelta !== undefined && maxBlockedShareDelta !== '' ? ` · blocked delta=${blockedShareDelta}pp vs prev ${previousBlockedShare}% (max +${maxBlockedShareDelta}pp, ${blockedTrendReady === true ? 'ok' : 'hold'})` : ''}${reasonsSummary ? ` · manual reasons: ${reasonsSummary}` : ''}${blockedReasonsSummary ? ` · blocked reasons: ${blockedReasonsSummary}` : ''}${unknownEvents > 0 ? ` · unknown reasons: ${unknownEvents}` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${decision ? ` · decision: ${decision}` : ''} · policy updates: ${policyEvents}${note ? ` · note: ${note}` : ''}`;
+  packetLegacyUsageMeta.textContent = `manual legacy share=${share}%${maxShare !== null && maxShare !== undefined && maxShare !== '' ? ` (max ${maxShare}%)` : ''}${minWorkspaceOpens !== null && minWorkspaceOpens !== undefined && minWorkspaceOpens !== '' ? ` · min opens=${minWorkspaceOpens} (${volumeReady === true ? 'ok' : 'hold'})` : ''}${maxShareDelta !== null && maxShareDelta !== undefined && maxShareDelta !== '' ? ` · share delta=${shareDelta}pp vs prev ${previousShare}% (max +${maxShareDelta}pp, ${trendReady === true ? 'ok' : 'hold'})` : ''}${maxBlockedShareDelta !== null && maxBlockedShareDelta !== undefined && maxBlockedShareDelta !== '' ? ` · blocked delta=${blockedShareDelta}pp vs prev ${previousBlockedShare}% (max +${maxBlockedShareDelta}pp, ${blockedTrendReady === true ? 'ok' : 'hold'})` : ''}${reasonsSummary ? ` · manual reasons: ${reasonsSummary}` : ''}${blockedReasonsSummary ? ` · blocked reasons: ${blockedReasonsSummary}` : ''}${blockedReasonsReviewRequired ? ` · blocked review top-${blockedReasonsTopN || 3}: ${blockedReasonsReviewReady ? 'ok' : `hold${blockedReasonsMissing.length ? ` (${blockedReasonsMissing.join(', ')})` : ''}`}` : ''}${unknownEvents > 0 ? ` · unknown reasons: ${unknownEvents}` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${decision ? ` · decision: ${decision}` : ''} · policy updates: ${policyEvents}${blockedReasonsFollowup ? ` · blocked follow-up: ${blockedReasonsFollowup}` : ''}${note ? ` · note: ${note}` : ''}`;
 }
 if (legacyUsageReviewedByInput) {
   legacyUsageReviewedByInput.value = String(legacyUsagePolicy?.reviewed_by || '').trim();
@@ -807,6 +815,12 @@ if (legacyUsageAllowedReasonsInput) {
 }
 if (legacyUsageReasonCatalogRequiredInput) {
   legacyUsageReasonCatalogRequiredInput.checked = legacyUsagePolicy?.reason_catalog_required === true;
+}
+if (legacyUsageBlockedReasonsReviewedInput) {
+  legacyUsageBlockedReasonsReviewedInput.value = blockedReasonsReviewed.join(', ');
+}
+if (legacyUsageBlockedReasonsFollowupInput) {
+  legacyUsageBlockedReasonsFollowupInput.value = blockedReasonsFollowup;
 }
     const contextContract = packet?.context_contract || {};
     const contextScenarios = Array.isArray(contextContract?.scenarios) ? contextContract.scenarios : [];
@@ -2150,6 +2164,8 @@ async function saveLegacyUsagePolicy() {
         maxLegacyBlockedShareDeltaPct,
         allowedReasons: parseCsvList(legacyUsageAllowedReasonsInput ? legacyUsageAllowedReasonsInput.value : ''),
         reasonCatalogRequired: legacyUsageReasonCatalogRequiredInput ? legacyUsageReasonCatalogRequiredInput.checked : false,
+        blockedReasonsReviewed: parseCsvList(legacyUsageBlockedReasonsReviewedInput ? legacyUsageBlockedReasonsReviewedInput.value : ''),
+        blockedReasonsFollowup: legacyUsageBlockedReasonsFollowupInput ? (legacyUsageBlockedReasonsFollowupInput.value || '').trim().slice(0, 500) : '',
       }),
     });
     const payload = await response.json();

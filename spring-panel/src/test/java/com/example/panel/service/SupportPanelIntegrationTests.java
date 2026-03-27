@@ -1029,6 +1029,50 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void workspaceTelemetrySummaryRequiresBlockedReasonsReviewForLegacyUsagePolicy() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_governance_legacy_usage_reviewed_by":"ops-lead",
+                         "workspace_rollout_governance_legacy_usage_reviewed_at":"2099-03-01T09:10:11Z",
+                         "workspace_rollout_governance_legacy_blocked_reasons_review_required":true,
+                         "workspace_rollout_governance_legacy_blocked_reasons_top_n":2,
+                         "workspace_rollout_governance_legacy_blocked_reasons_reviewed":["policy_hold"],
+                         "workspace_rollout_governance_legacy_blocked_reasons_followup":""}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-LEGACY-BLOCK-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
+                    ('op2', 'workspace_open_legacy_blocked', 'workspace', 'T-LEGACY-BLOCK-2', 'policy_hold', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute')),
+                    ('op3', 'workspace_open_legacy_blocked', 'workspace', 'T-LEGACY-BLOCK-3', 'invalid_review_timestamp', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-80 minute'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> legacyUsagePolicy = (Map<String, Object>) packet.get("legacy_usage_policy");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) packet.get("items");
+
+        assertThat(packet.get("status")).isEqualTo("hold");
+        assertThat((List<String>) packet.get("missing_items")).contains("legacy_usage_policy");
+        assertThat(legacyUsagePolicy).containsEntry("blocked_reasons_review_required", true);
+        assertThat(legacyUsagePolicy).containsEntry("blocked_reasons_review_ready", false);
+        assertThat(legacyUsagePolicy).containsEntry("blocked_reasons_top_n", 2L);
+        assertThat((List<String>) legacyUsagePolicy.get("blocked_reasons_missing")).containsExactly("invalid_review_timestamp");
+        assertThat(items).anySatisfy(item -> {
+            if ("legacy_usage_policy".equals(item.get("key"))) {
+                assertThat(item.get("status")).isEqualTo("hold");
+                assertThat(String.valueOf(item.get("current_value"))).contains("blocked_review=1/2");
+                assertThat(String.valueOf(item.get("note"))).contains("blocked_missing=invalid_review_timestamp");
+            }
+        });
+    }
+
+    @Test
     void workspaceTelemetrySummaryFlagsInvalidContextMinimumProfileReviewTimestamp() {
         jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
                 "dialog_config", """

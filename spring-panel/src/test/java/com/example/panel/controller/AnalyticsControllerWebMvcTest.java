@@ -432,7 +432,9 @@ void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
                               "reviewNote": "Legacy usage in guardrails window stays under budget.",
                               "decision": "go",
                               "maxLegacyManualSharePct": 10,
-                              "maxLegacyBlockedShareDeltaPct": 3
+                              "maxLegacyBlockedShareDeltaPct": 3,
+                              "blockedReasonsReviewed": ["policy_hold", "missing_reason"],
+                              "blockedReasonsFollowup": "OPS-42 legacy-open policy cleanup"
                             }
                             """))
             .andExpect(status().isOk())
@@ -442,7 +444,9 @@ void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
             .andExpect(jsonPath("$.review_note").value("Legacy usage in guardrails window stays under budget."))
             .andExpect(jsonPath("$.decision").value("go"))
             .andExpect(jsonPath("$.max_legacy_manual_share_pct").value(10))
-            .andExpect(jsonPath("$.max_legacy_blocked_share_delta_pct").value(3));
+            .andExpect(jsonPath("$.max_legacy_blocked_share_delta_pct").value(3))
+            .andExpect(jsonPath("$.blocked_reasons_reviewed[0]").value("policy_hold"))
+            .andExpect(jsonPath("$.blocked_reasons_followup").value("OPS-42 legacy-open policy cleanup"));
 
     ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
     verify(sharedConfigService).saveSettings(settingsCaptor.capture());
@@ -455,6 +459,10 @@ void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
     assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_decision")).isEqualTo("go");
     assertThat(dialogConfig.get("workspace_rollout_governance_legacy_manual_share_max_pct")).isEqualTo(10L);
     assertThat(dialogConfig.get("workspace_rollout_governance_legacy_usage_max_blocked_share_delta_pct")).isEqualTo(3L);
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_blocked_reasons_reviewed"))
+            .isEqualTo(java.util.List.of("policy_hold", "missing_reason"));
+    assertThat(dialogConfig.get("workspace_rollout_governance_legacy_blocked_reasons_followup"))
+            .isEqualTo("OPS-42 legacy-open policy cleanup");
 
     verify(dialogService).logWorkspaceTelemetry(
             eq("ops.lead"),

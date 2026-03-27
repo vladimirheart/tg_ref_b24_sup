@@ -333,6 +333,14 @@
                                                 Block legacy-open when reason is outside allowed catalog
                                             </label>
                                         </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyUsageBlockedReasonsReviewed" class="form-label form-label-sm mb-1">Blocked reasons reviewed (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageBlockedReasonsReviewed" maxlength="500" placeholder="policy_hold, invalid_review_timestamp, missing_reason">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyUsageBlockedReasonsFollowup" class="form-label form-label-sm mb-1">Blocked reasons follow-up</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageBlockedReasonsFollowup" maxlength="500" placeholder="Что делаем по top blocked reasons: тикет / owner / next action">
+                                        </div>
                                         <div class="d-flex align-items-center gap-2 mt-2">
             <small class="text-muted" id="workspaceTelemetryLegacyUsageActionState"></small>
         </div>

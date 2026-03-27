@@ -1517,6 +1517,14 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_legacy_manual_open_allowed_reasons"));
         boolean legacyManualReasonCatalogRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_legacy_manual_open_reason_catalog_required", false);
+        boolean legacyBlockedReasonsReviewRequired = resolveBooleanDialogConfigValue(
+                "workspace_rollout_governance_legacy_blocked_reasons_review_required", false);
+        long legacyBlockedReasonsTopN = resolveLongDialogConfigValue(
+                "workspace_rollout_governance_legacy_blocked_reasons_top_n", 3, 1, 10);
+        List<String> legacyBlockedReasonsReviewed = resolveDialogConfigStringList(
+                resolveDialogConfigValue("workspace_rollout_governance_legacy_blocked_reasons_reviewed"));
+        String legacyBlockedReasonsFollowup = normalizeNullString(
+                String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_blocked_reasons_followup")));
         boolean legacyUsageDecisionRequired = resolveBooleanDialogConfigValue(
                 "workspace_rollout_governance_legacy_usage_decision_required", false);
         boolean contextContractRequired = resolveBooleanDialogConfigValue("workspace_rollout_context_contract_required", false);
@@ -1778,11 +1786,28 @@ public class DialogService {
         boolean legacyUsageBlockedShareDeltaConfigured = legacyUsageMaxBlockedShareDeltaPct != null;
         boolean legacyUsageBlockedTrendReady = !legacyUsageBlockedShareDeltaConfigured
                 || manualLegacyBlockedShareDeltaPct <= legacyUsageMaxBlockedShareDeltaPct;
+        List<String> blockedReasonsTopKeys = blockedLegacyReasonBreakdown.stream()
+                .limit(legacyBlockedReasonsTopN)
+                .map(row -> normalizeNullString(String.valueOf(row.getOrDefault("reason", "unspecified"))))
+                .map(reason -> StringUtils.hasText(reason) ? reason.toLowerCase(Locale.ROOT) : "unspecified")
+                .distinct()
+                .toList();
+        List<String> blockedReasonsMissing = blockedReasonsTopKeys.stream()
+                .filter(reason -> !legacyBlockedReasonsReviewed.contains(reason))
+                .toList();
+        boolean blockedReasonsReviewConfigured = !legacyBlockedReasonsReviewed.isEmpty()
+                || StringUtils.hasText(legacyBlockedReasonsFollowup);
+        boolean blockedReasonsReviewNeeded = legacyBlockedReasonsReviewRequired && manualLegacyBlockedEvents > 0;
+        boolean blockedReasonsFollowupPresent = StringUtils.hasText(legacyBlockedReasonsFollowup);
+        boolean blockedReasonsReviewReady = !blockedReasonsReviewNeeded
+                || (blockedReasonsMissing.isEmpty() && blockedReasonsFollowupPresent);
         boolean legacyUsageDecisionPresent = StringUtils.hasText(legacyUsageDecision);
         boolean legacyUsagePolicyEnabled = legacyUsageThresholdConfigured
                 || legacyUsageMinWorkspaceOpenEventsConfigured
                 || legacyUsageShareDeltaConfigured
                 || legacyUsageBlockedShareDeltaConfigured
+                || legacyBlockedReasonsReviewRequired
+                || blockedReasonsReviewConfigured
                 || legacyUsageDecisionRequired
                 || legacyUsageReviewPresent
                 || StringUtils.hasText(legacyUsageReviewNote);
@@ -1794,6 +1819,7 @@ public class DialogService {
                 && legacyUsageVolumeReady
                 && legacyUsageTrendReady
                 && legacyUsageBlockedTrendReady
+                && blockedReasonsReviewReady
                 && (!legacyUsageDecisionRequired || legacyUsageDecisionPresent));
         List<Map<String, Object>> packetItems = new ArrayList<>();
         packetItems.add(buildScorecardItem(
@@ -1983,7 +2009,7 @@ public class DialogService {
                         ? "not required"
                         : legacyUsageReviewTimestampInvalid
                                 ? "invalid_utc"
-                                : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s%s%s".formatted(
+                                : "manual_legacy_share=%.1f%% (events=%d/%d)%s%s%s%s%s".formatted(
                                 manualLegacyShareRatio * 100d,
                                 manualLegacyOpenEvents,
                                 workspaceOpenEvents,
@@ -1992,9 +2018,13 @@ public class DialogService {
                                 legacyUsageBlockedShareDeltaConfigured
                                         ? ", blocked_delta=%.1fpp (max +%dpp)".formatted(
                                         manualLegacyBlockedShareDeltaPct, legacyUsageMaxBlockedShareDeltaPct) : "",
+                                blockedReasonsReviewNeeded
+                                        ? ", blocked_review=%d/%d".formatted(
+                                        blockedReasonsTopKeys.size() - blockedReasonsMissing.size(),
+                                        blockedReasonsTopKeys.size()) : "",
                                 legacyUsageDecisionPresent ? ", decision=%s".formatted(legacyUsageDecision) : ""),
                 legacyUsagePolicyEnabled
-                        ? "review <= %d h UTC%s%s%s%s%s".formatted(
+                        ? "review <= %d h UTC%s%s%s%s%s%s".formatted(
                         legacyUsageReviewTtlHours,
                         legacyUsageThresholdConfigured ? ", manual share <= %d%%".formatted(legacyUsageMaxSharePct) : "",
                         legacyUsageMinWorkspaceOpenEventsConfigured
@@ -2003,12 +2033,18 @@ public class DialogService {
                                 ? ", share delta <= +%dpp vs previous window".formatted(legacyUsageMaxShareDeltaPct) : "",
                         legacyUsageBlockedShareDeltaConfigured
                                 ? ", blocked share delta <= +%dpp vs previous window".formatted(legacyUsageMaxBlockedShareDeltaPct) : "",
+                        legacyBlockedReasonsReviewRequired
+                                ? ", blocked top-%d reasons reviewed + follow-up".formatted(legacyBlockedReasonsTopN) : "",
                         legacyUsageDecisionRequired ? ", decision required" : "")
                         : "optional",
                 legacyUsageReviewedAt != null ? legacyUsageReviewedAt.toString() : "",
                 firstNonBlank(
                         legacyUsageReviewNote,
-                        legacyUsageReviewPresent ? "reviewed_by=%s; age_hours=%d".formatted(legacyUsageReviewedBy, legacyUsageReviewAgeHours) : "")
+                        blockedReasonsReviewNeeded
+                                ? "blocked_missing=%s%s".formatted(
+                                blockedReasonsMissing.isEmpty() ? "none" : String.join(", ", blockedReasonsMissing),
+                                blockedReasonsFollowupPresent ? "; followup=linked" : "; followup=missing")
+                                : (legacyUsageReviewPresent ? "reviewed_by=%s; age_hours=%d".formatted(legacyUsageReviewedBy, legacyUsageReviewAgeHours) : ""))
         ));
         packetItems.add(buildScorecardItem(
                 "context_minimum_profile",
@@ -2161,6 +2197,12 @@ public class DialogService {
         legacyUsagePolicy.put("allowed_reasons", legacyManualAllowedReasons);
         legacyUsagePolicy.put("reason_catalog_required", legacyManualReasonCatalogRequired);
         legacyUsagePolicy.put("unknown_manual_reason_events", unknownManualLegacyReasons);
+        legacyUsagePolicy.put("blocked_reasons_review_required", legacyBlockedReasonsReviewRequired);
+        legacyUsagePolicy.put("blocked_reasons_top_n", legacyBlockedReasonsTopN);
+        legacyUsagePolicy.put("blocked_reasons_reviewed", legacyBlockedReasonsReviewed);
+        legacyUsagePolicy.put("blocked_reasons_followup", legacyBlockedReasonsFollowup == null ? "" : legacyBlockedReasonsFollowup);
+        legacyUsagePolicy.put("blocked_reasons_missing", blockedReasonsMissing);
+        legacyUsagePolicy.put("blocked_reasons_review_ready", blockedReasonsReviewReady);
         legacyUsagePolicy.put("workspace_open_events", workspaceOpenEvents);
         legacyUsagePolicy.put("manual_legacy_share_pct", Math.round(manualLegacyShareRatio * 1000d) / 10d);
         legacyUsagePolicy.put("max_manual_legacy_share_pct", legacyUsageMaxSharePct);
