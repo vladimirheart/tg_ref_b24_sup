@@ -155,11 +155,13 @@
 - baseline governance settings;
 - red list для макросов с низким adoption;
 - owner action для проблемных шаблонов;
-- cleanup visibility по aliases/tags и неизвестным переменным.
+- cleanup visibility по aliases/tags и неизвестным переменным;
+- usage-tier cleanup SLA;
+- usage-tier deprecation SLA.
 
 Что остаётся:
-- cleanup/deprecation SLA по usage-tier;
 - проверить, что macro quality loop не даёт слишком много noisy red-list сигналов.
+- упростить policy до минимального набора действительно обязательных macro-governance checkpoint-ов.
 
 ---
 
@@ -194,8 +196,8 @@
 - чистка библиотеки должна идти по данным использования, а не по ручному ощущению.
 
 Минимум на следующий цикл:
-- usage-tier cleanup/deprecation SLA;
-- фильтрация noisy macro governance сигналов.
+- фильтрация noisy macro governance сигналов;
+- сокращение macro governance до минимального обязательного контура.
 
 ### Шаг 5. Проверить реальную стоимость текущих policy-gates
 Цель:

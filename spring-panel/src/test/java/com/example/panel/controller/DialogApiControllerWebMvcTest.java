@@ -1415,9 +1415,11 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.rollout_packet.items[1].status").value("hold"))
                 .andExpect(jsonPath("$.macro_governance_audit.status").value("attention"))
                 .andExpect(jsonPath("$.macro_governance_audit.red_list_total").value(0))
+                .andExpect(jsonPath("$.macro_governance_audit.cleanup_sla_overdue_total").value(0))
                 .andExpect(jsonPath("$.macro_governance_audit.external_catalog_contract.required").value(false))
                 .andExpect(jsonPath("$.macro_governance_audit.deprecation_policy.required").value(false))
                 .andExpect(jsonPath("$.macro_governance_audit.templates[1].template_id").value("macro_legacy"))
+                .andExpect(jsonPath("$.macro_governance_audit.templates[1].usage_tier").value("low"))
                 .andExpect(jsonPath("$.macro_governance_audit.templates[1].owner_action_required").value(false))
                 .andExpect(jsonPath("$.macro_governance_audit.issues[0].type").value("unused_recently"));
     }

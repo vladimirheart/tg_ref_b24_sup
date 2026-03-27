@@ -864,6 +864,7 @@ public class DialogService {
         boolean ownerActionRequired = resolveBooleanConfig(dialogConfig, "macro_governance_owner_action_required", false);
         boolean aliasCleanupRequired = resolveBooleanConfig(dialogConfig, "macro_governance_alias_cleanup_required", false);
         boolean variableCleanupRequired = resolveBooleanConfig(dialogConfig, "macro_governance_variable_cleanup_required", false);
+        boolean usageTierSlaRequired = resolveBooleanConfig(dialogConfig, "macro_governance_usage_tier_sla_required", false);
         long reviewTtlHours = resolveLongConfig(dialogConfig,
                 "macro_governance_review_ttl_hours",
                 DEFAULT_MACRO_GOVERNANCE_REVIEW_TTL_HOURS,
@@ -884,6 +885,49 @@ public class DialogService {
                 0,
                 0,
                 365);
+        int usageTierLowMax = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_usage_tier_low_max",
+                0,
+                0,
+                10000);
+        int usageTierMediumMax = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_usage_tier_medium_max",
+                5,
+                0,
+                10000);
+        if (usageTierMediumMax < usageTierLowMax) {
+            usageTierMediumMax = usageTierLowMax;
+        }
+        int cleanupSlaLowDays = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_cleanup_sla_low_days",
+                7,
+                1,
+                365);
+        int cleanupSlaMediumDays = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_cleanup_sla_medium_days",
+                30,
+                1,
+                365);
+        int cleanupSlaHighDays = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_cleanup_sla_high_days",
+                90,
+                1,
+                365);
+        int deprecationSlaLowDays = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_deprecation_sla_low_days",
+                14,
+                1,
+                365);
+        int deprecationSlaMediumDays = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_deprecation_sla_medium_days",
+                45,
+                1,
+                365);
+        int deprecationSlaHighDays = (int) resolveLongConfig(dialogConfig,
+                "macro_governance_deprecation_sla_high_days",
+                120,
+                1,
+                365);
         Set<String> knownMacroVariables = resolveKnownMacroVariableKeys(dialogConfig);
 
         List<Map<String, Object>> auditedTemplates = new ArrayList<>();
@@ -900,6 +944,8 @@ public class DialogService {
         int ownerActionTotal = 0;
         int aliasCleanupTotal = 0;
         int variableCleanupTotal = 0;
+        int cleanupSlaOverdueTotal = 0;
+        int deprecationSlaOverdueTotal = 0;
 
         for (Map<String, Object> template : templates) {
             String templateId = normalizeNullString(String.valueOf(template.get("id")));
@@ -927,6 +973,8 @@ public class DialogService {
             long errorCount = toLong(usage.get("error_count"));
             String lastUsedAt = normalizeUtcTimestamp(usage.get("last_used_at"));
             OffsetDateTime lastUsedAtUtc = parseReviewTimestamp(lastUsedAt);
+            String deprecatedAtRaw = normalizeNullString(String.valueOf(template.get("deprecated_at")));
+            OffsetDateTime deprecatedAtUtc = parseReviewTimestamp(deprecatedAtRaw);
             List<String> tagAliases = resolveMacroTagAliases(template.get("tags"));
             int duplicateAliasCount = Math.max(0, tagAliases.size() - new LinkedHashSet<>(tagAliases).size());
             List<String> usedVariables = extractMacroTemplateVariables(templateText);
@@ -934,6 +982,15 @@ public class DialogService {
                     .filter(variable -> !knownMacroVariables.contains(variable))
                     .distinct()
                     .toList();
+            String usageTier = resolveMacroUsageTier(usageCount, usageTierLowMax, usageTierMediumMax);
+            int cleanupSlaDays = resolveMacroTierSlaDays(usageTier, cleanupSlaLowDays, cleanupSlaMediumDays, cleanupSlaHighDays);
+            int deprecationSlaDays = resolveMacroTierSlaDays(usageTier, deprecationSlaLowDays, deprecationSlaMediumDays, deprecationSlaHighDays);
+            OffsetDateTime cleanupReferenceAt = lastUsedAtUtc != null ? lastUsedAtUtc : (reviewedAt != null ? reviewedAt : generatedAt);
+            long cleanupDueInDays = java.time.Duration.between(generatedAt, cleanupReferenceAt.plusDays(cleanupSlaDays)).toDays();
+            String cleanupSlaStatus = !activePublished ? "off" : (cleanupDueInDays < 0 ? "hold" : "attention");
+            OffsetDateTime deprecationReferenceAt = deprecatedAtUtc != null ? deprecatedAtUtc : generatedAt;
+            long deprecationDueInDays = java.time.Duration.between(generatedAt, deprecationReferenceAt.plusDays(deprecationSlaDays)).toDays();
+            String deprecationSlaStatus = !deprecated ? "off" : (deprecationDueInDays < 0 ? "hold" : "attention");
 
             if (activePublished) {
                 publishedActiveTotal += 1;
@@ -1104,6 +1161,30 @@ public class DialogService {
                         "Для deprecated макроса не указана причина вывода из эксплуатации.",
                         "deprecation_reason=missing"));
             }
+            if (usageTierSlaRequired && activePublished && cleanupDueInDays < 0) {
+                cleanupSlaOverdueTotal += 1;
+                templateIssues.add("cleanup_sla_overdue");
+                issues.add(buildMacroGovernanceIssue(
+                        "cleanup_sla_overdue",
+                        templateId,
+                        templateName,
+                        "hold",
+                        "rollout_blocker",
+                        "Cleanup SLA для macro template просрочен.",
+                        "usage_tier=%s overdue_by_days=%d".formatted(usageTier, Math.abs(cleanupDueInDays))));
+            }
+            if (usageTierSlaRequired && deprecated && deprecationDueInDays < 0) {
+                deprecationSlaOverdueTotal += 1;
+                templateIssues.add("deprecation_sla_overdue");
+                issues.add(buildMacroGovernanceIssue(
+                        "deprecation_sla_overdue",
+                        templateId,
+                        templateName,
+                        "hold",
+                        "rollout_blocker",
+                        "Deprecation SLA для macro template просрочен.",
+                        "usage_tier=%s overdue_by_days=%d".formatted(usageTier, Math.abs(deprecationDueInDays))));
+            }
 
             Map<String, Object> auditTemplate = new LinkedHashMap<>();
             auditTemplate.put("template_id", templateId);
@@ -1120,6 +1201,14 @@ public class DialogService {
             auditTemplate.put("preview_count", previewCount);
             auditTemplate.put("error_count", errorCount);
             auditTemplate.put("last_used_at_utc", lastUsedAt);
+            auditTemplate.put("deprecated_at_utc", deprecatedAtUtc != null ? deprecatedAtUtc.toString() : "");
+            auditTemplate.put("usage_tier", usageTier);
+            auditTemplate.put("cleanup_sla_days", cleanupSlaDays);
+            auditTemplate.put("cleanup_due_in_days", cleanupDueInDays);
+            auditTemplate.put("cleanup_sla_status", cleanupSlaStatus);
+            auditTemplate.put("deprecation_sla_days", deprecationSlaDays);
+            auditTemplate.put("deprecation_due_in_days", deprecation ? deprecationDueInDays : -1L);
+            auditTemplate.put("deprecation_sla_status", deprecationSlaStatus);
             auditTemplate.put("red_list_candidate", redListCandidate);
             auditTemplate.put("red_list_reasons", redListReasons);
             auditTemplate.put("owner_action_required", ownerActionNeeded);
@@ -1340,6 +1429,8 @@ public class DialogService {
         audit.put("owner_action_total", ownerActionTotal);
         audit.put("alias_cleanup_total", aliasCleanupTotal);
         audit.put("variable_cleanup_total", variableCleanupTotal);
+        audit.put("cleanup_sla_overdue_total", cleanupSlaOverdueTotal);
+        audit.put("deprecation_sla_overdue_total", deprecationSlaOverdueTotal);
         audit.put("requirements", Map.ofEntries(
                 Map.entry("require_owner", requireOwner),
                 Map.entry("require_namespace", requireNamespace),
@@ -1352,7 +1443,16 @@ public class DialogService {
                 Map.entry("owner_action_required", ownerActionRequired),
                 Map.entry("cleanup_cadence_days", cleanupCadenceDays),
                 Map.entry("alias_cleanup_required", aliasCleanupRequired),
-                Map.entry("variable_cleanup_required", variableCleanupRequired)));
+                Map.entry("variable_cleanup_required", variableCleanupRequired),
+                Map.entry("usage_tier_sla_required", usageTierSlaRequired),
+                Map.entry("usage_tier_low_max", usageTierLowMax),
+                Map.entry("usage_tier_medium_max", usageTierMediumMax),
+                Map.entry("cleanup_sla_low_days", cleanupSlaLowDays),
+                Map.entry("cleanup_sla_medium_days", cleanupSlaMediumDays),
+                Map.entry("cleanup_sla_high_days", cleanupSlaHighDays),
+                Map.entry("deprecation_sla_low_days", deprecationSlaLowDays),
+                Map.entry("deprecation_sla_medium_days", deprecationSlaMediumDays),
+                Map.entry("deprecation_sla_high_days", deprecationSlaHighDays)));
         audit.put("governance_review", Map.ofEntries(
                 Map.entry("required", governanceReviewRequired),
                 Map.entry("ready", governanceReady),
@@ -3939,6 +4039,24 @@ public class DialogService {
                 .filter(StringUtils::hasText)
                 .map(value -> value.toLowerCase(Locale.ROOT))
                 .toList();
+    }
+
+    private String resolveMacroUsageTier(long usageCount, int lowMax, int mediumMax) {
+        if (usageCount <= lowMax) {
+            return "low";
+        }
+        if (usageCount <= mediumMax) {
+            return "medium";
+        }
+        return "high";
+    }
+
+    private int resolveMacroTierSlaDays(String usageTier, int lowDays, int mediumDays, int highDays) {
+        return switch (String.valueOf(usageTier).toLowerCase(Locale.ROOT)) {
+            case "low" -> lowDays;
+            case "medium" -> mediumDays;
+            default -> highDays;
+        };
     }
 
     private Map<String, Object> buildMacroGovernanceIssue(String type,

@@ -2693,6 +2693,44 @@
                         <label class="form-check-label" for="dialogMacroGovernanceVariableCleanupRequired">Проверять cleanup неизвестных переменных</label>
                       </div>
                     </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceUsageTierSlaRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceUsageTierSlaRequired">Включить usage-tier cleanup/deprecation SLA</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceUsageTierLowMax" class="form-label">Low tier: usage max</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceUsageTierLowMax" min="0" max="10000" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceUsageTierMediumMax" class="form-label">Medium tier: usage max</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceUsageTierMediumMax" min="0" max="10000" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupSlaLowDays" class="form-label">Cleanup SLA low, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupSlaLowDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupSlaMediumDays" class="form-label">Cleanup SLA medium, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupSlaMediumDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupSlaHighDays" class="form-label">Cleanup SLA high, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupSlaHighDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceDeprecationSlaLowDays" class="form-label">Deprecation SLA low, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceDeprecationSlaLowDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceDeprecationSlaMediumDays" class="form-label">Deprecation SLA medium, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceDeprecationSlaMediumDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceDeprecationSlaHighDays" class="form-label">Deprecation SLA high, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceDeprecationSlaHighDays" min="1" max="365" step="1">
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Внешние профили клиента (workspace)</h6>
@@ -5342,6 +5380,15 @@
     macro_governance_cleanup_cadence_days: 0,
     macro_governance_alias_cleanup_required: false,
     macro_governance_variable_cleanup_required: false,
+    macro_governance_usage_tier_sla_required: false,
+    macro_governance_usage_tier_low_max: 0,
+    macro_governance_usage_tier_medium_max: 5,
+    macro_governance_cleanup_sla_low_days: 7,
+    macro_governance_cleanup_sla_medium_days: 30,
+    macro_governance_cleanup_sla_high_days: 90,
+    macro_governance_deprecation_sla_low_days: 14,
+    macro_governance_deprecation_sla_medium_days: 45,
+    macro_governance_deprecation_sla_high_days: 120,
     escalation_webhook_max_tickets_per_run: 50,
     workspace_context_history_limit: 5,
     workspace_context_related_events_limit: 5,
@@ -14583,6 +14630,15 @@
       macroGovernanceCleanupCadenceDays: document.getElementById('dialogMacroGovernanceCleanupCadenceDays'),
       macroGovernanceAliasCleanupRequired: document.getElementById('dialogMacroGovernanceAliasCleanupRequired'),
       macroGovernanceVariableCleanupRequired: document.getElementById('dialogMacroGovernanceVariableCleanupRequired'),
+      macroGovernanceUsageTierSlaRequired: document.getElementById('dialogMacroGovernanceUsageTierSlaRequired'),
+      macroGovernanceUsageTierLowMax: document.getElementById('dialogMacroGovernanceUsageTierLowMax'),
+      macroGovernanceUsageTierMediumMax: document.getElementById('dialogMacroGovernanceUsageTierMediumMax'),
+      macroGovernanceCleanupSlaLowDays: document.getElementById('dialogMacroGovernanceCleanupSlaLowDays'),
+      macroGovernanceCleanupSlaMediumDays: document.getElementById('dialogMacroGovernanceCleanupSlaMediumDays'),
+      macroGovernanceCleanupSlaHighDays: document.getElementById('dialogMacroGovernanceCleanupSlaHighDays'),
+      macroGovernanceDeprecationSlaLowDays: document.getElementById('dialogMacroGovernanceDeprecationSlaLowDays'),
+      macroGovernanceDeprecationSlaMediumDays: document.getElementById('dialogMacroGovernanceDeprecationSlaMediumDays'),
+      macroGovernanceDeprecationSlaHighDays: document.getElementById('dialogMacroGovernanceDeprecationSlaHighDays'),
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
@@ -15370,6 +15426,57 @@
     }
     if (inputs.macroGovernanceVariableCleanupRequired) {
       inputs.macroGovernanceVariableCleanupRequired.checked = Boolean(DIALOG_CONFIG.macro_governance_variable_cleanup_required);
+    }
+    if (inputs.macroGovernanceUsageTierSlaRequired) {
+      inputs.macroGovernanceUsageTierSlaRequired.checked = Boolean(DIALOG_CONFIG.macro_governance_usage_tier_sla_required);
+    }
+    if (inputs.macroGovernanceUsageTierLowMax) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_usage_tier_low_max, 10);
+      inputs.macroGovernanceUsageTierLowMax.value = Number.isFinite(value) && value >= 0 && value <= 10000
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_usage_tier_low_max;
+    }
+    if (inputs.macroGovernanceUsageTierMediumMax) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_usage_tier_medium_max, 10);
+      inputs.macroGovernanceUsageTierMediumMax.value = Number.isFinite(value) && value >= 0 && value <= 10000
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_usage_tier_medium_max;
+    }
+    if (inputs.macroGovernanceCleanupSlaLowDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_cleanup_sla_low_days, 10);
+      inputs.macroGovernanceCleanupSlaLowDays.value = Number.isFinite(value) && value >= 1 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_sla_low_days;
+    }
+    if (inputs.macroGovernanceCleanupSlaMediumDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_cleanup_sla_medium_days, 10);
+      inputs.macroGovernanceCleanupSlaMediumDays.value = Number.isFinite(value) && value >= 1 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_sla_medium_days;
+    }
+    if (inputs.macroGovernanceCleanupSlaHighDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_cleanup_sla_high_days, 10);
+      inputs.macroGovernanceCleanupSlaHighDays.value = Number.isFinite(value) && value >= 1 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_sla_high_days;
+    }
+    if (inputs.macroGovernanceDeprecationSlaLowDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_deprecation_sla_low_days, 10);
+      inputs.macroGovernanceDeprecationSlaLowDays.value = Number.isFinite(value) && value >= 1 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_deprecation_sla_low_days;
+    }
+    if (inputs.macroGovernanceDeprecationSlaMediumDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_deprecation_sla_medium_days, 10);
+      inputs.macroGovernanceDeprecationSlaMediumDays.value = Number.isFinite(value) && value >= 1 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_deprecation_sla_medium_days;
+    }
+    if (inputs.macroGovernanceDeprecationSlaHighDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_deprecation_sla_high_days, 10);
+      inputs.macroGovernanceDeprecationSlaHighDays.value = Number.isFinite(value) && value >= 1 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_deprecation_sla_high_days;
     }
     if (inputs.workspaceClientHiddenAttributes) {
       const hiddenAttributes = Array.isArray(DIALOG_CONFIG.workspace_client_hidden_attributes)
@@ -17316,6 +17423,56 @@
     );
     const safeMacroGovernanceAliasCleanupRequired = Boolean(inputs.macroGovernanceAliasCleanupRequired?.checked);
     const safeMacroGovernanceVariableCleanupRequired = Boolean(inputs.macroGovernanceVariableCleanupRequired?.checked);
+    const safeMacroGovernanceUsageTierSlaRequired = Boolean(inputs.macroGovernanceUsageTierSlaRequired?.checked);
+    const safeMacroGovernanceUsageTierLowMax = sanitizeInt(
+      inputs.macroGovernanceUsageTierLowMax?.value,
+      0,
+      10000,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_usage_tier_low_max,
+    );
+    const safeMacroGovernanceUsageTierMediumMaxRaw = sanitizeInt(
+      inputs.macroGovernanceUsageTierMediumMax?.value,
+      0,
+      10000,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_usage_tier_medium_max,
+    );
+    const safeMacroGovernanceUsageTierMediumMax = Math.max(safeMacroGovernanceUsageTierLowMax, safeMacroGovernanceUsageTierMediumMaxRaw);
+    const safeMacroGovernanceCleanupSlaLowDays = sanitizeInt(
+      inputs.macroGovernanceCleanupSlaLowDays?.value,
+      1,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_sla_low_days,
+    );
+    const safeMacroGovernanceCleanupSlaMediumDays = sanitizeInt(
+      inputs.macroGovernanceCleanupSlaMediumDays?.value,
+      1,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_sla_medium_days,
+    );
+    const safeMacroGovernanceCleanupSlaHighDays = sanitizeInt(
+      inputs.macroGovernanceCleanupSlaHighDays?.value,
+      1,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_sla_high_days,
+    );
+    const safeMacroGovernanceDeprecationSlaLowDays = sanitizeInt(
+      inputs.macroGovernanceDeprecationSlaLowDays?.value,
+      1,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_deprecation_sla_low_days,
+    );
+    const safeMacroGovernanceDeprecationSlaMediumDays = sanitizeInt(
+      inputs.macroGovernanceDeprecationSlaMediumDays?.value,
+      1,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_deprecation_sla_medium_days,
+    );
+    const safeMacroGovernanceDeprecationSlaHighDays = sanitizeInt(
+      inputs.macroGovernanceDeprecationSlaHighDays?.value,
+      1,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_deprecation_sla_high_days,
+    );
 
     const safeWorkspaceContextHistoryLimitRaw = Math.round(Number(inputs.workspaceContextHistoryLimit?.value));
     const safeWorkspaceContextHistoryLimit = Number.isFinite(safeWorkspaceContextHistoryLimitRaw)
@@ -17671,6 +17828,15 @@
         dialog_macro_governance_cleanup_cadence_days: safeMacroGovernanceCleanupCadenceDays,
         dialog_macro_governance_alias_cleanup_required: safeMacroGovernanceAliasCleanupRequired,
         dialog_macro_governance_variable_cleanup_required: safeMacroGovernanceVariableCleanupRequired,
+        dialog_macro_governance_usage_tier_sla_required: safeMacroGovernanceUsageTierSlaRequired,
+        dialog_macro_governance_usage_tier_low_max: safeMacroGovernanceUsageTierLowMax,
+        dialog_macro_governance_usage_tier_medium_max: safeMacroGovernanceUsageTierMediumMax,
+        dialog_macro_governance_cleanup_sla_low_days: safeMacroGovernanceCleanupSlaLowDays,
+        dialog_macro_governance_cleanup_sla_medium_days: safeMacroGovernanceCleanupSlaMediumDays,
+        dialog_macro_governance_cleanup_sla_high_days: safeMacroGovernanceCleanupSlaHighDays,
+        dialog_macro_governance_deprecation_sla_low_days: safeMacroGovernanceDeprecationSlaLowDays,
+        dialog_macro_governance_deprecation_sla_medium_days: safeMacroGovernanceDeprecationSlaMediumDays,
+        dialog_macro_governance_deprecation_sla_high_days: safeMacroGovernanceDeprecationSlaHighDays,
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
         dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
         dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,

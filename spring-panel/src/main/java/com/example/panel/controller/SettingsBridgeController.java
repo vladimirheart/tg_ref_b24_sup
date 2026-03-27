@@ -385,7 +385,16 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_macro_governance_owner_action_required")
                 || payload.containsKey("dialog_macro_governance_cleanup_cadence_days")
                 || payload.containsKey("dialog_macro_governance_alias_cleanup_required")
-                || payload.containsKey("dialog_macro_governance_variable_cleanup_required")) {
+                || payload.containsKey("dialog_macro_governance_variable_cleanup_required")
+                || payload.containsKey("dialog_macro_governance_usage_tier_sla_required")
+                || payload.containsKey("dialog_macro_governance_usage_tier_low_max")
+                || payload.containsKey("dialog_macro_governance_usage_tier_medium_max")
+                || payload.containsKey("dialog_macro_governance_cleanup_sla_low_days")
+                || payload.containsKey("dialog_macro_governance_cleanup_sla_medium_days")
+                || payload.containsKey("dialog_macro_governance_cleanup_sla_high_days")
+                || payload.containsKey("dialog_macro_governance_deprecation_sla_low_days")
+                || payload.containsKey("dialog_macro_governance_deprecation_sla_medium_days")
+                || payload.containsKey("dialog_macro_governance_deprecation_sla_high_days")) {
                 Map<String, Object> dialogConfig = new LinkedHashMap<>();
                 Object existing = settings.get("dialog_config");
                 if (existing instanceof Map<?, ?> existingMap) {
@@ -441,6 +450,33 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_macro_governance_variable_cleanup_required")) {
                     dialogConfig.put("macro_governance_variable_cleanup_required", payload.get("dialog_macro_governance_variable_cleanup_required"));
+                }
+                if (payload.containsKey("dialog_macro_governance_usage_tier_sla_required")) {
+                    dialogConfig.put("macro_governance_usage_tier_sla_required", payload.get("dialog_macro_governance_usage_tier_sla_required"));
+                }
+                if (payload.containsKey("dialog_macro_governance_usage_tier_low_max")) {
+                    dialogConfig.put("macro_governance_usage_tier_low_max", payload.get("dialog_macro_governance_usage_tier_low_max"));
+                }
+                if (payload.containsKey("dialog_macro_governance_usage_tier_medium_max")) {
+                    dialogConfig.put("macro_governance_usage_tier_medium_max", payload.get("dialog_macro_governance_usage_tier_medium_max"));
+                }
+                if (payload.containsKey("dialog_macro_governance_cleanup_sla_low_days")) {
+                    dialogConfig.put("macro_governance_cleanup_sla_low_days", payload.get("dialog_macro_governance_cleanup_sla_low_days"));
+                }
+                if (payload.containsKey("dialog_macro_governance_cleanup_sla_medium_days")) {
+                    dialogConfig.put("macro_governance_cleanup_sla_medium_days", payload.get("dialog_macro_governance_cleanup_sla_medium_days"));
+                }
+                if (payload.containsKey("dialog_macro_governance_cleanup_sla_high_days")) {
+                    dialogConfig.put("macro_governance_cleanup_sla_high_days", payload.get("dialog_macro_governance_cleanup_sla_high_days"));
+                }
+                if (payload.containsKey("dialog_macro_governance_deprecation_sla_low_days")) {
+                    dialogConfig.put("macro_governance_deprecation_sla_low_days", payload.get("dialog_macro_governance_deprecation_sla_low_days"));
+                }
+                if (payload.containsKey("dialog_macro_governance_deprecation_sla_medium_days")) {
+                    dialogConfig.put("macro_governance_deprecation_sla_medium_days", payload.get("dialog_macro_governance_deprecation_sla_medium_days"));
+                }
+                if (payload.containsKey("dialog_macro_governance_deprecation_sla_high_days")) {
+                    dialogConfig.put("macro_governance_deprecation_sla_high_days", payload.get("dialog_macro_governance_deprecation_sla_high_days"));
                 }
                 if (payload.containsKey("dialog_macro_templates")) {
                     boolean canPublishMacros = canPublishDialogMacros(authentication, dialogConfig);
