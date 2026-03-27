@@ -3474,7 +3474,10 @@ public class DialogApiController {
                 code,
                 "mandatory_field",
                 normalizedField,
+                "high",
+                "Поле \"" + label + "\" не заполнено",
                 "Заполните обязательное поле \"" + label + "\" в карточке клиента.",
+                "Свяжитесь с клиентом или проверьте CRM, затем сохраните поле \"" + label + "\".",
                 "Missing mandatory field: " + label,
                 resolveContextContractPlaybook(playbooks, code, "mandatory_field:" + normalizedField, "mandatory_field"));
     }
@@ -3491,23 +3494,38 @@ public class DialogApiController {
         String fieldLabel = resolveWorkspaceContextAttributeLabel(workspaceClient, field);
         String sourceLabel = resolveWorkspaceContextSourceLabel(contextSources, source);
         String operatorMessage;
+        String shortLabel;
+        String nextStep;
         if ("source_missing".equals(status)) {
+            shortLabel = "Нет источника \"" + sourceLabel + "\"";
             operatorMessage = "Подключите источник \"" + sourceLabel + "\" для поля \"" + fieldLabel + "\".";
+            nextStep = "Проверьте интеграцию или включите источник \"" + sourceLabel + "\" для этого клиента.";
         } else if ("field_not_matched".equals(status)) {
+            shortLabel = "Поле \"" + fieldLabel + "\" не приходит из \"" + sourceLabel + "\"";
             operatorMessage = "Проверьте, что источник \"" + sourceLabel + "\" действительно отдаёт поле \"" + fieldLabel + "\".";
+            nextStep = "Сверьте маппинг поля \"" + fieldLabel + "\" и обновите источник \"" + sourceLabel + "\".";
         } else if ("stale".equals(status)) {
+            shortLabel = "Данные \"" + fieldLabel + "\" устарели";
             operatorMessage = "Обновите данные \"" + fieldLabel + "\" из источника \"" + sourceLabel + "\".";
+            nextStep = "Запустите обновление из \"" + sourceLabel + "\" или подтвердите актуальность данных вручную.";
         } else if ("invalid_utc".equals(status)) {
+            shortLabel = "Невалидный UTC timestamp для \"" + sourceLabel + "\"";
             operatorMessage = "Исправьте UTC timestamp источника \"" + sourceLabel + "\" для поля \"" + fieldLabel + "\".";
+            nextStep = "Исправьте timestamp источника \"" + sourceLabel + "\" в ISO-8601 UTC и повторите синхронизацию.";
         } else {
+            shortLabel = "Проблема с источником \"" + sourceLabel + "\"";
             operatorMessage = "Проверьте источник \"" + sourceLabel + "\" для поля \"" + fieldLabel + "\".";
+            nextStep = "Проверьте доступность источника \"" + sourceLabel + "\" и корректность данных для поля \"" + fieldLabel + "\".";
         }
         String code = "source_of_truth:" + normalized;
         return buildContextViolationDetail(
                 code,
                 "source_of_truth",
                 field,
+                "invalid_utc".equals(status) || "source_missing".equals(status) ? "high" : "medium",
+                shortLabel,
                 operatorMessage,
+                nextStep,
                 "Source-of-truth gap: " + fieldLabel + " via " + sourceLabel + " (" + status + ")",
                 resolveContextContractPlaybook(playbooks, code, "source_of_truth:" + field + ":" + source, "source_of_truth"));
     }
@@ -3522,7 +3540,10 @@ public class DialogApiController {
                 code,
                 "priority_block",
                 normalizedBlock,
+                "medium",
+                "Нет блока \"" + label + "\"",
                 "Верните в рабочий контур блок \"" + label + "\" или снимите его из обязательных для этого сценария.",
+                "Верните блок \"" + label + "\" в workspace либо обновите contract для текущего сценария.",
                 "Priority block missing: " + label,
                 resolveContextContractPlaybook(playbooks, code, "priority_block:" + normalizedBlock, "priority_block"));
     }
@@ -3530,14 +3551,33 @@ public class DialogApiController {
     private Map<String, Object> buildContextViolationDetail(String code,
                                                             String type,
                                                             String key,
+                                                            String severity,
+                                                            String shortLabel,
                                                             String operatorMessage,
+                                                            String nextStep,
                                                             String analyticsMessage,
                                                             Map<String, String> playbook) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("code", code);
         payload.put("type", type);
         payload.put("key", key);
+        payload.put("severity", severity);
+        payload.put("severity_rank", switch (severity) {
+            case "high" -> 3;
+            case "medium" -> 2;
+            default -> 1;
+        });
+        payload.put("short_label", shortLabel);
         payload.put("operator_message", operatorMessage);
+        payload.put("next_step", nextStep);
+        payload.put("action_label", playbook != null && !playbook.isEmpty()
+                ? "Открыть playbook"
+                : switch (type) {
+                    case "mandatory_field" -> "Заполнить поле";
+                    case "source_of_truth" -> "Проверить источник";
+                    case "priority_block" -> "Вернуть блок";
+                    default -> "Исправить";
+                });
         payload.put("analytics_message", analyticsMessage);
         if (playbook != null && !playbook.isEmpty()) {
             payload.put("playbook", playbook);

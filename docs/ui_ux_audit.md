@@ -128,11 +128,10 @@
 Что уже закрыто:
 - scenario-aware rules;
 - playbook links;
+- короткие operator-friendly labels и next step в runtime workspace;
 - runtime и analytics visibility.
 
 Что остаётся:
-- укоротить и унифицировать violation messages;
-- связать частые gap-ы с конкретным next step;
 - снизить визуальный шум в sidebar через приоритизацию и progressive disclosure.
 
 ### P2. SLA governance нужно удешевить
@@ -176,8 +175,6 @@
 - оператор должен видеть не просто “что не так”, а “что сделать дальше”.
 
 Минимум на следующий цикл:
-- короткие operator-friendly violation labels;
-- структурированный next step для частых gap-ов;
 - более аккуратная приоритизация блоков контекста в workspace.
 
 ### Шаг 3. Снизить стоимость SLA policy review

@@ -3788,12 +3788,24 @@
         return {
           type: String(item.type || '').trim(),
           code: String(item.code || '').trim(),
+          severity: String(item.severity || '').trim().toLowerCase(),
+          severityRank: Number(item.severity_rank || 0),
+          shortLabel: String(item.short_label || item.operator_message || item.analytics_message || item.code || '').trim(),
           operatorMessage: String(item.operator_message || item.analytics_message || item.code || '').trim(),
+          nextStep: String(item.next_step || '').trim(),
+          actionLabel: String(item.action_label || '').trim(),
           analyticsMessage: String(item.analytics_message || '').trim(),
           playbookLabel: String(playbook?.label || 'Playbook').trim() || 'Playbook',
           playbookUrl: /^https?:\/\//i.test(playbookUrl) ? playbookUrl : '',
           playbookSummary: String(playbook?.summary || '').trim(),
         };
+      })
+      .sort((left, right) => {
+        const severityDelta = Number(right.severityRank || 0) - Number(left.severityRank || 0);
+        if (severityDelta !== 0) {
+          return severityDelta;
+        }
+        return String(left.shortLabel || '').localeCompare(String(right.shortLabel || ''), 'ru');
       })
       .filter((item) => item.operatorMessage);
   }
@@ -3808,6 +3820,28 @@
         return 'Priority block';
       default:
         return 'Context gap';
+    }
+  }
+
+  function workspaceContextViolationSeverityLabel(severity) {
+    switch (String(severity || '').trim().toLowerCase()) {
+      case 'high':
+        return 'Срочно';
+      case 'medium':
+        return 'Нужно действие';
+      default:
+        return 'К сведению';
+    }
+  }
+
+  function workspaceContextViolationSeverityBadge(severity) {
+    switch (String(severity || '').trim().toLowerCase()) {
+      case 'high':
+        return 'text-bg-danger';
+      case 'medium':
+        return 'text-bg-warning';
+      default:
+        return 'text-bg-secondary';
     }
   }
 
@@ -4114,12 +4148,15 @@
     const extraViolationCards = contractViolationDetails.slice(3);
     const renderViolationCard = (detail) => `<div class="border rounded px-2 py-2 bg-white">
         <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="badge ${workspaceContextViolationSeverityBadge(detail.severity)}">${escapeHtml(workspaceContextViolationSeverityLabel(detail.severity))}</span>
           <span class="badge text-bg-light border">${escapeHtml(workspaceContextViolationTypeLabel(detail.type))}</span>
           ${detail.code ? `<span class="small text-muted">${escapeHtml(detail.code)}</span>` : ''}
         </div>
-        <div class="mt-1">${escapeHtml(detail.operatorMessage)}</div>
+        <div class="mt-1 fw-semibold">${escapeHtml(detail.shortLabel || detail.operatorMessage)}</div>
+        <div class="small text-muted mt-1">${escapeHtml(detail.operatorMessage)}</div>
+        ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">Следующий шаг:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
         ${detail.playbookUrl
-          ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
+          ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
           : ''}
       </div>`;
     const violationActionsSection = contract.ready === true || contractViolationDetails.length === 0
