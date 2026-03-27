@@ -3444,6 +3444,7 @@
     if (!contract || contract.enabled !== true || contract.ready === true) {
       return;
     }
+    const violationDetails = normalizeWorkspaceContextViolationDetails(contract?.violation_details);
     const violations = Array.isArray(contract.violations)
       ? contract.violations.filter(Boolean).map((item) => String(item).trim()).filter(Boolean)
       : [];
@@ -3451,10 +3452,13 @@
     if (!ticketId) {
       return;
     }
+    const telemetryReasons = violationDetails.length
+      ? violationDetails.map((item) => item.analyticsMessage || item.code).filter(Boolean)
+      : violations;
     emitWorkspaceTelemetry('workspace_context_contract_gap', {
       ticketId,
-      reason: violations.join(',') || 'contract_not_ready',
-      durationMs: violations.length,
+      reason: telemetryReasons.join(',') || 'contract_not_ready',
+      durationMs: telemetryReasons.length,
       contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
     });
   }
