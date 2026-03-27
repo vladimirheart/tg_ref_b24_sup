@@ -1121,7 +1121,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const reviewUpdates = latestPayload?.totals?.workspace_macro_governance_review_updated_events ?? 0;
       const externalPolicyUpdates = latestPayload?.totals?.workspace_macro_external_catalog_policy_updated_events ?? 0;
       const deprecationPolicyUpdates = latestPayload?.totals?.workspace_macro_deprecation_policy_updated_events ?? 0;
-      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · review updates=${formatNumber(reviewUpdates)} · external policy updates=${formatNumber(externalPolicyUpdates)} · deprecation policy updates=${formatNumber(deprecationPolicyUpdates)}`;
+      macroGovernanceMeta.textContent = `templates=${formatNumber(audit?.templates_total || 0)} · active=${formatNumber(audit?.published_active_total || 0)} · deprecated=${formatNumber(audit?.deprecated_total || 0)} · red-list=${formatNumber(audit?.red_list_total || 0)} · owner actions=${formatNumber(audit?.owner_action_total || 0)} · issues=${formatNumber(audit?.issues_total || 0)} · review updates=${formatNumber(reviewUpdates)} · external policy updates=${formatNumber(externalPolicyUpdates)} · deprecation policy updates=${formatNumber(deprecationPolicyUpdates)}`;
     }
     const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
     const governanceReview = audit?.governance_review && typeof audit.governance_review === 'object' ? audit.governance_review : {};
@@ -1135,10 +1135,10 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       macroGovernanceRequirements.textContent = `owner=${requirements.require_owner === true ? 'required' : 'optional'} · namespace=${requirements.require_namespace === true ? 'required' : 'optional'}`;
     }
     if (macroGovernanceRequirementsMeta) {
-      macroGovernanceRequirementsMeta.textContent = `review=${requirements.require_review === true ? `required (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'optional'} · deprecation_reason=${requirements.deprecation_requires_reason === true ? 'required' : 'optional'}`;
+      macroGovernanceRequirementsMeta.textContent = `review=${requirements.require_review === true ? `required (${formatNumber(requirements.review_ttl_hours || 0)}h)` : 'optional'} · deprecation_reason=${requirements.deprecation_requires_reason === true ? 'required' : 'optional'} · red_list=${requirements.red_list_enabled === true ? `on (usage<=${formatNumber(requirements.red_list_usage_max || 0)})` : 'off'} · owner_action=${requirements.owner_action_required === true ? 'on' : 'off'}`;
     }
     if (macroGovernanceCleanup) {
-      macroGovernanceCleanup.textContent = `unused=${formatNumber(audit?.unused_published_total || 0)} · stale_review=${formatNumber(audit?.stale_review_total || 0)}`;
+      macroGovernanceCleanup.textContent = `unused=${formatNumber(audit?.unused_published_total || 0)} · stale_review=${formatNumber(audit?.stale_review_total || 0)} · aliases=${formatNumber(audit?.alias_cleanup_total || 0)} · variables=${formatNumber(audit?.variable_cleanup_total || 0)}`;
     }
     if (macroGovernanceCleanupMeta) {
       const externalCatalogMeta = externalCatalog.required === true
@@ -1147,7 +1147,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const deprecationPolicyMeta = deprecationPolicy.required === true
         ? (deprecationPolicy.ready === true ? 'ready' : 'gap')
         : 'optional';
-      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta} · deprecation_policy=${deprecationPolicyMeta}`;
+      macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · cadence=${formatNumber(requirements.cleanup_cadence_days || 0)}d · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta} · deprecation_policy=${deprecationPolicyMeta}`;
     }
     const issues = Array.isArray(audit?.issues) ? audit.issues : [];
     if (macroGovernanceIssueSummary) {
@@ -1157,6 +1157,12 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       }
       if (issues.length) {
         parts.push(`Issues: ${issues.length}`);
+      }
+      if (Number(audit?.red_list_total || 0) > 0) {
+        parts.push(`Red-list: ${formatNumber(audit.red_list_total)}`);
+      }
+      if (Number(audit?.owner_action_total || 0) > 0) {
+        parts.push(`Owner actions: ${formatNumber(audit.owner_action_total)}`);
       }
       macroGovernanceIssueSummary.textContent = parts.join(' · ');
       macroGovernanceIssueSummary.className = `alert ${status === 'hold' ? 'alert-danger' : (status === 'attention' ? 'alert-warning' : 'alert-secondary')} mb-3${parts.length ? '' : ' d-none'}`;
@@ -1191,9 +1197,17 @@ if (legacyUsageBlockedReasonsFollowupInput) {
           const cleanupMeta = [];
           if (template?.deprecated === true) cleanupMeta.push('deprecated');
           if (template?.deprecation_reason) cleanupMeta.push(`reason=${String(template.deprecation_reason)}`);
+          if (template?.red_list_candidate === true) cleanupMeta.push(`red-list:${Array.isArray(template?.red_list_reasons) ? template.red_list_reasons.join('|') : 'candidate'}`);
+          if (template?.owner_action_required === true) cleanupMeta.push(`owner_action=${String(template?.owner_action_status || 'attention')}`);
+          if (Number(template?.owner_action_due_in_days) >= 0) cleanupMeta.push(`due_in=${formatNumber(template.owner_action_due_in_days)}d`);
+          if (Number(template?.duplicate_alias_count) > 0) cleanupMeta.push(`duplicate_aliases=${formatNumber(template.duplicate_alias_count)}`);
+          if (Number(template?.unknown_variable_count) > 0) cleanupMeta.push(`unknown_vars=${formatNumber(template.unknown_variable_count)}`);
           const issueList = Array.isArray(template?.issues) && template.issues.length
             ? `<div class="small text-muted">${escapeHtml(template.issues.join(', '))}</div>`
             : '';
+          const usageMeta = [];
+          if (Number(template?.preview_count || 0) > 0) usageMeta.push(`preview=${formatNumber(template.preview_count)}`);
+          if (Number(template?.error_count || 0) > 0) usageMeta.push(`errors=${formatNumber(template.error_count)}`);
           return `
             <tr>
               <td>
@@ -1204,7 +1218,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
               <td><span class="badge ${statusBadgeClass(template?.status)}">${statusLabel(template?.status)}</span></td>
               <td class="small">${escapeHtml([template?.owner ? `owner=${template.owner}` : '', template?.namespace ? `ns=${template.namespace}` : ''].filter(Boolean).join(' · ') || 'owner/namespace не заданы')}</td>
               <td class="small">${escapeHtml(template?.reviewed_at_utc ? formatTimestamp(template.reviewed_at_utc) : '—')}${reviewMeta.length ? `<div class="small text-muted">${escapeHtml(reviewMeta.join(' · '))}</div>` : ''}</td>
-              <td class="text-end">${formatNumber(template?.usage_count || 0)}${template?.last_used_at_utc ? `<div class="small text-muted text-start">${escapeHtml(formatTimestamp(template.last_used_at_utc))}</div>` : ''}</td>
+              <td class="text-end">${formatNumber(template?.usage_count || 0)}${template?.last_used_at_utc ? `<div class="small text-muted text-start">${escapeHtml(formatTimestamp(template.last_used_at_utc))}</div>` : ''}${usageMeta.length ? `<div class="small text-muted text-start">${escapeHtml(usageMeta.join(' · '))}</div>` : ''}</td>
               <td class="small">${escapeHtml(cleanupMeta.join(' · ') || 'active')}</td>
             </tr>
           `;
@@ -1524,7 +1538,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         Array.isArray(issue?.related) ? issue.related.join('|') : '',
       ]),
       [],
-      ['macro_template_id', 'macro_template_name', 'status', 'published', 'deprecated', 'owner', 'namespace', 'reviewed_at_utc', 'usage_count', 'last_used_at_utc', 'issues'],
+      ['macro_template_id', 'macro_template_name', 'status', 'published', 'deprecated', 'owner', 'namespace', 'reviewed_at_utc', 'usage_count', 'preview_count', 'error_count', 'last_used_at_utc', 'red_list_candidate', 'red_list_reasons', 'owner_action_required', 'owner_action_status', 'owner_action_due_in_days', 'duplicate_alias_count', 'unknown_variable_count', 'issues'],
       ...(Array.isArray(payload?.macro_governance_audit?.templates) ? payload.macro_governance_audit.templates : []).map((template) => [
         template?.template_id || '',
         template?.template_name || '',
@@ -1535,7 +1549,16 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         template?.namespace || '',
         template?.reviewed_at_utc || '',
         template?.usage_count ?? '',
+        template?.preview_count ?? '',
+        template?.error_count ?? '',
         template?.last_used_at_utc || '',
+        template?.red_list_candidate === true ? 'true' : 'false',
+        Array.isArray(template?.red_list_reasons) ? template.red_list_reasons.join('|') : '',
+        template?.owner_action_required === true ? 'true' : 'false',
+        template?.owner_action_status || '',
+        template?.owner_action_due_in_days ?? '',
+        template?.duplicate_alias_count ?? '',
+        template?.unknown_variable_count ?? '',
         Array.isArray(template?.issues) ? template.issues.join('|') : '',
       ]),
       [],

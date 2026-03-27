@@ -152,12 +152,14 @@
 - review checkpoint;
 - external catalog checkpoint;
 - deprecation checkpoint;
-- baseline governance settings.
+- baseline governance settings;
+- red list для макросов с низким adoption;
+- owner action для проблемных шаблонов;
+- cleanup visibility по aliases/tags и неизвестным переменным.
 
 Что остаётся:
 - cleanup/deprecation SLA по usage-tier;
-- список макросов с обязательным owner action при плохом качестве;
-- регулярная чистка aliases и ambiguous variables.
+- проверить, что macro quality loop не даёт слишком много noisy red-list сигналов.
 
 ---
 
@@ -192,9 +194,8 @@
 - чистка библиотеки должна идти по данным использования, а не по ручному ощущению.
 
 Минимум на следующий цикл:
-- red list для макросов с низким adoption или повышенным error-rate;
-- owner action для проблемных шаблонов;
-- cleanup cadence для aliases и переменных.
+- usage-tier cleanup/deprecation SLA;
+- фильтрация noisy macro governance сигналов.
 
 ### Шаг 5. Проверить реальную стоимость текущих policy-gates
 Цель:

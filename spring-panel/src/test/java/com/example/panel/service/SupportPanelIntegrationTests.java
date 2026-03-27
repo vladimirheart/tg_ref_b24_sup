@@ -2262,8 +2262,8 @@ class SupportPanelIntegrationTests {
 
     @Test
     void macroGovernanceAuditHighlightsOwnershipReviewAndUsageGaps() {
-        settingsBridgeController.updateSettings(Map.of(
-                "dialog_macro_templates", List.of(
+        settingsBridgeController.updateSettings(Map.ofEntries(
+                Map.entry("dialog_macro_templates", List.of(
                         Map.of(
                                 "id", "macro_active_missing_owner",
                                 "name", "Активный без owner",
@@ -2277,6 +2277,16 @@ class SupportPanelIntegrationTests {
                                 "message", "Текст 2",
                                 "owner", "ops-core",
                                 "namespace", "ops.core",
+                                "tags", List.of("refund", "refund", "returns"),
+                                "approved_for_publish", true,
+                                "published", true
+                        ),
+                        Map.of(
+                                "id", "macro_unknown_variable",
+                                "name", "Неизвестная переменная",
+                                "message", "Здравствуйте, {{unknown_var}}",
+                                "owner", "ops-core",
+                                "namespace", "ops.core",
                                 "approved_for_publish", true,
                                 "published", true
                         ),
@@ -2288,13 +2298,19 @@ class SupportPanelIntegrationTests {
                                 "namespace", "ops.legacy",
                                 "deprecated", true
                         )
-                ),
-                "dialog_macro_governance_require_owner", true,
-                "dialog_macro_governance_require_namespace", true,
-                "dialog_macro_governance_require_review", true,
-                "dialog_macro_governance_review_ttl_hours", 24,
-                "dialog_macro_governance_deprecation_requires_reason", true,
-                "dialog_macro_governance_unused_days", 30
+                )),
+                Map.entry("dialog_macro_governance_require_owner", true),
+                Map.entry("dialog_macro_governance_require_namespace", true),
+                Map.entry("dialog_macro_governance_require_review", true),
+                Map.entry("dialog_macro_governance_review_ttl_hours", 24),
+                Map.entry("dialog_macro_governance_deprecation_requires_reason", true),
+                Map.entry("dialog_macro_governance_unused_days", 30),
+                Map.entry("dialog_macro_governance_red_list_enabled", true),
+                Map.entry("dialog_macro_governance_red_list_usage_max", 0),
+                Map.entry("dialog_macro_governance_owner_action_required", true),
+                Map.entry("dialog_macro_governance_cleanup_cadence_days", 7),
+                Map.entry("dialog_macro_governance_alias_cleanup_required", true),
+                Map.entry("dialog_macro_governance_variable_cleanup_required", true)
         ), null);
 
         jdbcTemplate.update("""
@@ -2312,9 +2328,13 @@ class SupportPanelIntegrationTests {
 
         assertThat(audit).containsEntry("status", "hold");
         assertThat(audit).containsEntry("missing_owner_total", 1);
-        assertThat(audit).containsEntry("stale_review_total", 2);
-        assertThat(audit).containsEntry("unused_published_total", 2);
+        assertThat(audit).containsEntry("stale_review_total", 3);
+        assertThat(audit).containsEntry("unused_published_total", 3);
         assertThat(audit).containsEntry("deprecation_gap_total", 1);
+        assertThat(audit).containsEntry("red_list_total", 3);
+        assertThat(audit).containsEntry("owner_action_total", 3);
+        assertThat(audit).containsEntry("alias_cleanup_total", 1);
+        assertThat(audit).containsEntry("variable_cleanup_total", 1);
         assertThat(issues).anySatisfy(issue -> {
             if ("owner_missing".equals(issue.get("type"))) {
                 assertThat(issue.get("status")).isEqualTo("hold");
@@ -2325,10 +2345,33 @@ class SupportPanelIntegrationTests {
                 assertThat(issue.get("status")).isEqualTo("attention");
             }
         });
+        assertThat(issues).anySatisfy(issue -> {
+            if ("alias_cleanup_required".equals(issue.get("type"))) {
+                assertThat(issue.get("detail")).isEqualTo("duplicate_aliases=1");
+            }
+        });
+        assertThat(issues).anySatisfy(issue -> {
+            if ("unknown_variables_detected".equals(issue.get("type"))) {
+                assertThat(issue.get("detail")).isEqualTo("unknown_variables=unknown_var");
+            }
+        });
         assertThat(templates).anySatisfy(template -> {
             if ("macro_active_missing_owner".equals(template.get("template_id"))) {
                 assertThat(template.get("status")).isEqualTo("hold");
                 assertThat(template.get("usage_count")).isEqualTo(0L);
+                assertThat(template.get("red_list_candidate")).isEqualTo(true);
+                assertThat(template.get("owner_action_required")).isEqualTo(true);
+            }
+        });
+        assertThat(templates).anySatisfy(template -> {
+            if ("macro_review_stale".equals(template.get("template_id"))) {
+                assertThat(template.get("duplicate_alias_count")).isEqualTo(1);
+            }
+        });
+        assertThat(templates).anySatisfy(template -> {
+            if ("macro_unknown_variable".equals(template.get("template_id"))) {
+                assertThat(template.get("unknown_variable_count")).isEqualTo(1);
+                assertThat(template.get("owner_action_required")).isEqualTo(true);
             }
         });
         assertThat(templates).anySatisfy(template -> {
@@ -2337,6 +2380,26 @@ class SupportPanelIntegrationTests {
                 assertThat(template.get("deprecated")).isEqualTo(true);
             }
         });
+    }
+
+    @Test
+    void settingsBridgePersistsMacroGovernanceQualityLoopFields() {
+        settingsBridgeController.updateSettings(Map.of(
+                "dialog_macro_governance_red_list_enabled", true,
+                "dialog_macro_governance_red_list_usage_max", 2,
+                "dialog_macro_governance_owner_action_required", true,
+                "dialog_macro_governance_cleanup_cadence_days", 14,
+                "dialog_macro_governance_alias_cleanup_required", true,
+                "dialog_macro_governance_variable_cleanup_required", true
+        ), null);
+
+        Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");
+        assertThat(dialogConfig.get("macro_governance_red_list_enabled")).isEqualTo(true);
+        assertThat(dialogConfig.get("macro_governance_red_list_usage_max")).isEqualTo(2L);
+        assertThat(dialogConfig.get("macro_governance_owner_action_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("macro_governance_cleanup_cadence_days")).isEqualTo(14L);
+        assertThat(dialogConfig.get("macro_governance_alias_cleanup_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("macro_governance_variable_cleanup_required")).isEqualTo(true);
     }
 
     @Test
