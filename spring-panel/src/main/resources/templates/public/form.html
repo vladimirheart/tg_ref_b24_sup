@@ -9,22 +9,39 @@
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <style>
-        body { background: #f5f7fb; }
-        .form-card { background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); padding: 2rem; }
-        .chat-card { background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); display: flex; flex-direction: column; height: 520px; }
-        .chat-history { flex: 1; overflow-y: auto; padding: 1rem; background: #f9fafc; }
+        body { background: var(--color-bg); }
+        .form-card,
+        .chat-card {
+            border-radius: 20px;
+            border: 1px solid transparent;
+            box-shadow: var(--color-shadow);
+            background:
+                linear-gradient(color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 20%, white)),
+                conic-gradient(
+                    from var(--gradient-angle),
+                    color-mix(in srgb, var(--gradient-primary) 54%, transparent),
+                    color-mix(in srgb, var(--gradient-secondary) 45%, transparent),
+                    color-mix(in srgb, var(--gradient-accent) 55%, transparent),
+                    color-mix(in srgb, var(--gradient-primary) 54%, transparent)
+                );
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+        }
+        .form-card { padding: 2rem; animation: gradient-rotate 10s linear infinite; }
+        .chat-card { display: flex; flex-direction: column; height: 520px; animation: gradient-rotate 14s linear infinite; }
+        .chat-history { flex: 1; overflow-y: auto; padding: 1rem; background: color-mix(in srgb, var(--secondary) 22%, white); }
         .chat-message { border-radius: 12px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; max-width: 80%; word-break: break-word; }
-        .chat-message.user { background: #e8f1ff; margin-left: auto; }
-        .chat-message.support { background: #e9fbef; margin-right: auto; }
-        .chat-footer { border-top: 1px solid #e5e7eb; padding: 0.75rem 1rem; background: #fff; }
+        .chat-message.user { background: color-mix(in srgb, var(--secondary) 72%, white); margin-left: auto; }
+        .chat-message.support { background: color-mix(in srgb, var(--accent) 72%, white); margin-right: auto; }
+        .chat-footer { border-top: 1px solid var(--color-border); padding: 0.75rem 1rem; background: color-mix(in srgb, var(--card) 94%, white); }
     </style>
 </head>
 <body>
 <div class="container py-5">
-    <div class="text-center mb-4">
+    <div class="page-header-card text-center mb-4">
         <div class="badge rounded-pill text-bg-primary px-3 py-2" th:text="${channelName} ?: 'Обращение'">Канал</div>
-        <h1 class="mt-3 mb-2">Создать обращение</h1>
-        <p class="text-muted mb-0">Заполните форму и следите за ответом службы поддержки.</p>
+        <h1 class="page-title mt-3 mb-2">Создать обращение</h1>
+        <p class="page-subtitle mx-auto">Заполните форму и следите за ответом службы поддержки.</p>
     </div>
     <div class="row g-4">
         <div class="col-12 col-lg-6">

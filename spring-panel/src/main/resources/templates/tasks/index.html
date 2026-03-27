@@ -60,14 +60,35 @@
       position: sticky;
       top: 0;
       z-index: 1015;
-      padding: 1rem 0 0.75rem;
+      padding: 1rem 1.25rem 0.95rem;
       margin-bottom: 1.5rem;
-      background: var(--color-bg);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+      background:
+        linear-gradient(color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 26%, white)),
+        conic-gradient(
+          from var(--gradient-angle),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent),
+          color-mix(in srgb, var(--gradient-secondary) 40%, transparent),
+          color-mix(in srgb, var(--gradient-accent) 52%, transparent),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent)
+        );
+      border: 1px solid transparent;
+      border-radius: 1.25rem;
+      background-origin: padding-box, border-box;
+      background-clip: padding-box, border-box;
+      box-shadow: var(--color-shadow);
+      animation: gradient-rotate 14s linear infinite;
     }
 
     .tasks-sticky-bar > *:last-child {
       margin-bottom: 0;
+    }
+    .tasks-title {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 2rem;
+    }
+    .tasks-table-card {
+      overflow: hidden;
     }
   </style>
 </head>
@@ -81,7 +102,10 @@
 
     <div class="tasks-sticky-bar">
       <div class="d-flex align-items-center justify-content-between mb-3 gap-3">
-        <h3 class="mb-0">Задачи</h3>
+        <div>
+          <span class="page-kicker">Task Flow</span>
+          <h3 class="tasks-title">Задачи</h3>
+        </div>
         <div class="d-flex gap-2 flex-wrap justify-content-end">
                   <button id="filtersBtn" class="btn btn-outline-secondary">Фильтры</button>
                   <button id="createTaskBtn" class="btn btn-primary">Создать задачу</button>
@@ -175,7 +199,7 @@
           </div>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm tasks-table-card gradient-border-hover">
       <div class="table-responsive">
         <table class="table align-middle mb-0" id="tasksTable">
           <thead class="table-light">
