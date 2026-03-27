@@ -2661,6 +2661,38 @@
                       <label for="dialogMacroGovernanceUnusedDays" class="form-label">Unused window, дней</label>
                       <input type="number" class="form-control" id="dialogMacroGovernanceUnusedDays" min="1" max="365" step="1">
                     </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRedListEnabled">
+                        <label class="form-check-label" for="dialogMacroGovernanceRedListEnabled">Включить quality red-list для макросов</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceRedListUsageMax" class="form-label">Red-list usage max</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceRedListUsageMax" min="0" max="10000" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceOwnerActionRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceOwnerActionRequired">Требовать owner action для red-list templates</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupCadenceDays" class="form-label">Cleanup cadence, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupCadenceDays" min="0" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceAliasCleanupRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceAliasCleanupRequired">Проверять aliases/tags cleanup</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceVariableCleanupRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceVariableCleanupRequired">Проверять cleanup неизвестных переменных</label>
+                      </div>
+                    </div>
                   </div>
                   <hr class="my-4">
                   <h6 class="mb-2">Внешние профили клиента (workspace)</h6>
@@ -5304,6 +5336,12 @@
     macro_governance_review_ttl_hours: 168,
     macro_governance_deprecation_requires_reason: false,
     macro_governance_unused_days: 30,
+    macro_governance_red_list_enabled: false,
+    macro_governance_red_list_usage_max: 0,
+    macro_governance_owner_action_required: false,
+    macro_governance_cleanup_cadence_days: 0,
+    macro_governance_alias_cleanup_required: false,
+    macro_governance_variable_cleanup_required: false,
     escalation_webhook_max_tickets_per_run: 50,
     workspace_context_history_limit: 5,
     workspace_context_related_events_limit: 5,
@@ -14539,6 +14577,12 @@
       macroGovernanceReviewTtlHours: document.getElementById('dialogMacroGovernanceReviewTtlHours'),
       macroGovernanceDeprecationRequiresReason: document.getElementById('dialogMacroGovernanceDeprecationRequiresReason'),
       macroGovernanceUnusedDays: document.getElementById('dialogMacroGovernanceUnusedDays'),
+      macroGovernanceRedListEnabled: document.getElementById('dialogMacroGovernanceRedListEnabled'),
+      macroGovernanceRedListUsageMax: document.getElementById('dialogMacroGovernanceRedListUsageMax'),
+      macroGovernanceOwnerActionRequired: document.getElementById('dialogMacroGovernanceOwnerActionRequired'),
+      macroGovernanceCleanupCadenceDays: document.getElementById('dialogMacroGovernanceCleanupCadenceDays'),
+      macroGovernanceAliasCleanupRequired: document.getElementById('dialogMacroGovernanceAliasCleanupRequired'),
+      macroGovernanceVariableCleanupRequired: document.getElementById('dialogMacroGovernanceVariableCleanupRequired'),
       workspaceClientHiddenAttributes: document.getElementById('dialogWorkspaceClientHiddenAttributes'),
       workspaceClientAttributeLabels: document.getElementById('dialogWorkspaceClientAttributeLabels'),
       workspaceClientAttributeOrder: document.getElementById('dialogWorkspaceClientAttributeOrder'),
@@ -15302,6 +15346,30 @@
       inputs.macroGovernanceUnusedDays.value = Number.isFinite(value) && value >= 1 && value <= 365
         ? value
         : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_unused_days;
+    }
+    if (inputs.macroGovernanceRedListEnabled) {
+      inputs.macroGovernanceRedListEnabled.checked = Boolean(DIALOG_CONFIG.macro_governance_red_list_enabled);
+    }
+    if (inputs.macroGovernanceRedListUsageMax) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_red_list_usage_max, 10);
+      inputs.macroGovernanceRedListUsageMax.value = Number.isFinite(value) && value >= 0 && value <= 10000
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_red_list_usage_max;
+    }
+    if (inputs.macroGovernanceOwnerActionRequired) {
+      inputs.macroGovernanceOwnerActionRequired.checked = Boolean(DIALOG_CONFIG.macro_governance_owner_action_required);
+    }
+    if (inputs.macroGovernanceCleanupCadenceDays) {
+      const value = Number.parseInt(DIALOG_CONFIG.macro_governance_cleanup_cadence_days, 10);
+      inputs.macroGovernanceCleanupCadenceDays.value = Number.isFinite(value) && value >= 0 && value <= 365
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_cadence_days;
+    }
+    if (inputs.macroGovernanceAliasCleanupRequired) {
+      inputs.macroGovernanceAliasCleanupRequired.checked = Boolean(DIALOG_CONFIG.macro_governance_alias_cleanup_required);
+    }
+    if (inputs.macroGovernanceVariableCleanupRequired) {
+      inputs.macroGovernanceVariableCleanupRequired.checked = Boolean(DIALOG_CONFIG.macro_governance_variable_cleanup_required);
     }
     if (inputs.workspaceClientHiddenAttributes) {
       const hiddenAttributes = Array.isArray(DIALOG_CONFIG.workspace_client_hidden_attributes)
@@ -17232,6 +17300,22 @@
       365,
       DEFAULT_DIALOG_SLA_CONFIG.macro_governance_unused_days,
     );
+    const safeMacroGovernanceRedListEnabled = Boolean(inputs.macroGovernanceRedListEnabled?.checked);
+    const safeMacroGovernanceRedListUsageMax = sanitizeInt(
+      inputs.macroGovernanceRedListUsageMax?.value,
+      0,
+      10000,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_red_list_usage_max,
+    );
+    const safeMacroGovernanceOwnerActionRequired = Boolean(inputs.macroGovernanceOwnerActionRequired?.checked);
+    const safeMacroGovernanceCleanupCadenceDays = sanitizeInt(
+      inputs.macroGovernanceCleanupCadenceDays?.value,
+      0,
+      365,
+      DEFAULT_DIALOG_SLA_CONFIG.macro_governance_cleanup_cadence_days,
+    );
+    const safeMacroGovernanceAliasCleanupRequired = Boolean(inputs.macroGovernanceAliasCleanupRequired?.checked);
+    const safeMacroGovernanceVariableCleanupRequired = Boolean(inputs.macroGovernanceVariableCleanupRequired?.checked);
 
     const safeWorkspaceContextHistoryLimitRaw = Math.round(Number(inputs.workspaceContextHistoryLimit?.value));
     const safeWorkspaceContextHistoryLimit = Number.isFinite(safeWorkspaceContextHistoryLimitRaw)
@@ -17581,6 +17665,12 @@
         dialog_macro_governance_review_ttl_hours: safeMacroGovernanceReviewTtlHours,
         dialog_macro_governance_deprecation_requires_reason: safeMacroGovernanceDeprecationRequiresReason,
         dialog_macro_governance_unused_days: safeMacroGovernanceUnusedDays,
+        dialog_macro_governance_red_list_enabled: safeMacroGovernanceRedListEnabled,
+        dialog_macro_governance_red_list_usage_max: safeMacroGovernanceRedListUsageMax,
+        dialog_macro_governance_owner_action_required: safeMacroGovernanceOwnerActionRequired,
+        dialog_macro_governance_cleanup_cadence_days: safeMacroGovernanceCleanupCadenceDays,
+        dialog_macro_governance_alias_cleanup_required: safeMacroGovernanceAliasCleanupRequired,
+        dialog_macro_governance_variable_cleanup_required: safeMacroGovernanceVariableCleanupRequired,
         dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
         dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
         dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,

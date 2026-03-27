@@ -42,12 +42,24 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("id=\"dialogMacroGovernanceReviewTtlHours\"")
                 .contains("id=\"dialogMacroGovernanceDeprecationRequiresReason\"")
                 .contains("id=\"dialogMacroGovernanceUnusedDays\"")
+                .contains("id=\"dialogMacroGovernanceRedListEnabled\"")
+                .contains("id=\"dialogMacroGovernanceRedListUsageMax\"")
+                .contains("id=\"dialogMacroGovernanceOwnerActionRequired\"")
+                .contains("id=\"dialogMacroGovernanceCleanupCadenceDays\"")
+                .contains("id=\"dialogMacroGovernanceAliasCleanupRequired\"")
+                .contains("id=\"dialogMacroGovernanceVariableCleanupRequired\"")
                 .contains("dialog_macro_governance_require_owner")
                 .contains("dialog_macro_governance_require_namespace")
                 .contains("dialog_macro_governance_require_review")
                 .contains("dialog_macro_governance_review_ttl_hours")
                 .contains("dialog_macro_governance_deprecation_requires_reason")
-                .contains("dialog_macro_governance_unused_days");
+                .contains("dialog_macro_governance_unused_days")
+                .contains("dialog_macro_governance_red_list_enabled")
+                .contains("dialog_macro_governance_red_list_usage_max")
+                .contains("dialog_macro_governance_owner_action_required")
+                .contains("dialog_macro_governance_cleanup_cadence_days")
+                .contains("dialog_macro_governance_alias_cleanup_required")
+                .contains("dialog_macro_governance_variable_cleanup_required");
     }
 
     @Test
