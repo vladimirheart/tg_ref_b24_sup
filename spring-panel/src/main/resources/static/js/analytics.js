@@ -708,17 +708,24 @@
     const legacyOnlyScenarios = Array.isArray(packet?.legacy_only_scenarios) ? packet.legacy_only_scenarios : [];
     const legacyInventory = packet?.legacy_only_inventory || {};
     if (packetLegacyState) {
-      packetLegacyState.textContent = legacyOnlyScenarios.length
-        ? `${legacyOnlyScenarios.length} open`
-        : 'Legacy-only gaps не заявлены';
+      if (!legacyOnlyScenarios.length) {
+        packetLegacyState.textContent = 'Legacy-only gaps не заявлены';
+      } else if (legacyInventory?.managed === true) {
+        packetLegacyState.textContent = `${legacyOnlyScenarios.length} open, sunset plan assigned`;
+      } else {
+        packetLegacyState.textContent = `${legacyOnlyScenarios.length} open, attention required`;
+      }
     }
     if (packetLegacyMeta) {
       const reviewedAt = legacyInventory?.reviewed_at ? formatTimestamp(legacyInventory.reviewed_at) : '—';
       const reviewedBy = String(legacyInventory?.reviewed_by || '').trim() || '—';
       const note = String(legacyInventory?.review_note || '').trim();
       const invalid = legacyInventory?.review_timestamp_invalid === true ? ' · invalid_utc' : '';
+      const managedCount = Number(legacyInventory?.managed_count || 0);
+      const unmanagedCount = Number(legacyInventory?.unmanaged_count || 0);
+      const overdueCount = Number(legacyInventory?.deadline_overdue_count || 0);
       packetLegacyMeta.textContent = legacyOnlyScenarios.length
-        ? `${legacyOnlyScenarios.join(', ')} · reviewed=${reviewedBy} @ ${reviewedAt}${invalid}${note ? ` · note: ${note}` : ''}`
+        ? `${legacyOnlyScenarios.join(', ')} · managed=${managedCount}/${legacyOnlyScenarios.length} · unmanaged=${unmanagedCount}${overdueCount > 0 ? ` · overdue=${overdueCount}` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${invalid}${note ? ` · note: ${note}` : ''}`
         : `Инвентарь пуст — legacy modal можно удерживать только как rollback. reviewed=${reviewedBy} @ ${reviewedAt}${invalid}${note ? ` · note: ${note}` : ''}`;
     }
     if (legacyScenariosInput) {
