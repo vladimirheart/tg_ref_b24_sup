@@ -1,12 +1,14 @@
 package com.example.supportbot.max;
 
 import com.example.supportbot.config.MaxBotProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -20,6 +22,7 @@ public class MaxApiClient {
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
         .build();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final MaxBotProperties properties;
 
     public MaxApiClient(MaxBotProperties properties) {
@@ -52,7 +55,8 @@ public class MaxApiClient {
                 .header("Authorization", token)
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(10))
-                .POST(HttpRequest.BodyPublishers.ofString("{\"text\":\"" + escape(text) + "\"}", StandardCharsets.UTF_8))
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(Map.of("text", text == null ? "" : text)),
+                    StandardCharsets.UTF_8))
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
@@ -64,12 +68,5 @@ public class MaxApiClient {
             log.error("Failed to send MAX message", ex);
             return false;
         }
-    }
-
-    private String escape(String source) {
-        if (source == null) {
-            return "";
-        }
-        return source.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 }

@@ -2,6 +2,7 @@ package com.example.supportbot.service;
 
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.repository.ChannelRepository;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,26 @@ public class ChannelService {
         return channelRepository.findByToken(lookupToken)
                 .map(channel -> ensurePersistedPublicId(channel, channelName, platform))
                 .orElseGet(() -> createChannel(lookupToken, channelName, platform));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Channel> findById(Long channelId) {
+        if (channelId == null || channelId <= 0) {
+            return Optional.empty();
+        }
+        return channelRepository.findById(channelId);
+    }
+
+    @Transactional
+    public Channel resolveConfiguredChannel(Long channelId, String token, String channelName, String platform) {
+        if (channelId != null && channelId > 0) {
+            Optional<Channel> configured = channelRepository.findById(channelId);
+            if (configured.isPresent()) {
+                return ensurePersistedPublicId(configured.get(), channelName, platform);
+            }
+            log.warn("Configured channel {} was not found, falling back to token lookup", channelId);
+        }
+        return ensurePublicIdForToken(token, channelName, platform);
     }
 
     @Transactional
