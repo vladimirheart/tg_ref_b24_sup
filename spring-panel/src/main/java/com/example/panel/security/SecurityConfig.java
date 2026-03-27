@@ -2,6 +2,7 @@ package com.example.panel.security;
 
 import jakarta.servlet.DispatcherType;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,6 +13,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -25,7 +27,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    SecurityHeadersFilter securityHeadersFilter,
-                                                   UserLastActivityFilter userLastActivityFilter,
+                                                   ObjectProvider<UserLastActivityFilter> userLastActivityFilter,
                                                    DaoAuthenticationProvider daoAuthenticationProvider) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
@@ -73,8 +75,12 @@ public class SecurityConfig {
 
                     response.sendRedirect("/error/403");
                 }))
-                .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class)
-                .addFilterAfter(userLastActivityFilter, org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);
+                .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class);
+
+        UserLastActivityFilter activityFilter = userLastActivityFilter.getIfAvailable();
+        if (activityFilter != null) {
+            http.addFilterAfter(activityFilter, org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);
+        }
 
         http.authenticationProvider(daoAuthenticationProvider);
 
@@ -88,14 +94,21 @@ public class SecurityConfig {
 
     @Bean
     public UserRepositoryUserDetailsService userRepositoryUserDetailsService(
-            @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
+            @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") ObjectProvider<JdbcTemplate> jdbcTemplate,
             PasswordEncoder passwordEncoder
     ) {
-        return new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
+        JdbcTemplate template = jdbcTemplate.getIfAvailable();
+        if (template == null) {
+            return new UserRepositoryUserDetailsService(new JdbcTemplate(), passwordEncoder);
+        }
+        return new UserRepositoryUserDetailsService(template, passwordEncoder);
     }
 
     @Bean
     public UserDetailsService userDetailsService(UserRepositoryUserDetailsService delegate) {
+        if (delegate.getJdbcTemplate() == null || delegate.getDataSource() == null) {
+            return new InMemoryUserDetailsManager();
+        }
         return delegate;
     }
 

@@ -1,6 +1,7 @@
 package com.example.panel.security;
 
 import org.springframework.dao.DataAccessException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -16,14 +17,17 @@ public class SecurityBootstrap {
     private final PasswordEncoder passwordEncoder;
 
     public SecurityBootstrap(
-            @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
+            @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") ObjectProvider<JdbcTemplate> jdbcTemplate,
             PasswordEncoder passwordEncoder
     ) {
-        this.jdbcTemplate = jdbcTemplate;
+        this.jdbcTemplate = jdbcTemplate.getIfAvailable();
         this.passwordEncoder = passwordEncoder;
     }
 
     public void ensureDefaultAdmin() {
+        if (jdbcTemplate == null) {
+            return;
+        }
         // 1) гарантируем таблицу authorities (важно для старых users.db)
         ensureAuthoritiesTable();
 

@@ -119,11 +119,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> confirmWorkspaceRolloutReview(@RequestBody(required = false) WorkspaceRolloutReviewRequest request,
                                                            Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String actor = authentication != null ? authentication.getName() : null;
         String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
         if (reviewedBy == null) {
-            reviewedBy = actor;
+            reviewedBy = resolveActor(authentication, null);
         }
+        actor = resolveActor(authentication, reviewedBy);
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
         String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
         String decisionAction = normalize(String.valueOf(request != null ? request.decisionAction() : null));
@@ -288,11 +289,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateWorkspaceContextStandard(@RequestBody(required = false) WorkspaceContextStandardRequest request,
                                                             Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String actor = authentication != null ? authentication.getName() : null;
         String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
         if (reviewedBy == null) {
-            reviewedBy = actor;
+            reviewedBy = resolveActor(authentication, null);
         }
+        actor = resolveActor(authentication, reviewedBy);
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
         OffsetDateTime reviewedAtUtc;
         if (reviewedAtRaw == null) {
@@ -407,21 +409,21 @@ public class AnalyticsController {
                 null
         );
 
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "required", required,
-                "reviewed_by", reviewedBy,
-                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
-                "scenarios", scenarios,
-                "mandatory_fields", mandatoryFields,
-                "scenario_mandatory_fields", scenarioMandatoryFields,
-                "source_of_truth", sourceOfTruth,
-                "scenario_source_of_truth", scenarioSourceOfTruth,
-                "priority_blocks", priorityBlocks,
-                "scenario_priority_blocks", scenarioPriorityBlocks,
-                "playbooks", playbooks,
-                "note", note == null ? "" : note
-        ));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("required", required);
+        response.put("reviewed_by", reviewedBy);
+        response.put("reviewed_at_utc", reviewedAtUtc.toInstant().toString());
+        response.put("scenarios", scenarios);
+        response.put("mandatory_fields", mandatoryFields);
+        response.put("scenario_mandatory_fields", scenarioMandatoryFields);
+        response.put("source_of_truth", sourceOfTruth);
+        response.put("scenario_source_of_truth", scenarioSourceOfTruth);
+        response.put("priority_blocks", priorityBlocks);
+        response.put("scenario_priority_blocks", scenarioPriorityBlocks);
+        response.put("playbooks", playbooks);
+        response.put("note", note == null ? "" : note);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping(value = "/workspace-rollout/legacy-only-scenarios", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -429,11 +431,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateWorkspaceLegacyOnlyScenarios(@RequestBody(required = false) WorkspaceLegacyOnlyScenariosRequest request,
                                                                 Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String actor = authentication != null ? authentication.getName() : null;
         String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
         if (reviewedBy == null) {
-            reviewedBy = actor;
+            reviewedBy = resolveActor(authentication, null);
         }
+        actor = resolveActor(authentication, reviewedBy);
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
         OffsetDateTime reviewedAtUtc;
         if (reviewedAtRaw == null) {
@@ -530,11 +533,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateWorkspaceLegacyUsagePolicy(@RequestBody(required = false) WorkspaceLegacyUsagePolicyRequest request,
                                                           Authentication authentication) {
-    String actor = authentication != null ? authentication.getName() : "anonymous";
+    String actor = authentication != null ? authentication.getName() : null;
     String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
     if (reviewedBy == null) {
-        reviewedBy = actor;
+        reviewedBy = resolveActor(authentication, null);
     }
+    actor = resolveActor(authentication, reviewedBy);
     String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
     OffsetDateTime reviewedAtUtc;
     if (reviewedAtRaw == null) {
@@ -655,30 +659,31 @@ public class AnalyticsController {
             null
     );
 
-    return ResponseEntity.ok(Map.of(
-            "success", true,
-            "reviewed_by", reviewedBy,
-            "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
-            "review_note", reviewNote == null ? "" : reviewNote,
-            "decision", decision == null ? "" : decision,
-            "max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct,
-            "min_workspace_open_events", minWorkspaceOpenEvents == null ? "" : minWorkspaceOpenEvents,
-            "max_legacy_manual_share_delta_pct", maxShareDeltaPct == null ? "" : maxShareDeltaPct,
-            "max_legacy_blocked_share_delta_pct", maxBlockedShareDeltaPct == null ? "" : maxBlockedShareDeltaPct,
-            "allowed_reasons", allowedReasons,
-            "reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired
-    ));
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("success", true);
+    response.put("reviewed_by", reviewedBy);
+    response.put("reviewed_at_utc", reviewedAtUtc.toInstant().toString());
+    response.put("review_note", reviewNote == null ? "" : reviewNote);
+    response.put("decision", decision == null ? "" : decision);
+    response.put("max_legacy_manual_share_pct", maxSharePct == null ? "" : maxSharePct);
+    response.put("min_workspace_open_events", minWorkspaceOpenEvents == null ? "" : minWorkspaceOpenEvents);
+    response.put("max_legacy_manual_share_delta_pct", maxShareDeltaPct == null ? "" : maxShareDeltaPct);
+    response.put("max_legacy_blocked_share_delta_pct", maxBlockedShareDeltaPct == null ? "" : maxBlockedShareDeltaPct);
+    response.put("allowed_reasons", allowedReasons);
+    response.put("reason_catalog_required", reasonCatalogRequired == null ? false : reasonCatalogRequired);
+    return ResponseEntity.ok(response);
 }
     @PostMapping(value = "/sla-policy/governance-review", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateSlaPolicyGovernanceReview(@RequestBody(required = false) SlaPolicyGovernanceReviewRequest request,
                                                              Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String actor = authentication != null ? authentication.getName() : null;
         String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
         if (reviewedBy == null) {
-            reviewedBy = actor;
+            reviewedBy = resolveActor(authentication, null);
         }
+        actor = resolveActor(authentication, reviewedBy);
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
         OffsetDateTime reviewedAtUtc;
         if (reviewedAtRaw == null) {
@@ -766,11 +771,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateMacroGovernanceReview(@RequestBody(required = false) MacroGovernanceReviewRequest request,
                                                          Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String actor = authentication != null ? authentication.getName() : null;
         String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
         if (reviewedBy == null) {
-            reviewedBy = actor;
+            reviewedBy = resolveActor(authentication, null);
         }
+        actor = resolveActor(authentication, reviewedBy);
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
         OffsetDateTime reviewedAtUtc;
         if (reviewedAtRaw == null) {
@@ -858,11 +864,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateMacroExternalCatalogPolicy(@RequestBody(required = false) MacroExternalCatalogPolicyRequest request,
                                                               Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String actor = authentication != null ? authentication.getName() : null;
         String verifiedBy = normalize(String.valueOf(request != null ? request.verifiedBy() : null));
         if (verifiedBy == null) {
-            verifiedBy = actor;
+            verifiedBy = resolveActor(authentication, null);
         }
+        actor = resolveActor(authentication, verifiedBy);
         String verifiedAtRaw = normalize(String.valueOf(request != null ? request.verifiedAtUtc() : null));
         OffsetDateTime verifiedAtUtc;
         if (verifiedAtRaw == null) {
@@ -967,11 +974,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateMacroDeprecationPolicy(@RequestBody(required = false) MacroDeprecationPolicyRequest request,
                                                           Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : "anonymous";
+        String actor = authentication != null ? authentication.getName() : null;
         String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
         if (reviewedBy == null) {
-            reviewedBy = actor;
+            reviewedBy = resolveActor(authentication, null);
         }
+        actor = resolveActor(authentication, reviewedBy);
         String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
         OffsetDateTime reviewedAtUtc;
         if (reviewedAtRaw == null) {
@@ -1066,7 +1074,17 @@ public class AnalyticsController {
             return null;
         }
         String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return trimmed.isEmpty() || "null".equalsIgnoreCase(trimmed) ? null : trimmed;
+    }
+
+    private static String resolveActor(Authentication authentication, String fallback) {
+        if (authentication != null && normalize(authentication.getName()) != null) {
+            return authentication.getName();
+        }
+        if (normalize(fallback) != null) {
+            return fallback;
+        }
+        return "anonymous";
     }
 
     private static OffsetDateTime parseUtcTimestamp(String raw) {
