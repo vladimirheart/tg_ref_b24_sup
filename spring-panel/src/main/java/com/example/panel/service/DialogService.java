@@ -1487,6 +1487,8 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_governance_parity_critical_reasons"));
         List<String> legacyOnlyScenarios = resolveDialogConfigStringList(
                 resolveDialogConfigValue("workspace_rollout_governance_legacy_only_scenarios"));
+        Map<String, Map<String, Object>> legacyOnlyScenarioMetadata = resolveLegacyOnlyScenarioMetadataMap(
+                resolveDialogConfigValue("workspace_rollout_governance_legacy_only_scenario_metadata"));
         String legacyInventoryReviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_reviewed_by")));
         String legacyInventoryReviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_reviewed_at"));
         String legacyInventoryReviewNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_governance_legacy_inventory_review_note")));
@@ -1527,6 +1529,8 @@ public class DialogService {
                 resolveDialogConfigValue("workspace_rollout_context_contract_priority_blocks"));
         Map<String, List<String>> contextContractPriorityBlocksByScenario = resolveDialogConfigStringListMap(
                 resolveDialogConfigValue("workspace_rollout_context_contract_priority_blocks_by_scenario"));
+        Map<String, Map<String, String>> contextContractPlaybooks = resolveContextContractPlaybooks(
+                resolveDialogConfigValue("workspace_rollout_context_contract_playbooks"));
         String contextContractReviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_reviewed_by")));
         String contextContractReviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_reviewed_at"));
         String contextContractReviewNote = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_context_contract_review_note")));
@@ -1618,6 +1622,50 @@ public class DialogService {
         OffsetDateTime legacyInventoryReviewedAt = parseReviewTimestamp(legacyInventoryReviewedAtRaw);
         boolean legacyInventoryReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyInventoryReviewedAtRaw))
                 && legacyInventoryReviewedAt == null;
+        Instant now = Instant.now();
+        List<Map<String, Object>> legacyOnlyScenarioDetails = legacyOnlyScenarios.stream()
+                .map(scenario -> {
+                    Map<String, Object> metadata = legacyOnlyScenarioMetadata.getOrDefault(scenario.toLowerCase(Locale.ROOT), Map.of());
+                    String owner = normalizeNullString(String.valueOf(metadata.get("owner")));
+                    String deadlineAt = normalizeNullString(String.valueOf(metadata.get("deadline_at_utc")));
+                    boolean deadlineTimestampInvalid = toBoolean(metadata.get("deadline_timestamp_invalid"));
+                    Instant deadlineInstant = null;
+                    if (StringUtils.hasText(deadlineAt)) {
+                        try {
+                            deadlineInstant = Instant.parse(deadlineAt);
+                        } catch (Exception ignored) {
+                            deadlineTimestampInvalid = true;
+                        }
+                    }
+                    boolean deadlinePresent = StringUtils.hasText(deadlineAt);
+                    boolean deadlineOverdue = deadlineInstant != null && deadlineInstant.isBefore(now);
+                    boolean ownerReady = StringUtils.hasText(owner);
+                    boolean detailReady = ownerReady && deadlinePresent && !deadlineTimestampInvalid;
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("scenario", scenario);
+                    item.put("owner", owner == null ? "" : owner);
+                    item.put("owner_ready", ownerReady);
+                    item.put("deadline_at_utc", deadlineAt == null ? "" : deadlineAt);
+                    item.put("deadline_present", deadlinePresent);
+                    item.put("deadline_timestamp_invalid", deadlineTimestampInvalid);
+                    item.put("deadline_overdue", deadlineOverdue);
+                    item.put("ready", detailReady);
+                    item.put("note", normalizeNullString(String.valueOf(metadata.get("note"))));
+                    return item;
+                })
+                .toList();
+        long legacyOwnerAssignedCount = legacyOnlyScenarioDetails.stream()
+                .filter(item -> toBoolean(item.get("owner_ready")))
+                .count();
+        long legacyDeadlineAssignedCount = legacyOnlyScenarioDetails.stream()
+                .filter(item -> toBoolean(item.get("deadline_present")) && !toBoolean(item.get("deadline_timestamp_invalid")))
+                .count();
+        long legacyDeadlineInvalidCount = legacyOnlyScenarioDetails.stream()
+                .filter(item -> toBoolean(item.get("deadline_timestamp_invalid")))
+                .count();
+        long legacyDeadlineOverdueCount = legacyOnlyScenarioDetails.stream()
+                .filter(item -> toBoolean(item.get("deadline_overdue")))
+                .count();
         boolean contextContractEnabled = contextContractRequired
                 || !contextContractScenarios.isEmpty()
                 || !contextContractMandatoryFields.isEmpty()
@@ -1625,7 +1673,8 @@ public class DialogService {
                 || !contextContractSourceOfTruth.isEmpty()
                 || !contextContractSourceOfTruthByScenario.isEmpty()
                 || !contextContractPriorityBlocks.isEmpty()
-                || !contextContractPriorityBlocksByScenario.isEmpty();
+                || !contextContractPriorityBlocksByScenario.isEmpty()
+                || !contextContractPlaybooks.isEmpty();
         OffsetDateTime contextContractReviewedAt = parseReviewTimestamp(contextContractReviewedAtRaw);
         boolean contextContractReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(contextContractReviewedAtRaw))
                 && contextContractReviewedAt == null;
@@ -1877,13 +1926,26 @@ public class DialogService {
                         ? "not required"
                         : legacyInventoryReady
                                 ? "none"
-                                : "open=%d".formatted(legacyOnlyScenarios.size()),
+                                : "open=%d, owner=%d/%d, deadline=%d/%d%s%s".formatted(
+                                legacyOnlyScenarios.size(),
+                                legacyOwnerAssignedCount,
+                                legacyOnlyScenarios.size(),
+                                legacyDeadlineAssignedCount,
+                                legacyOnlyScenarios.size(),
+                                legacyDeadlineInvalidCount > 0 ? ", invalid_deadlines=%d".formatted(legacyDeadlineInvalidCount) : "",
+                                legacyDeadlineOverdueCount > 0 ? ", overdue=%d".formatted(legacyDeadlineOverdueCount) : ""),
                 legacyInventoryEnabled ? "inventory empty before decommission" : "optional",
                 legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : normalizeUtcTimestamp(safeRolloutScorecard.get("generated_at")),
                 legacyInventoryReady
                         ? firstNonBlank(legacyInventoryReviewNote, legacyInventoryReviewedBy)
                         : Stream.of(
                                 String.join(", ", legacyOnlyScenarios),
+                                legacyOwnerAssignedCount < legacyOnlyScenarios.size()
+                                        ? "missing_owner=%d".formatted(legacyOnlyScenarios.size() - legacyOwnerAssignedCount) : null,
+                                legacyDeadlineAssignedCount < legacyOnlyScenarios.size()
+                                        ? "missing_deadline=%d".formatted(legacyOnlyScenarios.size() - legacyDeadlineAssignedCount) : null,
+                                legacyDeadlineInvalidCount > 0 ? "invalid_deadline=%d".formatted(legacyDeadlineInvalidCount) : null,
+                                legacyDeadlineOverdueCount > 0 ? "overdue_deadline=%d".formatted(legacyDeadlineOverdueCount) : null,
                                 legacyInventoryReviewNote,
                                 legacyInventoryReviewTimestampInvalid ? "invalid_utc" : null)
                         .filter(StringUtils::hasText)
@@ -2109,6 +2171,8 @@ public class DialogService {
         contextContract.put("source_of_truth_by_scenario", contextContractSourceOfTruthByScenario);
         contextContract.put("priority_blocks", contextContractPriorityBlocks);
         contextContract.put("priority_blocks_by_scenario", contextContractPriorityBlocksByScenario);
+        contextContract.put("playbooks", contextContractPlaybooks);
+        contextContract.put("playbook_count", contextContractPlaybooks.size());
         contextContract.put("definition_ready", contextContractDefinitionReady);
 
         Map<String, Object> packet = new LinkedHashMap<>();
@@ -2139,7 +2203,12 @@ public class DialogService {
                 "reviewed_by", legacyInventoryReviewedBy == null ? "" : legacyInventoryReviewedBy,
                 "reviewed_at", legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : "",
                 "review_note", legacyInventoryReviewNote == null ? "" : legacyInventoryReviewNote,
-                "review_timestamp_invalid", legacyInventoryReviewTimestampInvalid
+                "review_timestamp_invalid", legacyInventoryReviewTimestampInvalid,
+                "owners_ready_count", legacyOwnerAssignedCount,
+                "deadlines_ready_count", legacyDeadlineAssignedCount,
+                "deadline_invalid_count", legacyDeadlineInvalidCount,
+                "deadline_overdue_count", legacyDeadlineOverdueCount,
+                "scenario_details", legacyOnlyScenarioDetails
         ));
         packet.put("incident_history", incidentHistory);
         packet.put("context_contract", contextContract);
@@ -2733,6 +2802,61 @@ public class DialogService {
             if (!items.isEmpty()) {
                 normalized.put(key.toLowerCase(Locale.ROOT), items);
             }
+        }
+        return normalized;
+    }
+
+    private Map<String, Map<String, Object>> resolveLegacyOnlyScenarioMetadataMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Map<String, Object>> normalized = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String scenario = normalizeNullString(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
+            if (!StringUtils.hasText(scenario) || !(entry.getValue() instanceof Map<?, ?> item)) {
+                continue;
+            }
+            Object ownerRaw = item.get("owner");
+            String owner = normalizeNullString(ownerRaw == null ? null : String.valueOf(ownerRaw));
+            Object deadlineValue = item.get("deadline_at_utc");
+            String deadlineRaw = normalizeNullString(deadlineValue == null ? null : String.valueOf(deadlineValue));
+            OffsetDateTime deadline = parseReviewTimestamp(deadlineRaw);
+            boolean deadlineTimestampInvalid = StringUtils.hasText(deadlineRaw) && deadline == null;
+            Object noteRaw = item.get("note");
+            String note = normalizeNullString(noteRaw == null ? null : String.valueOf(noteRaw));
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("owner", owner == null ? "" : owner);
+            payload.put("deadline_at_utc", deadline != null ? deadline.toString() : "");
+            payload.put("deadline_timestamp_invalid", deadlineTimestampInvalid);
+            payload.put("note", note == null ? "" : note);
+            normalized.put(scenario.toLowerCase(Locale.ROOT), payload);
+        }
+        return normalized;
+    }
+
+    private Map<String, Map<String, String>> resolveContextContractPlaybooks(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Map<String, String>> normalized = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = normalizeNullString(entry.getKey() == null ? null : String.valueOf(entry.getKey()));
+            if (!StringUtils.hasText(key) || !(entry.getValue() instanceof Map<?, ?> item)) {
+                continue;
+            }
+            Object labelRaw = item.get("label");
+            Object urlRaw = item.get("url");
+            Object summaryRaw = item.get("summary");
+            String label = normalizeNullString(labelRaw == null ? null : String.valueOf(labelRaw));
+            String url = normalizeNullString(urlRaw == null ? null : String.valueOf(urlRaw));
+            String summary = normalizeNullString(summaryRaw == null ? null : String.valueOf(summaryRaw));
+            if (!StringUtils.hasText(url) || (!url.startsWith("https://") && !url.startsWith("http://"))) {
+                continue;
+            }
+            normalized.put(key.toLowerCase(Locale.ROOT), Map.of(
+                    "label", label == null ? "Playbook" : label,
+                    "url", url,
+                    "summary", summary == null ? "" : summary));
         }
         return normalized;
     }
