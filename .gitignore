@@ -1,6 +1,5 @@
 # .gitignore
 .env
-*.db
 __pycache__/
 panel/node_modules/
 node_modules/
