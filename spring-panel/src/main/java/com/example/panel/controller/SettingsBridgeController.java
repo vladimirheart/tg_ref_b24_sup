@@ -180,6 +180,7 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct")
                 || payload.containsKey("dialog_sla_critical_auto_assign_audit_block_on_conflicts")
                 || payload.containsKey("dialog_sla_critical_auto_assign_governance_review_required")
+                || payload.containsKey("dialog_sla_critical_auto_assign_governance_review_path")
                 || payload.containsKey("dialog_sla_critical_auto_assign_governance_review_ttl_hours")
                 || payload.containsKey("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required")
                 || payload.containsKey("dialog_sla_critical_auto_assign_governance_decision_required")
@@ -494,6 +495,9 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_sla_critical_auto_assign_governance_review_required")) {
                     dialogConfig.put("sla_critical_auto_assign_governance_review_required", payload.get("dialog_sla_critical_auto_assign_governance_review_required"));
                 }
+                if (payload.containsKey("dialog_sla_critical_auto_assign_governance_review_path")) {
+                    dialogConfig.put("sla_critical_auto_assign_governance_review_path", payload.get("dialog_sla_critical_auto_assign_governance_review_path"));
+                }
                 if (payload.containsKey("dialog_sla_critical_auto_assign_governance_review_ttl_hours")) {
                     dialogConfig.put("sla_critical_auto_assign_governance_review_ttl_hours", payload.get("dialog_sla_critical_auto_assign_governance_review_ttl_hours"));
                 }
@@ -503,6 +507,7 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_sla_critical_auto_assign_governance_decision_required")) {
                     dialogConfig.put("sla_critical_auto_assign_governance_decision_required", payload.get("dialog_sla_critical_auto_assign_governance_decision_required"));
                 }
+                dialogConfig.put("sla_critical_auto_assign_governance_policy_changed_at", Instant.now().toString());
                 if (payload.containsKey("dialog_sla_critical_operator_skills")) {
                     dialogConfig.put("sla_critical_operator_skills", payload.get("dialog_sla_critical_operator_skills"));
                 }

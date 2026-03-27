@@ -2349,6 +2349,7 @@ class SupportPanelIntegrationTests {
                 "dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct", 55,
                 "dialog_sla_critical_auto_assign_audit_block_on_conflicts", true,
                 "dialog_sla_critical_auto_assign_governance_review_required", true,
+                "dialog_sla_critical_auto_assign_governance_review_path", "strict",
                 "dialog_sla_critical_auto_assign_governance_review_ttl_hours", 48,
                 "dialog_sla_critical_auto_assign_governance_dry_run_ticket_required", true,
                 "dialog_sla_critical_auto_assign_governance_decision_required", true
@@ -2362,9 +2363,11 @@ class SupportPanelIntegrationTests {
         assertThat(dialogConfig.get("sla_critical_auto_assign_audit_broad_rule_coverage_pct")).isEqualTo(55L);
         assertThat(dialogConfig.get("sla_critical_auto_assign_audit_block_on_conflicts")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_path")).isEqualTo("strict");
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_ttl_hours")).isEqualTo(48L);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_required")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_decision_required")).isEqualTo(true);
+        assertThat(dialogConfig.get("sla_critical_auto_assign_governance_policy_changed_at")).isNotNull();
     }
 
     @Test
